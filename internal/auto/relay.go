@@ -55,7 +55,7 @@ type Job struct {
 	Start       string          `json:"start"`
 	Entry       *QueueEntry     `json:"entry"`
 	State       []record        `json:"state"`
-	Answers     []reply         `json:"answers"`
+	Reply       *reply          `json:"reply"`
 	Ledger      json.RawMessage `json:"ledger"`
 	Work        json.RawMessage `json:"work"`
 	Response    json.RawMessage `json:"toolResponse"`
@@ -64,19 +64,20 @@ type Job struct {
 	Messages    []Message       `json:"messages"`
 	Tally       []Counts        `json:"tally"`
 	Warnings    []string        `json:"warnings"`
+	Message     string          `json:"message"`
 }
 
 // Response is what `engram auto run` prints: the effects of the round for the mod to apply (the debug log lines, the
-// warnings to show and the counts to tally), then either the end of the job or what it needs: the model requests to
-// relay, a time to wait, and the state to send back with the replies.
+// warnings to show and the counts to tally), then either the end of the job or what it needs: the model request to
+// relay, a time to wait, and the state to send back with the reply.
 type Response struct {
-	Log      []string  `json:"log,omitempty"`
-	Warnings []string  `json:"warnings,omitempty"`
-	Counts   Counts    `json:"counts"`
-	Done     *Done     `json:"done,omitempty"`
-	Requests []Request `json:"requests,omitempty"`
-	WaitMs   int       `json:"waitMs,omitempty"`
-	State    []record  `json:"state,omitempty"`
+	Log      []string `json:"log,omitempty"`
+	Warnings []string `json:"warnings,omitempty"`
+	Counts   Counts   `json:"counts"`
+	Done     *Done    `json:"done,omitempty"`
+	Request  *Request `json:"request,omitempty"`
+	WaitMs   int      `json:"waitMs,omitempty"`
+	State    []record `json:"state,omitempty"`
 }
 
 // Run reads one job from its JSON, advances it one round and returns the response as JSON. A step that fails is a
@@ -86,7 +87,7 @@ func Run(deps Deps, input []byte) ([]byte, error) {
 	jobs := map[string]func() Done{
 		"lookup": e.lookupJob, "step": e.stepJob, "tool": e.toolJob, "compact": e.compactJob, "capture": e.captureJob,
 		"subagent": e.subagentJob, "housekeeping": e.housekeepingJob, "summary": e.summaryJob, "enqueue": e.enqueueJob,
-		"resume": e.resumeJob,
+		"resume": e.resumeJob, "failure": e.failureJob,
 	}
 
 	err := json.Unmarshal(input, &e.job)
@@ -117,13 +118,13 @@ func Run(deps Deps, input []byte) ([]byte, error) {
 	var done Done
 
 	if waiting := e.guard(e.job.Step, func() { done = run() }); waiting != nil {
-		e.resp.Requests, e.resp.WaitMs, e.resp.State = waiting.requests, waiting.waitMs, e.journal
+		e.resp.Request, e.resp.WaitMs, e.resp.State = waiting.request, waiting.waitMs, e.journal
 	} else {
 		done.Ledger, done.Work = must(json.Marshal(e.ledger)), must(json.Marshal(e.work))
 		e.resp.Done = &done
 	}
 
-	return json.Marshal(e.resp) //nolint:wrapcheck // a response of plain values cannot fail to encode
+	return must(json.Marshal(e.resp)), nil // a response of plain values cannot fail to encode
 }
 
 // engine is one round of one job. A job is straight-line code that fails as the JavaScript it replaces did: by panic
@@ -147,7 +148,7 @@ func (e *engine) ask(request Request) reply {
 	rec, replayed := e.next()
 	if !replayed {
 		e.journal = append(e.journal, record{Hash: hash, Pending: true})
-		panic(&pause{requests: []Request{request}})
+		panic(&pause{request: &request})
 	}
 
 	var answer reply
@@ -233,8 +234,8 @@ func (e *engine) resume() {
 	if last := len(e.journal) - 1; last >= 0 && e.journal[last].Pending {
 		e.journal[last].Pending = false
 
-		if len(e.job.Answers) > 0 {
-			e.journal[last].Out = string(must(json.Marshal(e.job.Answers[0])))
+		if e.job.Reply != nil {
+			e.journal[last].Out = string(must(json.Marshal(e.job.Reply)))
 		}
 	}
 
@@ -286,8 +287,8 @@ func (e *engine) write(path, text string) {
 
 // pause unwinds a job that needs the mod: it has asked for a model reply or a wait.
 type pause struct {
-	requests []Request
-	waitMs   int
+	request *Request
+	waitMs  int
 }
 
 // record is what one effect of the job returned.

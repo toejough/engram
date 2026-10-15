@@ -1,6 +1,7 @@
 package auto_test
 
 import (
+	"errors"
 	"slices"
 	"testing"
 
@@ -113,6 +114,18 @@ func Test793d25b1_TheDefaultTableHasARowForExactlyTheFourKinds(t *testing.T) {
 	keys := sortedTierKeys(auto.DefaultTiers())
 
 	g.Expect(keys).To(Equal([]string{tierKindCapture, tierKindClassify, tierKindCuration, tierKindRelevance}))
+}
+
+func Test793d25b1_ThePanicOfABugIsNotTurnedIntoASuccessByTheHelperThatRunsAParser(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(func() { _, _ = auto.Try(func() int { panic("a bug, not a reply that was rejected") }) }).
+		To(PanicWith("a bug, not a reply that was rejected"))
+
+	_, err := auto.Try(func() int { panic(errors.New("a reply that was rejected")) })
+	g.Expect(err).To(MatchError("a reply that was rejected"))
 }
 
 // unexported constants.

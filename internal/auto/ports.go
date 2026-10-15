@@ -5,25 +5,30 @@ import "time"
 // Clock is the wall clock.
 type Clock interface{ Now() time.Time }
 
-// Deps are the impure capabilities of a job, injected at the edge.
+// Deps are the impure capabilities of a job, injected at the edge: the commands it runs, the files it reads, the
+// pending offers of the vault as the pending-offer bookkeeping tells them, the clock, and where the vault and the chunk
+// index are, resolved as the engram commands resolve them.
 type Deps struct {
-	Runner Runner
-	Files  Files
-	Env    Env
-	Clock  Clock
+	Runner    Runner
+	Files     Files
+	Offers    Offers
+	Clock     Clock
+	VaultPath string
+	ChunksDir string
 }
 
-// Env reads the environment of the process.
-type Env interface{ Get(key string) string }
-
-// Files is the file system the job reads transcripts, the chunk index and the vault from, and writes the backlog
+// Files is the file system the job reads transcripts and the chunk index from, and writes the queue and the backlog
 // marks to.
 type Files interface {
 	Read(path string) (string, error)
 	Write(path, text string) error
 	Exists(path string) bool
-	// Walk lists the regular files below root.
-	Walk(root string) ([]string, error)
+}
+
+// Offers lists the pending offers of a vault.
+type Offers interface {
+	// Pending lists, in name order, the file names of the notes of the vault that are pending offers.
+	Pending(vault string) ([]string, error)
 }
 
 // Output is what a command printed.

@@ -26,8 +26,8 @@ type AmendArgs struct {
 	Target       string   `json:"target"       targ:"flag,name=target,required,desc=note ref: full basename | [[wikilink]] | trailing .md | or bare Luhmann id (required)"`    //nolint:lll // single unbreakable struct-tag string
 	Supersedes   []string `json:"supersedes"   targ:"flag,name=supersedes,desc=supersession: <note>|<type>|<claim> (updates/narrows/refutes)"`                                 //nolint:lll // single unbreakable struct-tag string
 	ChunkSources []string `json:"chunkSources" targ:"flag,name=chunk-source,desc=chunk id (source#anchor) merged into sources: (repeatable)"`                                  //nolint:lll // single unbreakable struct-tag string
-	Source       string   `json:"source"       targ:"flag,name=source,desc=append a provenance line to the note's source: once (optional)"`                                    //nolint:lll // single unbreakable struct-tag string
-	ChunksDir    string   `json:"chunksDir"    targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`                                        //nolint:lll // single unbreakable struct-tag string
+	Source       string   `json:"source"       targ:"flag,name=source,desc=append a provenance line to source: once"`
+	ChunksDir    string   `json:"chunksDir"    targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"` //nolint:lll // single unbreakable struct-tag string
 	// Content flags — only supplied fields are overwritten.
 	Situation string `json:"situation" targ:"flag,name=situation,desc=replace situation (optional)"`
 	Subject   string `json:"subject"   targ:"flag,name=subject,desc=replace subject (fact; optional)"`

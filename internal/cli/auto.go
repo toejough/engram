@@ -17,8 +17,9 @@ import (
 
 // unexported constants.
 const (
-	autoDirPerm  fs.FileMode = 0o755
-	autoFilePerm fs.FileMode = 0o644
+	autoDirPerm fs.FileMode = 0o755
+	// the queue file and the marks hold the text of the user's conversations: the user alone reads them
+	autoFilePerm fs.FileMode = 0o600
 )
 
 // unexported variables.
@@ -32,12 +33,6 @@ type autoClock struct{ now func() time.Time }
 
 // Now is the time.
 func (c autoClock) Now() time.Time { return c.now() }
-
-// autoEnv reads the environment of a job.
-type autoEnv struct{ getenv func(string) string }
-
-// Get reads a variable.
-func (e autoEnv) Get(key string) string { return e.getenv(key) }
 
 // autoFiles is the file system of a job.
 type autoFiles struct{ edge EdgeFS }
@@ -59,24 +54,6 @@ func (f autoFiles) Read(path string) (string, error) {
 	return string(data), nil
 }
 
-// Walk lists the regular files below root.
-func (f autoFiles) Walk(root string) ([]string, error) {
-	var files []string
-
-	err := f.edge.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr == nil && entry.Type().IsRegular() {
-			files = append(files, path)
-		}
-
-		return walkErr
-	})
-	if err != nil {
-		return nil, fmt.Errorf("walking: %w", err)
-	}
-
-	return files, nil
-}
-
 // Write writes a file, and the directory it is in.
 func (f autoFiles) Write(path, text string) error {
 	err := f.edge.MkdirAll(filepath.Dir(path), autoDirPerm)
@@ -91,12 +68,27 @@ func (f autoFiles) Write(path, text string) error {
 	return nil
 }
 
+// autoOffers lists the pending offers of the vault as the pending-offer bookkeeping tells them.
+type autoOffers struct{ edge EdgeFS }
+
+// Pending lists the file names of the pending offers of the vault, in name order.
+func (o autoOffers) Pending(vault string) ([]string, error) {
+	return pendingOfferNames(vault, o.edge.ReadDir, o.edge.ReadFile)
+}
+
 // autoRunner runs the commands of a job.
 type autoRunner func(argv []string, deadline time.Duration) (auto.Output, error)
 
 // Run runs a command within its deadline.
 func (r autoRunner) Run(argv []string, deadline time.Duration) (auto.Output, error) {
 	return r(argv, deadline)
+}
+
+// autoDirectories are where the vault and the chunk index are, resolved as the engram commands resolve them.
+func autoDirectories(deps Deps) (vault, chunks string) {
+	home := homeOrEmpty(deps)
+
+	return resolveVault("", home, deps.Getenv), ResolveChunksDir("", home, deps.Getenv)
 }
 
 // autoTargets returns `engram auto run`.
@@ -117,11 +109,14 @@ func runAuto(ctx context.Context, deps Deps) error {
 		return fmt.Errorf("auto run: reading the job: %w", err)
 	}
 
+	vault, chunks := autoDirectories(deps)
+
 	output, err := auto.Run(auto.Deps{
 		Runner: autoRunner(func(argv []string, deadline time.Duration) (auto.Output, error) {
 			return runAutoCommand(ctx, deps.Commander, argv, deadline)
 		}),
-		Files: autoFiles{edge: deps.FS}, Env: autoEnv{getenv: deps.Getenv}, Clock: autoClock{now: deps.Now},
+		Files: autoFiles{edge: deps.FS}, Offers: autoOffers{edge: deps.FS}, Clock: autoClock{now: deps.Now},
+		VaultPath: vault, ChunksDir: chunks,
 	}, input)
 	if err != nil {
 		return fmt.Errorf("auto run: %w", err)

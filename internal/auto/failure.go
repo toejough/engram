@@ -16,8 +16,11 @@ func (e *StepError) Error() string { return e.Message }
 const (
 	deadlineCommand = 30 * time.Second
 	deadlineIngest  = 300 * time.Second
-	deadlineLookup  = 25 * time.Second
-	deadlineMoment  = 2 * time.Second
+	// the query of a moment's lookup, which a prompt waits for: 1.5 times the 95th percentile of the query on the notes
+	// of a real vault, six at once, 1.42 s (793b408)
+	deadlineMomentQuery = 2200 * time.Millisecond
+	// the query of the nearest notes of a capture or an offer, which nothing waits for
+	deadlineNearest = 25 * time.Second
 	errorLimit      = 200
 	kindError       = "error"
 	kindTimeout     = "timeout"
@@ -44,6 +47,17 @@ func (e *engine) exec(argv []string, deadline time.Duration) string {
 
 		return out.Stdout, nil
 	}))
+}
+
+// failureJob words a failure the mod met (a program that exited, a job it gave up on, a model call that threw): the
+// step it was in and what it said, as the warning the user is shown. The engine classifies and words every failure,
+// those of its own steps and these (793d36b3); only an engine that cannot run at all is worded by the mod.
+func (e *engine) failureJob() Done {
+	if e.live() && e.job.Step != "" {
+		e.resp.Warnings = append(e.resp.Warnings, warning(e.job.Step, failureKind(e.job.Message)))
+	}
+
+	return Done{}
 }
 
 // failureKind is the class of a failure from the text it left: the stderr of a command, the reason a model call gave.

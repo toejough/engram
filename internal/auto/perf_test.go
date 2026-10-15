@@ -91,10 +91,25 @@ func Test793d36b3_APromptAtThe95thPercentileStillGetsItsNoteWithinTheHoldCeiling
 	g.Expect(world.Commands[0].Deadline + timeout).To(BeNumerically("<=", perfHoldCeiling))
 }
 
+// 793d36b3: the lookup of a moment is cut at its deadline, and the deadline sits above the 95th percentile of the query
+// with a margin of one and a half (793b408). The percentile is that of the query as the System issues it, on the
+// notes of a real vault of 2,189 notes, six at once; the same query with the vault's chunk index, which the System
+// does not leave out, took 12.3 s alone and 18.5 s six at once, and no deadline in the 8 s hold covers that.
+func Test793d36b3_TheDeadlineOfAMomentQueryIsAtLeastOneAndAHalfTimesItsMeasuredPercentile(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	margin := time.Duration(float64(perfQueryP95) * perfQueryMargin)
+
+	g.Expect(auto.DeadlineMomentQuery).To(BeNumerically(">=", margin))
+}
+
 // unexported constants.
 const (
 	perfClassifyP95      = 2980
 	perfHoldCeiling      = 8000 * time.Millisecond
+	perfQueryMargin      = 1.5
+	perfQueryP95         = 1420 * time.Millisecond
 	perfRelevanceP95     = 3440
 	perfSubagentFile     = "/home/.claude/projects/p/s/subagents/a1.jsonl"
 	perfSubagentLast     = "Noted: targ test."

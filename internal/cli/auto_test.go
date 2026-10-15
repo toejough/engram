@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -15,18 +16,115 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
-func Test793d36b1_AutoEnvAndClockReadTheInjectedCapabilities(t *testing.T) {
+func Test793d28b3_TheChunksDirectoryFollowsTheVariablesOfTheEngramCommands(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		env  map[string]string
+		home string
+		dir  string
+	}{
+		"ENGRAM_CHUNKS_DIR": {map[string]string{"ENGRAM_CHUNKS_DIR": "/custom/chunks"}, "/home/me", "/custom/chunks"},
+		"XDG_DATA_HOME":     {map[string]string{"XDG_DATA_HOME": "/xdg"}, "/home/me", "/xdg/engram/chunks"},
+		"the home, no variable": {
+			map[string]string{}, "/home/me", "/home/me/.local/share/engram/chunks",
+		},
+	}
+
+	for name, one := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			g := gomega.NewWithT(t)
+			_, chunks := cli.AutoDirectoriesForTest(one.home, one.env)
+
+			g.Expect(chunks).To(gomega.Equal(one.dir))
+		})
+	}
+}
+
+func Test793d29b1_AutoOffersAreTheNotesThePendingOfferBookkeepingCallsPending(t *testing.T) {
 	t.Parallel()
 
 	g := gomega.NewWithT(t)
-	env := cli.NewAutoEnvForTest(func(key string) string { return "value of " + key })
+	root := t.TempDir()
+	deps := newTestDeps(&bytes.Buffer{}, &bytes.Buffer{})
+	files := cli.NewAutoFilesForTest(deps.FS)
+	pending := "---\ntype: fact\nsituation: s\nsubject: a\npredicate: b\nobject: c\npending: true\n---\n\nbody\n"
+	live := strings.Replace(pending, "pending: true\n", "", 1)
+	vocabulary := strings.Replace(pending, "type: fact", "type: vocab", 1)
+
+	for name, text := range map[string]string{
+		"2.2026-10-12.offer-b.md": pending, "1.2026-10-12.offer-a.md": pending, "3.2026-10-12.live.md": live,
+		"4.2026-10-12.vocab.md": vocabulary,
+	} {
+		g.Expect(files.Write(root+"/vault/"+name, text)).To(gomega.Succeed())
+	}
+
+	g.Expect(files.Write(root+"/vault/sub/6.2026-10-12.nested.md", pending)).To(gomega.Succeed())
+
+	names, err := cli.NewAutoOffersForTest(deps.FS).Pending(root + "/vault")
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(names).To(gomega.Equal([]string{"1.2026-10-12.offer-a.md", "2.2026-10-12.offer-b.md"}))
+
+	_, err = cli.NewAutoOffersForTest(deps.FS).Pending(root + "/nowhere")
+	g.Expect(err).To(gomega.HaveOccurred())
+}
+
+func Test793d29b1_TheVaultIsFoundUnderTheEngramDataDirectoryWhenNoPathIsGiven(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		env   map[string]string
+		vault string
+	}{
+		"ENGRAM_VAULT_PATH": {map[string]string{"ENGRAM_VAULT_PATH": "/v"}, "/v"},
+		"the data home":     {map[string]string{"XDG_DATA_HOME": "/data"}, "/data/engram/vault"},
+		"the home":          {map[string]string{}, "/home/t/.local/share/engram/vault"},
+	}
+
+	for name, one := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			g := gomega.NewWithT(t)
+			vault, _ := cli.AutoDirectoriesForTest("/home/t", one.env)
+
+			g.Expect(vault).To(gomega.Equal(one.vault))
+		})
+	}
+}
+
+func Test793d36b1_AutoClockReadsTheInjectedCapability(t *testing.T) {
+	t.Parallel()
+
+	g := gomega.NewWithT(t)
 	now := time.UnixMilli(5)
 
-	g.Expect(env.Get("HOME")).To(gomega.Equal("value of HOME"))
 	g.Expect(cli.NewAutoClockForTest(func() time.Time { return now }).Now()).To(gomega.Equal(now))
 }
 
-func Test793d36b1_AutoFilesReadWriteWalkAndTellWhatIsThere(t *testing.T) {
+func Test793d36b1_AutoFilesAreReadableByTheUserAlone(t *testing.T) {
+	t.Parallel()
+
+	g := gomega.NewWithT(t)
+	root := t.TempDir()
+	files := cli.NewAutoFilesForTest(newTestDeps(&bytes.Buffer{}, &bytes.Buffer{}).FS)
+
+	g.Expect(files.Write(root+"/chunks/capture-queue.json", "[]")).To(gomega.Succeed())
+
+	info, err := os.Stat(root + "/chunks/capture-queue.json")
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(info.Mode().Perm()).To(gomega.Equal(os.FileMode(0o600)))
+}
+
+func Test793d36b1_AutoFilesReadWriteAndTellWhatIsThere(t *testing.T) {
 	t.Parallel()
 
 	g := gomega.NewWithT(t)
@@ -43,12 +141,6 @@ func Test793d36b1_AutoFilesReadWriteWalkAndTellWhatIsThere(t *testing.T) {
 	_, err = files.Read(root + "/vault/missing.md")
 	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("no such file")))
 
-	walked, err := files.Walk(root + "/vault")
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(walked).To(gomega.Equal([]string{root + "/vault/1.a.md", root + "/vault/sub/2.b.md"}))
-
-	_, err = files.Walk(root + "/nowhere")
-	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(files.Exists(root + "/vault")).To(gomega.BeTrue())
 	g.Expect(files.Exists(root + "/nowhere")).To(gomega.BeFalse())
 }

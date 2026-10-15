@@ -1,7 +1,10 @@
 package cli
 
 import (
+	"fmt"
+	"io/fs"
 	"path/filepath"
+	"slices"
 
 	"go.yaml.in/yaml/v3"
 
@@ -118,6 +121,37 @@ func notesHavePendingOfferByName(vault string, names []string, readFile func(str
 	}
 
 	return false
+}
+
+// pendingOfferNames lists, in name order, the notes of vaultPath that carry the pending-offer marker
+// (792b34c1 The pending-offer marker): the scan `vaultHasPendingOffers` makes, for the one who has to settle them.
+// A vault directory that cannot be read is an error; a note that cannot be read is not an offer.
+func pendingOfferNames(
+	vaultPath string,
+	readDir func(string) ([]fs.DirEntry, error),
+	readFile func(string) ([]byte, error),
+) ([]string, error) {
+	entries, readErr := readDir(vaultPath)
+	if readErr != nil {
+		return nil, fmt.Errorf("listing the pending offers: %w", readErr)
+	}
+
+	names := make([]string, 0, len(entries))
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		raw, fileErr := readFile(filepath.Join(vaultPath, entry.Name()))
+		if fileErr == nil && noteHasPendingMarker(raw) {
+			names = append(names, entry.Name())
+		}
+	}
+
+	slices.Sort(names)
+
+	return names, nil
 }
 
 // pendingOffersHint returns the query payload's pending_offers_hint value:

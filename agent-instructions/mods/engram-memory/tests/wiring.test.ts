@@ -12,7 +12,7 @@ const REPLY = { isAnswered: true, text: '[1]', usage: {} }
 
 // asks answers a job's first round with a need for the request and its second with the block.
 const asks = (_job: Job, call: number): Answer =>
-  call % 2 === 1 ? { requests: [REQUEST], state: ['s'] } : { done: { block: BLOCK } }
+  call % 2 === 1 ? { request: REQUEST, state: ['s'] } : { done: { block: BLOCK } }
 
 async function runStep($: Driver): Promise<void> {
   const stream = $.turn.step(STEP_INPUT)
@@ -35,14 +35,14 @@ describe('the relay of a job (793b197)', () => {
         readContext: true,
         step: 'the prompt lookup',
       })
-      expectHas(jobs[1], { kind: 'lookup', state: ['s'], answers: [REPLY] })
+      expectHas(jobs[1], { kind: 'lookup', state: ['s'], reply: REPLY })
       expect(result.context).toEqual([BLOCK])
     },
   )
 
   test('a wait is slept on the clock before the next round', async ($: Driver, on: On) => {
     const { clock, jobs } = world(on, {
-      engine: (_job, call) => (call === 1 ? { requests: [], waitMs: 500, state: [] } : { done: {} }),
+      engine: (_job, call) => (call === 1 ? { waitMs: 500, state: [] } : { done: {} }),
     })
     const submitted = $.prompt.submit(PROMPT)
     await clock.advance(499)
@@ -72,39 +72,57 @@ describe('the relay of a job (793b197)', () => {
     },
   )
 
+  // the engine words and classes a failure the mod met: here it is played by a script that words it as the engine does
+  const WORDED = 'Automatic memory was skipped because of the wording of the engine (the prompt lookup)'
   const FAILURES: [string, Answer, string][] = [
-    ['the program exits with an error', { exit: 70, stderr: 'injected failure' }, 'of an error'],
-    [
-      'the program cannot start',
-      { reject: '$.process.run(engram) failed to start: ENOENT' },
-      'the vault is unavailable',
-    ],
+    ['the program exits with an error', { exit: 70, stderr: 'injected failure' }, 'engram auto run exited 70'],
     [
       'the program is cut at its deadline',
       { reject: '$.process.run(engram) aborted: still running after 600000ms' },
-      'the System timed out',
+      'still running after 600000ms',
     ],
   ]
-  for (const [name, answer, reason] of FAILURES) {
-    test(`793d22b3 when ${name} the prompt goes on as typed and the user is told why`, async ($: Driver, on: On) => {
-      const { shown } = world(on, { engine: () => answer })
+  for (const [name, answer, said] of FAILURES) {
+    test(`793d22b3 when ${name} the engine words it, and the prompt goes on as typed`, async ($: Driver, on: On) => {
+      const { jobs, shown } = world(on, {
+        engine: (job) => (job.kind === 'failure' ? { warnings: [WORDED], done: {} } : answer),
+      })
       const result = await $.prompt.submit(PROMPT)
       expect(result.text).toBe(PROMPT.text)
       expect(result.context ?? []).toEqual([])
-      expect(shown).toEqual([`Automatic memory was skipped because ${reason} (the prompt lookup)`])
+      expect(shown).toEqual([WORDED])
+      const failure = jobs.filter((job) => job.kind === 'failure')
+      expect(failure.length).toBe(1)
+      expectHas(failure[0], { step: 'the prompt lookup' })
+      expect(String(failure[0].message)).toContain(said)
     })
   }
+
+  test(
+    '793d22b3 when the program cannot start nothing can word it: the prompt goes on as typed and the user is told',
+    async ($: Driver, on: On) => {
+      const { shown } = world(on, { engine: () => ({ reject: '$.process.run(engram) failed to start: ENOENT' }) })
+      const result = await $.prompt.submit(PROMPT)
+      expect(result.text).toBe(PROMPT.text)
+      expect(result.context ?? []).toEqual([])
+      expect(shown).toEqual(['Automatic memory was skipped because the vault is unavailable (the prompt lookup)'])
+    },
+  )
 })
 
 describe('the hold of an event (793d22b3)', () => {
+  // the engine words a job the mod cut as a timeout
+  const TIMED_OUT = 'Automatic memory was skipped because the System timed out (the prompt lookup)'
   const LOOKUP_SILENT = (job: Job, call: number): Promise<Answer> | Answer =>
     job.kind === 'lookup' && call === 1 ? new Promise<Answer>(() => {}) : { done: { block: BLOCK } }
+  const engineWords = (job: Job, call: number): Promise<Answer> | Answer =>
+    job.kind === 'failure' ? { warnings: [TIMED_OUT], done: {} } : LOOKUP_SILENT(job, call)
 
   test(
     '793d22b3 a job that holds the prompt past 8 s is cut: the prompt goes on as typed, the user is told, ' +
       'and the next prompt is served',
     async ($: Driver, on: On) => {
-      const { clock, jobs, shown } = world(on, { engine: LOOKUP_SILENT })
+      const { clock, jobs, shown } = world(on, { engine: engineWords })
       const submitted = $.prompt.submit(PROMPT)
       await clock.advance(7999)
       expect(shown).toEqual([])
@@ -112,7 +130,7 @@ describe('the hold of an event (793d22b3)', () => {
       const result = await submitted
       expect(result.text).toBe(PROMPT.text)
       expect(result.context ?? []).toEqual([])
-      expect(shown).toEqual(['Automatic memory was skipped because the System timed out (the prompt lookup)'])
+      expect(shown).toEqual([TIMED_OUT])
       const next = await $.prompt.submit(PROMPT)
       expect(next.context).toEqual([BLOCK])
       expect(jobs.filter((job) => job.kind === 'lookup').length).toBe(2)
@@ -131,9 +149,10 @@ describe('the hold of an event (793d22b3)', () => {
     '793d22b3 a round that would start after the cut is not started',
     async ($: Driver, on: On) => {
       let rounds = 0
-      const slow = async (): Promise<Answer> => {
+      const slow = async (job: Job): Promise<Answer> => {
+        if (job.kind === 'failure') return { warnings: [TIMED_OUT], done: {} }
         rounds += 1
-        return { requests: [], waitMs: 5000, state: ['s'] }
+        return { waitMs: 5000, state: ['s'] }
       }
       const { clock, shown } = world(on, { engine: slow })
       const submitted = $.prompt.submit(PROMPT)
@@ -256,6 +275,27 @@ describe('the in-turn cue (793d23b2)', () => {
   )
 
   test(
+    '793d23b2 a step hands the job the last 50 messages with their role and text, not the whole session',
+    async ($: Driver, on: On) => {
+      const HUGE = 'x'.repeat(100000)
+      const session = Array.from({ length: 5000 }, (_, index) => ({
+        role: index % 2 === 0 ? 'user' : 'assistant',
+        text: `message ${index}`,
+        toolUses: [{ tool: 'Read' }],
+        toolResults: [HUGE],
+      }))
+      const { clock, jobs } = world(on, { engine: cue, messages: session })
+      await runStep($)
+      await clock.settle()
+      const sent = jobs[0].messages as { role: string; text: string }[]
+      expect(sent.length).toBe(50)
+      expect(sent.at(-1)).toEqual({ role: 'assistant', text: 'message 4999' })
+      expect(Object.keys(sent[0]).sort()).toEqual(['role', 'text'])
+      expect(JSON.stringify(jobs[0]).length).toBeLessThanOrEqual(20000)
+    },
+  )
+
+  test(
     'no job is started for a step of a subagent or while another ' + 'is running; the cue is dropped with its turn',
     async ($: Driver, on: On) => {
       const { clock, jobs } = world(on, { engine: () => new Promise<Answer>(() => {}) })
@@ -295,6 +335,7 @@ describe('the in-turn cue (793d23b2)', () => {
 })
 
 describe('the queue (793d22b2)', () => {
+  const WORDED_CAPTURE = 'Automatic memory was skipped because of an error (the capture)'
   const ENTRY = { window: 'User: No, use targ.', source: 'captured from the conversation', transcript: '/t/s.jsonl' }
   const work = (job: Job): Answer =>
     job.kind === 'enqueue' ? { done: { queued: ENTRY } } : { done: { work: { name: job.kind } } }
@@ -349,15 +390,19 @@ describe('the queue (793d22b2)', () => {
     'a job that fails warns, and the next one still runs; a ' + 'subagent turn is not captured at its turn.complete',
     async ($: Driver, on: On) => {
       const { clock, jobs, shown } = world(on, {
-        engine: (job) => (job.kind === 'capture' ? { exit: 1, stderr: 'boom' } : { done: {} }),
+        engine: (job) => {
+          if (job.kind === 'failure') return { warnings: [WORDED_CAPTURE], done: {} }
+          return job.kind === 'capture' ? { exit: 1, stderr: 'boom' } : { done: {} }
+        },
       })
       await $.turn.complete({ ...COMPLETE, agentId: 'a1' })
       await clock.settle()
       expect(jobs).toEqual([])
       await $.turn.complete(COMPLETE)
       await clock.settle()
-      expect(jobs.map((job) => job.kind)).toEqual(['enqueue', 'capture', 'housekeeping', 'summary'])
-      expect(shown).toContain('Automatic memory was skipped because of an error (the capture)')
+      expect(jobs.map((job) => job.kind)).toEqual(['enqueue', 'capture', 'failure', 'housekeeping', 'summary'])
+      expectHas(jobs[2], { step: 'the capture' })
+      expect(shown).toContain(WORDED_CAPTURE)
     },
   )
 

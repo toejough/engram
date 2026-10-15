@@ -9,7 +9,7 @@ import (
 	"github.com/toejough/engram/internal/auto"
 )
 
-// The wire format the mod reads (793b197, 793b370): `requests`, `waitMs` and `state` when a job needs the mod, `done`
+// The wire format the mod reads (793b197, 793b370): `request`, `waitMs` and `state` when a job needs the mod, `done`
 // when it is over, and the effects of the round beside them. The mod's own tests script an engine with these names.
 func Test793d36b1_TheResponseHasTheNamesTheModReads(t *testing.T) {
 	t.Parallel()
@@ -23,22 +23,19 @@ func Test793d36b1_TheResponseHasTheNamesTheModReads(t *testing.T) {
 	var first map[string]any
 
 	g.Expect(json.Unmarshal(runOnce(t, world, job), &first)).To(Succeed())
-	g.Expect(first).To(HaveKey("requests"))
+	g.Expect(first).To(HaveKey("request"))
 	g.Expect(first).To(HaveKey("state"))
 	g.Expect(first).NotTo(HaveKey("done"))
 	g.Expect(first).To(HaveKey("counts"))
 
-	requests, _ := first["requests"].([]any)
-	g.Expect(requests).To(HaveLen(1))
-
-	request, _ := requests[0].(map[string]any)
+	request, _ := first["request"].(map[string]any)
 	g.Expect(request).To(HaveLen(5))
 
 	for _, key := range []string{"model", "effort", "prompt", "maxTokens", "timeoutMs"} {
 		g.Expect(request).To(HaveKey(key))
 	}
 
-	job["state"], job["answers"] = first["state"], []any{Answer("[1]")}
+	job["state"], job["reply"] = first["state"], Answer("[1]")
 
 	var second map[string]any
 
@@ -60,7 +57,7 @@ func Test793d36b2_AJobWhoseRequestChangedBetweenItsRoundsFailsAndDeliversNothing
 	job := map[string]any{"kind": "lookup", "moment": "prompt", "step": "the prompt lookup", "text": "is it done?"}
 
 	first := world.round(t, job)
-	job["state"], job["answers"], job["text"] = first.State, world.relay(first), "is it ready?"
+	job["state"], job["reply"], job["text"] = first.State, world.relay(first), "is it ready?"
 	again := world.round(t, job)
 
 	g.Expect(again.Done).NotTo(BeNil())
@@ -82,10 +79,10 @@ func Test793d36b2_ARoundAnswersFromTheRecordWhatAnEarlierRoundDid(t *testing.T) 
 	job := map[string]any{"kind": "lookup", "moment": "prompt", "step": "the prompt lookup", "text": "is it done?"}
 
 	first := world.round(t, job)
-	g.Expect(first.Requests).To(HaveLen(1))
+	g.Expect(first.Request).NotTo(BeNil())
 	g.Expect(world.Names()).To(Equal([]string{"query"}))
 
-	job["state"], job["answers"] = first.State, world.relay(first)
+	job["state"], job["reply"] = first.State, world.relay(first)
 	again := world.round(t, job)
 
 	g.Expect(again.Done).NotTo(BeNil())

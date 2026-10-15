@@ -299,36 +299,6 @@ func Test793d29b1_SkillRegistrationsDoNotCountAgainstTheCapAndAreShownOnceInTheP
 	g.Expect(curateAmends(world)).To(HaveLen(curateOfferTot))
 }
 
-func Test793d29b1_TheVaultIsFoundUnderTheEngramDataDirectoryWhenNoPathIsGiven(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name  string
-		env   map[string]string
-		vault string
-	}{
-		{"the data home", map[string]string{"XDG_DATA_HOME": "/data", "HOME": "/home/t"}, "/data/engram/vault"},
-		{"the home", map[string]string{"HOME": "/home/t"}, "/home/t/.local/share/engram/vault"},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
-			g := NewWithT(t)
-			world := curateWorld(curateDecision("absent", nil, nil), curateShow(curateSituation, "", curateHash))
-			world.Env = test.env
-			world.Files[test.vault] = ""
-			world.Files[test.vault+"/"+curateOffer] = curateOpenFile
-			delete(world.Files, "/vault/"+curateOffer)
-
-			curateHousekeeping(t, world)
-
-			g.Expect(curateAmends(world)).To(Equal([]string{curateCleared}))
-		})
-	}
-}
-
 func Test793d29b2_ANoteThatIsNoLongerPendingIsLeftAlone(t *testing.T) {
 	t.Parallel()
 

@@ -114,9 +114,10 @@ func Test793d37b1_ATurnIsWrittenToTheFileWithItsWindowAndSourceAndNothingIsJudge
 		"Agent: I will run go test ./...\nUser: No, use targ, not go test directly.\nAgent: Understood, I will use targ."))
 	g.Expect(entries[0].Source).To(Equal(auto.SourceFor("sess-1", 3, "")))
 	g.Expect(entries[0].Transcript).To(Equal(transcriptPath))
+	g.Expect(entries[0].QueuedAt).To(Equal(float64(world.Clock.UnixMilli())))
 	g.Expect(done.Queued).NotTo(BeNil())
 	g.Expect(*done.Queued).To(Equal(auto.QueueEntry{
-		Window: entries[0].Window, Source: entries[0].Source, Transcript: transcriptPath,
+		Window: entries[0].Window, Source: entries[0].Source, Transcript: transcriptPath, QueuedAt: entries[0].QueuedAt,
 	}))
 	g.Expect(world.Requests).To(BeEmpty())
 	g.Expect(world.Commands).To(BeEmpty())
@@ -158,6 +159,25 @@ func Test793d37b1_NoFileAndAFileThatIsNotAQueueAreAnEmptyQueue(t *testing.T) {
 			g.Expect(world.Warnings).To(BeEmpty())
 		})
 	}
+}
+
+func Test793d37b2_ASessionStartedWhileAnotherRunsDoesNotCaptureTheOthersTurnTwice(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := NewWorld()
+	job := captureOf(turnMessages())
+	job["kind"], job["transcript"] = "enqueue", transcriptPath
+	queuedEntry := world.Do(t, job).Queued
+
+	// the first session's capture is still running when the second one starts
+	started := world.Do(t, map[string]any{"kind": "resume", "start": "startup"})
+
+	g.Expect(started.Resumed).To(BeEmpty())
+
+	world.Do(t, map[string]any{"kind": "capture", "entry": queuedEntry, "step": "the capture"})
+
+	g.Expect(queueOf(t, world)).To(BeEmpty())
 }
 
 func Test793d37b2_ASessionThatIsNotNewTakesNothingAndWritesNothing(t *testing.T) {
@@ -211,6 +231,46 @@ func Test793d37b2_AnEntryThatHasBeenTakenThreeTimesIsDroppedWithoutBeingTakenAga
 	g.Expect(done.Resumed).To(Equal([]auto.QueueEntry{entryOf(leftBehind(1))}))
 	g.Expect(queueOf(t, world)).To(Equal([]queued{leftBehind(1)}))
 	g.Expect(strings.Join(world.Logs, "\n")).To(ContainSubstring("dropped"))
+}
+
+func Test793d37b2_AnEntryYoungerThanTheGraceBelongsToASessionStillRunningAndIsNeitherTakenNorCounted(t *testing.T) {
+	t.Parallel()
+
+	now := float64(NewWorld().Clock.UnixMilli())
+	cases := map[string]struct {
+		queuedAt float64
+		taken    bool
+	}{
+		"a minute old":                         {now - minuteMs, false},
+		"just inside the grace":                {now - resumeGraceMs + 1, false},
+		"as old as the grace":                  {now - resumeGraceMs, true},
+		"older than the grace":                 {now - 2*resumeGraceMs, true},
+		"from a file that did not stamp turns": {0, true},
+	}
+
+	for name, one := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+			world := NewWorld()
+			entry := leftBehind(0)
+			entry.QueuedAt = one.queuedAt
+			world.Files[queueFile] = queueText(entry)
+
+			done := world.Do(t, map[string]any{"kind": "resume", "start": "startup"})
+
+			if one.taken {
+				entry.Tries = 1
+				g.Expect(done.Resumed).To(Equal([]auto.QueueEntry{entryOf(entry)}))
+			} else {
+				g.Expect(done.Resumed).To(BeEmpty())
+				g.Expect(world.Writes).To(BeEmpty(), "the entry of a live session is left in the file as it is")
+			}
+
+			g.Expect(queueOf(t, world)).To(HaveLen(1))
+		})
+	}
 }
 
 func Test793d37b3_ACaptureOfAnEntryTakesItOutOfTheFileWhenItEnds(t *testing.T) {
@@ -281,9 +341,11 @@ func Test793d37b3_TheFileHoldsExactlyTheTurnsNotYetCapturedWhateverTheOrder(t *t
 const (
 	leftBehindSource = "captured from the conversation; written automatically (session left-behind, turn 9)"
 	leftBehindWindow = "Agent: I will run go test ./...\nUser: No, use targ, not go test directly.\nAgent: Understood."
+	minuteMs         = 60 * 1000
 	oldTranscript    = "/private/home/.claude/projects/p/old-session.jsonl"
 	queueFile        = defaultChunks + "/capture-queue.json"
 	queueSecretTail  = "abcdefghijklmnopqrstuvwxyz0123456789"
+	resumeGraceMs    = 15 * minuteMs
 )
 
 // unexported variables.
@@ -293,16 +355,18 @@ var (
 
 // queued is an entry of the queue file as the tests read it.
 type queued struct {
-	Window     string `json:"window"`
-	Source     string `json:"source"`
-	Transcript string `json:"transcript"`
-	Tries      int    `json:"tries"`
+	Window     string  `json:"window"`
+	Source     string  `json:"source"`
+	Transcript string  `json:"transcript"`
+	Tries      int     `json:"tries"`
+	QueuedAt   float64 `json:"queuedAt"`
 }
 
 // entryOf is an entry of the file as the job hands it.
 func entryOf(entry queued) auto.QueueEntry {
 	return auto.QueueEntry{
 		Window: entry.Window, Source: entry.Source, Transcript: entry.Transcript, Tries: entry.Tries,
+		QueuedAt: entry.QueuedAt,
 	}
 }
 

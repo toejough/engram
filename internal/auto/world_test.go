@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"path"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -73,10 +75,11 @@ type World struct {
 	Process map[string]func(argv []string) (auto.Output, error)
 	Files   map[string]string
 	Writes  []string
+	// VaultPath and ChunksDir are where the composition root says the vault and the chunk index are.
+	VaultPath, ChunksDir string
 	// Unwritable are the paths the world refuses to write.
 	Unwritable map[string]bool
 	Written    map[string]string
-	Env        map[string]string
 	Clock      time.Time
 	Missing    map[string]bool
 	// Model answers a request by its kind (classify, relevance, capture, curation); a function may answer unanswered.
@@ -99,12 +102,16 @@ func NewWorld() *World {
 	return &World{
 		Process: map[string]func([]string) (auto.Output, error){},
 		Files:   map[string]string{}, Written: map[string]string{}, Missing: map[string]bool{}, Unwritable: map[string]bool{},
-		Env: map[string]string{"HOME": "/home/t", "ENGRAM_VAULT_PATH": "/vault"}, Clock: time.UnixMilli(1_700_000_000_000),
+		VaultPath: "/vault", ChunksDir: defaultChunks, Clock: time.UnixMilli(1_700_000_000_000),
 	}
 }
 
 // Deps are the world as the job sees it.
-func (w *World) Deps() auto.Deps { return auto.Deps{Runner: w, Files: w, Env: w, Clock: w} }
+func (w *World) Deps() auto.Deps {
+	return auto.Deps{
+		Runner: w, Files: w, Offers: w, Clock: w, VaultPath: w.VaultPath, ChunksDir: w.ChunksDir,
+	}
+}
 
 // Do plays the mod for one job: it calls the job, relays what it needs, and returns its end.
 func (w *World) Do(t *testing.T, job map[string]any) auto.Done {
@@ -132,7 +139,7 @@ func (w *World) Do(t *testing.T, job map[string]any) auto.Done {
 			return *response.Done
 		}
 
-		input["state"], input["answers"] = response.State, w.relay(response)
+		input["state"], input["reply"] = response.State, w.relay(response)
 	}
 
 	t.Fatal("the job did not end")
@@ -144,7 +151,7 @@ func (w *World) Do(t *testing.T, job map[string]any) auto.Done {
 func (w *World) Exists(path string) bool {
 	_, found := w.Files[path]
 
-	return found || (path == w.Env["ENGRAM_VAULT_PATH"] && !w.Missing[path])
+	return found || (path == w.VaultPath && !w.Missing[path])
 }
 
 // Find is the commands of a subcommand.
@@ -160,9 +167,6 @@ func (w *World) Find(name string) []Command {
 	return found
 }
 
-// Get reads a variable.
-func (w *World) Get(key string) string { return w.Env[key] }
-
 // Names are the subcommands of the commands the job ran, in order.
 func (w *World) Names() []string {
 	names := make([]string, 0, len(w.Commands))
@@ -175,6 +179,26 @@ func (w *World) Names() []string {
 
 // Now is the time of the world.
 func (w *World) Now() time.Time { return w.Clock }
+
+// Pending lists the notes of the vault that are pending offers, as the pending-offer bookkeeping tells them: the files
+// below the vault whose text carries the marker.
+func (w *World) Pending(vault string) ([]string, error) {
+	if w.Missing[vault+"/walk"] {
+		return nil, errors.New("open " + vault + ": permission denied")
+	}
+
+	var names []string
+
+	for file, text := range w.Files {
+		if strings.HasPrefix(file, vault+"/") && strings.HasSuffix(file, ".md") && pendingMarker.MatchString(text) {
+			names = append(names, path.Base(file))
+		}
+	}
+
+	slices.Sort(names)
+
+	return names, nil
+}
 
 // Read reads a file of the world.
 func (w *World) Read(path string) (string, error) {
@@ -208,25 +232,6 @@ func (w *World) Run(argv []string, deadline time.Duration) (auto.Output, error) 
 	return auto.Output{}, nil
 }
 
-// Walk lists the files below a root.
-func (w *World) Walk(root string) ([]string, error) {
-	if w.Missing[root+"/walk"] {
-		return nil, errors.New("open " + root + ": permission denied")
-	}
-
-	var files []string
-
-	for path := range w.Files {
-		if strings.HasPrefix(path, root+"/") {
-			files = append(files, path)
-		}
-	}
-
-	slices.Sort(files)
-
-	return files, nil
-}
-
 // Write writes a file of the world.
 func (w *World) Write(path, text string) error {
 	if w.Unwritable[path] {
@@ -248,8 +253,8 @@ func (w *World) model(request auto.Request) map[string]any {
 	return w.Model(kindOf(request.Prompt), request)
 }
 
-// relay waits as long as the job asks, and brings the replies of the model to its requests.
-func (w *World) relay(response auto.Response) []map[string]any {
+// relay waits as long as the job asks, and brings the reply of the model to its request.
+func (w *World) relay(response auto.Response) map[string]any {
 	if response.WaitMs > 0 {
 		w.Waits = append(w.Waits, response.WaitMs)
 
@@ -260,14 +265,13 @@ func (w *World) relay(response auto.Response) []map[string]any {
 		w.Clock = w.Clock.Add(time.Duration(response.WaitMs) * time.Millisecond)
 	}
 
-	answers := make([]map[string]any, 0, len(response.Requests))
-
-	for _, request := range response.Requests {
-		w.Requests = append(w.Requests, request)
-		answers = append(answers, w.model(request))
+	if response.Request == nil {
+		return nil
 	}
 
-	return answers
+	w.Requests = append(w.Requests, *response.Request)
+
+	return w.model(*response.Request)
 }
 
 // round calls the job once, and tallies the effects of the round.
@@ -321,6 +325,11 @@ func Unanswered(reason string) map[string]any {
 // unexported constants.
 const (
 	maxRounds = 200
+)
+
+// unexported variables.
+var (
+	pendingMarker = regexp.MustCompile(`(?m)^pending: true$`)
 )
 
 // kindOf tells the kind of a request from its prompt.

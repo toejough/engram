@@ -2,7 +2,6 @@ package auto_test
 
 import (
 	"encoding/json"
-	stdmaps "maps"
 	"strings"
 	"testing"
 	"time"
@@ -379,40 +378,6 @@ func Test793d28b3_ATurnIsNotMarkedWhenNoTranscriptIsNamedOrTheJudgementFailed(t 
 
 		g.Expect(world.Writes).To(BeEmpty())
 	})
-}
-
-func Test793d28b3_TheChunksDirectoryFollowsTheVariablesOfTheEngramCommands(t *testing.T) {
-	t.Parallel()
-
-	cases := map[string]struct {
-		env map[string]string
-		dir string
-	}{
-		"ENGRAM_CHUNKS_DIR": {map[string]string{"ENGRAM_CHUNKS_DIR": "/custom/chunks"}, "/custom/chunks"},
-		"XDG_DATA_HOME":     {map[string]string{"XDG_DATA_HOME": "/xdg"}, "/xdg/engram/chunks"},
-		"the home, no variable": {
-			map[string]string{"XDG_DATA_HOME": "", "HOME": "/home/me"}, "/home/me/.local/share/engram/chunks",
-		},
-	}
-
-	for name, one := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
-			g := NewWithT(t)
-			world := NewWorld()
-			world.Model = repliesInOrder("[]")
-
-			stdmaps.Copy(world.Env, one.env)
-
-			job := captureOf(turnMessages())
-			job["transcript"] = transcriptPath
-
-			world.Do(t, job)
-
-			g.Expect(world.Writes).To(Equal([]string{one.dir + marksFile}))
-		})
-	}
 }
 
 func Test793d28b3_TheMarksOfAnEarlierRunAreKeptAndTheFirstRunFixesTheCutoffOnce(t *testing.T) {

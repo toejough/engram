@@ -27,7 +27,7 @@ func Test793d28b1_ABrokenManifestOrMarkFileIsReportedAndNothingIsCaptured(t *tes
 			g := NewWithT(t)
 			world := NewWorld()
 			world.Clock = time.UnixMilli(blNowMs)
-			world.Env["XDG_DATA_HOME"] = "/data"
+			world.ChunksDir = "/data/engram/chunks"
 
 			stdmaps.Copy(world.Files, files)
 
@@ -155,7 +155,7 @@ func Test793d28b1_NoManifestIsAnEmptyBacklogNotAnError(t *testing.T) {
 	g := NewWithT(t)
 	world := NewWorld()
 	world.Clock = time.UnixMilli(blNowMs)
-	world.Env["XDG_DATA_HOME"] = "/data"
+	world.ChunksDir = "/data/engram/chunks"
 
 	blHousekeep(t, world, "")
 
@@ -179,46 +179,6 @@ func Test793d28b1_OneQuietSourceIsCapturedThenMarked(t *testing.T) {
 	g.Expect(world.Requests[0].Prompt).To(ContainSubstring("User: no, use targ, not go test directly"))
 	g.Expect(world.Requests[0].Prompt).To(ContainSubstring("Agent: Running go test"))
 	g.Expect(blMarksOf(t, world).Sources[blPi]).To(Equal(blHashA))
-}
-
-func Test793d28b1_TheChunksDirectoryIsTheOneTheEnvironmentNames(t *testing.T) {
-	t.Parallel()
-
-	const custom = "/custom/chunks"
-
-	for name, setting := range map[string]struct {
-		env map[string]string
-		dir string
-	}{
-		"ENGRAM_CHUNKS_DIR when set": {map[string]string{"ENGRAM_CHUNKS_DIR": custom}, custom},
-		"the home when neither is set": {
-			map[string]string{"XDG_DATA_HOME": "", "HOME": "/home/me"}, "/home/me/.local/share/engram/chunks",
-		},
-		"the data home when only it is set": {map[string]string{"XDG_DATA_HOME": "/xdg"}, "/xdg/engram/chunks"},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
-			g := NewWithT(t)
-			world := NewWorld()
-			world.Clock = time.UnixMilli(blNowMs)
-			stdmaps.Copy(world.Env, setting.env)
-
-			manifest := blManifest{blPi: blOf(2*blHour, blHashA)}
-			world.Files[setting.dir+"/manifest.json"] = string(asJSON(manifest))
-			world.Files[blPi] = blSaid
-
-			blHousekeep(t, world, "")
-
-			g.Expect(world.Writes).NotTo(BeEmpty())
-
-			for _, path := range world.Writes {
-				g.Expect(path).To(Equal(setting.dir + "/backlog-marks.json"))
-			}
-
-			g.Expect(world.Requests).To(HaveLen(1))
-		})
-	}
 }
 
 func Test793d28b1_TheCutoffDoesNotRollWhateverTheIdleTime(t *testing.T) {
@@ -728,7 +688,7 @@ func blUniqueCount(values []string) int {
 func blWorld(manifest blManifest, files map[string]string) *World {
 	world := NewWorld()
 	world.Clock = time.UnixMilli(blNowMs)
-	world.Env["XDG_DATA_HOME"] = "/data"
+	world.ChunksDir = "/data/engram/chunks"
 	world.Files[blManifestFile] = string(asJSON(manifest))
 
 	stdmaps.Copy(world.Files, files)

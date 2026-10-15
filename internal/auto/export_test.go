@@ -1,5 +1,10 @@
 package auto
 
+// Exported constants.
+const (
+	DeadlineMomentQuery = deadlineMomentQuery
+)
+
 // Exported variables.
 var (
 	BacklogSourceFor   = backlogSourceFor
@@ -107,7 +112,12 @@ func ShownMap(output string) map[string]any {
 func Try[T any](run func() T) (value T, err error) {
 	defer func() {
 		if fault := recover(); fault != nil {
-			err, _ = fault.(error)
+			var failed bool
+
+			// a panic that is not an error is a bug, and is not turned into a success with no error
+			if err, failed = fault.(error); !failed {
+				panic(fault)
+			}
 		}
 	}()
 

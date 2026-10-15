@@ -4,11 +4,13 @@ import (
 	"errors"
 	stdmaps "maps"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	. "github.com/onsi/gomega"
+	"pgregory.net/rapid"
 
 	"github.com/toejough/engram/internal/auto"
 )
@@ -207,6 +209,68 @@ func Test793d23b2_TextThatImitatesThePromptsOwnTagsCannotCloseTheSectionItSitsIn
 
 	g.Expect(world.Requests).To(HaveLen(1))
 	g.Expect(strings.Split(world.Requests[0].Prompt, "</recent>")).To(HaveLen(2))
+}
+
+func Test793d23b2_TheCueReadsExactlyTheLastSixTextsWhenTheLastFiftyMessagesHoldNoMore(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	session := make([]auto.Message, 0, momentCueWindow*2)
+
+	for index := range momentCueWindow * 2 {
+		spoken := index < momentCueTexts || index >= momentCueWindow*2-momentCueTexts
+		message := auto.Message{Role: "user"}
+
+		if spoken {
+			message.Text = "text " + strconv.Itoa(index)
+		}
+
+		session = append(session, message)
+	}
+
+	window := session[len(session)-momentCueWindow:]
+
+	g.Expect(auto.RecentTexts(window, "")).To(Equal(auto.RecentTexts(session, "")))
+	g.Expect(strings.Count(auto.RecentTexts(session, ""), "User: ")).To(Equal(momentCueTexts))
+}
+
+// The mod hands the cue the last 50 messages of the session (its STEP_WINDOW), not all of them: the cue reads the last
+// six texts, so the last 50 messages give it the same texts as the session whenever they hold six.
+func Test793d23b2_TheCueReadsTheSameTextsFromTheLastFiftyMessagesAsFromTheWholeSession(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		count := rapid.IntRange(0, 300).Draw(rt, "count")
+		session := make([]auto.Message, 0, count)
+
+		for index := range count {
+			text := ""
+			if rapid.Bool().Draw(rt, "spoken") {
+				text = "text " + strconv.Itoa(index)
+			}
+
+			role := rapid.SampledFrom([]string{"user", "assistant"}).Draw(rt, "role")
+			session = append(session, auto.Message{Role: role, Text: text})
+		}
+
+		window := session[max(len(session)-momentCueWindow, 0):]
+
+		spoken := 0
+
+		for _, message := range window {
+			if message.Text != "" {
+				spoken++
+			}
+		}
+
+		if spoken < momentCueTexts {
+			rt.Skip("the window holds fewer texts than the cue reads")
+		}
+
+		if whole, bounded := auto.RecentTexts(session, ""), auto.RecentTexts(window, ""); whole != bounded {
+			rt.Fatalf("the cue reads %q from the session and %q from its last %d messages", whole, bounded, momentCueWindow)
+		}
+	})
 }
 
 func Test793d23b2_TheRecentTextsReachTheClassificationRedactedAndTheToolResultsNeverDo(t *testing.T) {
@@ -674,10 +738,12 @@ func Test793d36b3_TheLookupAndTheRelevanceJudgementHoldThePromptEightSecondsAtMo
 // unexported constants.
 const (
 	momentBlockLines    = 3
+	momentCueTexts      = 6
+	momentCueWindow     = 50
 	momentDoneCue       = `[{"moment":"declaring work done","subject":"the rename of package util to helpers"}]`
 	momentForgedLines   = 4
 	momentHoldCeiling   = 8 * time.Second
-	momentLookupLimit   = 2 * time.Second
+	momentLookupLimit   = 2200 * time.Millisecond
 	momentNotePath      = "1.2026-10-12.note-n.md"
 	momentPromptText    = "I just finished renaming the package. Is it done?"
 	momentRecentAnswer  = "The rename looks complete; I will grep for leftovers before saying it is done."

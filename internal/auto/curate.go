@@ -1,7 +1,6 @@
 package auto
 
 import (
-	"path"
 	"regexp"
 	"slices"
 	"strconv"
@@ -29,8 +28,7 @@ var (
 // curate settles the pending offers, at most maxOffers a run; an offer that is skipped or fails is not counted again
 // and not looked at again.
 func (e *engine) curate() {
-	data := orElse(e.deps.Env.Get("XDG_DATA_HOME"), e.deps.Env.Get("HOME")+"/.local/share")
-	vault := orElse(e.deps.Env.Get("ENGRAM_VAULT_PATH"), data+"/engram/vault")
+	vault := e.deps.VaultPath
 	if !e.deps.Files.Exists(vault) {
 		return
 	}
@@ -115,7 +113,7 @@ func (e *engine) nearest(offer shown, text Note) []Note {
 	}
 	notes := []Note{}
 
-	for _, found := range parseQuery(e.exec(query, deadlineLookup)) {
+	for _, found := range parseQuery(e.exec(query, deadlineNearest)) {
 		if found.Kind != chunkKind && found.Situation != "" && len(notes) < nearCount {
 			notes = append(notes, redacted2(found.Path, found))
 		}
@@ -124,28 +122,18 @@ func (e *engine) nearest(offer shown, text Note) []Note {
 	return notes
 }
 
-// pendingOffers lists the notes marked pending, the way curate finds them (the query excludes them by design).
+// pendingOffers lists the notes marked pending, the way the pending-offer bookkeeping finds them (the query excludes
+// them by design).
 func (e *engine) pendingOffers(vault string) []string {
 	listed := must(e.step(func() (string, error) {
-		files, err := e.deps.Files.Walk(vault)
-
-		var names []string
-
-		for _, file := range files {
-			text, readErr := e.deps.Files.Read(file)
-			if strings.HasSuffix(file, ".md") && readErr == nil && pendingLine.MatchString(text) {
-				names = append(names, path.Base(file))
-			}
-		}
+		names, err := e.deps.Offers.Pending(vault)
 
 		return strings.Join(names, "\n"), err
 	}))
-	names := slices.DeleteFunc(strings.Split(listed, "\n"), func(name string) bool {
+
+	return slices.DeleteFunc(strings.Split(listed, "\n"), func(name string) bool {
 		return !noteName.MatchString(name) || name == "README.md"
 	})
-	slices.Sort(names)
-
-	return names
 }
 
 // shown is an offer as `engram show` prints it: the exchange hash of the version shown (absent for a note with no

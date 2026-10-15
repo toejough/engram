@@ -12,12 +12,13 @@
     "exactOptionalPropertyTypes": false,
     "skipLibCheck": false,
     "allowJs": true,
-    "checkJs": false,
+    "checkJs": true,
     "types": [],
     "lib": ["ES2023"]
   },
   "include": [
     "types/*.d.ts",
-    "../../agent-instructions/mods/engram-memory/tests/*.ts"
+    "../../agent-instructions/mods/engram-memory/tests/*.ts",
+    "../../agent-instructions/mods/engram-memory/hooks/*.js"
   ]
 }

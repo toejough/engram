@@ -86,7 +86,7 @@ type batch struct {
 // the conversation first, with the same judgement as a turn. The source is marked only when every window has been
 // judged without a failure; a source with nothing to judge is marked at once, one that cannot be read is left alone.
 func (e *engine) backlog() {
-	dir := e.chunksDirectory()
+	dir := e.deps.ChunksDir
 	manifest, _ := e.read(dir + "/manifest.json")
 	sources, now, marks := parseManifest(manifest), e.now(), e.marks(dir)
 
@@ -135,19 +135,12 @@ func (e *engine) backlog() {
 	}
 }
 
-// chunksDirectory is where the chunk index lives (792a5a): the same precedence as the engram commands.
-func (e *engine) chunksDirectory() string {
-	data := orElse(e.deps.Env.Get("XDG_DATA_HOME"), e.deps.Env.Get("HOME")+"/.local/share")
-
-	return orElse(e.deps.Env.Get("ENGRAM_CHUNKS_DIR"), data+"/engram/chunks")
-}
-
 // markTurns records that the System captured the turns of this session up to now, so that the backlog does not read
 // the session again once it is quiet (793e8g).
 func (e *engine) markTurns(transcript string) {
 	now := e.now()
 	if transcript != "" {
-		e.updateMarks(e.chunksDirectory(), func(marks *Marks) {
+		e.updateMarks(e.deps.ChunksDir, func(marks *Marks) {
 			marks.firstRun(now)
 			marks.Turns[baseName(transcript)] = now
 		})

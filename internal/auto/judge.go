@@ -57,12 +57,15 @@ func (t Tiers) relevanceRequest(moment, text string, candidates []Note) Request 
 }
 
 // request builds the call of a kind from its prompt, with the reply tokens and the deadline of its kind. The
-// relevance judgement holds the agent's prompt: 5.8 s here and 2 s for the lookup are the 8 s hold (793d36b3). The
-// judgement's deadline sits above its measured 95th percentile of 3.44 s (1.7 times), the lookup's above its 0.59 s
-// with a cold embedder cache (3.4 times).
+// relevance judgement holds the agent's prompt: its 5.8 s and the 2.2 s of the lookup are the 8 s hold (793d36b3). The
+// judgement's deadline is 1.7 times its measured 95th percentile of 3.44 s; the lookup's is 1.5 times the 95th
+// percentile of the query on the notes of a real vault, six at once, 1.42 s (793b408).
 func (t Tiers) request(kind, prompt string) Request {
 	limits := map[string]struct{ tokens, timeout int }{
-		judgeClassify: {300, 4000}, judgeRelevance: {200, 5800}, judgeCapture: {1500, 40000}, judgeCuration: {700, 60000},
+		judgeClassify:  {classifyTokens, classifyTimeoutMs},
+		judgeRelevance: {relevanceTokens, relevanceTimeoutMs},
+		judgeCapture:   {captureTokens, captureTimeoutMs},
+		judgeCuration:  {curationTokens, curationTimeoutMs},
 	}[kind]
 	check(t[kind] != "", fmt.Sprintf("%v %q", errNoTier, kind))
 
@@ -76,19 +79,28 @@ func DefaultTiers() Tiers {
 
 // unexported constants.
 const (
-	cheapest       = "haiku"
-	jsonSpace      = " \t\r\n"
-	judgeCapture   = "capture"
-	judgeClassify  = "classify"
-	judgeCuration  = "curation"
-	judgeRelevance = "relevance"
-	lowEffort      = "low"
-	outcomeAbsent  = "absent"
-	outcomeCovered = "covered"
-	outcomeNear    = "near"
-	outcomeRefused = "rejected"
-	relevanceLimit = 1500
-	stringLimit    = 600
+	// the reply size and the deadline of each kind of judgement (793d25b1)
+	captureTimeoutMs   = 40000
+	captureTokens      = 1500
+	cheapest           = "haiku"
+	classifyTimeoutMs  = 4000
+	classifyTokens     = 300
+	curationTimeoutMs  = 60000
+	curationTokens     = 700
+	jsonSpace          = " \t\r\n"
+	judgeCapture       = "capture"
+	judgeClassify      = "classify"
+	judgeCuration      = "curation"
+	judgeRelevance     = "relevance"
+	lowEffort          = "low"
+	outcomeAbsent      = "absent"
+	outcomeCovered     = "covered"
+	outcomeNear        = "near"
+	outcomeRefused     = "rejected"
+	relevanceLimit     = 1500
+	relevanceTimeoutMs = 5800
+	relevanceTokens    = 200
+	stringLimit        = 600
 )
 
 //go:embed prompts/capture.txt

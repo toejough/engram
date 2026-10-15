@@ -76,7 +76,7 @@ func Test793d36b3_AFailingBacklogStepIsWarnedAboutNamingTheStep(t *testing.T) {
 
 	g := NewWithT(t)
 	world := NewWorld()
-	world.Env["ENGRAM_CHUNKS_DIR"] = "/chunks"
+	world.ChunksDir = "/chunks"
 	world.Files["/chunks/manifest.json"] = "[1]"
 
 	world.Do(t, map[string]any{"kind": "housekeeping", "turnEnded": true})
@@ -127,6 +127,45 @@ func Test793d36b3_AFailingJobDoesNotStopTheNextJob(t *testing.T) {
 	g.Expect(second.Block).To(ContainSubstring(failureNotesIn[:1]))
 	g.Expect(world.Warnings).To(HaveLen(1))
 	g.Expect(world.Find("query")).To(HaveLen(2))
+}
+
+func Test793d36b3_AFailureTheModMetIsWordedAndClassedByTheEngineAsItWordsItsOwn(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct{ message, reason string }{
+		"a program that cannot start": {"$.process.run(engram) failed to start: ENOENT", "the vault is unavailable"},
+		"a program cut at its deadline": {
+			"$.process.run(engram) aborted: still running after 600000ms", "the System timed out",
+		},
+		"a job the mod gave up on": {"engram auto run still running after 8000 ms", "the System timed out"},
+		"a program that exited":    {"engram auto run exited 70: injected failure", "of an error"},
+		"a model call that threw":  {"the model call threw", "of an error"},
+	}
+
+	for name, one := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+			world := NewWorld()
+
+			world.Do(t, map[string]any{"kind": "failure", "step": "the prompt lookup", "message": one.message})
+
+			g.Expect(world.Warnings).To(Equal([]string{failureWarning(one.reason, "the prompt lookup")}))
+			g.Expect(world.Commands).To(BeEmpty())
+		})
+	}
+}
+
+func Test793d36b3_AFailureWithNoStepIsTheSystemsOwnBookkeepingAndWarnsNoOne(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := NewWorld()
+
+	world.Do(t, map[string]any{"kind": "failure", "message": "the queue file could not be written"})
+
+	g.Expect(world.Warnings).To(BeEmpty())
 }
 
 func Test793d36b3_ALookupThatFindsNothingIsNotAFailure(t *testing.T) {

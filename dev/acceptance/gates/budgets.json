@@ -1,12 +1,12 @@
 {
   "unit": "owned lines: not blank and not a comment, per JavaScript file of agent-instructions/mods/engram-memory",
   "reference": "793b368: the mod is an adapter; 162 owned lines of register.js are wiring today",
-  "total": 271,
+  "total": 273,
   "files": {
     "hooks/register.js": {
       "red": 383,
-      "budget": 271,
-      "basis": "the 162 owned lines of wiring in register.js today (the event handlers, state, warn, attempt, exec, answered, readTranscript, seam and schedule) plus about 40 for the relay loop of the need and done rounds plus a margin, plus 6 for the two jobs of the persisted queue (793b398: the enqueue before a turn returns, the resume at a session start), plus 15 for the hold of an event (793b406: the cut of a job at 8 s, the round that is not started after it); every other JavaScript file of the mod is logic and has no row, so it fails the gate until it is gone or the owner gives it a row"
+      "budget": 273,
+      "basis": "the 162 owned lines of wiring in register.js today (the event handlers, state, warn, attempt, exec, answered, readTranscript, seam and schedule) plus about 40 for the relay loop of the need and done rounds plus a margin, plus 6 for the two jobs of the persisted queue (793b398: the enqueue before a turn returns, the resume at a session start), plus 15 for the hold of an event (793b406: the cut of a job at 8 s, the round that is not started after it), plus 2 for the words of a failure the engine words and the window of the cue (793b413); every other JavaScript file of the mod is logic and has no row, so it fails the gate until it is gone or the owner gives it a row"
     }
   },
   "go": {
@@ -25,7 +25,7 @@
           "failure.go"
         ],
         "basis": "failure.js 24, exec 11, answered 4",
-        "ceiling": 55
+        "ceiling": 61
       },
       "moment": {
         "js": 112,
@@ -42,7 +42,7 @@
           "relay.go"
         ],
         "basis": "judge.js 161, which holds the prompts (now text files) and the strict readings; the need and done rounds are the relay and have no JavaScript to replace",
-        "ceiling": 464
+        "ceiling": 476
       },
       "capture": {
         "js": 234,
@@ -59,7 +59,7 @@
           "backlog.go"
         ],
         "basis": "backlog.js 49, backlog 35, readSource 9, sourceMessages 8, chunksDir and the marks 10",
-        "ceiling": 182
+        "ceiling": 178
       },
       "curation": {
         "js": 93,
@@ -67,7 +67,7 @@
           "curate.go"
         ],
         "basis": "housekeeping.js 52, nearest 9, curateOne 13, curate 13, housekeeping 5, skipped 1",
-        "ceiling": 151
+        "ceiling": 140
       },
       "summary": {
         "js": 27,
@@ -83,7 +83,7 @@
           "queue.go"
         ],
         "basis": "new in 793e8p (793b398): the JavaScript it replaces had no persisted queue, so its goal is nothing and its ceiling the size it reached",
-        "ceiling": 67
+        "ceiling": 74
       }
     }
   }

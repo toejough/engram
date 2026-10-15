@@ -99,7 +99,7 @@ func (e *engine) deliver(agent string, notes []Note) string {
 // keys the ledger; a subagent's context is its task, so it reads no transcript. `moments` are the phrases the moment
 // names beside the text. Nothing relevant remaining is nothing (793a2n).
 func (e *engine) lookup(agent, kind, text string, readContext bool, moments []string) []Note {
-	items := parseQuery(e.exec(queryArgv(kind, text, moments), deadlineMoment))
+	items := parseQuery(e.exec(queryArgv(kind, text, moments), deadlineMomentQuery))
 
 	// a note the agent holds (delivered, or in what its context holds, which covers what the agent retrieved itself and
 	// what a resume restored) is not delivered again (793a2e); the transcript grows between rounds, so the filter is
