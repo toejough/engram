@@ -508,6 +508,8 @@ Security: risk (1) of [793d25a Orientation](#793d25a-orientation), held by [793d
 
 Rationale: A prompt cannot name a [moment](./793a_product-spec.md#793a1-problem-statement) the agent reaches mid-task, such as declaring the work done, so the [cue](#793d1b-terms) reads what the agent says at each step; memory the agent retrieves on purpose is [intentional memory](./793a_product-spec.md#793a1-problem-statement) and gets nothing added.
 
+Known limit: the classification runs on the cheapest tier and for about one acceptance run in five of [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios) it names no [moment](./793a_product-spec.md#793a1-problem-statement), so no note is delivered at the step; decided by the owner ([793b426](./793b_decision-log.md#793b426-row-793a2n1a-stays-below-the-9-of-10-bar-as-a-recorded-limit-of-the-cheapest-tiers-in-turn-classification)).
+
 ##### 793d23b2a Scenarios
 
 ```gherkin
@@ -1567,13 +1569,13 @@ Scenario: 793d34b1a4 An older Claude Code is reported, not fatal
 
 ### 793d35a Check
 
-All 43 scenarios of the product spec are supported by at least one requirement, and every requirement (33 behavior requirements of 13 components, 9 interaction requirements of 3 flows) names at least one contract test; `targ check-spec-conformance` checks both on every `check-full`. Scenario-level support is on each requirement's `Supports` line; the table gives the union per product requirement.
+All 44 scenarios of the product spec are supported by at least one requirement, and every requirement (30 behavior requirements of 11 components, 10 interaction requirements of 3 flows) names at least one contract test; `targ check-spec-conformance` checks both on every `check-full`. Scenario-level support is on each requirement's `Supports` line; the table gives the union per product requirement.
 
 ### 793d35b Product requirements to technical requirements
 
 | Product requirement | Scenarios supported | Supporting components and flows |
 | --- | --- | --- |
-| [793a2n Relevant memory reaches the agent at the moments](./793a_product-spec.md#793a2n-relevant-memory-reaches-the-agent-at-the-moments) | 6 | [793d22 Memory Mod](#793d22-memory-mod), [793d23 Moment Detection](#793d23-moment-detection), [793d24 Memory Delivery](#793d24-memory-delivery), [793d25 Judgement Relay](#793d25-judgement-relay), [793d36 Job Runner](#793d36-job-runner), [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow) |
+| [793a2n Relevant memory reaches the agent at the moments](./793a_product-spec.md#793a2n-relevant-memory-reaches-the-agent-at-the-moments) | 7 | [793d22 Memory Mod](#793d22-memory-mod), [793d23 Moment Detection](#793d23-moment-detection), [793d24 Memory Delivery](#793d24-memory-delivery), [793d25 Judgement Relay](#793d25-judgement-relay), [793d36 Job Runner](#793d36-job-runner), [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow) |
 | [793a2e Nothing already in context is delivered again](./793a_product-spec.md#793a2e-nothing-already-in-context-is-delivered-again) | 5 | [793d23 Moment Detection](#793d23-moment-detection), [793d24 Memory Delivery](#793d24-memory-delivery), [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow) |
 | [793a3a Lessons are captured without the agent](./793a_product-spec.md#793a3a-lessons-are-captured-without-the-agent) | 5 | [793d22 Memory Mod](#793d22-memory-mod), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d27 Auto Capture](#793d27-auto-capture), [793d28 Backlog Capture](#793d28-backlog-capture), [793d36 Job Runner](#793d36-job-runner), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) |
 | [793a4j Indexing and curation happen after the turn](./793a_product-spec.md#793a4j-indexing-and-curation-happen-after-the-turn) | 4 | [793d22 Memory Mod](#793d22-memory-mod), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d29 Auto Curation](#793d29-auto-curation), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) |

@@ -1198,3 +1198,11 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 - **Applied in:** [793b425 Chunk stubs were dropped against an owner decision; the lookup that holds the agent asks for notes only and the stubs come from a background pass](./793b_decision-log.md#793b425-chunk-stubs-were-dropped-against-an-owner-decision-the-lookup-that-holds-the-agent-asks-for-notes-only-and-the-stubs-come-from-a-background-pass).
 - **Blocks:** nothing.
 
+## 793c88 Is row 793a2n1a held to the rate bar, or recorded as a limit?
+
+- **Status:** answered (Joe, 2026-10-15), in chat; recorded here per the rule that owner answers live in this file. It is the question left open by [793b422](./793b_decision-log.md#793b422-the-six-judgement-rows-were-run-ten-times-each-with-the-rate-bar-five-meet-it-793a2n1a-did-not-at-its-first-measurement).
+- **Context:** [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios) passes at about 0.8 over 80 runs against the bar of [793c86](#793c86-what-rate-of-red-is-the-bar-for-a-live-row-that-depends-on-a-models-judgement) (9 of 10). Every Red is one cause: the in-turn classification, on the cheapest tier, answers that no moment is reached, so nothing is delivered at the step. Running the row with the lookup with the chunk index on and off, with the relevance prompt as it was, and with the cue created earlier gave the same rate.
+- **Options:** (a) hold the row to the bar: improve the classification (its prompt or its tier) until it passes; (b) record the row as a known limit of the cheapest tier's in-turn classification, and state it in the completion gate and in the technical spec.
+- **Answer:** (b). Decided by: owner. The row stays below the bar, with its measured rate (about 0.8 over 80 runs) and its cause (the classification answers no moment) on an explicit exception list in the completion gate, and a one-line known-limit note in the technical spec where the in-turn cue is specified; it is not a residual-risk item.
+- **Applied in:** [793b426 Row 793a2n1a stays below the 9-of-10 bar as a recorded limit of the cheapest tier's in-turn classification](./793b_decision-log.md#793b426-row-793a2n1a-stays-below-the-9-of-10-bar-as-a-recorded-limit-of-the-cheapest-tiers-in-turn-classification).
+- **Blocks:** nothing.
