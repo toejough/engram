@@ -312,8 +312,8 @@ func Test793d24b1_ALookupSaysInTheDebugLogHowManyCandidatesItFoundAndDelivered(t
 	t.Parallel()
 
 	cases := map[string]struct{ output, want string }{
-		"an irrelevant note": {NoteQuery, "engram-memory: prompt lookup: 1 candidate(s), 0 delivered"},
-		"nothing found":      {EmptyQuery, "engram-memory: prompt lookup: 0 candidate(s), 0 delivered"},
+		"an irrelevant note": {NoteQuery, "engram-memory: prompt lookup: 1 candidate(s), 0 delivered, 0 stub(s)"},
+		"nothing found":      {EmptyQuery, "engram-memory: prompt lookup: 0 candidate(s), 0 delivered, 0 stub(s)"},
 	}
 
 	for name, tc := range cases {

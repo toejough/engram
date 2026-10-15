@@ -78,6 +78,8 @@ type World struct {
 	Writes  []string
 	// AmendRequests are the amends the job asked for, as it asked for them.
 	AmendRequests []auto.AmendRequest
+	// QueryRequests are the searches the job asked for, as it asked for them.
+	QueryRequests []auto.QueryRequest
 	// VaultPath and ChunksDir are where the composition root says the vault and the chunk index are.
 	VaultPath, ChunksDir string
 	// Unwritable are the paths the world refuses to write.
@@ -144,7 +146,7 @@ func (w *World) Do(t *testing.T, job map[string]any) auto.Done {
 
 		response := w.round(t, input)
 		if response.Done != nil {
-			if slices.Contains([]string{"lookup", "step", "tool", "compact"}, field[string](job, "kind")) {
+			if slices.Contains([]string{"lookup", "deep", "step", "tool", "compact"}, field[string](job, "kind")) {
 				w.Ledger = response.Done.Ledger
 			} else {
 				w.Work = response.Done.Work
@@ -236,6 +238,10 @@ func (w *World) Pending(vault string) ([]string, error) {
 
 // Query searches as `engram query` would.
 func (w *World) Query(request auto.QueryRequest, deadline time.Duration) (string, error) {
+	w.mu.Lock()
+	w.QueryRequests = append(w.QueryRequests, request)
+	w.mu.Unlock()
+
 	return w.run(queryArgvOf(request), deadline)
 }
 
@@ -445,6 +451,10 @@ func queryArgvOf(request auto.QueryRequest) []string {
 	for _, phrase := range request.Phrases {
 		argv = append(argv, "--phrase="+phrase)
 	}
+
+	// the chunk index is searched with its chunks as stubs, or not at all: `--notes-only` is the form the tests read of
+	// a search whose chunks directory is left empty
+	argv = append(argv, map[bool]string{true: "--lazy-chunks", false: "--notes-only"}[request.WithChunks])
 
 	return argv
 }

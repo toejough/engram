@@ -65,7 +65,7 @@ func (e *engine) capture(conversation, source string) {
 		return
 	}
 
-	near := e.neighbours(parseQuery(e.query(queryRequest(cueCapture, queryText(text), nil), deadlineNearest)))
+	near := e.neighbours(parseQuery(e.query(queryRequest(cueCapture, queryText(text), nil, false), deadlineNearest)))
 	parse := func(reply string) []Lesson { return parseLessons(reply, near) }
 	lessons := judged(e, e.tiers.captureRequest(text, near), judgeCapture, parse)
 	e.logf("capture judged %d lesson(s) against %d nearest note(s)", len(lessons), len(near))

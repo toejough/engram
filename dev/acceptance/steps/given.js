@@ -43,6 +43,12 @@ Given(
   },
 )
 
+// A chunk of the index (793a2n1k): a markdown source that says the words, ingested through the real command; its id
+// is its file and its heading.
+Given(/^the chunk index holds a chunk "([^"]*)" that says "([^"]*)"$/, async function (label, says) {
+  await this.scenario.setup((scenario) => scenario.seedChunk(label, says))
+})
+
 Given(
   /^the vault holds a pending offer "([^"]*)" that (?:note "([^"]*)" covers|no note covers)$/,
   async function (label, covered) {

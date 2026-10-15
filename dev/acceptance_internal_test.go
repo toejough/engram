@@ -62,6 +62,35 @@ func Test793e8a_AcceptancePlan(t *testing.T) {
 		}))
 	})
 
+	t.Run("a number of runs reaches run.js, and one run adds nothing", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+		env := acceptanceEnv{Root: "/repo", LookPath: present, Exists: installed}
+
+		many, err := acceptancePlan(acceptanceArgs{Filter: "793a2n1a", Runs: 10}, env)
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(many).To(Equal([]acceptanceCommand{
+			{Name: "node", Args: []string{"/repo/dev/acceptance/run.js", "--runs", "10", "793a2n1a"}},
+		}))
+
+		one, err := acceptancePlan(acceptanceArgs{Runs: 1}, env)
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(one).To(Equal([]acceptanceCommand{{Name: "node", Args: []string{"/repo/dev/acceptance/run.js"}}}))
+	})
+
+	t.Run("a number of runs below one, or with a check or a dry run, is refused", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+
+		for _, args := range []acceptanceArgs{{Runs: -1}, {Runs: 5, Check: true}, {Runs: 5, DryRun: true}} {
+			_, err := acceptancePlan(args, acceptanceEnv{Root: "/repo", LookPath: present, Exists: installed})
+
+			g.Expect(err).To(HaveOccurred(), "%+v", args)
+		}
+	})
+
 	t.Run("missing dependencies are installed from the lockfile first", func(t *testing.T) {
 		t.Parallel()
 

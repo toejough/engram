@@ -57,11 +57,14 @@ type Offers interface {
 // Output is what an operation of the vault printed, and what it left on its standard error.
 type Output struct{ Stdout, Stderr string }
 
-// QueryRequest is a search: the text the user said, the phrases to match and how many items to return.
+// QueryRequest is a search: the text the user said, the phrases to match and how many items to return. WithChunks
+// searches the chunk index too, and a chunk comes back as its id and score only; without it the search is of the notes
+// of the vault (793b425).
 type QueryRequest struct {
-	Text    string
-	Phrases []string
-	Limit   int
+	Text       string
+	Phrases    []string
+	Limit      int
+	WithChunks bool
 }
 
 // Vault is the memory of the vault as the job uses it (793b417): the operations the commands `engram query`,

@@ -3,6 +3,7 @@ package auto
 // Exported constants.
 const (
 	DeadlineMomentQuery = deadlineMomentQuery
+	DeadlineNearest     = deadlineNearest
 )
 
 // Exported variables.
@@ -53,7 +54,7 @@ func Items(items []Note) []map[string]any {
 
 	for _, found := range items {
 		out = append(out, map[string]any{
-			"path": found.Path, "kind": found.Kind, "score": found.score, "counted": found.counted,
+			"path": found.Path, "kind": found.Kind, "score": found.Score, "counted": found.counted,
 			"situation": found.Situation, "body": found.Body,
 		})
 	}

@@ -65,6 +65,7 @@ interface ModState {
   lastPrompt: string
   lineShown: boolean
   step: Cue | null
+  deep: Cue | null
   hooks: Promise<void>
   tally: Record<string, number>[]
   warnings: string[]

@@ -64,7 +64,7 @@ Requirement: 793a2n The [System](#793a1-problem-statement) MUST deliver relevant
 - at a [subagent](../../GLOSSARY.md#subagent)'s dispatch, delivered to that subagent for its task (a subagent's own first edit or first failure is not a moment);
 - when the orchestrator routes a unit through route, before it routes the unit, including any recorded evidence about which tier suits that kind of work ([792a17k Each dispatch is also written to the vault as a tagged evidence note](../../specs/product/route.md#792a17k-each-dispatch-is-also-written-to-the-vault-as-a-tagged-evidence-note)).
 
-Each [delivery](#793a1-problem-statement) MUST tell the agent to apply what it received. When nothing relevant remains to deliver, the [System](#793a1-problem-statement) MUST deliver nothing, that instruction included. Delivery is subject to [793a2e Nothing already in context is delivered again](#793a2e-nothing-already-in-context-is-delivered-again).
+A matching chunk of an earlier conversation or document in the index MUST be delivered beside the notes as a stub, its id and its score and none of its content, so that the agent can fetch the evidence with `engram show-chunk` if it needs it ([793c15 Does the System inject chunks with their content?](793c_open-questions.md#793c15-does-the-system-inject-chunks-with-their-content)). The stub MAY reach the agent a few seconds after the notes, with the result of its next tool call. Each [delivery](#793a1-problem-statement) MUST tell the agent to apply what it received. When nothing relevant remains to deliver, the [System](#793a1-problem-statement) MUST deliver nothing, that instruction included. Delivery is subject to [793a2e Nothing already in context is delivered again](#793a2e-nothing-already-in-context-is-delivered-again).
 
 Rationale: recall already says what to consult and when; the change is who does it. The [System](#793a1-problem-statement) does not have the agent's full [context](#793a1-problem-statement), so it hands memory over and the agent, which has the context, applies it. Tier evidence reaches the orchestrator only if it is delivered before the unit is routed.
 
@@ -118,6 +118,15 @@ Scenario: 793a2n1j Tier evidence is delivered before a dispatch is routed
   When a turn completes in which "the orchestrator routes a unit of Go test writing through route"
   Then the transcript shows note "E" delivered with the instruction to apply it before the orchestrator routes the unit
   And the transcript shows no request from the System to the agent to run a memory command, or to evaluate, approve, write or curate a note
+
+Scenario: 793a2n1k Chunk stubs are delivered with the notes, as id and score, and the agent can fetch one
+  Given the System is installed
+  And the vault holds a note "N" whose situation is "rotating the staging database credentials"
+  And the chunk index holds a chunk "C" that says "the staging database credentials rotate on the first of the month"
+  When a turn completes in which "the working agent works on rotating the staging database credentials"
+  Then the transcript shows note "N" delivered with the instruction to apply it before the agent's next response or tool call
+  And the transcript shows chunk "C" delivered as a stub, with its id and score and none of its content
+  And the agent can fetch chunk "C" with engram show-chunk
 ```
 
 ### 793a2e Nothing already in context is delivered again

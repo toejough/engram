@@ -1181,3 +1181,20 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 - **Applied in:** [793b424 The relevance prompt fences the text and the notes like the other three](./793b_decision-log.md#793b424-the-relevance-prompt-fences-the-text-and-the-notes-like-the-other-three).
 - **Blocks:** nothing.
 
+## 793c86 What rate of Red is the bar for a live row that depends on a model's judgement?
+
+- **Status:** answered (Joe, 2026-10-14), in chat. It is the question "d" of the owner's list in [793e8r Refactor review and promotion](./793e_implementation-plan.md#793e8r-refactor-review-and-promotion).
+- **Options:** none (a Red at the first try is a miss, the earlier rule); a rate with every Red attributed.
+- **Answer:** a judgement-dependent row passes at at least 9 of 10 runs with every Red attributed from the activity line; written into the completion gate and the result vocabulary; the harness gets `targ acceptance --runs N`; the rows that depend on judgement (793a2n1a, 793a2n1j, 793a3a1a example 3, 793a4j1c, 793a5h1a, 793a4c1f) are measured once with it and the rates recorded.
+- **Applied in:** [793b421 A row that depends on a model's judgement passes at 9 of 10 runs, with every Red attributed from the activity line](./793b_decision-log.md#793b421-a-row-that-depends-on-a-models-judgement-passes-at-9-of-10-runs-with-every-red-attributed-from-the-activity-line).
+- **Blocks:** nothing.
+
+## 793c87 How are chunk stubs delivered, given what the scan of the chunk index costs?
+
+- **Status:** answered (Joe, 2026-10-14), in chat.
+- **Context:** [793c15 Does the System inject chunks with their content?](#793c15-does-the-system-inject-chunks-with-their-content) decided that chunks are delivered as stubs; the code discards them, and the query with the index takes 12 s on the real vault ([793b408](./793b_decision-log.md#793b408-the-lookup-of-a-moment-was-measured-on-a-copy-of-the-real-vault-and-the-query-as-the-system-issues-it-does-not-fit-the-hold-on-it)), more than the 8 s hold.
+- **Options:** (a) split the lookup by latency: notes only on the hook that holds the agent, the full lookup with the chunks in the background and its stubs on the next tool result; (b) raise the hold; (c) drop the stubs and amend 793c15.
+- **Answer:** (a).
+- **Applied in:** [793b425 Chunk stubs were dropped against an owner decision; the lookup that holds the agent asks for notes only and the stubs come from a background pass](./793b_decision-log.md#793b425-chunk-stubs-were-dropped-against-an-owner-decision-the-lookup-that-holds-the-agent-asks-for-notes-only-and-the-stubs-come-from-a-background-pass).
+- **Blocks:** nothing.
+

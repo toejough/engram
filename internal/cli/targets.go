@@ -368,17 +368,13 @@ func newErrHandler(stderr io.Writer, exit func(int)) func(error) {
 // queryCommand is `engram query`, shared like amendCommand: with a parent configured the query is merged with the
 // parent's.
 func queryCommand(ctx context.Context, deps Deps, a QueryArgs, stdout io.Writer) error {
-	home := homeOrEmpty(deps)
-	a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
-	a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
+	return runQueryCommand(ctx, deps, a, stdout, true)
+}
 
-	return runInVault(deps, a.VaultPath, func() error {
-		if parent := parentBase(deps); parent != "" {
-			return runMergedQuery(ctx, deps, parent, a, stdout)
-		}
-
-		return RunQuery(ctx, a, newQueryDeps(deps), stdout)
-	})
+// queryNotesCommand is the same query without the chunk index: the engine asks for it when it holds the agent, because
+// scanning the index costs seconds (793b425).
+func queryNotesCommand(ctx context.Context, deps Deps, a QueryArgs, stdout io.Writer) error {
+	return runQueryCommand(ctx, deps, a, stdout, false)
 }
 
 // registerSkillsTargets returns the `engram register-skills` subcommand
@@ -444,6 +440,25 @@ func runInVault(deps Deps, vault string, run func() error) error {
 	}
 
 	return run()
+}
+
+// runQueryCommand resolves the arguments and runs the query; an empty chunks directory leaves the chunk index out.
+func runQueryCommand(ctx context.Context, deps Deps, a QueryArgs, stdout io.Writer, withChunks bool) error {
+	home := homeOrEmpty(deps)
+	a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
+	a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
+
+	if !withChunks {
+		a.ChunksDir = ""
+	}
+
+	return runInVault(deps, a.VaultPath, func() error {
+		if parent := parentBase(deps); parent != "" {
+			return runMergedQuery(ctx, deps, parent, a, stdout)
+		}
+
+		return RunQuery(ctx, a, newQueryDeps(deps), stdout)
+	})
 }
 
 // serveTargets returns the `engram serve` subcommand (792a20).

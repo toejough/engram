@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 
 	"github.com/toejough/targ"
 )
@@ -20,6 +21,7 @@ const (
 	acceptanceModules  = "node_modules"
 	acceptancePlanSize = 3 // npm ci, self-tests, run
 	acceptanceRunEntry = "run.js"
+	acceptanceRuns     = "--runs"
 	nodeProgram        = "node"
 	npmProgram         = "npm"
 )
@@ -28,6 +30,7 @@ const (
 var (
 	errAcceptanceProgram = errors.New("acceptance needs a program that is not on PATH")
 	errAcceptanceRoot    = errors.New("acceptance needs the repository that holds " + acceptanceDir)
+	errAcceptanceRuns    = errors.New("--runs takes a whole number of at least one, and runs live sessions")
 	errAcceptanceUsage   = errors.New("--check runs the self-tests and the vocabulary check only")
 )
 
@@ -36,6 +39,7 @@ type acceptanceArgs struct {
 	Filter string `targ:"positional,placeholder=ID-PREFIX,desc=scenario ID prefix (empty: product scenarios; 793d: H1)"`
 	DryRun bool   `targ:"flag,name=dry-run,desc=vocabulary check only; no session and no credentials"`
 	Check  bool   `targ:"flag,name=check,desc=self-tests and vocabulary check; no session and no credentials"`
+	Runs   int    `targ:"flag,name=runs,desc=run each row this many times; print its rate and each Red attributed"`
 }
 
 // acceptanceCommand is one program run of an acceptance plan; paths in Args are absolute.
@@ -78,6 +82,10 @@ func acceptancePlan(args acceptanceArgs, env acceptanceEnv) ([]acceptanceCommand
 		runArgs = append(runArgs, acceptanceDryRun)
 	}
 
+	if args.Runs > 1 {
+		runArgs = append(runArgs, acceptanceRuns, strconv.Itoa(args.Runs))
+	}
+
 	if args.Filter != "" {
 		runArgs = append(runArgs, args.Filter)
 	}
@@ -114,6 +122,11 @@ func requireAcceptancePrograms(args acceptanceArgs, lookPath func(string) (strin
 		return fmt.Errorf("%w: give it without a filter or --dry-run", errAcceptanceUsage)
 	}
 
+	runsErr := requireAcceptanceRuns(args)
+	if runsErr != nil {
+		return runsErr
+	}
+
 	programs := []string{nodeProgram, npmProgram}
 	if !args.DryRun && !args.Check {
 		programs = append(programs, "claude")
@@ -127,6 +140,15 @@ func requireAcceptancePrograms(args acceptanceArgs, lookPath func(string) (strin
 				errAcceptanceProgram, program, acceptanceDir,
 			)
 		}
+	}
+
+	return nil
+}
+
+// requireAcceptanceRuns rejects a number of runs that is below one, or that is given for a run that starts no session.
+func requireAcceptanceRuns(args acceptanceArgs) error {
+	if args.Runs < 0 || (args.Runs > 1 && (args.Check || args.DryRun)) {
+		return fmt.Errorf("%w: give it without --check or --dry-run", errAcceptanceRuns)
 	}
 
 	return nil

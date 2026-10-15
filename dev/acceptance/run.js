@@ -17,6 +17,7 @@ import {
 } from './lib/extract.js'
 import { parseArgs } from './lib/args.js'
 import { secretValues } from './lib/creds.js'
+import { formatRates, ratePassed, summarize } from './lib/rate.js'
 import { formatReport, passed } from './lib/report.js'
 import { runFeatures } from './lib/runner.js'
 import { disposeRun } from './lib/run-state.js'
@@ -25,11 +26,13 @@ import { preflight } from './lib/preflight.js'
 import { ARGS_FROM, EXIT_FAILURE } from './lib/units.js'
 
 const EXIT_INTERRUPTED = 130
+// the file a run of a rate run leaves its results in, for the process that started it to read
+const RESULTS_FILE = 'ENGRAM_ACCEPTANCE_RESULTS'
 const ROOT = path.dirname(fileURLToPath(import.meta.url))
 const SUPPORT = [path.join(ROOT, 'steps', 'index.js'), path.join(ROOT, 'support', 'hooks.js')]
 
 async function main(argv) {
-  const { dryRun, filter } = parseArgs(argv)
+  const { dryRun, filter, runs } = parseArgs(argv)
   const technical = filter.startsWith('793d')
   const all = technical ? extractScenarios(technicalSpecFiles(), { idPrefix: '793d17' }) : productScenarios()
   const selected = selectScenarios(all, filter)
@@ -57,7 +60,9 @@ async function main(argv) {
     })
     if (vocabulary.status !== 0) return 1
     preflight({ needClaude: true })
+    if (runs > 1) return await rateRun({ filter, runs })
     const { results } = await runFeatures({ features, support: SUPPORT, cwd: ROOT })
+    if (process.env[RESULTS_FILE]) fs.writeFileSync(process.env[RESULTS_FILE], JSON.stringify(results))
     console.log(formatReport(results))
     const pending = results.filter((entry) => entry.result.startsWith('Pending')).length
     if (pending > 0)
@@ -70,6 +75,32 @@ async function main(argv) {
     fs.rmSync(dir, { recursive: true, force: true })
     await disposeRun()
   }
+}
+
+// rateRun runs the selected rows `runs` times and prints the rate of each and the attribution of each Red (793b421): a
+// row that depends on a model's judgement passes at 9 of 10 runs with every Red attributed from the activity line.
+async function rateRun({ filter, runs }) {
+  const rounds = []
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'engram-rates-'))
+  try {
+    for (let run = 1; run <= runs; run += 1) {
+      // a run is a process of its own: cucumber registers the step definitions once per process
+      const file = path.join(dir, `run-${run}.json`)
+      spawnSync(process.execPath, [fileURLToPath(import.meta.url), ...(filter ? [filter] : [])], {
+        env: { ...process.env, [RESULTS_FILE]: file },
+        stdio: ['ignore', 'ignore', 'inherit'],
+      })
+      if (!fs.existsSync(file)) throw new Error(`run ${run} of ${runs} left no results: it did not reach a session`)
+      const results = JSON.parse(fs.readFileSync(file, 'utf8'))
+      rounds.push(results)
+      console.log(`run ${run} of ${runs}: ${results.map((entry) => `${entry.id} ${entry.result}`).join(', ')}`)
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+  const rows = summarize(rounds)
+  console.log(`\n${formatRates(rows, rounds)}`)
+  return ratePassed(rows) ? 0 : 1
 }
 
 process.on('SIGINT', () => {

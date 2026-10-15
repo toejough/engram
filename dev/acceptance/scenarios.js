@@ -139,6 +139,19 @@ export default {
       },
     },
   },
+  // the stub of a chunk rides the result of a tool the agent uses after the prompt: the agent reads two files, one tool
+  // result after the other, so that there is a result to ride (793a2n1k)
+  '793a2n1k': {
+    turns: {
+      'the working agent works on rotating the staging database credentials': {
+        files: { 'a.txt': 'first file\n', 'b.txt': 'second file\n' },
+        prompt:
+          'Next I am working on: rotating the staging database credentials. Use the Read tool on a.txt, then on ' +
+          'b.txt, and then reply with one word: ok.',
+        observe: { tool: 'Read' },
+      },
+    },
+  },
   '793a2e1a': {
     turns: {
       "the agent's next two tool results match note X again": {

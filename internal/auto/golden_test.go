@@ -33,7 +33,8 @@ func Test793d24b1_QueryArgumentsAreFlagValueForms(t *testing.T) {
 	t.Parallel()
 	each(t, "query_argv", func(g *WithT, input map[string]any, want golden) {
 		request := auto.QueryRequestOf(
-			field[string](input, "kind"), field[string](input, "text"), convert[[]string](input["moments"]))
+			field[string](input, "kind"), field[string](input, "text"), convert[[]string](input["moments"]),
+			field[string](input, "kind") == "step")
 		got := queryArgvOf(request)
 		g.Expect(asJSON(got)).To(MatchJSON(want.Out))
 	})

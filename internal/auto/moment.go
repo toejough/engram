@@ -1,9 +1,11 @@
 package auto
 
 import (
+	"fmt"
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -14,8 +16,9 @@ type Note struct {
 	Kind      string `json:"kind"`
 	Situation string `json:"situation"`
 	Body      string `json:"body"`
-	// the score of the item of a query, and whether it was a direct match
-	score   float64
+	// the score of the item of a query: shown for a chunk stub, which has nothing else
+	Score float64 `json:"score,omitempty"`
+	// whether the item was a direct match
 	counted bool
 	// the note as the lookup or the show gave it, which an amend of it is checked against
 	raw string
@@ -29,20 +32,52 @@ type ToolCall struct {
 
 // unexported constants.
 const (
-	bodyLimit   = 400
-	bodyParts   = 2
-	chunkKind   = "chunk"
-	cueCapture  = "capture"
-	cuePrompt   = "prompt"
-	cueRoute    = "route"
-	cueStep     = "step"
-	cueSubagent = "subagent"
-	itemLimit   = 10
-	mainAgent   = "main"
-	minScore    = 0.25
-	textLimit   = 300
-	toolSkill   = "Skill"
+	bodyLimit     = 400
+	bodyParts     = 2
+	chunkKind     = "chunk"
+	consideredKey = "~considered"
+	cueCapture    = "capture"
+	cuePrompt     = "prompt"
+	cueRoute      = "route"
+	cueStep       = "step"
+	cueSubagent   = "subagent"
+	itemLimit     = 10
+	mainAgent     = "main"
+	minScore      = 0.25
+	textLimit     = 300
+	toolSkill     = "Skill"
 )
+
+// pass says what a lookup asks of the vault. The pass that holds the agent asks for notes only and remembers the
+// notes it considered; the passes with the chunk index run in the background and ask for the chunks too, and the pass
+// after a prompt's leaves out the notes the first considered.
+type pass int
+
+// pass values.
+const (
+	holdPass pass = iota
+	stepPass
+	deepPass
+)
+
+// chunks says whether the chunk index is searched, and its chunks come back as stubs.
+func (p pass) chunks() bool { return p != holdPass }
+
+// deadline is the deadline of the query of the pass: a pass that holds the agent asks for notes only, and its deadline
+// is within the hold; a pass with the chunk index waits for no one (793b408).
+func (p pass) deadline() time.Duration {
+	if p.chunks() {
+		return deadlineNearest
+	}
+
+	return deadlineMomentQuery
+}
+
+// record says whether the notes the pass considers are remembered for the pass that follows.
+func (p pass) record() bool { return p == holdPass }
+
+// skip says whether the notes an earlier pass considered are left out.
+func (p pass) skip() bool { return p == deepPass }
 
 // unexported variables.
 var (
@@ -64,9 +99,21 @@ var (
 // compactJob empties the ledger of the agent that was compacted, the main agent's when no agent is named: a
 // compaction removed what that agent held and nothing another one did (793d24b2).
 func (e *engine) compactJob() Done {
-	delete(e.ledger, orElse(e.job.Agent, mainAgent))
+	agent := orElse(e.job.Agent, mainAgent)
+	delete(e.ledger, agent)
+
+	if agent == mainAgent {
+		delete(e.ledger, consideredKey)
+	}
 
 	return Done{}
+}
+
+// deepJob is the lookup of a prompt with the chunk index (793b425), which runs in the background once the lookup that
+// held the prompt has delivered the notes: the chunks that match come back as stubs, and any note the first lookup did
+// not consider. Its result rides the result of a tool of the working agent.
+func (e *engine) deepJob() Done {
+	return Done{Notes: e.lookup(mainAgent, cuePrompt, momentText(e.job.Text), true, nil, deepPass)}
 }
 
 // deliver makes the block of notes the agent does not hold yet, and counts them: a note that entered the ledger since
@@ -87,7 +134,7 @@ func (e *engine) deliver(agent string, notes []Note) string {
 
 	for _, note := range fresh {
 		e.ledger[agent] = append(e.ledger[agent], note.Path)
-		lines = append(lines, "- "+note.Path+" ("+note.Situation+"): "+note.Body)
+		lines = append(lines, itemLine(note))
 	}
 
 	e.count(Counts{Delivered: len(fresh)})
@@ -98,38 +145,56 @@ func (e *engine) deliver(agent string, notes []Note) string {
 // lookup runs one lookup (793b192): query, presence, relevance, and answers the notes that bear on the moment. `agent`
 // keys the ledger; a subagent's context is its task, so it reads no transcript. `moments` are the phrases the moment
 // names beside the text. Nothing relevant remaining is nothing (793a2n).
-func (e *engine) lookup(agent, kind, text string, readContext bool, moments []string) []Note {
-	items := parseQuery(e.query(queryRequest(kind, text, moments), deadlineMomentQuery))
+func (e *engine) lookup(agent, kind, text string, readContext bool, moments []string, mode pass) []Note {
+	request := queryRequest(kind, text, moments, mode.chunks())
+	items := parseQuery(e.query(request, mode.deadline()))
 
 	// a note the agent holds (delivered, or in what its context holds, which covers what the agent retrieved itself and
 	// what a resume restored) is not delivered again (793a2e); the transcript grows between rounds, so the filter is
-	// recorded
-	fresh := recorded(e, func() []Note {
+	// recorded. A pass that follows one of the same prompt leaves the notes that one considered to it (793b425).
+	found := recorded(e, func() lookedUp {
 		var held string
 		if readContext {
 			held = sinceCompaction(e.quietly(e.job.Transcript))
 		}
 
-		return slices.DeleteFunc(candidates(items), func(note Note) bool {
-			return slices.Contains(e.ledger[agent], note.Path) || strings.Contains(held, note.Path)
-		})
-	})
-	if len(fresh) == 0 {
-		e.logf("%s lookup: 0 candidate(s), 0 delivered", kind)
+		unheld := func(note Note) bool {
+			return !slices.Contains(e.ledger[agent], note.Path) && !strings.Contains(held, note.Path)
+		}
 
-		return nil
+		return lookedUp{
+			Notes: slices.DeleteFunc(candidates(items), func(note Note) bool {
+				return !unheld(note) || (mode.skip() && slices.Contains(e.ledger[consideredKey], note.Path))
+			}),
+			Stubs: stubsOf(items, mode.chunks(), unheld),
+		}
+	})
+	fresh := found.Notes
+
+	if mode.record() {
+		for _, note := range fresh {
+			if !slices.Contains(e.ledger[consideredKey], note.Path) {
+				e.ledger[consideredKey] = append(e.ledger[consideredKey], note.Path)
+			}
+		}
 	}
 
-	request := e.tiers.relevanceRequest(orElse(strings.Join(moments, ", "), kind), text, fresh)
-	chosen := judged(e, request, "relevance", func(reply string) []int { return parseSelection(reply, len(fresh)) })
-	e.logf("%s lookup: %d candidate(s), %d delivered", kind, len(fresh), len(chosen))
+	if len(fresh) == 0 {
+		e.logf("%s lookup: 0 candidate(s), 0 delivered, %d stub(s)", kind, len(found.Stubs))
 
-	notes := make([]Note, len(chosen))
+		return found.Stubs
+	}
+
+	judging := e.tiers.relevanceRequest(orElse(strings.Join(moments, ", "), kind), text, fresh)
+	chosen := judged(e, judging, "relevance", func(reply string) []int { return parseSelection(reply, len(fresh)) })
+	e.logf("%s lookup: %d candidate(s), %d delivered, %d stub(s)", kind, len(fresh), len(chosen), len(found.Stubs))
+
+	notes := make([]Note, len(chosen), len(chosen)+len(found.Stubs))
 	for index, position := range chosen {
 		notes[index] = fresh[position]
 	}
 
-	return notes
+	return append(notes, found.Stubs...)
 }
 
 // lookupJob is the lookup of a prompt, of the route skill and of a subagent's task.
@@ -139,7 +204,7 @@ func (e *engine) lookupJob() Done {
 		text = momentText(text)
 	}
 
-	return Done{Block: e.deliver(agent, e.lookup(agent, e.job.Moment, text, e.job.ReadContext, nil))}
+	return Done{Block: e.deliver(agent, e.lookup(agent, e.job.Moment, text, e.job.ReadContext, nil, holdPass))}
 }
 
 // stepJob is the in-turn cue (793b320): one classification of the recent texts, then, when it names a moment, the
@@ -160,7 +225,7 @@ func (e *engine) stepJob() Done {
 		return Done{}
 	}
 
-	return Done{Notes: e.lookup(mainAgent, cueStep, strings.Join(subjects, "; "), true, moments)}
+	return Done{Notes: e.lookup(mainAgent, cueStep, strings.Join(subjects, "; "), true, moments, stepPass)}
 }
 
 // toolJob is the result of a tool of the working agent: what it shows of a note, the agent holds, so it is not
@@ -175,7 +240,7 @@ func (e *engine) toolJob() Done {
 
 	notes := e.job.Held
 	if e.job.Route {
-		notes = e.lookup(mainAgent, cueRoute, strings.TrimSpace(e.job.Args+" "+e.job.LastPrompt), true, nil)
+		notes = e.lookup(mainAgent, cueRoute, strings.TrimSpace(e.job.Args+" "+e.job.LastPrompt), true, nil, holdPass)
 	}
 
 	return Done{Block: e.deliver(mainAgent, notes)}
@@ -183,6 +248,10 @@ func (e *engine) toolJob() Done {
 
 // ledger is, for each agent, the paths of the notes it holds (793a2e): delivered by the System or shown by a tool.
 type ledger map[string][]string
+
+// lookedUp is what a lookup leaves after the notes the agent holds are taken out: the notes to judge, and the chunk
+// stubs, which are not judged.
+type lookedUp struct{ Notes, Stubs []Note }
 
 // after is the text after the first `skip` parts of a text split at a pattern, joined again.
 func after(text string, pattern *regexp.Regexp, skip int, joiner string) string {
@@ -198,7 +267,7 @@ func candidates(items []Note) []Note {
 	var notes []Note
 
 	for _, found := range items {
-		direct := found.Kind != chunkKind && found.Situation != "" && found.score >= minScore && found.counted
+		direct := found.Kind != chunkKind && found.Situation != "" && found.Score >= minScore && found.counted
 
 		if direct && len(notes) < itemLimit {
 			notes = append(notes, found)
@@ -215,6 +284,17 @@ func first(pattern *regexp.Regexp, text string) string {
 	}
 
 	return ""
+}
+
+// itemLine is the line of a delivered item: a note by its path, situation and body; a chunk by its id and score only,
+// a stub, which the agent can print if it wants the evidence (793c15).
+func itemLine(note Note) string {
+	if note.Kind == chunkKind {
+		return fmt.Sprintf("- chunk %s (score %.2f): matched, its text is not shown here; `engram show-chunk` prints it",
+			note.Path, note.Score)
+	}
+
+	return "- " + note.Path + " (" + note.Situation + "): " + note.Body
 }
 
 // momentText is what a prompt says: its summary if it is a task notification, else the prompt. The notification is
@@ -255,7 +335,7 @@ func parseQuery(output string) []Note {
 		items = append(items, Note{
 			Path: found.Path, Kind: found.Kind, Situation: first(situation, found.Content),
 			Body:  cutEnd(oneSpaced(after(found.Content, ruleLine, bodyParts, "---")), bodyLimit),
-			score: found.Score, counted: slices.ContainsFunc(found.Provenances, countedProvenance.MatchString),
+			Score: found.Score, counted: slices.ContainsFunc(found.Provenances, countedProvenance.MatchString),
 			raw: found.Content,
 		})
 	}
@@ -265,7 +345,7 @@ func parseQuery(output string) []Note {
 
 // queryRequest is the search for the text of a moment and its phrases: the moments the cue names, then the phrases the
 // kind of cue adds, then the text.
-func queryRequest(kind, text string, moments []string) QueryRequest {
+func queryRequest(kind, text string, moments []string, chunks bool) QueryRequest {
 	clipped := cutEnd(text, textLimit)
 	phrases := map[string][]string{
 		cuePrompt: append(recallMoments(), clipped), cueRoute: {"routing a unit of work to a model tier", clipped},
@@ -273,7 +353,7 @@ func queryRequest(kind, text string, moments []string) QueryRequest {
 		cueCapture: {"capturing a lesson from a conversation", clipped},
 	}[kind]
 
-	return QueryRequest{Text: clipped, Phrases: slices.Concat(moments, phrases), Limit: itemLimit}
+	return QueryRequest{Text: clipped, Phrases: slices.Concat(moments, phrases), Limit: itemLimit, WithChunks: chunks}
 }
 
 // runsMemory says whether a tool call is the agent running memory itself.
@@ -300,6 +380,22 @@ func sinceCompaction(transcript string) string {
 	}
 
 	return strings.Join(kept, "\n")
+}
+
+// stubsOf are the chunks that matched the lookup, as stubs: their id and score, best first, at most itemLimit, none of
+// them one the agent holds (793c15). A pass without the chunk index has none.
+func stubsOf(items []Note, withChunks bool, unheld func(Note) bool) []Note {
+	var stubs []Note
+
+	for _, found := range items {
+		direct := found.Kind == chunkKind && found.Score >= minScore && found.counted && unheld(found)
+
+		if withChunks && direct && len(stubs) < itemLimit {
+			stubs = append(stubs, Note{Path: found.Path, Kind: chunkKind, Score: found.Score})
+		}
+	}
+
+	return stubs
 }
 
 // summaryOf is the summary a task notification carries.

@@ -63,7 +63,7 @@ const (
 // unexported variables.
 var (
 	acceptanceTarget = targ.Targ(runAcceptance).Name("acceptance").
-				Description("Run the product scenarios (or an ID prefix; 793d for H1) against real Claude Code sessions")
+				Description("Run the product scenarios (or an ID prefix; 793d for H1) against real Claude Code sessions (--runs N)")
 	checkForFailTarget = targ.Targ(targdev.CheckForFail.Fn()).Name("check-for-fail").
 				Description(targdev.CheckForFail.GetDescription()).
 				Deps(

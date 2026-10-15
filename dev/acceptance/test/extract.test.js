@@ -20,10 +20,10 @@ const product = productScenarios()
 const hypothesisOne = extractScenarios(technicalSpecFiles(), { idPrefix: '793d17' })
 const hypothesisTwo = extractScenarios(technicalSpecFiles(), { idPrefix: '793d18' })
 
-test('the product spec yields exactly its 43 scenario IDs, once each', () => {
+test('the product spec yields exactly its 44 scenario IDs, once each', () => {
   const ids = product.map((scenario) => scenario.id)
-  assert.equal(ids.length, 43)
-  assert.equal(new Set(ids).size, 43)
+  assert.equal(ids.length, 44)
+  assert.equal(new Set(ids).size, 44)
   assert.ok(
     ids.every((id) => /^793a\d+[a-z][a-z0-9]*$/.test(id)),
     ids.join(' '),
@@ -48,7 +48,7 @@ test('an outline is one scenario and reports its example count', () => {
   assert.equal(byId['793a5k1e'].outline, false)
   assert.equal(
     product.reduce((total, scenario) => total + (scenario.outline ? scenario.examples : 1), 0),
-    51,
+    52,
   )
 })
 
@@ -61,7 +61,7 @@ test('the ID filter selects by prefix and by exact ID, in spec order', () => {
     selectScenarios(product, '793a5k').map((scenario) => scenario.id),
     ['793a5k1c', '793a5k1d', '793a5k1e'],
   )
-  assert.equal(selectScenarios(product, '').length, 43)
+  assert.equal(selectScenarios(product, '').length, 44)
   assert.deepEqual(selectScenarios(product, '793a9'), [])
 })
 

@@ -54,6 +54,7 @@ export class Scenario {
     // `engram ingest --auto` are the scenario's own
     this.workspace = path.join(this.home, 'work')
     this.notes = new Map()
+    this.chunks = new Map()
     this.offers = new Map()
     // the ended sessions written as inputs (793e8g): the transcript, its copy and its time
     this.ended = []
@@ -138,6 +139,19 @@ export class Scenario {
     ])
     this.notes.set(label, { label, situation, sentinel, object })
     return this.notes.get(label)
+  }
+
+  // seedChunk puts a chunk in the index through `engram ingest --markdown`: a source file named with a sentinel, so
+  // that the id of the chunk (its file and its heading) is what a delivery shows, and the words under one heading.
+  async seedChunk(label, says) {
+    const sentinel = sentinelFor(label)
+    const dir = path.join(this.dir, 'chunk-sources')
+    fs.mkdirSync(dir, { recursive: true })
+    const file = path.join(dir, `chunk-${sentinel}.md`)
+    fs.writeFileSync(file, `# Credentials\n\n${says} (${sentinel}).\n`)
+    await this.engram(['ingest', '--markdown', file])
+    this.chunks.set(label, { label, sentinel, says, id: `${file}#Credentials` })
+    return this.chunks.get(label)
   }
 
   // seedOffer puts a pending offer in the vault (793e2i step 5): one that states the claim of note `covers` (and, with

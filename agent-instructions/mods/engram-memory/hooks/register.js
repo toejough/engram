@@ -21,6 +21,7 @@ const STEP = {
   route: 'the route lookup',
   subagent: 'the subagent lookup',
   step: 'the step lookup',
+  deep: 'the chunk lookup',
 }
 const CAPTURE_STEP = 'the capture'
 const HOUSEKEEPING_STEP = 'the housekeeping'
@@ -40,6 +41,7 @@ const mod = {
   lastPrompt: '',
   lineShown: false,
   step: null,
+  deep: null,
   hooks: Promise.resolve(),
   tally: [],
   warnings: [],
@@ -210,19 +212,52 @@ async function startStep($, result) {
   mod.step = cue
 }
 
+// startDeep starts the lookup with the chunk index (793b425) in the background, once the lookup that held the prompt
+// has ended: the stubs of the chunks it finds, and any note the first lookup did not consider, ride the result of a
+// later tool of the turn.
+/**
+ * @param {Ctx} $
+ * @param {string} text
+ */
+async function startDeep($, text) {
+  /** @type {Cue} */
+  const cue = { done: false, notes: [], startedAt: await $.clock.now() }
+  remember({ deep: cue })
+  $.clock.after(0, async () => {
+    await mod.hooks
+    const job = { kind: 'deep', step: STEP.deep, text, ledger: mod.ledger, lastPrompt: mod.lastPrompt }
+    cue.notes = (await attempt($, () => relay($, { ...job, transcript: mod.transcript }), STEP.deep))?.notes ?? []
+    cue.done = true
+  })
+}
+
+// heldDeep answers the notes of the lookup with the chunk index for a tool result: nothing waits for it. One that has
+// finished is taken; one still running is kept for a later result until its deadline, as the in-turn cue is.
+/** @param {Ctx} $ */
+async function heldDeep($) {
+  const cue = mod.deep
+  retain('deep', cue, cue?.done ? null : await kept($, cue))
+  return cue?.done ? cue.notes : []
+}
+
+// heldNotes are the notes the working agent's next tool result carries: those of the in-turn cue and of the lookup with
+// the chunk index.
+/** @param {Ctx} $ */
+const heldNotes = async ($) => [...(await heldStep($)), ...(await heldDeep($))]
+
 // heldStep answers the notes of the cue for a tool result of the working agent: it waits for the cue up to HOLD_MS; a
 // cue still running is kept for a later result until its deadline, a finished one is taken.
 /** @param {Ctx} $ */
 async function heldStep($) {
   const cue = mod.step
   if (cue && !cue.done) await Promise.race([cue.promise, $.clock.sleep(HOLD_MS)])
-  retain(cue, await kept($, cue))
+  retain('step', cue, await kept($, cue))
   return cue?.done ? cue.notes : []
 }
 
 // retain keeps the cue for a later result unless the turn dropped it, or another cue replaced it, while it waited.
-/** @type {(cue: Cue | null, still: Cue | null) => unknown} */
-const retain = (cue, still) => remember(mod.step === cue ? { step: still } : {})
+/** @type {(slot: 'step' | 'deep', cue: Cue | null, still: Cue | null) => unknown} */
+const retain = (slot, cue, still) => remember(mod[slot] === cue ? { [slot]: still } : {})
 /** @type {($: Ctx, cue: Cue | null) => Promise<Cue | null>} */
 const kept = async ($, cue) => (cue && !cue.done && !(await expired($, cue)) ? cue : null)
 /** @type {($: Ctx, cue: Cue) => Promise<boolean>} */
@@ -241,7 +276,7 @@ async function toolBlock($, event) {
   const job = {
     kind: 'tool',
     route,
-    held: await (route ? [] : heldStep($)),
+    held: await (route ? [] : heldNotes($)),
     args: event.tool_input?.args,
     toolResponse: event.tool_response,
   }
@@ -348,6 +383,7 @@ const onTurnComplete = async ($, event, next) => {
   if (event.agentId) return result
   mod.spawns.length = 0
   mod.step = null
+  mod.deep = null
   await schedule($, { kind: 'capture', answer: event.answer ?? '', ...(await facts($)) }, true)
   return result
 }
@@ -370,7 +406,9 @@ const onSubagentStop = async ($, event, next) => {
 const onPrompt = async ($, event, next) => {
   mod.lastPrompt = event.text
   const job = { kind: 'lookup', moment: 'prompt', text: event.text, readContext: true }
-  return next(withBlock(event, 'context', await blockOf($, job, STEP.prompt)))
+  const block = await blockOf($, job, STEP.prompt)
+  await attempt($, () => startDeep($, event.text))
+  return next(withBlock(event, 'context', block))
 }
 
 // The step hook only reads: the chunks pass as they come and the result is the one beneath (purview, 793a4c).

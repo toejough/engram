@@ -54,6 +54,7 @@ The terms **moment**, **delivery**, **lesson**, **working agent**, **context**, 
 - **Margin:** the largest shortfall of the cheapest tier against the session model that still counts as parity (0.05).
 - **Noise:** the larger of the spread of the session model's own result over repeated runs and the half-width of the 95% paired-bootstrap interval of a difference between two arms.
 - **Cue:** an event of a session that the System treats as a moment (a prompt, a route skill result, a subagent start, a step of the agent), or the decision that one has been reached.
+- **Stub:** a chunk of the chunk index delivered as its id and its score and none of its content; the agent can print it with `engram show-chunk` ([793c15](./793c_open-questions.md#793c15-does-the-system-inject-chunks-with-their-content)).
 - **Block:** the text one delivery adds to an agent's context: the marker `[engram memory]`, a framing text and one line per note.
 - **Ledger:** the set of note paths the System has delivered to one agent; the top-level agent's ledger is emptied by a compaction.
 - **Window:** the lines of what the user and the agent said, labelled by role, that one capture judgement reads.
@@ -64,7 +65,7 @@ The terms **moment**, **delivery**, **lesson**, **working agent**, **context**, 
 - **Mark:** a record in the backlog mark file that a backlog source, by its hash, or the turns of a session were captured.
 - **Cut-off:** the fixed time, the install time minus 7 days, before which a backlog source is history.
 - **Status line:** the one line the mod pins under the prompt, which is not a row of the transcript.
-- **Job:** one unit of the System's work that the mod hands to `engram auto run`: a `kind` (`lookup`, `step`, `tool`, `compact`, `capture`, `subagent`, `housekeeping` or `summary`) and the fields that kind reads.
+- **Job:** one unit of the System's work that the mod hands to `engram auto run`: a `kind` (`lookup`, `deep`, `step`, `tool`, `compact`, `capture`, `subagent`, `housekeeping` or `summary`) and the fields that kind reads.
 - **Round:** one call of `engram auto run` for a job. It ends the job, or asks the mod to relay model requests or to wait; the next round replays the job from the **record** of the effects of the earlier ones (each command's output, each file read, the clock, each reply), which the mod hands back and never reads.
 
 ## 793d17 H1: a Claude Code mod gives a smaller implementation surface and more capability than settings hooks
@@ -380,6 +381,23 @@ Scenario: 793d22b5a1 A request is relayed and its reply goes back
   Then the model receives the request as given and the next round carries the reply and the state
 ```
 
+#### 793d22b6 The lookup with the chunk index
+
+Requirement: 793d22b6 After the lookup of a top-level prompt has answered, the Memory Mod MUST start the `deep` [job](#793d1b-terms) for the same prompt in the background, once the jobs that touch the [ledger](#793d1b-terms) before it have ended, and MUST hand what it returns to the next tool result of the working agent in the same turn, together with the notes of the in-turn cue. No tool result and no prompt MUST wait for it; one still running when a tool result comes MUST be kept for a later result, and dropped when it is older than 25 seconds, as the in-turn cue is, or when the turn completes. A failure of it MUST be contained like any other, warned for the step "the chunk lookup".
+
+Supports: [793a2n1k Chunk stubs are delivered with the notes, as id and score, and the agent can fetch one](./793a_product-spec.md#793a2n1-uat-scenarios)
+
+Verified by: `wiring.test.ts` "a prompt is followed by a lookup with the chunk index…"; `wiring.test.ts` "no tool result waits for it…"; `wiring.test.ts` "it is dropped with the turn…"
+
+##### 793d22b6a Scenarios
+
+```gherkin
+Scenario: 793d22b6a1 The stubs ride the next tool result
+  Given a prompt whose lookup found a note and whose lookup with the chunk index found a chunk
+  When the agent uses a tool
+  Then the result carries the stub, and the prompt was not held for it
+```
+
 ## 793d36 Job Runner
 
 Canonical target: `docs/specs/technical/job-runner.md`.
@@ -392,7 +410,7 @@ Ownership: repository component. Responsibility: advances one [job](#793d1b-term
 
 #### 793d36b1 One round per call
 
-Requirement: 793d36b1 Given a [job](#793d1b-terms) as JSON (a kind of lookup, step, tool, compact, capture, [subagent](../../GLOSSARY.md#subagent), [housekeeping](#793d1b-terms) or summary, with the fields it reads), the [session](../../GLOSSARY.md#session) state, and optionally the record of its earlier [rounds](#793d1b-terms) and the reply to its request, the Job Runner MUST answer with one JSON response: the log lines, warnings and counts of the round, and either `done` (the result and the session state) or a `request` (a model call to relay) or a `waitMs`, with the `state` to send back. A job it cannot read, a kind it does not know, or session state it cannot read MUST be an error and no response.
+Requirement: 793d36b1 Given a [job](#793d1b-terms) as JSON (a kind of lookup, deep, step, tool, compact, capture, [subagent](../../GLOSSARY.md#subagent), [housekeeping](#793d1b-terms) or summary, with the fields it reads), the [session](../../GLOSSARY.md#session) state, and optionally the record of its earlier [rounds](#793d1b-terms) and the reply to its request, the Job Runner MUST answer with one JSON response: the log lines, warnings and counts of the round, and either `done` (the result and the session state) or a `request` (a model call to relay) or a `waitMs`, with the `state` to send back. A job it cannot read, a kind it does not know, or session state it cannot read MUST be an error and no response.
 
 Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a3a1a A lesson is captured without agent action](./793a_product-spec.md#793a3a1-uat-scenarios)
 
@@ -428,7 +446,7 @@ Scenario: 793d36b2a1 A command is not run again by a later round
 
 #### 793d36b3 Failure containment and classes
 
-Requirement: 793d36b3 The Job Runner MUST contain the failure of every step of a [job](#793d1b-terms) (an operation of the vault that fails or passes its deadline, output that is not a query's, a reply the strict reading rejects, an unanswered model call, a thrown error) as a warning in the response naming the step and its class, and the job MUST end as without the [mod](#793d1b-terms). A failure whose text says it was cut or timed out is `timeout`, one that says the [vault](./793a_product-spec.md#793a1-problem-statement) could not be read is `unavailable`, any other is `error`. Every operation of the vault MUST have a deadline (30 seconds; the index 300; the lookup of a [moment](./793a_product-spec.md#793a1-problem-statement) 2.2, at least one and a half times the 95th percentile of the query; the [nearest notes](#793d1b-terms) of a capture or an offer 25) and every model request its own (classify 4, relevance 5.8), and the deadlines of a prompt's lookup and relevance [judgement](#793d1b-terms) MUST add up to no more than the 8 seconds the Memory Mod holds a prompt ([793d22b3 Failure containment](#793d22b3-failure-containment)). A lookup that finds nothing is not a failure. A failure of the [System](./793a_product-spec.md#793a1-problem-statement)'s own bookkeeping, the marks, MUST go to the debug log and warn no one.
+Requirement: 793d36b3 The Job Runner MUST contain the failure of every step of a [job](#793d1b-terms) (an operation of the vault that fails or passes its deadline, output that is not a query's, a reply the strict reading rejects, an unanswered model call, a thrown error) as a warning in the response naming the step and its class, and the job MUST end as without the [mod](#793d1b-terms). A failure whose text says it was cut or timed out is `timeout`, one that says the [vault](./793a_product-spec.md#793a1-problem-statement) could not be read is `unavailable`, any other is `error`. Every operation of the vault MUST have a deadline (30 seconds; the index 300; the lookup of a [moment](./793a_product-spec.md#793a1-problem-statement) that holds the agent 2.2, at least one and a half times the 95th percentile of the query of the notes; the lookup with the chunk index 25; the [nearest notes](#793d1b-terms) of a capture or an offer 25) and every model request its own (classify 4, relevance 5.8), and the deadlines of a prompt's lookup and relevance [judgement](#793d1b-terms) MUST add up to no more than the 8 seconds the Memory Mod holds a prompt ([793d22b3 Failure containment](#793d22b3-failure-containment)). A lookup that finds nothing is not a failure. A failure of the [System](./793a_product-spec.md#793a1-problem-statement)'s own bookkeeping, the marks, MUST go to the debug log and warn no one.
 
 Supports: [793a4b1a Vault unavailable](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1c No error reaches the agent and the user is warned](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1e No warning when nothing matched](./793a_product-spec.md#793a4b1-uat-scenarios)
 
@@ -503,17 +521,17 @@ Canonical target: `docs/specs/technical/memory-delivery.md`.
 
 ### 793d24a Orientation
 
-Ownership: repository component. Responsibility: given a [moment](./793a_product-spec.md#793a1-problem-statement) and its text, finds the [notes](./793a_product-spec.md#793a1-problem-statement) that bear on it and that the receiving agent does not hold, composes the [block](#793d1b-terms), and remembers what each agent was given. Realization: `lookup`, `deliver`, `toolJob` and `compactJob` in `internal/auto/moment.go`.
+Ownership: repository component. Responsibility: given a [moment](./793a_product-spec.md#793a1-problem-statement) and its text, finds the [notes](./793a_product-spec.md#793a1-problem-statement) that bear on it and that the receiving agent does not hold, composes the [block](#793d1b-terms), and remembers what each agent was given. Realization: `lookup`, `deepJob`, `stubsOf`, `deliver`, `toolJob` and `compactJob` in `internal/auto/moment.go`.
 
 ### 793d24b Behavior Requirements
 
 #### 793d24b1 Lookup and selection
 
-Requirement: 793d24b1 For a [moment](./793a_product-spec.md#793a1-problem-statement), Memory Delivery MUST ask the Query Engine for at most 10 items, passing the text cut at 300 characters as `--text=` and a `--phrase=` for the text and for each of the moment's phrases (a prompt: recall's four decision moments; a route: "routing a unit of work to a model tier"; a [subagent](../../GLOSSARY.md#subagent): "dispatching a subagent for a task"; a step: the moments named), free text always as `--flag=value`. Output that is not a query's MUST be an error, never an empty result. It MUST consider only [notes](./793a_product-spec.md#793a1-problem-statement) (never chunks) with a situation, a name engram could have written, a score of at least 0.25 and a direct, cluster-representative or trigger provenance, make no [judgement](#793d1b-terms) when none remains after presence, and otherwise make one relevance judgement and deliver exactly the notes selected.
+Requirement: 793d24b1 For a [moment](./793a_product-spec.md#793a1-problem-statement), Memory Delivery MUST ask the Query Engine for at most 10 items, passing the text cut at 300 characters as `--text=` and a `--phrase=` for the text and for each of the moment's phrases (a prompt: recall's four decision moments; a route: "routing a unit of work to a model tier"; a [subagent](../../GLOSSARY.md#subagent): "dispatching a subagent for a task"; a step: the moments named), free text always as a value of its own. A lookup that holds the agent (a prompt, the result of route, the start of a subagent) MUST ask for the notes of the vault only, leaving the chunk index out, because scanning the index takes seconds ([793b408](./793b_decision-log.md#793b408-the-lookup-of-a-moment-was-measured-on-a-copy-of-the-real-vault-and-the-query-as-the-system-issues-it-does-not-fit-the-hold-on-it)); the lookup of a step and the `deep` lookup of a prompt (793d24b4), which hold no one, ask with the chunk index. Output that is not a query's MUST be an error, never an empty result. It MUST consider as notes only [notes](./793a_product-spec.md#793a1-problem-statement) (never chunks) with a situation, a name engram could have written, a score of at least 0.25 and a direct, cluster-representative or trigger provenance, make no [judgement](#793d1b-terms) when none remains after presence, and otherwise make one relevance judgement and deliver exactly the notes selected.
 
 Supports: [793a2n1a Recall happens without the agent running it](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1-uat-scenarios), [793a2n1h A prompt from any source receives relevant notes](./793a_product-spec.md#793a2n1-uat-scenarios)
 
-Verified by: `internal/auto/moment_test.go`: Test793d24b1_AJudgementThatSelectsNothingDeliversNothing, Test793d24b1_ALookupSaysInTheDebugLogHowManyCandidatesItFoundAndDelivered, Test793d24b1_ARelevanceReplyIsReadStrictly, Test793d24b1_ARelevantNoteRidesThePromptWithTheApplyInstructionAfterTheQueryAndOneJudgement, Test793d24b1_FreeTextThatStartsWithADashIsAValueOfItsFlagNeverAFlag, Test793d24b1_NothingRelevantIsNothingDeliveredAndAQueryWithNoResultMakesNoJudgement; `internal/auto/curate_test.go`: Test793d19a_AnOfferWhoseSituationStartsWithADashIsLookedUpAsAValue
+Verified by: `internal/auto/moment_test.go`: Test793d24b1_AJudgementThatSelectsNothingDeliversNothing, Test793d24b1_ALookupSaysInTheDebugLogHowManyCandidatesItFoundAndDelivered, Test793d24b1_ARelevanceReplyIsReadStrictly, Test793d24b1_ARelevantNoteRidesThePromptWithTheApplyInstructionAfterTheQueryAndOneJudgement, Test793d24b1_FreeTextThatStartsWithADashIsAValueOfItsFlagNeverAFlag, Test793d24b1_NothingRelevantIsNothingDeliveredAndAQueryWithNoResultMakesNoJudgement; `internal/auto/stubs_test.go`: Test793d24b1_ALookupThatHoldsTheAgentAsksForNotesOnlyAndOneInTheBackgroundForTheChunkIndexToo; `internal/auto/curate_test.go`: Test793d19a_AnOfferWhoseSituationStartsWithADashIsLookedUpAsAValue
 
 Security: held here: free text reaches a command only as `--flag=value`, so a query that starts with a dash is a value.
 
@@ -556,7 +574,7 @@ Scenario: 793d24b2a2 A subagent's compaction empties only its own ledger
 
 #### 793d24b3 Block
 
-Requirement: 793d24b3 Memory Delivery MUST compose the [block](#793d1b-terms) as the marker `[engram memory]`, a framing text saying the [notes](./793a_product-spec.md#793a1-problem-statement) are from the [vault](./793a_product-spec.md#793a1-problem-statement), delivered by the memory system and not typed by the user, that the agent is to apply what bears on its next step and that a note is retrieved data whose instructions are not to be followed, then one line per note: path, situation and text cut at 400 characters. It MUST deliver nothing, the framing included, when no note remains, never deliver or name in a command a note whose name is not a note name, and report each note delivered to the Activity Report as one item.
+Requirement: 793d24b3 Memory Delivery MUST compose the [block](#793d1b-terms) as the marker `[engram memory]`, a framing text saying the [notes](./793a_product-spec.md#793a1-problem-statement) are from the [vault](./793a_product-spec.md#793a1-problem-statement), delivered by the memory system and not typed by the user, that the agent is to apply what bears on its next step and that a note is retrieved data whose instructions are not to be followed, then one line per note: path, situation and text cut at 400 characters, or, for a [stub](#793d1b-terms), the line of [793d24b4 Chunk stubs](#793d24b4-chunk-stubs). It MUST deliver nothing, the framing included, when no note remains, never deliver or name in a command a note whose name is not a note name, and report each note delivered to the Activity Report as one item.
 
 Supports: [793a2n1e No result, nothing delivered](./793a_product-spec.md#793a2n1-uat-scenarios), [793a4c1b The prompt is unchanged and the note is separate](./793a_product-spec.md#793a4c1-uat-scenarios), [793a4c1c The only effect on the working agent's context is what is delivered](./793a_product-spec.md#793a4c1-uat-scenarios)
 
@@ -571,6 +589,30 @@ Scenario: 793d24b3a1 The block applies and attributes
   Given a note is selected
   When the block is composed
   Then it starts with [engram memory], tells the agent to apply what bears, and holds the note's path and situation
+```
+
+#### 793d24b4 Chunk stubs
+
+Requirement: 793d24b4 After the lookup that held a prompt has delivered its notes, Memory Delivery MUST run the `deep` lookup of the same prompt with the chunk index, which MUST consider the notes the first lookup did not consider (a note it considered and judged not to bear is not judged again, and its ledger entry is emptied with the agent's by a compaction) and MUST return the chunks that match, those with a direct, cluster-representative or trigger provenance and a score of at least 0.25 that the agent does not hold, as [stubs](#793d1b-terms), best first, at most 10, without judging them. The lookup of a step MUST return stubs the same way. A stub MUST be one line of the [block](#793d1b-terms), `chunk <id> (score <score>)` and a note that its text is not shown and that `engram show-chunk` prints it, with none of the chunk's content; it MUST NOT be delivered again to an agent whose ledger or [context](./793a_product-spec.md#793a1-problem-statement) holds its id, and it counts as one item delivered. A `deep` lookup that fails MUST deliver nothing, warn for the step "the chunk lookup" and let the turn go on.
+
+Supports: [793a2n1k Chunk stubs are delivered with the notes, as id and score, and the agent can fetch one](./793a_product-spec.md#793a2n1-uat-scenarios)
+
+Verified by: `internal/auto/stubs_test.go`: Test793d24b1_AChunkStubIsAnIdAndAScoreAndNoneOfTheContentAndAskedNoJudgement, Test793d24b1_AStubIsDeliveredOnceAndNotWhenTheContextHoldsItsId, Test793d24b1_AtMostTenStubsAreDelivered, Test793d24b1_TheNotesTheLookupThatHeldTheAgentConsideredAreNotJudgedAgainByTheOneAfterIt, Test793d24b2_ACompactionEmptiesWhatTheLookupThatHeldTheAgentConsidered, Test793d36b3_AFailingLookupWithTheChunkIndexWarnsNamingItsStepAndDeliversNothing; `internal/auto/perf_test.go`: Test793d24b4_TheDeadlineOfTheLookupWithTheChunkIndexIsAboveItsMeasuredPercentile; `internal/cli/auto_vault_test.go`: Test793d24b4_AutoVaultAQueryWithTheChunkIndexReturnsItsChunksAsStubsAndOneWithoutLeavesThemOut
+
+Rationale: owner decision [793c15](./793c_open-questions.md#793c15-does-the-system-inject-chunks-with-their-content) delivers chunks lazily as stubs so that the agent can fetch the evidence; the code had discarded every chunk and this spec had documented that, which was a regression ([793b425](./793b_decision-log.md#793b425-chunk-stubs-were-dropped-against-an-owner-decision-the-lookup-that-holds-the-agent-asks-for-notes-only-and-the-stubs-come-from-a-background-pass)). The scan of the chunk index is 8.5 s on the owner's index, so the lookup that holds the agent leaves it out and the stubs arrive with the result of the agent's next tool.
+
+##### 793d24b4a Scenarios
+
+```gherkin
+Scenario: 793d24b4a1 A matching chunk is delivered as a stub
+  Given the chunk index holds a chunk that matches the prompt
+  When the lookup with the chunk index ends
+  Then the next tool result carries a line with the chunk's id and score and none of its text
+
+Scenario: 793d24b4a2 A stub is delivered once
+  Given a stub was delivered
+  When the same chunk matches again
+  Then it is not delivered again
 ```
 
 ## 793d25 Judgement Relay
@@ -1061,7 +1103,7 @@ sequenceDiagram
         Det-->>Mod: 793d23b1 none
     end
     Note over Run,QE: the engine calls the query in its own process, no command is started (793b417)
-    Del->>QE: 792b24c5, 793d32b3 query with the moment's phrases
+    Del->>QE: 792b24c5, 793d32b3 query the notes, without the chunk index, with the moment's phrases
     QE-->>Del: 792b24c5 items
     Del->>Del: 793d24b2 drop the notes the agent holds
     alt a considered note remains
@@ -1077,6 +1119,18 @@ sequenceDiagram
         Del-->>Run: 793d24b1, 793d32b3 nothing
         Run-->>Mod: 793d36b1 done without a block
         Mod-->>Eng: 793d22b1, 793d32b1 the event as received
+    end
+    opt a prompt, once its notes are delivered
+        Mod->>Run: 793d22b6, 793d36b1, 793d32b4 deep job in the background
+        Run->>Del: 793d24b4, 793d32b4 look up the prompt with the chunk index
+        Del->>QE: 792b24c5, 793d32b4 query the notes and the chunks, the chunks as stubs
+        QE-->>Del: 792b24c5 items
+        Del->>JR: 793d25b1, 793d32b4 relevance of the notes the first lookup did not consider
+        JR-->>Del: 793d25b2, 793d25b3 the selection
+        Del-->>Run: 793d24b4, 793d32b4 the stubs and the notes
+        Run-->>Mod: 793d36b1 done with the notes
+        Note over Mod,Eng: nothing waits for it; its notes ride the result of the agent's next tool
+        Mod-->>Eng: 793d22b6, 793d32b4 the tool result with the stubs added
     end
     alt any step fails
         Run->>Mod: 793d36b3, 793d32b1 the warning with step and class
@@ -1179,6 +1233,26 @@ Scenario: 793d32b3a2 A considered note is judged and returned
   When the judgement selects it
   Then its block is returned
   # acceptance rows: 793a2n1a
+```
+
+#### 793d32b4 Chunk stub sequence
+
+Requirement: 793d32b4 The lookup that holds a prompt MUST end, and its notes be returned in the event, before the `deep` lookup of the same prompt starts; the `deep` lookup MUST make its query with the chunk index and judge only notes the first lookup did not consider; and its stubs and notes MUST reach the agent only with the result of a tool of the same turn, never holding a prompt or a tool result.
+
+Owner: [793d22 Memory Mod](#793d22-memory-mod)
+
+Supports: [793a2n1k Chunk stubs are delivered with the notes, as id and score, and the agent can fetch one](./793a_product-spec.md#793a2n1-uat-scenarios)
+
+Verified by: `wiring.test.ts` "a prompt is followed by a lookup with the chunk index…"; `internal/auto/stubs_test.go`: Test793d24b1_ALookupThatHoldsTheAgentAsksForNotesOnlyAndOneInTheBackgroundForTheChunkIndexToo, Test793d24b1_TheNotesTheLookupThatHeldTheAgentConsideredAreNotJudgedAgainByTheOneAfterIt
+
+##### 793d32b4a Scenarios
+
+```gherkin
+Scenario: 793d32b4a1 The prompt is answered with the notes and the stubs follow
+  Given a prompt that matches a note and a chunk
+  When the prompt is routed and the agent then uses a tool
+  Then the prompt event holds the note, and the tool result holds the stub of the chunk
+  # acceptance rows: 793a2n1k
 ```
 
 ## 793d33 Turn Memory Work Flow

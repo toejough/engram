@@ -214,6 +214,35 @@ function deliveredMidTurn(found) {
     )
 }
 
+// A chunk is delivered as a stub (793a2n1k): the System's block names its id and its score and holds none of what it
+// says; the id it names is one the agent can fetch with the command that prints a chunk.
+function chunkStub(world, label, rows) {
+  const chunk = world.scenario.chunks.get(label)
+  if (!chunk) throw new Error(`no chunk "${label}" was seeded before this step`)
+  const blocks = systemBlocks(rows).filter((block) => block.text.includes(chunk.id))
+  assert.ok(blocks.length > 0, `chunk "${label}" was not delivered: no System block names ${chunk.id}`)
+  const line = blocks[0].text.split('\n').find((each) => each.includes(chunk.id))
+  assert.ok(/\b\d\.\d+/.test(line), `the stub of chunk "${label}" shows no score: ${excerpt(line)}`)
+  for (const block of blocks)
+    assert.ok(
+      !block.text.includes(chunk.says),
+      `chunk "${label}" was delivered with its content, not as a stub: ${excerpt(block.text, LONG_EXCERPT)}`,
+    )
+  return chunk
+}
+
+const STUB_DELIVERED = `^the transcript shows chunk ${QUOTED} delivered as a stub, `
+
+Then(new RegExp(`${STUB_DELIVERED}with its id and score and none of its content$`), async function (label) {
+  chunkStub(this, label, await mainRows(this))
+})
+
+Then(new RegExp(`^the agent can fetch chunk ${QUOTED} with engram show-chunk$`), async function (label) {
+  const chunk = chunkStub(this, label, await mainRows(this))
+  const shown = await this.scenario.engram(['show-chunk', chunk.id])
+  assert.ok(shown.includes(chunk.sentinel), `engram show-chunk did not print chunk "${label}": ${excerpt(shown)}`)
+})
+
 Then(
   new RegExp(
     "^the (subagent's )?transcript shows no request from the System to the agent to run a " +

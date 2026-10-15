@@ -41,15 +41,20 @@ describe('the relay of a job (793b197)', () => {
   )
 
   test('a wait is slept on the clock before the next round', async ($: Driver, on: On) => {
+    let waited = false
     const { clock, jobs } = world(on, {
-      engine: (_job, call) => (call === 1 ? { waitMs: 500, state: [] } : { done: {} }),
+      engine: (job) => {
+        if (job.kind !== 'lookup' || waited) return { done: {} }
+        waited = true
+        return { waitMs: 500, state: [] }
+      },
     })
     const submitted = $.prompt.submit(PROMPT)
     await clock.advance(499)
-    expect(jobs.length).toBe(1)
+    expect(jobs.filter((job) => job.kind === 'lookup').length).toBe(1)
     await clock.advance(1)
     await submitted
-    expect(jobs.length).toBe(2)
+    expect(jobs.filter((job) => job.kind === 'lookup').length).toBe(2)
   })
 
   test(
@@ -135,7 +140,7 @@ describe('the hold of an event (793d22b3)', () => {
         rounds += 1
         return { waitMs: 5000, state: ['s'] }
       }
-      const { clock, shown } = world(on, { engine: slow })
+      const { clock, shown } = world(on, { engine: (job) => (job.kind === 'lookup' ? slow() : { done: {} }) })
       const submitted = $.prompt.submit(PROMPT)
       await clock.advance(8000)
       await submitted
@@ -155,7 +160,7 @@ describe('the moments (793d22b1)', () => {
       await $.prompt.submit(PROMPT)
       await $.session.compact({ trigger: 'auto', messages: MESSAGES })
       await $.prompt.submit(PROMPT)
-      expect(jobs.map((job) => job.kind)).toEqual(['lookup', 'compact', 'lookup'])
+      expect(jobs.filter((job) => job.kind !== 'deep').map((job) => job.kind)).toEqual(['lookup', 'compact', 'lookup'])
       expectHas(jobs[0], { transcript: '/t/s.jsonl', lastPrompt: PROMPT.text })
       expect(jobs[1].ledger).toEqual({ main: ['a.md'] })
       expect(jobs[2].ledger).toEqual({ main: ['a.md'] })
@@ -171,7 +176,7 @@ describe('the moments (793d22b1)', () => {
     })
     await Promise.all([$.prompt.submit({ ...PROMPT, text: 'one' }), $.prompt.submit({ ...PROMPT, text: 'two' })])
     await clock.settle()
-    expect(jobs.map((job) => job.ledger)).toEqual([undefined, { main: ['one'] }])
+    expect(jobs.filter((job) => job.kind === 'lookup').map((job) => job.ledger)).toEqual([undefined, { main: ['one'] }])
   })
 
   test(
@@ -313,6 +318,54 @@ describe('the in-turn cue (793d23b2)', () => {
       expect(jobs.filter((job) => job.kind === 'step').length).toBe(2)
     },
   )
+})
+
+describe('the lookup with the chunk index (793d24b1)', () => {
+  const STUB = { path: '/s/chunk.md#Heading', kind: 'chunk', situation: '', body: '', score: 0.6 }
+  const deep = (job: Job): Answer => (job.kind === 'deep' ? { done: { notes: [STUB] } } : { done: { block: BLOCK } })
+
+  test(
+    'a prompt is followed by a lookup with the chunk index in the background, and its stubs ride a later tool result',
+    async ($: Driver, on: On) => {
+      const { clock, jobs } = world(on, { engine: deep })
+      const prompted = await $.prompt.submit(PROMPT)
+      expect(prompted.context).toEqual([BLOCK])
+      await clock.advance(1)
+      expect(jobs.map((job) => job.kind)).toEqual(['lookup', 'deep'])
+      expectHas(jobs[1], { step: 'the chunk lookup', text: PROMPT.text })
+      const tool = await $.classic.PostToolUse(TOOL)
+      expect(tool.additionalContext).toEqual([BLOCK])
+      expectHas(jobs[2], { kind: 'tool', route: false, held: [STUB] })
+      await $.classic.PostToolUse(TOOL)
+      expect(jobs[3].held).toEqual([])
+    },
+  )
+
+  test(
+    'no tool result waits for it, and one that is still running is kept for a later result until it is too old',
+    async ($: Driver, on: On) => {
+      const { clock, jobs } = world(on, {
+        engine: (job) => (job.kind === 'deep' ? new Promise<Answer>(() => {}) : { done: {} }),
+      })
+      await $.prompt.submit(PROMPT)
+      await clock.advance(1)
+      await $.classic.PostToolUse(TOOL)
+            expect(jobs.filter((job) => job.kind === 'tool').map((job) => job.held)).toEqual([[]])
+      await clock.advance(26000)
+      await $.classic.PostToolUse(TOOL)
+      expect(jobs.filter((job) => job.kind === 'tool').length).toBe(2)
+    },
+  )
+
+  test('it is dropped with the turn it belongs to', async ($: Driver, on: On) => {
+    const { clock, jobs } = world(on, { engine: deep })
+    await $.prompt.submit(PROMPT)
+    await clock.advance(1)
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    await $.classic.PostToolUse(TOOL)
+    expect(jobs.filter((job) => job.kind === 'tool')[0].held).toEqual([])
+  })
 })
 
 describe('the queue (793d22b2)', () => {

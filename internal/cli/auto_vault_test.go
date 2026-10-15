@@ -9,10 +9,38 @@ import (
 	"time"
 
 	"github.com/onsi/gomega"
+	"github.com/toejough/targ"
 
 	"github.com/toejough/engram/internal/auto"
 	"github.com/toejough/engram/internal/cli"
 )
+
+func Test793d24b4_AutoVaultAQueryWithTheChunkIndexReturnsItsChunksAsStubsAndOneWithoutLeavesThemOut(t *testing.T) {
+	t.Parallel()
+
+	g := gomega.NewWithT(t)
+	vault, deps := autoVaultWithNote(t, "")
+	source := filepath.Join(t.TempDir(), "chunk-source.md")
+	text := "# Heading\n\nthe staging credentials rotate monthly (CHUNK-TEXT).\n"
+	g.Expect(os.WriteFile(source, []byte(text), 0o600)).To(gomega.Succeed())
+
+	_, err := targ.Execute([]string{"engram", "ingest", "--markdown", source}, cli.Targets(deps)...)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	request := auto.QueryRequest{Text: "staging", Phrases: []string{"staging"}, Limit: 10}
+
+	notesOnly, err := vault.Query(request, time.Minute)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(notesOnly).NotTo(gomega.ContainSubstring("kind: chunk"), "the chunk index was searched")
+
+	request.WithChunks = true
+	stubs, err := vault.Query(request, time.Minute)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(stubs).To(gomega.ContainSubstring("path: " + source + "#Heading"))
+	g.Expect(stubs).To(gomega.ContainSubstring("kind: chunk"))
+	g.Expect(stubs).NotTo(gomega.ContainSubstring("CHUNK-TEXT"), "a chunk came with its content, not as a stub")
+}
 
 func Test793d29b2_AutoVaultAnAmendCheckedAgainstTheNoteAsItWasReadIsRefusedWhenTheNoteChanged(t *testing.T) {
 	t.Parallel()

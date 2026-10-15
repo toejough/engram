@@ -111,12 +111,18 @@ func (v autoVault) Learn(request auto.LearnRequest, deadline time.Duration) (str
 	})
 }
 
-// Query searches the vault and the chunk index.
+// Query searches the notes of the vault, and with the chunk index when it is asked to, in which case a chunk comes
+// back as its id and score only, as `engram query --lazy-chunks` prints it.
 func (v autoVault) Query(request auto.QueryRequest, deadline time.Duration) (string, error) {
-	args := QueryArgs{Phrases: request.Phrases, Text: request.Text, Limit: request.Limit}
+	args := QueryArgs{Phrases: request.Phrases, Text: request.Text, Limit: request.Limit, LazyChunks: request.WithChunks}
+	search := queryNotesCommand
+
+	if request.WithChunks {
+		search = queryCommand
+	}
 
 	return v.operation(autoQueryOp, deadline, func(ctx context.Context, out io.Writer) error {
-		return queryCommand(logContext(v.deps)(ctx), v.deps, args, out)
+		return search(logContext(v.deps)(ctx), v.deps, args, out)
 	})
 }
 

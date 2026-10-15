@@ -80,8 +80,8 @@ type Response struct {
 func Run(deps Deps, input []byte) ([]byte, error) {
 	e := &engine{deps: deps, tiers: DefaultTiers(), ledger: ledger{}}
 	jobs := map[string]func() Done{
-		"lookup": e.lookupJob, "step": e.stepJob, "tool": e.toolJob, "compact": e.compactJob, "capture": e.captureJob,
-		"subagent": e.subagentJob, "housekeeping": e.housekeepingJob, "summary": e.summaryJob,
+		"lookup": e.lookupJob, "deep": e.deepJob, "step": e.stepJob, "tool": e.toolJob, "compact": e.compactJob,
+		"capture": e.captureJob, "subagent": e.subagentJob, "housekeeping": e.housekeepingJob, "summary": e.summaryJob,
 	}
 
 	err := json.Unmarshal(input, &e.job)
