@@ -41,6 +41,7 @@ const (
 	cueRoute      = "route"
 	cueStep       = "step"
 	cueSubagent   = "subagent"
+	idLimit       = 400
 	itemLimit     = 10
 	mainAgent     = "main"
 	minScore      = 0.25
@@ -343,6 +344,12 @@ func parseQuery(output string) []Note {
 	return items
 }
 
+// plainID says whether a chunk id can stand as a line of a block as it is: no break of a line in it, no credential, and
+// not longer than a path (a stub is the id the agent would fetch, so it is delivered whole or not at all).
+func plainID(id string) bool {
+	return len(id) <= idLimit && !oneLine.MatchString(id) && redact(id) == id
+}
+
 // queryRequest is the search for the text of a moment and its phrases: the moments the cue names, then the phrases the
 // kind of cue adds, then the text.
 func queryRequest(kind, text string, moments []string, chunks bool) QueryRequest {
@@ -388,7 +395,7 @@ func stubsOf(items []Note, withChunks bool, unheld func(Note) bool) []Note {
 	var stubs []Note
 
 	for _, found := range items {
-		direct := found.Kind == chunkKind && found.Score >= minScore && found.counted && unheld(found)
+		direct := found.Kind == chunkKind && found.Score >= minScore && found.counted && unheld(found) && plainID(found.Path)
 
 		if withChunks && direct && len(stubs) < itemLimit {
 			stubs = append(stubs, Note{Path: found.Path, Kind: chunkKind, Score: found.Score})

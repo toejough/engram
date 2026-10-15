@@ -33,7 +33,7 @@
           "moment.go"
         ],
         "basis": "moment.js 70, lookup 15, deliver 8, moment 1, stepJob 7, memory-ask and note-path patterns 4, readTranscript 7; plus the lookup with the chunk index and the stubs (793b425: the pass, the stubs of a lookup, the line of a stub, the considered notes)",
-        "ceiling": 273
+        "ceiling": 277
       },
       "judge-relay": {
         "js": 161,
