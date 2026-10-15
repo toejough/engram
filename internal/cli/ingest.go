@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -16,6 +17,10 @@ import (
 	"github.com/toejough/engram/internal/embed"
 	"github.com/toejough/engram/internal/transcript"
 )
+
+// ErrIngestBusy is returned by an --auto ingest that found the manifest lock held by another run for longer than its
+// wait: it skipped, and did none of the work (793d37b2).
+var ErrIngestBusy = errors.New("ingest: another ingest holds the manifest lock; skipped")
 
 // IngestArgs holds parsed flags for `engram ingest`.
 type IngestArgs struct {
@@ -56,6 +61,8 @@ type IngestDeps struct {
 	IsDir      func(path string) bool
 	Getwd      func() (string, error)
 	SessionDir func(cwd string) string
+	// LockWait is how long an --auto ingest waits for the manifest lock before it skips (zero: autoLockWait).
+	LockWait time.Duration
 }
 
 // SourceStat is the cheap staleness signature of a source file. A sweep
@@ -95,21 +102,22 @@ func ResolveChunksDir(flagValue, home string, getenv func(string) string) string
 // sibling .vec.json) found outside the resolved vault path, before any of
 // that.
 func RunIngest(ctx context.Context, args IngestArgs, deps IngestDeps, stdout io.Writer) error {
+	// Acquire the manifest lock before any read-modify-write on manifest.json
+	// so concurrent ingest/prune runs cannot produce lost updates (#660). An
+	// --auto run that finds it held skips (793d37b2), before it reads anything.
+	release, lockErr := acquireIngestLock(args.Auto, args.ChunksDir, deps)
+	if lockErr != nil {
+		return fmt.Errorf("ingest: acquiring manifest lock: %w", lockErr)
+	}
+
+	defer release()
+
 	sources, err := gatherSources(args, deps)
 	if err != nil {
 		return err
 	}
 
 	sources = dropVaultCopiesOutsideVault(sources, args.Vault, deps)
-
-	// Acquire the manifest lock before any read-modify-write on manifest.json
-	// so concurrent ingest/prune runs cannot produce lost updates (#660).
-	release, lockErr := acquireOptionalLock(deps.Lock, args.ChunksDir)
-	if lockErr != nil {
-		return fmt.Errorf("ingest: acquiring manifest lock: %w", lockErr)
-	}
-
-	defer release()
 
 	manifest, err := readManifest(args.ChunksDir, deps)
 	if err != nil {
@@ -121,16 +129,12 @@ func RunIngest(ctx context.Context, args IngestArgs, deps IngestDeps, stdout io.
 		return err
 	}
 
-	changed, err := reconcileHashGroups(ctx, hashed, args.ChunksDir, deps, manifest, stdout)
-	if err != nil {
-		return err
-	}
+	// The manifest is written as the run progresses and when it ends, however it ends: a run that is cut or fails
+	// has still indexed the sources it completed (793d37b1).
+	saver := newManifestSaver(args.ChunksDir, manifest, deps)
+	reconcileErr := reconcileHashGroups(ctx, hashed, args.ChunksDir, deps, manifest, stdout, saver)
 
-	if changed {
-		return writeManifestFile(args.ChunksDir, manifest, deps)
-	}
-
-	return nil
+	return errors.Join(reconcileErr, saver.flush())
 }
 
 // unexported constants.
@@ -670,8 +674,9 @@ func reconcileGroupCanonicalFirst(
 }
 
 // reconcileHashGroups resolves every hash group's canonical winner and
-// reconciles each member against it (Unit 3 steps 2-3 + eviction), returning
-// whether anything in the manifest changed.
+// reconciles each member against it (Unit 3 steps 2-3 + eviction), in the
+// order orderedGroups gives, checkpointing the manifest at each group's end
+// and stopping when ctx is done.
 func reconcileHashGroups(
 	ctx context.Context,
 	hashed []hashedSource,
@@ -679,10 +684,14 @@ func reconcileHashGroups(
 	deps IngestDeps,
 	manifest ingestManifest,
 	stdout io.Writer,
-) (bool, error) {
-	changed := false
+	saver *manifestSaver,
+) error {
+	for _, group := range orderedGroups(hashed, deps) {
+		err := ctx.Err()
+		if err != nil {
+			return fmt.Errorf("ingest: stopped: %w", err)
+		}
 
-	for _, group := range groupByHash(hashed) {
 		refs := make([]sourceRef, len(group))
 		for i, member := range group {
 			refs[i] = member.ref
@@ -690,15 +699,19 @@ func reconcileHashGroups(
 
 		canonicalPath := selectCanonical(refs).path
 
-		didChange, err := reconcileGroupCanonicalFirst(ctx, group, canonicalPath, chunksDir, deps, manifest, stdout)
+		changed, err := reconcileGroupCanonicalFirst(ctx, group, canonicalPath, chunksDir, deps, manifest, stdout)
+
+		saveErr := saver.checkpoint(changed)
 		if err != nil {
-			return false, err
+			return err
 		}
 
-		changed = changed || didChange
+		if saveErr != nil {
+			return saveErr
+		}
 	}
 
-	return changed, nil
+	return nil
 }
 
 // resolveAutoSpec assembles the sweep environment and loads the repo's
