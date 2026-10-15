@@ -17,9 +17,9 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// 793d37b1: a run that is cut by its context, or killed, keeps the sources it completed, newest first.
+// 793d39b1: a run that is cut by its context, or killed, keeps the sources it completed, newest first.
 
-func Test793d37b1a1_ACutIngestKeepsTheSourcesItCompleted(t *testing.T) {
+func Test793d39b1a1_ACutIngestKeepsTheSourcesItCompleted(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -44,7 +44,7 @@ func Test793d37b1a1_ACutIngestKeepsTheSourcesItCompleted(t *testing.T) {
 	g.Expect(manifestSources(fs.files["/chunks/manifest.json"])).To(gomega.ConsistOf(alphaDoc, betaDoc))
 }
 
-func Test793d37b1a2_AKilledIngestKeepsTheSourcesItCheckpointed(t *testing.T) {
+func Test793d39b1a2_AKilledIngestKeepsTheSourcesItCheckpointed(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -71,7 +71,7 @@ func Test793d37b1a2_AKilledIngestKeepsTheSourcesItCheckpointed(t *testing.T) {
 	g.Expect(manifestSources(onDisk)).To(gomega.ConsistOf(alphaDoc, betaDoc))
 }
 
-func Test793d37b1a3_TheManifestIsNotRewrittenWithinTheCheckpointInterval(t *testing.T) {
+func Test793d39b1a3_TheManifestIsNotRewrittenWithinTheCheckpointInterval(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -96,7 +96,7 @@ func Test793d37b1a3_TheManifestIsNotRewrittenWithinTheCheckpointInterval(t *test
 	g.Expect(manifestSources(fs.files["/chunks/manifest.json"])).To(gomega.ConsistOf(alphaDoc, betaDoc, gammaDoc))
 }
 
-func Test793d37b1a4_TheNewestSourceIsIndexedFirst(t *testing.T) {
+func Test793d39b1a4_TheNewestSourceIsIndexedFirst(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -124,7 +124,7 @@ func Test793d37b1a4_TheNewestSourceIsIndexedFirst(t *testing.T) {
 	g.Expect(manifestSources(fs.files["/chunks/manifest.json"])).To(gomega.ConsistOf(betaDoc))
 }
 
-func Test793d37b1a5_ARunThatFindsEverythingIndexedWritesNothing(t *testing.T) {
+func Test793d39b1a5_ARunThatFindsEverythingIndexedWritesNothing(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -145,9 +145,9 @@ func Test793d37b1a5_ARunThatFindsEverythingIndexedWritesNothing(t *testing.T) {
 	g.Expect(writes).To(gomega.BeZero())
 }
 
-// 793d37c1 (Modified: 792b18c2): an automatic ingest that finds the manifest lock held skips; a named ingest waits.
+// 793d39c1 (Modified: 792b18c2): an automatic ingest that finds the manifest lock held skips; a named ingest waits.
 
-func Test793d37c1a1_AnAutomaticIngestSkipsWhenTheManifestLockIsHeld(t *testing.T) {
+func Test793d39c1a1_AnAutomaticIngestSkipsWhenTheManifestLockIsHeld(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -176,7 +176,7 @@ func Test793d37c1a1_AnAutomaticIngestSkipsWhenTheManifestLockIsHeld(t *testing.T
 	g.Expect(fs.files).NotTo(gomega.HaveKey("/chunks/manifest.json"))
 }
 
-func Test793d37c1a2_ALockGrantedAfterTheSkipIsGivenBack(t *testing.T) {
+func Test793d39c1a2_ALockGrantedAfterTheSkipIsGivenBack(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -191,7 +191,7 @@ func Test793d37c1a2_ALockGrantedAfterTheSkipIsGivenBack(t *testing.T) {
 	g.Eventually(lock.releases.Load).Should(gomega.BeEquivalentTo(1), "the other run's hold ends, and ours is given back")
 }
 
-func Test793d37c1a3_ANamedIngestWaitsForTheManifestLock(t *testing.T) {
+func Test793d39c1a3_ANamedIngestWaitsForTheManifestLock(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 

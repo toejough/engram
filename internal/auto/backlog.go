@@ -90,11 +90,7 @@ func (e *engine) backlog() {
 	manifest, _ := e.read(dir + "/manifest.json")
 	sources, now, marks := parseManifest(manifest), e.now(), e.marks(dir)
 
-	// the first run records the cut-off, install time minus 7 days, once (793b323)
-	if marks.Cutoff == nil {
-		marks.firstRun(now)
-		e.updateMarks(dir, func(stored *Marks) { stored.firstRun(now) })
-	}
+	e.recordFirstRun(dir, &marks, now)
 
 	if e.indexBehind(sources, marks) {
 		return
@@ -206,6 +202,14 @@ func (e *engine) prepare(source Source, marks Marks) batch {
 	finished := end-len(next) <= 0
 
 	return batch{Windows: next, Empty: len(windows) == 0, Messages: len(messages), Done: done, Finished: finished}
+}
+
+// recordFirstRun records the first run: the cut-off, install time minus 7 days, once (793b323).
+func (e *engine) recordFirstRun(dir string, marks *Marks, now float64) {
+	if marks.Cutoff == nil {
+		marks.firstRun(now)
+		e.updateMarks(dir, func(stored *Marks) { stored.firstRun(now) })
+	}
 }
 
 // updateMarks changes the mark file of the chunks directory.

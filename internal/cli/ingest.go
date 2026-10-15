@@ -105,7 +105,7 @@ func ResolveChunksDir(flagValue, home string, getenv func(string) string) string
 func RunIngest(ctx context.Context, args IngestArgs, deps IngestDeps, stdout io.Writer) error {
 	// Acquire the manifest lock before any read-modify-write on manifest.json
 	// so concurrent ingest/prune runs cannot produce lost updates (#660). An
-	// --auto run that finds it held skips (793d37c1), before it reads anything.
+	// --auto run that finds it held skips (793d39c1), before it reads anything.
 	release, lockErr := acquireIngestLock(args.Auto, args.ChunksDir, deps)
 	if lockErr != nil {
 		return fmt.Errorf("ingest: acquiring manifest lock: %w", lockErr)
@@ -131,7 +131,7 @@ func RunIngest(ctx context.Context, args IngestArgs, deps IngestDeps, stdout io.
 	}
 
 	// The manifest is written as the run progresses and when it ends, however it ends: a run that is cut or fails
-	// has still indexed the sources it completed (793d37b1).
+	// has still indexed the sources it completed (793d39b1).
 	saver := newManifestSaver(args.ChunksDir, manifest, deps)
 	reconcileErr := reconcileHashGroups(ctx, hashed, args.ChunksDir, deps, manifest, stdout, saver)
 

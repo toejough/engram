@@ -10,15 +10,15 @@ import (
 const (
 	// autoLockWait is how long an --auto ingest waits for the manifest lock before it skips: long enough for the run
 	// of another session that is only checking an index that is up to date, short enough that a run that is catching
-	// the index up (minutes) does not hold the turn's other work (793d37c1).
+	// the index up (minutes) does not hold the turn's other work (793d39c1).
 	autoLockWait = 5 * time.Second
 	// manifestCheckpointInterval is the most often a run writes the manifest while it works: the manifest of a real
-	// corpus is tens of megabytes, so a write per source would cost more than the source (793d37b1).
+	// corpus is tens of megabytes, so a write per source would cost more than the source (793d39b1).
 	manifestCheckpointInterval = 10 * time.Second
 )
 
 // manifestSaver writes the manifest as a run progresses, at the boundary of a group of identical copies, so that a
-// run that is cut by its deadline or killed has advanced the index by the sources it completed (793d37b1). Writes are
+// run that is cut by its deadline or killed has advanced the index by the sources it completed (793d39b1). Writes are
 // at most one per manifestCheckpointInterval of the injected clock; with no clock only flush writes.
 type manifestSaver struct {
 	chunksDir string
@@ -65,7 +65,7 @@ func (s *manifestSaver) now() time.Time {
 
 // acquireIngestLock takes the manifest lock for a run. A named ingest waits for it, as it always has. An --auto
 // ingest waits at most its lock wait and then skips with ErrIngestBusy, so that two sessions never index the same
-// backlog twice and a turn does not wait a deadline for another run (793d37c1). A grant that arrives after the skip is
+// backlog twice and a turn does not wait a deadline for another run (793d39c1). A grant that arrives after the skip is
 // given back at once.
 func acquireIngestLock(auto bool, chunksDir string, deps IngestDeps) (func(), error) {
 	if !auto || deps.Lock == nil {
@@ -117,7 +117,7 @@ func newManifestSaver(chunksDir string, manifest ingestManifest, deps IngestDeps
 // orderedGroups lists the hash groups in the order a run works them: the groups with a source that must be read
 // (new or changed) first, the most recently modified first, so that a run that is cut has indexed the sessions the
 // backlog captures first; then the groups with nothing to do, which cost a comparison each. Ties break on the
-// lowest path, so the order is the same on every run (793d37b1).
+// lowest path, so the order is the same on every run (793d39b1).
 func orderedGroups(hashed []hashedSource, deps IngestDeps) [][]hashedSource {
 	type ranked struct {
 		members []hashedSource

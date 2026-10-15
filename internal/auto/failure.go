@@ -31,10 +31,6 @@ const (
 
 // unexported variables.
 var (
-	// the words of the two states that are not failures of a command (793b429, 793b430): an index another run is
-	// working on, and one that has not caught up
-	stateReasons = map[string]string{kindBusy: "another indexing is running", kindBehind: "the index is not caught up"}
-
 	busy        = regexp.MustCompile(`(?i)holds the manifest lock`)
 	timedOut    = regexp.MustCompile(`(?i)still running after|timed out|^aborted$`)
 	unavailable = regexp.MustCompile(`(?i)failed to start|ENOENT|permission denied|no such file or directory|` +
@@ -96,11 +92,24 @@ func kindOf(err error) string {
 	return failureKind(err.Error())
 }
 
+// stateReason is the words of the two states that are not failures of a command: an index another run is working on
+// (793b429), and one that has not caught up (793b430).
+func stateReason(kind string) string {
+	switch kind {
+	case kindBusy:
+		return "another indexing is running"
+	case kindBehind:
+		return "the index is not caught up"
+	}
+
+	return ""
+}
+
 // warning is the one line the user is shown, on the status line and nowhere else: what was skipped and why.
 func warning(step, kind string) string {
 	reason := map[string]string{kindUnavailable: "the vault is unavailable", kindTimeout: "the System timed out"}[kind]
 	if reason == "" {
-		reason = stateReasons[kind]
+		reason = stateReason(kind)
 	}
 
 	if reason == "" {

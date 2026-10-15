@@ -1077,63 +1077,63 @@ through links fails runs in manifest mode, which keeps the same removal semantic
 Claude Code's guidance directory is its engram root, so its guidance is linked at the root's top level rather than
 into a separate directory.
 
-## 793d37 Chunk Index Progress
+## 793d39 Chunk Index Progress
 
-Canonical target: [Chunk Index Store](../../specs/technical/chunk-index-store.md), as an Added requirement (793d37b1); it also Modifies its [792b18c2 Locked reconciliation](../../specs/technical/chunk-index-store.md#792b18c2-locked-reconciliation) ([793d37c1 Modified: 792b18c2 Locked reconciliation](#793d37c1-modified-792b18c2-locked-reconciliation)). Realization: `manifestSaver`, `orderedGroups` and `acquireIngestLock` in `internal/cli/ingest_progress.go`, and `RunIngest` and `reconcileHashGroups` in `internal/cli/ingest.go`. No dependency boundary is added: the clock and the lock are the ones the ingest already takes.
+Canonical target: [Chunk Index Store](../../specs/technical/chunk-index-store.md), as an Added requirement (793d39b1); it also Modifies its [792b18c2 Locked reconciliation](../../specs/technical/chunk-index-store.md#792b18c2-locked-reconciliation) ([793d39c1 Modified: 792b18c2 Locked reconciliation](#793d39c1-modified-792b18c2-locked-reconciliation)). Realization: `manifestSaver`, `orderedGroups` and `acquireIngestLock` in `internal/cli/ingest_progress.go`, and `RunIngest` and `reconcileHashGroups` in `internal/cli/ingest.go`. No dependency boundary is added: the clock and the lock are the ones the ingest already takes.
 
-### 793d37a Orientation
+### 793d39a Orientation
 
 The chunk index of a real machine is large: the manifest of the owner's machine holds 229,681 sources in 66 MB, and a first run over a history of hundreds of unindexed sessions takes longer than the deadline of the index. The ingest therefore treats a run as a slice of a longer catch-up: the manifest is its progress record, and what a run completed is kept whether the run finishes or not.
 
-### 793d37b Behavior Requirements
+### 793d39b Behavior Requirements
 
-#### 793d37b1 Manifest progress
+#### 793d39b1 Manifest progress
 
-Requirement: 793d37b1 The chunk-index-store MUST write the manifest as a run progresses: after each group of identical copies it reconciles, when the manifest has changed and at least 10 seconds of the injected clock have passed since it was last written (with no clock, only at the end), and again when the run ends however it ends (finished, failed, or stopped because its context ended), so that a run cut by a deadline or killed has advanced the index by the sources it completed and the next run continues from there. A source MUST be recorded in the manifest only after its index file is written, so that a source cut part-way is not recorded as indexed. It MUST work the groups that hold a new or changed source before the others, the most recently modified first and the lowest path first among equals, and MUST stop before a group once its context has ended. A run that changed nothing MUST write no manifest.
+Requirement: 793d39b1 The chunk-index-store MUST write the manifest as a run progresses: after each group of identical copies it reconciles, when the manifest has changed and at least 10 seconds of the injected clock have passed since it was last written (with no clock, only at the end), and again when the run ends however it ends (finished, failed, or stopped because its context ended), so that a run cut by a deadline or killed has advanced the index by the sources it completed and the next run continues from there. A source MUST be recorded in the manifest only after its index file is written, so that a source cut part-way is not recorded as indexed. It MUST work the groups that hold a new or changed source before the others, the most recently modified first and the lowest path first among equals, and MUST stop before a group once its context has ended. A run that changed nothing MUST write no manifest.
 
 Supports: [793a4j1a The index catches up after the turn](./793a_product-spec.md#793a4j1-uat-scenarios), [793a3a1k A lesson in a session that ended before it was saved is captured later](./793a_product-spec.md#793a3a1-uat-scenarios)
 
-Verified by: `internal/cli/ingest_progress_test.go`: Test793d37b1a1_ACutIngestKeepsTheSourcesItCompleted, Test793d37b1a2_AKilledIngestKeepsTheSourcesItCheckpointed, Test793d37b1a3_TheManifestIsNotRewrittenWithinTheCheckpointInterval, Test793d37b1a4_TheNewestSourceIsIndexedFirst, Test793d37b1a5_ARunThatFindsEverythingIndexedWritesNothing
+Verified by: `internal/cli/ingest_progress_test.go`: Test793d39b1a1_ACutIngestKeepsTheSourcesItCompleted, Test793d39b1a2_AKilledIngestKeepsTheSourcesItCheckpointed, Test793d39b1a3_TheManifestIsNotRewrittenWithinTheCheckpointInterval, Test793d39b1a4_TheNewestSourceIsIndexedFirst, Test793d39b1a5_ARunThatFindsEverythingIndexedWritesNothing
 
 Rationale: the manifest was written once, after every source, so a run cut at the deadline wrote nothing and the next run started again from the beginning, for ever, on a history longer than the deadline. The interval bounds the cost of writing a manifest of tens of megabytes to a fraction of the run; the newest sources first means a cut run has indexed the sessions the backlog captures first. The index file of a source is written before its manifest entry, so a crash between the two leaves a source that the next run indexes again by the hashes of its chunks, as before.
 
-##### 793d37b1a Scenarios
+##### 793d39b1a Scenarios
 
 ```gherkin
-Scenario: 793d37b1a1 A cut ingest keeps the sources it completed
+Scenario: 793d39b1a1 A cut ingest keeps the sources it completed
   Given an ingest of three sources whose context ends while the third is being embedded
   When the ingest returns
   Then the manifest holds the first two and not the third
   # acceptance rows: 793a4j1a
 
-Scenario: 793d37b1a2 A killed ingest keeps the sources it checkpointed
+Scenario: 793d39b1a2 A killed ingest keeps the sources it checkpointed
   Given an ingest of three sources, with more than 10 seconds between sources, that is killed while the third is being embedded
   When the manifest on disk is read
   Then it holds the first two
   # acceptance rows: 793a4j1a
 
-Scenario: 793d37b1a3 The manifest is not rewritten within the interval
+Scenario: 793d39b1a3 The manifest is not rewritten within the interval
   Given an ingest of three sources within one second
   When it ends
   Then the manifest was written once
   # acceptance rows: 793a4j1a
 
-Scenario: 793d37b1a4 The newest source is indexed first
+Scenario: 793d39b1a4 The newest source is indexed first
   Given three new sources of different ages and an ingest cut after its first source
   When the ingest returns
   Then the manifest holds the most recently modified source
   # acceptance rows: 793a3a1k
 
-Scenario: 793d37b1a5 An ingest that finds everything indexed writes nothing
+Scenario: 793d39b1a5 An ingest that finds everything indexed writes nothing
   Given sources that are all in the manifest and unchanged
   When they are ingested again
   Then the manifest is not written
   # acceptance rows: 793a4j1a
 ```
 
-### 793d37c Modified operations
+### 793d39c Modified operations
 
-#### 793d37c1 Modified: 792b18c2 Locked reconciliation
+#### 793d39c1 Modified: 792b18c2 Locked reconciliation
 
 Target: [792b18c2 Locked reconciliation](../../specs/technical/chunk-index-store.md#792b18c2-locked-reconciliation). An `engram ingest --auto` that finds the lock held waits a few seconds and skips. Complete replacement text:
 
@@ -1149,7 +1149,7 @@ A missing manifest MUST be read as empty, and a manifest that is not valid JSON 
 
 Supports: [792a5o1a An ingest and a prune at the same time both take effect](../../specs/product/chunk-indexing.md#792a5o1-uat-scenarios), [793a4j1a The index catches up after the turn](./793a_product-spec.md#793a4j1-uat-scenarios)
 
-Verified by: `internal/cli/ingest_progress_test.go`: Test793d37c1a1_AnAutomaticIngestSkipsWhenTheManifestLockIsHeld, Test793d37c1a2_ALockGrantedAfterTheSkipIsGivenBack, Test793d37c1a3_ANamedIngestWaitsForTheManifestLock
+Verified by: `internal/cli/ingest_progress_test.go`: Test793d39c1a1_AnAutomaticIngestSkipsWhenTheManifestLockIsHeld, Test793d39c1a2_ALockGrantedAfterTheSkipIsGivenBack, Test793d39c1a3_ANamedIngestWaitsForTheManifestLock
 
 Rationale: two concurrent runs that each read the manifest would let the later write overwrite the earlier one's
 change, so a lock serializes manifest updates. Creating the directory first lets a prune of a fresh index take its
@@ -1159,21 +1159,21 @@ tries again; a named ingest and a prune are asked for by a person and wait.
 
 The scenarios 792b18c2a1 to 792b18c2a5 are kept. Added scenarios:
 
-##### 793d37c1a Scenarios
+##### 793d39c1a Scenarios
 
 ```gherkin
-Scenario: 793d37c1a1 An automatic ingest skips when the manifest lock is held
+Scenario: 793d39c1a1 An automatic ingest skips when the manifest lock is held
   Given another run holds the manifest lock
   When an automatic ingest waits its 5 seconds
   Then it returns that another ingest holds the lock, and it read no source and no manifest
   # acceptance rows: 793a4j1a
 
-Scenario: 793d37c1a2 A lock granted after the skip is given back
+Scenario: 793d39c1a2 A lock granted after the skip is given back
   Given an automatic ingest that skipped
   When the other run lets go and the lock is granted to the skipped ingest
   Then it is released at once
 
-Scenario: 793d37c1a3 A named ingest waits for the manifest lock
+Scenario: 793d39c1a3 A named ingest waits for the manifest lock
   Given another run holds the manifest lock
   When a named ingest asks for it and the other run lets go
   Then the named ingest runs and indexes its sources
@@ -1574,7 +1574,7 @@ Scenario: 793d33b4a2 A failure leaves the source for the next turn
 
 #### 793d33b5 Housekeeping sequence
 
-Requirement: 793d33b5 A housekeeping [job](#793d1b-terms) MUST run the index (`engram ingest --auto`), then the pass over the pending [offers](../../GLOSSARY.md#offer), then, only when the [burst](#793d1b-terms) ended with a top-level turn, one backlog step, each as a step of its own, so that a failure of one is warned about by name (`indexing`, `curation`, `the backlog capture`) and the next still runs. An index that its deadline cuts keeps what it indexed ([793d37b1 Manifest progress](#793d37b1-manifest-progress)), so the first catch-up of a large history takes several turns, and the backlog says so until it is done ([793d28b1 Eligible sources and cut-off](#793d28b1-eligible-sources-and-cut-off)).
+Requirement: 793d33b5 A housekeeping [job](#793d1b-terms) MUST run the index (`engram ingest --auto`), then the pass over the pending [offers](../../GLOSSARY.md#offer), then, only when the [burst](#793d1b-terms) ended with a top-level turn, one backlog step, each as a step of its own, so that a failure of one is warned about by name (`indexing`, `curation`, `the backlog capture`) and the next still runs. An index that its deadline cuts keeps what it indexed ([793d39b1 Manifest progress](#793d39b1-manifest-progress)), so the first catch-up of a large history takes several turns, and the backlog says so until it is done ([793d28b1 Eligible sources and cut-off](#793d28b1-eligible-sources-and-cut-off)).
 
 Owner: [793d36 Job Runner](#793d36-job-runner)
 
@@ -1685,8 +1685,8 @@ All 44 scenarios of the product spec are supported by at least one requirement, 
 | --- | --- | --- |
 | [793a2n Relevant memory reaches the agent at the moments](./793a_product-spec.md#793a2n-relevant-memory-reaches-the-agent-at-the-moments) | 7 | [793d22 Memory Mod](#793d22-memory-mod), [793d23 Moment Detection](#793d23-moment-detection), [793d24 Memory Delivery](#793d24-memory-delivery), [793d25 Judgement Relay](#793d25-judgement-relay), [793d36 Job Runner](#793d36-job-runner), [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow) |
 | [793a2e Nothing already in context is delivered again](./793a_product-spec.md#793a2e-nothing-already-in-context-is-delivered-again) | 5 | [793d23 Moment Detection](#793d23-moment-detection), [793d24 Memory Delivery](#793d24-memory-delivery), [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow) |
-| [793a3a Lessons are captured without the agent](./793a_product-spec.md#793a3a-lessons-are-captured-without-the-agent) | 5 | [793d22 Memory Mod](#793d22-memory-mod), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d27 Auto Capture](#793d27-auto-capture), [793d28 Backlog Capture](#793d28-backlog-capture), [793d36 Job Runner](#793d36-job-runner), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow), [793d37 Chunk Index Progress](#793d37-chunk-index-progress) |
-| [793a4j Indexing and curation happen after the turn](./793a_product-spec.md#793a4j-indexing-and-curation-happen-after-the-turn) | 4 | [793d22 Memory Mod](#793d22-memory-mod), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d29 Auto Curation](#793d29-auto-curation), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow), [793d37 Chunk Index Progress](#793d37-chunk-index-progress) |
+| [793a3a Lessons are captured without the agent](./793a_product-spec.md#793a3a-lessons-are-captured-without-the-agent) | 5 | [793d22 Memory Mod](#793d22-memory-mod), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d27 Auto Capture](#793d27-auto-capture), [793d28 Backlog Capture](#793d28-backlog-capture), [793d36 Job Runner](#793d36-job-runner), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow), [793d39 Chunk Index Progress](#793d39-chunk-index-progress) |
+| [793a4j Indexing and curation happen after the turn](./793a_product-spec.md#793a4j-indexing-and-curation-happen-after-the-turn) | 4 | [793d22 Memory Mod](#793d22-memory-mod), [793d25 Judgement Relay](#793d25-judgement-relay), [793d26 Secret Redaction](#793d26-secret-redaction), [793d29 Auto Curation](#793d29-auto-curation), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow), [793d39 Chunk Index Progress](#793d39-chunk-index-progress) |
 | [793a4c Memory purview only](./793a_product-spec.md#793a4c-memory-purview-only) | 4 | [793d22 Memory Mod](#793d22-memory-mod), [793d24 Memory Delivery](#793d24-memory-delivery), [793d30 Activity Report](#793d30-activity-report) |
 | [793a4b The session is never broken or stalled](./793a_product-spec.md#793a4b-the-session-is-never-broken-or-stalled) | 4 | [793d22 Memory Mod](#793d22-memory-mod), [793d30 Activity Report](#793d30-activity-report), [793d36 Job Runner](#793d36-job-runner), [793d32 Moment Delivery Flow](#793d32-moment-delivery-flow), [793d33 Turn Memory Work Flow](#793d33-turn-memory-work-flow) |
 | [793a5j Installed by engram update and active in Claude Code](./793a_product-spec.md#793a5j-installed-by-engram-update-and-active-in-claude-code) | 5 | [793d31 Harness Deploy Sync (mod additions)](#793d31-harness-deploy-sync-mod-additions), [793d34 Mod Install Flow](#793d34-mod-install-flow) |
