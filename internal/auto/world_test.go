@@ -19,6 +19,8 @@ import (
 
 // Exported constants.
 const (
+	// DebugLog is where the log lines a reply does not carry go (793d36b1).
+	DebugLog = "/home/u/.local/share/engram/auto-debug.log"
 	// DefaultLog is the failure record of a world whose home is /home/u.
 	DefaultLog = "/home/u/.local/share/engram/auto.log"
 	EmptyQuery = "version: 1\nphrases: []\nitems: []\nclusters: []\n"
@@ -103,6 +105,8 @@ type World struct {
 	Work   json.RawMessage
 	// Rounds is how many times the job was called.
 	Rounds int
+	// ReplySizes are the sizes in bytes of the replies the engine printed, one per round (793d36b1).
+	ReplySizes []int
 }
 
 // NewWorld is a world with an empty vault at /vault.
@@ -321,6 +325,7 @@ func (w *World) round(t *testing.T, input map[string]any) auto.Response {
 	}
 
 	w.Rounds++
+	w.ReplySizes = append(w.ReplySizes, len(output))
 
 	var response auto.Response
 

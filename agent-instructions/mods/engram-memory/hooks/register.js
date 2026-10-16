@@ -24,7 +24,10 @@ const STEP = {
   deep: 'history lookup',
 }
 const CAPTURE_STEP = 'capture'
-const HOUSEKEEPING_STEP = 'indexing, curation and backlog capture'
+// the housekeeping is run a part at a time, each reported as its own step, so that a reply the mod cannot read is
+// blamed on one of them and the others still run (793b469); the backlog follows a top-level turn only
+const BACKLOG_STEP = 'backlog capture'
+const HOUSEKEEPING = ['indexing', 'curation', BACKLOG_STEP]
 const SUMMARY_STEP = 'summary'
 // The engine words and records a failure it is handed (793d36b4). When it cannot be run for that job either, the mod
 // words the failure itself, by class and without the text, which it cannot redact; a test holds these words to the
@@ -42,6 +45,7 @@ const mod = {
   work: undefined,
   transcript: '',
   lastPrompt: '',
+  activity: [],
   step: null,
   deep: null,
   hooks: Promise.resolve(),
@@ -66,38 +70,35 @@ async function attempt($, job, step) {
     return await job()
   } catch (/** @type {any} */ error) {
     $.ui.log(`engram-memory: ${step ?? 'internal'}: ${error.message}`, { to: 'debug' })
-    if (step) await failed($, step, error.message)
+    if (step) await failed($, step, error)
     return null
   }
 }
 
 // failed has the engine word and record the failure of a step of the mod (793d36b4), and shows its warning; when the
-// engine cannot be run, the mod words it by its class.
+// engine cannot be run, the mod words it by its class. A reply that could not be read is handed over as it came, for
+// the engine to say how large it was and how it began and ended (793b469).
 /**
  * @param {Ctx} $
  * @param {string} step
- * @param {string} text
+ * @param {any} error
  */
-async function failed($, step, text) {
+async function failed($, step, error) {
   try {
-    await relay($, { kind: 'failure', step, text })
+    await relay($, { kind: 'failure', step, text: error.message, unreadable: error.stdout })
   } catch {
-    warn($, `${SKIPPED_PREFIX}${step} ${reasonOf(text)}; nothing was done this time (details: the debug log)`)
+    warn($, `${SKIPPED_PREFIX}${step} ${reasonOf(error.message)}; nothing was done this time (details: the debug log)`)
   }
 }
 
 /** @type {(message: string) => string} */
 const reasonOf = (message) => REASONS.find(([text]) => message.includes(text))?.[1] ?? UNCLASSED_REASON
 
-// show writes a line to the user's transcript, where it wraps and stays in the scrollback; it may reach the agent's
-// context (793b442; SP17 saw it kept from the model). An empty line writes nothing.
-/**
- * @param {Ctx} $
- * @param {string | undefined} text
- */
-function show($, text) {
-  if (text) $.ui.log(text)
-}
+// show writes a line to the user's transcript, where it wraps and stays in the scrollback; the model is not sent it
+// (SP17), so the line is first kept for the next prompt, which carries it to the agent beside the notes (793b470; push
+// answers the new count, never 0). An empty line writes nothing.
+/** @type {($: Ctx, text: string | undefined) => unknown} */
+const show = ($, text) => text && mod.activity.push(text) && $.ui.log(text)
 
 // warn shows the user that automatic memory was skipped and why. It never fails.
 /**
@@ -157,7 +158,11 @@ async function roundOf($, input, hold) {
   const result = await $.process.run(['engram', 'auto', 'run'], { stdin: JSON.stringify(input), timeoutMs: ROUND_MS })
   if (result.exitCode !== 0)
     throw new Error(`engram auto run exited ${result.exitCode}: ${result.stderr.slice(0, STDERR_CHARS)}`)
-  return JSON.parse(result.stdout)
+  try {
+    return JSON.parse(result.stdout)
+  } catch (/** @type {any} */ error) {
+    throw Object.assign(error, { stdout: result.stdout })
+  }
 }
 
 /**
@@ -356,7 +361,8 @@ async function seam($, line) {
 async function finish($) {
   const turnEnded = mod.queue.turnEnded
   mod.queue.turnEnded = false
-  await attempt($, () => queued($, { kind: 'housekeeping', turnEnded }), HOUSEKEEPING_STEP)
+  for (const part of HOUSEKEEPING.filter((name) => turnEnded || name !== BACKLOG_STEP))
+    await attempt($, () => queued($, { kind: 'housekeeping', turnEnded, part }), part)
   if (turnEnded) await attempt($, () => report($), SUMMARY_STEP)
 }
 
@@ -436,7 +442,9 @@ const onSubagentStop = async ($, event, next) => {
 /** @type {Hook} */
 const onPrompt = async ($, event, next) => {
   mod.lastPrompt = event.text
-  const job = { kind: 'lookup', moment: 'prompt', text: event.text, readContext: true }
+  // the lines the System showed since the last prompt go with this one, once (793b470)
+  const activity = mod.activity.splice(0)
+  const job = { kind: 'lookup', moment: 'prompt', text: event.text, readContext: true, activity }
   const block = await blockOf($, job, STEP.prompt)
   await attempt($, () => startDeep($, event.text))
   return next(withBlock(event, 'context', block))

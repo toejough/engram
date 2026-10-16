@@ -3,6 +3,7 @@ package auto
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 )
 
@@ -57,6 +58,14 @@ type Job struct {
 	ToolUses    []ToolCall      `json:"toolUses"`
 	Messages    []Message       `json:"messages"`
 	Tally       []Counts        `json:"tally"`
+	// the part of the housekeeping a job of that kind does alone, by the name of its step (indexing, curation or backlog
+	// capture); empty is all of it
+	Part string `json:"part"`
+	// the sentences the System showed since the last prompt, which the lookup of a prompt carries to the agent
+	Activity []string `json:"activity"`
+	// a reply the mod could not read, handed over with a failure as it came, for the failure to say how large it was
+	// and how it began and ended
+	Unreadable string `json:"unreadable"`
 }
 
 // Response is what `engram auto run` prints: the effects of the round for the mod to apply (the debug log lines, the
@@ -70,6 +79,8 @@ type Response struct {
 	Request  *Request `json:"request,omitempty"`
 	WaitMs   int      `json:"waitMs,omitempty"`
 	State    []record `json:"state,omitempty"`
+	// Truncated says the engine left something out of the reply to keep it under its limit (793d36b1).
+	Truncated bool `json:"truncated,omitempty"`
 }
 
 // Run reads one job from its JSON, advances it one round and returns the response as JSON. A step that fails is a
@@ -116,7 +127,7 @@ func Run(deps Deps, input []byte) ([]byte, error) {
 		e.resp.Done = &done
 	}
 
-	return must(json.Marshal(e.resp)), nil // a response of plain values cannot fail to encode
+	return e.encode(), nil
 }
 
 // engine is one round of one job. A job is straight-line code that fails as the JavaScript it replaces did: by panic
@@ -265,12 +276,17 @@ func (e *engine) wait(milliseconds int) {
 
 // warn adds a warning for the mod to show on the status line.
 func (e *engine) warn(step string, err error) {
-	e.logf("%s: %s", orElse(step, "internal"), err)
+	e.logf("%s: %s", orElse(step, "internal"), redact(err.Error()))
 
 	if e.live() && step != "" {
 		kind := kindOf(err)
-		e.resp.Warnings = append(e.resp.Warnings, warning(step, kind, err.Error(), e.shownLog()))
-		e.record(step, kind, err.Error())
+		detail := ""
+		if failure, found := errors.AsType[*StepError](err); found {
+			detail = failure.Detail
+		}
+
+		e.resp.Warnings = append(e.resp.Warnings, warning(step, kind, err.Error(), detail, e.shownLog()))
+		e.record(step, kind, err.Error(), detail)
 	}
 }
 

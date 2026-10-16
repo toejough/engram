@@ -120,13 +120,64 @@ describe('the relay of a job (793b197)', () => {
       })
       await $.turn.complete(COMPLETE)
       await clock.settle()
-      const handed = jobs.find((job) => job.kind === 'failure') ?? { kind: '' }
-      expectHas(handed, { step: 'indexing, curation and backlog capture', sessionId: 'sess-1' })
-      expect(String(handed.text)).toContain('exited 70: boom')
-      expect(String(handed.step)).not.toContain('housekeeping')
+      const handed = jobs.filter((job) => job.kind === 'failure')
+      expect(handed.map((job) => job.step)).toEqual(['indexing', 'curation', 'backlog capture'])
+      expectHas(handed[0], { sessionId: 'sess-1' })
+      expect(String(handed[0].text)).toContain('exited 70: boom')
+      expect(handed.map((job) => String(job.step)).join(' ')).not.toContain('housekeeping')
       expect(shown).toContain('the engine words it')
     },
   )
+
+  // the process resolves no more than 4 MiB of output and cuts the rest without an error (SP18): a reply of tens of
+  // megabytes is a document cut short, and the failure says how large it was and how it began and ended (793b469)
+  test(
+    '793d22b3 a reply that is not JSON is handed to the engine as it came, to say how large it was and how it ended',
+    async ($: Driver, on: On) => {
+      const cut = `{"log":["engram-memory: x"],"state":[{"out":"${'m'.repeat(5000)}`
+      const { jobs, shown } = world(on, {
+        engine: (job) => (job.kind === 'failure' ? { warnings: ['the engine words it'], done: {} } : { raw: cut }),
+      })
+      const result = await $.prompt.submit(PROMPT)
+      expect(result.text).toBe(PROMPT.text)
+      const handed = jobs.find((job) => job.kind === 'failure') ?? { kind: '' }
+      expectHas(handed, { step: 'prompt lookup', unreadable: cut })
+      expect(String(handed.text)).not.toBe('')
+      expect(shown).toEqual(['the engine words it'])
+    },
+  )
+
+  test('793d36b3 a part of the housekeeping whose reply cannot be read is blamed by name, and the others run', async (
+    $: Driver,
+    on: On,
+  ) => {
+    const { clock, jobs, shown } = world(on, {
+      engine: (job) => {
+        if (job.kind === 'failure') return { warnings: [`${job.step} failed`], done: {} }
+        return job.kind === 'housekeeping' && job.part === 'curation' ? { raw: '{"log":["cut' } : { done: {} }
+      },
+    })
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    const parts = jobs.filter((job) => job.kind === 'housekeeping')
+    expect(parts.map((job) => job.part)).toEqual(['indexing', 'curation', 'backlog capture'])
+    expect(jobs.filter((job) => job.kind === 'failure').map((job) => job.step)).toEqual(['curation'])
+    expect(shown).toEqual(['curation failed'])
+    expect(jobs.at(-1)?.kind).toBe('summary')
+  })
+
+  test('793d36b3 a burst that is not a turn runs no backlog part', async ($: Driver, on: On) => {
+    const { clock, jobs } = world(on)
+    await $.classic.SubagentStop({
+      agent_id: 'a1',
+      agent_type: 'general-purpose',
+      agent_transcript_path: '/t/a1.jsonl',
+      last_assistant_message: 'Noted.',
+      stop_hook_active: false,
+    })
+    await clock.settle()
+    expect(jobs.filter((job) => job.kind === 'housekeeping').map((job) => job.part)).toEqual(['indexing', 'curation'])
+  })
 
   const FALLBACKS: [string, Answer, string][] = [
     ['exits with an error', { exit: 70, stderr: 'injected failure' }, 'prompt lookup failed'],
@@ -151,6 +202,33 @@ describe('the relay of a job (793b197)', () => {
       expect(pinned).toEqual([])
     })
   }
+})
+
+describe('the System\'s lines reach the agent (793b470)', () => {
+  const LINE = 'Memory activity: 2 notes added'
+  const WARNING = 'Automatic memory skipped: curation failed: boom; nothing lost, retried next turn (details: ~/a.log)'
+
+  test(
+    '793d30b3 the lines shown since the last prompt go with the next prompt\'s lookup, once, and the user still sees ' +
+      'them',
+    async ($: Driver, on: On) => {
+      const { clock, jobs, shown } = world(on, {
+        engine: (job) => {
+          if (job.kind === 'summary') return { done: { show: true, line: LINE } }
+          const curation = job.kind === 'housekeeping' && job.part === 'curation'
+          return curation ? { warnings: [WARNING], done: {} } : { done: {} }
+        },
+      })
+      await $.prompt.submit(PROMPT)
+      await $.turn.complete(COMPLETE)
+      await clock.settle()
+      expect(shown).toEqual([WARNING, LINE])
+      await $.prompt.submit(PROMPT)
+      await $.prompt.submit(PROMPT)
+      const lookups = jobs.filter((job) => job.kind === 'lookup')
+      expect(lookups.map((job) => job.activity)).toEqual([[], [WARNING, LINE], []])
+    },
+  )
 })
 
 describe('the hold of an event (793d22b3)', () => {
@@ -462,7 +540,8 @@ describe('the queue (793d22b2)', () => {
       expect(result.text).toBe(COMPLETE.answer)
       expect(jobs).toEqual([])
       await clock.settle()
-      expect(jobs.map((job) => job.kind)).toEqual(['capture', 'housekeeping', 'summary'])
+      const kinds = ['capture', 'housekeeping', 'housekeeping', 'housekeeping', 'summary']
+      expect(jobs.map((job) => job.kind)).toEqual(kinds)
       expectHas(jobs[0], { answer: COMPLETE.answer, sessionId: 'sess-1', turn: 3, messages: MESSAGES })
       expectHas(jobs[0], { transcript: '/t/s.jsonl' })
       expectHas(jobs[1], { turnEnded: true, work: { name: 'capture' } })
@@ -488,7 +567,7 @@ describe('the queue (793d22b2)', () => {
         stop_hook_active: false,
       })
       await clock.settle()
-      expect(jobs.map((job) => job.kind)).toEqual(['subagent', 'subagent', 'housekeeping'])
+      expect(jobs.map((job) => job.kind)).toEqual(['subagent', 'subagent', 'housekeeping', 'housekeeping'])
       expectHas(jobs[0], { path: '/t/a1.jsonl', last: 'Noted.', agent: 'a1', sessionId: 'sess-1', turn: 3 })
       expectHas(jobs[1], { agent: 'a2', work: { name: 'subagent' } })
       expectHas(jobs[2], { turnEnded: false })
@@ -509,7 +588,14 @@ describe('the queue (793d22b2)', () => {
       expect(jobs).toEqual([])
       await $.turn.complete(COMPLETE)
       await clock.settle()
-      expect(jobs.map((job) => job.kind)).toEqual(['capture', 'failure', 'housekeeping', 'summary'])
+      expect(jobs.map((job) => job.kind)).toEqual([
+        'capture',
+        'failure',
+        'housekeeping',
+        'housekeeping',
+        'housekeeping',
+        'summary',
+      ])
       expectHas(jobs[1], { step: 'capture' })
       expect(shown).toContain('the engine words it')
     },

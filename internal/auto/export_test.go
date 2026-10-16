@@ -1,5 +1,7 @@
 package auto
 
+import "encoding/json"
+
 // Exported constants.
 const (
 	DeadlineMomentQuery = deadlineMomentQuery
@@ -45,6 +47,27 @@ func ClassifyRequest(recent string) (Request, error) { return DefaultTiers().Cla
 // CurationRequest builds the curation request with the default tiers.
 func CurationRequest(offer Note, near []Note) (Request, error) {
 	return DefaultTiers().CurationWith(offer, near)
+}
+
+// EncodeWithBlock is the reply of the job given when its result is the block given.
+func EncodeWithBlock(deps Deps, input []byte, block string) []byte {
+	e := &engine{deps: deps, tiers: DefaultTiers(), ledger: ledger{}}
+
+	must(0, json.Unmarshal(input, &e.job))
+	e.resp.Done = &Done{Block: block}
+
+	return e.encode()
+}
+
+// EncodeWithLogs is the reply of an engine that logged `lines` lines of the text given, for the cap on a reply.
+func EncodeWithLogs(deps Deps, lines int, text string) []byte {
+	e := &engine{deps: deps, tiers: DefaultTiers(), ledger: ledger{}}
+
+	for range lines {
+		e.logf("%s", text)
+	}
+
+	return e.encode()
 }
 
 // Items are the items of a query's output as JSON, for the golden comparison.
@@ -109,6 +132,15 @@ func ShownMap(output string) map[string]any {
 	}
 
 	return out
+}
+
+// StepOf is the step a job is blamed on when its reply is over the limit.
+func StepOf(input []byte) string {
+	e := &engine{}
+
+	must(0, json.Unmarshal(input, &e.job))
+
+	return e.stepName()
 }
 
 // Try runs a function that fails by panic, and returns what it returned or the error it failed with.

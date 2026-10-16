@@ -24,7 +24,7 @@ func Test793d36b3_AFailedStepIsContainedAndTheUserIsWarnedOfItsClass(t *testing.
 			func([]string) (auto.Output, error) {
 				return auto.Output{Stderr: "query: scan: open /vault: permission denied; "}, errors.New("exit status 1")
 			},
-			"prompt lookup could not reach the vault: query: scan: open /vault: permission denied; exit status 1",
+			"prompt lookup could not reach the vault: scan: open /vault: permission denied; exit status 1",
 		},
 		{
 			"the engram program cannot start: unavailable",
@@ -322,7 +322,7 @@ func Test793d36b3_TheReasonOfAWarningIsOneLineRedactedAndCutAt120Characters(t *t
 	secret := "ghp_" + strings.Repeat("a1B2", 8)
 	world.Process["query"] = func([]string) (auto.Output, error) {
 		return auto.Output{}, errors.New(
-			"first line with " + secret + " end\nsecond line\x1b[31m " + strings.Repeat("y", 300))
+			"first line with " + secret + " end\nsecond line\x1b[31m " + strings.Repeat("y ", 150))
 	}
 
 	failureLookup(t, world)
@@ -331,8 +331,9 @@ func Test793d36b3_TheReasonOfAWarningIsOneLineRedactedAndCutAt120Characters(t *t
 	g.Expect(world.Warnings[0]).NotTo(ContainSubstring(secret))
 	g.Expect(world.Warnings[0]).NotTo(ContainSubstring("\n"))
 	g.Expect(world.Warnings[0]).NotTo(ContainSubstring("\x1b"))
-	g.Expect(world.Warnings[0]).To(ContainSubstring("first line with [redacted] end second line[31m yyy"))
-	g.Expect(world.Warnings[0]).To(ContainSubstring("yyy...; " + failureNext))
+	cut := "first line with [redacted] end second line[31m " + strings.Repeat("y ", 3)
+	g.Expect(world.Warnings[0]).To(ContainSubstring(cut))
+	g.Expect(world.Warnings[0]).To(MatchRegexp(`y ?\.\.\.; ` + failureNext))
 
 	reason := strings.TrimPrefix(
 		strings.Split(world.Warnings[0], "; ")[0], "Automatic memory skipped: prompt lookup failed: ")

@@ -5,7 +5,17 @@ import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { readRows, toolCalls, memoryCalls, finalReply, noResponseBetween, resultIndex } from '../lib/transcript.js'
+import {
+  ACTIVITY_HEADER,
+  contextBlocks,
+  finalReply,
+  memoryCalls,
+  noResponseBetween,
+  readRows,
+  resultIndex,
+  splitActivity,
+  toolCalls,
+} from '../lib/transcript.js'
 
 const FIXTURE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'engram-query-turn.jsonl')
 const SENTINEL = 'SENTINEL-N-71c03d'
@@ -181,3 +191,33 @@ test(
     assert.equal(dispatchIndexAfter([PROMPT, CALL('r', 'Skill'), RESULT('r')], 'r'), Infinity)
   },
 )
+
+const ACTIVITY = 'Memory activity: 2 notes added'
+const withActivity = (notes) => `${notes}\n${ACTIVITY_HEADER}\n- ${ACTIVITY}`
+const contextRow = (text) => ({ type: 'attachment', attachment: { type: 'hook_additional_context', content: [text] } })
+
+test('the System\'s lines of the previous turn are split from what a block delivers', () => {
+  assert.deepEqual(splitActivity('[engram memory] notes\n- n.md (x): y'), {
+    notes: '[engram memory] notes\n- n.md (x): y',
+    activity: [],
+  })
+  assert.deepEqual(splitActivity(withActivity('[engram memory] notes\n- n.md (x): y')), {
+    notes: '[engram memory] notes\n- n.md (x): y',
+    activity: [ACTIVITY],
+  })
+})
+
+test('a block of the System\'s lines alone delivers nothing, and notes are delivered without the lines', () => {
+  const rows = [
+    contextRow(`[engram memory] ${ACTIVITY_HEADER}\n- ${ACTIVITY}`),
+    contextRow(withActivity('[engram memory] notes\n- n.md (x): y')),
+  ]
+  assert.deepEqual(
+    contextBlocks(rows).map((found) => [found.index, found.activityOnly, found.activity]),
+    [
+      [0, true, [ACTIVITY]],
+      [1, false, [ACTIVITY]],
+    ],
+  )
+  assert.deepEqual(systemBlocks(rows), [{ index: 1, text: '[engram memory] notes\n- n.md (x): y' }])
+})

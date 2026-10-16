@@ -5,6 +5,11 @@ import (
 	"strings"
 )
 
+// unexported constants.
+const (
+	summaryPrefix = "Memory activity: "
+)
+
 // summaryJob shows the user the one line of the turn (793a5h): the summary of what the System did since the previous
 // one, or nothing. A warning is its own line, shown when its step failed, and is not repeated here (793b442). The line
 // is built from constants and counts only, never from a note, an offer or a lesson (793b297).
@@ -39,5 +44,5 @@ func (e *engine) summaryJob() Done {
 		return Done{}
 	}
 
-	return Done{Show: true, Line: "Memory activity: " + phrases[0]}
+	return Done{Show: true, Line: summaryPrefix + phrases[0]}
 }

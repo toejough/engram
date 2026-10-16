@@ -2,6 +2,8 @@
 // PROBE_CONFIG (JSON) says which context to add, which model to call, how long to work. It never denies or drops.
 const TIME_DIGITS = 15
 const SEQ_DIGITS = 4
+const STDOUT_TIMEOUT_MS = 60000 // not-h1
+const TAIL_CHARS = 4 // not-h1
 const TEXT_CHARS = 160
 const MESSAGE_CHARS = 40
 let seq = 0
@@ -87,6 +89,19 @@ export function register(on) {
         elapsedMs: (await $.clock.now()) - started,
       })
     }
+    // not-h1
+    for (const bytes of cfg.stdoutBytes || []) {
+      // not-h1
+      const out = await guarded($, 'process.stdout', () =>
+        $.process.run(['sh', '-c', `yes a | head -c ${bytes}`], { timeoutMs: STDOUT_TIMEOUT_MS }),
+      ) // not-h1
+      await record($, 'process.stdout', {
+        asked: bytes,
+        got: out && out.stdout.length,
+        exitCode: out && out.exitCode,
+        lastChars: out && out.stdout.slice(-TAIL_CHARS),
+      }) // not-h1
+    } // not-h1
     if (cfg.sendTo) {
       // not-h1
       const sent = await guarded($, 'session.send', () =>

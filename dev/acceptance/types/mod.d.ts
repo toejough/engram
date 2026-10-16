@@ -41,6 +41,7 @@ interface Round {
   request?: unknown
   waitMs?: number
   state?: unknown
+  truncated?: boolean
 }
 // The hold of an event on a job: set when the hold has passed.
 interface Hold {
@@ -63,6 +64,7 @@ interface ModState {
   work: unknown
   transcript: string
   lastPrompt: string
+  activity: string[]
   step: Cue | null
   deep: Cue | null
   hooks: Promise<void>

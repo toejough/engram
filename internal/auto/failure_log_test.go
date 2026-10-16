@@ -61,7 +61,7 @@ func Test793d36b4_EveryContainedFailureIsAppendedToTheLogWithItsTimeSessionOpera
 	lines := strings.Split(strings.TrimSuffix(world.Written[world.LogPath], "\n"), "\n")
 	g.Expect(lines).To(HaveLen(2))
 	g.Expect(lines[0]).To(Equal(`2023-11-14T22:13:20Z session="s1" operation="indexing" class=busy ` +
-		`reason="ingest failed: ingest: acquiring manifest lock: another ingest holds the manifest lock; skipped"`))
+		`reason="acquiring manifest lock: another ingest holds the manifest lock"`))
 	g.Expect(lines[1]).To(HavePrefix(`2023-11-14T22:13:20Z session="s1" operation="curation" class=unavailable reason="`))
 }
 
@@ -81,7 +81,7 @@ func Test793d36b4_TheLogIsCappedByDroppingItsOldestLines(t *testing.T) {
 	log := world.Written[world.LogPath]
 	g.Expect(len(log)).To(BeNumerically("<=", 768*1024))
 	g.Expect(log).To(HavePrefix("2023-01-01T00:00:00Z session"))
-	g.Expect(log).To(HaveSuffix(`class=error reason="query failed: exit status 70"` + "\n"))
+	g.Expect(log).To(HaveSuffix(`class=error reason="exit status 70"` + "\n"))
 	g.Expect(strings.Count(log, "\n")).To(BeNumerically("<", 14000))
 }
 

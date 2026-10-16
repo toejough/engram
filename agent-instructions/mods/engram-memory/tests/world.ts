@@ -9,7 +9,8 @@ export interface Job {
   [field: string]: unknown
 }
 // what the script answers a job with: a response of the engine, or how the program itself fails
-export type Answer = Record<string, unknown> | { exit: number; stderr: string } | { reject: string }
+// (`raw` is standard output that is not a response: a reply cut short)
+export type Answer = Record<string, unknown> | { exit: number; stderr: string } | { reject: string } | { raw: string }
 export interface WorldOptions {
   engine?: (job: Job, call: number) => Answer | Promise<Answer>
   messages?: unknown[]
@@ -80,6 +81,7 @@ export function world(on: On, options: WorldOptions = {}): World {
     // the engine rejects a call it cannot complete; in a test a hook beneath the mod stands for it with a denial
     if ('reject' in answer) return { deny: String(answer.reject) }
     if ('exit' in answer) return { value: { exitCode: answer.exit, stdout: '', stderr: answer.stderr } }
+    if ('raw' in answer) return { value: { exitCode: 0, stdout: answer.raw, stderr: '' } }
     return { value: { exitCode: 0, stdout: JSON.stringify(answer), stderr: '' } }
   })
   on('model.complete', async (_ctx, event) => {

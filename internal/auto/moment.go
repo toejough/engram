@@ -32,21 +32,26 @@ type ToolCall struct {
 
 // unexported constants.
 const (
-	bodyLimit     = 400
-	bodyParts     = 2
-	chunkKind     = "chunk"
-	consideredKey = "~considered"
-	cueCapture    = "capture"
-	cuePrompt     = "prompt"
-	cueRoute      = "route"
-	cueStep       = "step"
-	cueSubagent   = "subagent"
-	idLimit       = 400
-	itemLimit     = 10
-	mainAgent     = "main"
-	minScore      = 0.25
-	textLimit     = 300
-	toolSkill     = "Skill"
+	// the header of the System's lines of the previous turn in the block of a prompt, how many of them it carries at
+	// most and the longest of them, in characters
+	activityHeader = "Memory activity last turn:"
+	activityLimit  = 500
+	activityLines  = 5
+	bodyLimit      = 400
+	bodyParts      = 2
+	chunkKind      = "chunk"
+	consideredKey  = "~considered"
+	cueCapture     = "capture"
+	cuePrompt      = "prompt"
+	cueRoute       = "route"
+	cueStep        = "step"
+	cueSubagent    = "subagent"
+	idLimit        = 400
+	itemLimit      = 10
+	mainAgent      = "main"
+	minScore       = 0.25
+	textLimit      = 300
+	toolSkill      = "Skill"
 )
 
 // pass says what a lookup asks of the vault. The pass that holds the agent asks for notes only and remembers the
@@ -205,7 +210,12 @@ func (e *engine) lookupJob() Done {
 		text = momentText(text)
 	}
 
-	return Done{Block: e.deliver(agent, e.lookup(agent, e.job.Moment, text, e.job.ReadContext, nil, holdPass))}
+	block := e.deliver(agent, e.lookup(agent, e.job.Moment, text, e.job.ReadContext, nil, holdPass))
+	if e.job.Moment == cuePrompt {
+		block = withActivity(block, e.job.Activity)
+	}
+
+	return Done{Block: block}
 }
 
 // stepJob is the in-turn cue (793b320): one classification of the recent texts, then, when it names a moment, the
@@ -413,4 +423,29 @@ func summaryOf(text string) (string, bool) {
 	}
 
 	return strings.TrimSpace(found[1]), true
+}
+
+// withActivity adds the System's own lines of the previous turn to the block of a prompt, under a header (793d24b6;
+// owner decision 2026-10-16: the rows of `$.ui.log` do not reach the model, SP17). Only the sentences the System words
+// itself enter: a summary and a warning, each redacted and on one line, the last activityLines of them. They ask
+// nothing of the agent (793a2k). With no notes, the lines are a block of their own.
+func withActivity(block string, sentences []string) string {
+	lines := make([]string, 0, len(sentences))
+
+	for _, sentence := range sentences {
+		if strings.HasPrefix(sentence, summaryPrefix) || strings.HasPrefix(sentence, skippedPrefix) {
+			lines = append(lines, "- "+cutToLine(redact(sentence), activityLimit))
+		}
+	}
+
+	if len(lines) == 0 {
+		return block
+	}
+
+	lines = append([]string{activityHeader}, lines[max(len(lines)-activityLines, 0):]...)
+	if block == "" {
+		return "[engram memory] " + strings.Join(lines, "\n")
+	}
+
+	return block + "\n" + strings.Join(lines, "\n")
 }

@@ -1233,3 +1233,13 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 - **Answer:** (a). Decided by: owner. "I'll live with that."
 - **Applied in:** [793b466](793b_decision-log.md#793b466-capture-misses-on-self-correction-and-confirmed-guesses-are-recorded-limits-of-the-cheapest-tier).
 - **Blocks:** nothing.
+
+
+## 793c92 Must the System carry its lines to the agent, since the transcript row does not reach it?
+
+- **Status:** answered (Joe, 2026-10-16), relayed by the coordinator; recorded here per the rule that owner answers live in this file. It completes [793c90](#793c90-may-the-systems-lines-enter-the-working-agents-context).
+- **Context:** [793c90](#793c90-may-the-systems-lines-enter-the-working-agents-context) allowed the lines to reach the agent as transcript rows; probe SP17 showed that a `$.ui.log` row is not in the model's context (rows 21 and 22 of [793d1a](./793d_technical-spec.md#793d1a-what-the-hypotheses-rely-on-in-claude-code-mods)).
+- **Options:** (a) leave the lines for the user only; (b) also carry the previous turn's sentences in the next prompt's context block.
+- **Answer:** (b). Decided by: owner. The exact fixed sentences, at most about five, under a short header, never content; they ask nothing of the agent.
+- **Applied in:** [793b470](./793b_decision-log.md#793b470-the-systems-lines-of-the-previous-turn-ride-the-next-prompt-to-the-agent).
+- **Blocks:** nothing.

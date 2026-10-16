@@ -8,8 +8,9 @@ import (
 	"unicode"
 )
 
-// StepError is a failure with its class; any other error a step fails with is an `error`.
-type StepError struct{ Message, Kind string }
+// StepError is a failure with its class; any other error a step fails with is an `error`. Detail is what the failure
+// adds after the reason, which is not cut with it (the ends of a reply the mod could not read, 793d36b4).
+type StepError struct{ Message, Kind, Detail string }
 
 // Error is the message of the failure.
 func (e *StepError) Error() string { return e.Message }
@@ -35,15 +36,19 @@ const (
 	skippedPrefix = "Automatic memory skipped: "
 	// the operations a warning names, in the terms of the user (793b451)
 	stepBacklog  = "backlog capture"
+	stepCapture  = "capture"
 	stepCuration = "curation"
-	stepIndexing = "indexing"
+	// the housekeeping as one step, which a job with no part reports itself as when its reply is over the limit
+	stepHousekeeping = "indexing, curation and backlog capture"
+	stepIndexing     = "indexing"
+	stepSummary      = "summary"
 )
 
 // unexported variables.
 var (
 	busy = regexp.MustCompile(`(?i)holds the manifest lock`)
 	// the verb an operation of the vault adds to its text ("query failed: "), which the warning does not repeat
-	stepVerb    = regexp.MustCompile(`^\S+ failed: `)
+	stepVerb    = regexp.MustCompile(`^(\S+) failed: `)
 	timedOut    = regexp.MustCompile(`(?i)still running after|timed out|^aborted$`)
 	unavailable = regexp.MustCompile(`(?i)failed to start|ENOENT|permission denied|no such file or directory|` +
 		`read-only file system|input/output error`)
@@ -62,7 +67,7 @@ func (e *engine) perform(operation string, effect func() (string, error)) string
 	return must(e.step(func() (string, error) {
 		out, err := effect()
 		if err != nil {
-			text := cutEnd(err.Error(), errorLimit)
+			text := cutRedacted(err.Error(), errorLimit)
 
 			return "", &StepError{Message: operation + " failed: " + text, Kind: failureKind(text)}
 		}
@@ -88,13 +93,25 @@ func consequence(step string) string {
 		return "no notes delivered for this prompt"
 	case strings.HasSuffix(step, " lookup"):
 		return "no notes delivered this time"
-	case step == "capture":
+	case step == stepCapture:
 		return "nothing lost, the backlog capture covers it later"
-	case step == "summary":
+	case step == stepSummary:
 		return "no activity summary this turn"
 	}
 
 	return "nothing lost, retried next turn"
+}
+
+// cutRedacted is the text redacted whole and then cut to the limit, in that order, so that no credential is split by
+// the cut before it is recognized; what the cut leaves of a run of token-like characters at its end is hidden too
+// (793b471).
+func cutRedacted(text string, limit int) string {
+	text = redact(text)
+	if len([]rune(text)) <= limit {
+		return text
+	}
+
+	return maskTail(cutEnd(text, limit))
 }
 
 // cutToLine is the text on one line, without control characters (a terminal would act on them), cut to the limit with
@@ -150,15 +167,38 @@ func predicateOf(kind string) string {
 	return "failed"
 }
 
-// reasonOf is the text of a failure as the warning gives it: redacted, without the verb of its operation, on one line.
+// reasonOf is the text of a failure as the warning gives it: redacted, without the verb of its operation or its
+// repeats, on one line.
 func reasonOf(text string) string {
-	return cutToLine(stepVerb.ReplaceAllString(redact(text), ""), reasonLimit)
+	return cutToLine(tidy(redact(text)), reasonLimit)
 }
 
-// warning is the one line the user is shown, on the status line and nowhere else: what was skipped, why, what happens
-// next and where the details are.
-func warning(step, kind, text, log string) string {
-	return skippedPrefix + whatHappened(step, kind, reasonOf(text)) + "; " + consequence(step) + " (details: " + log + ")"
+// tidy is the text of a failure said once: the verb of its operation ("ingest failed: ") is taken off, and so is every
+// repeat of that verb as a prefix of a layer ("ingest: ingest: acquiring manifest lock: ingest: another ingest holds
+// the lock; skipped" is "acquiring manifest lock: another ingest holds the lock").
+func tidy(text string) string {
+	found := stepVerb.FindStringSubmatch(text)
+	if found == nil {
+		return text
+	}
+
+	text, prefix := strings.TrimPrefix(text, found[0]), found[1]+": "
+	for strings.HasPrefix(text, prefix) {
+		text = strings.TrimPrefix(text, prefix)
+	}
+
+	return strings.TrimSuffix(strings.ReplaceAll(text, ": "+prefix, ": "), "; skipped")
+}
+
+// warning is the one line the user is shown, on the status line and nowhere else: what was skipped, why (and the detail
+// that follows the reason), what happens next and where the details are.
+func warning(step, kind, text, detail, log string) string {
+	reason := reasonOf(text)
+	if reason == "" {
+		detail = strings.TrimLeft(detail, " ")
+	}
+
+	return skippedPrefix + whatHappened(step, kind, reason+detail) + "; " + consequence(step) + " (details: " + log + ")"
 }
 
 // whatHappened is the operation and what became of it, with the reason of the classes that have one.

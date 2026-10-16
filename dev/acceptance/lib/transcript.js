@@ -73,16 +73,43 @@ function attachmentText(row) {
   return typeof content === 'string' ? content : ''
 }
 
-// systemBlocks are the rows the System added to an agent's context: the hook_additional_context attachment rows
-// (SP4) that open with the marker. { index, text } per row, in order.
-export function systemBlocks(rows) {
+// ACTIVITY_HEADER opens the System's own lines of the previous turn in the block of a prompt (793b470, 793d24b3).
+export const ACTIVITY_HEADER = 'Memory activity last turn:'
+
+// splitActivity separates what a block delivers from the System's lines it carries under the header: { notes,
+// activity } with the text before the header and the lines (without their `- `) after it.
+export function splitActivity(text) {
+  const start = text.indexOf(ACTIVITY_HEADER)
+  if (start < 0) return { notes: text, activity: [] }
+  const lines = text.slice(start + ACTIVITY_HEADER.length).split('\n')
+  return {
+    notes: text.slice(0, start).trimEnd(),
+    activity: lines.filter((line) => line.startsWith('- ')).map((line) => line.slice('- '.length)),
+  }
+}
+
+// contextBlocks are the rows the System added to an agent's context: the hook_additional_context attachment rows
+// (SP4) that open with the marker. { index, text, notes, activity, activityOnly } per row, in order: `text` is the
+// whole block, `notes` what it delivers, `activity` the System's lines it carries, and a block that carries nothing
+// else is `activityOnly`.
+export function contextBlocks(rows) {
   const found = []
   rows.forEach((row, index) => {
     if (row.type !== 'attachment' || row.attachment?.type !== 'hook_additional_context') return
     const text = attachmentText(row)
-    if (text.startsWith(MARKER)) found.push({ index, text })
+    if (!text.startsWith(MARKER)) return
+    const { notes, activity } = splitActivity(text)
+    found.push({ index, text, notes, activity, activityOnly: activity.length > 0 && notes === MARKER })
   })
   return found
+}
+
+// systemBlocks are the blocks that deliver something: { index, text } per row, in order, `text` without the System's
+// lines of the previous turn, which are not a delivery (a block of those alone is not one).
+export function systemBlocks(rows) {
+  return contextBlocks(rows)
+    .filter((block) => !block.activityOnly)
+    .map(({ index, notes }) => ({ index, text: notes }))
 }
 
 // deliveries are the System's blocks that carry the text (a note's sentinel).

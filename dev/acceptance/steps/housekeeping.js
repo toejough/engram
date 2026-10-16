@@ -10,6 +10,7 @@ import { Then } from '@cucumber/cucumber'
 import {
   MARKER,
   SKIPPED,
+  contextBlocks,
   deliveries,
   finalReply,
   memoryCalls,
@@ -313,8 +314,8 @@ Then(
 
 Then(
   new RegExp(
-    "^the only content the System added to the working agent's context is the delivered items " +
-      'and the instruction to apply them$',
+    "^the only content the System added to the working agent's context is the delivered items, " +
+      'the instruction to apply them and its own lines of the previous turn$',
   ),
   async function () {
     await quiesce(this)
@@ -324,13 +325,15 @@ Then(
       const context = rows.filter(
         (row) => row.type === 'attachment' && row.attachment?.type === 'hook_additional_context',
       )
-      const blocks = systemBlocks(rows)
       assert.equal(
-        blocks.length,
+        contextBlocks(rows).length,
         context.length,
         'context was added that is not a block of the System (no marker line)',
       )
-      for (const block of blocks) {
+      // the System's own lines of the previous turn are sentences of its own that ask nothing (793a5h)
+      for (const line of contextBlocks(rows).flatMap((block) => block.activity))
+        assert.match(line, THE_SYSTEMS_LINE, 'a line of the System the agent is carried is not one of its sentences')
+      for (const block of systemBlocks(rows)) {
         seen += 1
         assert.ok(APPLY.test(block.text), 'a block holds no instruction to apply it')
         const lines = block.text.split('\n').slice(1)
@@ -357,9 +360,11 @@ Then(
       '|the user is shown a one-line summary with (3 items delivered, 1 note added, 1 note ' +
       'amended and 2 offers curated|1 note added and no other count)' +
       '|the user is shown no (warning|memory-activity summary)' +
-      "|the (warning|summary) appears in the transcript as a line of the System's that asks nothing of the agent)$",
+      "|the (warning|summary) appears in the transcript as a line of the System's that asks nothing of the agent" +
+      "|the summary is shown to the user as a transcript line and the agent's next prompt context (carries) it)$",
   ),
-  async function (reason, counts, noneOf, lineOf) {
+  async function (reason, counts, noneOf, lineOf, carries) {
+    if (typeof carries === 'string') return lineCarried(this)
     if (typeof counts === 'string') return summaryShown(this, counts)
     if (typeof reason === 'string') return warningShown(this, reason)
     if (typeof noneOf === 'string') return noneOf === 'warning' ? noWarning(this) : noSummary(this)
@@ -447,6 +452,22 @@ async function lineAsksNothing(world, kind) {
   const lines = kind === 'warning' ? shown.filter((text) => SKIPPED.test(text)) : summaries(world)
   assert.ok(lines.length > 0, `no ${kind} was shown as a transcript line; the lines were ${JSON.stringify(shown)}`)
   for (const text of shown) assert.match(text, THE_SYSTEMS_LINE, `a line of the System's is not one of its sentences`)
+  return undefined
+}
+
+// lineCarried (793a5h1c, 793b470): the summary was shown to the user as a transcript line, and the context of the next
+// prompt carried the same sentence to the agent, under the header of the System's lines, with nothing else of the
+// System's in it that is not one of its fixed sentences.
+async function lineCarried(world) {
+  await quiesce(world)
+  const [summary] = summaries(world)
+  assert.ok(summary, `no summary was shown as a transcript line; the lines were ${JSON.stringify(statuses(world))}`)
+  const carried = contextBlocks(await mainRows(world)).flatMap((block) => block.activity)
+  assert.ok(
+    carried.includes(summary),
+    `the summary "${summary}" was not carried by the context of a prompt; it carried ${JSON.stringify(carried)}`,
+  )
+  for (const text of carried) assert.match(text, THE_SYSTEMS_LINE, 'a line carried is not a sentence of the System')
   return undefined
 }
 

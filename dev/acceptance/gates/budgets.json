@@ -1,12 +1,12 @@
 {
   "unit": "owned lines: not blank and not a comment, per JavaScript file of agent-instructions/mods/engram-memory",
   "reference": "793b368: the mod is an adapter; 162 owned lines of register.js are wiring today",
-  "total": 293,
+  "total": 299,
   "files": {
     "hooks/register.js": {
       "red": 383,
-      "budget": 293,
-      "basis": "the 162 owned lines of wiring in register.js today (the event handlers, state, warn, attempt, exec, answered, readTranscript, seam and schedule) plus about 40 for the relay loop of the need and done rounds plus a margin, plus 15 for the hold of an event (793b406: the cut of a job at 8 s, the round that is not started after it), plus 2 for the window of the cue (793b415), less 2 for the words of a failure (793b413), less 7 for the persisted queue the owner dropped (793b416); plus 21 for the lookup of a prompt with the chunk index in the background (793b425: start it after the prompt, hand its notes to the next tool result); plus 10 for the hand-over of a failure of a step to the engine, which words and records it, and the mod's wording of it when the engine cannot be run (793b451: the failure job, the session named in every job, the summary as a named step); less 4 for the line shown as a transcript line with no state for a line to clear (793b442); every other JavaScript file of the mod is logic and has no row, so it fails the gate until it is gone or the owner gives it a row"
+      "budget": 299,
+      "basis": "the 162 owned lines of wiring in register.js today (the event handlers, state, warn, attempt, exec, answered, readTranscript, seam and schedule) plus about 40 for the relay loop of the need and done rounds plus a margin, plus 15 for the hold of an event (793b406: the cut of a job at 8 s, the round that is not started after it), plus 2 for the window of the cue (793b415), less 2 for the words of a failure (793b413), less 7 for the persisted queue the owner dropped (793b416); plus 21 for the lookup of a prompt with the chunk index in the background (793b425: start it after the prompt, hand its notes to the next tool result); plus 10 for the hand-over of a failure of a step to the engine, which words and records it, and the mod's wording of it when the engine cannot be run (793b451: the failure job, the session named in every job, the summary as a named step); less 4 for the line shown as a transcript line with no state for a line to clear (793b442); plus 6 for the housekeeping run a part at a time, each its own step, the handing over of a reply that could not be read, and the lines of the System kept for the next prompt, less 0 elsewhere (793b469, 793b470); every other JavaScript file of the mod is logic and has no row, so it fails the gate until it is gone or the owner gives it a row"
     }
   },
   "go": {
@@ -25,25 +25,26 @@
           "failure.go",
           "failure_log.go"
         ],
-        "basis": "failure.js 24, exec 11, answered 4; the four operations of the vault the engine performs (perform, amend, query, show) add 11 (793b417); plus 17 for the class and the words of the two states that are not failures of a command, an index another run holds and one that has not caught up (793b429, 793b430); plus 86 for the owner's decision that a warning names the operation, the reason and what happens next, and points to a record of every failure (793b450, 793b451): the words of five classes and of the consequence of each operation, the reason redacted, on one line and cut, the failure job, and the record with its time, session, operation, class and reason, capped by dropping its oldest lines",
-        "ceiling": 169
+        "basis": "failure.js 24, exec 11, answered 4; the four operations of the vault the engine performs (perform, amend, query, show) add 11 (793b417); plus 17 for the class and the words of the two states that are not failures of a command, an index another run holds and one that has not caught up (793b429, 793b430); plus 86 for the owner's decision that a warning names the operation, the reason and what happens next, and points to a record of every failure (793b450, 793b451): the words of five classes and of the consequence of each operation, the reason redacted, on one line and cut, the failure job, and the record with its time, session, operation, class and reason, capped by dropping its oldest lines; plus 28 for a reason said once (the verb of an operation and its repeats are taken off, 793b469) and for the size and the ends of a reply the mod could not read, redacted and cut, which follow the reason in the warning and the record (793b469); plus 6 for the redaction of a failure whole before it is cut, and the hiding of what a cut leaves of a credential at the edges of the text and of the ends of a reply (793b471)",
+        "ceiling": 203
       },
       "moment": {
         "js": 112,
         "files": [
           "moment.go"
         ],
-        "basis": "moment.js 70, lookup 15, deliver 8, moment 1, stepJob 7, memory-ask and note-path patterns 4, readTranscript 7; plus the lookup with the chunk index and the stubs (793b425: the pass, the stubs of a lookup, the line of a stub, the considered notes)",
-        "ceiling": 277
+        "basis": "moment.js 70, lookup 15, deliver 8, moment 1, stepJob 7, memory-ask and note-path patterns 4, readTranscript 7; plus the lookup with the chunk index and the stubs (793b425: the pass, the stubs of a lookup, the line of a stub, the considered notes); plus 23 for the System's lines of the previous turn, which the prompt's block carries under a header, filtered to the System's own sentences, redacted, cut and at most five (793b470, owner decision 2026-10-16)",
+        "ceiling": 300
       },
       "judge-relay": {
         "js": 161,
         "files": [
           "judge.go",
-          "relay.go"
+          "relay.go",
+          "reply.go"
         ],
-        "basis": "judge.js 161, which holds the prompts (now text files) and the strict readings; the need and done rounds are the relay and have no JavaScript to replace; plus 3 for the record of a warned failure and the job of a failure the mod hands over (793b451)",
-        "ceiling": 473
+        "basis": "judge.js 161, which holds the prompts (now text files) and the strict readings; the need and done rounds are the relay and have no JavaScript to replace; plus 3 for the record of a warned failure and the job of a failure the mod hands over (793b451); plus 94 for the bound on a reply (reply.go: 256 KiB at most, the log lines past the first few appended to a debug file, a warning and a line cut, a reply over the limit replaced by the end of the job with a warning that names the step, 793b468) and 8 for the fields of the jobs the mod hands over (793b469, 793b470)",
+        "ceiling": 575
       },
       "capture": {
         "js": 234,
@@ -51,24 +52,24 @@
           "capture.go",
           "redact.go"
         ],
-        "basis": "capture.js 200, capture 18, markTurns 7, settled 9; plus 4 for the brief of a subagent labelled as the agent's and not the user's (793b441)",
-        "ceiling": 430
+        "basis": "capture.js 200, capture 18, markTurns 7, settled 9; plus 4 for the brief of a subagent labelled as the agent's and not the user's (793b441); plus 5 for the hiding of the run of token-like characters a cut leaves at an edge of a text (793b471)",
+        "ceiling": 435
       },
       "backlog": {
         "js": 111,
         "files": [
           "backlog.go"
         ],
-        "basis": "backlog.js 49, backlog 35, readSource 9, sourceMessages 8, chunksDir and the marks 10; plus 15 for the report of an index that has not caught up (793b430)",
-        "ceiling": 193
+        "basis": "backlog.js 49, backlog 35, readSource 9, sourceMessages 8, chunksDir and the marks 10; plus 15 for the report of an index that has not caught up (793b430); plus 4 for the plan of the backlog, which keeps of the manifest the sources a run can look at and not the manifest, so that the record of the job is not tens of megabytes (793b468)",
+        "ceiling": 197
       },
       "curation": {
         "js": 93,
         "files": [
           "curate.go"
         ],
-        "basis": "housekeeping.js 52, nearest 9, curateOne 13, curate 13, housekeeping 5, skipped 1",
-        "ceiling": 142
+        "basis": "housekeeping.js 52, nearest 9, curateOne 13, curate 13, housekeeping 5, skipped 1; plus 7 for the housekeeping run a part at a time (793b469)",
+        "ceiling": 149
       },
       "summary": {
         "js": 27,

@@ -71,6 +71,13 @@ const (
 	windowsPerTurn = 6
 )
 
+// backlogPlan is what the backlog takes from the manifest: whether the index is behind, else the sources it may look at
+// in this run, the most recently changed first.
+type backlogPlan struct {
+	Behind bool     `json:"behind,omitempty"`
+	Todo   []Source `json:"todo,omitempty"`
+}
+
 // batch is what one source asks of a turn: the windows to judge, the end of the conversation first.
 type batch struct {
 	Unreadable string
@@ -85,28 +92,24 @@ type batch struct {
 // one most recently changed source nobody has captured yet and judge up to windowsPerTurn of its windows, the end of
 // the conversation first, with the same judgement as a turn. The source is marked only when every window has been
 // judged without a failure; a source with nothing to judge is marked at once, one that cannot be read is left alone.
+// The manifest is read once and what it holds is not kept in the record of the job: the record is sent with every
+// round, and the manifest of a real vault is tens of megabytes (793b467, 793b468).
 func (e *engine) backlog() {
 	dir := e.deps.ChunksDir
-	manifest, _ := e.read(dir + "/manifest.json")
-	sources, now, marks := parseManifest(manifest), e.now(), e.marks(dir)
+	now, marks := e.now(), e.marks(dir)
 
 	e.recordFirstRun(dir, &marks, now)
 
-	if e.indexBehind(sources, marks) {
+	plan := recorded(e, func() backlogPlan { return e.planBacklog(dir, marks, now) })
+	if plan.Behind {
+		e.warn(stepBacklog, &StepError{
+			Message: "backlog: index not caught up: its newest session changed before the cut-off", Kind: kindBehind,
+		})
+
 		return
 	}
 
-	looked := 0
-
-	for _, source := range pending(sources, marks, now, e.job.Transcript) {
-		if slices.Contains(e.work.Unreadable, source.Path) {
-			continue
-		}
-
-		if looked++; looked > sourcesPerTurn {
-			return
-		}
-
+	for _, source := range plan.Todo {
 		next := recorded(e, func() batch { return e.prepare(source, marks) })
 		if next.Unreadable != "" {
 			e.logf("backlog: %s: %s", source.Path, next.Unreadable)
@@ -135,19 +138,10 @@ func (e *engine) backlog() {
 	}
 }
 
-// indexBehind says whether the index has not caught up, and warns when it has not: its newest session changed before
-// the cut-off, so nothing can be eligible, and the user is told instead of a backlog that silently finds nothing
-// (793d28b1).
+// indexBehind says whether the index has not caught up: its newest session changed before the cut-off, so nothing can
+// be eligible, and the user is told instead of a backlog that silently finds nothing (793d28b1).
 func (e *engine) indexBehind(sources []Source, marks Marks) bool {
-	if len(sources) == 0 || marks.Cutoff == nil || sources[0].MtimeMs >= *marks.Cutoff {
-		return false
-	}
-
-	e.warn(stepBacklog, &StepError{
-		Message: "backlog: index not caught up: its newest session changed before the cut-off", Kind: kindBehind,
-	})
-
-	return true
+	return len(sources) > 0 && marks.Cutoff != nil && sources[0].MtimeMs < *marks.Cutoff
 }
 
 // markTurns records that the System captured the turns of this session up to now, so that the backlog does not read
@@ -172,6 +166,22 @@ func (e *engine) marks(dir string) Marks {
 // now is the time in milliseconds since the epoch.
 func (e *engine) now() float64 {
 	return recorded(e, func() float64 { return float64(e.deps.Clock.Now().UnixMilli()) })
+}
+
+// planBacklog reads the manifest, which may be tens of megabytes, and keeps of it what a run can use: a run looks at
+// sourcesPerTurn sources at most, so a source that cannot be read, which is passed over, and the sources a run can
+// look at are all that is kept. An absent manifest is an empty one.
+func (e *engine) planBacklog(dir string, marks Marks, now float64) backlogPlan {
+	sources := parseManifest(e.quietly(dir + "/manifest.json"))
+	if e.indexBehind(sources, marks) {
+		return backlogPlan{Behind: true}
+	}
+
+	todo := slices.DeleteFunc(pending(sources, marks, now, e.job.Transcript), func(source Source) bool {
+		return slices.Contains(e.work.Unreadable, source.Path)
+	})
+
+	return backlogPlan{Todo: todo[:min(len(todo), sourcesPerTurn)]}
 }
 
 // prepare reads a source and cuts its next windows: from the windows (oldest first), the last `done` are left and up
