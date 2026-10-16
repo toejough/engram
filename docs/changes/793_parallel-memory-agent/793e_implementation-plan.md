@@ -330,6 +330,21 @@ Run on 2026-10-16 at 5366094b (the merge of the warnings, surface and capture ru
 
 No merge regression was found: no Red is deterministic in the System (three of four are Green in most re-runs), and 793a5k1c fails on the permission of the agent's compound command, which the allow rules in `dev/acceptance/lib/world.js` do not cover. Whether to allow compound `engram` commands in the World or to make the scenario's agent use the plain form is an open choice for the owner.
 
+### 793e7d Full-suite result after the reply bound and the review round
+
+Runs on 2026-10-16, nothing installed, token read by the harness from its file and never printed ([793b467](./793b_decision-log.md#793b467-dogfooding-the-housekeeping-reply-was-48-megabytes-and-the-mod-parsed-the-first-4-mib-of-it) to [793b472](./793b_decision-log.md#793b472-the-review-round-of-793b467-to-793b471-what-a-job-records-the-excerpt-in-a-warning-and-the-lines-the-agent-is-carried)).
+
+| Check | Result |
+| --- | --- |
+| `targ check-full` | 19 of 19 PASS at b7770e35 and at HEAD |
+| `targ acceptance --check` | 3 of 3 self-tests PASS at HEAD (50 scenarios, 58 runs, 32 definitions, 0 undefined, 0 ambiguous) |
+| `targ acceptance 793a4b`, `793a4j` | 6 of 6 and 4 of 4 Green at b7770e35 |
+| `targ acceptance` (full, one run) at b7770e35 | 58 runs: 54 Green, 1 Red (793a5h1a), 1 Harness error (793a3a1g), 2 `Not run` (793a5j1d, 793a5c1b: SP14); 2.142 USD |
+| Re-runs alone (5 each) at b7770e35 | 793a5h1a 5 of 5 Green (0.261 USD); 793a3a1g 5 of 5 Green (0.223 USD) |
+| `targ acceptance` (full, one run) at the review-round commit | 58 runs: 56 Green, 0 Red, 0 Harness error, 2 `Not run` (793a5j1d, 793a5c1b: SP14); 2.185 USD |
+
+The two non-Green rows of the first run were not reproduced in ten re-runs: 793a5h1a was a summary without its "3 items delivered" (the relevance judgement selected fewer notes; the row depends on a model judgement), and 793a3a1g a session closed before the System's idle line (a timing harness error). Neither is explained by the change, and neither is claimed to be explained away; the run of the review-round commit is green. The two `Not run` rows need a headless Pi.
+
 ## 793e8 Test Catalog
 
 Every executable test name begins with its row's Gherkin ID; the acceptance suite's scenarios are named `<ID> <title>` by the scenario line itself. Acceptance rows are verified with `targ acceptance <ID>`.
