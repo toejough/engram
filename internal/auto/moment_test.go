@@ -660,7 +660,9 @@ func Test793d36b3_AFailingLookupOfRouteDeliversNothingAndWarns(t *testing.T) {
 	tool := world.Do(t, momentTool(map[string]any{"route": true, "args": "write Go tests", "step": "route lookup"}))
 
 	g.Expect(tool.Block).To(BeEmpty())
-	g.Expect(world.Warnings).To(Equal([]string{skipped("route lookup failed: exit status 1", "no notes delivered this time")}))
+	g.Expect(world.Warnings).To(Equal([]string{
+		skipped("route lookup failed: exit status 1", "no notes delivered this time"),
+	}))
 }
 
 func Test793d36b3_AFailingQueryLeavesThePromptAsTypedAndWarns(t *testing.T) {

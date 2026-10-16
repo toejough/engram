@@ -56,7 +56,10 @@ test('status texts are the ui_status system messages, in order, and nothing else
       text: 'Automatic memory skipped: indexing failed: x; nothing lost, retried next turn (details: y)',
     },
   ]
-  assert.deepEqual(statusTexts(messages), ['one', 'Automatic memory skipped: indexing failed: x; nothing lost, retried next turn (details: y)'])
+  assert.deepEqual(statusTexts(messages), [
+    'one',
+    'Automatic memory skipped: indexing failed: x; nothing lost, retried next turn (details: y)',
+  ])
   assert.equal(statusTexts(messages).filter((text) => SKIPPED.test(text)).length, 1)
 })
 

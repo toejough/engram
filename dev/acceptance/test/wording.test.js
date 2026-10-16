@@ -16,11 +16,12 @@ const MOD_SOURCE = fs.readFileSync(
 
 // the engine's words per class (what happened, after the operation), and the start of every warning
 const engineReasons = () => {
-  const table = /predicates\s*=\s*map\[string\]string\{[^}]*kindUnavailable:\s*"([^"]+)",[^}]*kindTimeout:\s*"([^"]+)",[^}]*kindError:\s*"([^"]+)",/.exec(
-    ENGINE_SOURCE,
-  )
-  assert.ok(table, 'failure.go no longer words a failure the way this test reads it')
-  return { unavailable: table[1], timeout: table[2], error: table[3] }
+  const body = /func predicateOf\(kind string\) string \{([\s\S]*?)\n\}/.exec(ENGINE_SOURCE)?.[1] ?? ''
+  const unavailable = /case kindUnavailable:\s*return "([^"]+)"/.exec(body)
+  const timeout = /case kindTimeout:\s*return "([^"]+)"/.exec(body)
+  const error = /\n\treturn "([^"]+)"\s*$/.exec(body)
+  assert.ok(unavailable && timeout && error, 'failure.go no longer words a failure the way this test reads it')
+  return { unavailable: unavailable[1], timeout: timeout[1], error: error[1] }
 }
 const enginePrefix = () => {
   const found = /skippedPrefix\s*=\s*"([^"]+)"/.exec(ENGINE_SOURCE)

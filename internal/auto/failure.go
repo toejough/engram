@@ -42,12 +42,6 @@ const (
 // unexported variables.
 var (
 	busy = regexp.MustCompile(`(?i)holds the manifest lock`)
-	// what happened to an operation, by the class of the failure: it follows the name of the operation
-	predicates = map[string]string{
-		kindUnavailable: "could not reach the vault",
-		kindTimeout:     "timed out",
-		kindError:       "failed",
-	}
 	// the verb an operation of the vault adds to its text ("query failed: "), which the warning does not repeat
 	stepVerb    = regexp.MustCompile(`^\S+ failed: `)
 	timedOut    = regexp.MustCompile(`(?i)still running after|timed out|^aborted$`)
@@ -87,6 +81,40 @@ func (e *engine) show(name string) string {
 	return e.perform("show", func() (string, error) { return e.deps.Vault.Show(name, deadlineCommand) })
 }
 
+// consequence is what happens next to what the operation was to do, a statement the code makes true (793b451).
+func consequence(step string) string {
+	switch {
+	case step == "prompt lookup":
+		return "no notes delivered for this prompt"
+	case strings.HasSuffix(step, " lookup"):
+		return "no notes delivered this time"
+	case step == "capture":
+		return "nothing lost, the backlog capture covers it later"
+	case step == "summary":
+		return "no activity summary this turn"
+	}
+
+	return "nothing lost, retried next turn"
+}
+
+// cutToLine is the text on one line, without control characters (a terminal would act on them), cut to the limit with
+// an ellipsis when it was longer.
+func cutToLine(text string, limit int) string {
+	printable := strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) && !unicode.IsSpace(r) {
+			return -1
+		}
+
+		return r
+	}, text)
+	line := strings.Join(strings.Fields(printable), " ")
+	if runes := []rune(line); len(runes) > limit {
+		return string(runes[:limit]) + "..."
+	}
+
+	return line
+}
+
 // failureKind is the class of a failure from the text it left: the stderr of a command, the reason a model call gave.
 func failureKind(text string) string {
 	switch {
@@ -110,37 +138,16 @@ func kindOf(err error) string {
 	return failureKind(err.Error())
 }
 
-// consequence is what happens next to what the operation was to do, a statement the code makes true (793b451).
-func consequence(step string) string {
-	switch {
-	case step == "prompt lookup":
-		return "no notes delivered for this prompt"
-	case strings.HasSuffix(step, " lookup"):
-		return "no notes delivered this time"
-	case step == "capture":
-		return "nothing lost, the backlog capture covers it later"
-	case step == "summary":
-		return "no activity summary this turn"
+// predicateOf is what happened to an operation by the class of its failure; it follows the name of the operation.
+func predicateOf(kind string) string {
+	switch kind {
+	case kindUnavailable:
+		return "could not reach the vault"
+	case kindTimeout:
+		return "timed out"
 	}
 
-	return "nothing lost, retried next turn"
-}
-
-// cutToLine is the text on one line, without control characters (a terminal would act on them), cut to the limit with an ellipsis when it was longer.
-func cutToLine(text string, limit int) string {
-	printable := strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) && !unicode.IsSpace(r) {
-			return -1
-		}
-
-		return r
-	}, text)
-	line := strings.Join(strings.Fields(printable), " ")
-	if runes := []rune(line); len(runes) > limit {
-		return string(runes[:limit]) + "..."
-	}
-
-	return line
+	return "failed"
 }
 
 // reasonOf is the text of a failure as the warning gives it: redacted, without the verb of its operation, on one line.
@@ -167,14 +174,9 @@ func whatHappened(step, kind, reason string) string {
 		return step + " was held back: the index is not caught up"
 	}
 
-	predicate, known := predicates[kind]
-	if !known {
-		predicate = predicates[kindError]
-	}
-
 	if reason == "" {
-		return step + " " + predicate
+		return step + " " + predicateOf(kind)
 	}
 
-	return step + " " + predicate + ": " + reason
+	return step + " " + predicateOf(kind) + ": " + reason
 }

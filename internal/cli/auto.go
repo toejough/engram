@@ -16,10 +16,10 @@ import (
 // unexported constants.
 const (
 	autoDirPerm fs.FileMode = 0o755
-	// the name of the failure record in the data directory
-	autoLogName = "auto.log"
 	// the backlog marks name the user's conversations: the user alone reads them
 	autoFilePerm fs.FileMode = 0o600
+	// the name of the failure record in the data directory
+	autoLogName = "auto.log"
 )
 
 // autoClock is the wall clock of a job.

@@ -14,7 +14,8 @@ const (
 	logLimit = 1024 * 1024
 )
 
-// failureJob words and records a failure the mod hands over: one of its own steps, which the engine cannot see (793b451).
+// failureJob words and records a failure the mod hands over: one of its own steps, which the engine cannot see
+// (793b451).
 func (e *engine) failureJob() Done {
 	panic(&StepError{Message: e.job.Text, Kind: failureKind(e.job.Text)})
 }

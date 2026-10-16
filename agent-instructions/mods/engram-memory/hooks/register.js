@@ -108,13 +108,7 @@ async function warn($, text) {
 
 // sessionOf names the session in a job, for the failure record; a session that cannot be named is `-` to the engine.
 /** @type {($: Ctx) => Promise<string>} */
-const sessionOf = async ($) => {
-  try {
-    return await $.session.id()
-  } catch {
-    return ''
-  }
-}
+const sessionOf = ($) => $.session.id().catch(() => '')
 
 /**
  * @param {Ctx} $
@@ -135,6 +129,7 @@ function absorb($, out) {
  * @param {Hold} [hold]
  */
 async function relay($, job, hold = { cut: false }) {
+  /** @type {Job} */
   let input = { sessionId: await sessionOf($), ...job }
   for (let round = 0; round < MAX_ROUNDS; round += 1) {
     const out = await roundOf($, input, hold)

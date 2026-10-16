@@ -10,21 +10,6 @@ import (
 	"github.com/toejough/engram/internal/auto"
 )
 
-func Test793d36b4_ALogThatCannotBeWrittenChangesNeitherTheWarningNorTheJob(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	world := NewWorld()
-	world.Unwritable[world.LogPath] = true
-	world.Process["query"] = func([]string) (auto.Output, error) { return auto.Output{}, errNonZero }
-
-	done := failureLookup(t, world)
-
-	g.Expect(done.Block).To(BeEmpty())
-	g.Expect(world.Warnings).To(Equal([]string{skipped("prompt lookup failed: exit status 70", failureNext)}))
-	g.Expect(strings.Join(world.Logs, "\n")).To(ContainSubstring("auto.log"))
-}
-
 func Test793d36b4_AFailureTheModHandsOverIsWordedAndLoggedLikeAnyOther(t *testing.T) {
 	t.Parallel()
 
@@ -43,6 +28,21 @@ func Test793d36b4_AFailureTheModHandsOverIsWordedAndLoggedLikeAnyOther(t *testin
 	g.Expect(world.Written[world.LogPath]).To(Equal(
 		`2023-11-14T22:13:20Z session="s1" operation="indexing, curation and backlog capture" class=error ` +
 			`reason="engram auto run exited 70: boom [redacted]"` + "\n"))
+}
+
+func Test793d36b4_ALogThatCannotBeWrittenChangesNeitherTheWarningNorTheJob(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := NewWorld()
+	world.Unwritable[world.LogPath] = true
+	world.Process["query"] = func([]string) (auto.Output, error) { return auto.Output{}, errNonZero }
+
+	done := failureLookup(t, world)
+
+	g.Expect(done.Block).To(BeEmpty())
+	g.Expect(world.Warnings).To(Equal([]string{skipped("prompt lookup failed: exit status 70", failureNext)}))
+	g.Expect(strings.Join(world.Logs, "\n")).To(ContainSubstring("auto.log"))
 }
 
 func Test793d36b4_EveryContainedFailureIsAppendedToTheLogWithItsTimeSessionOperationClassAndReason(t *testing.T) {

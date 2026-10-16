@@ -6,7 +6,9 @@ import test from 'node:test'
 import { formatReport } from '../lib/report.js'
 import { entryFor } from '../lib/results.js'
 
-const CUT = 'Automatic memory skipped: route lookup timed out: engram aborted; no notes delivered this time (details: ~/.local/share/engram/auto.log)'
+const CUT =
+  'Automatic memory skipped: route lookup timed out: engram aborted; no notes delivered this time ' +
+  '(details: ~/.local/share/engram/auto.log)'
 const status = (text) => ({ type: 'system', subtype: 'ui_status', text })
 const world = (sessions) => ({ id: '793a2n1j', title: 't', scenario: { sessions, usage: () => null } })
 

@@ -125,7 +125,11 @@ describe('the relay of a job (793b197)', () => {
 
   const FALLBACKS: [string, Answer, string][] = [
     ['exits with an error', { exit: 70, stderr: 'injected failure' }, 'prompt lookup failed'],
-    ['cannot start', { reject: '$.process.run(engram) failed to start: ENOENT' }, 'prompt lookup could not reach the vault'],
+    [
+      'cannot start',
+      { reject: '$.process.run(engram) failed to start: ENOENT' },
+      'prompt lookup could not reach the vault',
+    ],
     ['is cut', { reject: '$.process.run(engram) aborted: still running after 600000ms' }, 'prompt lookup timed out'],
   ]
   for (const [name, answer, what] of FALLBACKS) {

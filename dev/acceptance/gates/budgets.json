@@ -1,12 +1,12 @@
 {
   "unit": "owned lines: not blank and not a comment, per JavaScript file of agent-instructions/mods/engram-memory",
   "reference": "793b368: the mod is an adapter; 162 owned lines of register.js are wiring today",
-  "total": 287,
+  "total": 297,
   "files": {
     "hooks/register.js": {
       "red": 383,
-      "budget": 287,
-      "basis": "the 162 owned lines of wiring in register.js today (the event handlers, state, warn, attempt, exec, answered, readTranscript, seam and schedule) plus about 40 for the relay loop of the need and done rounds plus a margin, plus 15 for the hold of an event (793b406: the cut of a job at 8 s, the round that is not started after it), plus 2 for the window of the cue (793b415), less 2 for the words of a failure (793b413), less 7 for the persisted queue the owner dropped (793b416); plus 21 for the lookup of a prompt with the chunk index in the background (793b425: start it after the prompt, hand its notes to the next tool result); every other JavaScript file of the mod is logic and has no row, so it fails the gate until it is gone or the owner gives it a row"
+      "budget": 297,
+      "basis": "the 162 owned lines of wiring in register.js today (the event handlers, state, warn, attempt, exec, answered, readTranscript, seam and schedule) plus about 40 for the relay loop of the need and done rounds plus a margin, plus 15 for the hold of an event (793b406: the cut of a job at 8 s, the round that is not started after it), plus 2 for the window of the cue (793b415), less 2 for the words of a failure (793b413), less 7 for the persisted queue the owner dropped (793b416); plus 21 for the lookup of a prompt with the chunk index in the background (793b425: start it after the prompt, hand its notes to the next tool result); plus 10 for the hand-over of a failure of a step to the engine, which words and records it, and the mod's wording of it when the engine cannot be run (793b451: the failure job, the session named in every job, the summary as a named step); every other JavaScript file of the mod is logic and has no row, so it fails the gate until it is gone or the owner gives it a row"
     }
   },
   "go": {
@@ -22,10 +22,11 @@
       "failure": {
         "js": 39,
         "files": [
-          "failure.go"
+          "failure.go",
+          "failure_log.go"
         ],
-        "basis": "failure.js 24, exec 11, answered 4; the four operations of the vault the engine performs (perform, amend, query, show) add 11 (793b417); plus 17 for the class and the words of the two states that are not failures of a command, an index another run holds and one that has not caught up (793b429, 793b430)",
-        "ceiling": 83
+        "basis": "failure.js 24, exec 11, answered 4; the four operations of the vault the engine performs (perform, amend, query, show) add 11 (793b417); plus 17 for the class and the words of the two states that are not failures of a command, an index another run holds and one that has not caught up (793b429, 793b430); plus 86 for the owner's decision that a warning names the operation, the reason and what happens next, and points to a record of every failure (793b450, 793b451): the words of five classes and of the consequence of each operation, the reason redacted, on one line and cut, the failure job, and the record with its time, session, operation, class and reason, capped by dropping its oldest lines",
+        "ceiling": 169
       },
       "moment": {
         "js": 112,
@@ -41,8 +42,8 @@
           "judge.go",
           "relay.go"
         ],
-        "basis": "judge.js 161, which holds the prompts (now text files) and the strict readings; the need and done rounds are the relay and have no JavaScript to replace",
-        "ceiling": 470
+        "basis": "judge.js 161, which holds the prompts (now text files) and the strict readings; the need and done rounds are the relay and have no JavaScript to replace; plus 3 for the record of a warned failure and the job of a failure the mod hands over (793b451)",
+        "ceiling": 473
       },
       "capture": {
         "js": 234,

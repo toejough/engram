@@ -393,17 +393,21 @@ const LOG_LINE = new RegExp(
     'class=(?:busy|behind|timeout|unavailable|error) reason=".+"$',
 )
 
-Then(
-  /^the log in the data directory of the System holds a line for the failure with when it happened, the session, the operation, the class and the reason$/,
-  async function () {
+const LOG_STEP = new RegExp(
+  '^the log in the data directory of the System holds a line for the failure with when it happened, ' +
+    'the session, the operation, the class and the reason$',
+)
+// the permission bits of the group and of others
+const NOT_THE_OWNER = 0o077
+
+Then(LOG_STEP, async function () {
     await quiesce(this)
     const file = path.join(this.scenario.home, '.local', 'share', 'engram', 'auto.log')
     assert.ok(fs.existsSync(file), `the System wrote no log at ${file}`)
     const lines = fs.readFileSync(file, 'utf8').split('\n').filter(Boolean)
     assert.ok(lines.some((line) => LOG_LINE.test(line)), `no line of the log has the shape of a failure: ${lines}`)
-    assert.equal(fs.statSync(file).mode & 0o077, 0, 'the log is readable by someone other than its owner')
-  },
-)
+    assert.equal(fs.statSync(file).mode & NOT_THE_OWNER, 0, 'the log is readable by someone other than its owner')
+  })
 
 async function noWarning(world) {
   await quiesce(world)

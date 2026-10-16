@@ -213,6 +213,69 @@ func Test793d36b3_AnUnparseableRelevanceJudgementIsAnErrorAndDeliversNothing(t *
 	g.Expect(world.Warnings[0]).To(HavePrefix("Automatic memory skipped: prompt lookup failed: "))
 }
 
+func Test793d36b3_EveryWarningNamesTheOperationTheReasonWhatHappensNextAndTheLog(t *testing.T) {
+	t.Parallel()
+
+	busyText := "ingest: acquiring manifest lock: another ingest holds the manifest lock; skipped"
+	tests := []struct {
+		name    string
+		process string
+		fail    string
+		job     map[string]any
+		want    string
+	}{
+		{
+			"indexing, busy", "ingest", busyText, map[string]any{"kind": "housekeeping"},
+			skipped("indexing was already running in another session", retried),
+		},
+		{
+			"indexing, timeout", "ingest", "ingest aborted: still running after 300000ms",
+			map[string]any{"kind": "housekeeping"},
+			skipped("indexing timed out: ingest aborted: still running after 300000ms", retried),
+		},
+		{
+			"indexing, unavailable", "ingest", "write: read-only file system", map[string]any{"kind": "housekeeping"},
+			skipped("indexing could not reach the vault: write: read-only file system", retried),
+		},
+		{
+			"indexing, error", "ingest", "exit status 70", map[string]any{"kind": "housekeeping"},
+			skipped("indexing failed: exit status 70", retried),
+		},
+		{
+			"a lookup that meets a busy index, busy", "query", "another ingest holds the manifest lock; skipped",
+			map[string]any{"kind": "lookup", "moment": "prompt", "text": failurePrompt, "step": failureStep},
+			skipped("prompt lookup was blocked because indexing was already running in another session", failureNext),
+		},
+		{
+			"a route lookup, error", "query", "exit status 70",
+			map[string]any{"kind": "tool", "route": true, "args": "write Go tests", "step": "route lookup"},
+			skipped("route lookup failed: exit status 70", "no notes delivered this time"),
+		},
+		{
+			"a history lookup, timeout", "query", "engram aborted: still running after 25000ms",
+			map[string]any{"kind": "deep", "step": "history lookup", "text": failurePrompt, "lastPrompt": failurePrompt},
+			skipped("history lookup timed out: engram aborted: still running after 25000ms", "no notes delivered this time"),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+			world := NewWorld()
+			world.Process[test.process] = func([]string) (auto.Output, error) {
+				return auto.Output{}, errors.New(test.fail)
+			}
+
+			world.Do(t, test.job)
+
+			g.Expect(world.Warnings).To(ContainElement(test.want))
+			g.Expect(world.Warnings).NotTo(ContainElement(ContainSubstring("housekeeping")))
+		})
+	}
+}
+
 func Test793d36b3_TheClassOfAFailureIsWhatTheTextOfTheCommandSays(t *testing.T) {
 	t.Parallel()
 
@@ -251,64 +314,6 @@ func Test793d36b3_TheClassOfAFailureIsWhatTheTextOfTheCommandSays(t *testing.T) 
 	}
 }
 
-func Test793d36b3_EveryWarningNamesTheOperationTheReasonWhatHappensNextAndTheLog(t *testing.T) {
-	t.Parallel()
-
-	busyText := "ingest: acquiring manifest lock: another ingest holds the manifest lock; skipped"
-	tests := []struct {
-		name    string
-		process string
-		fail    string
-		job     map[string]any
-		want    string
-	}{
-		{
-			"indexing, busy", "ingest", busyText, map[string]any{"kind": "housekeeping"},
-			skipped("indexing was already running in another session", retried),
-		},
-		{
-			"indexing, timeout", "ingest", "ingest aborted: still running after 300000ms",
-			map[string]any{"kind": "housekeeping"},
-			skipped("indexing timed out: ingest aborted: still running after 300000ms", retried),
-		},
-		{
-			"indexing, unavailable", "ingest", "write: read-only file system", map[string]any{"kind": "housekeeping"},
-			skipped("indexing could not reach the vault: write: read-only file system", retried),
-		},
-		{
-			"indexing, error", "ingest", "exit status 70", map[string]any{"kind": "housekeeping"},
-			skipped("indexing failed: exit status 70", retried),
-		},
-		{
-			"a route lookup, error", "query", "exit status 70",
-			map[string]any{"kind": "tool", "route": true, "args": "write Go tests", "step": "route lookup"},
-			skipped("route lookup failed: exit status 70", "no notes delivered this time"),
-		},
-		{
-			"a history lookup, timeout", "query", "engram aborted: still running after 25000ms",
-			map[string]any{"kind": "deep", "step": "history lookup", "text": failurePrompt, "lastPrompt": failurePrompt},
-			skipped("history lookup timed out: engram aborted: still running after 25000ms", "no notes delivered this time"),
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
-			g := NewWithT(t)
-			world := NewWorld()
-			world.Process[test.process] = func([]string) (auto.Output, error) {
-				return auto.Output{}, errors.New(test.fail)
-			}
-
-			world.Do(t, test.job)
-
-			g.Expect(world.Warnings).To(ContainElement(test.want))
-			g.Expect(world.Warnings).NotTo(ContainElement(ContainSubstring("housekeeping")))
-		})
-	}
-}
-
 func Test793d36b3_TheReasonOfAWarningIsOneLineRedactedAndCutAt120Characters(t *testing.T) {
 	t.Parallel()
 
@@ -316,7 +321,8 @@ func Test793d36b3_TheReasonOfAWarningIsOneLineRedactedAndCutAt120Characters(t *t
 	world := NewWorld()
 	secret := "ghp_" + strings.Repeat("a1B2", 8)
 	world.Process["query"] = func([]string) (auto.Output, error) {
-		return auto.Output{}, errors.New("first line with " + secret + " end\nsecond line\x1b[31m " + strings.Repeat("y", 300))
+		return auto.Output{}, errors.New(
+			"first line with " + secret + " end\nsecond line\x1b[31m " + strings.Repeat("y", 300))
 	}
 
 	failureLookup(t, world)
@@ -328,7 +334,8 @@ func Test793d36b3_TheReasonOfAWarningIsOneLineRedactedAndCutAt120Characters(t *t
 	g.Expect(world.Warnings[0]).To(ContainSubstring("first line with [redacted] end second line[31m yyy"))
 	g.Expect(world.Warnings[0]).To(ContainSubstring("yyy...; " + failureNext))
 
-	reason := strings.TrimPrefix(strings.Split(world.Warnings[0], "; ")[0], "Automatic memory skipped: prompt lookup failed: ")
+	reason := strings.TrimPrefix(
+		strings.Split(world.Warnings[0], "; ")[0], "Automatic memory skipped: prompt lookup failed: ")
 	g.Expect(len([]rune(reason))).To(BeNumerically("<=", 123))
 }
 
@@ -351,12 +358,12 @@ func Test793d36b3_TheWarningIsInTheWarningsAndNeverInWhatTheJobDelivers(t *testi
 
 // unexported constants.
 const (
-	failureNotesIn = "1.2026-10-12.note-n.md"
-	failurePrompt  = "I just finished renaming the package. Is it done?"
-	failureStep    = "prompt lookup"
 	// the failure record as the warning shows it: the home directory is a tilde
 	failureLogShown = "~/.local/share/engram/auto.log"
 	failureNext     = "no notes delivered for this prompt"
+	failureNotesIn  = "1.2026-10-12.note-n.md"
+	failurePrompt   = "I just finished renaming the package. Is it done?"
+	failureStep     = "prompt lookup"
 	retried         = "nothing lost, retried next turn"
 )
 
@@ -372,15 +379,15 @@ func failureLookup(t *testing.T, world *World) auto.Done {
 	return world.Do(t, map[string]any{"kind": "lookup", "moment": "prompt", "text": failurePrompt, "step": failureStep})
 }
 
+// skipped is a warning as the user reads it: what happened, what happens next, and where the details are.
+func skipped(what, next string) string {
+	return "Automatic memory skipped: " + what + "; " + next + " (details: " + failureLogShown + ")"
+}
+
 // warnedOf is a warning of an operation, with what happened starting as given, and the pointer to the log at its end.
 func warnedOf(operation, what string) types.GomegaMatcher {
 	return And(
 		HavePrefix("Automatic memory skipped: "+operation+" "+what),
 		HaveSuffix(" (details: "+failureLogShown+")"),
 	)
-}
-
-// skipped is a warning as the user reads it: what happened, what happens next, and where the details are.
-func skipped(what, next string) string {
-	return "Automatic memory skipped: " + what + "; " + next + " (details: " + failureLogShown + ")"
 }

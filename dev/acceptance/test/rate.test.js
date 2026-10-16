@@ -5,7 +5,9 @@ import test from 'node:test'
 
 import { attribution, formatRates, ratePassed, summarize } from '../lib/rate.js'
 
-const WARNING = 'Automatic memory skipped: prompt lookup timed out: engram aborted; no notes delivered for this prompt (details: ~/.local/share/engram/auto.log)'
+const WARNING =
+  'Automatic memory skipped: prompt lookup timed out: engram aborted; no notes delivered for this prompt ' +
+  '(details: ~/.local/share/engram/auto.log)'
 const green = (id) => ({ id, result: 'Green', retries: 0, usage: null, message: '' })
 const red = (id, activity) => ({
   id,
