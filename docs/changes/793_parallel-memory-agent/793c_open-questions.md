@@ -1224,3 +1224,12 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 - **Applied in:** [793b442](./793b_decision-log.md#793b442-the-systems-lines-are-transcript-lines-above-the-prompt-and-may-reach-the-agent).
 - **Blocks:** nothing.
 
+
+## 793c91 Are the capture misses on self-correction and confirmed guesses held to the bar, or recorded as limits?
+
+- **Status:** answered (Joe, 2026-10-16), in chat; recorded here per the rule that owner answers live in this file.
+- **Context:** [793a3a1a](./793a_product-spec.md#793a3a1-uat-scenarios) example 3 (the agent corrects its own earlier guess) passes 25 of 30 and [793a3a1s](./793a_product-spec.md#793a3a1-uat-scenarios) (a guess the user confirms is a lesson) 8 of 10, against the bar of [793c86](#793c86-what-rate-of-red-is-the-bar-for-a-live-row-that-depends-on-a-models-judgement) (9 of 10). Under the confirmation-only capture prompt the cheapest tier writes nothing for the missed cases; the misses are silent.
+- **Options:** (a) record both as limits of the cheapest tier; (b) one bounded attempt at the capture prompt; (c) loosen the prompt and clean the false notes by hand.
+- **Answer:** (a). Decided by: owner. "I'll live with that."
+- **Applied in:** [793b466](793b_decision-log.md#793b466-capture-misses-on-self-correction-and-confirmed-guesses-are-recorded-limits-of-the-cheapest-tier).
+- **Blocks:** nothing.

@@ -844,6 +844,8 @@ Security: held here and by [793d29b2 Outcomes and guards](#793d29b2-outcomes-and
 
 Known limit: whether a claim is confirmed is judged by the cheapest tier ([793d25b1 Tier and request shape](#793d25b1-tier-and-request-shape)) from the window alone, which holds what the user and the agent said and not what a tool gave back, so a hedged claim worded as established, or a confirmation the window does not hold, can still be misjudged in either direction. The same tier judges whether a rule in the window is the user's: a rule the agent gives a subagent (its brief, which the subagent's window labels `Brief:`), a plan step or a restated standing rule is not a lesson unless the user stated or corrected it in the window, and the cheapest tier can still take such a rule for the user's. The rules are in the capture prompt and are measured by the rows 793a3a1r, 793a3a1s, 793a3a1t and 793a3a1q, not guaranteed ([793b441](./793b_decision-log.md#793b441-the-capture-judgement-writes-only-confirmed-knowledge)).
 
+Known limit: under the confirmation-only capture prompt the cheapest tier misses some self-corrections of the agent's own earlier guess ([793a3a1a](./793a_product-spec.md#793a3a1-uat-scenarios) example 3, 25 of 30 runs Green) and some guesses the user confirms ([793a3a1s](./793a_product-spec.md#793a3a1-uat-scenarios), 8 of 10); the misses are silent, no note is written, and the owner accepted them ([793b466](./793b_decision-log.md#793b466-capture-misses-on-self-correction-and-confirmed-guesses-are-recorded-limits-of-the-cheapest-tier)).
+
 ##### 793d27b2a Scenarios
 
 ```gherkin
