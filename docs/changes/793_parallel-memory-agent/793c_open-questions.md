@@ -1214,3 +1214,13 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 - **Options:** (a) none: the closing comment lists them and the owner files what he wants later; (b) file one issue for the Transcript Reader duplication and one for the Pi verification.
 - **Answer:** none yet. The author's default, taken unless he says otherwise: (a).
 - **Blocks:** nothing.
+
+## 793c90 May the System's lines enter the working agent's context?
+
+- **Status:** answered (Joe, 2026-10-15), relayed by the coordinator; recorded here per the rule that owner answers live in this file. It supersedes the part of [793c40](#793c40-does-the-user-still-see-pleases-audit-list) that kept the System's messages out of the working agent's context.
+- **Context:** [793a5h](./793a_product-spec.md#793a5h-the-user-sees-a-summary-of-the-memory-activity) and [793a4b](./793a_product-spec.md#793a4b-the-session-is-never-broken-or-stalled) required the summary and the warning to stay out of the agent's context, which held them to a pinned status line or a toast; on the owner's machine the status line was not seen.
+- **Options:** (a) keep them out of the context (status line, toast or band); (b) show them as transcript lines above the prompt, persistent and wrapped, which MAY reach the agent.
+- **Answer:** (b). Decided by: owner. "If it starts causing problems, we can revisit it." The agent is still never asked to do anything by them.
+- **Applied in:** [793b442](./793b_decision-log.md#793b442-the-systems-lines-are-transcript-lines-above-the-prompt-and-may-reach-the-agent).
+- **Blocks:** nothing.
+

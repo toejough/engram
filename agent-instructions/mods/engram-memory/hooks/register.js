@@ -1,6 +1,6 @@
 // The System's mod (793e2c, 793b368): an adapter. It maps the events of Claude Code to jobs of `engram auto run`, where
 // every decision is made, relays the model requests a job needs, and adds what it returns through the channel each
-// event has (prompt context, tool-result context, subagent-start context, the status line). The state it keeps is the
+// event has (prompt context, tool-result context, subagent-start context, a transcript line). The state it keeps is the
 // engine's own, handed back and never read: the delivery ledger of the hook jobs and the work state of the queued ones.
 const ROUND_MS = 600000
 const MAX_ROUNDS = 200
@@ -42,12 +42,10 @@ const mod = {
   work: undefined,
   transcript: '',
   lastPrompt: '',
-  lineShown: false,
   step: null,
   deep: null,
   hooks: Promise.resolve(),
   tally: [],
-  warnings: [],
   spawns: [],
   queue: { tail: Promise.resolve(), pending: 0, seam: [], turnEnded: false },
 }
@@ -84,23 +82,31 @@ async function failed($, step, text) {
   try {
     await relay($, { kind: 'failure', step, text })
   } catch {
-    await warn($, `${SKIPPED_PREFIX}${step} ${reasonOf(text)}; nothing was done this time (details: the debug log)`)
+    warn($, `${SKIPPED_PREFIX}${step} ${reasonOf(text)}; nothing was done this time (details: the debug log)`)
   }
 }
 
 /** @type {(message: string) => string} */
 const reasonOf = (message) => REASONS.find(([text]) => message.includes(text))?.[1] ?? UNCLASSED_REASON
 
-// warn shows the user, on the status line and nowhere else, that automatic memory was skipped and why. It never fails.
+// show writes a line to the user's transcript, where it wraps and stays in the scrollback; it may reach the agent's
+// context (793b442; SP17 saw it kept from the model). An empty line writes nothing.
+/**
+ * @param {Ctx} $
+ * @param {string | undefined} text
+ */
+function show($, text) {
+  if (text) $.ui.log(text)
+}
+
+// warn shows the user that automatic memory was skipped and why. It never fails.
 /**
  * @param {Ctx} $
  * @param {string} text
  */
-async function warn($, text) {
-  mod.warnings.push(text)
-  mod.lineShown = true
+function warn($, text) {
   try {
-    await $.ui.status(text)
+    show($, text)
   } catch (/** @type {any} */ error) {
     $.ui.log(`engram-memory: the warning could not be shown: ${error.message}`, { to: 'debug' })
   }
@@ -327,11 +333,8 @@ async function report($) {
   const done = await relay($, {
     kind: 'summary',
     tally: mod.tally.splice(0),
-    warnings: mod.warnings.splice(0),
-    lineShown: mod.lineShown,
   })
-  remember({ lineShown: done.lineShown === true })
-  if (done.show) await $.ui.status(done.line || undefined)
+  if (done.show) show($, done.line)
 }
 
 // seam is the harness-only line (793b281): when ENGRAM_AUTO_SEAM_LOG names a file, the mod records `queued` when a job

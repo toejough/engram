@@ -22,7 +22,7 @@ interface Ctx {
     id(): Promise<string>
     turns(): Promise<number>
   }
-  ui: { log(line: string, options: { to: string }): void; status(text?: string): Promise<void> }
+  ui: { log(line: string, options?: { to: string }): void }
   fs: { write(path: string, text: string): Promise<void> }
   env: { get(name: string): Promise<string | undefined> }
 }
@@ -63,12 +63,10 @@ interface ModState {
   work: unknown
   transcript: string
   lastPrompt: string
-  lineShown: boolean
   step: Cue | null
   deep: Cue | null
   hooks: Promise<void>
   tally: Record<string, number>[]
-  warnings: string[]
   spawns: string[]
   queue: { tail: Promise<void>; pending: number; seam: string[]; turnEnded: boolean }
 }

@@ -14,18 +14,15 @@ import (
 	"github.com/toejough/engram/internal/auto"
 )
 
-func Test793d30b1_ATurnWithNoMemoryEventShowsNothingAndAQuietTurnClearsTheLineAPreviousTurnLeft(t *testing.T) {
+func Test793d30b1_ATurnWithNoMemoryEventShowsNothing(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name      string
-		tally     []auto.Counts
-		lineShown bool
-		show      bool
+		name  string
+		tally []auto.Counts
 	}{
-		{"nothing was shown before: nothing is shown", nil, false, false},
-		{"zero counts are nothing", []auto.Counts{{}, {}}, false, false},
-		{"a line was shown before: it is cleared", nil, true, true},
+		{"no counts", nil},
+		{"zero counts are nothing", []auto.Counts{{}, {}}},
 	}
 
 	for _, test := range tests {
@@ -33,11 +30,10 @@ func Test793d30b1_ATurnWithNoMemoryEventShowsNothingAndAQuietTurnClearsTheLineAP
 			t.Parallel()
 
 			g := NewWithT(t)
-			done := summaryOf(t, test.tally, nil, test.lineShown)
+			done := summaryOf(t, test.tally)
 
 			g.Expect(done.Line).To(BeEmpty())
-			g.Expect(done.Show).To(Equal(test.show))
-			g.Expect(done.LineShown).To(BeFalse())
+			g.Expect(done.Show).To(BeFalse())
 		})
 	}
 }
@@ -53,12 +49,9 @@ func Test793d30b1_ForAnyTallyTheLineHoldsOnlyConstantsAndCountsThatAddUp(t *test
 			Amended: number.Draw(rt, "amended"), Curated: number.Draw(rt, "curated"),
 		}
 	})
-	warnings := rapid.SliceOf(rapid.SampledFrom([]string{summaryWarning, curateWarning}))
-
 	rapid.Check(t, func(rt *rapid.T) {
 		tally := rapid.SliceOf(counts).Draw(rt, "tally")
-		lineShown := rapid.Bool().Draw(rt, "lineShown")
-		done := summaryOf(t, tally, warnings.Draw(rt, "warnings"), lineShown)
+		done := summaryOf(t, tally)
 		want := summaryTotals(tally)
 		order, got := summaryCounted(rt, done.Line)
 
@@ -79,8 +72,8 @@ func Test793d30b1_ForAnyTallyTheLineHoldsOnlyConstantsAndCountsThatAddUp(t *test
 			rt.Fatalf("the line %q holds text that is neither a constant nor a count: %q", done.Line, leftover)
 		}
 
-		if done.Show != (done.Line != "" || lineShown) || done.LineShown != (done.Line != "") {
-			rt.Fatalf("the line %q is shown wrongly (show %v, lineShown %v)", done.Line, done.Show, done.LineShown)
+		if done.Show != (done.Line != "") {
+			rt.Fatalf("the line %q is shown wrongly (show %v)", done.Line, done.Show)
 		}
 	})
 }
@@ -118,11 +111,10 @@ func Test793d30b1_OneLineCountsWhatTheSystemDidWithEachCountInItsWords(t *testin
 			t.Parallel()
 
 			g := NewWithT(t)
-			done := summaryOf(t, test.tally, nil, false)
+			done := summaryOf(t, test.tally)
 
 			g.Expect(done.Line).To(Equal(summaryPrefix + test.line))
 			g.Expect(done.Show).To(BeTrue())
-			g.Expect(done.LineShown).To(BeTrue())
 		})
 	}
 }
@@ -152,7 +144,7 @@ func Test793d30b1_TheCountsAreWhatTheJobsOfTheTurnReported(t *testing.T) {
 
 			curateHousekeeping(t, world)
 
-			done := summaryOf(t, []auto.Counts{world.Counts}, nil, false)
+			done := summaryOf(t, []auto.Counts{world.Counts})
 			g.Expect(done.Line).To(Equal(test.line))
 		})
 	}
@@ -169,9 +161,22 @@ func Test793d30b2_AFailedStepIsWarnedAboutAndNotCounted(t *testing.T) {
 
 	curateHousekeeping(t, world)
 
-	done := summaryOf(t, []auto.Counts{world.Counts}, world.Warnings, false)
+	// the warning is the job's own line, shown at once; the summary does not repeat it (793b442)
 	g.Expect(world.Warnings).To(HaveExactElements(warnedOf("curation", "failed: boom")))
-	g.Expect(done.Line).To(Equal(world.Warnings[0]))
+	done := summaryOf(t, []auto.Counts{world.Counts})
+	g.Expect(done.Line).To(BeEmpty())
+	g.Expect(done.Show).To(BeFalse())
+}
+
+func Test793d30b2_AWarningOfTheTurnIsNotRepeatedOnTheSummaryLine(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	done := NewWorld().Do(t, map[string]any{
+		"kind": "summary", "tally": []auto.Counts{{Delivered: 1}}, "warnings": []string{summaryWarning},
+	})
+
+	g.Expect(done.Line).To(Equal(summaryPrefix + "1 item delivered"))
 }
 
 func Test793d30b2_OnlyConstantsAndCountsReachTheLineNothingANoteAnOfferOrALessonSays(t *testing.T) {
@@ -186,51 +191,12 @@ func Test793d30b2_OnlyConstantsAndCountsReachTheLineNothingANoteAnOfferOrALesson
 
 	curateHousekeeping(t, world)
 
-	done := summaryOf(t, []auto.Counts{world.Counts, {Delivered: 2}}, world.Warnings, false)
+	done := summaryOf(t, []auto.Counts{world.Counts, {Delivered: 2}})
 
 	g.Expect(done.Line).To(MatchRegexp(`^[A-Za-z0-9 ,.:()]+$`))
 	g.Expect(done.Line).NotTo(ContainSubstring("IGNORE"))
 	g.Expect(done.Line).NotTo(ContainSubstring("SENTINEL"))
 	g.Expect(done.Line).To(Equal(summaryPrefix + "2 items delivered, 1 note amended and 1 offer curated"))
-}
-
-func Test793d30b2_TheWarningsAndTheCountsShareTheOneLine(t *testing.T) {
-	t.Parallel()
-
-	const other = "Automatic memory skipped: curation failed: boom; nothing lost, retried next turn (details: x)"
-
-	tests := []struct {
-		name     string
-		tally    []auto.Counts
-		warnings []string
-		line     string
-	}{
-		{
-			"the warning and then the counts",
-			[]auto.Counts{{Delivered: 1, Added: 1}},
-			[]string{summaryWarning},
-			summaryWarning + ". " + summaryPrefix + "1 item delivered and 1 note added",
-		},
-		{"a warning with no counts is the whole line", nil, []string{summaryWarning}, summaryWarning},
-		{
-			"two warnings are both on the line, each once",
-			nil, []string{summaryWarning, other, summaryWarning, other},
-			summaryWarning + ". " + other,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
-			g := NewWithT(t)
-			done := summaryOf(t, test.tally, test.warnings, false)
-
-			g.Expect(done.Line).To(Equal(test.line))
-			g.Expect(done.Show).To(BeTrue())
-			g.Expect(done.LineShown).To(BeTrue())
-		})
-	}
 }
 
 // unexported constants.
@@ -266,23 +232,18 @@ func summaryCounted(rt *rapid.T, line string) ([]string, map[string]int) {
 	return order, got
 }
 
-// summaryLeftover is what a line holds besides its counts and the warnings.
+// summaryLeftover is what a line holds besides its counts.
 func summaryLeftover(line string) string {
 	rest := summaryPhrase.ReplaceAllString(line, "")
-	rest = strings.NewReplacer(
-		summaryPrefix, "", ", ", "", " and ", "", summaryWarning, "", curateWarning, "",
-	).Replace(rest)
 
-	return strings.Trim(strings.ReplaceAll(rest, ". ", ""), ". ")
+	return strings.NewReplacer(summaryPrefix, "", ", ", "", " and ", "").Replace(rest)
 }
 
-// summaryOf runs the summary job of a tally and the warnings of the turn.
-func summaryOf(t *testing.T, tally []auto.Counts, warnings []string, lineShown bool) auto.Done {
+// summaryOf runs the summary job of a tally.
+func summaryOf(t *testing.T, tally []auto.Counts) auto.Done {
 	t.Helper()
 
-	return NewWorld().Do(t, map[string]any{
-		"kind": "summary", "tally": tally, "warnings": warnings, "lineShown": lineShown,
-	})
+	return NewWorld().Do(t, map[string]any{"kind": "summary", "tally": tally})
 }
 
 // summaryTotals are the totals of a tally by verb; a verb with nothing is absent.

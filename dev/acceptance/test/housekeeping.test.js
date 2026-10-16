@@ -7,7 +7,7 @@ import test from 'node:test'
 
 import { faultCalls, faultEnv } from '../lib/fault.js'
 import { preconditionFailure } from '../lib/turn.js'
-import { MARKER, SKIPPED, rowsMentioning, statusTexts, typedRows } from '../lib/transcript.js'
+import { MARKER, SKIPPED, rowsMentioning, shownTexts, typedRows } from '../lib/transcript.js'
 
 function temp(body) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'housekeeping-test-'))
@@ -44,23 +44,26 @@ test('an unknown fault mode is refused', () => {
   assert.throws(() => faultEnv({ dir: '/s', mode: 'slow' }), /no fault mode/)
 })
 
-test('status texts are the ui_status system messages, in order, and nothing else', () => {
+test('shown texts are the ui_log, ui_status and ui_toast system messages, in order, and no debug line', () => {
   const messages = [
     { type: 'system', subtype: 'init' },
-    { type: 'system', subtype: 'ui_status', plugin: 'engram-memory', text: 'one' },
-    { type: 'assistant', text: 'one' },
+    { type: 'system', subtype: 'ui_log', plugin: 'engram-memory', text: 'one' },
+    { type: 'assistant', text: 'two' },
+    { type: 'system', subtype: 'ui_log', plugin: 'engram-memory', text: 'a debug line', to: 'debug' },
+    { type: 'system', subtype: 'ui_status', plugin: 'engram-memory', text: 'three' },
     {
       type: 'system',
-      subtype: 'ui_status',
+      subtype: 'ui_toast',
       plugin: 'engram-memory',
       text: 'Automatic memory skipped: indexing failed: x; nothing lost, retried next turn (details: y)',
     },
   ]
-  assert.deepEqual(statusTexts(messages), [
+  assert.deepEqual(shownTexts(messages), [
     'one',
+    'three',
     'Automatic memory skipped: indexing failed: x; nothing lost, retried next turn (details: y)',
   ])
-  assert.equal(statusTexts(messages).filter((text) => SKIPPED.test(text)).length, 1)
+  assert.equal(shownTexts(messages).filter((text) => SKIPPED.test(text)).length, 1)
 })
 
 test('typed rows are the user rows whose text is exactly the prompt, as a string or as joined text blocks', () => {

@@ -58,22 +58,27 @@ describe('the relay of a job (793b197)', () => {
   })
 
   test(
-    'the effects of a round are applied: debug lines, warnings ' + 'on the status line, counts in the summary',
+    'the effects of a round are applied: debug lines, warnings ' + 'as transcript lines, counts in the summary',
     async ($: Driver, on: On) => {
       const engine = (job: Job): Answer => {
-        if (job.kind === 'summary') return { done: { show: true, line: 'the line', lineShown: true } }
+        if (job.kind === 'summary') return { done: { show: true, line: 'the line' } }
         if (job.kind !== 'lookup') return { done: {} }
         return { log: ['engram-memory: a line'], warnings: ['a warning'], counts: { delivered: 2 }, done: {} }
       }
-      const { clock, jobs, logs, shown } = world(on, { engine })
+      const { clock, jobs, logs, shown, pinned } = world(on, { engine })
       await $.prompt.submit(PROMPT)
       expect(logs).toEqual(['engram-memory: a line'])
       expect(shown).toEqual(['a warning'])
       await $.turn.complete(COMPLETE)
       await clock.settle()
       const summary = jobs.find((job) => job.kind === 'summary') ?? { kind: '' }
-      expectHas(summary, { tally: [{ delivered: 2 }], warnings: ['a warning'], lineShown: true })
+      expectHas(summary, { tally: [{ delivered: 2 }] })
+      // the warning was its own line; the summary job is not handed it to repeat (793b442)
+      expect('warnings' in summary).toBe(false)
       expect(shown.at(-1)).toBe('the line')
+      expect(shown).toEqual(['a warning', 'the line'])
+      // no status line and no toast: the lines are transcript lines the model is not sent (793b442)
+      expect(pinned).toEqual([])
     },
   )
 
@@ -137,12 +142,13 @@ describe('the relay of a job (793b197)', () => {
       $: Driver,
       on: On,
     ) => {
-      const { shown } = world(on, { engine: () => answer })
+      const { shown, pinned } = world(on, { engine: () => answer })
       const result = await $.prompt.submit(PROMPT)
       expect(result.text).toBe(PROMPT.text)
       expect(shown).toEqual([
         `Automatic memory skipped: ${what}; nothing was done this time (details: the debug log)`,
       ])
+      expect(pinned).toEqual([])
     })
   }
 })
@@ -509,18 +515,20 @@ describe('the queue (793d22b2)', () => {
     },
   )
 
-  test('a quiet turn shows nothing and clears nothing; a turn after a line clears it', async ($: Driver, on: On) => {
-    const lines = [{ show: false }, { show: true, line: 'a line', lineShown: true }, { show: true, lineShown: false }]
+  test('a quiet turn shows nothing, and a turn after a line writes nothing', async ($: Driver, on: On) => {
+    const lines = [{ show: false }, { show: true, line: 'a line' }, { show: false }]
     let turn = 0
-    const { clock, jobs, shown } = world(on, {
+    const { clock, jobs, shown, pinned } = world(on, {
       engine: (job) => (job.kind === 'summary' ? { done: lines[turn++] } : { done: {} }),
     })
     for (let each = 0; each < lines.length; each += 1) {
       await $.turn.complete(COMPLETE)
       await clock.settle()
     }
-    expect(shown).toEqual(['a line', undefined])
-    expect(jobs.filter((job) => job.kind === 'summary').map((job) => job.lineShown)).toEqual([false, false, true])
+    // a transcript line stays where it was written: a later turn has nothing to clear
+    expect(shown).toEqual(['a line'])
+    expect(pinned).toEqual([])
+    expect(jobs.filter((job) => job.kind === 'summary').length).toBe(lines.length)
   })
 
   test(

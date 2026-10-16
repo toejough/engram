@@ -23,7 +23,10 @@ export interface World {
   clock: MockClock
   jobs: Job[]
   requests: Record<string, unknown>[]
-  shown: (string | undefined)[]
+  // the lines shown to the user: transcript lines of $.ui.log, which the model is not sent (SP17, 793b442)
+  shown: string[]
+  // the status line and the toasts: the mod uses neither (793b442)
+  pinned: (string | undefined)[]
   logs: string[]
   writes: { path: string; text: string }[]
 }
@@ -65,7 +68,8 @@ export function world(on: On, options: WorldOptions = {}): World {
   const clock = mock.clock(on)
   const jobs: Job[] = []
   const requests: Record<string, unknown>[] = []
-  const shown: (string | undefined)[] = []
+  const shown: string[] = []
+  const pinned: (string | undefined)[] = []
   const logs: string[] = []
   const writes: { path: string; text: string }[] = []
   mock.env(on, { HOME: '/home/t', ...options.env })
@@ -92,11 +96,17 @@ export function world(on: On, options: WorldOptions = {}): World {
     return { value: undefined }
   })
   on('ui.log', async (_ctx, event) => {
-    logs.push(event.text ?? event.line ?? JSON.stringify(event))
+    const text = event.text ?? event.line ?? JSON.stringify(event)
+    if (event.to === 'debug') logs.push(text)
+    else shown.push(text)
     return { value: undefined }
   })
   on('ui.status', async (_ctx, event) => {
-    shown.push(event.text)
+    pinned.push(event.text)
+    return { value: undefined }
+  })
+  on('ui.toast', async (_ctx, event) => {
+    pinned.push(event.text)
     return { value: undefined }
   })
   on('session.id', async () => ({ value: 'sess-1' }))
@@ -117,7 +127,7 @@ export function world(on: On, options: WorldOptions = {}): World {
     yield { kind: 'text', index: 0, text: 'chunk' }
     return { ...STEP_RESULT, turnId: event.turnId, index: event.index }
   })
-  return { clock, jobs, requests, shown, logs, writes }
+  return { clock, jobs, requests, shown, pinned, logs, writes }
 }
 
 // expectHas asserts that a job holds the fields given, with these values.

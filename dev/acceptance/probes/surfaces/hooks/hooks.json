@@ -1,0 +1,4 @@
+{
+  "description": "The SP17 probe: which user-facing surfaces show with a configured statusLine and stay out of the context",
+  "modules": ["./register.tsx"]
+}

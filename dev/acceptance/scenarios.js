@@ -48,6 +48,17 @@ const ACKNOWLEDGE =
   'in one sentence the rule that the feedback gives, saying that your first guess was ' +
   'wrong. Do not do anything else.'
 
+// the rules a working agent copies into the brief of a subagent (793b441)
+const BRIEF_RULES_FILE = {
+  'rules.txt':
+    'Rules for the subagent:\n1. use 793b IDs from the next free number\n2. never push the branch\n' +
+    '3. commit with exactly one AI-Used trailer\n',
+}
+const BRIEF_PROMPT =
+  'Read rules.txt with the Read tool. Then dispatch a subagent with the Agent tool (type general-purpose) whose ' +
+  'task is exactly: "Reply ready. Follow these rules", followed by the three rules of rules.txt copied word for ' +
+  'word. When it returns, reply DONE.'
+
 // the ended Pi session of the targ lesson: a run of the tests the user corrects, and the agent's last reply
 const TARG_PI_SESSION = {
   lesson: 'use targ, not go test directly',
@@ -237,6 +248,68 @@ export default {
           },
           noMemoryCommands: true,
         },
+    },
+  },
+  // 793b441: confirmation. The agent says its first guess was wrong and states a new cause with a hedge and no check:
+  // nothing is written (the dogfooding capture wrote such a claim as a fact). The same claim once the user has
+  // confirmed it is a lesson.
+  '793a3a1r': {
+    automatic: true,
+    turns: {
+      ['the agent says its first guess for a failing test was wrong and ' +
+      'states a likely new cause that it has not checked']:
+        {
+          prompt:
+            'A test named TestSync is failing and I have not looked at it. First say in one sentence what you ' +
+            'think the cause is, guessing from its name. Then say in one sentence that this first guess was ' +
+            'wrong, and that the cause is probably that FIXTURE_DIR is unset, but that you have not checked ' +
+            'and it is only a hypothesis. Do not run anything.',
+          observe: { reply: /(?=[\s\S]*\bFIXTURE_DIR\b)(?=[\s\S]*\b(?:probably|likely|hypothesis)\b)/i },
+          noMemoryCommands: true,
+        },
+    },
+  },
+  '793a3a1s': {
+    automatic: true,
+    lessons: { 'the confirmed cause of the failing test': FIXTURE_UNSET },
+    turns: {
+      'the user confirms the cause the agent guessed for a failing test': {
+        prompt:
+          'Earlier you guessed that the failing test TestSync fails because FIXTURE_DIR is unset. I ran it and ' +
+          'checked: you were right, FIXTURE_DIR is unset, and that is the cause. Reply with the one word: ok.',
+        noMemoryCommands: true,
+      },
+    },
+  },
+  // 793b441: the rules the working agent writes into the brief of a subagent. The rules are in a file the agent reads
+  // (a tool result is not in a window), so the user's words state none of them; the agent copies them into the brief.
+  '793a3a1t': {
+    automatic: true,
+    fromSubagent: true,
+    turns: {
+      'the working agent briefs a subagent with three rules that the user did not state': {
+        files: BRIEF_RULES_FILE,
+        prompt: BRIEF_PROMPT,
+        observe: { tool: /^(Agent|Task)$/, subagentsRead: /never push the branch/ },
+        noMemoryCommands: true,
+      },
+    },
+  },
+  '793a3a1q': {
+    automatic: true,
+    lessons: {
+      'exactly one AI-Used trailer per commit': says('\\bAI-Used\\b', '\\btrailer\\b'),
+      'use 793b IDs from the next free number': says('\\b793b\\b', '\\bnext free\\b'),
+      'never push the branch': says('\\bpush\\b', '\\bbranch\\b'),
+    },
+    turns: {
+      'the user corrects one rule and the working agent briefs a subagent with that rule and two more': {
+        files: BRIEF_RULES_FILE,
+        prompt:
+          'Your last commit carried two AI-Used trailers. No, exactly one AI-Used trailer per commit. ' + BRIEF_PROMPT,
+        observe: { tool: /^(Agent|Task)$/, subagentsRead: /never push the branch/ },
+        noMemoryCommands: true,
+      },
     },
   },
   '793a3a1g': {

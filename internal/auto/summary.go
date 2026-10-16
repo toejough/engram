@@ -2,28 +2,18 @@ package auto
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 )
 
 // summaryJob shows the user the one line of the turn (793a5h): the summary of what the System did since the previous
-// one, with the warnings of the turn on the same line (793b302), or nothing; a turn with nothing to say clears the
-// line a previous turn left, so that a stale count is not read as this turn's. The line is built from constants and
-// counts only, never from a note, an offer or a lesson (793b297).
+// one, or nothing. A warning is its own line, shown when its step failed, and is not repeated here (793b442). The line
+// is built from constants and counts only, never from a note, an offer or a lesson (793b297).
 func (e *engine) summaryJob() Done {
 	var total Counts
 
 	for _, counts := range e.job.Tally {
 		total.Delivered, total.Added = total.Delivered+counts.Delivered, total.Added+counts.Added
 		total.Amended, total.Curated = total.Amended+counts.Amended, total.Curated+counts.Curated
-	}
-
-	var parts []string
-
-	for _, warning := range e.job.Warnings {
-		if !slices.Contains(parts, warning) {
-			parts = append(parts, warning)
-		}
 	}
 
 	kinds := []struct {
@@ -45,11 +35,9 @@ func (e *engine) summaryJob() Done {
 		phrases = []string{strings.Join(phrases[:last], ", ") + " and " + phrases[last]}
 	}
 
-	if len(phrases) > 0 {
-		parts = append(parts, "Memory activity: "+phrases[0])
+	if len(phrases) == 0 {
+		return Done{}
 	}
 
-	line := strings.Join(parts, ". ")
-
-	return Done{Show: line != "" || e.job.LineShown, Line: line, LineShown: line != ""}
+	return Done{Show: true, Line: "Memory activity: " + phrases[0]}
 }

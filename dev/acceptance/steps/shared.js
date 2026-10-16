@@ -59,7 +59,7 @@ async function writtenNotes(world) {
   const seeded = [...scenario.notes.values()].map((note) => note.sentinel)
   return fs
     .readdirSync(scenario.vault)
-    .filter((name) => name.endsWith('.md'))
+    .filter((name) => name.endsWith('.md') && name !== 'README.md')
     .map((name) => ({ name, text: fs.readFileSync(path.join(scenario.vault, name), 'utf8') }))
     .filter((note) => !seeded.some((sentinel) => note.text.includes(sentinel)))
     .map((note) => ({ ...note, ...parseNote(note.text) }))
@@ -92,6 +92,17 @@ export function endedSourcesMarked(world) {
 // says, never its source line), because a note is worded by a model. The check is that a note written to the vault says
 // it; where the scenario says the System wrote it (`automatic`) the source says so, and where the lesson was only in a
 // subagent's own session (`fromSubagent`) the source names that subagent.
+// vaultHoldsNone: the System and the agent wrote no note (a guess is not a lesson, 793a3a1r).
+export async function vaultHoldsNone(world) {
+  const written = await writtenNotes(world)
+  assert.equal(
+    written.length,
+    0,
+    `${written.length} notes were written, expected none: ` +
+      written.map((note) => `${note.name}: ${excerpt(note.content.replace(/\s+/g, ' '), NOTE_EXCERPT)}`).join(' | '),
+  )
+}
+
 export async function vaultHolds(world, quantity, lesson) {
   const pattern = world.data.lessons?.[lesson]
   if (!pattern) throw new Error(`scenarios.js has no words for the lesson "${lesson}" of ${world.id}`)
@@ -100,7 +111,13 @@ export async function vaultHolds(world, quantity, lesson) {
   const written = (await writtenNotes(world))
     .map((note) => `${note.name}: ${excerpt(note.content.replace(/\s+/g, ' '), NOTE_EXCERPT)}`)
     .join(' | ')
-  if (quantity === 'a')
+  if (quantity === 'no')
+    assert.equal(
+      stating.length,
+      0,
+      `${stating.length} notes state "${lesson}", expected none: ${names}; the notes were: ${written || 'none'}`,
+    )
+  else if (quantity === 'a')
     assert.ok(
       stating.length > 0,
       `no note in the vault states "${lesson}"; the notes written were: ${written || 'none'}`,

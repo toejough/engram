@@ -1,5 +1,5 @@
 // What a run reports (793e2h): one entry per scenario run, filled by the hooks and read by the report.
-import { statusTexts } from './transcript.js'
+import { shownTexts } from './transcript.js'
 
 const results = []
 
@@ -50,7 +50,7 @@ export function entryFor(world, result) {
     retries: world.retries ?? 0,
     usage: world.scenario?.usage() ?? null,
     message: status === 'PASSED' || status === 'PENDING' ? '' : (result.message ?? '').split('\n')[0],
-    // what the System showed on the status line: a lookup it cut is a warning here, a judgement that missed is not
-    activity: (world.scenario?.sessions ?? []).flatMap((session) => statusTexts(session.messages)),
+    // what the System showed the user (its lines): a lookup it cut is a warning here, a judgement that missed is not
+    activity: (world.scenario?.sessions ?? []).flatMap((session) => shownTexts(session.messages)),
   }
 }

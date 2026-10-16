@@ -10,7 +10,7 @@ const COST_DECIMALS = 3
 const RATE_DECIMALS = 2
 const HEADERS = ['Scenario', 'Runs', 'Green', 'Red', 'Harness error', 'Not run', 'Rate', 'Bar 9 of 10']
 
-// attribution says why a run was Red, from the status lines its sessions showed.
+// attribution says why a run was Red, from the lines its sessions showed.
 export function attribution(entry) {
   if (entry.activity === undefined) return { kind: 'unattributed', detail: 'the activity line was not kept' }
   const warning = entry.activity.find((text) => WARNING.test(text))

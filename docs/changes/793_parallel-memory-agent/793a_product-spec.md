@@ -184,7 +184,7 @@ Canonical target: `docs/specs/product/automatic-memory.md` (title `Automatic Mem
 
 ### 793a3a Lessons are captured without the agent
 
-Requirement: 793a3a The [System](#793a1-problem-statement) MUST write to the [vault](#793a1-problem-statement) each [lesson](#793a1-problem-statement) that occurs in any [session](../../GLOSSARY.md#session), whether top-level or [subagent](../../GLOSSARY.md#subagent), interrupted or not, and in Claude Code or in any other [harness](../../GLOSSARY.md#harness), without the [working agent](#793a1-problem-statement) being asked and without it taking part: a correction, an explicit save-request, a [reversal](../../GLOSSARY.md#reversal-capture-kind) and a [confirmed approach](../../GLOSSARY.md#confirmed-approach-capture-kind) ([792a19c Learn fires at the correction moment](../../specs/product/ambient-guidance.md#792a19c-learn-fires-at-the-correction-moment), [792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson)), and any corrected failure, including an agent's own mid-task mistake that evidence overturned. A lesson in a subagent session MUST be captured from that session, so that no lesson depends on the subagent or its dispatching agent reporting it. A lesson in a session that ended before it was saved MUST be captured after the fact, by the next Claude Code session that has the System, without anything being delivered into the ended session. The System MUST capture each lesson once: it MUST NOT write a [note](#793a1-problem-statement) for a lesson that a note already records, whoever wrote that note (the System, the agent, the user's command or the agent of another harness), nor two notes for one lesson that two sessions contain.
+Requirement: 793a3a The [System](#793a1-problem-statement) MUST write to the [vault](#793a1-problem-statement) each [lesson](#793a1-problem-statement) that occurs in any [session](../../GLOSSARY.md#session), whether top-level or [subagent](../../GLOSSARY.md#subagent), interrupted or not, and in Claude Code or in any other [harness](../../GLOSSARY.md#harness), without the [working agent](#793a1-problem-statement) being asked and without it taking part: a correction, an explicit save-request, a [reversal](../../GLOSSARY.md#reversal-capture-kind) and a [confirmed approach](../../GLOSSARY.md#confirmed-approach-capture-kind) ([792a19c Learn fires at the correction moment](../../specs/product/ambient-guidance.md#792a19c-learn-fires-at-the-correction-moment), [792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson)), and any corrected failure, including an agent's own mid-task mistake that evidence overturned. A lesson is confirmed knowledge: the System MUST NOT write a note for a guess, a hypothesis, a hedged claim ("likely", "probably", "may be") or a plan not yet carried out, even when the agent states it in its own words, until the user or the evidence confirms it. A rule that the working agent gives a subagent (a brief, a plan step, a restated standing rule) is not a lesson unless the user stated or corrected it; a lesson comes from the user's words or from an outcome that overturned the agent's claim. A lesson in a subagent session MUST be captured from that session, so that no lesson depends on the subagent or its dispatching agent reporting it. A lesson in a session that ended before it was saved MUST be captured after the fact, by the next Claude Code session that has the System, without anything being delivered into the ended session. The System MUST capture each lesson once: it MUST NOT write a [note](#793a1-problem-statement) for a lesson that a note already records, whoever wrote that note (the System, the agent, the user's command or the agent of another harness), nor two notes for one lesson that two sessions contain.
 
 Rationale: the [working agent](#793a1-problem-statement)'s [context](#793a1-problem-statement) stays free of memory evaluation, and [subagent](../../GLOSSARY.md#subagent) [sessions](../../GLOSSARY.md#session) are where [lessons](#793a1-problem-statement) occur too. The existing [skills](../../GLOSSARY.md#skill) still ask the agent to save the same lessons, so the [System](#793a1-problem-statement) must not write a second [note](#793a1-problem-statement) for what the agent already saved. A session can also end before its lessons are saved (a Pi session interrupted before its agent learned, a Claude Code session killed mid-turn), so the System catches what is left behind at its next opportunity.
 
@@ -237,6 +237,29 @@ Scenario Outline: 793a3a1k A lesson in a session that ended before it was saved 
     | harness     | said                                        | lesson                         |
     | Pi          | no, use targ, not go test directly          | use targ, not go test directly |
     | Claude Code | remember that releases are tagged from main | releases are tagged from main  |
+
+Scenario: 793a3a1r A guess of the agent is not a lesson
+  Given the System is installed
+  When a turn completes in which "the agent says its first guess for a failing test was wrong and states a likely new cause that it has not checked"
+  Then the vault holds no note
+
+Scenario: 793a3a1s A guess the user confirms is a lesson
+  Given the System is installed
+  When a turn completes in which "the user confirms the cause the agent guessed for a failing test"
+  Then the vault holds a note stating "the confirmed cause of the failing test"
+  And the transcript shows no request from the System to the agent to run a memory command, or to evaluate, approve, write or curate a note
+
+Scenario: 793a3a1t A rule the agent gives a subagent is not a lesson
+  Given the System is installed
+  When a turn completes in which "the working agent briefs a subagent with three rules that the user did not state"
+  Then the vault holds no note
+
+Scenario: 793a3a1q Of the rules the agent gives a subagent only the one the user stated is a lesson
+  Given the System is installed
+  When a turn completes in which "the user corrects one rule and the working agent briefs a subagent with that rule and two more"
+  Then the vault holds a note stating "exactly one AI-Used trailer per commit"
+  And the vault holds no note stating "use 793b IDs from the next free number"
+  And the vault holds no note stating "never push the branch"
 ```
 
 ## 793a4 Added: automatic-memory (it keeps house, handles memory and not the task, and stays out of the way)
@@ -321,9 +344,9 @@ Scenario: 793a4c1f The agent is neither required nor asked to run a memory comma
 
 ### 793a4b The session is never broken or stalled
 
-Requirement: 793a4b While the [System](#793a1-problem-statement) is installed, if it fails, times out, or is unavailable, the working [session](../../GLOSSARY.md#session) MUST continue unaffected, with no error surfaced to the [working agent](#793a1-problem-statement) and no lost user input, and the System MUST show the user a warning, on the same surface as the memory-activity summary ([793a5h The user sees a summary of the memory activity](#793a5h-the-user-sees-a-summary-of-the-memory-activity)) and outside the working agent's [context](#793a1-problem-statement), saying that [automatic memory](#793a1-problem-statement) was skipped. The warning MUST name the operation that was skipped in the user's terms (indexing, curation, backlog capture, lookup, capture or summary), give the actual reason (the vault is unavailable, the System timed out, another session was already indexing, the index is not caught up, or the error's own text, shortened and with any secret hidden), say what happens next (nothing is lost and it is retried, or no notes are delivered for that prompt), and point to the log that records the failure. The System MUST append every such failure to that log, in the data directory of the System, with when it happened, in which session, in which operation, of what class and why. A moment at which nothing matched is not a failure and MUST show no warning.
+Requirement: 793a4b While the [System](#793a1-problem-statement) is installed, if it fails, times out, or is unavailable, the working [session](../../GLOSSARY.md#session) MUST continue unaffected, with no lost user input and no request to the [working agent](#793a1-problem-statement) to act on the failure, and the System MUST show the user a warning, on the same surface as the memory-activity summary ([793a5h The user sees a summary of the memory activity](#793a5h-the-user-sees-a-summary-of-the-memory-activity)): a line in the transcript scrollback above the prompt, which persists and wraps and MAY be visible to the working agent, saying that [automatic memory](#793a1-problem-statement) was skipped. The warning MUST name the operation that was skipped in the user's terms (indexing, curation, backlog capture, lookup, capture or summary), give the actual reason (the vault is unavailable, the System timed out, another session was already indexing, the index is not caught up, or the error's own text, shortened and with any secret hidden), say what happens next (nothing is lost and it is retried, or no notes are delivered for that prompt), and point to the log that records the failure. The System MUST append every such failure to that log, in the data directory of the System, with when it happened, in which session, in which operation, of what class and why. A moment at which nothing matched is not a failure and MUST show no warning.
 
-Rationale: the owner wants to know when the automatic channel silently did nothing, without that ever reaching the [working agent](#793a1-problem-statement) ([793b185 The user is warned when automatic memory is skipped](793b_decision-log.md#793b185-the-user-is-warned-when-automatic-memory-is-skipped)); and a warning that does not say what was skipped, why, and where to look is of no help to the owner ([793b450 Dogfooding: a warning that said "because of an error (the housekeeping)" is of no help](793b_decision-log.md#793b450-dogfooding-a-warning-that-said-because-of-an-error-the-housekeeping-is-of-no-help)).
+Rationale: the owner wants to know when the automatic channel silently did nothing ([793b185 The user is warned when automatic memory is skipped](793b_decision-log.md#793b185-the-user-is-warned-when-automatic-memory-is-skipped)); and a warning that does not say what was skipped, why, and where to look is of no help to the owner ([793b450 Dogfooding: a warning that said "because of an error (the housekeeping)" is of no help](793b_decision-log.md#793b450-dogfooding-a-warning-that-said-because-of-an-error-the-housekeeping-is-of-no-help)); the warning may reach the [working agent](#793a1-problem-statement), which it never asks to do anything ([793b442](793b_decision-log.md#793b442-the-systems-lines-are-transcript-lines-above-the-prompt-and-may-reach-the-agent)).
 
 #### 793a4b1 UAT Scenarios
 
@@ -335,7 +358,7 @@ Scenario: 793a4b1a Vault unavailable
   Then the session proceeds normally, with no error from the System and no user input missing
   And the transcript shows no content delivered, the instruction to apply it included
   And the user is shown a warning that names the skipped operation, gives the reason (the vault is unavailable), says what happens next and points to the log
-  And the warning appears nowhere in the transcript
+  And the warning appears in the transcript as a line of the System's that asks nothing of the agent
 
 Scenario: 793a4b1b Evaluation crashes
   Given the System is installed
@@ -343,15 +366,15 @@ Scenario: 793a4b1b Evaluation crashes
   When a turn completes in which "the human submits a prompt"
   Then the session proceeds normally, with no error from the System and no user input missing
   And the user is shown a warning that names the skipped operation, gives the reason (the error's own text), says what happens next and points to the log
-  And the warning appears nowhere in the transcript
+  And the warning appears in the transcript as a line of the System's that asks nothing of the agent
 
-Scenario: 793a4b1c No error reaches the agent and the user is warned
+Scenario: 793a4b1c A timeout leaves the session going and the user is warned
   Given the System is installed
   And the System's work for a turn times out
   When a turn completes in which "the human submits a prompt"
   Then the session proceeds normally, with no error from the System and no user input missing
   And the user is shown a warning that names the skipped operation, gives the reason (the System timed out), says what happens next and points to the log
-  And the warning appears nowhere in the transcript
+  And the warning appears in the transcript as a line of the System's that asks nothing of the agent
 
 Scenario: 793a4b1e No warning when nothing matched
   Given the System is installed
@@ -366,7 +389,7 @@ Scenario: 793a4b1f Another session is indexing
   When a turn completes in which "the human submits a prompt"
   Then the session proceeds normally, with no error from the System and no user input missing
   And the user is shown a warning that names the skipped operation, gives the reason (another session was already indexing), says what happens next and points to the log
-  And the warning appears nowhere in the transcript
+  And the warning appears in the transcript as a line of the System's that asks nothing of the agent
 
 Scenario: 793a4b1g The log records the cause
   Given the System is installed
@@ -430,7 +453,7 @@ Scenario: 793a5j1l Running update twice changes nothing
 
 ### 793a5h The user sees a summary of the memory activity
 
-Requirement: 793a5h After each completed top-level turn of a Claude Code [session](../../GLOSSARY.md#session) that has the [System](#793a1-problem-statement), once the System's work for that turn has finished, the System MUST show the user, outside the [working agent](#793a1-problem-statement)'s [context](#793a1-problem-statement), a one-line summary of what it did since its previous summary, across the session and its [subagent](../../GLOSSARY.md#subagent) sessions: items delivered, [notes](#793a1-problem-statement) added, notes amended and [offers](../../GLOSSARY.md#offer) curated. A turn with no memory events MUST show nothing. The summary MUST NOT enter the working agent's context. The warning that [automatic memory](#793a1-problem-statement) was skipped ([793a4b The session is never broken or stalled](#793a4b-the-session-is-never-broken-or-stalled)) is shown on this same surface.
+Requirement: 793a5h After each completed top-level turn of a Claude Code [session](../../GLOSSARY.md#session) that has the [System](#793a1-problem-statement), once the System's work for that turn has finished, the System MUST show the user, as a line in the transcript scrollback above the prompt, which persists and wraps, a one-line summary of what it did since its previous summary, across the session and its [subagent](../../GLOSSARY.md#subagent) sessions: items delivered, [notes](#793a1-problem-statement) added, notes amended and [offers](../../GLOSSARY.md#offer) curated. A turn with no memory events MUST show nothing. The summary MAY be visible to the [working agent](#793a1-problem-statement) and MUST NOT ask it to do anything ([793a4c Memory purview only](#793a4c-memory-purview-only)). The warning that [automatic memory](#793a1-problem-statement) was skipped ([793a4b The session is never broken or stalled](#793a4b-the-session-is-never-broken-or-stalled)) is shown on this same surface.
 
 Rationale: the user keeps visibility of the memory work the [System](#793a1-problem-statement) took over without the [working agent](#793a1-problem-statement) relaying it.
 
@@ -447,11 +470,11 @@ Scenario: 793a5h1b Nothing is shown after a turn without events
   When a turn completes in which "the System delivers, adds, amends and curates nothing"
   Then the user is shown no memory-activity summary
 
-Scenario: 793a5h1c The summary is not in the agent's context
+Scenario: 793a5h1c The summary is a transcript line that asks nothing of the agent
   Given the System is installed
   And a turn completes in which "the System delivers 1 item"
   When a turn completes in which "the human submits the next prompt"
-  Then the summary appears nowhere in the transcript or in the working agent's next response
+  Then the summary appears in the transcript as a line of the System's that asks nothing of the agent
 
 Scenario: 793a5h1e The counts cover the events since the previous summary
   Given the System is installed

@@ -21,13 +21,12 @@ func (c Counts) plus(o Counts) Counts {
 
 // Done is the end of a job: what it delivers, and the session state the mod keeps for it.
 type Done struct {
-	Block     string          `json:"block,omitempty"`
-	Line      string          `json:"line,omitempty"`
-	Notes     []Note          `json:"notes,omitempty"`
-	Ledger    json.RawMessage `json:"ledger,omitempty"`
-	Work      json.RawMessage `json:"work,omitempty"`
-	Show      bool            `json:"show,omitempty"`
-	LineShown bool            `json:"lineShown,omitempty"`
+	Block  string          `json:"block,omitempty"`
+	Line   string          `json:"line,omitempty"`
+	Notes  []Note          `json:"notes,omitempty"`
+	Ledger json.RawMessage `json:"ledger,omitempty"`
+	Work   json.RawMessage `json:"work,omitempty"`
+	Show   bool            `json:"show,omitempty"`
 }
 
 // Job is what the mod hands to `engram auto run`: the event it has, the record of an earlier round of the job and the
@@ -48,7 +47,6 @@ type Job struct {
 	ReadContext bool            `json:"readContext"`
 	Route       bool            `json:"route"`
 	TurnEnded   bool            `json:"turnEnded"`
-	LineShown   bool            `json:"lineShown"`
 	Turn        int             `json:"turn"`
 	State       []record        `json:"state"`
 	Reply       *reply          `json:"reply"`
@@ -59,7 +57,6 @@ type Job struct {
 	ToolUses    []ToolCall      `json:"toolUses"`
 	Messages    []Message       `json:"messages"`
 	Tally       []Counts        `json:"tally"`
-	Warnings    []string        `json:"warnings"`
 }
 
 // Response is what `engram auto run` prints: the effects of the round for the mod to apply (the debug log lines, the

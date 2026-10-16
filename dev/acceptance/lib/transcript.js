@@ -170,10 +170,13 @@ export function promptRows(rows, kind) {
 // SKIPPED is the fixed phrase of the warning the System shows when automatic memory is skipped (793a4b).
 export const SKIPPED = /automatic memory skipped:/i
 
-// statusTexts are the strings the mod passed to $.ui.status, in order, from the stream's system messages (SP9).
-export function statusTexts(messages) {
+// shownTexts are the lines a mod showed the user, in order, from the stream's system messages: its transcript lines
+// (`ui_log`, the surface of the System, 793b442), and any status line (`ui_status`) or toast (`ui_toast`). A line sent
+// to the debug log alone is not shown.
+const SHOWN = new Set(['ui_log', 'ui_status', 'ui_toast'])
+export function shownTexts(messages) {
   return messages
-    .filter((message) => message.type === 'system' && message.subtype === 'ui_status')
+    .filter((message) => message.type === 'system' && SHOWN.has(message.subtype) && message.to !== 'debug')
     .map((message) => String(message.text ?? ''))
 }
 

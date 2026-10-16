@@ -77,6 +77,7 @@ export class Scenario {
     fs.mkdirSync(path.join(this.workspace, '.engram'), { recursive: true })
     fs.writeFileSync(path.join(this.workspace, '.engram', 'sweep.json'), `${JSON.stringify(SWEEP_SPEC)}\n`)
     // the settings the World starts from: the update must add none (793a5j)
+    // no statusLine: the System's lines are transcript lines, shown with or without one (793b443)
     this.baselineSettings = { permissions: { allow: ALLOWED_TOOLS } }
     fs.writeFileSync(
       path.join(this.home, '.claude', 'settings.json'),

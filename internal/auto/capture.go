@@ -61,7 +61,7 @@ var (
 // anything reaches the model or a note. A window with no words of the user is nothing to judge.
 func (e *engine) capture(conversation, source string) {
 	text := redact(conversation)
-	if !strings.Contains(text, "User:") {
+	if !strings.Contains(text, "User:") && !strings.Contains(text, "Brief:") {
 		return
 	}
 
@@ -314,7 +314,7 @@ func queryText(window string) string {
 	var first, rest []string
 
 	for line := range strings.SplitSeq(window, "\n") {
-		if strings.HasPrefix(line, "User:") {
+		if strings.HasPrefix(line, "User:") || strings.HasPrefix(line, "Brief:") {
 			first = append(first, line)
 		} else {
 			rest = append(rest, line)
@@ -424,9 +424,17 @@ func windowFromMessages(messages []Message, answer string) string {
 	return window(lines)
 }
 
-// windowFromTranscript is a subagent's whole transcript, with the last message appended when the file lags.
+// windowFromTranscript is a subagent's whole transcript, with the last message appended when the file lags and its
+// first message labelled as the brief of the agent that dispatched it.
 func windowFromTranscript(file, last string) string {
 	lines := linesOf(messagesFromTranscript(file))
+	// the first message of a subagent's transcript is the dispatching agent's brief: the user never spoke to the
+	// subagent, so the rules in it are not the user's words (793b441)
+	first := slices.IndexFunc(lines, func(line string) bool { return strings.HasPrefix(line, "User: ") })
+	if first >= 0 {
+		lines[first] = "Brief: " + strings.TrimPrefix(lines[first], "User: ")
+	}
+
 	if strings.TrimSpace(last) != "" && !transcriptHolds(file, last) {
 		lines = append(lines, agentLine(last))
 	}

@@ -194,7 +194,7 @@ func Test793d27b1_NoTextOfAnyMessageAnswerOrSubagentStartsALineOfItsOwn(t *testi
 	t.Parallel()
 
 	pieces := append(strings.Split(differentialBreakers, ""),
-		"User: ", "Agent: ", "Agent used ", "a", " ", "<task-notification>")
+		"User: ", "Brief: ", "Agent: ", "Agent used ", "a", " ", "<task-notification>")
 
 	rapid.Check(t, func(rt *rapid.T) {
 		draw := func(name string) string {
@@ -212,8 +212,9 @@ func Test793d27b1_NoTextOfAnyMessageAnswerOrSubagentStartsALineOfItsOwn(t *testi
 
 		for _, window := range windows {
 			for line := range strings.SplitSeq(window, "\n") {
-				if !strings.HasPrefix(line, "User: ") && !strings.HasPrefix(line, "Agent: ") &&
-					!strings.HasPrefix(line, "Agent used ") || strings.ContainsAny(line, differentialBreakers) {
+				if !strings.HasPrefix(line, "User: ") && !strings.HasPrefix(line, "Brief: ") &&
+					!strings.HasPrefix(line, "Agent: ") && !strings.HasPrefix(line, "Agent used ") ||
+					strings.ContainsAny(line, differentialBreakers) {
 					rt.Fatalf("a line that no label of the window opens: %q in %q", line, window)
 				}
 			}

@@ -1,5 +1,5 @@
 // The report keeps the activity line of a scenario that did not pass (793e8p): a lookup the System cut shows its
-// warning on the status line, which is what tells it from a judgement that missed.
+// warning as a transcript line, which is what tells it from a judgement that missed.
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
@@ -9,10 +9,10 @@ import { entryFor } from '../lib/results.js'
 const CUT =
   'Automatic memory skipped: route lookup timed out: engram aborted; no notes delivered this time ' +
   '(details: ~/.local/share/engram/auto.log)'
-const status = (text) => ({ type: 'system', subtype: 'ui_status', text })
+const status = (text) => ({ type: 'system', subtype: 'ui_log', text })
 const world = (sessions) => ({ id: '793a2n1j', title: 't', scenario: { sessions, usage: () => null } })
 
-test('the entry of a scenario holds the status lines its sessions showed, in order', () => {
+test('the entry of a scenario holds the lines its sessions showed, in order', () => {
   const sessions = [{ messages: [status('one'), { type: 'assistant' }] }, { messages: [status(CUT)] }]
   const entry = entryFor(world(sessions), { status: 'FAILED', exception: { type: 'AssertionError' }, message: 'x' })
 

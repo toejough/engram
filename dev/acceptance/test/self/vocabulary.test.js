@@ -22,7 +22,7 @@ test(
       const report = await checkVocabulary({ features, support: [path.join(ROOT, 'steps', 'index.js')], cwd: ROOT })
       assert.deepEqual(report.undefinedSteps, [])
       assert.deepEqual(report.ambiguousSteps, [])
-      assert.equal(report.scenarios, 54)
+      assert.equal(report.scenarios, 58)
       assert.equal(report.definitions, 32)
       assert.equal(report.unusedDefinitions.length, 0, report.unusedDefinitions.join('\n'))
     } finally {

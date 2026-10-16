@@ -22,7 +22,7 @@ import {
   readRows,
   resultIndex,
   retrievals,
-  statusTexts,
+  shownTexts,
   systemBlocks,
   toolCalls,
 } from '../lib/transcript.js'
@@ -379,7 +379,7 @@ async function unchangedHome(world) {
     'the System added content to a session of a home without it',
   )
   assert.deepEqual(
-    scenario.sessions.flatMap((each) => statusTexts(each.messages)),
+    scenario.sessions.flatMap((each) => shownTexts(each.messages)),
     [],
     'the user was shown a message from the System',
   )
