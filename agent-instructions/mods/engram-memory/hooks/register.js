@@ -15,23 +15,26 @@ const HOOK_DEADLINE_MS = 8000
 // the in-turn cue reads the last six texts of the session (the engine's recentCount), so a step hands it the last
 // messages and not the whole session, with the text of each and no tool input or result (793d23b2)
 const STEP_WINDOW = 50
-// the steps a failure is reported against (793a4b)
+// the steps a failure is reported against (793a4b), named in the terms of the user: a warning shows them as they are
 const STEP = {
-  prompt: 'the prompt lookup',
-  route: 'the route lookup',
-  subagent: 'the subagent lookup',
-  step: 'the step lookup',
-  deep: 'the chunk lookup',
+  prompt: 'prompt lookup',
+  route: 'route lookup',
+  subagent: 'subagent lookup',
+  step: 'mid-turn lookup',
+  deep: 'history lookup',
 }
-const CAPTURE_STEP = 'the capture'
-const HOUSEKEEPING_STEP = 'the housekeeping'
-// what a failure of the engram program itself says; the engine words the failures it contains, and a test holds these
-// words to its own (dev/acceptance/test/wording.test.js)
+const CAPTURE_STEP = 'capture'
+const HOUSEKEEPING_STEP = 'indexing, curation and backlog capture'
+const SUMMARY_STEP = 'summary'
+// The engine words and records a failure it is handed (793d36b4). When it cannot be run for that job either, the mod
+// words the failure itself, by class and without the text, which it cannot redact; a test holds these words to the
+// engine's own (dev/acceptance/test/wording.test.js)
+const SKIPPED_PREFIX = 'Automatic memory skipped: '
 const REASONS = [
-  ['still running after', 'the System timed out'],
-  ['failed to start', 'the vault is unavailable'],
+  ['still running after', 'timed out'],
+  ['failed to start', 'could not reach the vault'],
 ]
-const UNCLASSED_REASON = 'of an error'
+const UNCLASSED_REASON = 'failed'
 
 /** @type {ModState} */
 const mod = {
@@ -65,8 +68,23 @@ async function attempt($, job, step) {
     return await job()
   } catch (/** @type {any} */ error) {
     $.ui.log(`engram-memory: ${step ?? 'internal'}: ${error.message}`, { to: 'debug' })
-    if (step) await warn($, `Automatic memory was skipped because ${reasonOf(error.message)} (${step})`)
+    if (step) await failed($, step, error.message)
     return null
+  }
+}
+
+// failed has the engine word and record the failure of a step of the mod (793d36b4), and shows its warning; when the
+// engine cannot be run, the mod words it by its class.
+/**
+ * @param {Ctx} $
+ * @param {string} step
+ * @param {string} text
+ */
+async function failed($, step, text) {
+  try {
+    await relay($, { kind: 'failure', step, text })
+  } catch {
+    await warn($, `${SKIPPED_PREFIX}${step} ${reasonOf(text)}; nothing was done this time (details: the debug log)`)
   }
 }
 
@@ -85,6 +103,16 @@ async function warn($, text) {
     await $.ui.status(text)
   } catch (/** @type {any} */ error) {
     $.ui.log(`engram-memory: the warning could not be shown: ${error.message}`, { to: 'debug' })
+  }
+}
+
+// sessionOf names the session in a job, for the failure record; a session that cannot be named is `-` to the engine.
+/** @type {($: Ctx) => Promise<string>} */
+const sessionOf = async ($) => {
+  try {
+    return await $.session.id()
+  } catch {
+    return ''
   }
 }
 
@@ -107,7 +135,7 @@ function absorb($, out) {
  * @param {Hold} [hold]
  */
 async function relay($, job, hold = { cut: false }) {
-  let input = job
+  let input = { sessionId: await sessionOf($), ...job }
   for (let round = 0; round < MAX_ROUNDS; round += 1) {
     const out = await roundOf($, input, hold)
     absorb($, out)
@@ -331,7 +359,7 @@ async function finish($) {
   const turnEnded = mod.queue.turnEnded
   mod.queue.turnEnded = false
   await attempt($, () => queued($, { kind: 'housekeeping', turnEnded }), HOUSEKEEPING_STEP)
-  if (turnEnded) await attempt($, () => report($))
+  if (turnEnded) await attempt($, () => report($), SUMMARY_STEP)
 }
 
 // schedule returns at once: the job joins the queue from a timer, after the event has been answered (793b203).

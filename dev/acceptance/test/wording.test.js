@@ -16,7 +16,7 @@ const MOD_SOURCE = fs.readFileSync(
 
 // the engine's words per class (what happened, after the operation), and the start of every warning
 const engineReasons = () => {
-  const table = /predicates = map\[string\]string\{[^}]*kindUnavailable: "([^"]+)",[^}]*kindTimeout: "([^"]+)",[^}]*kindError: "([^"]+)",/.exec(
+  const table = /predicates\s*=\s*map\[string\]string\{[^}]*kindUnavailable:\s*"([^"]+)",[^}]*kindTimeout:\s*"([^"]+)",[^}]*kindError:\s*"([^"]+)",/.exec(
     ENGINE_SOURCE,
   )
   assert.ok(table, 'failure.go no longer words a failure the way this test reads it')

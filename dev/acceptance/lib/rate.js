@@ -5,7 +5,7 @@
 import { MS_PER_SECOND } from './units.js'
 
 export const RATE_BAR = 0.9
-const WARNING = /^Automatic memory was skipped/
+const WARNING = /^Automatic memory skipped:/
 const COST_DECIMALS = 3
 const RATE_DECIMALS = 2
 const HEADERS = ['Scenario', 'Runs', 'Green', 'Red', 'Harness error', 'Not run', 'Rate', 'Bar 9 of 10']

@@ -53,10 +53,10 @@ test('status texts are the ui_status system messages, in order, and nothing else
       type: 'system',
       subtype: 'ui_status',
       plugin: 'engram-memory',
-      text: 'Automatic memory was skipped because of an error (indexing)',
+      text: 'Automatic memory skipped: indexing failed: x; nothing lost, retried next turn (details: y)',
     },
   ]
-  assert.deepEqual(statusTexts(messages), ['one', 'Automatic memory was skipped because of an error (indexing)'])
+  assert.deepEqual(statusTexts(messages), ['one', 'Automatic memory skipped: indexing failed: x; nothing lost, retried next turn (details: y)'])
   assert.equal(statusTexts(messages).filter((text) => SKIPPED.test(text)).length, 1)
 })
 
@@ -72,7 +72,7 @@ test('typed rows are the user rows whose text is exactly the prompt, as a string
 
 test('rows mentioning a pattern are found whatever their kind', () => {
   const rows = [
-    { type: 'assistant', message: { content: 'Automatic memory was skipped' } },
+    { type: 'assistant', message: { content: 'Automatic memory skipped: x' } },
     { type: 'user', message: { content: 'hi' } },
   ]
   assert.equal(rowsMentioning(rows, SKIPPED).length, 1)

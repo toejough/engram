@@ -118,7 +118,7 @@ describe('the relay of a job (793b197)', () => {
       const handed = jobs.find((job) => job.kind === 'failure') ?? { kind: '' }
       expectHas(handed, { step: 'indexing, curation and backlog capture', sessionId: 'sess-1' })
       expect(String(handed.text)).toContain('exited 70: boom')
-      expect(JSON.stringify(jobs)).not.toContain('housekeeping"')
+      expect(String(handed.step)).not.toContain('housekeeping')
       expect(shown).toContain('the engine words it')
     },
   )
@@ -185,7 +185,12 @@ describe('the hold of an event (793d22b3)', () => {
         rounds += 1
         return { waitMs: 5000, state: ['s'] }
       }
-      const { clock, shown } = world(on, { engine: (job) => (job.kind === 'lookup' ? slow() : { done: {} }) })
+      const { clock, shown } = world(on, {
+        engine: (job) => {
+          if (job.kind === 'failure') return { warnings: ['the engine words it'], done: {} }
+          return job.kind === 'lookup' ? slow() : { done: {} }
+        },
+      })
       const submitted = $.prompt.submit(PROMPT)
       await clock.advance(8000)
       await submitted

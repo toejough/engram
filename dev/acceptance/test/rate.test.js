@@ -61,7 +61,7 @@ test('the report holds the rate of each row and the attribution of each Red, by 
   const report = formatRates(summarize(rounds), rounds)
 
   assert.match(report, /793a2n1j\s+3\s+1\s+2\s+0\s+0\s+0\.33\s+no/)
-  assert.match(report, /793a2n1j run 1: System failure: Automatic memory was skipped because the System timed out/)
+  assert.match(report, /793a2n1j run 1: System failure: Automatic memory skipped: prompt lookup timed out/)
   assert.match(report, /793a2n1j run 3: System miss: no warning on the activity line/)
   assert.match(report, /3 runs of 1 rows/)
 })
