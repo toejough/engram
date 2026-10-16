@@ -37,7 +37,7 @@ func Test793d36b1_TheResponseHasTheNamesTheModReads(t *testing.T) {
 	world := NewWorld()
 	world.Process["query"] = noteQuery()
 
-	job := map[string]any{"kind": "lookup", "moment": "prompt", "step": "the prompt lookup", "text": "is it done?"}
+	job := map[string]any{"kind": "lookup", "moment": "prompt", "step": "prompt lookup", "text": "is it done?"}
 
 	var first map[string]any
 
@@ -73,7 +73,7 @@ func Test793d36b2_AJobWhoseRequestChangedBetweenItsRoundsFailsAndDeliversNothing
 	g := NewWithT(t)
 	world := NewWorld()
 	world.Process["query"] = noteQuery()
-	job := map[string]any{"kind": "lookup", "moment": "prompt", "step": "the prompt lookup", "text": "is it done?"}
+	job := map[string]any{"kind": "lookup", "moment": "prompt", "step": "prompt lookup", "text": "is it done?"}
 
 	first := world.round(t, job)
 	job["state"], job["reply"], job["text"] = first.State, world.relay(first), "is it ready?"
@@ -86,7 +86,7 @@ func Test793d36b2_AJobWhoseRequestChangedBetweenItsRoundsFailsAndDeliversNothing
 	}
 
 	g.Expect(again.Done.Block).To(BeEmpty())
-	g.Expect(again.Warnings).To(Equal([]string{"Automatic memory was skipped because of an error (the prompt lookup)"}))
+	g.Expect(again.Warnings).To(HaveExactElements(warnedOf("prompt lookup", "failed: ")))
 }
 
 func Test793d36b2_ARoundAnswersFromTheRecordWhatAnEarlierRoundDid(t *testing.T) {
@@ -95,7 +95,7 @@ func Test793d36b2_ARoundAnswersFromTheRecordWhatAnEarlierRoundDid(t *testing.T) 
 	g := NewWithT(t)
 	world := NewWorld()
 	world.Process["query"] = noteQuery()
-	job := map[string]any{"kind": "lookup", "moment": "prompt", "step": "the prompt lookup", "text": "is it done?"}
+	job := map[string]any{"kind": "lookup", "moment": "prompt", "step": "prompt lookup", "text": "is it done?"}
 
 	first := world.round(t, job)
 	g.Expect(first.Request).NotTo(BeNil())

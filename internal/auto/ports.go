@@ -24,7 +24,8 @@ type Clock interface{ Now() time.Time }
 
 // Deps are the impure capabilities of a job, injected at the edge: the vault the job reads and writes, the files it
 // reads, the pending offers of the vault as the pending-offer bookkeeping tells them, the clock, and where the vault
-// and the chunk index are, resolved as the engram commands resolve them.
+// and the chunk index are, resolved as the engram commands resolve them, and where the failure record is (LogPath) and
+// the home directory the warning shows it relative to (Home).
 type Deps struct {
 	Vault     Vault
 	Files     Files
@@ -32,6 +33,8 @@ type Deps struct {
 	Clock     Clock
 	VaultPath string
 	ChunksDir string
+	LogPath   string
+	Home      string
 }
 
 // Files is the file system the job reads transcripts and the chunk index from, and writes the backlog marks to.

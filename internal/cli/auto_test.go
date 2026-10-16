@@ -179,6 +179,41 @@ func Test793d36b1_AutoRunRefusesAJobItCannotRead(t *testing.T) {
 	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("auto run")))
 }
 
+func Test793d36b4_AutoRunWritesTheLogInTheDataDirectoryForItsOwnerAlone(t *testing.T) {
+	t.Parallel()
+
+	g := gomega.NewWithT(t)
+	home := t.TempDir()
+
+	var out bytes.Buffer
+
+	deps := newTestDeps(&out, &bytes.Buffer{})
+	deps.Stdin = strings.NewReader(`{"kind":"failure","step":"indexing","text":"boom","sessionId":"s1"}`)
+	deps.Now = func() time.Time { return time.UnixMilli(1_700_000_000_000) }
+	deps.UserHomeDir = func() (string, error) { return home, nil }
+	deps.Getenv = func(string) string { return "" }
+
+	g.Expect(cli.RunAutoForTest(context.Background(), deps)).To(gomega.Succeed())
+
+	log := home + "/.local/share/engram/auto.log"
+	text, err := os.ReadFile(log)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(string(text)).To(gomega.Equal(
+		`2023-11-14T22:13:20Z session="s1" operation="indexing" class=error reason="boom"` + "\n"))
+	g.Expect(out.String()).To(gomega.ContainSubstring(
+		`Automatic memory skipped: indexing failed: boom; nothing lost, retried next turn `+
+			`(details: ~/.local/share/engram/auto.log)`))
+
+	info, err := os.Stat(log)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(info.Mode().Perm()).To(gomega.Equal(os.FileMode(0o600)))
+}
+
 // The adapters of `engram auto run` (793e8m): the commands, the files, the environment and the clock a job runs in.
 
 // autoRun runs the job `summary` with the given commander and returns what it printed.

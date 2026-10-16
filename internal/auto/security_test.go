@@ -69,7 +69,7 @@ func Test793d19a_APlaceholderInTheTextOfAMomentIsNotFilledWithTheCandidates(t *t
 	world.Process["query"] = noteQuery()
 	world.Model = Replies(map[string]string{"relevance": "[]"})
 	world.Do(t, map[string]any{
-		"kind": "lookup", "moment": "prompt", "step": "the prompt lookup", "text": "I finished renaming. " + securityHostile,
+		"kind": "lookup", "moment": "prompt", "step": "prompt lookup", "text": "I finished renaming. " + securityHostile,
 	})
 
 	prompt := world.Requests[0].Prompt
@@ -113,7 +113,7 @@ func Test793d24b3_ANoteWhoseNameIsNotANoteNameIsNeverDeliveredOrNamedInACommand(
 			})
 
 			lookup := world.Do(t, map[string]any{
-				"kind": "lookup", "moment": "prompt", "step": "the prompt lookup", "text": "done?",
+				"kind": "lookup", "moment": "prompt", "step": "prompt lookup", "text": "done?",
 			})
 			world.Do(t, securityCapture("No, use targ."))
 
@@ -203,7 +203,7 @@ func section(prompt, tag string) string {
 
 func securityCapture(text string) map[string]any {
 	return map[string]any{
-		"kind": "capture", "answer": "Understood.", "sessionId": "s", "turn": 1, "step": "the capture",
+		"kind": "capture", "answer": "Understood.", "sessionId": "s", "turn": 1, "step": "capture",
 		"messages": []map[string]any{{"role": "user", "text": text}, {"role": "assistant", "text": "Understood."}},
 	}
 }

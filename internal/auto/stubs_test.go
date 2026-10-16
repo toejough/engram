@@ -44,7 +44,7 @@ func Test793d24b1_ALookupThatHoldsTheAgentAsksForNotesOnlyAndOneInTheBackgroundF
 	world.Do(t, momentPrompt(momentPromptText))
 	world.Do(t, momentTool(map[string]any{"route": true, "args": "write Go tests", "lastPrompt": "please"}))
 	world.Do(t, map[string]any{
-		"kind": "lookup", "moment": "subagent", "agent": "a1", "text": "add tests", "step": "the subagent lookup",
+		"kind": "lookup", "moment": "subagent", "agent": "a1", "text": "add tests", "step": "subagent lookup",
 	})
 	world.Do(t, momentStep(momentMessages()))
 	world.Do(t, stubsDeep())
@@ -176,8 +176,7 @@ func Test793d36b3_AFailingLookupWithTheChunkIndexWarnsNamingItsStepAndDeliversNo
 	deep := world.Do(t, stubsDeep())
 
 	g.Expect(deep.Notes).To(BeEmpty())
-	g.Expect(world.Warnings).To(Equal(
-		[]string{"Automatic memory was skipped because the System timed out (the chunk lookup)"}))
+	g.Expect(world.Warnings).To(HaveExactElements(warnedOf("history lookup", "timed out: ")))
 }
 
 // unexported constants.
@@ -190,7 +189,7 @@ func stubsDeep() map[string]any { return stubsDeepOf("") }
 
 func stubsDeepOf(transcript string) map[string]any {
 	job := map[string]any{
-		"kind": "deep", "step": "the chunk lookup", "text": momentPromptText, "lastPrompt": momentPromptText,
+		"kind": "deep", "step": "history lookup", "text": momentPromptText, "lastPrompt": momentPromptText,
 	}
 	if transcript != "" {
 		job["transcript"] = transcript

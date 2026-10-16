@@ -14,12 +14,18 @@ const MOD_SOURCE = fs.readFileSync(
   'utf8',
 )
 
-// the engine's words per class, and the words of a failure it cannot class
+// the engine's words per class (what happened, after the operation), and the start of every warning
 const engineReasons = () => {
-  const table = /map\[string\]string\{kindUnavailable: "([^"]+)", kindTimeout: "([^"]+)"\}/.exec(ENGINE_SOURCE)
-  const fallback = /reason = "([^"]+)"/.exec(ENGINE_SOURCE)
-  assert.ok(table && fallback, 'failure.go no longer words a failure the way this test reads it')
-  return { unavailable: table[1], timeout: table[2], error: fallback[1] }
+  const table = /predicates = map\[string\]string\{[^}]*kindUnavailable: "([^"]+)",[^}]*kindTimeout: "([^"]+)",[^}]*kindError: "([^"]+)",/.exec(
+    ENGINE_SOURCE,
+  )
+  assert.ok(table, 'failure.go no longer words a failure the way this test reads it')
+  return { unavailable: table[1], timeout: table[2], error: table[3] }
+}
+const enginePrefix = () => {
+  const found = /skippedPrefix\s*=\s*"([^"]+)"/.exec(ENGINE_SOURCE)
+  assert.ok(found, 'failure.go has no skippedPrefix')
+  return found[1]
 }
 
 // the engine's patterns per class
@@ -33,10 +39,12 @@ const engineCue = (variable) => {
 const modReasons = () => {
   const table = /const REASONS = \[((?:\s*\['[^']+', '[^']+'\],?)+)\s*\]/.exec(MOD_SOURCE)
   const unclassed = /const UNCLASSED_REASON = '([^']+)'/.exec(MOD_SOURCE)
-  assert.ok(table && unclassed, 'register.js no longer words a failure the way this test reads it')
+  const prefix = /const SKIPPED_PREFIX = '([^']+)'/.exec(MOD_SOURCE)
+  assert.ok(table && unclassed && prefix, 'register.js no longer words a failure the way this test reads it')
   return {
     pairs: [...table[1].matchAll(/\['([^']+)', '([^']+)'\]/g)].map((match) => [match[1], match[2]]),
     unclassed: unclassed[1],
+    prefix: prefix[1],
   }
 }
 
@@ -48,4 +56,11 @@ test('the mod words the failures of the engram program as the engine words the f
   assert.equal(wordsOf[engineCue('unavailable')], engine.unavailable)
   assert.equal(mod.unclassed, engine.error)
   assert.equal(mod.pairs.length, 2)
+  assert.equal(mod.prefix, enginePrefix())
+})
+
+// the housekeeping is never named in a warning, by the engine or by the mod (793b450): the user does not know the word
+test('no warning names the housekeeping', () => {
+  assert.ok(!/HOUSEKEEPING_STEP = '[^']*housekeeping/i.test(MOD_SOURCE), 'the mod names a step housekeeping')
+  assert.ok(!/attempt\([^)]*"housekeeping"/.test(ENGINE_SOURCE), 'the engine names a step housekeeping')
 })

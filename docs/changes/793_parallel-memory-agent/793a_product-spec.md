@@ -321,9 +321,9 @@ Scenario: 793a4c1f The agent is neither required nor asked to run a memory comma
 
 ### 793a4b The session is never broken or stalled
 
-Requirement: 793a4b While the [System](#793a1-problem-statement) is installed, if it fails, times out, or is unavailable, the working [session](../../GLOSSARY.md#session) MUST continue unaffected, with no error surfaced to the [working agent](#793a1-problem-statement) and no lost user input, and the System MUST show the user a warning, on the same surface as the memory-activity summary ([793a5h The user sees a summary of the memory activity](#793a5h-the-user-sees-a-summary-of-the-memory-activity)) and outside the working agent's [context](#793a1-problem-statement), saying that [automatic memory](#793a1-problem-statement) was skipped for that [moment](#793a1-problem-statement) or turn and why (unavailable, timed out, or error). A moment at which nothing matched is not a failure and MUST show no warning.
+Requirement: 793a4b While the [System](#793a1-problem-statement) is installed, if it fails, times out, or is unavailable, the working [session](../../GLOSSARY.md#session) MUST continue unaffected, with no error surfaced to the [working agent](#793a1-problem-statement) and no lost user input, and the System MUST show the user a warning, on the same surface as the memory-activity summary ([793a5h The user sees a summary of the memory activity](#793a5h-the-user-sees-a-summary-of-the-memory-activity)) and outside the working agent's [context](#793a1-problem-statement), saying that [automatic memory](#793a1-problem-statement) was skipped. The warning MUST name the operation that was skipped in the user's terms (indexing, curation, backlog capture, lookup, capture or summary), give the actual reason (the vault is unavailable, the System timed out, another session was already indexing, the index is not caught up, or the error's own text, shortened and with any secret hidden), say what happens next (nothing is lost and it is retried, or no notes are delivered for that prompt), and point to the log that records the failure. The System MUST append every such failure to that log, in the data directory of the System, with when it happened, in which session, in which operation, of what class and why. A moment at which nothing matched is not a failure and MUST show no warning.
 
-Rationale: the owner wants to know when the automatic channel silently did nothing, without that ever reaching the [working agent](#793a1-problem-statement) ([793b185 The user is warned when automatic memory is skipped](793b_decision-log.md#793b185-the-user-is-warned-when-automatic-memory-is-skipped)).
+Rationale: the owner wants to know when the automatic channel silently did nothing, without that ever reaching the [working agent](#793a1-problem-statement) ([793b185 The user is warned when automatic memory is skipped](793b_decision-log.md#793b185-the-user-is-warned-when-automatic-memory-is-skipped)); and a warning that does not say what was skipped, why, and where to look is of no help to the owner ([793b450 Dogfooding: a warning that said "because of an error (the housekeeping)" is of no help](793b_decision-log.md#793b450-dogfooding-a-warning-that-said-because-of-an-error-the-housekeeping-is-of-no-help)).
 
 #### 793a4b1 UAT Scenarios
 
@@ -334,7 +334,7 @@ Scenario: 793a4b1a Vault unavailable
   When a turn completes in which "the human submits a prompt"
   Then the session proceeds normally, with no error from the System and no user input missing
   And the transcript shows no content delivered, the instruction to apply it included
-  And the user is shown a warning that automatic memory was skipped because the vault is unavailable
+  And the user is shown a warning that names the skipped operation, gives the reason (the vault is unavailable), says what happens next and points to the log
   And the warning appears nowhere in the transcript
 
 Scenario: 793a4b1b Evaluation crashes
@@ -342,7 +342,7 @@ Scenario: 793a4b1b Evaluation crashes
   And the System's work for a turn raises an error
   When a turn completes in which "the human submits a prompt"
   Then the session proceeds normally, with no error from the System and no user input missing
-  And the user is shown a warning that automatic memory was skipped because of an error
+  And the user is shown a warning that names the skipped operation, gives the reason (the error's own text), says what happens next and points to the log
   And the warning appears nowhere in the transcript
 
 Scenario: 793a4b1c No error reaches the agent and the user is warned
@@ -350,7 +350,7 @@ Scenario: 793a4b1c No error reaches the agent and the user is warned
   And the System's work for a turn times out
   When a turn completes in which "the human submits a prompt"
   Then the session proceeds normally, with no error from the System and no user input missing
-  And the user is shown a warning that automatic memory was skipped because the System timed out
+  And the user is shown a warning that names the skipped operation, gives the reason (the System timed out), says what happens next and points to the log
   And the warning appears nowhere in the transcript
 
 Scenario: 793a4b1e No warning when nothing matched
@@ -359,6 +359,20 @@ Scenario: 793a4b1e No warning when nothing matched
   When a turn completes in which "the human submits a prompt"
   Then the transcript shows no content delivered, the instruction to apply it included
   And the user is shown no warning
+
+Scenario: 793a4b1f Another session is indexing
+  Given the System is installed
+  And another session is already indexing the vault
+  When a turn completes in which "the human submits a prompt"
+  Then the session proceeds normally, with no error from the System and no user input missing
+  And the user is shown a warning that names the skipped operation, gives the reason (another session was already indexing), says what happens next and points to the log
+  And the warning appears nowhere in the transcript
+
+Scenario: 793a4b1g The log records the cause
+  Given the System is installed
+  And the vault cannot be read
+  When a turn completes in which "the human submits a prompt"
+  Then the log in the data directory of the System holds a line for the failure with when it happened, the session, the operation, the class and the reason
 ```
 
 ## 793a5 Added: automatic-memory (it is just there, and both channels stay)

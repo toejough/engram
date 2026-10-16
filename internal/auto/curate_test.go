@@ -176,7 +176,7 @@ func Test793d29b1_AnOfferThatCannotBeReadIsWarnedAboutOnceAndDoesNotStopTheOffer
 		"--target " + names[1] + " --clear-pending --expect-hash=xh1:abc",
 		"--target " + names[2] + " --clear-pending --expect-hash=xh1:abc",
 	}))
-	g.Expect(world.Warnings).To(Equal([]string{curateWarning}))
+	g.Expect(world.Warnings).To(HaveExactElements(warnedOf("curation", "failed: ")))
 
 	curateHousekeeping(t, world)
 
@@ -318,7 +318,7 @@ func Test793d29b2_ANearOfferIsCheckedAgainstTheNoteAsItWasReadAndNothingIsWritte
 	g.Expect(world.AmendRequests[0].Target).To(Equal(curateNote))
 	g.Expect(world.AmendRequests[0].ExpectNote).To(ContainSubstring("object: from main (SENTINEL-N)"),
 		"the amend is not checked against the note the judge read")
-	g.Expect(world.Warnings).To(Equal([]string{curateWarning}))
+	g.Expect(world.Warnings).To(HaveExactElements(warnedOf("curation", "failed: ")))
 	g.Expect(world.Counts).To(Equal(auto.Counts{}))
 	g.Expect(curateAmends(world)).NotTo(ContainElement(ContainSubstring("--discard")))
 
@@ -382,7 +382,7 @@ func Test793d29b2_AReplyThatIsNotExactlyOneObjectOfTheExpectedShapeSettlesNothin
 
 			g.Expect(curateAmends(world)).To(BeEmpty())
 			g.Expect(world.Counts).To(Equal(auto.Counts{}))
-			g.Expect(world.Warnings).To(Equal([]string{curateWarning}))
+			g.Expect(world.Warnings).To(HaveExactElements(warnedOf("curation", "failed: ")))
 		})
 	}
 }
@@ -549,7 +549,7 @@ func Test793d29b2_AnOfferWhoseCommandsFailIsNotCounted(t *testing.T) {
 	curateHousekeeping(t, world)
 
 	g.Expect(world.Counts).To(Equal(auto.Counts{}))
-	g.Expect(world.Warnings).To(Equal([]string{curateWarning}))
+	g.Expect(world.Warnings).To(HaveExactElements(warnedOf("curation", "failed: ")))
 }
 
 func Test793d29b2_AnOfferWithoutAnExchangeHashIsSettledWithoutOne(t *testing.T) {
@@ -597,7 +597,7 @@ func Test793d33b5_ABurstWhoseIndexFailsStillCuratesTheOffers(t *testing.T) {
 
 	curateHousekeeping(t, world)
 
-	g.Expect(world.Warnings).To(Equal([]string{"Automatic memory was skipped because of an error (indexing)"}))
+	g.Expect(world.Warnings).To(HaveExactElements(warnedOf("indexing", "failed: exit status 1")))
 	g.Expect(curateAmends(world)).To(HaveLen(1))
 }
 
@@ -655,7 +655,7 @@ func Test793d36b3_ACurationJudgementThatIsCutSettlesNothingAndIsATimeout(t *test
 
 	g.Expect(curateAmends(world)).To(BeEmpty())
 	g.Expect(world.Counts).To(Equal(auto.Counts{}))
-	g.Expect(world.Warnings).To(Equal([]string{"Automatic memory was skipped because the System timed out (curation)"}))
+	g.Expect(world.Warnings).To(HaveExactElements(warnedOf("curation", "timed out: ")))
 }
 
 func Test793d36b3_AnOfferWhoseNearestNotesCannotBeFoundIsWarnedAboutAndNotJudged(t *testing.T) {
@@ -671,7 +671,7 @@ func Test793d36b3_AnOfferWhoseNearestNotesCannotBeFoundIsWarnedAboutAndNotJudged
 
 	g.Expect(world.Requests).To(BeEmpty())
 	g.Expect(curateAmends(world)).To(BeEmpty())
-	g.Expect(world.Warnings).To(Equal([]string{curateVaultWarn}))
+	g.Expect(world.Warnings).To(HaveExactElements(warnedOf("curation", "could not reach the vault: ")))
 }
 
 func Test793d36b3_TheIndexRunsWithItsOwnDeadlineAndTheOthersWithAnother(t *testing.T) {
@@ -735,8 +735,8 @@ clusters:
 	curateQueryLim  = 5
 	curateSituation = "tagging a release"
 	curateSkillCut  = 20
-	curateVaultWarn = "Automatic memory was skipped because the vault is unavailable (curation)"
-	curateWarning   = "Automatic memory was skipped because of an error (curation)"
+	curateWarning   = "Automatic memory skipped: curation failed: exit status 70; nothing lost, retried next turn " +
+		"(details: ~/.local/share/engram/auto.log)"
 )
 
 // curateAmends are the arguments of the amends the job ran, after the subcommand.

@@ -87,7 +87,7 @@ func Test793d36b3_APromptAtThe95thPercentileStillGetsItsNoteWithinTheHoldCeiling
 	world.Model = Replies(map[string]string{"relevance": "[1]"})
 
 	world.Do(t, map[string]any{
-		"kind": "lookup", "moment": "prompt", "text": "Is the rename done?", "step": "the prompt lookup",
+		"kind": "lookup", "moment": "prompt", "text": "Is the rename done?", "step": "prompt lookup",
 	})
 
 	g.Expect(world.Commands).NotTo(BeEmpty())

@@ -35,7 +35,7 @@ func Test793d28b1_ABrokenManifestOrMarkFileIsReportedAndNothingIsCaptured(t *tes
 
 			g.Expect(world.Names()).To(Equal([]string{"ingest"}))
 			g.Expect(world.Warnings).To(HaveLen(1))
-			g.Expect(world.Warnings[0]).To(ContainSubstring("the backlog capture"))
+			g.Expect(world.Warnings[0]).To(ContainSubstring("backlog capture"))
 		})
 	}
 }
@@ -122,7 +122,7 @@ func Test793d28b1_AnIndexWhoseNewestSessionIsOlderThanTheCutoffIsReported(t *tes
 	// nothing is captured, and the user is told why instead of a backlog that silently finds nothing
 	g.Expect(world.Requests).To(BeEmpty())
 	g.Expect(world.Warnings).To(Equal([]string{
-		"Automatic memory was skipped because the index is not caught up (the backlog capture)",
+		skipped("backlog capture was held back: the index is not caught up", retried),
 	}))
 	g.Expect(strings.Join(world.Logs, "\n")).To(ContainSubstring("backlog: index not caught up"))
 }

@@ -45,7 +45,7 @@ func holdNotesOfTwoAgents(t *testing.T) *World {
 
 	for _, agent := range []string{"", "a1"} {
 		job := map[string]any{
-			"kind": "lookup", "moment": "prompt", "text": "Is the rename done?", "step": "the prompt lookup",
+			"kind": "lookup", "moment": "prompt", "text": "Is the rename done?", "step": "prompt lookup",
 		}
 		if agent != "" {
 			job["agent"] = agent

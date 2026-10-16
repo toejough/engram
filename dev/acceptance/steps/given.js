@@ -72,6 +72,11 @@ Given(
   },
 )
 
+// Another session is indexing (793a4b1f): the manifest lock of the chunk index is held, as `engram ingest` holds it.
+Given(/^another session is already indexing the vault$/, async function () {
+  await this.scenario.setup((scenario) => scenario.holdIndexLock())
+})
+
 // A constraint the turn steps enforce (793e2i): a turn in which the agent ran a memory command fails its precondition.
 Given(/^(?:the user has not asked for any memory command|the agent runs no memory command itself)$/, function () {
   this.noAgentMemoryCommands = true

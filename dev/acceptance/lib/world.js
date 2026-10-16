@@ -1,6 +1,6 @@
 // The per-scenario World (793e2b): its own HOME, workspace, vault and TMPDIR, an explicit environment, notes seeded
 // through the real write path, and the session. Nothing under the real ~/.claude, ~/.pi or the real vault is touched.
-import { execFile } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { promisify } from 'node:util'
@@ -60,6 +60,8 @@ export class Scenario {
     this.ended = []
     this.faultSeconds = 0
     this.vaultHidden = false
+    // the process that holds the manifest lock of the chunk index, another session's indexing (793a4b1f)
+    this.lockHolder = null
     // the seam of the System's work (793b281): the mod records when its queue is empty, so that a test can wait for it
     this.seamFile = path.join(this.dir, 'seam.log')
     this.extraEnv = { ENGRAM_AUTO_SEAM_LOG: this.seamFile }
@@ -183,6 +185,30 @@ export class Scenario {
     this.vaultHidden = true
   }
 
+  // holdIndexLock takes the manifest lock of the chunk index and keeps it until the World is discarded: another session
+  // is indexing. The lock is flock(2) on `.manifest.lock` in the chunks directory, as `engram ingest` takes it; perl
+  // is the one program on both macOS and Linux that can hold such a lock from a script.
+  async holdIndexLock() {
+    const chunks = path.join(this.home, '.local', 'share', 'engram', 'chunks')
+    fs.mkdirSync(chunks, { recursive: true })
+    const holder = spawn(
+      'perl',
+      [
+        '-e',
+        'use Fcntl qw(:flock); open(my $f, ">>", $ARGV[0]) or die $!; flock($f, LOCK_EX) or die $!; ' +
+          '$| = 1; print "locked\\n"; sleep 3600;',
+        path.join(chunks, '.manifest.lock'),
+      ],
+      { stdio: ['ignore', 'pipe', 'inherit'] },
+    )
+    this.lockHolder = holder
+    await new Promise((resolve, reject) => {
+      holder.once('error', reject)
+      holder.once('exit', (code) => reject(new Error(`the lock holder exited with ${code} before it held the lock`)))
+      holder.stdout.once('data', resolve)
+    })
+  }
+
   showVault() {
     if (this.vaultHidden && fs.existsSync(this.vault)) fs.chmodSync(this.vault, DIR_MODE)
     this.vaultHidden = false
@@ -269,6 +295,7 @@ export class Scenario {
   async #discard() {
     this.discardedSessions = (this.discardedSessions ?? 0) + this.sessions.length
     await Promise.all(this.sessions.map((session) => session.close()))
+    this.lockHolder?.kill()
     this.showVault()
     fs.rmSync(this.dir, { recursive: true, force: true })
   }

@@ -19,6 +19,8 @@ import (
 
 // Exported constants.
 const (
+	// DefaultLog is the failure record of a world whose home is /home/u.
+	DefaultLog = "/home/u/.local/share/engram/auto.log"
 	EmptyQuery = "version: 1\nphrases: []\nitems: []\nclusters: []\n"
 	// NoteQuery is the output of `engram query` holding one note.
 	NoteQuery = `version: 1
@@ -80,8 +82,9 @@ type World struct {
 	AmendRequests []auto.AmendRequest
 	// QueryRequests are the searches the job asked for, as it asked for them.
 	QueryRequests []auto.QueryRequest
-	// VaultPath and ChunksDir are where the composition root says the vault and the chunk index are.
-	VaultPath, ChunksDir string
+	// VaultPath and ChunksDir are where the composition root says the vault and the chunk index are; LogPath is the
+	// failure record and Home the home directory the warning shows it relative to.
+	VaultPath, ChunksDir, LogPath, Home string
 	// Unwritable are the paths the world refuses to write.
 	Unwritable map[string]bool
 	Written    map[string]string
@@ -108,6 +111,7 @@ func NewWorld() *World {
 		Process: map[string]func([]string) (auto.Output, error){},
 		Files:   map[string]string{}, Written: map[string]string{}, Missing: map[string]bool{}, Unwritable: map[string]bool{},
 		VaultPath: "/vault", ChunksDir: defaultChunks, Clock: time.UnixMilli(1_700_000_000_000),
+		Home: "/home/u", LogPath: DefaultLog,
 	}
 }
 
@@ -126,6 +130,7 @@ func (w *World) Amend(request auto.AmendRequest, deadline time.Duration) error {
 func (w *World) Deps() auto.Deps {
 	return auto.Deps{
 		Vault: w, Files: w, Offers: w, Clock: w, VaultPath: w.VaultPath, ChunksDir: w.ChunksDir,
+		LogPath: w.LogPath, Home: w.Home,
 	}
 }
 
@@ -266,7 +271,11 @@ func (w *World) Write(path, text string) error {
 		return errors.New("open " + path + ": permission denied")
 	}
 
-	w.Writes = append(w.Writes, path)
+	// the failure record is not one of the writes a job's work is judged by
+	if path != w.LogPath {
+		w.Writes = append(w.Writes, path)
+	}
+
 	w.Written[path] = text
 	w.Files[path] = text
 

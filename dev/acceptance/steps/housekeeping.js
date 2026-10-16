@@ -337,8 +337,9 @@ Then(
 // Row 17 of the catalog: what the user is shown on the status line, and that none of it is in the transcript.
 Then(
   new RegExp(
-    '^(?:the user is shown a warning that automatic memory was skipped because (the vault ' +
-      'is unavailable|of an error|the System timed out)' +
+    '^(?:the user is shown a warning that names the skipped operation, gives the reason \\((the vault ' +
+      "is unavailable|the error's own text|the System timed out|another session was already indexing)\\), " +
+      'says what happens next and points to the log' +
       '|the user is shown a one-line summary with (3 items delivered, 1 note added, 1 note ' +
       'amended and 2 offers curated|1 note added and no other count)' +
       '|the user is shown no (warning|memory-activity summary)' +
@@ -354,16 +355,55 @@ Then(
   },
 )
 
+// What a warning says (793a4b, 793d36b3), each part found in the one status message: the operation right after the
+// prefix, the reason by its class, what happens next, and the pointer to the log at the end.
+const OPERATION =
+  '(?:indexing, curation and backlog capture|indexing|curation|backlog capture' +
+  '|(?:prompt|route|subagent|mid-turn|history) lookup|capture|summary)'
+const NEXT =
+  '(?:nothing lost, retried next turn|nothing lost, the backlog capture covers it later' +
+  '|no notes delivered for this prompt|no notes delivered this time|no activity summary this turn)'
+const REASON_WORDS = {
+  'the vault is unavailable': ' could not reach the vault: \\S',
+  "the error's own text": ' failed: \\S',
+  'the System timed out': ' timed out: \\S',
+  'another session was already indexing': ' was already running in another session',
+}
+const warningLine = (reason) =>
+  new RegExp(
+    `^Automatic memory skipped: ${OPERATION}${REASON_WORDS[reason]}.*; ${NEXT} \\(details: ~?/\\S*auto\\.log\\)$`,
+  )
+
 async function warningShown(world, reason) {
   await quiesce(world)
   const shown = statuses(world)
+  const found = shown.find((text) => warningLine(reason).test(text))
   assert.ok(
-    shown.some((text) => SKIPPED.test(text) && text.toLowerCase().includes(`because ${reason}`.toLowerCase())),
-    `no status message warns that automatic memory was skipped because ${reason}; the ` +
+    found,
+    `no status message warns, naming the operation skipped, ${reason}, what happens next and the log; the ` +
       `status messages were ${JSON.stringify(shown)}`,
   )
+  assert.ok(!/housekeeping/i.test(found), `the warning names the housekeeping, which the user does not know: ${found}`)
   return undefined
 }
+
+// The failure record (793d36b4): a line per failure in the data directory of the System, for its owner alone.
+const LOG_LINE = new RegExp(
+  `^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z session="\\S+" operation="${OPERATION}" ` +
+    'class=(?:busy|behind|timeout|unavailable|error) reason=".+"$',
+)
+
+Then(
+  /^the log in the data directory of the System holds a line for the failure with when it happened, the session, the operation, the class and the reason$/,
+  async function () {
+    await quiesce(this)
+    const file = path.join(this.scenario.home, '.local', 'share', 'engram', 'auto.log')
+    assert.ok(fs.existsSync(file), `the System wrote no log at ${file}`)
+    const lines = fs.readFileSync(file, 'utf8').split('\n').filter(Boolean)
+    assert.ok(lines.some((line) => LOG_LINE.test(line)), `no line of the log has the shape of a failure: ${lines}`)
+    assert.equal(fs.statSync(file).mode & 0o077, 0, 'the log is readable by someone other than its owner')
+  },
+)
 
 async function noWarning(world) {
   await quiesce(world)

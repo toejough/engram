@@ -99,7 +99,7 @@ func Test793d23b2_AClassificationIsReadStrictly(t *testing.T) {
 
 			g.Expect(step.Notes).To(BeEmpty())
 			g.Expect(world.Commands).To(BeEmpty())
-			g.Expect(world.Warnings).To(Equal([]string{momentWarningPrefix + "of an error (" + momentStepName + ")"}))
+			g.Expect(world.Warnings).To(HaveExactElements(warnedOf(momentStepName, "failed: ")))
 		})
 	}
 }
@@ -629,7 +629,9 @@ func Test793d36b3_ACommandThatPassesItsDeadlineWarnsThatTheSystemTimedOut(t *tes
 	done := world.Do(t, momentPrompt(momentPromptText))
 
 	g.Expect(done.Block).To(BeEmpty())
-	g.Expect(world.Warnings).To(Equal([]string{momentWarningPrefix + "the System timed out (the prompt lookup)"}))
+	g.Expect(world.Warnings).To(Equal([]string{
+		skipped("prompt lookup timed out: engram query still running after 5s", failureNext),
+	}))
 }
 
 func Test793d36b3_AFailingClassificationWarnsDeliversNothingAndLetsTheSessionGoOn(t *testing.T) {
@@ -645,7 +647,7 @@ func Test793d36b3_AFailingClassificationWarnsDeliversNothingAndLetsTheSessionGoO
 	g.Expect(step.Notes).To(BeEmpty())
 	g.Expect(tool.Block).To(BeEmpty())
 	g.Expect(world.Commands).To(BeEmpty())
-	g.Expect(world.Warnings).To(Equal([]string{momentWarningPrefix + "of an error (" + momentStepName + ")"}))
+	g.Expect(world.Warnings).To(HaveExactElements(warnedOf(momentStepName, "failed: ")))
 }
 
 func Test793d36b3_AFailingLookupOfRouteDeliversNothingAndWarns(t *testing.T) {
@@ -655,10 +657,10 @@ func Test793d36b3_AFailingLookupOfRouteDeliversNothingAndWarns(t *testing.T) {
 	world := NewWorld()
 	world.Process["query"] = func([]string) (auto.Output, error) { return auto.Output{}, errors.New("exit status 1") }
 
-	tool := world.Do(t, momentTool(map[string]any{"route": true, "args": "write Go tests", "step": "the route lookup"}))
+	tool := world.Do(t, momentTool(map[string]any{"route": true, "args": "write Go tests", "step": "route lookup"}))
 
 	g.Expect(tool.Block).To(BeEmpty())
-	g.Expect(world.Warnings).To(Equal([]string{momentWarningPrefix + "of an error (the route lookup)"}))
+	g.Expect(world.Warnings).To(Equal([]string{skipped("route lookup failed: exit status 1", "no notes delivered this time")}))
 }
 
 func Test793d36b3_AFailingQueryLeavesThePromptAsTypedAndWarns(t *testing.T) {
@@ -674,7 +676,7 @@ func Test793d36b3_AFailingQueryLeavesThePromptAsTypedAndWarns(t *testing.T) {
 
 	g.Expect(done.Block).To(BeEmpty())
 	g.Expect(world.Requests).To(BeEmpty())
-	g.Expect(world.Warnings).To(Equal([]string{momentWarningPrefix + "of an error (the prompt lookup)"}))
+	g.Expect(world.Warnings).To(HaveExactElements(warnedOf("prompt lookup", "failed: ")))
 }
 
 func Test793d36b3_AJobOfAnUnknownKindAndAJobThatCannotBeReadAreErrors(t *testing.T) {
@@ -748,10 +750,10 @@ const (
 	momentPromptText    = "I just finished renaming the package. Is it done?"
 	momentRecentAnswer  = "The rename looks complete; I will grep for leftovers before saying it is done."
 	momentRelevanceMs   = 5800
-	momentStepName      = "the step lookup"
+	momentStepName      = "mid-turn lookup"
 	momentStepSubject   = "the rename of package util to helpers"
 	momentTranscript    = "/home/.claude/projects/p/s.jsonl"
-	momentWarningPrefix = "Automatic memory was skipped because "
+	momentWarningPrefix = "Automatic memory skipped: "
 )
 
 func momentMessages() []map[string]any {
@@ -775,7 +777,7 @@ func momentModelRequests(world *World, kind string) []auto.Request {
 }
 
 func momentPrompt(text string) map[string]any {
-	return map[string]any{"kind": "lookup", "moment": "prompt", "text": text, "step": "the prompt lookup"}
+	return map[string]any{"kind": "lookup", "moment": "prompt", "text": text, "step": "prompt lookup"}
 }
 
 func momentQuery(output string) func([]string) (auto.Output, error) {

@@ -196,7 +196,7 @@ func Test793d30b2_OnlyConstantsAndCountsReachTheLineNothingANoteAnOfferOrALesson
 func Test793d30b2_TheWarningsAndTheCountsShareTheOneLine(t *testing.T) {
 	t.Parallel()
 
-	const other = "Automatic memory was skipped because of an error (curation)"
+	const other = "Automatic memory skipped: curation failed: boom; nothing lost, retried next turn (details: x)"
 
 	tests := []struct {
 		name     string
@@ -236,7 +236,7 @@ func Test793d30b2_TheWarningsAndTheCountsShareTheOneLine(t *testing.T) {
 const (
 	summaryMaxEach = 50
 	summaryPrefix  = "Memory activity: "
-	summaryWarning = "Automatic memory was skipped because of an error (indexing)"
+	summaryWarning = "Automatic memory skipped: indexing failed: boom; nothing lost, retried next turn (details: x)"
 )
 
 // unexported variables.

@@ -368,7 +368,7 @@ func Test793d27b2_AFailingJudgementIsContainedAndNothingIsWrittenOrMarked(t *tes
 
 	g.Expect(world.Names()).To(Equal([]string{"query"}))
 	g.Expect(world.Warnings).To(HaveLen(1))
-	g.Expect(world.Warnings[0]).To(ContainSubstring("Automatic memory was skipped"))
+	g.Expect(world.Warnings[0]).To(ContainSubstring("Automatic memory skipped:"))
 	g.Expect(world.Writes).To(BeEmpty())
 	g.Expect(done.Block).To(BeEmpty())
 }

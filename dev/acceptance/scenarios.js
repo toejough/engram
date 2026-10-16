@@ -370,6 +370,8 @@ export default {
   '793a4b1a': { turns: { 'the human submits a prompt': { prompt: 'What is two plus two? Answer in one word.' } } },
   '793a4b1b': { turns: { 'the human submits a prompt': { prompt: 'What is two plus two? Answer in one word.' } } },
   '793a4b1c': { turns: { 'the human submits a prompt': { prompt: 'What is two plus two? Answer in one word.' } } },
+  '793a4b1f': { turns: { 'the human submits a prompt': { prompt: 'What is two plus two? Answer in one word.' } } },
+  '793a4b1g': { turns: { 'the human submits a prompt': { prompt: 'What is two plus two? Answer in one word.' } } },
   '793a4b1e': { unrelatedNote: UNRELATED_NOTE, turns: { 'the human submits a prompt': NEUTRAL } },
 
   // 793e8f: the summary, intentional memory and other harnesses.

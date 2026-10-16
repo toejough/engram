@@ -7,7 +7,7 @@ const MIN_MAJOR = 2
 const MIN_MINOR = 1
 const MIN_PATCH = 287
 export const MIN_CLAUDE = [MIN_MAJOR, MIN_MINOR, MIN_PATCH]
-const PROGRAMS = ['go', 'git']
+const PROGRAMS = ['go', 'git', 'perl']
 
 export function parseClaudeVersion(text) {
   const match = /(\d+)\.(\d+)\.(\d+)/.exec(text)

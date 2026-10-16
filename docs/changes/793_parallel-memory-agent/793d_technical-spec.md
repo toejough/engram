@@ -233,6 +233,8 @@ The statement itself, and the map of its mitigations to the requirements that ho
 
 Amended (2026-10-14): the two failure cases of a near fold that the earlier residual list carried (the offer folded away with its claim never written; a note edited meanwhile overwritten) are closed by the order and the check of [793b420](./793b_decision-log.md#793b420-a-near-fold-amends-first-with-a-check-of-the-note-and-folds-the-offer-away-after-it), and the residual of the capture queue file (two processes losing a write, a double capture) went with the queue ([793b416](./793b_decision-log.md#793b416-the-persisted-capture-queue-is-dropped-backlog-capture-covers-the-promise)); [793d35c Gaps and what is not built](#793d35c-gaps-and-what-is-not-built) lists what is left.
 
+Amended (2026-10-15): the failure record `auto.log` ([793d36b4 Failure record](#793d36b4-failure-record)) holds the text of a failure, which can carry what a command printed; it is redacted and cut before it is written, the file is the owner's alone, and the warning on the status line carries the same redacted, cut text ([793b451](./793b_decision-log.md#793b451-the-wording-of-a-warning-the-failure-record-and-the-failure-job)).
+
 ## 793d20 Traceability to the product spec
 
 Every scenario of [Parallel Memory Agent - Product Spec](./793a_product-spec.md#parallel-memory-agent---product-spec) is listed with the hypothesis scenarios that test the assumption it rests on, or the design [note](./793a_product-spec.md#793a1-problem-statement) that will realise it. The scenario text is not restated here ([793b188 Technical spec structure: flows and components, with the scenario mapping as a table](./793b_decision-log.md#793b188-technical-spec-structure-flows-and-components-with-the-scenario-mapping-as-a-table)).
@@ -267,6 +269,8 @@ Every scenario of [Parallel Memory Agent - Product Spec](./793a_product-spec.md#
 | [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios) | [793d17e1a A failure inside the surface leaves the session unaffected](#793d17e1-experiments), [793b205 Failures are classified by the mod and the runner, with named deadlines](./793b_decision-log.md#793b205-failures-are-classified-by-the-mod-and-the-runner-with-named-deadlines) |
 | [793a4b1c No error reaches the agent and the user is warned](./793a_product-spec.md#793a4b1-uat-scenarios) | [793d17e1a A failure inside the surface leaves the session unaffected](#793d17e1-experiments), [793b205 Failures are classified by the mod and the runner, with named deadlines](./793b_decision-log.md#793b205-failures-are-classified-by-the-mod-and-the-runner-with-named-deadlines) |
 | [793a4b1e No warning when nothing matched](./793a_product-spec.md#793a4b1-uat-scenarios) | [793d17e1a A failure inside the surface leaves the session unaffected](#793d17e1-experiments), [793b205 Failures are classified by the mod and the runner, with named deadlines](./793b_decision-log.md#793b205-failures-are-classified-by-the-mod-and-the-runner-with-named-deadlines) |
+| [793a4b1f Another session is indexing](./793a_product-spec.md#793a4b1-uat-scenarios) | [793d36b4 Failure record](#793d36b4-failure-record), [793b450](./793b_decision-log.md#793b450-dogfooding-a-warning-that-said-because-of-an-error-the-housekeeping-is-of-no-help) |
+| [793a4b1g The log records the cause](./793a_product-spec.md#793a4b1-uat-scenarios) | [793d36b4 Failure record](#793d36b4-failure-record), [793b450](./793b_decision-log.md#793b450-dogfooding-a-warning-that-said-because-of-an-error-the-housekeeping-is-of-no-help) |
 | [793a5j1a Update installs the System for the harness it updates](./793a_product-spec.md#793a5j1-uat-scenarios) | [793d17d1a The mod loads in every session from the install path](#793d17d1-experiments), [793b191 engram update installs the mod as a skills-directory plugin](./793b_decision-log.md#793b191-engram-update-installs-the-mod-as-a-skills-directory-plugin) |
 | [793a5j1b An existing install gains the System and keeps what it had](./793a_product-spec.md#793a5j1-uat-scenarios) | [793d17d1a The mod loads in every session from the install path](#793d17d1-experiments), [793b191 engram update installs the mod as a skills-directory plugin](./793b_decision-log.md#793b191-engram-update-installs-the-mod-as-a-skills-directory-plugin) |
 | [793a5j1c A preview installs none of the System](./793a_product-spec.md#793a5j1-uat-scenarios) | [793b191 engram update installs the mod as a skills-directory plugin](./793b_decision-log.md#793b191-engram-update-installs-the-mod-as-a-skills-directory-plugin) |
@@ -345,11 +349,11 @@ Scenario: 793d22b2a1 The turn is answered before the work, and housekeeping foll
 
 #### 793d22b3 Failure containment
 
-Requirement: 793d22b3 The Memory Mod MUST contain any failure of its own steps: `engram auto run` that cannot start, passes its 10-minute deadline or exits non-zero, a response that is not JSON, a model call that throws, a [job](#793d1b-terms) that does not end in 200 [rounds](#793d1b-terms). It MUST stop waiting for a job that holds a prompt, the result of route or the start of a [subagent](../../GLOSSARY.md#subagent) after 8 seconds, start no further [round](#793d1b-terms) of it, and treat it as a timeout. The event MUST proceed as received, no error reach the agent, and the next job run. For a named step it MUST write the cause to the debug log and give the Activity Report the step and a class by what the failure says, in the words the engine uses for the same class ([793d36b3 Failure containment and classes](#793d36b3-failure-containment-and-classes)): `failed to start` is the [vault](./793a_product-spec.md#793a1-problem-statement) unavailable, `still running after` a timeout, else an error.
+Requirement: 793d22b3 The Memory Mod MUST contain any failure of its own steps: `engram auto run` that cannot start, passes its 10-minute deadline or exits non-zero, a response that is not JSON, a model call that throws, a [job](#793d1b-terms) that does not end in 200 [rounds](#793d1b-terms). It MUST stop waiting for a job that holds a prompt, the result of route or the start of a [subagent](../../GLOSSARY.md#subagent) after 8 seconds, start no further [round](#793d1b-terms) of it, and treat it as a timeout. The event MUST proceed as received, no error reach the agent, and the next job run. For a named step it MUST write the cause to the debug log and hand the step and the text of the failure to the engine as a job of kind `failure` ([793d36b4 Failure record](#793d36b4-failure-record)), which words the warning and writes the log, and give the Activity Report that warning. The steps are named in the user's terms (`prompt lookup`, `route lookup`, `subagent lookup`, `mid-turn lookup`, `history lookup`, `capture`, `summary`, and `indexing, curation and backlog capture` for the housekeeping), never `housekeeping`. When the engine cannot be run for that job either, the mod MUST word the failure itself, by the class its text shows and in the words the engine uses for the same class, without the text (which it cannot redact): `Automatic memory skipped: <step> <what happened>; nothing was done this time (details: the debug log)`; `failed to start` is the [vault](./793a_product-spec.md#793a1-problem-statement) unreachable, `still running after` a timeout, else a failure.
 
 Supports: [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1c No error reaches the agent and the user is warned](./793a_product-spec.md#793a4b1-uat-scenarios)
 
-Verified by: `wiring.test.ts` "793d22b3 when the program exits…"; `wiring.test.ts` "793d22b3 when the program cannot…"; `wiring.test.ts` "793d22b3 when the program is cut…"; `wiring.test.ts` "793d22b3 a job that holds the prompt past 8 s…"; `wiring.test.ts` "793d22b3 a job that ends within 8 s…"; `wiring.test.ts` "793d22b3 a round that would start after the cut…"
+Verified by: `wiring.test.ts` "793d22b3 when the program exits…"; `wiring.test.ts` "793d22b3 when the program cannot…"; `wiring.test.ts` "793d22b3 when the program is cut…"; `wiring.test.ts` "793d22b3 a job that holds the prompt past 8 s…"; `wiring.test.ts` "793d22b3 a job that ends within 8 s…"; `wiring.test.ts` "793d22b3 a round that would start after the cut…"; `wiring.test.ts` "793d22b3 a failure of the program is handed to the engine, which words and logs it…"; `wiring.test.ts` "793d22b3 when the engine cannot be run for the failure either…"; `internal/auto/failure_log_test.go`: Test793d36b4_AFailureTheModHandsOverIsWordedAndLoggedLikeAnyOther
 
 ##### 793d22b3a Scenarios
 
@@ -357,12 +361,17 @@ Verified by: `wiring.test.ts` "793d22b3 when the program exits…"; `wiring.test
 Scenario: 793d22b3a1 A program that cannot start leaves the prompt as typed
   Given engram cannot start
   When a prompt is submitted
-  Then it is returned as typed with no context and the Activity Report receives the step and the class unavailable
+  Then it is returned as typed with no context and the engine is handed the step and the text, and the Activity Report receives the warning it words
+
+Scenario: 793d22b3a3 An engine that cannot be run for the failure either is worded by the mod
+  Given engram cannot start
+  When a prompt is submitted
+  Then the warning is "Automatic memory skipped: prompt lookup could not reach the vault; nothing was done this time (details: the debug log)"
 
 Scenario: 793d22b3a2 A job that holds the prompt too long is cut
   Given the engine does not answer the prompt lookup
   When 8 seconds have passed
-  Then the prompt goes on as typed with no context and the Activity Report receives the step and the class timeout
+  Then the prompt goes on as typed with no context and the engine is handed the step and the text, and the Activity Report receives the warning it words
 ```
 
 #### 793d22b5 Relay of a job
@@ -407,7 +416,7 @@ Canonical target: `docs/specs/technical/job-runner.md`.
 
 ### 793d36a Orientation
 
-Ownership: repository component. Responsibility: advances one [job](#793d1b-terms) by one [round](#793d1b-terms) per call of `engram auto run`, with no state of its own between calls, and contains the failure of any step. Realization: `Run`, `engine` and `guard` in `internal/auto/relay.go`, `perform` and `failureKind` in `internal/auto/failure.go`, and `runAuto` and the vault of a job in `internal/cli/auto.go` and `internal/cli/auto_vault.go`.
+Ownership: repository component. Responsibility: advances one [job](#793d1b-terms) by one [round](#793d1b-terms) per call of `engram auto run`, with no state of its own between calls, and contains the failure of any step. Realization: `Run`, `engine` and `guard` in `internal/auto/relay.go`, `perform`, `failureKind` and `warning` in `internal/auto/failure.go`, `record` in `internal/auto/failure_log.go`, and `runAuto` and the vault of a job in `internal/cli/auto.go` and `internal/cli/auto_vault.go`.
 
 ### 793d36b Behavior Requirements
 
@@ -449,11 +458,11 @@ Scenario: 793d36b2a1 A command is not run again by a later round
 
 #### 793d36b3 Failure containment and classes
 
-Requirement: 793d36b3 The Job Runner MUST contain the failure of every step of a [job](#793d1b-terms) (an operation of the vault that fails or passes its deadline, output that is not a query's, a reply the strict reading rejects, an unanswered model call, a thrown error) as a warning in the response naming the step and its class, and the job MUST end as without the [mod](#793d1b-terms). A failure whose text says another ingest holds the manifest lock is `busy` (warned as "another indexing is running"), one whose text says it was cut or timed out is `timeout`, one that says the [vault](./793a_product-spec.md#793a1-problem-statement) could not be read is `unavailable`, any other is `error`; a backlog that finds the index not caught up ([793d28b1 Eligible sources and cut-off](#793d28b1-eligible-sources-and-cut-off)) is warned as `behind`. Every operation of the vault MUST have a deadline (30 seconds; the index 300; the lookup of a [moment](./793a_product-spec.md#793a1-problem-statement) that holds the agent 2.2, at least one and a half times the 95th percentile of the query of the notes; the lookup with the chunk index 25; the [nearest notes](#793d1b-terms) of a capture or an offer 25) and every model request its own (classify 4, relevance 5.8), and the deadlines of a prompt's lookup and relevance [judgement](#793d1b-terms) MUST add up to no more than the 8 seconds the Memory Mod holds a prompt ([793d22b3 Failure containment](#793d22b3-failure-containment)). A lookup that finds nothing is not a failure. A failure of the [System](./793a_product-spec.md#793a1-problem-statement)'s own bookkeeping, the marks, MUST go to the debug log and warn no one.
+Requirement: 793d36b3 The Job Runner MUST contain the failure of every step of a [job](#793d1b-terms) (an operation of the vault that fails or passes its deadline, output that is not a query's, a reply the strict reading rejects, an unanswered model call, a thrown error) as a warning in the response, worded `Automatic memory skipped: <operation> <what happened>; <what happens next> (details: <log>)`. The operation is named in the user's terms (`indexing`, `curation`, `backlog capture`, `prompt lookup`, `route lookup`, `subagent lookup`, `mid-turn lookup`, `history lookup`, `capture`, `summary`), never by an internal step name. The reason is the class and the failure's own text with its leading `<verb> failed: ` removed, redacted by [Secret Redaction](#793d26-secret-redaction), on one line and cut to 120 characters (a cut ends with `...`). A failure whose text says another ingest holds the manifest lock is `busy` (`indexing was already running in another session`, no text), one whose text says it was cut or timed out is `timeout` (`<operation> timed out: <text>`), one that says the [vault](./793a_product-spec.md#793a1-problem-statement) could not be read is `unavailable` (`<operation> could not reach the vault: <text>`), any other is `error` (`<operation> failed: <text>`); a backlog that finds the index not caught up ([793d28b1 Eligible sources and cut-off](#793d28b1-eligible-sources-and-cut-off)) is `behind` (`backlog capture was held back: the index is not caught up`). What happens next is `nothing lost, retried next turn` for indexing, curation and backlog capture, `no notes delivered for this prompt` for the prompt lookup, `no notes delivered this time` for any other lookup, `nothing lost, the backlog capture covers it later` for a capture, and `no activity summary this turn` for a summary. The job MUST end as without the [mod](#793d1b-terms). Every operation of the vault MUST have a deadline (30 seconds; the index 300; the lookup of a [moment](./793a_product-spec.md#793a1-problem-statement) that holds the agent 2.2, at least one and a half times the 95th percentile of the query of the notes; the lookup with the chunk index 25; the [nearest notes](#793d1b-terms) of a capture or an offer 25) and every model request its own (classify 4, relevance 5.8), and the deadlines of a prompt's lookup and relevance [judgement](#793d1b-terms) MUST add up to no more than the 8 seconds the Memory Mod holds a prompt ([793d22b3 Failure containment](#793d22b3-failure-containment)). A lookup that finds nothing is not a failure. A failure of the [System](./793a_product-spec.md#793a1-problem-statement)'s own bookkeeping, the marks, MUST go to the debug log and warn no one.
 
 Supports: [793a4b1a Vault unavailable](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1c No error reaches the agent and the user is warned](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1e No warning when nothing matched](./793a_product-spec.md#793a4b1-uat-scenarios)
 
-Verified by: `internal/auto/failure_test.go`: Test793d36b3_AFailedStepIsContainedAndTheUserIsWarnedOfItsClass, Test793d36b3_AFailingBacklogStepIsWarnedAboutNamingTheStep, Test793d36b3_AFailingIndexAndAFailingScanEachWarnNamingTheStepAndTheQueueGoesOn, Test793d36b3_AFailingJobDoesNotStopTheNextJob, Test793d36b3_AnIndexAnotherRunHoldsIsSkippedWithItsOwnWarningAndTheQueueGoesOn, Test793d36b3_ALookupThatFindsNothingIsNotAFailure, Test793d36b3_ARelevanceJudgementThatIsCutIsATimeoutAndOneTheProviderRefusedIsAnErrorNeitherDelivers, Test793d36b3_AnUnparseableRelevanceJudgementIsAnErrorAndDeliversNothing, Test793d36b3_TheClassOfAFailureIsWhatTheTextOfTheCommandSays, Test793d36b3_TheWarningIsInTheWarningsAndNeverInWhatTheJobDelivers; `internal/auto/moment_test.go`: Test793d36b3_ACommandThatPassesItsDeadlineWarnsThatTheSystemTimedOut, Test793d36b3_AFailingClassificationWarnsDeliversNothingAndLetsTheSessionGoOn, Test793d36b3_AFailingLookupOfRouteDeliversNothingAndWarns, Test793d36b3_AFailingQueryLeavesThePromptAsTypedAndWarns, Test793d36b3_AJobOfAnUnknownKindAndAJobThatCannotBeReadAreErrors, Test793d36b3_AJudgementThatIsUnansweredWarnsAndDeliversNothing, Test793d36b3_AQueryOutputThatIsNotAQueryIsAnErrorNeverAnEmptyResult, Test793d36b3_TheLookupAndTheRelevanceJudgementHoldThePromptEightSecondsAtMost; `internal/auto/perf_test.go`: Test793d36b3_APromptAtThe95thPercentileStillGetsItsNoteWithinTheHoldCeiling, Test793d36b3_TheDeadlineOfAMomentQueryIsAtLeastOneAndAHalfTimesItsMeasuredPercentile; `internal/cli/auto_vault_test.go`: Test793d36b3_AutoVaultAFailureCarriesWhatTheCodeOfTheCommandSaid, Test793d36b3_AutoVaultAnOperationPastItsDeadlineIsCutAndSaysItWasStillRunning
+Verified by: `internal/auto/failure_test.go`: Test793d36b3_EveryWarningNamesTheOperationTheReasonWhatHappensNextAndTheLog, Test793d36b3_TheReasonOfAWarningIsOneLineRedactedAndCutAt120Characters, Test793d36b3_AFailedStepIsContainedAndTheUserIsWarnedOfItsClass, Test793d36b3_AFailingBacklogStepIsWarnedAboutNamingTheStep, Test793d36b3_AFailingIndexAndAFailingScanEachWarnNamingTheStepAndTheQueueGoesOn, Test793d36b3_AFailingJobDoesNotStopTheNextJob, Test793d36b3_AnIndexAnotherRunHoldsIsSkippedWithItsOwnWarningAndTheQueueGoesOn, Test793d36b3_ALookupThatFindsNothingIsNotAFailure, Test793d36b3_ARelevanceJudgementThatIsCutIsATimeoutAndOneTheProviderRefusedIsAnErrorNeitherDelivers, Test793d36b3_AnUnparseableRelevanceJudgementIsAnErrorAndDeliversNothing, Test793d36b3_TheClassOfAFailureIsWhatTheTextOfTheCommandSays, Test793d36b3_TheWarningIsInTheWarningsAndNeverInWhatTheJobDelivers; `internal/auto/moment_test.go`: Test793d36b3_ACommandThatPassesItsDeadlineWarnsThatTheSystemTimedOut, Test793d36b3_AFailingClassificationWarnsDeliversNothingAndLetsTheSessionGoOn, Test793d36b3_AFailingLookupOfRouteDeliversNothingAndWarns, Test793d36b3_AFailingQueryLeavesThePromptAsTypedAndWarns, Test793d36b3_AJobOfAnUnknownKindAndAJobThatCannotBeReadAreErrors, Test793d36b3_AJudgementThatIsUnansweredWarnsAndDeliversNothing, Test793d36b3_AQueryOutputThatIsNotAQueryIsAnErrorNeverAnEmptyResult, Test793d36b3_TheLookupAndTheRelevanceJudgementHoldThePromptEightSecondsAtMost; `internal/auto/perf_test.go`: Test793d36b3_APromptAtThe95thPercentileStillGetsItsNoteWithinTheHoldCeiling, Test793d36b3_TheDeadlineOfAMomentQueryIsAtLeastOneAndAHalfTimesItsMeasuredPercentile; `internal/cli/auto_vault_test.go`: Test793d36b3_AutoVaultAFailureCarriesWhatTheCodeOfTheCommandSaid, Test793d36b3_AutoVaultAnOperationPastItsDeadlineIsCutAndSaysItWasStillRunning
 
 ##### 793d36b3a Scenarios
 
@@ -461,12 +470,53 @@ Verified by: `internal/auto/failure_test.go`: Test793d36b3_AFailedStepIsContaine
 Scenario: 793d36b3a1 A query that times out warns and leaves the prompt as typed
   Given the query passes its deadline
   When a prompt lookup runs
-  Then the response holds no block and the warning "Automatic memory was skipped because the System timed out (the prompt lookup)"
+  Then the response holds no block and the warning "Automatic memory skipped: prompt lookup timed out: engram aborted: still running after 2200ms; no notes delivered for this prompt (details: ~/.local/share/engram/auto.log)"
+
+Scenario: 793d36b3a3 An index another session is working on is named
+  Given the manifest lock is held by another indexing
+  When the housekeeping job runs
+  Then the warning is "Automatic memory skipped: indexing was already running in another session; nothing lost, retried next turn (details: ~/.local/share/engram/auto.log)"
+
+Scenario: 793d36b3a4 A reason is shortened and a secret in it is hidden
+  Given an operation fails with a text of more than 120 characters that holds a token
+  When the warning is built
+  Then the reason holds 120 characters at most, ends with "...", holds no token and is one line
 
 Scenario: 793d36b3a2 A query with no result is no failure
   Given the query finds nothing
   When a prompt lookup runs
   Then the response holds no block and no warning
+```
+
+#### 793d36b4 Failure record
+
+Requirement: 793d36b4 The Job Runner MUST append every failure it contains, and every failure the [mod](#793d1b-terms) hands it as a job of kind `failure` (a failure of the engram program itself, which the engine words with the same words), to `auto.log` in the data directory of the System (`~/.local/share/engram/auto.log`, or under `$XDG_DATA_HOME/engram`), as one line `<UTC time, RFC 3339> session="<id>" operation="<operation>" class=<class> reason="<text>"`, where the reason is redacted by [Secret Redaction](#793d26-secret-redaction), on one line and cut to 200 characters, and `-` stands for a session the job does not name. It MUST write the file readable by its owner alone, and when the file would pass 1 MiB it MUST drop its oldest lines until it is under 768 KiB. The warning of a failure MUST end with `(details: ` and the path of the log, `~` standing for the home directory. A log that cannot be read or written MUST NOT change the warning or fail the job; it is a line in the debug log.
+
+Supports: [793a4b1a Vault unavailable](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1c No error reaches the agent and the user is warned](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1f Another session is indexing](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1g The log records the cause](./793a_product-spec.md#793a4b1-uat-scenarios)
+
+Verified by: `internal/auto/failure_log_test.go`: Test793d36b4_EveryContainedFailureIsAppendedToTheLogWithItsTimeSessionOperationClassAndReason, Test793d36b4_TheWarningEndsWithThePathOfTheLog, Test793d36b4_TheLogIsCappedByDroppingItsOldestLines, Test793d36b4_ALogThatCannotBeWrittenChangesNeitherTheWarningNorTheJob, Test793d36b4_AFailureTheModHandsOverIsWordedAndLoggedLikeAnyOther, Test793d36b4_TheReasonInTheLogIsRedacted; `internal/cli/auto_test.go`: Test793d36b4_AutoRunWritesTheLogInTheDataDirectoryForItsOwnerAlone
+
+Security: held here: a failure's text can carry what a command printed, so the log and the warning hold it only redacted and cut, and the file is the owner's alone ([793d19a Security](#793d19a-security)).
+
+Rationale: a warning that cannot say why is of no help, and a reason longer than a line does not fit the status line; the full cause belongs in a file the user can open ([793b450](./793b_decision-log.md#793b450-dogfooding-a-warning-that-said-because-of-an-error-the-housekeeping-is-of-no-help), [793b451](./793b_decision-log.md#793b451-the-wording-of-a-warning-the-failure-record-and-the-failure-job)).
+
+##### 793d36b4a Scenarios
+
+```gherkin
+Scenario: 793d36b4a1 A failure is one line of the log
+  Given the vault cannot be read at the time 2023-11-14T22:13:20Z in the session s1
+  When the lookup of a prompt fails
+  Then auto.log holds the line `2023-11-14T22:13:20Z session="s1" operation="prompt lookup" class=unavailable reason="..."`
+
+Scenario: 793d36b4a2 The oldest lines go first
+  Given auto.log holds 1 MiB of lines
+  When a failure is appended
+  Then the file is under 768 KiB, starts at a line boundary and ends with the new line
+
+Scenario: 793d36b4a3 The program's own failure is worded and logged by the engine
+  Given a job of kind `failure` with the step "indexing, curation and backlog capture" and the text "engram auto run exited 70: boom"
+  When it runs
+  Then the warning is "Automatic memory skipped: indexing, curation and backlog capture failed: engram auto run exited 70: boom; nothing lost, retried next turn (details: ~/.local/share/engram/auto.log)" and the log holds a line for it
 ```
 
 ## 793d23 Moment Detection
@@ -645,6 +695,7 @@ Rationale: Automatic memory reads the user's and the agent's own messages, from 
 | Delivered notes framed as data, one line each; a chunk stub is one line, its id checked | [793d24b3 Block](#793d24b3-block), [793d24b4 Chunk stubs](#793d24b4-chunk-stubs) |
 | A folded offer is folded by the canonical fold, which keeps its names as aliases of the note | [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards) |
 | The activity line from constants and counts only | [793d30b2 Warnings and surface](#793d30b2-warnings-and-surface) |
+| A failure's text reaches the status line and the log only redacted, on one line and cut; the log is the owner's alone | [793d36b3 Failure containment and classes](#793d36b3-failure-containment-and-classes), [793d36b4 Failure record](#793d36b4-failure-record) |
 | A provenance line on every automatic note, the near fold included | [793d27b2 Reconciliation, writes and provenance](#793d27b2-reconciliation-writes-and-provenance), [793d29b2 Outcomes and guards](#793d29b2-outcomes-and-guards) |
 
 ### 793d25b Behavior Requirements
@@ -937,7 +988,7 @@ Canonical target: `docs/specs/technical/activity-report.md`.
 
 ### 793d30a Orientation
 
-Ownership: repository component, bounded by the [mod](#793d1b-terms)'s [status line](#793d1b-terms). Responsibility: tells the user what the [System](./793a_product-spec.md#793a1-problem-statement) did and skipped, on one status line outside the agent's [context](./793a_product-spec.md#793a1-problem-statement). Realization: `summaryJob` in `internal/auto/summary.go`, `warning` in `internal/auto/failure.go`, and `report` and `warn` in `hooks/register.js`.
+Ownership: repository component, bounded by the [mod](#793d1b-terms)'s [status line](#793d1b-terms). Responsibility: tells the user what the [System](./793a_product-spec.md#793a1-problem-statement) did and skipped, on one status line outside the agent's [context](./793a_product-spec.md#793a1-problem-statement). Realization: `summaryJob` in `internal/auto/summary.go`, `warning` in `internal/auto/failure.go` (the words of every warning, owned by [793d36b3 Failure containment and classes](#793d36b3-failure-containment-and-classes)), and `report` and `warn` in `hooks/register.js`, which show the words and do not word them.
 
 ### 793d30b Behavior Requirements
 
@@ -976,7 +1027,7 @@ Rationale: The [status line](#793d1b-terms) is a [mod](#793d1b-terms) capability
 Scenario: 793d30b2a1 A timeout is shown with its step, off the transcript
   Given a step of the prompt lookup passes its deadline
   When it is reported
-  Then the status line is "Automatic memory was skipped because the System timed out (the prompt lookup)" and no hook result holds it
+  Then the status line is "Automatic memory skipped: prompt lookup timed out: engram aborted: still running after 2200ms; no notes delivered for this prompt (details: ~/.local/share/engram/auto.log)" and no hook result holds it
 ```
 
 ## 793d31 Harness Deploy Sync (mod additions)

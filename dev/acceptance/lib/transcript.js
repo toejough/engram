@@ -168,7 +168,7 @@ export function promptRows(rows, kind) {
 }
 
 // SKIPPED is the fixed phrase of the warning the System shows when automatic memory is skipped (793a4b).
-export const SKIPPED = /automatic memory was skipped/i
+export const SKIPPED = /automatic memory skipped:/i
 
 // statusTexts are the strings the mod passed to $.ui.status, in order, from the stream's system messages (SP9).
 export function statusTexts(messages) {
