@@ -310,6 +310,25 @@ Run on 2026-10-13 at the head of node 793e8k, nothing installed, token never pri
 | `targ acceptance` (full, first run, before the cue left alone a turn in which the agent runs memory itself and before the capture prompt named the exact keys) | 51 runs: 47 Green, 2 Red (793a2e1c: the cue delivered a note before the agent's own recall; 793a4c1f: a capture reply with a key too many or too few), 2 `Not run` (SP14); 2.029 USD |
 | `targ acceptance` (full, final) | 51 runs: 48 Green, 1 Red (793a3a1a third example: the judge worded the note without the corrected cause; 15 of 15 in five reruns), 2 `Not run` (793a5j1d, 793a5c1b: SP14); 1.983 USD |
 
+### 793e7c Full-suite result after the dogfood fixes
+
+Run on 2026-10-16 at 5366094b (the merge of the warnings, surface and capture rules), nothing installed, token read by the harness from its file and never printed.
+
+| Check | Result |
+| --- | --- |
+| `targ check-full` | 19 of 19 PASS on the second run; the first run had 18 PASS and 1 FAIL (`check-coverage-for-fail`, exit status 1 with no coverage line shown), which passed alone (internal/cli 84.8 percent, minimum 80) and in the second full run, so a transient of the combined run, not a coverage gap |
+| `targ acceptance` (full, one run) | 58 runs: 52 Green, 4 Red, 2 `Not run` (793a5j1d, 793a5c1b: SP14); 2.200 USD |
+| Re-runs alone (3 each) | 793a2n1a 3 of 3 Green (0.118 USD); 793a3a1s 3 of 3 Green (0.056 USD); 793a3a1a 8 of 9 Green over its 3 examples x 3 runs (0.183 USD); 793a5k1c 1 of 3 Green (0.254 USD) |
+
+| Red | Re-runs | Attribution | Evidence |
+| --- | --- | --- | --- |
+| 793a2n1a (note "N" not delivered) | 3 of 3 Green | judgement miss, or a lookup cut by the deadline on a loaded machine (not distinguishable) | the full run kept no activity line ("activity: none shown"), 10.7 s wall, same row Green alone three times |
+| 793a3a1a (3/3) (no note states the corrected cause) | 8 of 9 Green; the one Red is a System miss with no warning on the activity line | judgement miss (capture judgement, [793e8c](#793e8c-capture-at-turn-end)) | notes written: none, no warning recorded, so the capture ran and wrote nothing; known least reliable judgement |
+| 793a3a1s (no note states the confirmed cause) | 3 of 3 Green | judgement miss | same as above, 2.6 s wall, notes written: none, no warning |
+| 793a5k1c (intentional recall by the agent) | 1 of 3 Green | harness allow-rule gap met by the agent's command form, not a cut lookup or a wording miss of the System | the Red is the agent's own command `cd <work> && engram show-chunk ... | head -20; engram activate ...` having no result; in the re-runs "Permission for this tool use was denied ... no approval surface"; the harness allows only `Bash(engram:*)`, which a command starting with `cd` or a pipe does not match; the harness labels it a judgement miss |
+
+No merge regression was found: no Red is deterministic in the System (three of four are Green in most re-runs), and 793a5k1c fails on the permission of the agent's compound command, which the allow rules in `dev/acceptance/lib/world.js` do not cover. Whether to allow compound `engram` commands in the World or to make the scenario's agent use the plain form is an open choice for the owner.
+
 ## 793e8 Test Catalog
 
 Every executable test name begins with its row's Gherkin ID; the acceptance suite's scenarios are named `<ID> <title>` by the scenario line itself. Acceptance rows are verified with `targ acceptance <ID>`.
