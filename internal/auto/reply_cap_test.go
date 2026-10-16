@@ -12,6 +12,44 @@ import (
 	"github.com/toejough/engram/internal/auto"
 )
 
+// A backlog run judges up to six windows of 8,000 characters in one job, each against the eight nearest notes, and
+// the record of the job holds all of it by the last round (793d36b1, the audit of what is recorded).
+func Test793d36b1_ABacklogRunOfSixWindowsAgainstFullSizeNotesStaysUnderTheCap(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := blWorld(blManifest{blPi: blOf(2*blHour, blHashA)}, map[string]string{blPi: blLongRows()})
+	world.Process["query"] = func([]string) (auto.Output, error) {
+		return auto.Output{Stdout: queryOfNotes(8, 3000)}, nil
+	}
+	world.Model = Replies(map[string]string{"capture": "[]"})
+
+	blHousekeep(t, world, "")
+
+	g.Expect(len(world.Requests)).To(BeNumerically(">=", 5), "the run did not judge its windows")
+
+	largest := 0
+	for _, size := range world.ReplySizes {
+		largest = max(largest, size)
+	}
+
+	t.Logf("largest reply of a six-window backlog run against eight notes of 3,000 characters: %d bytes", largest)
+	g.Expect(largest).To(BeNumerically("<=", replyCap))
+}
+
+func Test793d36b1_AHousekeepingJobThatNamesNoPartRunsNothingAndIsLogged(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := NewWorld()
+	world.Files["/vault/"+curateOffer] = curateOpenFile
+
+	world.round(t, map[string]any{"kind": "housekeeping", "turnEnded": true})
+
+	g.Expect(world.Commands).To(BeEmpty())
+	g.Expect(strings.Join(world.Logs, "\n")).To(ContainSubstring("names no part"))
+}
+
 // The dogfood defect of 2026-10-16: the housekeeping of a vault whose manifest holds 229k entries printed a reply of
 // tens of megabytes, because the record of its effects (the `state` it sends back) held the manifest as it read it;
 // the mod parsed a document cut short. A job's reply no longer holds what a file it read held.
@@ -118,6 +156,33 @@ func Test793d36b1_AResultThatPassesTheCapIsReplacedByTheEndOfTheJobWithTheStateI
 	g.Expect(reply.Warnings[0]).To(HavePrefix("Automatic memory skipped: summary failed: the reply of "))
 }
 
+// The unexplained capture failure of the owner's log (04:09:32Z, 793b467): a subagent transcript is megabytes, and the
+// poll of a lagging file recorded the file on every try.
+func Test793d36b1_ASubagentTranscriptOfMegabytesIsNotKeptInTheRecordOfTheJob(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := NewWorld()
+	padding := strings.Repeat(`{"type":"user","message":{"content":"`+strings.Repeat("p", 200)+`"}}`+"\n", 6000)
+	world.Files[subagentFile] = padding + subagentRows(1)
+	world.Model = repliesInOrder(lessonsText(lessonWith(nil)))
+	world.OnWait = func(waits int) {
+		if waits == 3 {
+			world.Files[subagentFile] = padding + subagentRows(2)
+		}
+	}
+
+	world.Do(t, subagentJob())
+
+	g.Expect(len(world.Files[subagentFile])).To(BeNumerically(">", 4*replyCap))
+	g.Expect(world.Waits).To(HaveLen(3), "the file did not lag three polls")
+	g.Expect(world.Names()).To(Equal([]string{"query", "learn"}))
+
+	for round, size := range world.ReplySizes {
+		g.Expect(size).To(BeNumerically("<=", replyCap), "the reply of round %d", round)
+	}
+}
+
 func Test793d36b1_AnEngineWithNoFailureRecordLeavesTheLinesItCannotCarryOut(t *testing.T) {
 	t.Parallel()
 
@@ -160,13 +225,39 @@ func Test793d36b1_TenThousandLogLinesMakeAReplyUnderTheCapThatIsStillJSON(t *tes
 	g.Expect(lines[len(lines)-1]).To(ContainSubstring("~/.local/share/engram/auto-debug.log"))
 }
 
+// The marks grow with every source captured (a real vault has thousands): neither a read of them nor a change of them
+// may put the file in the record of the job.
+func Test793d36b1_TheMarksOfThousandsOfSourcesAreNotKeptInTheRecordOfTheJob(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	world := blOneQuiet()
+	sources := make(map[string]string, 5000)
+
+	for index := range 5000 {
+		sources[fmt.Sprintf("/home/.pi/agent/sessions/p/done-%d.jsonl", index)] = "sha256:" + strings.Repeat("d", 64)
+	}
+
+	world.Files[blMarksFile] = blMarksJSON(sources, map[string]float64{})
+
+	blHousekeep(t, world, "")
+
+	g.Expect(len(world.Files[blMarksFile])).To(BeNumerically(">", 2*replyCap))
+	g.Expect(world.Requests).To(HaveLen(1), "the backlog source was not judged")
+
+	for round, size := range world.ReplySizes {
+		g.Expect(size).To(BeNumerically("<=", replyCap), "the reply of round %d", round)
+	}
+
+	g.Expect(blMarksOf(t, world).Sources).To(HaveKey(blPi), "the source was marked captured")
+}
+
 func Test793d36b1_TheStepAnOverflowIsBlamedOnIsTheJobsStepInTheTermsOfTheUser(t *testing.T) {
 	t.Parallel()
 
 	for _, test := range []struct{ name, job, step string }{
 		{"a step the job names", `{"kind":"lookup","step":"prompt lookup"}`, "prompt lookup"},
 		{"a part of the housekeeping", `{"kind":"housekeeping","part":"curation"}`, "curation"},
-		{"the whole housekeeping", `{"kind":"housekeeping"}`, "indexing, curation and backlog capture"},
 		{"a summary", `{"kind":"summary"}`, "summary"},
 		{"a capture", `{"kind":"capture"}`, "capture"},
 	} {
@@ -185,3 +276,21 @@ const (
 	replyCap    = 256 * 1024
 	replyLogMax = 20
 )
+
+// queryOfNotes is the output of `engram query` with the number of notes given, each with a body of the size given.
+func queryOfNotes(count, size int) string {
+	var out strings.Builder
+
+	out.WriteString("version: 1\nphrases:\n  - a phrase\nitems:\n")
+
+	for index := range count {
+		fmt.Fprintf(&out, "  - path: %d.2026-10-12.note-%d.md\n    kind: fact\n    score: 0.5\n", index+1, index)
+		fmt.Fprintf(&out, "    provenances:\n      - direct\n    content: |+\n      ---\n      type: fact\n")
+		fmt.Fprintf(&out, "      situation: a situation %d\n      object: o\n      ---\n\n", index)
+		fmt.Fprintf(&out, "      Information learned: %s.\n\n", strings.Repeat("word ", size/5))
+	}
+
+	out.WriteString("clusters:\n")
+
+	return out.String()
+}

@@ -86,27 +86,22 @@ func (e *engine) curateOne(name string) string {
 
 // housekeepingJob is the work that follows the last job of a queue (793b202, 793b201): the chunk index catches up with
 // the turn, then the pending offers are settled, then, after a top-level turn, one source of the backlog is captured
-// (793e8g). A failure of one step is reported and the others still run. The mod runs the three as jobs of their own,
-// each named by its step, so that a reply it cannot read is blamed on one step (`part`, 793b469); a job with no part
-// does all of them.
+// (793e8g). The mod runs the three as jobs of their own, each named by its step (`part`, 793b469), so that a reply it
+// cannot read is blamed on one step and the others still run; a job that names no part is an error.
 func (e *engine) housekeepingJob() Done {
-	part := e.job.Part
-
-	check(slices.Contains([]string{"", stepIndexing, stepCuration, stepBacklog}, part),
-		"the part of the housekeeping is not indexing, curation or backlog capture")
-
-	if part == "" || part == stepIndexing {
+	switch e.job.Part {
+	case stepIndexing:
 		e.attempt(stepIndexing, func() {
 			e.perform("ingest", func() (string, error) { return "", e.deps.Vault.Index(deadlineIngest) })
 		})
-	}
-
-	if part == "" || part == stepCuration {
+	case stepCuration:
 		e.attempt(stepCuration, e.curate)
-	}
-
-	if e.job.TurnEnded && (part == "" || part == stepBacklog) {
-		e.attempt(stepBacklog, e.backlog)
+	case stepBacklog:
+		if e.job.TurnEnded {
+			e.attempt(stepBacklog, e.backlog)
+		}
+	default:
+		check(false, "the housekeeping job names no part: indexing, curation or backlog capture")
 	}
 
 	return Done{}

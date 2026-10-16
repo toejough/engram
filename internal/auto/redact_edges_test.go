@@ -53,30 +53,35 @@ func Test793d36b4_NoCredentialShowsInAnyLineWhereverTheTextWasCut(t *testing.T) 
 const (
 	leakFragment   = 16
 	redactorWindow = 8192
+	replyEndShown  = 80
 )
 
 // drawReply is a reply that holds the credential and was cut where the property draws: inside the credential at the
-// end (the process cut it), or at an edge of the window the engine redacts.
+// end (the process cut it), or within a few characters of an end, where the 80 characters shown are cut out of the
+// text redacted whole.
 func drawReply(rt *rapid.T, secret, context string) string {
-	inside := rapid.IntRange(0, len(secret)).Draw(rt, "inside")
 	body := func(n int) string { return strings.Repeat(`{"out":"m"},`, n/12+1)[:n] }
+	near := rapid.IntRange(0, 2*replyEndShown).Draw(rt, "near")
 
 	switch rapid.IntRange(0, 2).Draw(rt, "side") {
 	case 0: // the reply is cut in the credential
-		return body(rapid.IntRange(0, 4*redactorWindow).Draw(rt, "before")) + context[:strings.Index(context, secret)+inside]
-	case 1: // the credential straddles the end of the window the start of the reply is redacted in
-		return body(redactorWindow-inside) + context + body(2*redactorWindow)
+		inside := rapid.IntRange(0, len(secret)).Draw(rt, "inside")
+		before := rapid.IntRange(0, 4*redactorWindow).Draw(rt, "before")
+
+		return body(before) + context[:strings.Index(context, secret)+inside]
+	case 1: // the credential is near the end of the reply
+		return body(2*redactorWindow) + " " + context + " " + body(near)
 	}
 
-	// the credential straddles the start of the window the end of the reply is redacted in
-	return body(2*redactorWindow) + context + body(redactorWindow-(len(context)-inside))
+	// the credential is near the start of the reply
+	return body(near) + " " + context + " " + body(2*redactorWindow)
 }
 
 func drawSecret(rt *rapid.T) (secret, context string) {
 	mixed := rapid.StringMatching(`[A-Za-z0-9]{30,48}`).Draw(rt, "token")
 	secret = "a1" + mixed
 
-	switch rapid.IntRange(0, 4).Draw(rt, "shape") {
+	switch rapid.IntRange(0, 7).Draw(rt, "shape") {
 	case 0:
 		return secret, secret
 	case 1:
@@ -85,7 +90,15 @@ func drawSecret(rt *rapid.T) (secret, context string) {
 		return secret, "api_key=" + secret
 	case 3:
 		return secret, "Bearer " + secret
+	case 4:
+		return secret, "sk-" + secret
+	case 5: // a credential that needs the delimiter that closes it to be recognized
+		return secret, "postgres://user:" + secret + "@db.example.com/app"
+	case 6:
+		return secret, "Authorization: Basic " + secret
 	}
 
-	return secret, "sk-" + secret
+	web := "eyJ" + secret[:20] + ".eyJ" + secret[20:] + "." + secret[:25]
+
+	return web, web
 }

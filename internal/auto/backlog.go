@@ -40,11 +40,12 @@ func (m *Marks) progress(source Source, done int, finished bool) {
 	}
 }
 
-// Source is a transcript the manifest knows.
+// Source is a transcript the manifest knows, with the progress the marks hold for it once a run has been planned.
 type Source struct {
 	Path    string
 	MtimeMs float64
 	Hash    string
+	Partial partialMark
 }
 
 // unexported constants.
@@ -71,11 +72,13 @@ const (
 	windowsPerTurn = 6
 )
 
-// backlogPlan is what the backlog takes from the manifest: whether the index is behind, else the sources it may look at
-// in this run, the most recently changed first.
+// backlogPlan is what the backlog takes from the manifest and the marks: whether this is the first run, whether the
+// index is behind, else the sources it may look at in this run, the most recently changed first, each with the
+// progress its marks hold.
 type backlogPlan struct {
-	Behind bool     `json:"behind,omitempty"`
-	Todo   []Source `json:"todo,omitempty"`
+	FirstRun bool     `json:"firstRun,omitempty"`
+	Behind   bool     `json:"behind,omitempty"`
+	Todo     []Source `json:"todo,omitempty"`
 }
 
 // batch is what one source asks of a turn: the windows to judge, the end of the conversation first.
@@ -96,11 +99,13 @@ type batch struct {
 // round, and the manifest of a real vault is tens of megabytes (793b467, 793b468).
 func (e *engine) backlog() {
 	dir := e.deps.ChunksDir
-	now, marks := e.now(), e.marks(dir)
+	now := e.now()
+	plan := recorded(e, func() backlogPlan { return e.planBacklog(dir, now) })
 
-	e.recordFirstRun(dir, &marks, now)
+	if plan.FirstRun {
+		e.updateMarks(dir, func(stored *Marks) { stored.firstRun(now) })
+	}
 
-	plan := recorded(e, func() backlogPlan { return e.planBacklog(dir, marks, now) })
 	if plan.Behind {
 		e.warn(stepBacklog, &StepError{
 			Message: "backlog: index not caught up: its newest session changed before the cut-off", Kind: kindBehind,
@@ -110,7 +115,7 @@ func (e *engine) backlog() {
 	}
 
 	for _, source := range plan.Todo {
-		next := recorded(e, func() batch { return e.prepare(source, marks) })
+		next := recorded(e, func() batch { return e.prepare(source) })
 		if next.Unreadable != "" {
 			e.logf("backlog: %s: %s", source.Path, next.Unreadable)
 			e.work.Unreadable = append(e.work.Unreadable, source.Path)
@@ -156,37 +161,41 @@ func (e *engine) markTurns(transcript string) {
 	}
 }
 
-// marks reads the mark file of the chunks directory.
-func (e *engine) marks(dir string) Marks {
-	text, _ := e.read(dir + marksFile)
-
-	return parseMarks(text)
-}
-
 // now is the time in milliseconds since the epoch.
 func (e *engine) now() float64 {
 	return recorded(e, func() float64 { return float64(e.deps.Clock.Now().UnixMilli()) })
 }
 
-// planBacklog reads the manifest, which may be tens of megabytes, and keeps of it what a run can use: a run looks at
-// sourcesPerTurn sources at most, so a source that cannot be read, which is passed over, and the sources a run can
-// look at are all that is kept. An absent manifest is an empty one.
-func (e *engine) planBacklog(dir string, marks Marks, now float64) backlogPlan {
+// planBacklog reads the manifest, which may be tens of megabytes, and the marks, which grow with every source
+// captured, and keeps of them what a run can use: a run looks at sourcesPerTurn sources at most, so a source that
+// cannot be read, which is passed over, and the sources a run can look at are all that is kept. An absent manifest is
+// an empty one. The files are read with `quietly` inside the one recorded effect, so the record of the job holds the
+// plan and never a file (793b468).
+func (e *engine) planBacklog(dir string, now float64) backlogPlan {
+	marks := parseMarks(e.quietly(dir + marksFile))
+	first := marks.Cutoff == nil
+
+	marks.firstRun(now)
+
 	sources := parseManifest(e.quietly(dir + "/manifest.json"))
 	if e.indexBehind(sources, marks) {
-		return backlogPlan{Behind: true}
+		return backlogPlan{FirstRun: first, Behind: true}
 	}
 
-	todo := slices.DeleteFunc(pending(sources, marks, now, e.job.Transcript), func(source Source) bool {
+	left := slices.DeleteFunc(pending(sources, marks, now, e.job.Transcript), func(source Source) bool {
 		return slices.Contains(e.work.Unreadable, source.Path)
 	})
+	todo := left[:min(len(left), sourcesPerTurn)]
+	for index := range todo {
+		todo[index].Partial = marks.Partial[todo[index].Path]
+	}
 
-	return backlogPlan{Todo: todo[:min(len(todo), sourcesPerTurn)]}
+	return backlogPlan{FirstRun: first, Todo: todo}
 }
 
 // prepare reads a source and cuts its next windows: from the windows (oldest first), the last `done` are left and up
 // to windowsPerTurn before them are taken. The file is read from its tail when the platform would not read it whole.
-func (e *engine) prepare(source Source, marks Marks) batch {
+func (e *engine) prepare(source Source) batch {
 	text, err := e.deps.Files.Read(source.Path)
 	if err != nil {
 		return batch{Unreadable: err.Error()}
@@ -199,9 +208,9 @@ func (e *engine) prepare(source Source, marks Marks) batch {
 
 	messages := messagesFromTranscript(text)
 	windows := windowsFromMessages(messages)
-	done := marks.Partial[source.Path].Done
+	done := source.Partial.Done
 
-	if marks.Partial[source.Path].Hash != source.Hash {
+	if source.Partial.Hash != source.Hash {
 		done = 0
 	}
 
@@ -214,20 +223,15 @@ func (e *engine) prepare(source Source, marks Marks) batch {
 	return batch{Windows: next, Empty: len(windows) == 0, Messages: len(messages), Done: done, Finished: finished}
 }
 
-// recordFirstRun records the first run: the cut-off, install time minus 7 days, once (793b323).
-func (e *engine) recordFirstRun(dir string, marks *Marks, now float64) {
-	if marks.Cutoff == nil {
-		marks.firstRun(now)
-		e.updateMarks(dir, func(stored *Marks) { stored.firstRun(now) })
-	}
-}
-
-// updateMarks changes the mark file of the chunks directory.
+// updateMarks changes the mark file of the chunks directory: it is read, changed and written in one effect, so that a
+// replay of the job neither reads it again nor records it.
 func (e *engine) updateMarks(dir string, change func(marks *Marks)) {
-	marks := e.marks(dir)
-	change(&marks)
+	must(e.step(func() (string, error) {
+		marks := parseMarks(e.quietly(dir + marksFile))
+		change(&marks)
 
-	e.write(dir+marksFile, string(must(json.Marshal(marks))))
+		return "", e.deps.Files.Write(dir+marksFile, string(must(json.Marshal(marks))))
+	}))
 }
 
 // partialMark records that the last `Done` windows of a source, at its hash, are judged.

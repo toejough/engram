@@ -375,7 +375,7 @@ Then(
 // What a warning says (793a4b, 793d36b3), each part found in the one line: the operation right after the
 // prefix, the reason by its class, what happens next, and the pointer to the log at the end.
 const OPERATION =
-  '(?:indexing, curation and backlog capture|indexing|curation|backlog capture' +
+  '(?:indexing|curation|backlog capture' +
   '|(?:prompt|route|subagent|mid-turn|history) lookup|capture|summary)'
 const NEXT =
   '(?:nothing lost, retried next turn|nothing lost, the backlog capture covers it later' +

@@ -142,6 +142,22 @@ func (w *World) Deps() auto.Deps {
 func (w *World) Do(t *testing.T, job map[string]any) auto.Done {
 	t.Helper()
 
+	// the mod runs the housekeeping a part at a time, each its own job; a test that names no part plays the mod
+	if _, named := job["part"]; field[string](job, "kind") == "housekeeping" && !named {
+		var done auto.Done
+
+		parts := []string{"indexing", "curation"}
+		if ended, _ := job["turnEnded"].(bool); ended {
+			parts = append(parts, "backlog capture")
+		}
+
+		for _, part := range parts {
+			done = w.Do(t, withPart(job, part))
+		}
+
+		return done
+	}
+
 	input := maps.Clone(job)
 
 	for range maxRounds {
@@ -471,4 +487,12 @@ func queryArgvOf(request auto.QueryRequest) []string {
 	argv = append(argv, map[bool]string{true: "--lazy-chunks", false: "--notes-only"}[request.WithChunks])
 
 	return argv
+}
+
+// withPart is the housekeeping job given, limited to a part.
+func withPart(job map[string]any, part string) map[string]any {
+	named := maps.Clone(job)
+	named["part"] = part
+
+	return named
 }

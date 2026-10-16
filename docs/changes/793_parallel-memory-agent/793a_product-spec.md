@@ -348,6 +348,8 @@ Requirement: 793a4b While the [System](#793a1-problem-statement) is installed, i
 
 Rationale: the owner wants to know when the automatic channel silently did nothing ([793b185 The user is warned when automatic memory is skipped](793b_decision-log.md#793b185-the-user-is-warned-when-automatic-memory-is-skipped)); and a warning that does not say what was skipped, why, and where to look is of no help to the owner ([793b450 Dogfooding: a warning that said "because of an error (the housekeeping)" is of no help](793b_decision-log.md#793b450-dogfooding-a-warning-that-said-because-of-an-error-the-housekeeping-is-of-no-help)); the warning may reach the [working agent](#793a1-problem-statement), which it never asks to do anything ([793b442](793b_decision-log.md#793b442-the-systems-lines-are-transcript-lines-above-the-prompt-and-may-reach-the-agent)).
 
+Known limit: the System hides a credential by pattern, and a cut can split one. It redacts a text whole before it cuts it, and hides what a cut leaves of a run of 16 or more token-like characters at an edge, but a credential that needs the character that closes it to be recognized (a URL with userinfo needs its `@`) can survive whole at a cut the mod or the process makes when what is left is shorter than 16 characters ([793b471](./793b_decision-log.md#793b471-a-failure-text-is-redacted-whole-before-it-is-cut-and-what-a-cut-leaves-at-an-edge-is-hidden)).
+
 #### 793a4b1 UAT Scenarios
 
 ```gherkin

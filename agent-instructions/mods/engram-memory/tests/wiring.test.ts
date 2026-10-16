@@ -204,6 +204,50 @@ describe('the relay of a job (793b197)', () => {
   }
 })
 
+describe('what the mod keeps and logs of a response (793b468, 793b471)', () => {
+  test('793d36b1 a response that holds no session state leaves the mod\'s own in place', async ($: Driver, on: On) => {
+    const { clock, jobs } = world(on, {
+      engine: (job, call) => {
+        if (job.kind === 'lookup') return call === 1 ? { done: { ledger: { main: ['n.md'] } } } : { done: {} }
+        return { done: job.kind === 'capture' ? { work: { name: 'kept' } } : {} }
+      },
+    })
+    await $.prompt.submit(PROMPT)
+    await $.prompt.submit(PROMPT)
+    await $.prompt.submit(PROMPT)
+    expect(jobs.filter((job) => job.kind === 'lookup').map((job) => job.ledger)).toEqual([
+      undefined,
+      { main: ['n.md'] },
+      { main: ['n.md'] },
+    ])
+    await $.turn.complete(COMPLETE)
+    await $.turn.complete(COMPLETE)
+    await clock.settle()
+    const captures = jobs.filter((job) => job.kind === 'capture')
+    expect(captures.length).toBe(2)
+    expect(jobs.filter((job) => job.kind === 'housekeeping').at(-1)?.work).toEqual({ name: 'kept' })
+  })
+
+  test('793d36b1 a truncated response is written to the debug log', async ($: Driver, on: On) => {
+    const { logs } = world(on, { engine: () => ({ truncated: true, done: {} }) })
+    await $.prompt.submit(PROMPT)
+    expect(logs.join('\n')).toContain('the reply was truncated')
+  })
+
+  test('793d36b4 the debug log of a failed step holds no text of what the program printed', async (
+    $: Driver,
+    on: On,
+  ) => {
+    const stderr = 'ghp_a1B2a1B2a1B2a1B2a1B2a1B2a1B2a1B2a1B2'
+    const { logs } = world(on, {
+      engine: (job) => (job.kind === 'failure' ? { done: {} } : { exit: 70, stderr }),
+    })
+    await $.prompt.submit(PROMPT)
+    expect(logs.join('\n')).toContain('prompt lookup failed')
+    expect(logs.join('\n')).not.toContain('ghp_')
+  })
+})
+
 describe('the System\'s lines reach the agent (793b470)', () => {
   const LINE = 'Memory activity: 2 notes added'
   const WARNING = 'Automatic memory skipped: curation failed: boom; nothing lost, retried next turn (details: ~/a.log)'

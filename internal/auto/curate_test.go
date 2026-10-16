@@ -612,7 +612,8 @@ func Test793d33b5_HousekeepingIndexesThenCuratesAndLeavesTheBacklogToAnEndedTurn
 	g.Expect(world.Names()).To(Equal([]string{"ingest", "show", "query", "amend"}))
 	g.Expect(world.Commands[0].Argv).To(Equal([]string{"engram", "ingest", "--auto"}))
 	g.Expect(world.Warnings).To(BeEmpty())
-	g.Expect(world.Rounds).To(Equal(2))
+	// the mod runs the parts as jobs of their own: one round for the index, two for curation, none for the backlog
+	g.Expect(world.Rounds).To(Equal(3))
 }
 
 func Test793d33b5_NoBacklogIsLookedAtUnlessTheTurnEnded(t *testing.T) {

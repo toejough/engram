@@ -32,6 +32,8 @@ type ToolCall struct {
 
 // unexported constants.
 const (
+	// the framing of a block of the System's lines alone, which a block of notes has in its own
+	activityFrame = "[engram memory] Delivered by the memory system, not typed by the user; they ask nothing of you."
 	// the header of the System's lines of the previous turn in the block of a prompt, how many of them it carries at
 	// most and the longest of them, in characters
 	activityHeader = "Memory activity last turn:"
@@ -434,7 +436,7 @@ func withActivity(block string, sentences []string) string {
 
 	for _, sentence := range sentences {
 		if strings.HasPrefix(sentence, summaryPrefix) || strings.HasPrefix(sentence, skippedPrefix) {
-			lines = append(lines, "- "+cutToLine(redact(sentence), activityLimit))
+			lines = append(lines, "- "+cutToLine(redact(withoutDetail(sentence)), activityLimit))
 		}
 	}
 
@@ -443,9 +445,18 @@ func withActivity(block string, sentences []string) string {
 	}
 
 	lines = append([]string{activityHeader}, lines[max(len(lines)-activityLines, 0):]...)
-	if block == "" {
-		return "[engram memory] " + strings.Join(lines, "\n")
+
+	return orElse(block, activityFrame) + "\n" + strings.Join(lines, "\n")
+}
+
+// withoutDetail is a sentence of the System without the detail of a reply the mod could not read, which follows the
+// reason of a warning and holds ends of the reply: the sentences the agent is carried are fixed ones, never content
+// (793b470). The detail runs to the last `; ` of the sentence, which opens its closing words.
+func withoutDetail(sentence string) string {
+	start, end := strings.Index(sentence, replyDetailOpen), strings.LastIndex(sentence, "; ")
+	if start >= 0 && end > start {
+		return sentence[:start] + sentence[end:]
 	}
 
-	return block + "\n" + strings.Join(lines, "\n")
+	return sentence
 }

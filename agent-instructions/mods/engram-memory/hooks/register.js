@@ -26,8 +26,7 @@ const STEP = {
 const CAPTURE_STEP = 'capture'
 // the housekeeping is run a part at a time, each reported as its own step, so that a reply the mod cannot read is
 // blamed on one of them and the others still run (793b469); the backlog follows a top-level turn only
-const BACKLOG_STEP = 'backlog capture'
-const HOUSEKEEPING = ['indexing', 'curation', BACKLOG_STEP]
+const HOUSEKEEPING = ['indexing', 'curation', 'backlog capture']
 const SUMMARY_STEP = 'summary'
 // The engine words and records a failure it is handed (793d36b4). When it cannot be run for that job either, the mod
 // words the failure itself, by class and without the text, which it cannot redact; a test holds these words to the
@@ -69,7 +68,7 @@ async function attempt($, job, step) {
   try {
     return await job()
   } catch (/** @type {any} */ error) {
-    $.ui.log(`engram-memory: ${step ?? 'internal'}: ${error.message}`, { to: 'debug' })
+    $.ui.log(`engram-memory: ${step ? `${step} failed` : `internal: ${error.message}`}`, { to: 'debug' })
     if (step) await failed($, step, error)
     return null
   }
@@ -123,6 +122,7 @@ const sessionOf = ($) => $.session.id().catch(() => '')
  */
 function absorb($, out) {
   each(out.log, (line) => $.ui.log(line, { to: 'debug' }))
+  if (out.truncated) $.ui.log('engram-memory: the reply was truncated; see auto-debug.log', { to: 'debug' })
   each(out.warnings, (text) => warn($, text))
   if (out.counts) mod.tally.push(out.counts)
 }
@@ -203,7 +203,7 @@ function hooked($, job) {
   const done = within($, waiting, hold)
   mod.hooks = done.then(
     (end) => {
-      mod.ledger = end.ledger
+      mod.ledger = end.ledger ?? mod.ledger
     },
     () => undefined,
   )
@@ -329,7 +329,7 @@ async function toolBlock($, event) {
  */
 async function queued($, job) {
   const done = await relay($, { ...job, work: mod.work, transcript: mod.transcript })
-  remember({ work: done.work })
+  remember({ work: done.work ?? mod.work })
 }
 
 // report shows the user the one line of the turn (793a5h), or nothing; it runs once the System's work has finished.
@@ -361,7 +361,7 @@ async function seam($, line) {
 async function finish($) {
   const turnEnded = mod.queue.turnEnded
   mod.queue.turnEnded = false
-  for (const part of HOUSEKEEPING.filter((name) => turnEnded || name !== BACKLOG_STEP))
+  for (const part of HOUSEKEEPING.filter((name) => turnEnded || name !== HOUSEKEEPING.at(-1)))
     await attempt($, () => queued($, { kind: 'housekeeping', turnEnded, part }), part)
   if (turnEnded) await attempt($, () => report($), SUMMARY_STEP)
 }

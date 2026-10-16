@@ -38,10 +38,8 @@ const (
 	stepBacklog  = "backlog capture"
 	stepCapture  = "capture"
 	stepCuration = "curation"
-	// the housekeeping as one step, which a job with no part reports itself as when its reply is over the limit
-	stepHousekeeping = "indexing, curation and backlog capture"
-	stepIndexing     = "indexing"
-	stepSummary      = "summary"
+	stepIndexing = "indexing"
+	stepSummary  = "summary"
 )
 
 // unexported variables.

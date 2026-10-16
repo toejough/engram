@@ -134,25 +134,31 @@ func (e *engine) neighbours(items []Note) []Note {
 	return near
 }
 
+// poll reads the transcript of a subagent that stopped: nothing while it lags and tries are left, else its window.
+func (e *engine) poll(tries int) []string {
+	file := e.quietly(e.job.Path)
+	if (file != "" && transcriptHolds(file, e.job.Last)) || tries >= pollTries {
+		return []string{windowFromTranscript(file, e.job.Last)}
+	}
+
+	return nil
+}
+
 // subagentJob is the capture of a subagent that stopped: its transcript file lags its stop event (SP5), so it is read
 // again until it holds the last message, or the tries are spent. The file lags its stop by about 100 ms, so the first
 // four polls are 100 ms apart (a capture starts within 200 ms of the file being complete, 793d27b1) and the rest 500 ms
-// apart, since every poll is a round whose record holds the file it read; the patience is 9.9 s in all.
+// apart; the patience is 9.9 s in all. A poll records whether the file holds the last message and, on the last, the
+// window cut from it, and never the file: a transcript is megabytes, and the record is sent with every round (793b467).
 func (e *engine) subagentJob() Done {
-	var file string
-
 	for tries := 1; ; tries++ {
-		file, _ = e.read(e.job.Path)
-		if (file != "" && transcriptHolds(file, e.job.Last)) || tries >= pollTries {
-			break
+		if last := recorded(e, func() []string { return e.poll(tries) }); last != nil {
+			e.capture(last[0], sourceFor(e.job.SessionID, e.job.Turn, e.job.Agent))
+
+			return Done{}
 		}
 
 		e.wait(pollMs * (1 + (pollSlow-1)*min(tries/pollSlow, 1)))
 	}
-
-	e.capture(windowFromTranscript(file, e.job.Last), sourceFor(e.job.SessionID, e.job.Turn, e.job.Agent))
-
-	return Done{}
 }
 
 // messageTool is a tool an assistant message used.

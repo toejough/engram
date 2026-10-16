@@ -58,8 +58,8 @@ type Job struct {
 	ToolUses    []ToolCall      `json:"toolUses"`
 	Messages    []Message       `json:"messages"`
 	Tally       []Counts        `json:"tally"`
-	// the part of the housekeeping a job of that kind does alone, by the name of its step (indexing, curation or backlog
-	// capture); empty is all of it
+	// the part of the housekeeping a job of that kind does, by the name of its step (indexing, curation or backlog
+	// capture)
 	Part string `json:"part"`
 	// the sentences the System showed since the last prompt, which the lookup of a prompt carries to the agent
 	Activity []string `json:"activity"`
@@ -225,11 +225,6 @@ func (e *engine) quietly(path string) string {
 	return text
 }
 
-// read reads a file once: a file that is not there is an error, recorded as such.
-func (e *engine) read(path string) (string, error) {
-	return e.step(func() (string, error) { return e.deps.Files.Read(path) })
-}
-
 // resume takes the record of the earlier rounds, with the reply the mod brought for the last one.
 func (e *engine) resume() {
 	e.journal = e.job.State
@@ -288,11 +283,6 @@ func (e *engine) warn(step string, err error) {
 		e.resp.Warnings = append(e.resp.Warnings, warning(step, kind, err.Error(), detail, e.shownLog()))
 		e.record(step, kind, err.Error(), detail)
 	}
-}
-
-// write writes a file once.
-func (e *engine) write(path, text string) {
-	must(e.step(func() (string, error) { return "", e.deps.Files.Write(path, text) }))
 }
 
 // pause unwinds a job that needs the mod: it has asked for a model reply or a wait.

@@ -33,8 +33,8 @@
         "files": [
           "moment.go"
         ],
-        "basis": "moment.js 70, lookup 15, deliver 8, moment 1, stepJob 7, memory-ask and note-path patterns 4, readTranscript 7; plus the lookup with the chunk index and the stubs (793b425: the pass, the stubs of a lookup, the line of a stub, the considered notes); plus 23 for the System's lines of the previous turn, which the prompt's block carries under a header, filtered to the System's own sentences, redacted, cut and at most five (793b470, owner decision 2026-10-16)",
-        "ceiling": 300
+        "basis": "moment.js 70, lookup 15, deliver 8, moment 1, stepJob 7, memory-ask and note-path patterns 4, readTranscript 7; plus the lookup with the chunk index and the stubs (793b425: the pass, the stubs of a lookup, the line of a stub, the considered notes); plus 23 for the System's lines of the previous turn, which the prompt's block carries under a header, filtered to the System's own sentences, redacted, cut and at most five (793b470, owner decision 2026-10-16); plus 5 for the review round of 793b472: the sentences carried to the agent are carried without the ends of a reply they quote (withoutDetail), and a block of the lines alone has a framing line that says they are the memory system's and ask nothing",
+        "ceiling": 305
       },
       "judge-relay": {
         "js": 161,
@@ -43,8 +43,8 @@
           "relay.go",
           "reply.go"
         ],
-        "basis": "judge.js 161, which holds the prompts (now text files) and the strict readings; the need and done rounds are the relay and have no JavaScript to replace; plus 3 for the record of a warned failure and the job of a failure the mod hands over (793b451); plus 94 for the bound on a reply (reply.go: 256 KiB at most, the log lines past the first few appended to a debug file, a warning and a line cut, a reply over the limit replaced by the end of the job with a warning that names the step, 793b468) and 8 for the fields of the jobs the mod hands over (793b469, 793b470)",
-        "ceiling": 575
+        "basis": "judge.js 161, which holds the prompts (now text files) and the strict readings; the need and done rounds are the relay and have no JavaScript to replace; plus 3 for the record of a warned failure and the job of a failure the mod hands over (793b451); plus 94 for the bound on a reply (reply.go: 256 KiB at most, the log lines past the first few appended to a debug file, a warning and a line cut, a reply over the limit replaced by the end of the job with a warning that names the step, 793b468) and 8 for the fields of the jobs the mod hands over (793b469, 793b470); less 8 for the review round of 793b472: the unrecorded-read and write helpers, the no-part housekeeping path and the lumped housekeeping step are deleted",
+        "ceiling": 567
       },
       "capture": {
         "js": 234,
@@ -52,16 +52,16 @@
           "capture.go",
           "redact.go"
         ],
-        "basis": "capture.js 200, capture 18, markTurns 7, settled 9; plus 4 for the brief of a subagent labelled as the agent's and not the user's (793b441); plus 5 for the hiding of the run of token-like characters a cut leaves at an edge of a text (793b471)",
-        "ceiling": 435
+        "basis": "capture.js 200, capture 18, markTurns 7, settled 9; plus 4 for the brief of a subagent labelled as the agent's and not the user's (793b441); plus 5 for the hiding of the run of token-like characters a cut leaves at an edge of a text (793b471); plus 5 for the review round of 793b472: the poll of a subagent's transcript records its window and never the file (poll), and the dot of a web token is in the edge of a cut text that is hidden",
+        "ceiling": 440
       },
       "backlog": {
         "js": 111,
         "files": [
           "backlog.go"
         ],
-        "basis": "backlog.js 49, backlog 35, readSource 9, sourceMessages 8, chunksDir and the marks 10; plus 15 for the report of an index that has not caught up (793b430); plus 4 for the plan of the backlog, which keeps of the manifest the sources a run can look at and not the manifest, so that the record of the job is not tens of megabytes (793b468)",
-        "ceiling": 197
+        "basis": "backlog.js 49, backlog 35, readSource 9, sourceMessages 8, chunksDir and the marks 10; plus 15 for the report of an index that has not caught up (793b430); plus 4 for the plan of the backlog, which keeps of the manifest the sources a run can look at and not the manifest, so that the record of the job is not tens of megabytes (793b468); plus 3 for the review round of 793b472: the marks are read and changed inside one effect and the plan carries each source's progress, so that the record of the job never holds the mark file",
+        "ceiling": 200
       },
       "curation": {
         "js": 93,

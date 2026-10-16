@@ -91,7 +91,7 @@ export function splitActivity(text) {
 // contextBlocks are the rows the System added to an agent's context: the hook_additional_context attachment rows
 // (SP4) that open with the marker. { index, text, notes, activity, activityOnly } per row, in order: `text` is the
 // whole block, `notes` what it delivers, `activity` the System's lines it carries, and a block that carries nothing
-// else is `activityOnly`.
+// else (no line of a note) is `activityOnly`; its framing line says the lines are the memory system's and ask nothing.
 export function contextBlocks(rows) {
   const found = []
   rows.forEach((row, index) => {
@@ -99,7 +99,8 @@ export function contextBlocks(rows) {
     const text = attachmentText(row)
     if (!text.startsWith(MARKER)) return
     const { notes, activity } = splitActivity(text)
-    found.push({ index, text, notes, activity, activityOnly: activity.length > 0 && notes === MARKER })
+    const items = notes.split('\n').filter((line) => line.startsWith('- '))
+    found.push({ index, text, notes, activity, activityOnly: activity.length > 0 && items.length === 0 })
   })
   return found
 }

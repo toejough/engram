@@ -210,14 +210,16 @@ test('the System\'s lines of the previous turn are split from what a block deliv
 test('a block of the System\'s lines alone delivers nothing, and notes are delivered without the lines', () => {
   const rows = [
     contextRow(`[engram memory] ${ACTIVITY_HEADER}\n- ${ACTIVITY}`),
+    contextRow(`[engram memory] Delivered by the memory system, not typed by you.\n${ACTIVITY_HEADER}\n- ${ACTIVITY}`),
     contextRow(withActivity('[engram memory] notes\n- n.md (x): y')),
   ]
   assert.deepEqual(
     contextBlocks(rows).map((found) => [found.index, found.activityOnly, found.activity]),
     [
       [0, true, [ACTIVITY]],
-      [1, false, [ACTIVITY]],
+      [1, true, [ACTIVITY]],
+      [2, false, [ACTIVITY]],
     ],
   )
-  assert.deepEqual(systemBlocks(rows), [{ index: 1, text: '[engram memory] notes\n- n.md (x): y' }])
+  assert.deepEqual(systemBlocks(rows), [{ index: 2, text: '[engram memory] notes\n- n.md (x): y' }])
 })

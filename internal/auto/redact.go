@@ -8,6 +8,8 @@ import (
 
 // unexported constants.
 const (
+	// the characters of a run at an edge: those of a token, and the dot that joins the parts of a web token
+	edgeChars = `[A-Za-z0-9_+/=.-]`
 	// the shortest run of token-like characters at the edge of a cut text that is hidden
 	edgeRunMin = "16"
 	hexBits    = 8
@@ -33,7 +35,7 @@ var (
 	digit, letter = regexp.MustCompile(`\d`), regexp.MustCompile(`[A-Za-z]`)
 	gitSHA        = regexp.MustCompile(`^[0-9a-f]{40}$`)
 	googleKey     = regexp.MustCompile(`\bAIza[0-9A-Za-z_-]{30,}`)
-	headRun       = regexp.MustCompile(`^` + runChars + `{` + edgeRunMin + `,}`)
+	headRun       = regexp.MustCompile(`^` + edgeChars + `{` + edgeRunMin + `,}`)
 	hostedToken   = regexp.MustCompile(`\b(?:ghp|gho|ghs|ghu|ghr|github_pat|npm|glpat)[-_][A-Za-z0-9_-]{16,}`)
 	// a value assigned to a name that ends in key (`KEY=`, `monkey=`), and to any name that says it is a secret
 	keyAssigned = regexp.MustCompile(`(?i)([\w.-]*key["']?[` + space + `]*=[` + space + `]*)` + value)
@@ -49,7 +51,7 @@ var (
 	slackToken    = regexp.MustCompile(`\bxox[abprs]-[A-Za-z0-9-]{10,}`)
 	// a run of token-like characters at an edge of a text that was cut: what is left of a credential the cut split, which
 	// no pattern recognizes in a fragment (793b471)
-	tailRun      = regexp.MustCompile(runChars + `{` + edgeRunMin + `,}$`)
+	tailRun      = regexp.MustCompile(edgeChars + `{` + edgeRunMin + `,}$`)
 	tokenFollows = regexp.MustCompile(`^` + runChars + `{4}`)
 	urlUserinfo  = regexp.MustCompile(`(?i)\b([a-z][a-z0-9+.-]*://)[^` + space + `:@/]+:[^` + space + `@/]+@`)
 	webToken     = regexp.MustCompile(`\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}`)

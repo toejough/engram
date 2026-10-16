@@ -14,6 +14,8 @@ const (
 	logLimit = 1024 * 1024
 	// no limit at all: the size of text that is not cut
 	noLimit = 1 << 30
+	// the words that open the detail of a warning for a reply the mod could not read
+	replyDetailOpen = " (reply of "
 	// how many characters of the start and of the end of a reply the mod could not read the failure shows (793b469)
 	replyEndChars = 80
 	// how many characters at each end of such a reply are redacted before the ends are cut from them
@@ -65,19 +67,20 @@ func cutOldest(record string) string {
 
 // replyDetail says how large a reply the mod could not read was, in bytes, and how it began and ended: what shows a
 // reply that was cut short. The reply may be megabytes and a redaction of all of it takes minutes, so the ends are
-// taken from a window of replyWindow characters at each end, where the window's own edges and the end of the reply
-// (which the process cut) are hidden when a run of token-like characters touches them; the window is redacted whole,
-// and the 80 characters shown are cut from the redacted text and hidden again at their own edges, so that no
-// credential is split by a cut before it is recognized (793b471).
+// taken from a window of replyWindow characters at each end, and the window is redacted whole before the 80 characters
+// are cut from it (the owner's rule is to redact the whole text first, then cut; the window is the owner's decision for
+// the excerpts of a reply, 793b471). What a cut leaves of a credential is hidden at the edges of the 80 characters,
+// where the end of the reply (which the process cut) and the cut of the window both lie when redaction has made the
+// window short.
 func replyDetail(job Job) string {
 	if job.Unreadable == "" {
 		return ""
 	}
 
-	head := redact(maskTail(maskHead(cutEnd(job.Unreadable, replyWindow))))
-	tail := redact(maskTail(maskHead(cutStart(job.Unreadable, replyWindow))))
+	head := redact(cutEnd(job.Unreadable, replyWindow))
+	tail := redact(cutStart(job.Unreadable, replyWindow))
 	head = maskTail(maskHead(cutEnd(cutToLine(head, noLimit), replyEndChars)))
 	tail = maskTail(maskHead(cutStart(cutToLine(tail, noLimit), replyEndChars)))
 
-	return fmt.Sprintf(" (reply of %d bytes, starts \"%s\", ends \"%s\")", len(job.Unreadable), head, tail)
+	return fmt.Sprintf(replyDetailOpen+"%d bytes, starts \"%s\", ends \"%s\")", len(job.Unreadable), head, tail)
 }

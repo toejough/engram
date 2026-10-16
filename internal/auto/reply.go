@@ -127,7 +127,7 @@ func (e *engine) stepName() string {
 	case e.job.Step != "":
 		return e.job.Step
 	case e.job.Kind == "housekeeping":
-		return orElse(e.job.Part, stepHousekeeping)
+		return e.job.Part
 	case e.job.Kind == "summary":
 		return stepSummary
 	}
