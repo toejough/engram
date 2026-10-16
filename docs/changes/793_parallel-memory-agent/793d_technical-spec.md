@@ -1013,13 +1013,13 @@ Scenario: 793d30b1a1 The line counts the turn
 
 #### 793d30b2 Warnings and surface
 
-Requirement: 793d30b2 When a step reports a failure, Activity Report MUST show its warning at once; the line after the turn MUST carry each warning of the turn once, then the summary, joined by `. `, and the next turn MUST start clean. It MUST show a line only on the [mod](#793d1b-terms)'s [status line](#793d1b-terms), which is not a row of the [transcript](../../GLOSSARY.md#transcript), never in a hook result or [context](./793a_product-spec.md#793a1-problem-statement), and build it only from constants and counts, never from the text of a [note](./793a_product-spec.md#793a1-problem-statement), an offer or a [lesson](./793a_product-spec.md#793a1-problem-statement).
+Requirement: 793d30b2 When a step reports a failure, Activity Report MUST show its warning at once; the line after the turn MUST carry each warning of the turn once, then the summary, joined by `. `, and the next turn MUST start clean. It MUST show a line only on the [mod](#793d1b-terms)'s [status line](#793d1b-terms), which is not a row of the [transcript](../../GLOSSARY.md#transcript), never in a hook result or [context](./793a_product-spec.md#793a1-problem-statement), and build it only from constants, counts and the warnings of [793d36b3 Failure containment and classes](#793d36b3-failure-containment-and-classes) (whose failure text is redacted, without control characters and cut), never from the text of a [note](./793a_product-spec.md#793a1-problem-statement), an offer or a [lesson](./793a_product-spec.md#793a1-problem-statement) as such.
 
 Supports: [793a5h1c The summary is not in the agent's context](./793a_product-spec.md#793a5h1-uat-scenarios), [793a4b1a Vault unavailable](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1b Evaluation crashes](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4b1c No error reaches the agent and the user is warned](./793a_product-spec.md#793a4b1-uat-scenarios), [793a4c1c The only effect on the working agent's context is what is delivered](./793a_product-spec.md#793a4c1-uat-scenarios)
 
 Verified by: `internal/auto/summary_test.go`: Test793d30b2_AFailedStepIsWarnedAboutAndNotCounted, Test793d30b2_OnlyConstantsAndCountsReachTheLineNothingANoteAnOfferOrALessonSays, Test793d30b2_TheWarningsAndTheCountsShareTheOneLine; `wiring.test.ts` "the effects of a round…"
 
-Security: held here: the user-visible activity line, which cannot carry injected text.
+Security: held here: the user-visible activity line, which carries no text of a note, an offer or a lesson as such; the failure text of a warning is redacted and cut, and reaches the user's screen and never the agent ([793b451](./793b_decision-log.md#793b451-the-wording-of-a-warning-the-failure-record-and-the-failure-job)).
 
 Rationale: The [status line](#793d1b-terms) is a [mod](#793d1b-terms) capability off the [transcript](../../GLOSSARY.md#transcript), so the user sees the [System](./793a_product-spec.md#793a1-problem-statement)'s work without the agent reading it.
 
