@@ -67,3 +67,8 @@ test('the report holds the rate of each row and the attribution of each Red, by 
   assert.match(report, /793a2n1j run 3: System miss: no warning on the activity line/)
   assert.match(report, /3 runs of 1 rows/)
 })
+
+test('a Red whose message names a permission denial is a Harness error, not a System miss', () => {
+  const denied = { ...red('a', []), message: 'Permission for this tool use was denied' }
+  assert.equal(attribution(denied).kind, 'Harness error')
+})

@@ -5489,3 +5489,27 @@ Reserved and unused: the number was skipped when the entries were written and no
 - **Rationale:** one owner of the words means one place to read and test them; the engine is the only part that can redact.
 - **Alternatives:** the mod appends the log line itself (rejected: the mod's file capability only writes a whole file, and the redaction is Go's); a longer reason in the warning (rejected: the status line is one line); the full text in the warning and no log (rejected by the owner's decision 3); a log per session (rejected: the owner named one file).
 
+
+## 793b460 The report keeps the System's transcript lines on a Red
+
+- **ID map:** added `793b460`. No requirement or scenario ID changes.
+- **Decided by:** Author (agent), from the full run 793e7c, where every Red said `activity: none shown`; awaiting owner validation, who can overrule.
+- **Choice:** the System's lines are `$.ui.log` rows, `system/informational` rows of the session transcript ([793b442](#793b442-the-systems-lines-are-transcript-lines-above-the-prompt-and-may-reach-the-agent)), not `ui_status` stream messages. The result entry reads them from the transcript of each session (`systemLines`: informational rows whose text opens with `[engram`, `Automatic memory` or `Memory activity`) beside the stream's shown texts, and the report prints them under each Red as before.
+- **Rationale:** the collector read the surface the lines no longer use. Self-tested with a transcript of informational rows.
+- **Alternatives:** none.
+
+## 793b461 The plain engram command, and the permission rule that matches it
+
+- **ID map:** added `793b461`. No requirement or scenario ID changes.
+- **Decided by:** Author (agent), from `793a5k1c` in 793e7c, where the agent ran `cd <work> && engram show-chunk … | head -20` and was denied.
+- **Choice:** the step's prompt tells the agent to run each engram command plain (no `cd`, pipe or redirect), and the World's allow rules add `Bash(cd:*)` and `Bash(head:*)`. The matcher reads `Bash(prefix:*)` as a command that starts with the prefix and checks each part of a compound command (split at `&&`, `;`, `|`) on its own, so the compound form is allowed only when every part is. `cd` and `head` change and read nothing of the vault. No bypass mode.
+- **Rationale:** an honest scenario prompt first; the widening is the least that lets a normal habit of the agent through.
+- **Alternatives:** `Bash(*)` or bypass mode (rejected: they would let the agent echo the credentials the World withholds, 793b316).
+
+## 793b462 A permission denial is a Harness error
+
+- **ID map:** added `793b462`. No requirement or scenario ID changes.
+- **Decided by:** Author (agent), from 793e7c, which labelled a denial a System miss ("the judgement missed").
+- **Choice:** a scenario that would be Red but whose transcript holds a tool call refused by the permission rules (`Permission for this tool use was denied`) is reported `Harness error (permission denied: <tool>)`; the rate attribution of a Red whose message names a denial is `Harness error`, never `System miss`.
+- **Rationale:** a refused tool is a condition of the harness, not evidence about the System's judgement.
+- **Alternatives:** none.

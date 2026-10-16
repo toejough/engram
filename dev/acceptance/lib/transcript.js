@@ -180,6 +180,27 @@ export function shownTexts(messages) {
     .map((message) => String(message.text ?? ''))
 }
 
+// SYSTEM_LINE is what the System's own lines open with: `[engram …]`, "Automatic memory …", "Memory activity …".
+const SYSTEM_LINE = /^\s*(\[engram\b|Automatic memory|Memory activity)/i
+
+// systemLines are the System's lines kept in the transcript: `$.ui.log` writes them as `system/informational` rows
+// (793e7c), not as stream messages, so the rows are where they are read after a turn.
+export function systemLines(rows) {
+  return rows
+    .filter((row) => row.type === 'system' && row.subtype === 'informational')
+    .map((row) => String(row.content ?? row.text ?? ''))
+    .filter((text) => SYSTEM_LINE.test(text))
+}
+
+// DENIED is the result a tool call gets when the permission rules refuse it: a condition of the harness, not of the
+// System (793e7c).
+const DENIED = /Permission for this tool use was denied|permission to use .* has been denied/i
+
+// denials are the tool calls the permission rules refused.
+export function denials(rows) {
+  return toolCalls(rows).filter((call) => call.result?.isError && DENIED.test(call.result.text))
+}
+
 // rowsMentioning are the rows (any kind) whose serialised form matches the pattern.
 export function rowsMentioning(rows, pattern) {
   return rows.filter((row) => pattern.test(JSON.stringify(row)))

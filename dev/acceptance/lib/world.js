@@ -26,8 +26,13 @@ const ECHOES = [
   "'TestSync failed: FIXTURE_DIR is unset'",
   '"TestSync failed: FIXTURE_DIR is unset"',
 ]
+// The matcher (Claude Code permission rules) reads `Bash(prefix:*)` as "a command that starts with prefix", and splits
+// a compound command at `&&`, `;`, `|` and checks each part on its own: `cd <dir> && engram show-chunk … | head -20`
+// is allowed only when `cd`, `engram` and `head` are each allowed. `cd` and `head` change and read nothing (793e7c).
 const ALLOWED_TOOLS = [
   'Bash(engram:*)',
+  'Bash(cd:*)',
+  'Bash(head:*)',
   ...ECHOES.map((words) => `Bash(echo ${words})`),
   'Bash(sleep:*)',
   'Read',

@@ -5,6 +5,7 @@
 import { MS_PER_SECOND } from './units.js'
 
 export const RATE_BAR = 0.9
+const DENIAL = /Permission for this tool use was denied|permission denied/i
 const WARNING = /^Automatic memory skipped:/
 const COST_DECIMALS = 3
 const RATE_DECIMALS = 2
@@ -13,6 +14,9 @@ const HEADERS = ['Scenario', 'Runs', 'Green', 'Red', 'Harness error', 'Not run',
 // attribution says why a run was Red, from the lines its sessions showed.
 export function attribution(entry) {
   if (entry.activity === undefined) return { kind: 'unattributed', detail: 'the activity line was not kept' }
+  // a refused tool call is the harness's condition, not a judgement of the System
+  if (DENIAL.test(`${entry.result} ${entry.message ?? ''}`))
+    return { kind: 'Harness error', detail: 'a tool use was denied by the permission rules' }
   const warning = entry.activity.find((text) => WARNING.test(text))
   return warning
     ? { kind: 'System failure', detail: warning }

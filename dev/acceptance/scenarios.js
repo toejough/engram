@@ -489,7 +489,9 @@ export default {
   '793a5k1c': {
     turns: {
       "the user says 'run /recall on how releases are tagged' and the agent runs the recall skill": {
-        prompt: '/recall how releases are tagged',
+        prompt:
+          '/recall how releases are tagged. Run each engram command plain, as the one command of its call, ' +
+          'with no cd, pipe or redirect.',
         observe: { tool: 'Bash', command: /engram\s+query/ },
       },
     },

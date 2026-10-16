@@ -29,3 +29,51 @@ test('a scenario that did not pass shows its activity under the table, and one t
   assert.doesNotMatch(report, /793a2n1a activity/)
   assert.match(report, /793a2n1h activity: none shown/)
 })
+
+// The System's lines are transcript lines now (system/informational rows), not stream messages (793e7c).
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+
+const informational = (content) => ({ type: 'system', subtype: 'informational', content, level: 'notice' })
+function sessionWithRows(rows, messages = []) {
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'rows-')), 's.jsonl')
+  fs.writeFileSync(file, rows.map((row) => JSON.stringify(row)).join('\n') + '\n')
+  return { messages, transcriptPath: () => file }
+}
+
+test('the lines of the System are kept from the system/informational rows of the transcript', () => {
+  const rows = [
+    informational('[engram route] looked up 3 notes'),
+    informational('Memory activity: 1 item delivered'),
+    informational('Automatic memory skipped: x'),
+    informational('some unrelated notice'),
+    { type: 'user', message: { content: 'hi' } },
+  ]
+  const entry = entryFor(world([sessionWithRows(rows)]), { status: 'FAILED', exception: { type: 'AssertionError' } })
+
+  assert.deepEqual(entry.activity, [
+    '[engram route] looked up 3 notes',
+    'Memory activity: 1 item delivered',
+    'Automatic memory skipped: x',
+  ])
+})
+
+test('a permission denial is a Harness error, never a Red', () => {
+  const denied = {
+    type: 'user',
+    message: {
+      content: [
+        { type: 'tool_result', tool_use_id: 't', is_error: true, content: 'Permission for this tool use was denied' },
+      ],
+    },
+  }
+  const use = { type: 'assistant', message: { content: [{ type: 'tool_use', id: 't', name: 'Bash', input: {} }] } }
+  const entry = entryFor(world([sessionWithRows([use, denied])]), {
+    status: 'FAILED',
+    exception: { type: 'AssertionError' },
+    message: 'the precondition of the turn was not observed',
+  })
+  assert.match(entry.result, /^Harness error/)
+  assert.match(entry.result, /permission/i)
+})
