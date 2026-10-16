@@ -343,6 +343,16 @@ Runs on 2026-10-16, nothing installed, token read by the harness from its file a
 | Re-runs alone (5 each) at b7770e35 | 793a5h1a 5 of 5 Green (0.261 USD); 793a3a1g 5 of 5 Green (0.223 USD) |
 | `targ acceptance` (full, one run) at the review-round commit | 58 runs: 56 Green, 0 Red, 0 Harness error, 2 `Not run` (793a5j1d, 793a5c1b: SP14); 2.185 USD |
 
+**Full suite deferred (owner decision, 2026-10-16):** the owner decided that the full acceptance suite is not run for the review round; it is deferred to the promotion rebase ([793e8r1](#793e8r1-promotion-plan)). The full run at the review-round commit in the table above was made before that decision reached this branch and is recorded as it was. From the decision on, only the rows the review-round fixes touch were run, at the commit of the review round:
+
+| Rows | Result |
+| --- | --- |
+| `targ acceptance 793a4b` (failure warnings and the record) | 6 of 6 Green; 0.112 USD |
+| `targ acceptance 793a4c` (purview: the only effects on the agent's context) | 4 of 4 Green; 0.089 USD |
+| `targ acceptance 793a4j` (housekeeping) | 4 of 4 Green; 0.103 USD |
+| `targ acceptance 793a5h` (the summary shown and carried to the agent, 793a5h1c) | 4 of 4 Green; 0.158 USD |
+| `targ acceptance 793a3a` (capture, subagent capture and the backlog) | 13 of 14 Green, 1 Red: 793a3a1a example 3 of 3 ("no note states the corrected cause"; notes written: none, no warning), the capture judgement the owner recorded as a limit of the cheapest tier ([793b466](./793b_decision-log.md#793b466-capture-misses-on-self-correction-and-confirmed-guesses-are-recorded-limits-of-the-cheapest-tier), 25 of 30 runs Green); 0.549 USD |
+
 The two non-Green rows of the first run were not reproduced in ten re-runs: 793a5h1a was a summary without its "3 items delivered" (the relevance judgement selected fewer notes; the row depends on a model judgement), and 793a3a1g a session closed before the System's idle line (a timing harness error). Neither is explained by the change, and neither is claimed to be explained away; the run of the review-round commit is green. The two `Not run` rows need a headless Pi.
 
 ## 793e8 Test Catalog
