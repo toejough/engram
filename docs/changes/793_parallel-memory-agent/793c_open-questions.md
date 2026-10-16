@@ -1243,3 +1243,12 @@ Open for Joe: whether the log keeps the extra fields it records beyond his answe
 - **Answer:** (b). Decided by: owner. The exact fixed sentences, at most about five, under a short header, never content; they ask nothing of the agent.
 - **Applied in:** [793b470](./793b_decision-log.md#793b470-the-systems-lines-of-the-previous-turn-ride-the-next-prompt-to-the-agent).
 - **Blocks:** nothing.
+
+
+## 793c93 Should the memory system's activity line appear in the agent's reply so that it reaches the claude.ai mobile/web view?
+
+- **Status:** parked (Joe, 2026-10-16), in chat; recorded here per the rule that owner answers live in this file.
+- **Context:** the owner follows sessions from the claude.ai mobile app and sees none of the memory system's output there. A docs lookup (2026-10-16, Claude Code 2.1.300: Mods API, events, Remote Control and hooks references) found no mod or hook surface documented as reaching the remote view; Remote Control syncs only the transcript (user messages, assistant replies, tool activity). `$.ui.log`, `$.ui.status` and `$.ui.toast` are terminal rendering; `prompt.submit` context and hook `additionalContext` are model-only and documented as not shown as a chat message. The only route is the assistant's reply.
+- **Options:** (a) leave the activity line in the terminal only; (b) proposed, not adopted: the delivered block instructs the agent to end its reply with one fixed activity line ("Memory: N items delivered, M notes added, K warnings"); a new product promise with an acceptance row at the 9/10 bar; the terminal transcript line would be dropped to avoid showing it twice.
+- **Answer:** parked. Decided by: owner (Joe, 2026-10-16): "Nah, leave it for now." Revisit after the behaviour of 793a is landed.
+- **Blocks:** nothing.
