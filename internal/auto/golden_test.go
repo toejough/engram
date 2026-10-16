@@ -418,9 +418,6 @@ func Test793d36b3_FailuresAreClassifiedByWhatTheyLeft(t *testing.T) {
 	each(t, "failure_kind", func(g *WithT, input map[string]any, want golden) {
 		g.Expect(auto.FailureKind(field[string](input, "text"))).To(Equal(text(want)))
 	})
-	each(t, "warning", func(g *WithT, input map[string]any, want golden) {
-		g.Expect(auto.Warning(field[string](input, "step"), field[string](input, "kind"))).To(Equal(text(want)))
-	})
 }
 
 // unexported variables.

@@ -47,7 +47,7 @@ func (e *engine) curate() {
 		// one offer that fails is warned about once and does not stop the offers after it
 		var outcome string
 
-		e.attempt("curation", func() { outcome = e.curateOne(name) })
+		e.attempt(stepCuration, func() { outcome = e.curateOne(name) })
 
 		if outcome != "skipped" {
 			handled++
@@ -88,13 +88,13 @@ func (e *engine) curateOne(name string) string {
 // the turn, then the pending offers are settled, then, after a top-level turn, one source of the backlog is captured
 // (793e8g). A failure of one step is reported and the others still run.
 func (e *engine) housekeepingJob() Done {
-	e.attempt("indexing", func() {
+	e.attempt(stepIndexing, func() {
 		e.perform("ingest", func() (string, error) { return "", e.deps.Vault.Index(deadlineIngest) })
 	})
-	e.attempt("curation", e.curate)
+	e.attempt(stepCuration, e.curate)
 
 	if e.job.TurnEnded {
-		e.attempt("the backlog capture", e.backlog)
+		e.attempt(stepBacklog, e.backlog)
 	}
 
 	return Done{}

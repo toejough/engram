@@ -61,7 +61,7 @@ func Test793d36b4_EveryContainedFailureIsAppendedToTheLogWithItsTimeSessionOpera
 	lines := strings.Split(strings.TrimSuffix(world.Written[world.LogPath], "\n"), "\n")
 	g.Expect(lines).To(HaveLen(2))
 	g.Expect(lines[0]).To(Equal(`2023-11-14T22:13:20Z session="s1" operation="indexing" class=busy ` +
-		`reason="ingest: acquiring manifest lock: another ingest holds the manifest lock; skipped"`))
+		`reason="ingest failed: ingest: acquiring manifest lock: another ingest holds the manifest lock; skipped"`))
 	g.Expect(lines[1]).To(HavePrefix(`2023-11-14T22:13:20Z session="s1" operation="curation" class=unavailable reason="`))
 }
 
@@ -92,13 +92,14 @@ func Test793d36b4_TheReasonInTheLogIsRedacted(t *testing.T) {
 	world := NewWorld()
 	secret := "ghp_" + strings.Repeat("a1B2", 8)
 	world.Process["query"] = func([]string) (auto.Output, error) {
-		return auto.Output{}, errors.New("denied for " + secret)
+		return auto.Output{}, errors.New("denied for " + secret + "\x1b[2J")
 	}
 
 	failureLookup(t, world)
 
 	g.Expect(world.Written[world.LogPath]).NotTo(ContainSubstring(secret))
 	g.Expect(world.Written[world.LogPath]).To(ContainSubstring("denied for [redacted]"))
+	g.Expect(world.Written[world.LogPath]).NotTo(ContainSubstring("\x1b"))
 }
 
 func Test793d36b4_TheWarningEndsWithThePathOfTheLog(t *testing.T) {

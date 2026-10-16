@@ -24,7 +24,6 @@ var (
 	SinceCompaction    = sinceCompaction
 	SourceFor          = sourceFor
 	TranscriptHolds    = transcriptHolds
-	Warning            = warning
 	WindowFromFile     = windowFromTranscript
 	WindowFromMessages = windowFromMessages
 	WindowsFromMessage = windowsFromMessages

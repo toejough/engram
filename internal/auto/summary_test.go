@@ -170,7 +170,8 @@ func Test793d30b2_AFailedStepIsWarnedAboutAndNotCounted(t *testing.T) {
 	curateHousekeeping(t, world)
 
 	done := summaryOf(t, []auto.Counts{world.Counts}, world.Warnings, false)
-	g.Expect(done.Line).To(Equal(curateWarning))
+	g.Expect(world.Warnings).To(HaveExactElements(warnedOf("curation", "failed: boom")))
+	g.Expect(done.Line).To(Equal(world.Warnings[0]))
 }
 
 func Test793d30b2_OnlyConstantsAndCountsReachTheLineNothingANoteAnOfferOrALessonSays(t *testing.T) {

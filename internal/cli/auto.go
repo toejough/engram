@@ -16,6 +16,8 @@ import (
 // unexported constants.
 const (
 	autoDirPerm fs.FileMode = 0o755
+	// the name of the failure record in the data directory
+	autoLogName = "auto.log"
 	// the backlog marks name the user's conversations: the user alone reads them
 	autoFilePerm fs.FileMode = 0o600
 )
@@ -75,6 +77,11 @@ func autoDirectories(deps Deps) (vault, chunks string) {
 	return resolveVault("", home, deps.Getenv), ResolveChunksDir("", home, deps.Getenv)
 }
 
+// autoLogPath is the failure record of the System (793d36b4), in the data directory of engram.
+func autoLogPath(home string, getenv func(string) string) string {
+	return filepath.Join(DataDirFromHome(home, getenv), autoLogName)
+}
+
 // autoTargets returns `engram auto run`.
 func autoTargets(deps Deps, errHandler func(error)) any {
 	return targ.Group("auto",
@@ -94,11 +101,12 @@ func runAuto(ctx context.Context, deps Deps) error {
 	}
 
 	vault, chunks := autoDirectories(deps)
+	home := homeOrEmpty(deps)
 
 	output, err := auto.Run(auto.Deps{
 		Vault: newAutoVault(ctx, deps),
 		Files: autoFiles{edge: deps.FS}, Offers: autoOffers{edge: deps.FS}, Clock: autoClock{now: deps.Now},
-		VaultPath: vault, ChunksDir: chunks,
+		VaultPath: vault, ChunksDir: chunks, Home: home, LogPath: autoLogPath(home, deps.Getenv),
 	}, input)
 	if err != nil {
 		return fmt.Errorf("auto run: %w", err)

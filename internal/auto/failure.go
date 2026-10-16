@@ -3,7 +3,9 @@ package auto
 import (
 	"errors"
 	"regexp"
+	"strings"
 	"time"
+	"unicode"
 )
 
 // StepError is a failure with its class; any other error a step fails with is an `error`.
@@ -27,11 +29,27 @@ const (
 	kindError       = "error"
 	kindTimeout     = "timeout"
 	kindUnavailable = "unavailable"
+	// the longest reason a warning carries, in characters, before it is cut (793b451)
+	reasonLimit = 120
+	// the start of every warning
+	skippedPrefix = "Automatic memory skipped: "
+	// the operations a warning names, in the terms of the user (793b451)
+	stepBacklog  = "backlog capture"
+	stepCuration = "curation"
+	stepIndexing = "indexing"
 )
 
 // unexported variables.
 var (
-	busy        = regexp.MustCompile(`(?i)holds the manifest lock`)
+	busy = regexp.MustCompile(`(?i)holds the manifest lock`)
+	// what happened to an operation, by the class of the failure: it follows the name of the operation
+	predicates = map[string]string{
+		kindUnavailable: "could not reach the vault",
+		kindTimeout:     "timed out",
+		kindError:       "failed",
+	}
+	// the verb an operation of the vault adds to its text ("query failed: "), which the warning does not repeat
+	stepVerb    = regexp.MustCompile(`^\S+ failed: `)
 	timedOut    = regexp.MustCompile(`(?i)still running after|timed out|^aborted$`)
 	unavailable = regexp.MustCompile(`(?i)failed to start|ENOENT|permission denied|no such file or directory|` +
 		`read-only file system|input/output error`)
@@ -92,29 +110,71 @@ func kindOf(err error) string {
 	return failureKind(err.Error())
 }
 
-// stateReason is the words of the two states that are not failures of a command: an index another run is working on
-// (793b429), and one that has not caught up (793b430).
-func stateReason(kind string) string {
-	switch kind {
-	case kindBusy:
-		return "another indexing is running"
-	case kindBehind:
-		return "the index is not caught up"
+// consequence is what happens next to what the operation was to do, a statement the code makes true (793b451).
+func consequence(step string) string {
+	switch {
+	case step == "prompt lookup":
+		return "no notes delivered for this prompt"
+	case strings.HasSuffix(step, " lookup"):
+		return "no notes delivered this time"
+	case step == "capture":
+		return "nothing lost, the backlog capture covers it later"
+	case step == "summary":
+		return "no activity summary this turn"
 	}
 
-	return ""
+	return "nothing lost, retried next turn"
 }
 
-// warning is the one line the user is shown, on the status line and nowhere else: what was skipped and why.
-func warning(step, kind string) string {
-	reason := map[string]string{kindUnavailable: "the vault is unavailable", kindTimeout: "the System timed out"}[kind]
-	if reason == "" {
-		reason = stateReason(kind)
+// cutToLine is the text on one line, without control characters (a terminal would act on them), cut to the limit with an ellipsis when it was longer.
+func cutToLine(text string, limit int) string {
+	printable := strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) && !unicode.IsSpace(r) {
+			return -1
+		}
+
+		return r
+	}, text)
+	line := strings.Join(strings.Fields(printable), " ")
+	if runes := []rune(line); len(runes) > limit {
+		return string(runes[:limit]) + "..."
+	}
+
+	return line
+}
+
+// reasonOf is the text of a failure as the warning gives it: redacted, without the verb of its operation, on one line.
+func reasonOf(text string) string {
+	return cutToLine(stepVerb.ReplaceAllString(redact(text), ""), reasonLimit)
+}
+
+// warning is the one line the user is shown, on the status line and nowhere else: what was skipped, why, what happens
+// next and where the details are.
+func warning(step, kind, text, log string) string {
+	return skippedPrefix + whatHappened(step, kind, reasonOf(text)) + "; " + consequence(step) + " (details: " + log + ")"
+}
+
+// whatHappened is the operation and what became of it, with the reason of the classes that have one.
+func whatHappened(step, kind, reason string) string {
+	switch kind {
+	case kindBusy:
+		if step == stepIndexing {
+			return step + " was already running in another session"
+		}
+
+		return step + " was blocked because indexing was already running in another session"
+	case kindBehind:
+		return step + " was held back: the index is not caught up"
+	}
+
+	predicate, known := predicates[kind]
+	if !known {
+		predicate = predicates[kindError]
 	}
 
 	if reason == "" {
-		reason = "of an error"
+		return step + " " + predicate
 	}
 
-	return "Automatic memory was skipped because " + reason + " (" + step + ")"
+	return step + " " + predicate + ": " + reason
 }

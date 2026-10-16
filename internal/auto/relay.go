@@ -82,6 +82,7 @@ func Run(deps Deps, input []byte) ([]byte, error) {
 	jobs := map[string]func() Done{
 		"lookup": e.lookupJob, "deep": e.deepJob, "step": e.stepJob, "tool": e.toolJob, "compact": e.compactJob,
 		"capture": e.captureJob, "subagent": e.subagentJob, "housekeeping": e.housekeepingJob, "summary": e.summaryJob,
+		"failure": e.failureJob,
 	}
 
 	err := json.Unmarshal(input, &e.job)
@@ -270,7 +271,9 @@ func (e *engine) warn(step string, err error) {
 	e.logf("%s: %s", orElse(step, "internal"), err)
 
 	if e.live() && step != "" {
-		e.resp.Warnings = append(e.resp.Warnings, warning(step, kindOf(err)))
+		kind := kindOf(err)
+		e.resp.Warnings = append(e.resp.Warnings, warning(step, kind, err.Error(), e.shownLog()))
+		e.record(step, kind, err.Error())
 	}
 }
 

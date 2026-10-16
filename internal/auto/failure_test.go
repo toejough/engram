@@ -316,7 +316,7 @@ func Test793d36b3_TheReasonOfAWarningIsOneLineRedactedAndCutAt120Characters(t *t
 	world := NewWorld()
 	secret := "ghp_" + strings.Repeat("a1B2", 8)
 	world.Process["query"] = func([]string) (auto.Output, error) {
-		return auto.Output{}, errors.New("first line with " + secret + "\nsecond line " + strings.Repeat("y", 300))
+		return auto.Output{}, errors.New("first line with " + secret + " end\nsecond line\x1b[31m " + strings.Repeat("y", 300))
 	}
 
 	failureLookup(t, world)
@@ -324,7 +324,8 @@ func Test793d36b3_TheReasonOfAWarningIsOneLineRedactedAndCutAt120Characters(t *t
 	g.Expect(world.Warnings).To(HaveLen(1))
 	g.Expect(world.Warnings[0]).NotTo(ContainSubstring(secret))
 	g.Expect(world.Warnings[0]).NotTo(ContainSubstring("\n"))
-	g.Expect(world.Warnings[0]).To(ContainSubstring("first line with [redacted] second line yyy"))
+	g.Expect(world.Warnings[0]).NotTo(ContainSubstring("\x1b"))
+	g.Expect(world.Warnings[0]).To(ContainSubstring("first line with [redacted] end second line[31m yyy"))
 	g.Expect(world.Warnings[0]).To(ContainSubstring("yyy...; " + failureNext))
 
 	reason := strings.TrimPrefix(strings.Split(world.Warnings[0], "; ")[0], "Automatic memory skipped: prompt lookup failed: ")

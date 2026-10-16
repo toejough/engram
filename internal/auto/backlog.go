@@ -143,7 +143,7 @@ func (e *engine) indexBehind(sources []Source, marks Marks) bool {
 		return false
 	}
 
-	e.warn("the backlog capture", &StepError{
+	e.warn(stepBacklog, &StepError{
 		Message: "backlog: index not caught up: its newest session changed before the cut-off", Kind: kindBehind,
 	})
 

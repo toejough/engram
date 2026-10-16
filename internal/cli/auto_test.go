@@ -201,7 +201,7 @@ func Test793d36b4_AutoRunWritesTheLogInTheDataDirectoryForItsOwnerAlone(t *testi
 	g.Expect(string(text)).To(gomega.Equal(
 		`2023-11-14T22:13:20Z session="s1" operation="indexing" class=error reason="boom"` + "\n"))
 	g.Expect(out.String()).To(gomega.ContainSubstring(
-		`Automatic memory skipped: indexing failed: boom; nothing lost, retried next turn `+
+		`Automatic memory skipped: indexing failed: boom; nothing lost, retried next turn ` +
 			`(details: ~/.local/share/engram/auto.log)`))
 
 	info, err := os.Stat(log)
