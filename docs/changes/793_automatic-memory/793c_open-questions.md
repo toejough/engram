@@ -490,3 +490,13 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Recommendation:** (a): (b) loses the correction of a turn when the user types ahead, which is the common way to work.
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b76 A turn is found by the text it began with](./793b_decision-log.md#793b76-a-turn-is-found-by-the-text-it-began-with).
+
+## 793c48 Is writing a < as &lt; the right defence of the window and the notes?
+
+- **Context:** [793b77 The instructions are the system of the request, and a < is written &lt;](./793b_decision-log.md#793b77-the-instructions-are-the-system-of-the-request-and-a--is-written-lt) separates the instructions from the record and escapes the character that opens a
+  tag in the lines of the window and the [notes](../../GLOSSARY.md#permanent-note). A lesson that quotes code may come back with `&lt;` in a field if the model copies it so.
+- **Options:** (a) The escape, and the instructions say what it stands for. (b) A delimiter with a random value in each
+  request. (c) Neither.
+- **Recommendation:** (a): it is deterministic and testable, and the instructions ask for `<` where it is meant.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b77 The instructions are the system of the request, and a < is written &lt;](./793b_decision-log.md#793b77-the-instructions-are-the-system-of-the-request-and-a--is-written-lt).

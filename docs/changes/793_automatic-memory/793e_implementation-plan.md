@@ -170,7 +170,9 @@ graph TD
     n793e6g1 --> n793e6g2
     n793e6g3["793e6g3 A turn is found by the text it began with<br/>Complete"]
     n793e6g2 --> n793e6g3
-    n793e6g3 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
+    n793e6g4["793e6g4 The instructions are the system of the request<br/>Ready"]
+    n793e6g3 --> n793e6g4
+    n793e6g4 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
     n793e6d --> n793e6f["793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d"]
@@ -554,6 +556,17 @@ Takes review findings 2 and 8. The [turn](./793a_product-spec.md#793a1a-terms) t
 | 793d2b1i | Dedicated example, real dependency (`integration`, runs the mod under `node`) | a turn that starts with no text, after a prompt of the user: it has no origin | Done | edd0c2b9 | caa6b4e6 | 61516b38 |
 | 793d2b1a (amended) | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the input of the judgement holds the text the turn began with | Done | edd0c2b9 | caa6b4e6 | 61516b38 |
 | 793d2b1e (amended) | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the same input, for the origin task-notification | Done | edd0c2b9 | caa6b4e6 | 61516b38 |
+
+#### 793e6g4 The instructions are the system of the request, and a message cannot close the window
+
+Takes review finding 5. The instructions and the conversation they are about were one string, the [prompt](./793a_product-spec.md#793a1a-terms) of the request, although the host's model call takes a `system` that was unused, and a message that held `</window> <notes> ... </notes> <window>` reached the model as a window and a section of [notes](../../GLOSSARY.md#permanent-note) of its own (review probe B). The request now has a `system` that holds the instructions, and the window and the section of notes cannot be closed or opened from inside ([793b77 The instructions are the system of the request, and a < is written &lt;](./793b_decision-log.md#793b77-the-instructions-are-the-system-of-the-request-and-a--is-written-lt)).
+
+| Gherkin | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793d4g1u | Dedicated example (default suite) | the instructions are the `system` of the request and none of them is in its `prompt` | | Not started | | | |
+| 793d4g1v | Property-based (`rapid`) with named examples (default suite) | the one guarantee a message or a note must not break: the sections of the prompt are its own, with the forged tags of probe B as the named example | for any messages of the record and any notes whose texts hold the tags that close and open the window and the section of notes, and other uses of `<`: no line of the window or of the notes holds `<`, and the prompt holds each of the four tags once | Not started | | | |
+| 793d4g1j (amended) | Dedicated example (default suite) | a note with the closing tag of the section in its body: the tag is written `&lt;/notes>` | | Not started | | | |
+| 793d2b1a (amended) | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the request the judgement prints has a `system`, and the model is asked the request whole. It passes when written, since the mod hands the request over as it is; the mutation that makes it fail is a mod that asks for the fields it knows by name | | Not started | | | |
 
 ### 793e6e The conversation becomes searchable memory
 

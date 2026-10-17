@@ -579,8 +579,11 @@ command is its arguments, and none when it has none. The turn begins at the last
 `text` of the input, or at the last prompt of the record when the input gives no text or no prompt has it; it ends before
 the next prompt of the record, and after the last line of the [agent](./793a_product-spec.md#793a1a-terms) that is the final text; and the conversation before it is the
 context. It MUST print one JSON object, the request for the
-model: `model` (`haiku`), `effort` (`low`), `prompt`, `maxTokens` and `timeoutMs`. The prompt MUST hold the instructions
-of the judgement, then the lines of the context, then the line `--- the turn ---`, then the lines of the turn. A line is
+model: `model` (`haiku`), `effort` (`low`), `system`, `prompt`, `maxTokens` and `timeoutMs`. The `system` MUST hold the
+instructions of the judgement and nothing of the record, so that the model reads them as instructions. The prompt MUST
+hold, between the tags `<window>` and `</window>`, the lines of the context, then the line `--- the turn ---`, then the
+lines of the turn. A `<` in a message or in a [note](../../GLOSSARY.md#permanent-note) is written `&lt;`, which the instructions say, so that no message or
+note can close the window or the section of notes, or open another. A line is
 one message and opens with `User: ` for a prompt, `Agent: ` for text of the [agent](./793a_product-spec.md#793a1a-terms), and `Agent used ` and the tool's name for a
 tool it called; a line break in a message is written ` ⏎ `, so that no message makes a line of its own. The text of every
 message of the window is redacted ([793d4j Redacting credentials](#793d4j-redacting-credentials)) before it is cut or joined with another, and no other message is
@@ -589,7 +592,7 @@ session, and a record of 1 MB is judged within 2 seconds. A line is cut to its f
 1,200 characters; the context is its last 6 lines; and the window is cut to 8,000 characters, the oldest lines of the
 context first and then the middle of the turn, where the line `--- some of the turn is left out ---` stands in place of
 the lines left out. The final text is the last line of the turn when no line of the turn holds its first 80
-characters. The prompt MUST also hold, as lines of the section of [notes](../../GLOSSARY.md#permanent-note), the notes nearest to the turn: the notes
+characters. The prompt MUST also hold, as lines of the section of [notes](../../GLOSSARY.md#permanent-note) between the tags `<notes>` and `</notes>`, the notes nearest to the turn: the notes
 that the lookup of [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) returns for the text of the prompts of the turn, each in the form of a line of a
 block (a dash, the file name, the situation in parentheses, a colon and the body), with its text redacted, written as
 one line and cut to 400 characters, or the word `(none)` when there are none. It MUST print nothing, and succeed,
@@ -702,6 +705,16 @@ Scenario: 793d4g1t A text that no prompt has begins the turn at the last prompt
   Given the record of a session with two prompts, and a text that neither has
   When the judgement is given the session and that text
   Then the turn of the request begins at the last prompt
+
+Scenario: 793d4g1u The instructions are the system of the request
+  Given the record of a session with a prompt
+  When the judgement is given the session
+  Then the system of the request holds the instructions of the judgement and nothing of the record, and its prompt holds the window and the notes and none of the instructions
+
+Scenario: 793d4g1v A message or a note cannot close the window or open a section
+  Given messages and notes whose texts hold the tags that close and open the window and the section of notes, and other uses of the character that opens a tag
+  When the request is made
+  Then no line of the window or of the section of notes holds that character, each holds &lt; in its place, and the prompt holds each tag of the window and of the notes once
 ```
 
 ### 793d4h Writing the lessons of a reply
