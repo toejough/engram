@@ -204,12 +204,13 @@ the ID with the suffix `.jsonl`, in the session-log directory of
 [792b17c6 Session-log directory](../../specs/technical/ingestion-source-discovery.md#792b17c6-session-log-directory),
 directly in it or in one of its subdirectories. It MUST return the text of every block that was delivered beside a
 prompt of the session, that is of every record of the kind `attachment` whose type is `hook_additional_context`, and
+the text of every result of a tool that the agent ran, that is of every `tool_result` block of a `user` record, and
 nothing else of the record. It MUST return nothing, without an error, when the session has no record, when the
 record cannot be read, and when the ID is not a plain file name.
 
 Owner: session-context (a new component; its canonical file at promotion is `session-context.md`)
 
-Supports: [793a2b1b A note delivered earlier in the session is not delivered again](./793a_product-spec.md#793a2b1-uat-scenarios).
+Supports: [793a2b1b A note delivered earlier in the session is not delivered again](./793a_product-spec.md#793a2b1-uat-scenarios), [793a2b1c A note the agent looked up itself is not delivered](./793a_product-spec.md#793a2b1-uat-scenarios).
 
 #### 793d4d1 Scenarios
 
@@ -218,6 +219,11 @@ Scenario: 793d4d1a The blocks delivered beside prompts are what a session holds
   Given the record of a session with a block delivered beside a prompt, and a prompt, a reply and other attachments
   When what the session holds is read
   Then the text is that of the block, and nothing of the prompt, the reply or the other attachments
+
+Scenario: 793d4d1d What a tool printed is held
+  Given the record of a session in which the agent ran a command whose result names a note, as a string and as text blocks
+  When what the session holds is read
+  Then the text holds the result, and nothing of the command the agent wrote or of the reply
 
 Scenario: 793d4d1b The record is found under its project directory
   Given a session-log directory whose subdirectory for a project holds the record of the session
@@ -288,6 +294,19 @@ Scenario: 793a2b1b A note delivered earlier in the session is not delivered agai
 ```
 
 Realized by [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow) (the mod gives the command the session's ID), [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) (the session's record shows the block delivered with the first prompt) and [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) (the command leaves that note out). The second prompt arrives with nothing from the vault because the command prints nothing when the only note that bears on the prompt is held ([793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt)), and the mod then adds nothing ([793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow)).
+
+### 793d5c Mapping of 793a2b1c
+
+The product scenario [793a2b1c A note the agent looked up itself is not delivered](./793a_product-spec.md#793a2b1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2b1c A note the agent looked up itself is not delivered
+  Given a session in which, before the user ran engram update, the agent looked up the staging note itself with engram query
+  When the user runs engram update, resumes that session, and sends a prompt asking when the staging database is reset
+  Then the prompt arrives with nothing from the vault
+```
+
+Realized by [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) (the result of the agent's own `engram query` is in the session's record, and names the note) with the flow and the delivery of [793d5b Mapping of 793a2b1b](#793d5b-mapping-of-793a2b1b).
 
 ## 793d6 Recommended impact
 
