@@ -2,6 +2,7 @@ package update_test
 
 import (
 	"context"
+	"maps"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -140,6 +141,35 @@ func Test793d4b1g_Updater_Run_ADryRunReportsTheModAndWritesNoneOfIt(t *testing.T
 	g.Expect(fileSystem.symlinks).To(BeEmpty())
 	g.Expect(fileSystem.dirs["/home/joe/.claude/engram"]).To(BeFalse())
 	g.Expect(fileSystem.dirs["/home/joe/.claude/skills"]).To(BeFalse())
+}
+
+func Test793d4b1h_Updater_Run_ASecondUpdateLeavesTheModAsTheFirstLeftIt(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	updater, fileSystem := updaterOverCheckoutWithMod()
+
+	_, firstErr := updater.Run(context.Background(), update.Options{})
+	g.Expect(firstErr).NotTo(HaveOccurred())
+
+	filesAfterFirst := maps.Clone(fileSystem.written)
+	linksAfterFirst := maps.Clone(fileSystem.symlinks)
+
+	g.Expect(filesAfterFirst).To(HaveKey("/home/joe/.claude/engram/skills/engram-memory/hooks/register.js"))
+	g.Expect(linksAfterFirst).To(HaveKey("/home/joe/.claude/skills/engram-memory"))
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+	g.Expect(report.Harnesses[0].Err).NotTo(HaveOccurred())
+
+	g.Expect(fileSystem.written).To(Equal(filesAfterFirst))
+	g.Expect(fileSystem.symlinks).To(Equal(linksAfterFirst))
+	g.Expect(report.Harnesses[0].SkillDirs).To(ConsistOf(
+		update.SkillDirCount{Name: "learn", Files: 1},
+		update.SkillDirCount{Name: "engram-memory", Files: 1, Mod: true},
+	))
 }
 
 // updaterOverCheckoutWithMod returns an updater over an in-memory machine with Claude Code and a checkout that holds
