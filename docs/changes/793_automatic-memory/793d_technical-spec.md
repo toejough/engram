@@ -232,8 +232,8 @@ Scenario: 793d4c1a A note cannot reshape the block
 ### 793d4d Telling what a session holds
 
 Requirement: 793d4d The session-context MUST, given a session's ID, look for the session's record, the file named for
-the ID with the suffix `.jsonl`, in the session-log directory of
-[792b17c6 Session-log directory](../../specs/technical/ingestion-source-discovery.md#792b17c6-session-log-directory),
+the ID with the suffix `.jsonl`, in the directory of records it is given
+([793d4f Finding the records of sessions](#793d4f-finding-the-records-of-sessions)),
 directly in it or in one of its subdirectories. Of what the agent was given, it MUST return two things and nothing
 else of the record. The first is the file name of each note line of every block that was delivered beside a prompt of
 the session, that is of every entry, of a record of the kind `attachment` whose type is `hook_additional_context`, that
@@ -363,6 +363,38 @@ Scenario: 793d4b1h A second update leaves the mod as the first left it
   Given a checkout whose agent-instructions/mods holds the mod engram-memory, a machine with Claude Code, and engram update run once
   When engram update runs again
   Then the files of the mod and the link to it are those the first run left, and the report lists the mod once
+```
+
+### 793d4f Finding the records of sessions
+
+Requirement: 793d4f The prompt-delivery MUST read the records of sessions from the directory that its `--sessions` flag
+names, or, when the flag is not given, from the directory that `ENGRAM_TRANSCRIPT_DIR` names when it is set, else from
+the `projects` directory of the directory that `CLAUDE_CONFIG_DIR` names when it is set, else from `<home>/.claude/projects`,
+and from no directory when the home directory cannot be found. It MUST NOT change the session-log directory of
+[792b17c6 Session-log directory](../../specs/technical/ingestion-source-discovery.md#792b17c6-session-log-directory),
+which `engram ingest` sweeps.
+
+Owner: prompt-delivery (a new component; its canonical file at promotion is `prompt-delivery.md`)
+
+Supports: [793a2b1b A note delivered earlier in the session is not delivered again](./793a_product-spec.md#793a2b1-uat-scenarios), [793a2b1c A note the agent looked up itself is not delivered](./793a_product-spec.md#793a2b1-uat-scenarios).
+
+#### 793d4f1 Scenarios
+
+```gherkin
+Scenario: 793d4f1a ENGRAM_TRANSCRIPT_DIR names the records first
+  Given ENGRAM_TRANSCRIPT_DIR and CLAUDE_CONFIG_DIR are both set, and the record of a session in each, the first showing one note delivered and the second another
+  When engram auto deliver is dispatched for a prompt of the session, without --sessions
+  Then the block names the second note only
+
+Scenario: 793d4f1b CLAUDE_CONFIG_DIR names them when ENGRAM_TRANSCRIPT_DIR does not
+  Given only CLAUDE_CONFIG_DIR is set, a record of the session in its projects directory showing one note delivered, and a record of the session in the home's .claude/projects showing another
+  When engram auto deliver is dispatched for a prompt of the session, without --sessions
+  Then the block names the second note only
+
+Scenario: 793d4f1c The home's .claude/projects holds them by default
+  Given neither variable is set, and a record of the session in the home's .claude/projects showing one note delivered
+  When engram auto deliver is dispatched for a prompt of the session, without --sessions
+  Then the block names the other note only
 ```
 
 ## 793d5 Product-scenario mapping

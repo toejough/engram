@@ -179,3 +179,17 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Recommendation:** (a): (b) puts an error message or a usage text in the agent's context as if it were a note.
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b50 The mod uses what the command printed only when it succeeded and printed a block](./793b_decision-log.md#793b50-the-mod-uses-what-the-command-printed-only-when-it-succeeded-and-printed-a-block).
+
+## 793c26 Does the delivery read the records where Claude Code writes them, and does the sweep follow?
+
+- **Context:** Claude Code writes the record of a session under `$CLAUDE_CONFIG_DIR/projects` when `CLAUDE_CONFIG_DIR`
+  is set. `engram update` installs the mod under `<home>/.claude`, so the delivery matters for a user whose configuration
+  directory links to it. `engram ingest` reads `ENGRAM_TRANSCRIPT_DIR`, else `<home>/.claude/projects`
+  ([792b17c6 Session-log directory](../../specs/technical/ingestion-source-discovery.md#792b17c6-session-log-directory)),
+  which ignores `CLAUDE_CONFIG_DIR`.
+- **Options:** (a) The delivery reads `ENGRAM_TRANSCRIPT_DIR`, else `$CLAUDE_CONFIG_DIR/projects`, else
+  `<home>/.claude/projects`; the sweep is unchanged. (b) Both use that order, which changes a canonical requirement of
+  `engram ingest`. (c) Neither: the delivery reads `<home>/.claude/projects` only, as the first version did.
+- **Recommendation:** (a) for this change. (b) is a separate change to the sweep.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b51 The delivery finds the records where Claude Code writes them](./793b_decision-log.md#793b51-the-delivery-finds-the-records-where-claude-code-writes-them).

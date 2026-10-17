@@ -694,8 +694,8 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   tool's ID. Nothing else of the record counts: not the other context that a hook put beside a prompt, not the situations
   and bodies of a block, not the result of any other tool, such as an `ls` of the vault or a `cat` of a note file. The
   whole record counts, whatever a compaction removed ([793b27 "Already has" is per session](#793b27-already-has-is-per-session)).
-  The record is found by the session's ID, in the session-log directory that `engram ingest` sweeps
-  ([792b17c6 Session-log directory](../../specs/technical/ingestion-source-discovery.md#792b17c6-session-log-directory)),
+  The record is found by the session's ID, in the directory of records of sessions
+  ([793b51 The delivery finds the records where Claude Code writes them](#793b51-the-delivery-finds-the-records-where-claude-code-writes-them)),
   directly in it or in a subdirectory for a project. A session with no record holds nothing, which is the first prompt
   of every session. An ID that is not a plain file name holds nothing, so an ID cannot name a file outside the directory.
 - **Rationale:** the record is the only durable account of what reached the agent: the blocks a hook adds are recorded
@@ -801,4 +801,24 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 - **Alternatives:** the exit code alone (rejected: an `engram` that exits 0 with other text would still reach the
   context); the marker alone (rejected: a failing command that happens to print a block would still be used); any
   non-empty output, the first version (rejected: reproduced).
+- **Decided by:** Author (default; owner may override), on the review's finding.
+
+## 793b51 The delivery finds the records where Claude Code writes them
+
+- **Choice:** `engram auto deliver` reads the records of sessions from the directory its `--sessions` flag names, else
+  from `ENGRAM_TRANSCRIPT_DIR`, else from `$CLAUDE_CONFIG_DIR/projects`, else from `<home>/.claude/projects`
+  ([793d4f Finding the records of sessions](./793d_technical-spec.md#793d4f-finding-the-records-of-sessions)).
+  `engram ingest` is not changed: it keeps `ENGRAM_TRANSCRIPT_DIR`, else `<home>/.claude/projects`
+  ([792b17c6 Session-log directory](../../specs/technical/ingestion-source-discovery.md#792b17c6-session-log-directory)).
+- **Rationale:** a session started with `CLAUDE_CONFIG_DIR` set writes its record under `$CLAUDE_CONFIG_DIR/projects`, and
+  not under `<home>/.claude/projects`: a headless `claude -p` session of Claude Code 2.1.302 in an isolated home, with
+  `CLAUDE_CONFIG_DIR` set to a directory other than `<home>/.claude` and no `ENGRAM_TRANSCRIPT_DIR`, left its record at
+  `$CLAUDE_CONFIG_DIR/projects/<project>/<session ID>.jsonl` and nowhere under the home. The first version read only
+  `<home>/.claude/projects`, so for such a user, whose skills directory links to the one `engram update` fills, no record
+  was ever found and every held note was delivered again with each prompt (review finding 13). `ENGRAM_TRANSCRIPT_DIR`
+  stays first because it is engram's own override and what every isolated run sets. The sweep is left as it is because
+  its order is a canonical requirement of `engram ingest`, and the standing rule is to default to today's behaviour.
+- **Alternatives:** change the one function that both commands use (rejected: it changes what `engram ingest` sweeps for
+  a user with `CLAUDE_CONFIG_DIR` set, which the owner did not ask for; asked in
+  [793c26 Does the delivery read the records where Claude Code writes them, and does the sweep follow?](./793c_open-questions.md#793c26-does-the-delivery-read-the-records-where-claude-code-writes-them-and-does-the-sweep-follow)).
 - **Decided by:** Author (default; owner may override), on the review's finding.
