@@ -335,11 +335,11 @@ Takes [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-
 | Gherkin | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 793a2c1a | Dedicated example, product acceptance (`network`) | the promise as the user sees it: a real [session](../../GLOSSARY.md#session) in which the [agent](./793a_product-spec.md#793a1a-terms) may not run engram commands, a correction, and a [note](../../GLOSSARY.md#permanent-note) in the [vault](../../GLOSSARY.md#vault) that says it was written automatically within the bound; the time from the end of the turn to the note is measured | | Red | | | |
-| 793d4g1a | Dedicated example (default suite) | the request over a record of the real format: the instructions, the context, the divider and the lines of the turn | | Not started | | | |
-| 793d4g1b | Dedicated example (default suite) | the final text fills in a record whose last row is not yet written | | Not started | | | |
-| 793d4g1c | Dedicated example (default suite) | the boundary cases: no record, and a record with no [prompt](./793a_product-spec.md#793a1a-terms) | | Not started | | | |
-| 793d4g1d | Dedicated example (default suite) | the failure branch of the command: an input that is not a JSON object, through `RunAutoJudge` | | Not started | | | |
-| 793d4g1e | Property-based (`rapid`) with named examples (default suite) | the one guarantee a message must not break: a message is one line | for any messages whose text holds line breaks of every kind, control and format characters and text that reads as a label: the lines of the turn are one for each message, each opens with its label, and no line holds a line break | Not started | | | |
+| 793d4g1a | Dedicated example (default suite) | the request over a record of the real format: the instructions, the context, the divider and the lines of the turn | | Red | | | |
+| 793d4g1b | Dedicated example (default suite) | the final text fills in a record whose last row is not yet written | | Red | | | |
+| 793d4g1c | Dedicated example (default suite) | the boundary cases: no record, and a record with no [prompt](./793a_product-spec.md#793a1a-terms) | | Red | | | |
+| 793d4g1d | Dedicated example (default suite) | the failure branch of the command: an input that is not a JSON object, through `RunAutoJudge` | | Red | | | |
+| 793d4g1e | Property-based (`rapid`) with named examples (default suite) | the one guarantee a message must not break: a message is one line | for any messages whose text holds line breaks of every kind, control and format characters and text that reads as a label: the lines of the turn are one for each message, each opens with its label, and no line holds a line break | Red | | | |
 | 793d4h1a | Dedicated example (default suite) | a feedback lesson becomes a feedback note with the mark, through `RunAutoWrite` over an in-memory vault | | Not started | | | |
 | 793d4h1b | Dedicated example (default suite) | a fact lesson becomes a fact note with the mark | | Not started | | | |
 | 793d4h1c | Dedicated example (default suite) | the replies and lessons that write nothing | | Not started | | | |
