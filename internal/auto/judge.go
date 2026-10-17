@@ -29,25 +29,16 @@ type TurnEnd struct {
 // holds no prompt (793d4g). The turn is the last prompt of the record and everything after it, the lines before it are
 // the context, and the final text is the turn's last line when no line of the turn holds its beginning.
 func Judge(record []byte, answer string) (Judgement, bool) {
-	messages := messagesOf(record)
-
-	start := -1
-
-	for index, entry := range messages {
-		if entry.isPrompt {
-			start = index
-		}
-	}
-
-	if start < 0 {
+	lines, prompt := linesOf(record)
+	if prompt < 0 {
 		return Judgement{}, false
 	}
 
-	window := slices.Concat(linesOf(messages[:start]), []string{divider}, withAnswer(linesOf(messages[start:]), answer))
-	prompt := strings.NewReplacer("{window}", strings.Join(window, "\n"), "{notes}", noNotes).Replace(instructions)
+	window := slices.Concat(lines[:prompt], []string{divider}, withAnswer(lines[prompt:], answer))
+	text := strings.NewReplacer("{window}", strings.Join(window, "\n"), "{notes}", noNotes).Replace(instructions)
 
 	return Judgement{
-		Model: judgeModel, Effort: judgeEffort, Prompt: prompt, MaxTokens: judgeMaxTokens, TimeoutMs: judgeTimeoutMs,
+		Model: judgeModel, Effort: judgeEffort, Prompt: text, MaxTokens: judgeMaxTokens, TimeoutMs: judgeTimeoutMs,
 	}, true
 }
 
@@ -69,78 +60,60 @@ const (
 //go:embed prompts/judge.txt
 var instructions string
 
-// message is a prompt of the user, or a text or a tool use of the agent, as the one line it makes in the window.
-type message struct {
-	line     string
-	isPrompt bool
-}
-
 // agentLine is the line of a text of the agent.
 func agentLine(text string) string {
 	return "Agent: " + oneLined(text)
 }
 
-// agentMessagesOf reads the texts and the tool uses of one message of the agent.
-func agentMessagesOf(content json.RawMessage) []message {
+// agentLinesOf reads the lines of the texts and the tool uses of one message of the agent.
+func agentLinesOf(content json.RawMessage) []string {
 	blocks := blocksOf(content)
-	messages := make([]message, 0, len(blocks))
+	lines := make([]string, 0, len(blocks))
 
 	for _, block := range blocks {
 		switch {
 		case block.Type == "text" && oneLined(block.Text) != "":
-			messages = append(messages, message{line: agentLine(block.Text)})
+			lines = append(lines, agentLine(block.Text))
 		case block.Type == "tool_use":
-			messages = append(messages, message{line: "Agent used " + oneLined(block.Name)})
+			lines = append(lines, "Agent used "+oneLined(block.Name))
 		}
-	}
-
-	return messages
-}
-
-// isLineBreak reports a character that ends a line.
-func isLineBreak(r rune) bool {
-	switch r {
-	case '\n', '\r', '\v', '\f', '\u0085', ' ', ' ':
-		return true
-	default:
-		return false
-	}
-}
-
-// linesOf returns the lines of the messages.
-func linesOf(messages []message) []string {
-	lines := make([]string, 0, len(messages))
-
-	for _, entry := range messages {
-		lines = append(lines, entry.line)
 	}
 
 	return lines
 }
 
-// messagesOf reads the prompts of the user and the texts and tool uses of the agent out of a session's record, in
-// order. A tool's result is not a prompt, and a message with no text of its own makes no line.
-func messagesOf(record []byte) []message {
-	messages := make([]message, 0, bytes.Count(record, []byte("\n"))+1)
+// isLineBreak reports a character that ends a line.
+func isLineBreak(r rune) bool {
+	return r == '\n' || r == '\r' || r == '\v' || r == '\f' || r == '\u0085' ||
+		unicode.Is(unicode.Zl, r) || unicode.Is(unicode.Zp, r)
+}
 
-	for line := range bytes.SplitSeq(record, []byte("\n")) {
+// linesOf reads the prompts of the user and the texts and tool uses of the agent out of a session's record, in order,
+// as one line each, and returns the lines with the index of the line of the last prompt, or -1 when there is none. A
+// tool's result is not a prompt, and a message with no text of its own makes no line.
+func linesOf(record []byte) ([]string, int) {
+	lines := make([]string, 0, bytes.Count(record, []byte("\n"))+1)
+	prompt := -1
+
+	for raw := range bytes.SplitSeq(record, []byte("\n")) {
 		var row recordRow
 
-		if json.Unmarshal(line, &row) != nil || row.IsSidechain {
+		if json.Unmarshal(raw, &row) != nil || row.IsSidechain {
 			continue
 		}
 
 		switch row.Type {
 		case "user":
-			if text := promptTextOf(row.Message.Content); oneLined(text) != "" {
-				messages = append(messages, message{line: "User: " + oneLined(text), isPrompt: true})
+			if text := oneLined(promptTextOf(row.Message.Content)); text != "" {
+				prompt = len(lines)
+				lines = append(lines, "User: "+text)
 			}
 		case "assistant":
-			messages = append(messages, agentMessagesOf(row.Message.Content)...)
+			lines = append(lines, agentLinesOf(row.Message.Content)...)
 		}
 	}
 
-	return messages
+	return lines, prompt
 }
 
 // oneLined writes text as one line: a break of the text's own is written ` ⏎ `, any other white space is a space, a
