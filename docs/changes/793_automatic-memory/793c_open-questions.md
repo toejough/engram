@@ -622,3 +622,14 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Recommendation:** (a) until [793e6f The delivery merges the parent vault](./793e_implementation-plan.md#793e6f-the-delivery-merges-the-parent-vault) is built, then (b).
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b89 Each automatic note is offered to the parent vault, and the duplicate check stays local](./793b_decision-log.md#793b89-each-automatic-note-is-offered-to-the-parent-vault-and-the-duplicate-check-stays-local).
+
+## 793c60 Should a request to remember be written when the agent says that it did not save it?
+
+- **Context:** [793b90 A request to remember is a lesson whatever the agent says about saving it](./793b_decision-log.md#793b90-a-request-to-remember-is-a-lesson-whatever-the-agent-says-about-saving-it) has the judgement write the lesson of an explicit request by the user to remember
+  something, whatever the [agent](./793a_product-spec.md#793a1a-terms) answers. An agent that did not save a request because it keeps no secrets, or because it was told not to,
+  may be right not to; the [note](../../GLOSSARY.md#permanent-note) is written anyway, with a secret as [redacted].
+- **Options:** (a) Write it: the user asked for it, and the note holds no secret. (b) Leave it to the agent's word. (c) Write
+  it, and say in the note that the agent refused.
+- **Recommendation:** (a): the user's request is the confirmation, and a refusal of the agent is about its own memory.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b90 A request to remember is a lesson whatever the agent says about saving it](./793b_decision-log.md#793b90-a-request-to-remember-is-a-lesson-whatever-the-agent-says-about-saving-it).

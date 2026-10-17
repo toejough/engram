@@ -137,8 +137,8 @@ a [note](../../GLOSSARY.md#permanent-note) stating it MUST be in the vault withi
 [session](../../GLOSSARY.md#session) stays open for those 2 minutes
 ([793c14 Is a turn that is followed by the end of the session covered?](./793c_open-questions.md#793c14-is-a-turn-that-is-followed-by-the-end-of-the-session-covered)), written by
 [automatic memory](#793a1a-terms) and not by the [agent](#793a1a-terms), and marked as written automatically.
-A turn holds a confirmed lesson when the user corrected the agent, asked it to remember something, or
-confirmed that a particular approach worked, when the agent plainly corrected its own earlier claim, or when an
+A turn holds a confirmed lesson when the user corrected the agent, asked it to remember something, even when the
+agent says that it did not save it, or confirmed that a particular approach worked, when the agent plainly corrected its own earlier claim, or when an
 uncertain approach succeeded with evidence in the turn. A turn that holds only guesses, plans or chatter MUST
 NOT produce a note, and a thanks, or an "it worked", that names no approach is chatter. A note MUST NOT contain a credential, token, key or password that appeared in the turn in a
 recognised form ([793c49 Should the promise that a note holds no credential stay absolute?](./793c_open-questions.md#793c49-should-the-promise-that-a-note-holds-no-credential-stay-absolute)): a private key block; a key or
@@ -191,6 +191,11 @@ Scenario: 793a2c1h A thanks that names no approach produces no note
   Given the user has run engram update, and a session in which the agent may not run engram commands and has done a task one way
   When the user thanks the agent in a prompt, saying only that it worked, and the turn ends
   Then 2 minutes after the turn ends the vault holds no note
+
+Scenario: 793a2c1i A request to remember is written when the agent says it did not save it
+  Given the user has run engram update, and a session in which the agent may not run engram commands
+  When the user asks the agent in a prompt to remember something and not to save it itself, the agent says that it did not save it, and the turn ends
+  Then within 2 minutes the vault holds a note that states it and says it was written automatically
 ```
 
 ### 793a2f The conversation becomes searchable memory

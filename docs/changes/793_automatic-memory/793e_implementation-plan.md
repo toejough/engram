@@ -200,7 +200,9 @@ graph TD
     n793e6g16 --> n793e6g17
     n793e6g18["793e6g18 The documents say what the group does<br/>Complete"]
     n793e6g17 --> n793e6g18
-    n793e6g18 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
+    n793e6g19["793e6g19 A request to remember is written whatever the agent says<br/>Ready"]
+    n793e6g18 --> n793e6g19
+    n793e6g19 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
     n793e6d --> n793e6f["793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d"]
@@ -253,6 +255,9 @@ flowchart TD
     g14 --> g17
     g11 --> g18[793e6g18 Documents and decisions]
     b6 --> g18
+    b2 --> g19[793e6g19 A request to remember is always written]
+    g14 --> g19
+    g17 --> g19
     g12 --> e6[793e6e Searchable conversation]
     a6 --> c6[793e6c Never in the way]
     g12 --> c6
@@ -264,7 +269,7 @@ flowchart TD
     classDef deferred fill:#eeeeee,stroke:#757575,color:#000,stroke-dasharray:5 5
     class a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12 done
     class b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,b15 done
-    class g1,g2,g3,g4,g5,g6,g7,g8,g9,g10,g11,g12,g13,g14,g15,g16,g17,g18 done
+    class g1,g2,g3,g4,g5,g6,g7,g8,g9,g10,g11,g12,g13,g14,g15,g16,g17,g18,g19 done
     class e6,c6,d6 planned
     class f6 deferred
 ```
@@ -790,6 +795,14 @@ Takes review findings 16, 17, 20, 27 and 28, which change no behaviour and have 
 | 20 | Documentation | [793b89 Each automatic note is offered to the parent vault, and the duplicate check stays local](./793b_decision-log.md#793b89-each-automatic-note-is-offered-to-the-parent-vault-and-the-duplicate-check-stays-local) and [793c59 Should an automatic note be offered to the parent vault while the duplicate check ignores it?](./793c_open-questions.md#793c59-should-an-automatic-note-be-offered-to-the-parent-vault-while-the-duplicate-check-ignores-it); nothing is built | Done | n/a | 87688f5f | n/a |
 | 27 | Documentation | eight links whose label was not the heading they point to: three labels cut short, three that named a lesson with a word that is not a defined term, and three that kept the word Modified of a heading | Done | n/a | 87688f5f | n/a |
 | 28 | Documentation | the correction of the message of the commit `37b0e9a9`, in the intro of [793e6b6 Guesses, plans and chatter produce no note](#793e6b6-guesses-plans-and-chatter-produce-no-note), without an amend | Done | n/a | 87688f5f | n/a |
+
+#### 793e6g19 A request to remember is written, whatever the agent says about saving it
+
+Takes what the last tally of the live rows found, which is not a finding of the review. The tally of [793a2c1g A credential in the turn is not in the note](./793a_product-spec.md#793a2c1-uat-scenarios) was 8 of 10 runs, below the bar of 9 ([793b86 The acceptance run takes a count](./793b_decision-log.md#793b86-the-acceptance-run-takes-a-count)): both misses wrote a rule against keeping credentials, from a remark of the [agent](./793a_product-spec.md#793a1a-terms), and no [note](../../GLOSSARY.md#permanent-note) of the deploy. The probe of [793e6g17 The runs of the judgement rows are tallied, and the probe behind the instructions is kept](#793e6g17-the-runs-of-the-judgement-rows-are-tallied-and-the-probe-behind-the-instructions-is-kept) found the cause in the instructions, which took the word of the agent as the end of the matter: a request to remember that the agent said it did not save gave a lesson in 7 of 60 runs. The row is the scenario of that case, a judgement row run 10 times, and the change is two phrases of the instructions ([793b90 A request to remember is a lesson whatever the agent says about saving it](./793b_decision-log.md#793b90-a-request-to-remember-is-a-lesson-whatever-the-agent-says-about-saving-it)). The fixtures of the probe gain the [turn](./793a_product-spec.md#793a1a-terms) of the row and the refusal of the agent that the tally showed.
+
+| Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793a2c1i | Dedicated example, product acceptance (`network`) | the promise as the user sees it: a real [session](../../GLOSSARY.md#session) in which the agent is asked to remember a fact and not to save it, says that it did not, and a note of the fact is in the [vault](../../GLOSSARY.md#vault) within the bound, marked as written automatically | | Not started | | | |
 
 ### 793e6e The conversation becomes searchable memory
 
