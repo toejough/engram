@@ -98,8 +98,8 @@ graph TD
     n793e6a6["793e6a6 A slow lookup does not hold a prompt for more than 8 seconds<br/>Complete"]
     n793e6a7["793e6a7 A vault that does not exist is not created<br/>Complete"]
     n793e6a8["793e6a8 Pi gets no automatic memory<br/>Complete"]
-    n793e6a9["793e6a9 A dry run turns nothing on<br/>Ready"]
-    n793e6a10["793e6a10 A second update still delivers each note once<br/>Blocked by: 793e6a9"]
+    n793e6a9["793e6a9 A dry run turns nothing on<br/>Complete"]
+    n793e6a10["793e6a10 A second update still delivers each note once<br/>Ready"]
     n793e6a1 --> n793e6a2
     n793e6a2 --> n793e6a3
     n793e6a3 --> n793e6a4
@@ -228,10 +228,10 @@ Takes [793a2a1c A dry run turns nothing on](./793a_product-spec.md#793a2a1-uat-s
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2a1c | Dedicated example, product acceptance (`network`) | the preview as the user sees it: a dry run reports the mod and installs nothing, and the next session has no memory | Green-all | c8342310 | 6628b251 | |
+| 793a2a1c | Dedicated example, product acceptance (`network`) | the preview as the user sees it: a dry run reports the mod and installs nothing, and the next session has no memory | Done | c8342310 | 6628b251 | |
 | 793d4b1e | Dedicated example (default suite) | the report data: a mod directory is told from a skill directory, through `Updater.Run` over an in-memory file system | Done | e47a17b1 | 3123a3c3 | 49fd7aa0 |
 | 793d4b1f | Dedicated example (default suite) | the report's rows: the source printed for a mod, through the report writer over a constructed report | Done | 318651db | 6628b251 | a758cadc |
-| 793d4b1g | Dedicated example (default suite) | the dry run's promise for the new input: the mod is planned and reported and none of it is written, through `Updater.Run` over an in-memory file system | Green-all | n/a | - | |
+| 793d4b1g | Dedicated example (default suite) | the dry run's promise for the new input: the mod is planned and reported and none of it is written, through `Updater.Run` over an in-memory file system | Done | n/a | - | |
 
 #### 793e6a10 A second update still delivers each note once
 
