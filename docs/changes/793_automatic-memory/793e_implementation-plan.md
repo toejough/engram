@@ -159,8 +159,8 @@ Takes [793a2b1a The notes that bear on a prompt arrive with it](./793a_product-s
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2b1a | Dedicated example, product acceptance (`network`) | the delivery as the user sees it, with a note that does not bear on the prompt beside one that does: the session holds only the one, before it acts, and the prompt as typed | Done | n/a | b7ff882a | |
-| 793d4a1c | Dedicated example (default suite) | the lookup's payload over a crafted payload: a note only the explore half picked is in the payload of any vault with a vocabulary, and a small test vault has none | Done | 435d427c | | |
+| 793a2b1a | Dedicated example, product acceptance (`network`) | the delivery as the user sees it, with a note that does not bear on the prompt beside one that does: the session holds only the one, before it acts, and the prompt as typed | Done | n/a | b7ff882a | 9f1d0e84 |
+| 793d4a1c | Dedicated example (default suite) | the lookup's payload over a crafted payload: a note only the explore half picked is in the payload of any vault with a vocabulary, and a small test vault has none | Done | 435d427c | | 9f1d0e84 |
 
 #### 793e6a3 A note delivered earlier in the session is not delivered again
 
@@ -168,6 +168,14 @@ Takes [793a2b1b A note delivered earlier in the session is not delivered again](
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
+| 793a2b1b | Dedicated example, product acceptance (`network`) | the second promise of the delivery as the user sees it: two prompts in one real session, the second arriving with nothing from the vault | Not started | | | |
+| 793d2a1b | Dedicated example, real dependency (`network`) | the session's ID reaches the command: the mod's value propagation, in a real Claude Code session against a stand-in engram | Not started | | | |
+| 793d4a1e | Dedicated example (default suite) | no remaining note prints nothing, so a held note's second prompt carries no empty block, through `RunAutoDeliver` | Not started | | | |
+| 793d2a1c | Dedicated example, real dependency (`network`) | an empty output adds nothing: a context entry may not be empty, and the session's record must show no context, in a real Claude Code session against a stand-in engram | Not started | | | |
+| 793d4d1a | Dedicated example (default suite) | what counts as held: the blocks delivered beside prompts and nothing else of a record, over records of the real format | Not started | | | |
+| 793d4d1b | Dedicated example (default suite) | the record is found in a project's subdirectory of the session-log directory, over a real temporary directory | Not started | | | |
+| 793d4d1c | Dedicated example (default suite) | the boundary cases: no record, and an ID that would leave the directory | Not started | | | |
+| 793d4a1d | Dedicated example (default suite) | the delivery leaves out a held note, through `RunAutoDeliver` over an in-memory vault and a real temporary session-log directory | Not started | | | |
 
 #### 793e6a4 A note the agent looked up itself is not delivered
 
