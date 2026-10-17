@@ -164,7 +164,7 @@ graph TD
     n793e6b11 --> n793e6b12
     n793e6b12 --> n793e6b13
     n793e6b13 --> n793e6b14
-    n793e6g1["793e6g1 The rows the harness wrote are no prompt<br/>Ready"]
+    n793e6g1["793e6g1 The rows the harness wrote are no prompt<br/>Complete"]
     n793e6b14 --> n793e6g1
     n793e6g1 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
@@ -522,11 +522,11 @@ Takes review finding 1, the blocker: every row of the record that had text of th
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793d4g1l | Dedicated example (default suite) | the body of a skill, a row marked as meta, over the rows of a real record: it was the last row of the user's, so it was the prompt | Not started | | | |
-| 793d4g1m | Dedicated example (default suite) | a system reminder in the row of a prompt, and a row that holds one only: the shape that [792b15c3 Harness noise](../../specs/technical/transcript-reader.md#792b15c3-harness-noise) drops, built from the rule since no record of the release holds it | Not started | | | |
-| 793d4g1n | Dedicated example (default suite) | a task notification, a row of the user's stamped with an origin the user does not send, over the rows of a real record | Not started | | | |
-| 793d4g1o | Dedicated example (default suite) | the caveat, the name and the output of a command that ran locally, over the rows of a real record, and a slash command given arguments | Not started | | | |
-| 793d4g1p | Dedicated example (default suite) | a row of the origin peer whose text has none of the marks of the harness: the origin alone keeps it out | Not started | | | |
+| 793d4g1l | Dedicated example (default suite) | the body of a skill, a row marked as meta, over the rows of a real record: it was the last row of the user's, so it was the prompt | Done | 9f1dbc38 | 7aae5d32 | 34fd01b0 |
+| 793d4g1m | Dedicated example (default suite) | a system reminder in the row of a prompt, and a row that holds one only: the shape that [792b15c3 Harness noise](../../specs/technical/transcript-reader.md#792b15c3-harness-noise) drops, built from the rule since no record of the release holds it | Done | 9f1dbc38 | 7aae5d32 | 34fd01b0 |
+| 793d4g1n | Dedicated example (default suite) | a task notification, a row of the user's stamped with an origin the user does not send, over the rows of a real record | Done | 9f1dbc38 | 7aae5d32 | 34fd01b0 |
+| 793d4g1o | Dedicated example (default suite) | the caveat, the name and the output of a command that ran locally, over the rows of a real record, and a slash command given arguments | Done | 9f1dbc38 | 7aae5d32 | 34fd01b0 |
+| 793d4g1p | Dedicated example (default suite) | a row of the origin peer whose text has none of the marks of the harness: the origin alone keeps it out | Done | 9f1dbc38 | 7aae5d32 | 34fd01b0 |
 
 ### 793e6e The conversation becomes searchable memory
 
