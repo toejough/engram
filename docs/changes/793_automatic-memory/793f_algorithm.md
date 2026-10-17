@@ -64,7 +64,7 @@ he may override them.
 - **Depth first** (the owner): the documents are partial until the last requirement is done; the guides expect
   each complete first ([793b10 Departure: depth-first fill](./793b_decision-log.md#793b10-departure-depth-first-fill)).
 - **A North Star line** (the owner): the product spec opens with it, beyond the product guide's three sections
-  ([793b14 Departure: the North Star line](./793b_decision-log.md#793b14-departure-the-north-star-line)).
+  ([793b2 North Star](./793b_decision-log.md#793b2-north-star)).
 - **No interview or approval gates** (the author's reading of "work autonomously"): the work is autonomous and
   the owner reviews at the end
   ([793b11 Departure: no interview or approval gates](./793b_decision-log.md#793b11-departure-no-interview-or-approval-gates)).

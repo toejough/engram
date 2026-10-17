@@ -21,10 +21,13 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 
 - **Choice:** the product statement is "I want to add automatic learning and memory retrieval.", kept in the
   owner's own first-person words. It opens [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec) and is the one line every later artifact serves.
+- **Departs from:** the [product spec guide](../../PRODUCT-SPEC-GUIDE.md#purpose), under which a product
+  specification contains only a problem statement, product requirements and scenarios unless the user
+  explicitly requests more.
 - **Rationale:** the owner: "I want to start with one single, focused statement to summarize the product spec
   and be the North Star: I want to add automatic learning and memory retrieval. That's the headline feature of
   this change."
-- **Alternatives:** none stated.
+- **Alternatives:** state it only in the problem statement.
 - **Decided by:** Owner (Joe, 2026-10-16).
 
 ## 793b3 The algorithm and the working rules
@@ -88,19 +91,40 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 
 ## 793b8 Exclusions
 
-- **Choice:** nine capabilities the earlier attempt had are left out and listed in [793a4 Not in the minimal set](./793a_product-spec.md#793a4-not-in-the-minimal-set): memory at
-  [subagent](../../GLOSSARY.md#subagent) start and capture at subagent stop; memory at route results; the chunk-index deep lookup; backlog capture of old [transcripts](../../GLOSSARY.md#transcript); curation of
-  [pending offers](../../GLOSSARY.md#offer); a model-made relevance judgement before delivery; reinforcing an already-covered [note](../../GLOSSARY.md#permanent-note); a
-  status line; the Pi [harness](../../GLOSSARY.md#harness).
-- **Rationale:** none is needed to deliver the North Star, and the owner asked for the "minimal set". The
-  earlier attempt measured a lookup that included the chunk index at about 12 seconds on the owner's
-  [vault](../../GLOSSARY.md#vault), beyond the 8 seconds of [793b17 A prompt is held for at most 8 seconds](#793b17-a-prompt-is-held-for-at-most-8-seconds), against about 1.4 seconds for notes alone. The section
-  goes beyond the product guide's three sections so that the exclusions stay visible and each can be a separate
-  change.
+- **Choice:** ten capabilities, which the earlier attempt had or the main [agent](./793a_product-spec.md#793a1a-terms) used, are left out of the
+  minimal set. Each can be a separate change later:
+  - **Subagent start and stop:** memory at a [subagent](../../GLOSSARY.md#subagent)'s start and capture at its stop. The North Star is
+    met in the user's own [sessions](../../GLOSSARY.md#session), and a subagent works for the agent, not for
+    the user.
+  - **Route results:** memory when the orchestrator routes a unit. A [prompt](./793a_product-spec.md#793a1a-terms) already brings the
+    [notes](../../GLOSSARY.md#permanent-note) that bear on it, and a route result is not a prompt.
+  - **The chunk-index deep lookup:** conversation fragments (chunk stubs) delivered with a prompt's notes. Notes
+    alone carry what the [vault](../../GLOSSARY.md#vault) has learned, and a lookup that included the chunk index took about 12 seconds on
+    the owner's vault against 1.0 to 1.4 seconds for notes alone (`old 793b408`), beyond the 8 seconds of
+    [793b17 A prompt is held for at most 8 seconds](./793b_decision-log.md#793b17-a-prompt-is-held-for-at-most-8-seconds). The agent finds fragments when it asks, because [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) makes the conversation searchable.
+  - **Backlog capture of old [transcripts](../../GLOSSARY.md#transcript):** the lessons of new
+    [turns](./793a_product-spec.md#793a1a-terms) are written by [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), and old ones can be mined later.
+  - **Curation of [pending offers](../../GLOSSARY.md#offer):** lessons are written straight into the vault
+    ([793c5 Are lessons written straight into the vault or held for review?](./793c_open-questions.md#793c5-are-lessons-written-straight-into-the-vault-or-held-for-review)).
+  - **A model-made relevance judgement before delivery:** the agent judges what it is given, as it did when it
+    ran the query itself.
+  - **Reinforcing an already-covered note:** a lesson the vault already states is simply not written again
+    ([793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again)).
+  - **A status line,** a display the [harness](../../GLOSSARY.md#harness) draws apart from the conversation: the owner did not see the
+    earlier attempt's status line on his machine and moved its content into the conversation (`old 793c90`,
+    2026-10-15), and [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) asks only that the user can see the result in the session.
+  - **The Pi harness:** sessions in other harnesses stay as before, and the update installs nothing into Pi
+    ([793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update)).
+  - **Memory at mid-task moments** (tool results, before declaring done, after a failure): the main agent's
+    mid-task re-queries were judgement-based moments it chose, and the minimal automatic set delivers at the
+    prompt only ([793b34 The goal: what the main agent was already doing, just async](./793b_decision-log.md#793b34-the-goal-what-the-main-agent-was-already-doing-just-async)). Issue #793 asks for tool-result moments, so the owner is asked in [793c12 Is memory delivered at mid-task moments?](./793c_open-questions.md#793c12-is-memory-delivered-at-mid-task-moments).
+- **Rationale:** none is needed to deliver the North Star, and the owner asked for the "minimal set". The list
+  is in plain words here and not in the product spec, which holds only requirements and scenarios.
 - **Alternatives:** leave them unlisted. Rejected: a later reader could not tell a left-out capability from a
-  forgotten one.
-- **Decided by:** Author. The subagent exclusion reverses an answer the owner gave in the earlier attempt on
-  2026-10-11 (capture inside subagent [sessions](../../GLOSSARY.md#session) too); [793c6 Is the scope top-level sessions and notes only?](./793c_open-questions.md#793c6-is-the-scope-top-level-sessions-and-notes-only) asks him to confirm.
+  forgotten one. List them in the product spec, as the first version did. Rejected in review round 1: the
+  product guide allows a problem statement, requirements and scenarios, and the reasons belong in the log.
+- **Decided by:** Author. All but the status line and the Pi harness reverse answers the owner gave in the
+  earlier attempt ([793b36 Earlier owner answers this minimal set reverses](./793b_decision-log.md#793b36-earlier-owner-answers-this-minimal-set-reverses)); [793c13 Which earlier owner answers may the minimal set reverse?](./793c_open-questions.md#793c13-which-earlier-owner-answers-may-the-minimal-set-reverse) asks him to confirm.
 
 ## 793b9 Test execution
 
@@ -182,15 +206,7 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 
 ## 793b14 Departure: the North Star line
 
-- **Choice:** [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec) opens with the North Star line under its title.
-- **Departs from:** the [product spec guide](../../PRODUCT-SPEC-GUIDE.md#purpose), under which a product
-  specification contains only a problem statement, product requirements and scenarios unless the user
-  explicitly requests more. The "Not in the minimal set" section is a further addition, the author's
-  ([793b8 Exclusions](#793b8-exclusions)).
-- **Rationale:** the owner: "I want to start with one single, focused statement to summarize the product
-  spec".
-- **Alternatives:** state it only in the problem statement.
-- **Decided by:** Owner (Joe, 2026-10-16).
+Folded into [793b2 North Star](#793b2-north-star) in review round 1. The ID is kept so that links do not dangle.
 
 ## 793b15 Artifact names
 
@@ -262,7 +278,7 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 
 - **Choice:** a lesson becomes a [note](../../GLOSSARY.md#permanent-note) directly ([793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent)), not a [pending offer](../../GLOSSARY.md#offer) awaiting review.
 - **Rationale:** the owner's answer on 2026-10-11 in the earlier attempt: "written directly to the [vault](../../GLOSSARY.md#vault)."
-  Curation is excluded ([793a4 Not in the minimal set](./793a_product-spec.md#793a4-not-in-the-minimal-set)).
+  Curation is excluded ([793b8 Exclusions](#793b8-exclusions)).
 - **Alternatives:** pending offers reviewed with the curate [skill](../../GLOSSARY.md#skill), issue #793's open decision 4
   ([793c5 Are lessons written straight into the vault or held for review?](./793c_open-questions.md#793c5-are-lessons-written-straight-into-the-vault-or-held-for-review)).
 - **Decided by:** Author (default; owner may override).

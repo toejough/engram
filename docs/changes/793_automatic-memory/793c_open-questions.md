@@ -60,7 +60,7 @@ he answers. When he answers, the entry records the answer and the date and stays
 
 ## 793c6 Is the scope top-level sessions and notes only?
 
-- **Context:** [793a4 Not in the minimal set](./793a_product-spec.md#793a4-not-in-the-minimal-set) leaves out [subagents](../../GLOSSARY.md#subagent) and the chunk-index lookup. In the earlier attempt the owner
+- **Context:** [793b8 Exclusions](./793b_decision-log.md#793b8-exclusions) leaves out [subagents](../../GLOSSARY.md#subagent) and the chunk-index lookup. In the earlier attempt the owner
   answered the opposite on 2026-10-11 for subagents and [prompt](./793a_product-spec.md#793a1a-terms) sources: capture inside subagent [sessions](../../GLOSSARY.md#session), and
   memory for every prompt regardless of source (`old 793c6` and `old 793c63`, `old 793c5`, 2026-10-11). The
   full list of reversed answers is asked in [793c13 Which earlier owner answers may the minimal set reverse?](./793c_open-questions.md#793c13-which-earlier-owner-answers-may-the-minimal-set-reverse). A lookup that included the chunk index took about 12 seconds
@@ -68,7 +68,7 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Options:** (a) The user's own sessions and [notes](../../GLOSSARY.md#permanent-note) only. (b) Add subagents. (c) Add the chunk-index
   lookup.
 - **Recommendation:** (a) for the minimal set. This reverses his earlier answers, so it needs his confirmation.
-- **Blocks:** the scope of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) and [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), and [793a4 Not in the minimal set](./793a_product-spec.md#793a4-not-in-the-minimal-set).
+- **Blocks:** the scope of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) and [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), and [793b8 Exclusions](./793b_decision-log.md#793b8-exclusions).
 - **Status:** open. Default (a) taken: [793b22 The scope is top-level sessions and notes only](./793b_decision-log.md#793b22-the-scope-is-top-level-sessions-and-notes-only).
 
 ## 793c7 Are there capture rate or precision targets?

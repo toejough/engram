@@ -188,30 +188,3 @@ user's existing [vault](../../GLOSSARY.md#vault), and no other account, key or v
 #### 793a3f1 UAT Scenarios
 
 Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
-
-## 793a4 Not in the minimal set
-
-Each capability below is left out because it is not needed to deliver the North Star. Any of them can be a
-separate change later ([793b8 Exclusions](./793b_decision-log.md#793b8-exclusions)).
-
-- Memory at [subagent](../../GLOSSARY.md#subagent) start and capture at subagent stop: the North Star is met in
-  the user's own [sessions](../../GLOSSARY.md#session), and a subagent works for the
-  [agent](#793a1a-terms), not for the user.
-- Memory at route results: a [prompt](#793a1a-terms) already brings the
-  [notes](../../GLOSSARY.md#permanent-note) that bear on it, and a route result is not a prompt.
-- The chunk-index deep lookup, which would deliver conversation fragments with a prompt's notes: notes alone
-  carry what the [vault](../../GLOSSARY.md#vault) has learned, and the agent finds a fragment when it asks
-  ([793a2f The conversation becomes searchable memory](#793a2f-the-conversation-becomes-searchable-memory)).
-- Backlog capture of old [transcripts](../../GLOSSARY.md#transcript): the lessons of new [turns](#793a1a-terms) are written by
-  [793a2c Lessons are written without the agent](#793a2c-lessons-are-written-without-the-agent), and old ones
-  can be mined later.
-- Curation of [pending offers](../../GLOSSARY.md#offer): lessons are written straight into the vault
-  ([793c5 Are lessons written straight into the vault or held for review?](./793c_open-questions.md#793c5-are-lessons-written-straight-into-the-vault-or-held-for-review)).
-- A model-made relevance judgement before delivery: the agent judges what it is given, as it did when it ran
-  the query itself.
-- Reinforcing an already-covered note: a lesson the vault already states is simply not written again
-  ([793a3c Nothing the vault already says is written again](#793a3c-nothing-the-vault-already-says-is-written-again)).
-- A status line: the one line after a turn
-  ([793a2e The user can see what it did](#793a2e-the-user-can-see-what-it-did)) already shows what happened.
-- The Pi [harness](../../GLOSSARY.md#harness): sessions in other harnesses stay as before
-  ([793a2a On after `engram update`](#793a2a-on-after-engram-update)).
