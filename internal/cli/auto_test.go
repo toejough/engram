@@ -352,6 +352,66 @@ func Test793d4e1a_Targets_AutoDeliverCreatesNoVault(t *testing.T) {
 	g.Expect(stderr).NotTo(ContainSubstring("created new vault"))
 }
 
+func Test793d4e1b_Targets_AutoJudgeCreatesNoVault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := filepath.Join(t.TempDir(), "no-such-vault")
+	sessions, home := t.TempDir(), t.TempDir()
+	record := `{"type":"user","message":{"role":"user","content":"No - build with make zorblax-build."}}` + "\n"
+	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	stderr := executeForTestWithDeps(t,
+		[]string{"engram", "auto", "judge", "--vault", vault, "--sessions", sessions},
+		func(d *cli.Deps) {
+			d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
+			d.Getenv = func(string) string { return "" }
+			d.UserHomeDir = func() (string, error) { return home, nil }
+			d.Stdin = strings.NewReader(`{"session":"` + sessionID + `","answer":"Understood."}`)
+			d.Stdout = &stdout
+		})
+
+	_, statErr := os.Stat(vault)
+
+	g.Expect(os.IsNotExist(statErr)).To(BeTrue(), "no vault was created at "+vault)
+	g.Expect(stdout.String()).To(HavePrefix(`{"model":`), "the judgement ran and printed its request")
+	g.Expect(stderr).NotTo(ContainSubstring("created new vault"))
+}
+
+func Test793d4e1c_Targets_AutoWriteCreatesNoVaultAndWritesNoNote(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := filepath.Join(t.TempDir(), "no-such-vault")
+	records, home := t.TempDir(), t.TempDir()
+
+	var stdout bytes.Buffer
+
+	stderr := executeForTestWithDeps(t,
+		[]string{"engram", "auto", "write", "--vault", vault, "--records", records},
+		func(d *cli.Deps) {
+			d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
+			d.Getenv = func(string) string { return "" }
+			d.UserHomeDir = func() (string, error) { return home, nil }
+			d.Stdin = strings.NewReader(`{"session":"` + sessionID + `","turn":"t","reply":"[{\"kind\":\"fact\",` +
+				`\"slug\":\"staging-reset\",\"situation\":\"testing on the staging database\",\"covered\":null,` +
+				`\"subject\":\"the staging database\",\"predicate\":\"is reset every\",\"object\":\"Sunday night\"}]"}`)
+			d.Stdout = &stdout
+		})
+
+	_, statErr := os.Stat(vault)
+
+	recorded, readErr := os.ReadDir(filepath.Join(records, sessionID))
+
+	g.Expect(os.IsNotExist(statErr)).To(BeTrue(), "no vault was created at "+vault)
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(recorded).NotTo(BeEmpty(), "the writing ran and recorded what became of the lesson")
+	g.Expect(stdout.String()).To(BeEmpty(), "no path of a note was printed")
+	g.Expect(stderr).NotTo(ContainSubstring("created new vault"))
+}
+
 func Test793d4f1a_Targets_ENGRAMTRANSCRIPTDIRNamesTheRecordsFirst(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

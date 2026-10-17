@@ -37,6 +37,36 @@ func Test793a2a1f_ASecondUpdateStillWritesEachLessonAsOneNote(t *testing.T) {
 	})
 }
 
+func Test793a2a1g_ALessonIsNotWrittenToAVaultThatDoesNotExist(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var chat *conversation
+
+	step(t, "Given a machine with Claude Code on which the user has run engram update, and whose configured vault no "+
+		"longer exists", func() {
+		machine.hasRunUpdate()
+		machine.vaultIsRemoved()
+
+		g.Expect(machine.hasVault()).To(BeFalse(), "the vault is gone")
+
+		chat = machine.startSession("zorblax").converse()
+	})
+
+	step(t, "When the user corrects the agent in a prompt of a session, and the turn ends", func() {
+		chat.tell(askHowToBuild)
+		chat.tell(correctTheBuild)
+	})
+
+	step(t, "Then the vault still does not exist 2 minutes after the turn ends", func() {
+		machine.awaitSettled(chat.session.id, chat.turnEnds, 2)
+
+		g.Expect(machine.hasVault()).To(BeFalse(), "a vault exists at "+machine.vault)
+	})
+}
+
 func Test793a2c1a_ACorrectionBecomesANote(t *testing.T) {
 	t.Parallel()
 
