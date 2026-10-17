@@ -312,7 +312,7 @@ func Test793d4j1i_RunAutoWrite_ANoteHoldsNoCredentialThatCharactersNotShownSplit
 
 	rapid.Check(t, func(rt *rapid.T) {
 		found := rapid.SampledFrom(secrets).Draw(rt, "secret")
-		at := rapid.IntRange(1, len(found.secret)-1).Draw(rt, "split at")
+		splitAt := rapid.IntRange(1, len(found.secret)-1).Draw(rt, "split at")
 		inside := rapid.SampledFrom(notShown).Draw(rt, "inside")
 		field := rapid.SampledFrom([]string{"situation", "behavior", "impact", "action"}).Draw(rt, "field")
 		fields := map[string]string{
@@ -320,7 +320,7 @@ func Test793d4j1i_RunAutoWrite_ANoteHoldsNoCredentialThatCharactersNotShownSplit
 			"behavior": "ran it", "impact": "it failed", "action": "set the variable first",
 		}
 		fields[field] = "see " + strings.Replace(found.text, found.secret,
-			found.secret[:at]+inside+found.secret[at:], 1) + " for it"
+			found.secret[:splitAt]+inside+found.secret[splitAt:], 1) + " for it"
 
 		reply, marshalErr := json.Marshal([]map[string]string{fields})
 		if marshalErr != nil {

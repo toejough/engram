@@ -62,7 +62,7 @@ func (l Lesson) defect() string {
 	return ""
 }
 
-// redacted is the lesson with each text of it redacted (793d4j) and written as one line (793d4h): a secret cannot be a
+// redacted is the lesson with each text of it written as one line (793d4h) and redacted (793d4j): a secret cannot be a
 // slug, because the redaction makes the slug something that is not one, and a field cannot make a line of the note of
 // its own.
 func (l Lesson) redacted() Lesson {
@@ -165,9 +165,11 @@ func isBlank(text string) bool {
 	return strings.TrimSpace(text) == ""
 }
 
-// oneRedacted is the text redacted and written as one line.
+// oneRedacted is the text written as one line and then redacted: the redaction comes second, because writing a text as
+// one line drops the characters that are not shown, and a credential that they split is whole only once they are gone
+// (793d4j).
 func oneRedacted(text string) string {
-	return oneLine(Redact(text))
+	return Redact(oneLine(text))
 }
 
 // readList reads the lessons of a JSON list one by one, so that the lessons before a cut are kept. ended is false when

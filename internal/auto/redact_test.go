@@ -175,6 +175,23 @@ func Test793d4j1h_Judge_ACredentialThatCharactersNotShownSplitIsNotInTheRequest(
 		}
 	})
 
+	t.Run("a line break is white space to the redaction", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		// the value on the line after its name is redacted, and a header takes the rest of its line and no more
+		password := "hunter" + "2hunter2"
+		header := "Authorization: Bearer " + strings.Repeat("tok3n", 4)
+
+		request, found := judge(t, userPrompt(jsonText("the password:\n"+password+"\n"+header+"\nthen I said hello")),
+			"ok", nil)
+
+		g.Expect(found).To(BeTrue())
+		g.Expect(request.Prompt).NotTo(ContainSubstring(password))
+		g.Expect(request.Prompt).NotTo(ContainSubstring("tok3n"))
+		g.Expect(request.Prompt).To(ContainSubstring("then I said hello"), "the text after the header is not redacted")
+	})
+
 	t.Run("any credential, any split, in a message, an answer and a note", func(t *testing.T) {
 		t.Parallel()
 
@@ -214,12 +231,12 @@ const (
 
 // unexported variables.
 var (
+	fillerWords = []string{"for", "the", "staging", "deploy", "of", "my", "new", "old", "admin", "server", "main",
+		"account"}
 	// notShown are the characters and the white space that can be put inside a credential: a zero-width space and
 	// joiner, a soft hyphen, a byte-order mark, a bidirectional override and isolate, control characters, a tab and a
 	// space.
-	notShown    = []string{"\u200b", "\u200d", "\u00ad", "\ufeff", "\u202e", "\u2066", "\x00", "\x1b", "\x7f", "\t", " "}
-	fillerWords = []string{"for", "the", "staging", "deploy", "of", "my", "new", "old", "admin", "server", "main",
-		"account"}
+	notShown = []string{"\u200b", "\u200d", "\u00ad", "\ufeff", "\u202e", "\u2066", "\x00", "\x1b", "\x7f", "\t", " "}
 )
 
 // credential is a text shaped as a credential, the secret in it, and the name of an assignment that is kept.

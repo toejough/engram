@@ -207,10 +207,11 @@ func linesOf(messages []message) []string {
 	return lines
 }
 
-// messageText is the text of a message as a line holds it: redacted before anything is cut, written as one line, and
-// cut to the limit of a line (793d4j, 793d4g).
+// messageText is the text of a message as a line holds it: written as one line, then redacted, and only then cut to
+// the limit of a line, so that a credential which characters that are not shown split is redacted whole (793d4j,
+// 793d4g).
 func messageText(text string) string {
-	return clipped(oneLined(Redact(text)), lineLimit)
+	return clipped(Redact(oneLined(text)), lineLimit)
 }
 
 // messagesOf reads the prompts of the user and the texts and tool uses of the agent out of a session's record, in
@@ -247,9 +248,9 @@ func messagesOf(record []byte) ([]message, int) {
 	return messages, prompt
 }
 
-// noteLines writes the notes nearest to the turn, one line each, in the form of a line of a block: redacted and written
-// as one line as the delivery writes it, and with the body cut to the limit of a note (793d4g, 793d4j). It writes
-// (none) when there are no notes.
+// noteLines writes the notes nearest to the turn, one line each, in the form of a line of a block: written as one line
+// as the delivery writes it and then redacted, with the body cut to the limit of a note after that (793d4g, 793d4j). It
+// writes (none) when there are no notes.
 func noteLines(notes []Note) string {
 	if len(notes) == 0 {
 		return noNotes
@@ -258,8 +259,8 @@ func noteLines(notes []Note) string {
 	lines := make([]string, 0, len(notes))
 
 	for _, note := range notes {
-		lines = append(lines, escaped("- "+oneLine(Redact(note.Path))+" ("+oneLine(Redact(note.Situation))+"): "+
-			clipped(oneLine(Redact(note.Body)), noteLimit)))
+		lines = append(lines, escaped("- "+oneRedacted(note.Path)+" ("+oneRedacted(note.Situation)+"): "+
+			clipped(oneRedacted(note.Body), noteLimit)))
 	}
 
 	return strings.Join(lines, "\n")

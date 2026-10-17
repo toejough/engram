@@ -36,8 +36,9 @@ const (
 	// does not end with a full stop, which ends a sentence.
 	sensitiveName = `(?:[\w.-]*(?:token|secret|passw(?:or)?d|pwd|credential|key|authorization)(?:[\w.-]*[\w-])?|` +
 		`(?:[\w.-]*[_-])?pass)`
-	// space is the white space of ECMAScript: the unicode spaces between a name and its value.
-	space = `\s\x{a0}\x{1680}\x{2000}-\x{200a}\x{2028}\x{2029}\x{202f}\x{205f}\x{3000}\x{feff}`
+	// space is the white space of ECMAScript, and the mark that the window of the judgement writes a line break with:
+	// the unicode spaces between a name and its value.
+	space = `\s\x{a0}\x{1680}\x{2000}-\x{200a}\x{2028}\x{2029}\x{202f}\x{205f}\x{3000}\x{feff}\x{23ce}`
 	// wordsBetween is how many words of a sentence may stand between a name and the `is` or `:` that gives its value.
 	wordsBetween = 6
 )
@@ -49,7 +50,7 @@ var (
 	assignment = regexp.MustCompile(`(?i)(` + sensitiveName + `["']?(?:[` + space + `]+[^` + space + `=:]*[^` + space +
 		`=:.;!?]){0,` + strconv.Itoa(wordsBetween) + `}?[` + space + `]*(?::|=|\bis\b)[` + space + `]*)` +
 		`("[^"\n]*"|'[^'\n]*'|[^` + space + `]+)`)
-	authorization = regexp.MustCompile(`(?i)(\bauthorization["']?[` + space + `]*[:=][` + space + `]*)[^\n]*`)
+	authorization = regexp.MustCompile(`(?i)(\bauthorization["']?[` + space + `]*[:=][` + space + `]*)[^\n\x{23ce}]*`)
 	commitID      = regexp.MustCompile(`^[0-9a-f]{40}$`)
 	longToken     = regexp.MustCompile(`[A-Za-z0-9+_=]{32,}`)
 	urlUserinfo   = regexp.MustCompile(`(?i)\b([a-z][a-z0-9+.-]*://)[^` + space + `:@/]+:[^` + space + `@/]+@`)
