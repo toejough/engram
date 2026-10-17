@@ -1,0 +1,260 @@
+{
+  "correction": {
+    "about": "793a2c1a: the user corrects the agent's answer",
+    "notes": [],
+    "rows": [
+      {
+        "user": "How do I build the Zorblax project? Answer in one line."
+      },
+      {
+        "agent": "Run make all to build the Zorblax project."
+      },
+      {
+        "user": "No - in the Zorblax project you build with make zorblax-build, never with make all. Reply with one short sentence."
+      },
+      {
+        "agent": "Understood: the Zorblax project builds with make zorblax-build."
+      }
+    ],
+    "turn": {
+      "text": "No - in the Zorblax project you build with make zorblax-build, never with make all. Reply with one short sentence.",
+      "answer": "Understood: the Zorblax project builds with make zorblax-build."
+    },
+    "expect": {
+      "lesson": [
+        "zorblax-build"
+      ]
+    }
+  },
+  "remember": {
+    "about": "793a2c1b: the user asks to remember a fact",
+    "notes": [],
+    "rows": [
+      {
+        "user": "Remember that the Zorblax staging database is reset every Sunday at 03:40 UTC. Reply with one short sentence."
+      },
+      {
+        "agent": "Noted: the staging database is reset every Sunday at 03:40 UTC."
+      }
+    ],
+    "turn": {
+      "text": "Remember that the Zorblax staging database is reset every Sunday at 03:40 UTC. Reply with one short sentence.",
+      "answer": "Noted: the staging database is reset every Sunday at 03:40 UTC."
+    },
+    "expect": {
+      "lesson": [
+        "sunday",
+        "03:40"
+      ]
+    }
+  },
+  "confirmed": {
+    "about": "793a2c1c: the user confirms the way the task was done and asks to keep it",
+    "notes": [],
+    "rows": [
+      {
+        "user": "Print the lines of zorblax.txt in sorted order with the sort command. Reply with one short sentence."
+      },
+      {
+        "tool": "Bash",
+        "result": "apple\nfig\npear"
+      },
+      {
+        "agent": "Sorted: apple, fig, pear."
+      },
+      {
+        "user": "That worked - sorting zorblax.txt with the sort command was exactly the right way. Keep sorting Zorblax lists with the sort command. Reply with one short sentence."
+      },
+      {
+        "agent": "I will keep sorting Zorblax lists with the sort command."
+      }
+    ],
+    "turn": {
+      "text": "That worked - sorting zorblax.txt with the sort command was exactly the right way. Keep sorting Zorblax lists with the sort command. Reply with one short sentence.",
+      "answer": "I will keep sorting Zorblax lists with the sort command."
+    },
+    "expect": {
+      "lesson": [
+        "sort"
+      ]
+    }
+  },
+  "own-correction": {
+    "about": "793a2c1d: the agent says its guess was wrong and states what the file says",
+    "notes": [],
+    "rows": [
+      {
+        "user": "Before you read anything, say in one sentence which port the Zorblax service listens on, guessing from its name. Then read zorblax.conf with the Read tool. Then say in one sentence which port it really listens on, and say that your first guess was wrong."
+      },
+      {
+        "agent": "My guess is that the Zorblax service listens on port 8080."
+      },
+      {
+        "tool": "Read",
+        "result": "listen_port = 7731"
+      },
+      {
+        "agent": "It really listens on port 7731, so my first guess of 8080 was wrong."
+      }
+    ],
+    "turn": {
+      "text": "Before you read anything, say in one sentence which port the Zorblax service listens on, guessing from its name. Then read zorblax.conf with the Read tool. Then say in one sentence which port it really listens on, and say that your first guess was wrong.",
+      "answer": "It really listens on port 7731, so my first guess of 8080 was wrong."
+    },
+    "expect": {
+      "lesson": [
+        "7731"
+      ]
+    }
+  },
+  "unsure-approach": {
+    "about": "793a2c1e: the agent is unsure whether a flag makes the check pass, tries it, and the check passes",
+    "notes": [],
+    "rows": [
+      {
+        "user": "You do not know whether passing --zorblax-safe makes check.sh pass: say so in one sentence. Then run exactly this one command, with nothing added to it: sh check.sh --zorblax-safe. Then say in one sentence whether the check passed."
+      },
+      {
+        "agent": "I do not know whether passing --zorblax-safe makes check.sh pass."
+      },
+      {
+        "tool": "Bash",
+        "result": "CHECK PASSED"
+      },
+      {
+        "agent": "Yes, the check passed: the output was \"CHECK PASSED\"."
+      }
+    ],
+    "turn": {
+      "text": "You do not know whether passing --zorblax-safe makes check.sh pass: say so in one sentence. Then run exactly this one command, with nothing added to it: sh check.sh --zorblax-safe. Then say in one sentence whether the check passed.",
+      "answer": "Yes, the check passed: the output was \"CHECK PASSED\"."
+    },
+    "expect": {
+      "lesson": [
+        "zorblax-safe"
+      ]
+    }
+  },
+  "guesses-plans-chatter": {
+    "about": "793a2c1f: a guess, a plan and chatter",
+    "notes": [],
+    "rows": [
+      {
+        "user": "What do you think is making the Zorblax service start slowly? Answer with a guess, then a plan, then a friendly remark. Do not read or run anything."
+      },
+      {
+        "agent": "Guess: it loads every module eagerly at startup. Plan: 1. Add timestamps around the startup path. 2. Check for blocking network calls. 3. Lazy-load what is not needed. Hope that helps, and good luck!"
+      }
+    ],
+    "turn": {
+      "text": "What do you think is making the Zorblax service start slowly? Answer with a guess, then a plan, then a friendly remark. Do not read or run anything.",
+      "answer": "Guess: it loads every module eagerly at startup. Plan: 1. Add timestamps around the startup path. 2. Check for blocking network calls. 3. Lazy-load what is not needed. Hope that helps, and good luck!"
+    },
+    "expect": {}
+  },
+  "credential": {
+    "about": "793a2c1g: a request to remember a deploy that holds a token and a password (placeholders are filled in by the probe)",
+    "notes": [],
+    "rows": [
+      {
+        "user": "Remember how to deploy to staging: run the staging deploy script with DEPLOY_TOKEN={{DEPLOY_TOKEN}} set, and its password is {{DEPLOY_PASSWORD}}. Reply with one short sentence."
+      },
+      {
+        "agent": "I saved the staging deploy steps (run the script with `DEPLOY_TOKEN` set, and it asks for a password) but left out the token and password, so I'll ask you for them when we deploy."
+      }
+    ],
+    "turn": {
+      "text": "Remember how to deploy to staging: run the staging deploy script with DEPLOY_TOKEN={{DEPLOY_TOKEN}} set, and its password is {{DEPLOY_PASSWORD}}. Reply with one short sentence.",
+      "answer": "I saved the staging deploy steps (run the script with `DEPLOY_TOKEN` set, and it asks for a password) but left out the token and password, so I'll ask you for them when we deploy."
+    },
+    "expect": {
+      "lesson": [
+        "deploy"
+      ]
+    }
+  },
+  "thanks": {
+    "about": "793a2c1h: a thanks that names no approach, after a task done one way",
+    "notes": [],
+    "rows": [
+      {
+        "user": "Print the lines of zorblax.txt in sorted order with the sort command. Reply with one short sentence."
+      },
+      {
+        "tool": "Bash",
+        "result": "apple\nfig\npear"
+      },
+      {
+        "agent": "Sorted: apple, fig, pear."
+      },
+      {
+        "user": "Thanks, that worked. Reply with one short sentence."
+      },
+      {
+        "agent": "You're welcome."
+      }
+    ],
+    "turn": {
+      "text": "Thanks, that worked. Reply with one short sentence.",
+      "answer": "You're welcome."
+    },
+    "expect": {}
+  },
+  "covered": {
+    "about": "793a3c1a: the vault already holds the lesson the user asks to remember",
+    "notes": [
+      {
+        "slug": "zorblax-staging-reset",
+        "situation": "testing against the Zorblax staging database",
+        "subject": "the Zorblax staging database",
+        "predicate": "is reset every",
+        "object": "Sunday at 03:40 UTC"
+      }
+    ],
+    "rows": [
+      {
+        "user": "Remember that the Zorblax staging database is reset every Sunday at 03:40 UTC. Reply with one short sentence."
+      },
+      {
+        "agent": "Noted: the Zorblax staging database resets every Sunday at 03:40 UTC, and my memory already had this, so I didn't save it again."
+      }
+    ],
+    "turn": {
+      "text": "Remember that the Zorblax staging database is reset every Sunday at 03:40 UTC. Reply with one short sentence.",
+      "answer": "Noted: the Zorblax staging database resets every Sunday at 03:40 UTC, and my memory already had this, so I didn't save it again."
+    },
+    "expect": {
+      "covered": true
+    }
+  },
+  "different-lesson": {
+    "about": "793a3c1c: the vault holds another lesson about the same subject",
+    "notes": [
+      {
+        "slug": "zorblax-staging-reset",
+        "situation": "testing against the Zorblax staging database",
+        "subject": "the Zorblax staging database",
+        "predicate": "is reset every",
+        "object": "Sunday at 03:40 UTC"
+      }
+    ],
+    "rows": [
+      {
+        "user": "Remember that the Zorblax staging database is backed up every Monday at 05:00 UTC. Reply with one short sentence."
+      },
+      {
+        "agent": "Noted: the staging database is backed up every Monday at 05:00 UTC."
+      }
+    ],
+    "turn": {
+      "text": "Remember that the Zorblax staging database is backed up every Monday at 05:00 UTC. Reply with one short sentence.",
+      "answer": "Noted: the staging database is backed up every Monday at 05:00 UTC."
+    },
+    "expect": {
+      "lesson": [
+        "monday",
+        "05:00"
+      ]
+    }
+  }
+}
