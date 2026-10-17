@@ -8,12 +8,16 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
+	"github.com/toejough/imptest/match"
 
 	"github.com/toejough/engram/internal/cli"
 	"github.com/toejough/engram/internal/embed"
 )
+
+//go:generate impgen cli.QueryRun --dependency --import-path github.com/toejough/engram/internal/cli
 
 func Test793d4a1a_RunAutoDeliver_PrintsTheNotesThatBearOnThePromptAsOneBlock(t *testing.T) {
 	t.Parallel()
@@ -245,6 +249,40 @@ func Test793d4a1g_RunAutoDeliver_ANoteTheAgentFetchedByItsBasenameIsLeftOut(t *t
 	g.Expect(out.String()).NotTo(ContainSubstring("1.2026-10-17.zorblax-staging-reset.md"))
 }
 
+func Test793d4a1h_RunAutoDeliver_AsksTheLookupForThePromptsTextAsItsMessageAndItsOnlyPhrase(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	query, queryCalls := MockQueryRun(t)
+	done := make(chan error, 1)
+
+	go func() {
+		var out bytes.Buffer
+
+		done <- cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: "/a/vault"},
+			cli.AutoDeliverDeps{
+				Stdin: strings.NewReader(`{"text":"When is the Zorblax staging database reset?"}`), Query: query,
+			}, &out)
+	}()
+
+	// the expectation runs apart, so that a call that does not match it, which this version of imptest leaves waiting,
+	// cannot hold the test: the test waits for the outcome with a time limit
+	go func() {
+		queryCalls.ArgsShould(match.BeAny, Equal(cli.QueryArgs{
+			Phrases:   []string{"When is the Zorblax staging database reset?"},
+			Text:      "When is the Zorblax staging database reset?",
+			VaultPath: "/a/vault",
+		}), match.BeAny).Return(nil)
+	}()
+
+	select {
+	case err := <-done:
+		g.Expect(err).NotTo(HaveOccurred())
+	case <-time.After(mockTimeout):
+		t.Fatal("the delivery did not finish: its lookup was not run once with the prompt's text as message and phrase")
+	}
+}
+
 func Test793d4d1b_HeldText_TheRecordIsFoundUnderItsProjectDirectory(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -388,7 +426,10 @@ func TestTargets_AutoDeliverPrintsTheNotesThatBearOnThePromptOnStandardInput(t *
 // unexported constants.
 const (
 	backupNoteName = "2.2026-10-17.zorblax-backup-window.md"
-	resetNoteName  = "1.2026-10-17.zorblax-staging-reset.md"
+	// mockTimeout is how long a test waits for the code under it before it fails, so that an expectation that is never
+	// met does not hold the run.
+	mockTimeout   = 5 * time.Second
+	resetNoteName = "1.2026-10-17.zorblax-staging-reset.md"
 	// sessionID is the ID of a session in the tests.
 	sessionID        = "4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11"
 	zorblaxResetNote = "---\ntype: fact\ntier: L2\nsituation: testing against the Zorblax staging database\n" +
