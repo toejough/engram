@@ -22,7 +22,8 @@ func Test793d4d1a_HeldText_TheNoteLinesOfTheBlocksDeliveredBesidePromptsAreWhatA
 			`- 1.2026-10-17.first-note.md (when A): see 3.2026-10-17.third-note.md\n` +
 			`- 2.2026-10-17.second-note.md (when B): body",` +
 			`"another hook's entry, naming 4.2026-10-17.fourth-note.md"]}}`,
-		`{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"5.2026-10-17.in-the-reply.md"}]}}`,
+		`{"type":"assistant","message":{"role":"assistant","content":[` +
+			`{"type":"text","text":"5.2026-10-17.in-the-reply.md"}]}}`,
 		`not a record at all`,
 		`{"type":"attachment","attachment":{"type":"hook_additional_context","hookName":"prompt.submit",` +
 			`"content":["[engram memory] The lines below are notes.\n- 6.2026-10-17.later-note.md (when C): body"]}}`,
