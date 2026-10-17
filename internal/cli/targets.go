@@ -170,6 +170,10 @@ func autoTargets(
 			targ.Targ(func(ctx context.Context, a AutoDeliverArgs) {
 				a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
 
+				if a.SessionsDir == "" {
+					a.SessionsDir = sessionDirFrom(deps.Getenv, deps.UserHomeDir)("")
+				}
+
 				errHandler(runInVault(deps, a.VaultPath, func() error {
 					return RunAutoDeliver(withLog(ctx), a, newAutoDeliverDeps(deps), deps.Stdout)
 				}))

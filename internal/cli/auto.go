@@ -17,7 +17,8 @@ import (
 
 // AutoDeliverArgs holds parsed flags for `engram auto deliver`.
 type AutoDeliverArgs struct {
-	VaultPath string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
+	VaultPath   string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
+	SessionsDir string `targ:"flag,name=sessions,desc=directory of recorded sessions (default ENGRAM_TRANSCRIPT_DIR or ~/.claude/projects)"` //nolint:lll // single unbreakable struct-tag string
 }
 
 // AutoDeliverDeps holds injected dependencies for RunAutoDeliver.
@@ -40,9 +41,13 @@ func RunAutoDeliver(ctx context.Context, args AutoDeliverArgs, deps AutoDeliverD
 		return fmt.Errorf("auto deliver: reading the request: %w", decodeErr)
 	}
 
-	block, err := auto.Deliver(ctx, request, func(ctx context.Context, text string) ([]auto.Note, error) {
-		return lookUpNotes(ctx, args.VaultPath, text, deps.Query)
-	})
+	block, err := auto.Deliver(ctx, request,
+		func(ctx context.Context, text string) ([]auto.Note, error) {
+			return lookUpNotes(ctx, args.VaultPath, text, deps.Query)
+		},
+		func(_ context.Context, session string) (string, error) {
+			return heldText(deps, args.SessionsDir, session)
+		})
 	if err != nil {
 		return fmt.Errorf("auto deliver: %w", err)
 	}
@@ -107,7 +112,7 @@ func lookUpNotes(ctx context.Context, vault, text string, deps QueryDeps) ([]aut
 
 // newAutoDeliverDeps wires RunAutoDeliver from the injected CLI capabilities — pure composition (#700).
 func newAutoDeliverDeps(d Deps) AutoDeliverDeps {
-	return AutoDeliverDeps{Stdin: d.Stdin, Query: newQueryDeps(d)}
+	return AutoDeliverDeps{Stdin: d.Stdin, Query: newQueryDeps(d), ReadDir: d.FS.ReadDir, ReadFile: d.FS.ReadFile}
 }
 
 // notesOf reads the notes out of an `engram query` payload.
