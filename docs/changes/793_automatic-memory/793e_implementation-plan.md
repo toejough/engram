@@ -210,6 +210,67 @@ The graph shows the nodes of the first two groups, whose scenarios step 2 has wr
 stand. When step 2 writes a group's scenarios, the group's node is replaced, in the same place and with the same
 prerequisites, by one node per scenario, each with a catalog section under its group's.
 
+## 793e9 Dependency graph
+
+The graph is derived from the catalog of [793e6 Test catalog](#793e6-test-catalog) and the components of [793d Automatic Memory - Technical Spec](./793d_technical-spec.md#automatic-memory---technical-spec), and not from the order of [793e4 Depth-first order and dependency tree](#793e4-depth-first-order-and-dependency-tree): an arrow from A to B means that B reuses what A built, a component, a scenario, the [harness](../../GLOSSARY.md#harness) of the acceptance tests or the format of a record, so that B could not be written without A, and an arrow that follows from two others is left out.
+
+```mermaid
+flowchart TD
+    a1[793e6a1 Memory after one update] --> a2[793e6a2 Notes arrive with the prompt]
+    a2 --> a3[793e6a3 A delivered note is not repeated]
+    a3 --> a4[793e6a4 A note looked up is not delivered]
+    a4 --> a5[793e6a5 A prompt that matches no note]
+    a1 --> a6[793e6a6 A slow lookup holds 8 seconds at most] & a7[793e6a7 A missing vault is not created] & a8[793e6a8 Pi gets no automatic memory] & a9[793e6a9 A dry run turns nothing on] & a10[793e6a10 A second update delivers once] & a11[793e6a11 Conformance check] & a12[793e6a12 JavaScript parse gate]
+    a4 --> b1[793e6b1 A correction becomes a note]
+    b1 --> b2[793e6b2 A request to remember] & b3[793e6b3 A confirmed approach] & b4[793e6b4 A self correction] & b5[793e6b5 An approach that succeeded] & b6[793e6b6 Guesses and chatter write nothing] & b7[793e6b7 A credential is not in the note] & b10[793e6b10 Agent commands keep working] & b11[793e6b11 A written note is delivered later] & b12[793e6b12 A second update writes once] & b13[793e6b13 No write to a missing vault] & b14[793e6b14 No session of its own]
+    a10 --> b12
+    a7 --> b13
+    b6 --> b8[793e6b8 A covered lesson is not rewritten] --> b9[793e6b9 A saved lesson is not rewritten]
+    b14 --> b15[793e6b15 Branches found by coverage]
+    b6 --> b15
+    b15 --> g1[793e6g1 Harness rows are no prompt]
+    b14 --> g1
+    g1 --> g2[793e6g2 Record read once] --> g3[793e6g3 A turn found by its text]
+    b7 --> g2
+    g2 --> g4[793e6g4 Instructions are the system]
+    b8 --> g4
+    b7 --> g5[793e6g5 Redaction names and promise] --> g6[793e6g6 Lesson fields are one line]
+    b1 --> g7[793e6g7 Automatic mark in the line]
+    g6 --> g8[793e6g8 Redact whole after normalizing]
+    g2 --> g8
+    b13 --> g9[793e6g9 No vault or record fails]
+    b6 --> g10[793e6g10 A failure is recorded once]
+    b14 --> g11[793e6g11 Headless prompts are opt in]
+    b1 --> g12[793e6g12 Bounds for each stage]
+    a1 --> g13[793e6g13 Acceptance run takes a count]
+    b6 --> g14[793e6g14 A thanks writes nothing]
+    g13 --> g14
+    b8 --> g15[793e6g15 A different lesson is written]
+    g13 --> g15
+    g11 --> g16[793e6g16 A notification turn is not judged]
+    g13 --> g16
+    g13 --> g17[793e6g17 Tally of runs and probe]
+    g14 --> g17
+    g11 --> g18[793e6g18 Documents and decisions]
+    b6 --> g18
+    g12 --> e6[793e6e Searchable conversation]
+    a6 --> c6[793e6c Never in the way]
+    g12 --> c6
+    g10 --> d6[793e6d The user sees what it did]
+    a2 --> f6[793e6f Delivery merges the parent vault]
+    classDef done fill:#d8f0dc,stroke:#2e7d32,color:#000
+    classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
+    classDef planned fill:#dde3f7,stroke:#3949ab,color:#000
+    classDef deferred fill:#eeeeee,stroke:#757575,color:#000,stroke-dasharray:5 5
+    class a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12 done
+    class b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,b15 done
+    class g1,g2,g3,g4,g5,g6,g7,g8,g9,g10,g11,g12,g13,g14,g15,g16,g17,g18 done
+    class e6,c6,d6 planned
+    class f6 deferred
+```
+
+Green is done, with its three commits recorded; yellow is in progress, with some of its rows done, and no node is in progress now; blue is planned, with no rows yet; dashed grey is deferred ([793e6f The delivery merges the parent vault](#793e6f-the-delivery-merges-the-parent-vault)). The order of [793e4 Depth-first order and dependency tree](#793e4-depth-first-order-and-dependency-tree) stays authoritative.
+
 ## 793e5 Node status
 
 As in the [plan guide](../../IMPLEMENTATION-PLAN-GUIDE.md#node-status): `Blocked by`, `Ready`,
@@ -628,7 +689,7 @@ Takes review finding 15: the line of a [note](../../GLOSSARY.md#permanent-note) 
 
 #### 793e6g8 A credential that characters that are not shown split is redacted whole
 
-Takes a finding of the automated security review of the commit of [793e6g6 A field of a lesson is one line, and a reply that is cut keeps its whole lessons](#793e6g6-a-field-of-a-lesson-is-one-line-and-a-reply-that-is-cut-keeps-its-whole-lessons), confirmed by construction. Writing a text as one line drops its control and format characters, so a credential split by a zero-width character, a soft hyphen, a byte-order mark or a control character is not matched by the redaction when the redaction comes first, and the writing as one line then joins its pieces into a whole credential that reaches the [note](../../GLOSSARY.md#permanent-note) or the model. The lines of the window and of the notes of the judgement had the redaction first since the first group, and the fields of a lesson had it since 793e6g6. The order is the text written as one line, then redacted, then cut ([793b81 A text is written as one line before it is redacted, and cut last](./793b_decision-log.md#793b81-a-text-is-written-as-one-line-before-it-is-redacted-and-cut-last)).
+Takes a finding of the automated security review of the commit of [793e6g6 A field of a lesson is one line, and a reply that is cut keeps its whole lessons](#793e6g6-a-field-of-a-lesson-is-one-line-and-a-reply-that-is-cut-keeps-its-whole-lessons), confirmed by construction. Writing a text as one line drops its control and format characters, so a credential split by a zero-width character, a soft hyphen, a byte-order mark or a control character is not matched by the redaction when the redaction comes first, and the writing as one line then joins its pieces into a whole credential that reaches the [note](../../GLOSSARY.md#permanent-note) or the model. The lines of the window and of the notes of the judgement had the redaction first since the first group, and the fields of a lesson had it since [793e6g6 A field of a lesson is one line, and a reply that is cut keeps its whole lessons](#793e6g6-a-field-of-a-lesson-is-one-line-and-a-reply-that-is-cut-keeps-its-whole-lessons). The order is the text written as one line, then redacted, then cut ([793b81 A text is written as one line before it is redacted, and cut last](./793b_decision-log.md#793b81-a-text-is-written-as-one-line-before-it-is-redacted-and-cut-last)).
 
 | Gherkin | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
