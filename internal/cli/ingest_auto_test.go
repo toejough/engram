@@ -49,7 +49,12 @@ func Test792b17c6a1_DefaultSessionDirIsAllProjects(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	deps := cli.ExportNewIngestDeps(newTestDeps(io.Discard, io.Discard), fakeIngestEmbedder{})
+	// the environment and the home are pinned: the real ones make the default depend on the machine the test runs on
+	testDeps := newTestDeps(io.Discard, io.Discard)
+	testDeps.Getenv = func(string) string { return "" }
+	testDeps.UserHomeDir = func() (string, error) { return t.TempDir(), nil }
+
+	deps := cli.ExportNewIngestDeps(testDeps, fakeIngestEmbedder{})
 	dir := deps.SessionDir("/anywhere/at/all")
 
 	g.Expect(dir).To(gomega.HaveSuffix(filepath.Join(".claude", "projects")),
