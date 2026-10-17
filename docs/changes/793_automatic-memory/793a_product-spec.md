@@ -59,11 +59,14 @@ Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
 
 Requirement: 793a2b When the user sends a [prompt](#793a1a-terms), [automatic memory](#793a1a-terms) MUST put in
 the [agent](#793a1a-terms)'s context, before the agent acts on the prompt, the
-[notes](../../GLOSSARY.md#permanent-note) in the [vault](../../GLOSSARY.md#vault) that bear on it and that the
-agent does not already have
-([793a3b Nothing the agent already has is delivered again](#793a3b-nothing-the-agent-already-has-is-delivered-again)),
-without the user or the agent asking for them. The notes arrive beside the prompt, which stays exactly as the
-user typed it ([793a2d Never in the way](#793a2d-never-in-the-way)).
+[notes](../../GLOSSARY.md#permanent-note) the agent's own memory lookup for that prompt would return, less those
+it already has, without the user or the agent asking for them. The agent already has a note when automatic
+memory delivered it earlier in the same [session](../../GLOSSARY.md#session), or the agent looked it up in that
+session; automatic memory MUST NOT put such a note in the agent's context again. Only notes are delivered: the
+conversation of
+[793a2f The conversation becomes searchable memory](#793a2f-the-conversation-becomes-searchable-memory) is found
+when the agent asks. The notes arrive beside the prompt, which stays exactly as the user typed it
+([793a2d Never in the way](#793a2d-never-in-the-way)).
 
 #### 793a2b1 UAT Scenarios
 
@@ -134,17 +137,6 @@ in the [agent](#793a1a-terms)'s context under
 bears on them.
 
 #### 793a3a1 UAT Scenarios
-
-Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
-
-### 793a3b Nothing the agent already has is delivered again
-
-Requirement: 793a3b [Automatic memory](#793a1a-terms) MUST NOT put a [note](../../GLOSSARY.md#permanent-note) in
-the [agent](#793a1a-terms)'s context when the agent already has it in the
-[session](../../GLOSSARY.md#session), whether automatic memory delivered it earlier or the agent looked it up
-itself.
-
-#### 793a3b1 UAT Scenarios
 
 Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
 

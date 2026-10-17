@@ -102,14 +102,14 @@ he answers. When he answers, the entry records the answer and the date and stays
 
 ## 793c10 Does "already has" survive a compaction?
 
-- **Context:** [793a3b Nothing the agent already has is delivered again](./793a_product-spec.md#793a3b-nothing-the-agent-already-has-is-delivered-again) does not deliver a [note](../../GLOSSARY.md#permanent-note) the [agent](./793a_product-spec.md#793a1a-terms) already has in the [session](../../GLOSSARY.md#session). When the
+- **Context:** [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) does not deliver a [note](../../GLOSSARY.md#permanent-note) the [agent](./793a_product-spec.md#793a1a-terms) already has in the [session](../../GLOSSARY.md#session). When the
   session's context is compacted, the agent may no longer hold the note's text. The owner's earlier answer was the
   other way: never re-inject a note already in the receiving agent's context, and a truncated note is not present
   (`old 793c7` item 5, 2026-10-11), so default (a) reverses it (row 11 of [793c13 Which earlier owner answers may the minimal set reverse?](./793c_open-questions.md#793c13-which-earlier-owner-answers-may-the-minimal-set-reverse)).
 - **Options:** (a) Per session: a note delivered once is not delivered again, whatever the agent still holds.
   (b) Deliver it again after a compaction.
 - **Recommendation:** (a) for the minimal set: (b) needs knowledge of what the agent still holds.
-- **Blocks:** the scenarios of [793a3b Nothing the agent already has is delivered again](./793a_product-spec.md#793a3b-nothing-the-agent-already-has-is-delivered-again).
+- **Blocks:** the scenarios of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) that test what the agent already has.
 - **Status:** open. Default (a) taken: [793b27 "Already has" is per session](./793b_decision-log.md#793b27-already-has-is-per-session).
 
 ## 793c12 Is memory delivered at mid-task moments?

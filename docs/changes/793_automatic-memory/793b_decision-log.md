@@ -79,9 +79,9 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 
 ## 793b7 The interactions are product requirements too
 
-- **Choice:** the five interactions of [793a3 Interactions](./793a_product-spec.md#793a3-added-interactions) are requirements with their own scenario sections, not a
+- **Choice:** the four interactions of [793a3 Interactions](./793a_product-spec.md#793a3-added-interactions) are requirements with their own scenario sections, not a
   prose appendix. Where a requirement and an interaction touch one rule, the rule is stated once and the other
-  cites it: [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) cites [793a3b Nothing the agent already has is delivered again](./793a_product-spec.md#793a3b-nothing-the-agent-already-has-is-delivered-again), [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) cites [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again), and [793a3d Failures never break a prompt and always show](./793a_product-spec.md#793a3d-failures-never-break-a-prompt-and-always-show) joins
+  cites it: [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) cites [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again), and [793a3d Failures never break a prompt and always show](./793a_product-spec.md#793a3d-failures-never-break-a-prompt-and-always-show) joins
   [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) to [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did).
 - **Rationale:** the owner's step 1 asks for the capabilities "and how they must interact to achieve the goal.
   These are the product requirements."
@@ -336,7 +336,7 @@ Folded into [793b2 North Star](#793b2-north-star) in review round 1. The ID is k
 
 ## 793b27 "Already has" is per session
 
-- **Choice:** in [793a3b Nothing the agent already has is delivered again](./793a_product-spec.md#793a3b-nothing-the-agent-already-has-is-delivered-again) the [agent](./793a_product-spec.md#793a1a-terms) "already has" a [note](../../GLOSSARY.md#permanent-note) when [automatic memory](./793a_product-spec.md#793a1a-terms) delivered it earlier in the
+- **Choice:** in [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) the [agent](./793a_product-spec.md#793a1a-terms) "already has" a [note](../../GLOSSARY.md#permanent-note) when [automatic memory](./793a_product-spec.md#793a1a-terms) delivered it earlier in the
   same [session](../../GLOSSARY.md#session) or the agent looked it up in it, even after the session's context was compacted.
 - **Rationale:** it is the literal reading of "this session" and needs no knowledge of what the agent still
   holds. It reverses the owner's answer in the earlier attempt (`old 793c7` item 5, 2026-10-11): never re-inject
@@ -361,7 +361,7 @@ Folded into [793b2 North Star](#793b2-north-star) in review round 1. The ID is k
 ## 793b29 Interactions join the first node that has every capability they name
 
 - **Choice:** in [793e Automatic Memory - Implementation Plan](./793e_implementation-plan.md#automatic-memory---implementation-plan), an interaction is worked with the first node whose requirements include every
-  capability it names: [793a3b Nothing the agent already has is delivered again](./793a_product-spec.md#793a3b-nothing-the-agent-already-has-is-delivered-again) with the first node; [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later), [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again) and [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working) with the second; [793a3d Failures never break a prompt and always show](./793a_product-spec.md#793a3d-failures-never-break-a-prompt-and-always-show) with the last.
+  capability it names: [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later), [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again) and [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working) with the second; [793a3d Failures never break a prompt and always show](./793a_product-spec.md#793a3d-failures-never-break-a-prompt-and-always-show) with the last.
 - **Rationale:** an interaction cannot be exercised before everything it joins exists, and delaying it further
   would leave its rule unchecked.
 - **Alternatives:** all interactions in a final node (rules unchecked for long), or each with its own earliest
