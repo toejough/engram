@@ -132,6 +132,17 @@ func (c *conversation) say(prompt string) *turn {
 	}
 }
 
+// tell sends one prompt as say does, and logs the agent's reply: the record of the step.
+func (c *conversation) tell(prompt string) *turn {
+	t := c.session.machine.t
+	t.Helper()
+
+	answered := c.say(prompt)
+	t.Logf("the agent replied %q", answered.reply)
+
+	return answered
+}
+
 // startSession starts a session in a project directory of its own, outside any repository.
 func (m *machine) startSession(project string) *session {
 	m.t.Helper()

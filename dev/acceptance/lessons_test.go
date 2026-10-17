@@ -24,11 +24,9 @@ func Test793a2a1f_ASecondUpdateStillWritesEachLessonAsOneNote(t *testing.T) {
 		machine.mustSucceed(machine.update(), "engram update")
 
 		chat = machine.startSession("zorblax").converse()
-		answered := chat.say(askHowToBuild)
-		t.Logf("the agent replied %q", answered.reply)
+		chat.tell(askHowToBuild)
 
-		corrected := chat.say(correctTheBuild)
-		t.Logf("the agent replied %q", corrected.reply)
+		chat.tell(correctTheBuild)
 	})
 
 	step(t, "Then the vault holds one note for the correction", func() {
@@ -56,13 +54,11 @@ func Test793a2c1a_ACorrectionBecomesANote(t *testing.T) {
 
 		inSession = machine.startSession("zorblax")
 		chat = inSession.converse()
-		answered := chat.say(askHowToBuild)
-		t.Logf("the agent replied %q", answered.reply)
+		chat.tell(askHowToBuild)
 	})
 
 	step(t, "When the user corrects the agent's answer in a prompt, and the turn ends", func() {
-		corrected := chat.say(correctTheBuild)
-		t.Logf("the agent replied %q", corrected.reply)
+		chat.tell(correctTheBuild)
 	})
 
 	step(t, "Then within 2 minutes the vault holds a note that states the correction and says it was written "+
@@ -88,8 +84,7 @@ func Test793a2c1b_ARequestToRememberBecomesANote(t *testing.T) {
 	})
 
 	step(t, "When the user asks the agent in a prompt to remember something, and the turn ends", func() {
-		asked := chat.say(askToRemember)
-		t.Logf("the agent replied %q", asked.reply)
+		chat.tell(askToRemember)
 	})
 
 	step(t, "Then within 2 minutes the vault holds a note that states it and says it was written automatically, "+
@@ -115,14 +110,12 @@ func Test793a2c1c_AnApproachTheUserConfirmedBecomesANote(t *testing.T) {
 		inSession.hasFile("zorblax.txt", "pear\nfig\napple\n")
 		chat = inSession.converse()
 
-		done := chat.say(askToSort)
-		t.Logf("the agent replied %q", done.reply)
+		chat.tell(askToSort)
 	})
 
 	step(t, "When the user tells the agent in a prompt that the way worked and to keep doing it, and the turn ends",
 		func() {
-			confirmed := chat.say(confirmTheSort)
-			t.Logf("the agent replied %q", confirmed.reply)
+			chat.tell(confirmTheSort)
 		})
 
 	step(t, "Then within 2 minutes the vault holds a note that states the approach and says it was written "+
@@ -149,8 +142,7 @@ func Test793a2c1d_TheAgentsOwnCorrectionBecomesANote(t *testing.T) {
 
 	step(t, "When the user asks the agent in a prompt to guess what a file says and then to read it, "+
 		"and the agent says its guess was wrong and states what the file says, and the turn ends", func() {
-		corrected := chat.say(askToGuessAndRead)
-		t.Logf("the agent replied %q", corrected.reply)
+		chat.tell(askToGuessAndRead)
 	})
 
 	step(t, "Then within 2 minutes the vault holds a note that states what the file says and says it was written "+
@@ -177,8 +169,7 @@ func Test793a2c1e_AnApproachThatSucceededWithEvidenceBecomesANote(t *testing.T) 
 
 	step(t, "When the agent, unsure whether an approach will make the check pass, tries it in a turn "+
 		"and the turn shows that the check passed", func() {
-		tried := chat.say(askToTryTheFlag)
-		t.Logf("the agent replied %q", tried.reply)
+		chat.tell(askToTryTheFlag)
 	})
 
 	step(t, "Then within 2 minutes the vault holds a note that states the approach and says it was written "+
@@ -203,8 +194,7 @@ func Test793a2c1f_GuessesPlansAndChatterProduceNoNote(t *testing.T) {
 
 	step(t, "When the user sends a prompt that the agent answers with a guess, a plan and chatter, and the turn ends",
 		func() {
-			answered := chat.say(askForAGuessAndAPlan)
-			t.Logf("the agent replied %q", answered.reply)
+			chat.tell(askForAGuessAndAPlan)
 		})
 
 	step(t, "Then 2 minutes after the turn ends the vault holds no note", func() {
@@ -229,8 +219,7 @@ func Test793a2c1g_ACredentialInTheTurnIsNotInTheNote(t *testing.T) {
 
 	step(t, "When the user asks the agent in a prompt to remember how to deploy, with the token and the password "+
 		"that the deploy needs, and the turn ends", func() {
-		asked := chat.say(askToRememberTheDeploy)
-		t.Logf("the agent replied %q", asked.reply)
+		chat.tell(askToRememberTheDeploy)
 	})
 
 	step(t, "Then within 2 minutes the vault holds a note that states how to deploy, and no note holds the token "+
@@ -260,11 +249,9 @@ func Test793a3a1a_AWrittenNoteIsDeliveredWithLaterPrompts(t *testing.T) {
 		machine.hasRunUpdate()
 
 		chat = machine.startSession("zorblax").converse()
-		answered := chat.say(askHowToBuild)
-		t.Logf("the agent replied %q", answered.reply)
+		chat.tell(askHowToBuild)
 
-		corrected := chat.say(correctTheBuild)
-		t.Logf("the agent replied %q", corrected.reply)
+		chat.tell(correctTheBuild)
 
 		written = machine.awaitAutomaticNote(chat.turnEnds, "that states the correction", buildTarget)
 
@@ -276,7 +263,7 @@ func Test793a3a1a_AWrittenNoteIsDeliveredWithLaterPrompts(t *testing.T) {
 	var inSession, inNewSession *turn
 
 	step(t, "When the user sends a prompt that the note bears on, in that session and then in a new session", func() {
-		inSession = chat.say(askHowToBuild)
+		inSession = chat.tell(askHowToBuild)
 		inNewSession = machine.startSession("zorblax").send(askHowToBuild)
 	})
 
@@ -306,8 +293,7 @@ func Test793a3c1a_ALessonAnEarlierNoteStatesIsNotWrittenAgain(t *testing.T) {
 	})
 
 	step(t, "When the user states the same lesson to the agent in a prompt, and the turn ends", func() {
-		stated := chat.say(askToRemember)
-		t.Logf("the agent replied %q", stated.reply)
+		chat.tell(askToRemember)
 	})
 
 	step(t, "Then 2 minutes after the turn ends the vault holds the earlier note only", func() {
@@ -332,8 +318,7 @@ func Test793a3c1b_ALessonTheAgentSavedItselfIsNotWrittenAgain(t *testing.T) {
 
 	step(t, "When the user asks the agent in a prompt to remember something and to save it with engram learn, "+
 		"and the turn ends", func() {
-		asked := chat.say(askToSaveItself)
-		t.Logf("the agent replied %q", asked.reply)
+		chat.tell(askToSaveItself)
 
 		g.Expect(chat.session.agentRan("engram learn")).To(BeTrue(), "the agent saved the note itself")
 	})
@@ -379,8 +364,7 @@ func Test793a3e1a_TheAgentsOwnLookupsAndSavesKeepWorking(t *testing.T) {
 
 	step(t, "When the user asks the agent in a prompt to look the staging note up with engram query and to save "+
 		"another note with engram learn", func() {
-		asked = chat.say(askToLookUpAndSave)
-		t.Logf("the agent replied %q", asked.reply)
+		asked = chat.tell(askToLookUpAndSave)
 
 		saved = machine.noteNamed(stagingBackup.slug)
 		whenTheTurnEnd = machine.noteText(saved)
