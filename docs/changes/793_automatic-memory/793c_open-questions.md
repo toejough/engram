@@ -576,3 +576,27 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Recommendation:** (a): a model's judgement is not deterministic, and a bar of 10 in 10 makes one unlucky run a red.
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b86 The acceptance run takes a count](./793b_decision-log.md#793b86-the-acceptance-run-takes-a-count).
+
+## 793c56 Is the bar of the learn skill the bar for a note written automatically?
+
+- **Context:** [793b87 The instructions carry the bar of the learn skill](./793b_decision-log.md#793b87-the-instructions-carry-the-bar-of-the-learn-skill) holds the judgement to the bar the learn [skill](../../GLOSSARY.md#skill) holds the [agent](./793a_product-spec.md#793a1a-terms)
+  to: a lesson in the form in which it applies again, with its exact names kept, and no lesson from a bare thanks or a
+  routine success. A stricter bar writes fewer [notes](../../GLOSSARY.md#permanent-note) and misses some a user would have kept.
+- **Options:** (a) The bar of the learn skill, with the exact names kept. (b) A lower bar: every confirmation is a lesson.
+  (c) The skill's bar to the letter, the principle without the instance.
+- **Recommendation:** (a): a note that a thanks wrote is noise in every later lookup, and a note without its names cannot
+  be found or checked.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b87 The instructions carry the bar of the learn skill](./793b_decision-log.md#793b87-the-instructions-carry-the-bar-of-the-learn-skill).
+
+## 793c57 Should a reversal of the agent's own claim be written as a fact or as feedback?
+
+- **Context:** the learn [skill](../../GLOSSARY.md#skill) writes a reversal of the [agent](./793a_product-spec.md#793a1a-terms)'s own claim as feedback (behavior, impact, action) and the judgement writes it as
+  a fact, the corrected conclusion ([793b65 What the judgement reads, and what it is asked](./793b_decision-log.md#793b65-what-the-judgement-reads-and-what-it-is-asked)). The two kinds are found by different cues:
+  a fact by the situation it is about, a feedback by the failure it guards against.
+- **Options:** (a) A fact, the corrected conclusion. (b) Feedback, as the skill writes it. (c) Both, a fact and a
+  feedback for the same reversal.
+- **Recommendation:** (a): the window of one [turn](./793a_product-spec.md#793a1a-terms) holds the conclusion and what overturned it, and not the cost or the
+  guard that a feedback needs; the scenario of the agent's own correction asks for a [note](../../GLOSSARY.md#permanent-note) that states what the file says.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b65 What the judgement reads, and what it is asked](./793b_decision-log.md#793b65-what-the-judgement-reads-and-what-it-is-asked).

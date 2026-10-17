@@ -190,7 +190,9 @@ graph TD
     n793e6g11 --> n793e6g12
     n793e6g13["793e6g13 The acceptance run can repeat a scenario<br/>Complete"]
     n793e6g12 --> n793e6g13
-    n793e6g13 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
+    n793e6g14["793e6g14 A thanks that names no approach produces no note<br/>Ready"]
+    n793e6g13 --> n793e6g14
+    n793e6g14 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
     n793e6d --> n793e6f["793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d"]
@@ -670,6 +672,14 @@ Takes the part of review finding 7 about the tooling: the judgement of a [turn](
 | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
 | `TestAcceptanceTestArgs_TagsPackageAndFilter` (amended) | Dedicated example (dev suite, `targ` tag) | the arguments of the run: the count is one by default, and the count given is passed on, with a time limit of 30 minutes for each run of the whole set | Done | def7a027 | 2f679d66 | 50f6a615 |
+
+#### 793e6g14 A thanks that names no approach produces no note, and the instructions carry the bar of the learn skill
+
+Takes review findings 14 and 22. The learn [skill](../../GLOSSARY.md#skill) holds a lesson to a bar that the instructions of the judgement lacked: a thanks, or an "it worked", that names no approach confirms nothing, and a success that no uncertainty preceded is no lesson. The instructions also carried a clause about a line that begins `Brief:`, left from the earlier attempt ([793b87 The instructions carry the bar of the learn skill](./793b_decision-log.md#793b87-the-instructions-carry-the-bar-of-the-learn-skill), [793b65 What the judgement reads, and what it is asked](./793b_decision-log.md#793b65-what-the-judgement-reads-and-what-it-is-asked)). The row is a judgement row: the judgement of a model decides it, so it is run 10 times before the change and 10 times after, and the bar is 9 passes in 10 ([793b86 The acceptance run takes a count](./793b_decision-log.md#793b86-the-acceptance-run-takes-a-count)). The removal of the clause has no test of its own: it is dead text, and the rows of the scenarios that the instructions serve are run at the end of the fixes.
+
+| Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793a2c1h | Dedicated example, product acceptance (`network`) | the prohibition as the user sees it: after a task the [agent](./793a_product-spec.md#793a1a-terms) did one way, a [prompt](./793a_product-spec.md#793a1a-terms) that only thanks the agent and says that it worked is judged, and the [vault](../../GLOSSARY.md#vault) holds no [note](../../GLOSSARY.md#permanent-note) | | Not started | | | |
 
 ### 793e6e The conversation becomes searchable memory
 

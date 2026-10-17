@@ -136,9 +136,9 @@ a [note](../../GLOSSARY.md#permanent-note) stating it MUST be in the vault withi
 ([793c2 How soon after a turn must automatic memory have finished writing?](./793c_open-questions.md#793c2-how-soon-after-a-turn-must-automatic-memory-have-finished-writing)) after the turn ends, written by
 [automatic memory](#793a1a-terms) and not by the [agent](#793a1a-terms), and marked as written automatically.
 A turn holds a confirmed lesson when the user corrected the agent, asked it to remember something, or
-confirmed that an approach worked, when the agent plainly corrected its own earlier claim, or when an
+confirmed that a particular approach worked, when the agent plainly corrected its own earlier claim, or when an
 uncertain approach succeeded with evidence in the turn. A turn that holds only guesses, plans or chatter MUST
-NOT produce a note. A note MUST NOT contain a credential, token, key or password that appeared in the turn in a
+NOT produce a note, and a thanks, or an "it worked", that names no approach is chatter. A note MUST NOT contain a credential, token, key or password that appeared in the turn in a
 recognised form ([793c49 Should the promise that a note holds no credential stay absolute?](./793c_open-questions.md#793c49-should-the-promise-that-a-note-holds-no-credential-stay-absolute)): a private key block; a key or
 token that opens with the name of the service that issued it (GitHub, npm, GitLab, Slack, Google or AWS); a signed
 token of three parts joined by dots; a `Bearer` or `Basic` credential of 12 characters or more; the user and the password
@@ -184,6 +184,11 @@ Scenario: 793a2c1g A credential in the turn is not in the note
   Given the user has run engram update, and a session in which the agent may not run engram commands
   When the user asks the agent in a prompt to remember how to deploy, with the token and the password that the deploy needs, each in a recognised form, and the turn ends
   Then within 2 minutes the vault holds a note that states how to deploy, and no note holds the token or the password
+
+Scenario: 793a2c1h A thanks that names no approach produces no note
+  Given the user has run engram update, and a session in which the agent may not run engram commands and has done a task one way
+  When the user thanks the agent in a prompt, saying only that it worked, and the turn ends
+  Then 2 minutes after the turn ends the vault holds no note
 ```
 
 ### 793a2f The conversation becomes searchable memory

@@ -1116,18 +1116,27 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   A line is cut to 1,200 characters and the window to 8,000, the oldest context first and then the middle of the turn,
   and the final text is added when the [session](../../GLOSSARY.md#session)'s record lacks it. Every text is redacted before it is cut ([793b69 Credentials](#793b69-credentials-are-redacted-by-shape-and-the-rest-is-a-known-risk)).
   The instructions are those of the earlier attempt, with a sentence that an approach the agent was unsure of, tried
-  and saw succeed is a lesson. The reply is a JSON list of lessons, each with a kind, a slug, a situation, the file name
+  and saw succeed is a lesson, and with the bar of the learn [skill](../../GLOSSARY.md#skill) ([793b87 The instructions carry the bar of the learn skill](#793b87-the-instructions-carry-the-bar-of-the-learn-skill)).
+  A reversal of the agent's own claim is written as a `fact`, the corrected cause or conclusion, and not as the
+  feedback that the learn skill writes for a reversal ([793c57 Should a reversal of the agent's own claim be written as a fact or as feedback?](./793c_open-questions.md#793c57-should-a-reversal-of-the-agents-own-claim-be-written-as-a-fact-or-as-feedback)).
+  The reply is a JSON list of lessons, each with a kind, a slug, a situation, the file name
   of a [note](../../GLOSSARY.md#permanent-note) that already states it, and the fields of its kind ([793b66 What a lesson becomes](#793b66-what-a-lesson-becomes)).
 - **Rationale:** a lesson comes from the user's words and from the agent's claims and what overturned them, and the
   inputs and results of tools are where a credential or a file's bulk is, so the window leaves them out. The sentence
   was added because a probe of the judgement alone, over a turn in which the agent tried a flag and the check passed,
   wrote the lesson in 11 of 20 runs without it and in 20 of 20 with it, and the live scenario
   [793a2c1e An approach that succeeded with evidence becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios) then passed 10 of 10 runs.
+  A reversal is a fact because the window of one turn holds what the agent concluded and what overturned it, and not
+  what the flip cost or the guard that would have prevented it, which the fields behavior, impact and action of a
+  feedback ask for and the model would have to invent; and [793a2c1d The agent's own correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios)
+  asks for a note that states what the file says.
 - **Alternatives:** the whole [transcript](../../GLOSSARY.md#transcript) of the session (rejected: its size and its credentials, and the call is paid by the
   user's login); the inputs and results of tools (rejected for the same reason); the instructions of the earlier attempt
-  unchanged (rejected by the probe above).
+  unchanged (rejected by the probe above); a reversal written as feedback, as the learn skill writes it (rejected: the
+  turn does not hold the cost of the flip or the guard).
 - **Decided by:** Author (default; owner may override); the owner is asked in
-  [793c40 Is the window of the judgement the right one?](./793c_open-questions.md#793c40-is-the-window-of-the-judgement-the-right-one).
+  [793c40 Is the window of the judgement the right one?](./793c_open-questions.md#793c40-is-the-window-of-the-judgement-the-right-one) and
+  [793c57 Should a reversal of the agent's own claim be written as a fact or as feedback?](./793c_open-questions.md#793c57-should-a-reversal-of-the-agents-own-claim-be-written-as-a-fact-or-as-feedback).
 
 ## 793b66 What a lesson becomes
 
@@ -1413,7 +1422,8 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   thing the user could see in the records, and a vault removed on purpose leaves one failed record for each turn of that
   session, which says so); a skipped record for a missing record of the session (rejected: the mod reports every failed
   step to the writing as a failure, and a second kind of report would need a second path).
-- **Decided by:** Author (default; owner may override). It amends the default of 793c43.
+- **Decided by:** Author (default; owner may override). It amends the default of
+  [793c43 Should a missing vault end the capture before the model is asked?](./793c_open-questions.md#793c43-should-a-missing-vault-end-the-capture-before-the-model-is-asked).
 
 ## 793b83 A failure that is recorded does not fail the command
 
@@ -1462,7 +1472,8 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   The bounds are many times the time a stage takes (the capture took 0.9 to 6.0 seconds in 246 live runs,
   [793b70 The capture reports its own failures, and nothing times it as a whole](#793b70-the-capture-reports-its-own-failures-and-nothing-times-it-as-a-whole)). A request that failed to parse was reported as a failure of the model's
   call, which sent the reader to the wrong stage.
-- **Alternatives:** a timer over the chain (rejected, as in 793b70: it would end a write about to finish); the bounds of the
+- **Alternatives:** a timer over the chain (rejected, as in
+  [793b70 The capture reports its own failures, and nothing times it as a whole](#793b70-the-capture-reports-its-own-failures-and-nothing-times-it-as-a-whole): it would end a write about to finish); the bounds of the
   host's default (rejected: the finding); shorter bounds (rejected: a loaded machine took 7 seconds to start a command, see
   [793c32 Is the stall between the spawn of the command and its first instruction a risk to the product?](./793c_open-questions.md#793c32-is-the-stall-between-the-spawn-of-the-command-and-its-first-instruction-a-risk-to-the-product)).
 - **Decided by:** Author (default; owner may override); the bound is asked in
@@ -1480,3 +1491,23 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 - **Alternatives:** a documented command of `go test -count=10` (rejected: it bypasses the tags, the cap and the time
   limit of the target); the target run ten times by a loop (rejected: the module is built for each run).
 - **Decided by:** Author (default; owner may override).
+
+## 793b87 The instructions carry the bar of the learn skill
+
+- **Choice:** the instructions of the judgement carry the bar that the learn [skill](../../GLOSSARY.md#skill) applies to a lesson, in three parts.
+  A lesson is stated in the form in which it applies again, a rule or a fact and not the story of the
+  [turn](./793a_product-spec.md#793a1a-terms), with the exact names, commands, flags and values it depends on kept. A thanks, or an "it worked", that names
+  no approach confirms nothing, and a success that no uncertainty and no bet preceded is no lesson. And the clause that
+  named a line beginning `Brief:` as the [agent](./793a_product-spec.md#793a1a-terms)'s instruction to a [subagent](../../GLOSSARY.md#subagent) is dropped: it was left from the earlier attempt, whose
+  window held the briefs of the agent, and the window of this judgement holds no input of a tool.
+- **Rationale:** review findings 14 and 22. The learn skill has the bar and the judgement did not, so a turn in which the
+  user said only "thanks, that worked" was a confirmed approach for it. The scenario
+  [793a2c1h A thanks that names no approach produces no note](./793a_product-spec.md#793a2c1-uat-scenarios) holds the bar as the user sees it, and its runs before and after the change are
+  in [793e6g14 A thanks that names no approach produces no note, and the instructions carry the bar of the learn skill](./793e_implementation-plan.md#793e6g14-a-thanks-that-names-no-approach-produces-no-note-and-the-instructions-carry-the-bar-of-the-learn-skill).
+  The exact names stay because they are what a later lookup matches, and what the rows of the scenarios check in the [note](../../GLOSSARY.md#permanent-note).
+- **Alternatives:** the skill's words "the general principle, not the instance" as they stand (rejected: a note that
+  says to build with the target of the project, and not `make zorblax-build`, cannot be told from a guess, and the rows of
+  [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios) and [793a2c1d The agent's own correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios) check the exact words); leaving the thanks to the model (rejected: see the runs);
+  the four kinds of the skill copied in full (rejected: the instructions name the kinds already).
+- **Decided by:** Author (default; owner may override); the owner is asked in
+  [793c56 Is the bar of the learn skill the bar for a note written automatically?](./793c_open-questions.md#793c56-is-the-bar-of-the-learn-skill-the-bar-for-a-note-written-automatically).
