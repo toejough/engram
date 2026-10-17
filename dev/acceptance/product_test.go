@@ -4,6 +4,7 @@ package acceptance_test
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -45,6 +46,42 @@ func Test793a2a1a_NextSessionHasMemoryAfterOneEngramUpdate(t *testing.T) {
 		g.Expect(blocks[0]).To(ContainSubstring(stagingReset.object))
 		g.Expect(sent.blockAt()).To(BeNumerically(">=", 0))
 		g.Expect(sent.blockAt()).To(BeNumerically("<", sent.agentActsAt()), "the block comes before the agent acts")
+	})
+}
+
+func Test793a2a1b_ASecondUpdateStillDeliversEachNoteOnce(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var noteName string
+
+	step(t, "Given a machine on which the user has run engram update once, "+
+		"and a vault holding a note that says when the staging database is reset", func() {
+		machine.hasEngram()
+		machine.hasClaudeCode()
+		machine.agentMayNotRunEngram()
+		noteName = machine.learnsFact(stagingReset)
+		machine.mustSucceed(machine.update(), "engram update")
+	})
+
+	step(t, "When the user runs engram update again", func() {
+		machine.mustSucceed(machine.update(), "engram update, again")
+	})
+
+	var sent *turn
+
+	step(t, "And starts a session and sends a prompt asking when the staging database is reset", func() {
+		sent = machine.startSession("a-project").send(askStagingReset)
+		t.Logf("the agent replied %q (cost $%.4f)", sent.reply, sent.cost)
+	})
+
+	step(t, "Then the note is in the agent's context once", func() {
+		g.Expect(sent.blocks()).To(HaveLen(1), "blocks automatic memory delivered with the prompt")
+		g.Expect(strings.Count(strings.Join(sent.contexts(), "\n"), noteName)).To(Equal(1),
+			"how many times any context beside the prompt names the note")
+		g.Expect(sent.toolResultsNaming(noteName)).To(BeFalse(), "the agent looked the note up")
 	})
 }
 
