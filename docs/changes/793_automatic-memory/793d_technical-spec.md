@@ -361,11 +361,14 @@ note as exactly one line that begins with a dash and a space, with the note's fi
 written as text in which every run of white space, line breaks and separators included, is one space and no control
 character and no format character remains, a format character being one of the Unicode category Cf: a zero-width space
 or joiner, a bidirectional override or isolate, a byte-order mark, a soft hyphen. So the text of a note never makes a
-line of its own: it cannot produce a line that is the framing line, or a line that reads as another note.
+line of its own: it cannot produce a line that is the framing line, or a line that reads as another note. The line of a
+note whose source says that it was written automatically ([793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply)) ends with the words
+`(written automatically)`, which are fixed text with nothing of the note in them, so that the [agent](./793a_product-spec.md#793a1a-terms) can tell the note from one a
+person or the agent saved.
 
 Owner: prompt-delivery (a new component; its canonical file at promotion is `prompt-delivery.md`)
 
-Supports: [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2b1a The notes that bear on a prompt arrive with it](./793a_product-spec.md#793a2b1-uat-scenarios).
+Supports: [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2b1a The notes that bear on a prompt arrive with it](./793a_product-spec.md#793a2b1-uat-scenarios), [793a3a1a A written note is delivered with later prompts](./793a_product-spec.md#793a3a1-uat-scenarios).
 
 #### 793d4c1 Scenarios
 
@@ -379,6 +382,11 @@ Scenario: 793d4c1b A note cannot hide text in format characters
   Given a note whose file name, situation and body hold a zero-width space, a zero-width joiner, a bidirectional override, a byte-order mark and a soft hyphen, between and inside words
   When the block is made
   Then the line of the note holds none of them, and the words they were between and inside are joined as the characters around them were
+
+Scenario: 793d4c1c A note written automatically says so in its line
+  Given a note whose source says that it was written automatically, and a note whose source is another
+  When the block is made for each
+  Then the line of the first ends with (written automatically), and the line of the other does not
 ```
 
 ### 793d4d Telling what a session holds

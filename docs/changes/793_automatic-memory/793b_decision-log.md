@@ -1358,3 +1358,17 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 - **Alternatives:** raise the cap and read the list as before (rejected: a longer reply can still be cut, and loses every
   lesson); leave out a lesson whose field has a line break (rejected: it loses a lesson for a form that one line holds).
 - **Decided by:** Author (default; owner may override).
+
+## 793b80 The delivered line shows the mark of a note written automatically
+
+- **Choice:** the line of a [note](../../GLOSSARY.md#permanent-note) whose source says that it was written automatically ends with the fixed words `(written automatically)`. The
+  delivery reads the source from the note's front matter in the payload of the lookup, and the words depend on it only
+  through whether the source opens with `written automatically`; nothing of the source is in the line.
+- **Rationale:** review finding 15. The [vault](../../GLOSSARY.md#vault) marks a note written automatically in its source ([793b66 What a lesson becomes](#793b66-what-a-lesson-becomes)), and a
+  reader of the vault can tell it, but the [agent](./793a_product-spec.md#793a1a-terms) that reads the delivered block could not: a note captured without the agent's care
+  is a different thing to weigh from one the agent or a person saved. The words are appended, so that the form of the line
+  that [793d4c Framing the notes of a block as data](./793d_technical-spec.md#793d4c-framing-the-notes-of-a-block-as-data) fixes (a dash, the file name, the situation in parentheses, a colon, the body) is kept, and the
+  [session](../../GLOSSARY.md#session)-context ([793d4d Telling what a session holds](./793d_technical-spec.md#793d4d-telling-what-a-session-holds)) still reads the file name as before.
+- **Alternatives:** the mark at the start of the line (rejected: it changes the leading form that the reading of what a
+  session holds relies on); the mark in the framing line (rejected: it names no note); no mark (rejected: the finding).
+- **Decided by:** Author (default; owner may override).

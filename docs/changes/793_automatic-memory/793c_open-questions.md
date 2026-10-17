@@ -526,3 +526,12 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Recommendation:** (a): a lesson is whole or it is not, whatever follows it; (c) does not remove the cut.
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b79 A field of a lesson is one line, and a reply that is cut keeps its whole lessons](./793b_decision-log.md#793b79-a-field-of-a-lesson-is-one-line-and-a-reply-that-is-cut-keeps-its-whole-lessons).
+
+## 793c51 Should the delivered line mark a note written automatically?
+
+- **Context:** [793b80 The delivered line shows the mark of a note written automatically](./793b_decision-log.md#793b80-the-delivered-line-shows-the-mark-of-a-note-written-automatically) appends `(written automatically)` to the line of such a [note](../../GLOSSARY.md#permanent-note) in the block
+  that the [agent](./793a_product-spec.md#793a1a-terms) reads.
+- **Options:** (a) Append the mark. (b) No mark, as before. (c) The mark in the framing line, as a count.
+- **Recommendation:** (a): it costs 22 characters for a note, and tells the agent what the [vault](../../GLOSSARY.md#vault) already tells a reader.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b80 The delivered line shows the mark of a note written automatically](./793b_decision-log.md#793b80-the-delivered-line-shows-the-mark-of-a-note-written-automatically).

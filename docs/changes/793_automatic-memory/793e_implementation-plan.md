@@ -176,7 +176,9 @@ graph TD
     n793e6g4 --> n793e6g5
     n793e6g6["793e6g6 A field of a lesson is one line and a cut reply keeps its lessons<br/>Complete"]
     n793e6g5 --> n793e6g6
-    n793e6g6 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
+    n793e6g7["793e6g7 A note written automatically says so in its line<br/>Ready"]
+    n793e6g6 --> n793e6g7
+    n793e6g7 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
     n793e6d --> n793e6f["793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d"]
@@ -592,6 +594,15 @@ Takes review findings 11 and 26. The fields of a lesson were written to the [not
 | 793d4h1g | Dedicated example (default suite) | a lesson whose fields hold line breaks and a line that opens with `Supersedes:`, written through `RunAutoWrite` and the real renderers of the learn path | Done | 8ca175c0 | 63ab40ac | f85f0b2e |
 | 793d4h1h | Dedicated example (default suite) | a reply cut inside a second lesson and a reply cut after a whole one: the whole lesson is written and the cut is recorded | Done | 8ca175c0 | 63ab40ac | f85f0b2e |
 | 793d4h1c (amended) | Dedicated example (default suite) | a list that holds a whole lesson and is followed by text is not a list: it passes when written; the mutation that makes it fail is a reading of the list that stops at its end and takes the text after it for nothing, run on a scratch copy of the branch, where the lesson is written and the case fails (the case of the red held no lesson before the text, so the mutation did not fail it, and the green strengthened it) | Done | 8ca175c0 | 63ab40ac | f85f0b2e |
+
+#### 793e6g7 A note written automatically says so in its line
+
+Takes review finding 15: the line of a [note](../../GLOSSARY.md#permanent-note) that the delivery put in the context of the [agent](./793a_product-spec.md#793a1a-terms) did not show whether the note was written automatically, though the [vault](../../GLOSSARY.md#vault) marks it in the source ([793b80 The delivered line shows the mark of a note written automatically](./793b_decision-log.md#793b80-the-delivered-line-shows-the-mark-of-a-note-written-automatically)).
+
+| Gherkin | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793d4c1c | Dedicated example (default suite) | the delivery over an in-memory [vault](../../GLOSSARY.md#vault) with a note whose source is `written automatically` and one whose source is another, through `RunAutoDeliver` | | Not started | | | |
+| 793d4c1a (amended) | Property-based (`rapid`) with named examples (default suite) | the notes drawn have a source of arbitrary text, among it the words that mark a note written automatically | the properties of 793d4c1a, and the words `(written automatically)` end a line only when the source opens with `written automatically`, with nothing of the source in the line | Not started | | | |
 
 ### 793e6e The conversation becomes searchable memory
 
