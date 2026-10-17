@@ -506,8 +506,8 @@ made. They are rows of nodes already complete, added here with the commits that 
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793d4g1k | Dedicated example (default suite) | the shape of a prompt in the record of a session that a live session writes, and that no earlier row built: text blocks and an image are one prompt, and the result of a tool is none. It passes when written; the mutation that makes it fail is a reading that takes only a prompt that is a string | Red | | | |
-| 793d4k1f | Dedicated example (default suite) | the adapter of the records of the writing, dispatched through the targets over a file system that refuses, first to make the directory and then to create the record. It passes when written; the mutation that makes it fail is an adapter that returns the refusal to the command | Red | | | |
+| 793d4g1k | Dedicated example (default suite) | the shape of a prompt in the record of a session that a live session writes, and that no earlier row built: text blocks and an image are one prompt, and the result of a tool is none. It passes when written; the mutation that makes it fail is a reading that takes only a prompt that is a string | Done | n/a | ff86e468 | |
+| 793d4k1f | Dedicated example (default suite) | the adapter of the records of the writing, dispatched through the targets over a file system that refuses, first to make the directory and then to create the record. It passes when written; the mutation that makes it fail is an adapter that returns the refusal to the command | Done | n/a | ff86e468 | |
 
 ### 793e6e The conversation becomes searchable memory
 
