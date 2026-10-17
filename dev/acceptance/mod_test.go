@@ -199,6 +199,29 @@ func Test793d2a1f_Mod_OutputThatIsNotABlockAddsNothing(t *testing.T) {
 	})
 }
 
+func Test793d2a1h_Mod_GivesTheCommandThePromptsOrigin(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	step(t, "Given a session with the mod installed, and an engram whose auto deliver prints a block", func() {
+		machine.hasClaudeCode()
+		machine.hasMod()
+		machine.hasStandInEngram(standInBlock, 0, 0)
+	})
+
+	step(t, "When a prompt is sent from a headless session, with claude -p", func() {
+		machine.startSession("a-project").sendOffline()
+	})
+
+	step(t, "Then the command received the origin sdk", func() {
+		_, request := machine.standInCalled()
+
+		g.Expect(request).To(HaveKeyWithValue("origin", "sdk"))
+	})
+}
+
 // unexported constants.
 const (
 	// promptHello is a prompt no note bears on; the stand-in engram answers whatever it is asked.

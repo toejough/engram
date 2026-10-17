@@ -93,7 +93,7 @@ func Test793d2b1a_Mod_JudgesATurnAndGivesTheReplyToTheWriting(t *testing.T) {
 
 	g.Expect(outcome.Calls[0].Step).To(Equal("engram auto judge"))
 	g.Expect(outcome.Calls[0].Input).To(Equal(map[string]any{
-		"session": "a-session", "turn": "a-turn", "answer": "Understood.",
+		"session": "a-session", "turn": "a-turn", "answer": "Understood.", "origin": "composer",
 	}))
 	g.Expect(outcome.Calls[1].Step).To(Equal("model"))
 	g.Expect(outcome.Calls[1].Asked).To(Equal(map[string]any{
@@ -181,6 +181,42 @@ func Test793d2b1d_Mod_AModelThatDoesNotAnswerIsReportedToTheWriting(t *testing.T
 	}
 }
 
+func Test793d2b1e_Mod_TheJudgementReceivesTheOriginOfThePromptTheTurnBeganWith(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runCaptureDriver(t, captureScenario{
+		Judge:  map[string]any{"exitCode": 0, "stdout": requestPrinted},
+		Model:  map[string]any{"isAnswered": true, "text": "THE REPLY"},
+		Origin: "task-notification",
+	})
+
+	g.Expect(outcome.Calls).NotTo(BeEmpty(), "the judgement was run")
+
+	if len(outcome.Calls) > 0 {
+		g.Expect(outcome.Calls[0].Step).To(Equal("engram auto judge"))
+		g.Expect(outcome.Calls[0].Input).To(Equal(map[string]any{
+			"session": "a-session", "turn": "a-turn", "answer": "Understood.", "origin": "task-notification",
+		}))
+	}
+}
+
+func Test793d2b1f_Mod_ATurnOfASubagentIsNotCaptured(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runCaptureDriver(t, captureScenario{
+		Judge: map[string]any{"exitCode": 0, "stdout": requestPrinted},
+		Model: map[string]any{"isAnswered": true, "text": "THE REPLY"},
+		Agent: "a-subagent",
+	})
+
+	g.Expect(outcome.Returned.Text).To(Equal("Understood."), "the event's result is given back")
+	g.Expect(outcome.Calls).To(BeEmpty(), "neither the judgement, the model nor the writing was asked")
+}
+
 // TestMods_EveryJavaScriptModuleParses: the real mods parse under the real node, and the real node rejects a broken
 // module, which the stand-in node of the unit tests cannot show (793b55).
 func TestMods_EveryJavaScriptModuleParses(t *testing.T) {
@@ -210,10 +246,12 @@ func TestMods_EveryJavaScriptModuleParses(t *testing.T) {
 
 // unexported constants.
 const (
-	// captureDriver runs the turn.complete hook of the module named by MOD against a host that behaves as SCENARIO says:
-	// its judgement answers once the driver lets it (hold), exits with a code and prints a text, or rejects, and its
-	// model answers with a result or rejects. It records the order and the input of what the module asks of it, and
-	// prints what the hook returned, whether the hook was still waiting when the driver gave up on it, and the calls.
+	// captureDriver runs the hooks of a turn of the module named by MOD against a host that behaves as SCENARIO says: a
+	// prompt of an origin is raised and the turn starts (unless a subagent ran the turn), and the turn completes. Its
+	// judgement answers once the driver lets it (hold), exits with a code and prints a text, or rejects, and its model
+	// answers with a result or rejects. It records the order and the input of what the module asks of it, except the
+	// delivery, and prints what the hook of the end of the turn returned, whether that hook was still waiting when the
+	// driver gave up on it, and the calls.
 	captureDriver = `
 import { pathToFileURL } from 'node:url'
 
@@ -230,6 +268,7 @@ const host = {
   session: { id: async () => 'a-session' },
   process: {
     run: async (argv, init) => {
+      if (argv[2] === 'deliver') return { exitCode: 0, stdout: '' }
       calls.push({ step: argv.join(' '), input: JSON.parse(init.stdin) })
       if (argv[2] !== 'judge') return { exitCode: 0, stdout: '' }
       if (scenario.judge.rejects) throw new Error(scenario.judge.rejects)
@@ -246,8 +285,17 @@ const host = {
   ui: { log: () => {} },
 }
 
+const agent = scenario.agent ? { agentId: scenario.agent } : {}
+if (!scenario.agent) {
+  await handlers['prompt.submit'](host, { text: 'hello', context: [], origin: { kind: scenario.origin || 'composer' }, wait: false },
+    async (event) => event)
+}
+if (handlers['turn.start']) {
+  await handlers['turn.start'](host, { text: 'hello', turnId: 'a-turn', ...agent }, async (event) => ({ turnId: event.turnId }))
+}
+
 const waited = Symbol('waited')
-const hook = handlers['turn.complete'](host, { answer: 'Understood.', turnId: 'a-turn', reason: 'answer' },
+const hook = handlers['turn.complete'](host, { answer: 'Understood.', turnId: 'a-turn', reason: 'answer', ...agent },
   async (event) => ({ text: event.answer }))
 let giveUp
 const gaveUp = new Promise((resolve) => { giveUp = setTimeout(() => resolve(waited), 500) })
@@ -308,10 +356,13 @@ type captureOutcome struct {
 	} `json:"calls"`
 }
 
-// captureScenario is how the stand-in host of captureDriver behaves: its judgement and its model.
+// captureScenario is how the stand-in host of captureDriver behaves: its judgement and its model, the origin of the
+// prompt the turn begins with (composer when empty), and the subagent that ran the turn, if one did.
 type captureScenario struct {
-	Judge map[string]any `json:"judge"`
-	Model map[string]any `json:"model"`
+	Judge  map[string]any `json:"judge"`
+	Model  map[string]any `json:"model"`
+	Origin string         `json:"origin,omitempty"`
+	Agent  string         `json:"agent,omitempty"`
 }
 
 // modulesOf reads every JavaScript file below a directory, by its path relative to the directory.
