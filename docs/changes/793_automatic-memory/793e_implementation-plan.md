@@ -53,8 +53,9 @@ When and Then lines one to one; its run output is the record
 ([793b9 Test execution](./793b_decision-log.md#793b9-test-execution)). Each scenario in
 [793d Automatic Memory - Technical Spec](./793d_technical-spec.md#automatic-memory---technical-spec) is executed by
 one Go test whose name carries the scenario ID. A conformance check asserts that every scenario ID in either spec
-has a test. A test that drives a real session needs a live model, so it carries the `network` build tag and skips
-with a clear reason when its isolated run has no credential to log in with.
+has a test. A test that drives a real session needs a live model, so it carries the `network` build tag and fails
+with a clear reason when its isolated run has no credential to log in with
+([793b53 A missing login or Claude Code fails an acceptance test](./793b_decision-log.md#793b53-a-missing-login-or-claude-code-fails-an-acceptance-test)).
 
 Every test or check that runs `engram` or `claude`, whatever its classification, follows
 [793f7 Test isolation](./793f_algorithm.md#793f7-test-isolation).
@@ -63,7 +64,7 @@ The first row of a node is its product scenario. Its red commit comes first, bef
 technical rows below it are then worked in order, each through its own red, green and refactor; and its green and
 refactor commits come last, when the technical rows are `Done` and the scenario passes. The tests that drive a real
 Claude Code session live in `dev/acceptance` under the `network` build tag, run with `targ acceptance` (optionally
-`--run <regular expression>`), and skip with a clear reason when `claude` or a login is missing.
+`--run <regular expression>`), and fail with a clear reason when `claude` or a login is missing.
 
 ## 793e3 Test status
 
@@ -198,8 +199,8 @@ Takes [793a2b1c A note the agent looked up itself is not delivered](./793a_produ
 | 793d4d1e | Dedicated example (default suite) | review fix: a listing of the vault is not a lookup, so a note it names is not held | Done | d183d346 | 642adbd6 | 642a4c9a |
 | 793d4d1f | Dedicated example (default suite) | review fix: `engram show` prints a note without its file name, so the text of the command, which names the note by its basename, is what holds it | Done | d183d346 | 642adbd6 | 642a4c9a |
 | 793d4a1g | Dedicated example (default suite) | review fix: the delivery leaves out a note the agent fetched by its basename, without `.md`, through `RunAutoDeliver` over an in-memory vault and a real temporary session-log directory | Done | d183d346 | 642adbd6 | 642a4c9a |
-| 793d4a1h | Injected and impure interaction (`imptest`, default suite) | review fix: the delivery's lookup is run once, for the vault it was given, with the prompt's text as its message and as its only phrase; a message left out passes every test over the real engine, which matches it against runbook triggers only. The seam it needed, the lookup as a function, was made first, by refactor 8f30df47 | Done | n/a | dcaadbc0 | |
-| 793d4a1i | Injected and impure interaction (`imptest`, default suite) | review fix: `Deliver` gives the lookup the request's text and what the session holds the request's session ID; the mutation that makes it fail is a `Deliver` that gives either an empty string | Done | n/a | d909ac5d | |
+| 793d4a1h | Injected and impure interaction (`imptest`, default suite) | review fix: the delivery's lookup is run once, for the vault it was given, with the prompt's text as its message and as its only phrase; a message left out passes every test over the real engine, which matches it against runbook triggers only. The seam it needed, the lookup as a function, was made first, by refactor 8f30df47 | Done | n/a | dcaadbc0 | d18002dd |
+| 793d4a1i | Injected and impure interaction (`imptest`, default suite) | review fix: `Deliver` gives the lookup the request's text and what the session holds the request's session ID; the mutation that makes it fail is a `Deliver` that gives either an empty string | Done | n/a | d909ac5d | d18002dd |
 | 793d4f1a | Dedicated example (default suite) | review fix: `ENGRAM_TRANSCRIPT_DIR` names the records of sessions before `CLAUDE_CONFIG_DIR` does, through the dispatch of `engram auto deliver` with the environment stubbed and real temporary directories | Done | n/a | 9ca57f87 | 8fa41f48 |
 | 793d4f1b | Dedicated example (default suite) | review fix: `CLAUDE_CONFIG_DIR/projects` names them when `ENGRAM_TRANSCRIPT_DIR` does not, and the home's `.claude/projects` is then not read; the record's place was checked with a real headless session | Done | 9ca57f87 | a2616081 | 8fa41f48 |
 | 793d4f1c | Dedicated example (default suite) | review fix: the home's `.claude/projects` holds them when neither variable is set, which no test of the delivery had run | Done | n/a | 9ca57f87 | 8fa41f48 |

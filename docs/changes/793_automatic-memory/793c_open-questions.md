@@ -204,3 +204,12 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Recommendation:** (a): a delivery that left the message out passed every test.
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b52 The delivery runs its lookup through an injected function](./793b_decision-log.md#793b52-the-delivery-runs-its-lookup-through-an-injected-function).
+
+## 793c28 Does an acceptance test skip or fail when Claude Code or a login is missing?
+
+- **Context:** the tests that drive a real session need `claude` and a login. With neither, they skipped, and
+  `targ acceptance` exited 0 having run nothing.
+- **Options:** (a) They fail, naming the cause. (b) They skip, and the target fails on any skip.
+- **Recommendation:** (a): the tests run only when somebody asks for them.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b53 A missing login or Claude Code fails an acceptance test](./793b_decision-log.md#793b53-a-missing-login-or-claude-code-fails-an-acceptance-test).

@@ -846,3 +846,18 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   test that plants a runbook and reads the order of the payload (rejected: it tests the query engine, which has its
   own tests, and not the arguments the delivery builds).
 - **Decided by:** Author (default; owner may override), on the review's finding.
+
+## 793b53 A missing login or Claude Code fails an acceptance test
+
+- **Choice:** the tests of `dev/acceptance` fail, naming the cause, when `claude` is not on the path or no login is found
+  ([793e2 Test methods](./793e_implementation-plan.md#793e2-test-methods)); they no longer skip. They run only through
+  `targ acceptance`, or an explicit `go test` with the `network` tag, so a machine that cannot run them is one on which
+  somebody asked for them.
+- **Rationale:** the review of the first group found that `targ acceptance` exits 0 having run nothing: with no login both
+  live tests of a run reported SKIP and the package reported `ok` (reproduced here with `-run 'Test793a2b1a|Test793a2b1b'`
+  in an isolated home with no credential: two SKIP, exit 0). A run that proves nothing must not look like one that
+  passed, for the reason [793b48 The conformance check reads this change's specs and fails when they are gone](#793b48-the-conformance-check-reads-this-changes-specs-and-fails-when-they-are-gone)
+  makes a missing input a failure.
+- **Alternatives:** keep the skip and make the target fail on any SKIP (rejected: it reads the test output for one case,
+  where a failing test says the same in the form every other failure takes).
+- **Decided by:** Author (default; owner may override), on the review's finding.
