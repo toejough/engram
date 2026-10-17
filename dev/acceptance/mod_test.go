@@ -115,6 +115,7 @@ func Test793d2a1d_Mod_ASlowCommandIsEndedAndThePromptContinues(t *testing.T) {
 
 	step(t, "When a prompt is sent", func() {
 		sent = machine.startSession("a-project").sendOffline(promptHello)
+		t.Logf("the prompt waited %s", sent.hold())
 	})
 
 	step(t, "Then the model is asked within 8 seconds of the prompt, with the prompt exactly as sent and no context "+

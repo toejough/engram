@@ -709,7 +709,8 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   ends the command at that time, and a prompt whose command did not finish goes on with nothing added, with no sign of
   a failure in the session. The 8 seconds of [793b17 A prompt is held for at most 8 seconds](#793b17-a-prompt-is-held-for-at-most-8-seconds)
   are the hold of the prompt: the 7 seconds are the command, and the second left is for starting the process, the call
-  and the prompt's hooks to run (measured in the first run of the scenario, with the figure in the catalog).
+  and the prompt's hooks to run: a prompt whose command takes 20 seconds waited 7.07 seconds before the model was asked
+  (the scenario 793d2a1d, `targ acceptance --run Test793d2a1d`).
 - **Rationale:** the platform's own limit on a hook counts only the hook's own code, not a call it makes, so nothing
   in the platform bounds a slow command; the bound is the mod's. A failure that the platform logs as a skipped hook is
   shown to the user in the session, so the slow command is caught in the mod and not left to fail it.
