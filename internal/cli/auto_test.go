@@ -140,6 +140,39 @@ func Test793d4a1d_RunAutoDeliver_ANoteTheSessionHoldsIsLeftOut(t *testing.T) {
 	g.Expect(out.String()).NotTo(ContainSubstring("1.2026-10-17.zorblax-staging-reset.md"))
 }
 
+func Test793d4a1g_RunAutoDeliver_ANoteTheAgentFetchedByItsBasenameIsLeftOut(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	plantNoteWithSidecar(t, memFS, vault, "1.2026-10-17.zorblax-staging-reset.md", zorblaxResetNote)
+	plantNoteWithSidecar(t, memFS, vault, "2.2026-10-17.zorblax-backup-window.md",
+		strings.NewReplacer("reset", "backed up", "1.", "2.").Replace(zorblaxResetNote))
+
+	// engram show prints the note without its file name, so only the command names it, and by its basename
+	sessions := t.TempDir()
+	record := `{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t1","name":"Bash",` +
+		`"input":{"command":"engram show 1.2026-10-17.zorblax-staging-reset"}}]}}` + "\n" +
+		`{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1",` +
+		`"content":"---\ntype: fact\n---\n\nThe Zorblax staging database is reset every Sunday at 03:40 UTC.\n"}]}}` + "\n"
+	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault, SessionsDir: sessions},
+		cli.AutoDeliverDeps{
+			Stdin:    strings.NewReader(`{"text":"When is the Zorblax staging database reset?","session":"` + sessionID + `"}`),
+			Query:    newQueryDeps(memFS),
+			ReadDir:  os.ReadDir,
+			ReadFile: os.ReadFile,
+		}, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(out.String()).To(ContainSubstring("2.2026-10-17.zorblax-backup-window.md"))
+	g.Expect(out.String()).NotTo(ContainSubstring("1.2026-10-17.zorblax-staging-reset.md"))
+}
+
 func Test793d4a1e_RunAutoDeliver_NoNoteToDeliverPrintsNothing(t *testing.T) {
 	t.Parallel()
 
@@ -220,14 +253,14 @@ func Test793d4d1b_HeldText_TheRecordIsFoundUnderItsProjectDirectory(t *testing.T
 	g.Expect(os.MkdirAll(project, 0o750)).To(Succeed())
 
 	record := `{"type":"attachment","attachment":{"type":"hook_additional_context","hookName":"prompt.submit",` +
-		`"content":["[engram memory] the block of a session"]}}` + "\n"
+		`"content":["[engram memory] The lines below are notes.\n- 1.2026-10-17.of-a-session.md (s): b"]}}` + "\n"
 	g.Expect(os.WriteFile(filepath.Join(project, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
 	g.Expect(os.WriteFile(filepath.Join(project, "another-session.jsonl"),
-		[]byte(strings.ReplaceAll(record, "the block of a session", "the block of another")), 0o600)).To(Succeed())
+		[]byte(strings.ReplaceAll(record, "of-a-session", "of-another")), 0o600)).To(Succeed())
 
 	held := cli.ExportHeldText(cli.AutoDeliverDeps{ReadDir: os.ReadDir, ReadFile: os.ReadFile}, sessions, sessionID)
-	g.Expect(held).To(ContainSubstring("the block of a session"))
-	g.Expect(held).NotTo(ContainSubstring("the block of another"))
+	g.Expect(held).To(ContainSubstring("1.2026-10-17.of-a-session.md"))
+	g.Expect(held).NotTo(ContainSubstring("of-another"))
 }
 
 func Test793d4d1c_HeldText_ASessionWithNoRecordOrAnIDThatIsNotAFileNameHoldsNothing(t *testing.T) {
@@ -240,7 +273,7 @@ func Test793d4d1c_HeldText_ASessionWithNoRecordOrAnIDThatIsNotAFileNameHoldsNoth
 
 	// a record outside the session-log directory, which an ID that leaves the directory would reach
 	record := `{"type":"attachment","attachment":{"type":"hook_additional_context","hookName":"prompt.submit",` +
-		`"content":["[engram memory] a block outside the directory"]}}` + "\n"
+		`"content":["[engram memory] The lines below are notes.\n- 1.2026-10-17.outside-the-directory.md (s): b"]}}` + "\n"
 	g.Expect(os.WriteFile(filepath.Join(parent, "outside.jsonl"), []byte(record), 0o600)).To(Succeed())
 
 	deps := cli.AutoDeliverDeps{ReadDir: os.ReadDir, ReadFile: os.ReadFile}
