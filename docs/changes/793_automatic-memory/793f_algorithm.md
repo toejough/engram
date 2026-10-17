@@ -40,6 +40,8 @@ The orchestrator does no object-level work: haiku searches, sonnet writes and bu
 
 Each scenario is run by one Go test named with its ID. A product scenario's test drives a real Claude Code [session](../../GLOSSARY.md#session) in an isolated HOME (`793f7`), its steps mirroring the Given, When and Then lines one to one (`793b9`). A conformance check asserts that every scenario ID has a test.
 
+Step 2 also finds each existing canonical node a requirement changes and records it as a Modified or Removed operation with that requirement's scenarios.
+
 ## 793f6 Departures from the guides
 
 Depth first and the North Star line are the owner's; the others are the author's readings of his words or defaults, which he may override.
