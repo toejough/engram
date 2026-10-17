@@ -53,14 +53,9 @@ async function captureLessons($, e) {
 // deliver is the block the command prints for the prompt, or nothing when the command fails or prints something that is
 // not a block. The command is ended at the bound by the time limit of the process call.
 async function deliver($, e) {
-  const request = { text: e.text, session: await $.session.id() }
-  const { exitCode, stdout } = await $.process.run(['engram', 'auto', 'deliver'], {
-    stdin: JSON.stringify(request),
-    timeoutMs: BOUND_MS,
-  })
-  const block = stdout.trim()
+  const block = await run($, 'deliver', { text: e.text, session: await $.session.id() }, BOUND_MS)
 
-  return exitCode === 0 && block.startsWith(MARKER) ? block : ''
+  return block.startsWith(MARKER) ? block : ''
 }
 
 // notesFor is the block for the prompt, or nothing when the whole of deliver does not finish within the bound or fails:
@@ -80,9 +75,13 @@ async function notesFor($, e) {
   }
 }
 
-// run is what a step of `engram auto` printed for an input, or nothing when the command failed.
-async function run($, step, input) {
-  const { exitCode, stdout } = await $.process.run(['engram', 'auto', step], { stdin: JSON.stringify(input) })
+// run is what a step of `engram auto` printed for an input, or nothing when the command failed. The command is ended
+// after timeoutMs, and after the default of the process call when there is none.
+async function run($, step, input, timeoutMs) {
+  const { exitCode, stdout } = await $.process.run(['engram', 'auto', step], {
+    stdin: JSON.stringify(input),
+    timeoutMs,
+  })
 
   return exitCode === 0 ? stdout.trim() : ''
 }

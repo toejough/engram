@@ -334,7 +334,7 @@ Takes [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-
 
 | Gherkin | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1a | Dedicated example, product acceptance (`network`) | the promise as the user sees it: a real [session](../../GLOSSARY.md#session) in which the [agent](./793a_product-spec.md#793a1a-terms) may not run engram commands, a correction, and a [note](../../GLOSSARY.md#permanent-note) in the [vault](../../GLOSSARY.md#vault) that says it was written automatically within the bound; the time from the end of the turn to the note is measured | | Red | | | |
+| 793a2c1a | Dedicated example, product acceptance (`network`) | the promise as the user sees it: a real [session](../../GLOSSARY.md#session) in which the [agent](./793a_product-spec.md#793a1a-terms) may not run engram commands, a correction, and a [note](../../GLOSSARY.md#permanent-note) in the [vault](../../GLOSSARY.md#vault) that says it was written automatically within the bound; the time from the end of the turn to the note is measured | | Done | c67dd902 | f43f21a6 | |
 | 793d4g1a | Dedicated example (default suite) | the request over a record of the real format: the instructions, the context, the divider and the lines of the turn | | Done | 6dde6226 | 507d4c77 | |
 | 793d4g1b | Dedicated example (default suite) | the final text fills in a record whose last row is not yet written | | Done | 6dde6226 | 507d4c77 | |
 | 793d4g1c | Dedicated example (default suite) | the boundary cases: no record, and a record with no [prompt](./793a_product-spec.md#793a1a-terms) | | Done | 6dde6226 | 507d4c77 | |
@@ -344,7 +344,7 @@ Takes [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-
 | 793d4h1b | Dedicated example (default suite) | a fact lesson becomes a fact note with the mark | | Done | 14576dd7 | c9b440cf | |
 | 793d4h1c | Dedicated example (default suite) | the replies and lessons that write nothing | | Done | 14576dd7 | c9b440cf | |
 | 793d4h1d | Dedicated example (default suite) | the code fence a model may put around the list | | Done | 14576dd7 | c9b440cf | |
-| 793d2b1a | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the mod's routing of a turn against a stand-in host: the order of the three steps and what each is given; a live session cannot show what a stand-in records | | Green-all | 2f2b6012 | | |
+| 793d2b1a | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the mod's routing of a turn against a stand-in host: the order of the three steps and what each is given; a live session cannot show what a stand-in records | | Done | 2f2b6012 | f43f21a6 | |
 
 ### 793e6e The conversation becomes searchable memory
 
