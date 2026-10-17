@@ -71,20 +71,85 @@ func TestScenariosWithoutTest_NamesThoseNoTestSourceDeclares(t *testing.T) {
 		{
 			name:    "a scenario no test declares is named, in the order of the IDs",
 			ids:     []string{"793a2a1a", "793d4b1h", "793d4b1g"},
-			sources: []string{"func Test793d4b1h_Else(t *testing.T) {}\n"},
+			sources: []string{"package a_test\n\nfunc Test793d4b1h_Else(t *testing.T) {}\n"},
 			want:    []string{"793a2a1a", "793d4b1g"},
 		},
 		{
-			name:    "a comment or a call that names a test is not a test",
-			ids:     []string{"793a2a1a"},
-			sources: []string{"// Test793a2a1a_Something covers it\nfunc helper() { Test793a2a1a_Something(t) }\n"},
-			want:    []string{"793a2a1a"},
+			name: "a comment or a call that names a test is not a test",
+			ids:  []string{"793a2a1a"},
+			sources: []string{
+				"package a_test\n\n// Test793a2a1a_Something covers it\nfunc helper() { Test793a2a1a_Something(t) }\n",
+			},
+			want: []string{"793a2a1a"},
 		},
 		{
 			name:    "the test of a longer ID is not the test of a shorter one",
 			ids:     []string{"793a2a1a"},
-			sources: []string{"func Test793a2a1ab_Something(t *testing.T) {}\n"},
+			sources: []string{"package a_test\n\nfunc Test793a2a1ab_Something(t *testing.T) {}\n"},
 			want:    []string{"793a2a1a"},
+		},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			g.Expect(scenariosWithoutTest(testCase.ids, testCase.sources)).To(Equal(testCase.want))
+		})
+	}
+}
+
+// TestScenariosWithoutTest_OnlyADeclaredFunctionIsATest: the text of a declaration is not a declaration. The check's
+// own fixtures hold such text in string literals, and renaming the real tests left it green.
+func TestScenariosWithoutTest_OnlyADeclaredFunctionIsATest(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name    string
+		ids     []string
+		sources []string
+		want    []string
+	}{
+		{
+			name:    "a declaration inside a string literal is not a test",
+			ids:     []string{"793a2a1a"},
+			sources: []string{"package a_test\n\nvar fixture = \"func Test793a2a1a_Something(t *testing.T) {}\\n\"\n"},
+			want:    []string{"793a2a1a"},
+		},
+		{
+			name:    "a declaration inside a raw string literal is not a test",
+			ids:     []string{"793a2a1a"},
+			sources: []string{"package a_test\n\nvar fixture = `\nfunc Test793a2a1a_Something(t *testing.T) {}\n`\n"},
+			want:    []string{"793a2a1a"},
+		},
+		{
+			name:    "a method named like a test is not a test",
+			ids:     []string{"793a2a1a"},
+			sources: []string{"package a_test\n\ntype suite struct{}\n\nfunc (suite) Test793a2a1a_Something() {}\n"},
+			want:    []string{"793a2a1a"},
+		},
+		{
+			name:    "a function literal named like a test is not a test",
+			ids:     []string{"793a2a1a"},
+			sources: []string{"package a_test\n\nvar Test793a2a1a_Something = func(t *testing.T) {}\n"},
+			want:    []string{"793a2a1a"},
+		},
+		{
+			name:    "a source that does not parse declares no test",
+			ids:     []string{"793a2a1a"},
+			sources: []string{"package a_test\n\nfunc Test793a2a1a_Something(t *testing.T) {\n"},
+			want:    []string{"793a2a1a"},
+		},
+		{
+			name: "a declared test counts beside a fixture that names another",
+			ids:  []string{"793a2a1a", "793d4b1h"},
+			sources: []string{
+				"package a_test\n\nvar fixture = \"func Test793d4b1h_Else(t *testing.T) {}\"\n\n" +
+					"func Test793a2a1a_Something(t *testing.T) {}\n",
+			},
+			want: []string{"793d4b1h"},
 		},
 	}
 
