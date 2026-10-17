@@ -151,7 +151,12 @@ Requirement: 793a2f Within 2 minutes ([793c2 How soon after a turn must automati
 
 #### 793a2f1 UAT Scenarios
 
-Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
+```gherkin
+Scenario: 793a2f1a The conversation so far is findable after a turn
+  Given the user has run engram update, and a session in which the agent may not run engram commands and the user has told the agent a first thing that only this conversation holds
+  When the user tells it a second such thing in a prompt, and the turn ends
+  Then within 2 minutes engram query returns a chunk of the conversation for each of the two things, and neither the user nor the agent ran engram ingest
+```
 
 ### 793a2d Never in the way
 

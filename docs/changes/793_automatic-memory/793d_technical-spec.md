@@ -6,7 +6,7 @@ Filled depth first ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)),
 
 The product problem, [793a1 Problem Statement](./793a_product-spec.md#793a1-problem-statement): the [agent](./793a_product-spec.md#793a1a-terms) consults the [vault](../../GLOSSARY.md#vault) only when it remembers to, and the instruction to look first was refused in 6 of 6 headless trials. Today it reaches the vault only through its own commands (`engram query`, `engram show`), when a [skill](../../GLOSSARY.md#skill) or its instructions tell it to. [`engram update`](../../GLOSSARY.md#engram-update) deploys the skills of `agent-instructions/skills/` into each [harness](../../GLOSSARY.md#harness) through an engram-owned root per harness that the harness's skills directory links into ([harness-deploy-sync](../../specs/technical/harness-deploy-sync.md)); `engram query` searches the [notes](../../GLOSSARY.md#permanent-note), and the chunk index when one is configured ([query-engine](../../specs/technical/query-engine.md)). Nothing in a [session](../../GLOSSARY.md#session) acts at a [prompt](./793a_product-spec.md#793a1a-terms) without the agent's help, and `engram update` installs nothing but skills.
 
-A **mod** is a folder Claude Code loads as a plugin of function hooks when it sits in `~/.claude/skills/<name>` (also as a link): its hooks module registers functions for session events, and `prompt.submit` runs for each prompt before it enters the session, where a function may add context that the model reads beside the prompt and the user does not see. The solution: `engram update` deploys one mod, `engram-memory`, from `agent-instructions/mods/` through the skills machinery. For each prompt the mod runs a new command, `engram auto deliver`, which prints the notes that bear on the prompt text, as `engram query` would, as one block that the mod puts beside the prompt ([793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow)). After the [turn](./793a_product-spec.md#793a1a-terms) of a prompt the user sent, the mod runs `engram auto judge`, which prints the request of one model call, makes that call with the user's own login and runs `engram auto write` with the reply, which writes each lesson as a note through the learn path ([793d2b Turn capture flow](#793d2b-turn-capture-flow)). The commands, not the mod, hold the logic.
+A **mod** is a folder Claude Code loads as a plugin of function hooks when it sits in `~/.claude/skills/<name>` (also as a link): its hooks module registers functions for session events, and `prompt.submit` runs for each prompt before it enters the session, where a function may add context that the model reads beside the prompt and the user does not see. The solution: `engram update` deploys one mod, `engram-memory`, from `agent-instructions/mods/` through the skills machinery. For each prompt the mod runs a new command, `engram auto deliver`, which prints the notes that bear on the prompt text, as `engram query` would, as one block that the mod puts beside the prompt ([793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow)). After the [turn](./793a_product-spec.md#793a1a-terms) of a prompt the user sent, the mod runs `engram auto judge`, which prints the request of one model call, makes that call with the user's own login and runs `engram auto write` with the reply, which writes each lesson as a note through the learn path ([793d2b Turn capture flow](#793d2b-turn-capture-flow)), and `engram auto sweep`, which indexes the session's record in the chunk index so that `engram query` finds the conversation ([793d2c Conversation sweep flow](#793d2c-conversation-sweep-flow)). The commands, not the mod, hold the logic.
 
 The call raises neither a prompt nor a turn, so [automatic memory](./793a_product-spec.md#793a1a-terms) starts no session of its own ([793b63 A turn is judged by one model call, and no session is started](./793b_decision-log.md#793b63-a-turn-is-judged-by-one-model-call-and-no-session-is-started)).
 
@@ -179,13 +179,68 @@ Scenario: 793d2b1k A request that is not JSON is a failure of the judgement
   Then the model was never asked, and auto write received a failure that names the judgement
 ```
 
+### 793d2c Conversation sweep flow
+
+Added interactions are solid.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Session as Claude Code session
+    participant Mod as automatic-memory-mod
+    participant Sweep as conversation-sweep
+    participant Index as chunk-index-store
+    participant Writing as lesson-writing
+    participant Record as the record of what it did
+
+    User->>Session: the turn ends
+    Session->>Mod: 793d2c turn.complete
+    Mod-->>Session: 793d2c the event's result, at once
+    Mod->>Sweep: 793d2c, 793d4n engram auto sweep, the session's ID and the origin on standard input
+    Sweep->>Index: 793d4n the session's record, as engram ingest --transcript indexes it
+    alt the sweep fails or is ended
+        Mod->>Writing: 793d2c, 793d4h engram auto write, the session's ID, the turn's ID and a failure
+        Writing->>Record: 793d4k what became of the failure
+    end
+```
+
+Requirement: 793d2c For each [turn](./793a_product-spec.md#793a1a-terms) a [session](../../GLOSSARY.md#session) completes, the `automatic-memory-mod` MUST give the event's result back at once and then, apart from the event and apart from the capture of [793d2b Turn capture flow](#793d2b-turn-capture-flow), run `engram auto sweep` with one JSON object on standard input: the session's ID and the origin of the [prompt](./793a_product-spec.md#793a1a-terms) the turn began with. It MUST do nothing for a turn that a [subagent](../../GLOSSARY.md#subagent) ran, and for a session whose ID does not come within 5 seconds. It MUST end the command after 90 seconds, so that the call for the ID (5), the sweep (90) and the report of its failure (15) take 110 seconds, under the 2 minutes of [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory); the bound of the sweep neither extends nor waits for those of the capture. When the command exits with other than 0, or is ended or cannot run, it MUST run `engram auto write` with the session's ID, the turn's ID and a `failure`, a sentence that names the sweep and how it failed.
+
+Owner: `automatic-memory-mod`. Supports: [793a2f1a The conversation so far is findable after a turn](./793a_product-spec.md#793a2f1-uat-scenarios).
+
+#### 793d2c1 Scenarios
+
+```gherkin
+Scenario: 793d2c1a The mod sweeps the conversation after a turn, apart from the capture
+  Given the mod, a session whose ID is known, an engram whose auto judge does not answer, and an engram whose auto sweep exits with 0
+  When a prompt is raised, the turn starts, and it completes
+  Then the event's result is given back at once, and auto sweep received the session's ID and the origin of the prompt while the judgement was still running
+
+Scenario: 793d2c1b A sweep that fails is reported to the writing
+  Given the mod, and an engram whose auto sweep exits with 1, or is ended before it answers
+  When a turn completes
+  Then auto write received the session's ID, the turn's ID and a failure that names the sweep
+
+Scenario: 793d2c1c A sweep that stalls is ended at its bound and reported
+  Given the mod, and a host in which, in turn, the call for the session's ID never answers, and auto sweep runs until its time limit
+  When a turn completes
+  Then with the first auto sweep was never run after the mod waited 5 seconds, and with the second auto sweep was given the time limit of 90 seconds and the report of its failure 15, which with the 5 seconds for the ID are less than 120 seconds
+
+Scenario: 793d2c1d A turn of a subagent is not swept
+  Given the mod
+  When a turn that a subagent ran completes
+  Then auto sweep was never run
+```
+
 ## 793d3 Recommended component diffs
 
-- **automatic-memory-mod** (added): the mod `engram-memory`, a hooks module in `agent-instructions/mods/engram-memory/` (informational). Owns the routing and the placement of the block (the lookup is the command's) and the routing of the judgement and of the write after a [turn](./793a_product-spec.md#793a1a-terms) ([793d2b Turn capture flow](#793d2b-turn-capture-flow)); tested in a real Claude Code [session](../../GLOSSARY.md#session) against an `engram` that prints a chosen block.
+- **automatic-memory-mod** (added): the mod `engram-memory`, a hooks module in `agent-instructions/mods/engram-memory/` (informational). Owns the routing and the placement of the block (the lookup is the command's) and the routing of the judgement, of the write and of the sweep after a [turn](./793a_product-spec.md#793a1a-terms) ([793d2b Turn capture flow](#793d2b-turn-capture-flow), [793d2c Conversation sweep flow](#793d2c-conversation-sweep-flow)); tested in a real Claude Code [session](../../GLOSSARY.md#session) against an `engram` that prints a chosen block.
 - **prompt-delivery** (added): the command `engram auto deliver` (`internal/cli/auto.go`, `internal/auto`, informational). Turns a [prompt](./793a_product-spec.md#793a1a-terms) into the block of [notes](../../GLOSSARY.md#permanent-note) that bear on it, owning the choice and rendering of the notes (the hook is the mod's); tested through standard input and output over an in-memory [vault](../../GLOSSARY.md#vault).
 - **session-context** (added): what a session's [agent](./793a_product-spec.md#793a1a-terms) already holds of the vault, read from the session's record (`internal/auto`, `internal/cli/auto.go`, informational), owning the record's format and the rule for what counts as held (which notes to deliver is the delivery's); tested over records of a session.
 - **turn-judgement** (added): the command `engram auto judge` (`internal/cli/auto.go`, `internal/auto`, informational). Turns a turn into the request of the call that judges it, redacting credentials first ([793d4j Redacting credentials](#793d4j-redacting-credentials)), owning the choice of the turn's lines and the instructions (the call is the mod's); tested through standard input and output over records of a session.
 - **lesson-writing** (added): the command `engram auto write` (`internal/cli/auto.go`, `internal/auto`, informational). Turns the model's reply into notes of the vault, owning the reading of the reply and the mark of a note (the write itself is the learn path's), and keeps the record of what became of each reply ([793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did)); tested through standard input and output over an in-memory vault.
+- **conversation-sweep** (added): the command `engram auto sweep` (`internal/cli/auto.go`, `internal/auto`, informational). Turns a session's record into chunks of the chunk index, owning the choice of the record and of the turns it acts for (the indexing is [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand)'s); tested through standard input and output over an injected index, and with the real `engram` for the end of a sweep.
+- **chunk-index-store** (retained): `engram ingest`, which indexes a source under the lock of the manifest and leaves the index usable when it is ended ([792b18c2 Locked reconciliation](../../specs/technical/chunk-index-store.md#792b18c2-locked-reconciliation), [792b18c3 Change detection](../../specs/technical/chunk-index-store.md#792b18c3-change-detection)).
 - **learn path** (retained): the write of a note, as [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand) does it (`RunLearn`).
 - **harness-deploy-sync** (updated): plans, links, reports and removes the mod as it does a [skill](../../GLOSSARY.md#skill) directory, and reports it as a mod ([793b47 A dry run reports the mod as a mod](./793b_decision-log.md#793b47-a-dry-run-reports-the-mod-as-a-mod)).
 - **query-engine** (retained): the lookup of notes for text, used by the delivery and the judgement as `engram query` uses it.
@@ -317,7 +372,7 @@ Scenario: 793d4d1c A session with no record, or an ID that is not a file name, h
 
 Target: [792b2c3 First-use gating](../../specs/technical/command-line-surface.md#792b2c3-first-use-gating)
 
-Requirement: 792b2c3 For every [vault](../../GLOSSARY.md#vault)-resolving command other than the commands of the group `auto` (`auto deliver`, `auto judge` and `auto write`), the command-line-surface MUST ask the [vault-identity-registry](../../specs/technical/vault-identity-registry.md) to ensure the vault at the resolved path before running the command, and MUST NOT run the command when that step fails. For a command of the group `auto` it MUST NOT ask: the command runs against the path as it is, and creates nothing when the path holds no vault.
+Requirement: 792b2c3 For every [vault](../../GLOSSARY.md#vault)-resolving command other than the commands of the group `auto` (`auto deliver`, `auto judge`, `auto write` and `auto sweep`), the command-line-surface MUST ask the [vault-identity-registry](../../specs/technical/vault-identity-registry.md) to ensure the vault at the resolved path before running the command, and MUST NOT run the command when that step fails. For a command of the group `auto` it MUST NOT ask: the command runs against the path as it is, and creates nothing when the path holds no vault.
 
 Owner: [command-line-surface](../../specs/technical/command-line-surface.md)
 
@@ -342,6 +397,11 @@ Scenario: 793d4e1c The writing command creates no vault and writes no note
   Given no vault exists at the resolved path, and a reply that holds one lesson
   When engram auto write is dispatched
   Then no vault exists at the path afterwards, no note was written, nothing is printed to standard output and no creation line is printed
+
+Scenario: 793d4e1d The sweep command creates no vault
+  Given no vault exists at the resolved path, and the record of a session
+  When engram auto sweep is dispatched
+  Then no vault exists at the path afterwards, nothing is printed to standard output and no creation line is printed
 ```
 
 ### 793d4b Deploying the mods of the source
@@ -715,9 +775,9 @@ Scenario: 793d4k1f A directory of records that cannot be made, and a record that
 
 ### 793d4m Telling the prompts the user sends
 
-Requirement: 793d4m The `prompt-delivery` and the `turn-judgement` MUST each read the `origin` of the JSON object they are given, the kind Claude Code stamps on a [prompt](./793a_product-spec.md#793a1a-terms), and act only for a prompt the user sends, one whose origin is `composer`, `bridge`, `slack-ping` or `sdk`; for any other origin, including none, each MUST print nothing, succeed and look nothing up. The `turn-judgement` MUST do the same for the origin `sdk`, the headless host's own [turn](./793a_product-spec.md#793a1a-terms) (`claude -p`, the SDK), unless the user switched on judging such turns with the flag `--capture-sdk` or the environment variable `ENGRAM_AUTO_CAPTURE_SDK` set to a true value (`1`), so that a script run with `claude -p` under the user's own home writes nothing by default. The definition is theirs: the mod passes the origin it received and decides nothing ([793b64 The prompts the user sends](./793b_decision-log.md#793b64-the-prompts-the-user-sends), [793b84 A headless prompt is judged only when the user asks](./793b_decision-log.md#793b84-a-headless-prompt-is-judged-only-when-the-user-asks)).
+Requirement: 793d4m The `prompt-delivery`, the `turn-judgement` and the `conversation-sweep` MUST each read the `origin` of the JSON object they are given, the kind Claude Code stamps on a [prompt](./793a_product-spec.md#793a1a-terms), and act only for a prompt the user sends, one whose origin is `composer`, `bridge`, `slack-ping` or `sdk`; for any other origin, including none, each MUST print nothing, succeed and look nothing up. The `turn-judgement` and the `conversation-sweep` MUST do the same for the origin `sdk`, the headless host's own [turn](./793a_product-spec.md#793a1a-terms) (`claude -p`, the SDK), unless the user switched on capturing such turns with the flag `--capture-sdk` or the environment variable `ENGRAM_AUTO_CAPTURE_SDK` set to a true value (`1`), so that a script run with `claude -p` under the user's own home writes and indexes nothing by default. The definition is theirs: the mod passes the origin it received and decides nothing ([793b64 The prompts the user sends](./793b_decision-log.md#793b64-the-prompts-the-user-sends), [793b84 A headless prompt is judged only when the user asks](./793b_decision-log.md#793b84-a-headless-prompt-is-judged-only-when-the-user-asks)).
 
-Owner: `prompt-delivery` and `turn-judgement`. Supports: [793a2d1b Automatic memory's work starts no session of its own](./793a_product-spec.md#793a2d1-uat-scenarios). No clause of a product requirement names an origin, so none of its scenarios does: all are raised by prompts the user sends, which this requirement lets through.
+Owner: `prompt-delivery`, `turn-judgement` and `conversation-sweep`. Supports: [793a2d1b Automatic memory's work starts no session of its own](./793a_product-spec.md#793a2d1-uat-scenarios). No clause of a product requirement names an origin, so none of its scenarios does: all are raised by prompts the user sends, which this requirement lets through.
 
 #### 793d4m1 Scenarios
 
@@ -741,6 +801,46 @@ Scenario: 793d4m1d A turn that a background task's notification starts is not ju
   Given the user has run engram update, and a session in which the agent may run a sleep command but may not run engram commands
   When the agent starts a task in the background in a turn the user began, and the task's notification starts a turn of its own that the agent answers
   Then automatic memory has made one record, that of the user's turn, and the vault holds no note
+```
+
+### 793d4n Sweeping the conversation
+
+Requirement: 793d4n The `conversation-sweep` MUST read one JSON object from standard input (the `session`'s ID and the `origin`), act only for the [prompts](./793a_product-spec.md#793a1a-terms) that [793d4m Telling the prompts the user sends](#793d4m-telling-the-prompts-the-user-sends) lets the judgement act for, and for them find the [session](../../GLOSSARY.md#session)'s record as [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) does in the directory of [793d4f Finding the records of sessions](#793d4f-finding-the-records-of-sessions), and index it in the chunk index as `--transcript` of [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand) does, as the one explicit source, printing nothing. It MUST print nothing, succeed and index nothing for any other origin; print nothing and fail, naming the cause, when the input is not a JSON object, the session has no record in the directory of records or the index fails; wait for the lock that `engram ingest` takes on the manifest when another ingest holds it; and leave the chunk index usable when it is ended at any moment, so that a later sweep indexes the record whole. It MUST NOT create a [vault](../../GLOSSARY.md#vault) ([793d4e First-use gating](#793d4e-modified-first-use-gating)).
+
+Owner: `conversation-sweep` (new; `conversation-sweep.md` at promotion). Supports: [793a2f1a The conversation so far is findable after a turn](./793a_product-spec.md#793a2f1-uat-scenarios).
+
+#### 793d4n1 Scenarios
+
+```gherkin
+Scenario: 793d4n1a The record of the session is indexed as the one explicit source
+  Given the record of a session in the directory of records, and an index
+  When the sweep is given the session
+  Then the index is run for the record's path alone, as an explicit transcript, and nothing is printed
+
+Scenario: 793d4n1b A session with no record fails the command
+  Given a session that no record holds, and no session at all
+  When the sweep is given each
+  Then it prints nothing and fails each time, with an error that names the session and the directory of the records, and indexes nothing
+
+Scenario: 793d4n1c A prompt of an origin that is not swept is swept nothing
+  Given the record of a session, and each of the origins task-notification, peer, the empty origin, and sdk without the flag --capture-sdk
+  When the sweep is given the session with each, and then with sdk and the flag
+  Then with each of the first it prints nothing, succeeds and indexes nothing, and with the last it indexes the record
+
+Scenario: 793d4n1d A failed index fails the command, naming the cause
+  Given an index that fails, and an input that is not a JSON object
+  When the sweep is given the record of a session, and the input
+  Then it prints nothing and fails each time, with an error that names the index's failure and the input
+
+Scenario: 793d4n1e A sweep that is ended leaves the chunk index usable
+  Given the record of a session of several turns, and the real engram
+  When the sweep is ended while it works, and then runs again
+  Then the manifest is not corrupt after the first, and the second indexes the whole record
+
+Scenario: 793d4n1f Two sweeps at once index both records
+  Given the records of two sessions, and the real engram
+  When both sweeps run at once
+  Then the manifest records both sources, and each record is indexed whole
 ```
 
 ## 793d5 Product-scenario mapping
@@ -1099,10 +1199,23 @@ Scenario: 793a2b1a The notes that bear on a prompt arrive with it
 
 Realized by [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow) (the block arrives beside the [prompt](./793a_product-spec.md#793a1a-terms), which stays as typed), [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) (the [note](../../GLOSSARY.md#permanent-note) that bears on the prompt and not the other) and [793d4c Framing the notes of a block as data](#793d4c-framing-the-notes-of-a-block-as-data) (the form of the block).
 
+### 793d5zb Mapping of 793a2f1a
+
+The product scenario [793a2f1a The conversation so far is findable after a turn](./793a_product-spec.md#793a2f1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2f1a The conversation so far is findable after a turn
+  Given the user has run engram update, and a session in which the agent may not run engram commands and the user has told the agent a first thing that only this conversation holds
+  When the user tells it a second such thing in a prompt, and the turn ends
+  Then within 2 minutes engram query returns a chunk of the conversation for each of the two things, and neither the user nor the agent ran engram ingest
+```
+
+Realized by [793d2c Conversation sweep flow](#793d2c-conversation-sweep-flow), [793d4n Sweeping the conversation](#793d4n-sweeping-the-conversation) (the record is found as [793d4f Finding the records of sessions](#793d4f-finding-the-records-of-sessions) finds it) and [793d4e First-use gating](#793d4e-modified-first-use-gating); the [agent](./793a_product-spec.md#793a1a-terms) may not run `engram` commands, so the indexing is the sweep's.
+
 ## 793d6 Recommended impact
 
-- **Repository:** a new directory `agent-instructions/mods/`, a new package `internal/auto` and a new command group `engram auto` (`deliver`, `judge`, `write`); the update's deploy set gains the mods.
+- **Repository:** a new directory `agent-instructions/mods/`, a new package `internal/auto` and a new command group `engram auto` (`deliver`, `judge`, `write`, `sweep`); the update's deploy set gains the mods.
 - **Dependencies:** none new in Go; a Claude Code release that loads mods (2.1.302 verified, 2.1.287 the first the earlier attempt found); `node`, which `targ check-full` needs to parse the mod's JavaScript and run its tests ([793b55 The mod's JavaScript is parsed by a test of the dev integration suite](./793b_decision-log.md#793b55-the-mods-javascript-is-parsed-by-a-test-of-the-dev-integration-suite)).
 - **Toolchain:** a `targ acceptance` target runs the tests that drive a real Claude Code [session](../../GLOSSARY.md#session); they carry the `network` build tag, so `targ test` does not run them.
-- **Operational:** one process start and one lookup per [prompt](./793a_product-spec.md#793a1a-terms), held at most by the mod's one timer of 7 seconds ([793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow)); after each [turn](./793a_product-spec.md#793a1a-terms), two process starts and one model call of the user's own login, apart from the turn ([793d2b Turn capture flow](#793d2b-turn-capture-flow)).
+- **Operational:** one process start and one lookup per [prompt](./793a_product-spec.md#793a1a-terms), held at most by the mod's one timer of 7 seconds ([793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow)); after each [turn](./793a_product-spec.md#793a1a-terms), three process starts and one model call of the user's own login, apart from the turn ([793d2b Turn capture flow](#793d2b-turn-capture-flow), [793d2c Conversation sweep flow](#793d2c-conversation-sweep-flow)).
 - **Risk:** every prompt of every Claude Code session runs the command ([793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow)). Open risk [793c32 Is the stall between the spawn of the command and its first instruction a risk to the product?](./793c_open-questions.md#793c32-is-the-stall-between-the-spawn-of-the-command-and-its-first-instruction-a-risk-to-the-product): on a loaded machine the time between the spawn of the command and its first instruction has reached the whole bound, so the prompt is held about 7 seconds with nothing delivered or shown; not optimised here.

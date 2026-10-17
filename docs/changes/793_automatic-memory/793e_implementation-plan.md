@@ -25,6 +25,12 @@ Added by the second group ([793e6b Lessons are written without the agent](#793e6
 - `agent-instructions/mods/engram-memory/hooks/register.js`: the hooks `turn.start` and `turn.complete`, which run the capture apart from the [turn](./793a_product-spec.md#793a1a-terms) and keep each turn's origin ([793b70 The capture reports its own failures, and nothing times it as a whole](./793b_decision-log.md#793b70-the-capture-reports-its-own-failures-and-nothing-times-it-as-a-whole), [793b72 The origin of a turn](./793b_decision-log.md#793b72-the-origin-of-a-turn)).
 - `dev/acceptance/lessons_test.go`, `steps_test.go`, `session_test.go`: the group's scenario tests, which run a conversation (one running `claude`) because the capture goes on after the turn ([793b37 A turn followed by the end of the session is not covered](./793b_decision-log.md#793b37-a-turn-followed-by-the-end-of-the-session-is-not-covered)); `dev/mods_integration_internal_test.go`: the stand-in host of the mod's tests.
 
+Added by the third group ([793e6e The conversation becomes searchable memory](#793e6e-the-conversation-becomes-searchable-memory)):
+
+- `internal/cli/auto.go`, `internal/cli/targets.go`: the command `sweep`, which indexes the session's record with the ingest, wired outside the first-use step ([793b100 The sweep indexes the session's record after every turn](./793b_decision-log.md#793b100-the-sweep-indexes-the-sessions-record-after-every-turn), [793b101 A second sweep waits for the lock of the ingest](./793b_decision-log.md#793b101-a-second-sweep-waits-for-the-lock-of-the-ingest)).
+- `agent-instructions/mods/engram-memory/hooks/register.js`: the job that sweeps after `turn.complete`, apart from the capture ([793b102 The sweep and the capture run apart](./793b_decision-log.md#793b102-the-sweep-and-the-capture-run-apart)).
+- `dev/acceptance/sweep_test.go`, `dev/mods_integration_internal_test.go`, `internal/cli/auto_sweep_integration_test.go`: the scenario test, the stand-in host's tests of the job, and the tests over the real binary.
+
 ## 793e2 Test methods
 
 Every test row goes through one cycle (the owner's step 5, [793f2 The algorithm](./793f_algorithm.md#793f2-the-algorithm)): write the test; red: run it, confirm it fails for the expected reason, commit; green: make it pass with the minimum change, the whole suite passing, commit; refactor: minimize the code the branch introduces without obscuring its function and purpose, commit.
@@ -99,8 +105,8 @@ flowchart TD
     n793e6b2 --> n793e6g19[793e6g19 A request to remember is written, whatever the agent says about saving it<br/>Complete]
     n793e6g14 --> n793e6g19
     n793e6g17 --> n793e6g19
-    n793e6g12 --> n793e6e[793e6e The conversation becomes searchable memory<br/>Ready]
-    n793e6a6 --> n793e6c[793e6c Never in the way<br/>Blocked by: 793e6e]
+    n793e6g12 --> n793e6e1[793e6e1 The conversation so far is findable after a turn<br/>Ready]
+    n793e6a6 --> n793e6c[793e6c Never in the way<br/>Blocked by: 793e6e1]
     n793e6g12 --> n793e6c
     n793e6g10 --> n793e6d[793e6d The user can see what it did<br/>Blocked by: 793e6c]
     n793e6a2 --> n793e6f[793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d]
@@ -109,7 +115,7 @@ flowchart TD
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
     classDef blocked fill:#eeeeee,stroke:#757575,color:#000,stroke-dasharray:5 5
     class n793e6a1,n793e6a2,n793e6a3,n793e6a4,n793e6a5,n793e6a6,n793e6a7,n793e6a8,n793e6a9,n793e6a10,n793e6a11,n793e6a12,n793e6b1,n793e6b2,n793e6b3,n793e6b4,n793e6b5,n793e6b6,n793e6b7,n793e6b8,n793e6b9,n793e6b10,n793e6b11,n793e6b12,n793e6b13,n793e6b14,n793e6b15,n793e6g1,n793e6g2,n793e6g3,n793e6g4,n793e6g5,n793e6g6,n793e6g7,n793e6g8,n793e6g9,n793e6g10,n793e6g11,n793e6g12,n793e6g13,n793e6g14,n793e6g15,n793e6g16,n793e6g17,n793e6g18,n793e6g19 complete
-    class n793e6e ready
+    class n793e6e1 ready
     class n793e6c,n793e6d,n793e6f blocked
 ```
 
@@ -608,8 +614,24 @@ What the last tally of the live rows found ([793b90 A request to remember is a l
 
 ### 793e6e The conversation becomes searchable memory
 
-| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- |
+One node for the scenario of [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) ([793b100 The sweep indexes the session's record after every turn](./793b_decision-log.md#793b100-the-sweep-indexes-the-sessions-record-after-every-turn), [793b101 A second sweep waits for the lock of the ingest](./793b_decision-log.md#793b101-a-second-sweep-waits-for-the-lock-of-the-ingest), [793b102 The sweep and the capture run apart](./793b_decision-log.md#793b102-the-sweep-and-the-capture-run-apart)).
+
+#### 793e6e1 The conversation so far is findable after a turn
+
+| Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793a2f1a | Dedicated example, product acceptance (`network`) | the [agent](./793a_product-spec.md#793a1a-terms) may not run `engram` commands, so the indexing is [automatic memory](./793a_product-spec.md#793a1a-terms)'s; the test asks `engram query` as the user does, and measures the time from the end of the [turn](./793a_product-spec.md#793a1a-terms) to the chunk | | Not started | | | |
+| 793d4n1a | Injected and impure interaction (`imptest`) | the index is an injected function: the record's path alone, as an explicit [transcript](../../GLOSSARY.md#transcript), is the evidence | | Not started | | | |
+| 793d4n1b | Dedicated example | a [session](../../GLOSSARY.md#session) with no record, and none at all, fail naming the session and the directory | | Not started | | | |
+| 793d4n1c | Dedicated example | the origins that are swept nothing, and the headless one with and without the flag | | Not started | | | |
+| 793d4n1d | Dedicated example | the failure branches: an index that fails and an input that is not a JSON object | | Not started | | | |
+| 793d4e1d | Dedicated example | the first-use step is in the target's wiring, so only a dispatch through `cli.Targets` shows whether it runs | | Not started | | | |
+| 793d2c1a | Dedicated example, real dependency (`integration`) | the stand-in host does not answer the judgement until the driver lets it, which a live [session](../../GLOSSARY.md#session) cannot show | | Not started | | | |
+| 793d2c1b | Dedicated example, real dependency (`integration`) | a failing and an ended sweep are reported to the writing as failures naming the sweep | | Not started | | | |
+| 793d2c1c | Dedicated example, real dependency (`integration`) | the bounds of the sweep and of the call for the ID, with the timers of the stand-in fired at once | | Not started | | | |
+| 793d2c1d | Dedicated example, real dependency (`integration`) | a turn a [subagent](../../GLOSSARY.md#subagent) ran is not swept | | Not started | | | |
+| 793d4n1e | Dedicated example, real dependency (`integration`) | the real `engram` ended with a kill while it embeds: inherited behaviour of the ingest | | Not started | | | |
+| 793d4n1f | Dedicated example, real dependency (`integration`) | two real sweeps at once: the lost update of #660 | | Not started | | | |
 
 ### 793e6c Never in the way
 
