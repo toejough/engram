@@ -22,6 +22,13 @@ const (
 
 // unexported variables.
 var (
+	formatPython = feedback{
+		slug:      "format-python-before-commit",
+		situation: "committing a Python file",
+		behavior:  "left trailing whitespace in a Python file",
+		impact:    "the lint check failed",
+		action:    "run black on the file before committing",
+	}
 	stagingReset = fact{
 		slug:      "zorblax-staging-reset",
 		situation: "testing against the Zorblax staging database",
@@ -38,6 +45,15 @@ type fact struct {
 	subject   string
 	predicate string
 	object    string
+}
+
+// feedback is a note of the vault that corrects a behavior.
+type feedback struct {
+	slug      string
+	situation string
+	behavior  string
+	impact    string
+	action    string
 }
 
 // hasClaudeCode installs Claude Code's directory on the machine, with the one permission the scenarios need.
@@ -102,6 +118,17 @@ func (m *machine) learnsFact(note fact) string {
 	out := m.engram("learn", "fact", "--slug", note.slug, "--position", "top", "--source", learnSource,
 		"--situation", note.situation, "--subject", note.subject, "--predicate", note.predicate, "--object", note.object)
 	m.mustSucceed(out, "learn fact "+note.slug)
+
+	return m.noteNamed(note.slug)
+}
+
+// learnsFeedback writes a feedback note into the vault and returns the file name of the note.
+func (m *machine) learnsFeedback(note feedback) string {
+	m.t.Helper()
+
+	out := m.engram("learn", "feedback", "--slug", note.slug, "--position", "top", "--source", learnSource,
+		"--situation", note.situation, "--behavior", note.behavior, "--impact", note.impact, "--action", note.action)
+	m.mustSucceed(out, "learn feedback "+note.slug)
 
 	return m.noteNamed(note.slug)
 }
