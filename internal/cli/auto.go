@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"slices"
 
 	"go.yaml.in/yaml/v3"
 
@@ -81,6 +82,11 @@ func notesOf(payload []byte) ([]auto.Note, error) {
 	notes := make([]auto.Note, 0, len(parsed.Items))
 
 	for _, item := range parsed.Items {
+		// an explore pick is sampled from the vocabulary, not matched to the text (793d4a)
+		if slices.Equal(item.Provenances, []string{provenanceExplore}) {
+			continue
+		}
+
 		frontmatter, body, found := splitFrontmatterAndBody(item.Content)
 		if !found {
 			body = item.Content
