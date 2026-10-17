@@ -437,7 +437,7 @@ Takes [793a3e1a The agent's own lookups and saves keep working](./793a_product-s
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a3e1a | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the agent runs `engram query` and [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand) as it would without automatic memory, its lookup prints the staging [note](../../GLOSSARY.md#permanent-note), and the note it saved is in the vault, as the agent wrote it: its text when the [turn](./793a_product-spec.md#793a1a-terms) ends is its text after the judgement of the turn has finished. The test passes when written, because nothing in automatic memory touches the agent's commands or a note it did not write; the mutation that makes it fail is a write that changes the notes of the vault that it did not write | Red | | | |
+| 793a3e1a | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the agent runs `engram query` and [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand) as it would without automatic memory, its lookup prints the staging [note](../../GLOSSARY.md#permanent-note), and the note it saved is in the vault, as the agent wrote it: its text when the [turn](./793a_product-spec.md#793a1a-terms) ends is its text after the judgement of the turn has finished. The test passes when written, because nothing in automatic memory touches the agent's commands or a note it did not write; the mutation that makes it fail is a write that changes the notes of the vault that it did not write | Done | n/a | 484efae2 | 1a9baaac |
 
 ### 793e6e The conversation becomes searchable memory
 
