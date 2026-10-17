@@ -286,12 +286,13 @@ const host = {
 }
 
 const agent = scenario.agent ? { agentId: scenario.agent } : {}
+const origin = { kind: scenario.origin || 'composer' }
 if (!scenario.agent) {
-  await handlers['prompt.submit'](host, { text: 'hello', context: [], origin: { kind: scenario.origin || 'composer' }, wait: false },
-    async (event) => event)
+  await handlers['prompt.submit'](host, { text: 'hello', context: [], origin, wait: false }, async (event) => event)
 }
 if (handlers['turn.start']) {
-  await handlers['turn.start'](host, { text: 'hello', turnId: 'a-turn', ...agent }, async (event) => ({ turnId: event.turnId }))
+  const started = { text: 'hello', turnId: 'a-turn', ...agent }
+  await handlers['turn.start'](host, started, async (event) => ({ turnId: event.turnId }))
 }
 
 const waited = Symbol('waited')
