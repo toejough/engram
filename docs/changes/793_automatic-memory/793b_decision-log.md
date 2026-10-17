@@ -32,7 +32,7 @@ The smallest set in which each half of the North Star can be switched on (`793a2
 
 ## 793b8 Exclusions
 
-Left out of the minimal set, each a possible later change: [subagent](../../GLOSSARY.md#subagent) start and stop; route results; the chunk-index deep lookup (about 12 seconds on the owner's [vault](../../GLOSSARY.md#vault) against 1.0 to 1.4 for [notes](../../GLOSSARY.md#permanent-note) alone, beyond the 8 seconds of `793b17`; the [agent](./793a_product-spec.md#793a1a-terms) finds fragments when it asks, `793a2f`); backlog capture of old [transcripts](../../GLOSSARY.md#transcript); curation of [pending offers](../../GLOSSARY.md#offer) (lessons go straight into the vault, `793c5`); a model-made relevance judgement before delivery; reinforcing a covered note (`793a3c`); a status line (the owner moved the earlier attempt's content into the conversation, `old 793c90`); the Pi [harness](../../GLOSSARY.md#harness) (`793a2a`); memory at mid-task moments, which the main agent chose by judgement and issue #793 asks for (`793c12`). None is needed for the North Star; the list lives here, not in the product spec. All but the status line and Pi reverse earlier owner answers (`793b36`, `793c13`). A.
+Left out of the minimal set, each a possible later change: [subagent](../../GLOSSARY.md#subagent) start and stop; route results; the chunk-index deep lookup (about 12 seconds on the owner's [vault](../../GLOSSARY.md#vault) against 1.0 to 1.4 for [notes](../../GLOSSARY.md#permanent-note) alone, `old 793b408`, beyond the 8 seconds of `793b17`; the [agent](./793a_product-spec.md#793a1a-terms) finds fragments when it asks, `793a2f`); backlog capture of old [transcripts](../../GLOSSARY.md#transcript); curation of [pending offers](../../GLOSSARY.md#offer) (lessons go straight into the vault, `793c5`); a model-made relevance judgement before delivery; reinforcing a covered note (`793a3c`); a status line (the owner moved the earlier attempt's content into the conversation, `old 793c90`); the Pi [harness](../../GLOSSARY.md#harness) (`793a2a`); memory at mid-task moments, which the main agent chose by judgement and issue #793 asks for (`793c12`). None is needed for the North Star; the list lives here, not in the product spec. All but the status line and Pi reverse earlier owner answers (`793b36`, `793c13`). A.
 
 ## 793b9 Test execution
 
@@ -96,7 +96,7 @@ A lesson becomes a [note](../../GLOSSARY.md#permanent-note) in the [vault](../..
 
 ## 793b24 A note holds no secret
 
-`793a2c` says a [note](../../GLOSSARY.md#permanent-note) MUST NOT contain a credential, token, key or password from the [turn](./793a_product-spec.md#793a1a-terms); how it is met and the risk that remains are the technical spec's. It applies the owner's earlier decision (`old 793c7` item 10) and the residual risk he ratified: secrets of shapes the patterns miss can reach the model provider and the [vault](../../GLOSSARY.md#vault) (`old 793b324`). O 2026-10-11 and 2026-10-13 (earlier attempt).
+`793a2c` says a [note](../../GLOSSARY.md#permanent-note) MUST NOT contain a credential, token, key or password from the [turn](./793a_product-spec.md#793a1a-terms); how it is met and the risk that remains are the technical spec's. It applies the owner's earlier decision (`old 793c7` item 10) and the residual risk he ratified: secrets of shapes the patterns miss can reach the model provider and the [vault](../../GLOSSARY.md#vault) (`old 793b324`, `old 793d19a`); the earlier attempt's product spec had dropped the clause (`old 793b241`). O 2026-10-11 and 2026-10-13 (earlier attempt).
 
 ## 793b25 What is shown after a turn, and when
 
@@ -132,7 +132,7 @@ The isolation rule of `793f7`, restated in `793e2` and `793e7`, binds every [age
 
 ## 793b33 One agent review round per phase
 
-One [agent](./793a_product-spec.md#793a1a-terms) review round per phase unless the owner asks for more; the author accepts or declines each finding and findings are not argued to resolution, superseding the root `AGENTS.md` default. The owner: "one agent review round per phase unless asked." O 2026-10-11 (earlier attempt).
+One [agent](./793a_product-spec.md#793a1a-terms) review round per phase unless the owner asks for more; the author accepts or declines each finding and findings are not argued to resolution, superseding the root `AGENTS.md` default. The owner: "one agent review round per phase unless asked." (`old 793b174` records the same cap). O 2026-10-11 (earlier attempt).
 
 ## 793b34 The goal: what the main agent was already doing, just async
 
@@ -165,7 +165,7 @@ The minimal set reverses these earlier owner answers, each needing a measurement
 
 ## 793b37 A turn followed by the end of the session is not covered
 
-A [turn](./793a_product-spec.md#793a1a-terms) followed by the end of the [session](../../GLOSSARY.md#session) within the 2 minutes is not covered by `793a2c` and `793a2f` (`793c14`): covering it needs work that outlives the session, a pick-up by a later session or a hold on the exit, which the minimal set excludes. The cost: a lesson in the last turn before an exit can be lost. A.
+A [turn](./793a_product-spec.md#793a1a-terms) followed by the end of the [session](../../GLOSSARY.md#session) within the 2 minutes is not covered by `793a2c` and `793a2f` (`793c14`): covering it needs work that outlives the session, a pick-up by a later session or a hold on the exit, which the minimal set excludes (the earlier attempt recorded such a turn as lost, `old 793b203`). The cost: a lesson in the last turn before an exit can be lost. A.
 
 ## 793b38 Depth first: two readings, and the one this change takes
 
