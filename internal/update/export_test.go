@@ -15,6 +15,7 @@ var (
 	ExportPathWithinRoot                = pathWithinRoot
 	ExportPlanEngramRootSync            = planEngramRootSync
 	ExportPlanGuidanceCopies            = planGuidanceCopies
+	ExportPlanModCopies                 = planModCopies
 	ExportPlanSkillCopies               = planSkillCopies
 	ExportPruneEmptyDirs                = pruneEmptyDirs
 	ExportResolveBinaryPath             = resolveBinaryPath
