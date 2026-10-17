@@ -3,6 +3,7 @@
 package acceptance_test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -78,7 +79,7 @@ func (m *machine) hasMod() {
 
 	target := filepath.Join(m.claudeDir, "engram", "skills", modName)
 
-	copyErr := copyTree(filepath.Join(root, "agent-instructions", "mods", modName), target)
+	copyErr := copyTree(filepath.Join(root, "agent-instructions", "mods", modName), target, false)
 	if copyErr != nil {
 		m.t.Fatalf("installing the mod: %v", copyErr)
 	}
@@ -111,6 +112,29 @@ func (m *machine) hasStandInEngram(block string) {
 	if err != nil {
 		m.t.Fatalf("making the stand-in executable: %v", err)
 	}
+}
+
+// hookLog returns the lines of the machine's Claude Code debug logs that say what became of its modules and hooks.
+func (m *machine) hookLog() string {
+	logs, _ := filepath.Glob(filepath.Join(m.root, "claude-debug-*.log"))
+
+	var lines []string
+
+	for _, name := range logs {
+		data, err := os.ReadFile(name)
+		if err != nil {
+			continue
+		}
+
+		for line := range strings.SplitSeq(string(data), "\n") {
+			if strings.Contains(line, "engram-memory") || strings.Contains(line, "hooks module") ||
+				strings.Contains(line, "prompt.submit") || strings.Contains(line, "$.process.run") {
+				lines = append(lines, line)
+			}
+		}
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 // learnsFact writes a fact into the vault and returns the file name of the note.
@@ -156,18 +180,26 @@ func (m *machine) noteNamed(slug string) string {
 	return filepath.Base(matches[0])
 }
 
-// standInCalled returns the arguments and the standard input that the stand-in engram was run with.
-func (m *machine) standInCalled() (string, string) {
+// standInCalled returns the arguments and the request, the JSON object on standard input, that the stand-in engram was
+// run with.
+func (m *machine) standInCalled() (string, map[string]string) {
 	m.t.Helper()
 
 	args, argsErr := os.ReadFile(filepath.Join(m.root, "stand-in", "args"))
 	stdin, stdinErr := os.ReadFile(filepath.Join(m.root, "stand-in", "stdin"))
 
 	if argsErr != nil || stdinErr != nil {
-		m.t.Fatalf("the stand-in engram was never run (%v, %v)", argsErr, stdinErr)
+		m.t.Fatalf("the stand-in engram was never run (%v, %v)\n%s", argsErr, stdinErr, m.hookLog())
 	}
 
-	return strings.TrimSpace(string(args)), string(stdin)
+	request := map[string]string{}
+
+	err := json.Unmarshal(stdin, &request)
+	if err != nil {
+		m.t.Fatalf("the stand-in engram's standard input is not a JSON object: %v\n%s", err, stdin)
+	}
+
+	return strings.TrimSpace(string(args)), request
 }
 
 // step logs one line of the scenario a test mirrors, and runs it: the test's output reads as the Gherkin (793b9).

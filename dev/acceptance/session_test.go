@@ -67,6 +67,21 @@ type session struct {
 	prompts int
 }
 
+// blocksNaming counts the blocks automatic memory delivered in the whole session that name a note.
+func (s *session) blocksNaming(note string) int {
+	count := 0
+
+	for _, row := range s.rows() {
+		for _, entry := range row.delivered() {
+			if strings.HasPrefix(entry, engramMarker) && strings.Contains(entry, note) {
+				count++
+			}
+		}
+	}
+
+	return count
+}
+
 // endOnceAsked waits until the session's record shows one more request to the model than before, then ends the run.
 func (s *session) endOnceAsked(command *exec.Cmd, done chan error, before int) {
 	s.machine.t.Helper()
@@ -101,21 +116,6 @@ func (s *session) requests() int {
 	for _, row := range s.rows() {
 		if row.Type == "api-request" {
 			count++
-		}
-	}
-
-	return count
-}
-
-// blocksNaming counts the blocks automatic memory delivered in the whole session that name a note.
-func (s *session) blocksNaming(note string) int {
-	count := 0
-
-	for _, row := range s.rows() {
-		for _, entry := range row.delivered() {
-			if strings.HasPrefix(entry, engramMarker) && strings.Contains(entry, note) {
-				count++
-			}
 		}
 	}
 

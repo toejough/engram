@@ -29,10 +29,10 @@ func Test793d2a1a_Mod_AddsTheBlockBesideThePrompt(t *testing.T) {
 
 	step(t, "Then the command received the prompt text, and the session holds the prompt exactly as sent "+
 		"and then the block as context before the agent's first reply", func() {
-		args, stdin := machine.standInCalled()
+		args, request := machine.standInCalled()
 
 		g.Expect(args).To(Equal("auto deliver"))
-		g.Expect(stdin).To(MatchJSON(`{"text":"` + promptHello + `"}`))
+		g.Expect(request).To(HaveKeyWithValue("text", promptHello))
 
 		text, isPrompt := sent.rows[0].promptText()
 		g.Expect(isPrompt).To(BeTrue())
@@ -41,6 +41,32 @@ func Test793d2a1a_Mod_AddsTheBlockBesideThePrompt(t *testing.T) {
 		g.Expect(sent.blocks()).To(Equal([]string{strings.TrimSpace(standInBlock)}))
 		g.Expect(sent.blockAt()).To(BeNumerically(">", 0), "the block follows the prompt's own row")
 		g.Expect(sent.blockAt()).To(BeNumerically("<", sent.agentActsAt()), "the block comes before the agent acts")
+	})
+}
+
+func Test793d2a1b_Mod_GivesTheCommandTheSessionsID(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var inSession *session
+
+	step(t, "Given a session with the mod installed, and an engram whose auto deliver prints a block", func() {
+		machine.hasClaudeCode()
+		machine.hasMod()
+		machine.hasStandInEngram(standInBlock)
+		inSession = machine.startSession("a-project")
+	})
+
+	step(t, "When a prompt is sent", func() {
+		inSession.sendOffline(promptHello)
+	})
+
+	step(t, "Then the command received the ID of the session the prompt was sent in", func() {
+		_, request := machine.standInCalled()
+
+		g.Expect(request).To(HaveKeyWithValue("session", inSession.id))
 	})
 }
 
