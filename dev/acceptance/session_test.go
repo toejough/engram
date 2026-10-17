@@ -57,12 +57,13 @@ var (
 
 // conversation is one running `claude` process that takes its prompts on standard input as stream-json messages.
 type conversation struct {
-	session *session
-	command *exec.Cmd
-	stdin   io.WriteCloser
-	cancel  context.CancelFunc
-	results chan string // the line of each result the process prints, one for each prompt it has answered
-	ended   sync.Once
+	session  *session
+	command  *exec.Cmd
+	stdin    io.WriteCloser
+	cancel   context.CancelFunc
+	results  chan string // the line of each result the process prints, one for each prompt it has answered
+	ended    sync.Once
+	turnEnds time.Time // when the process printed the result of the last prompt it answered: the turn ended
 }
 
 // end closes the process's input, which ends the session, and waits for the process; stderr is logged when it fails.
@@ -121,6 +122,8 @@ func (c *conversation) say(prompt string) *turn {
 			t.Fatalf("claude ended before it answered %q", prompt)
 		}
 
+		c.turnEnds = time.Now()
+
 		return c.session.answeredTurn(prompt, result)
 	case <-time.After(sessionTimeout):
 		t.Fatalf("claude did not answer %q within %s", prompt, sessionTimeout)
@@ -146,6 +149,17 @@ type session struct {
 	id      string
 	project string
 	prompts int
+}
+
+// agentRan reports whether the agent ran a shell command in the session whose text holds a word.
+func (s *session) agentRan(word string) bool {
+	for _, row := range s.rows() {
+		if slices.ContainsFunc(row.commands(), func(command string) bool { return strings.Contains(command, word) }) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // answered reports whether the session's record holds an answer of the agent after the last occurrence of a prompt.
@@ -434,6 +448,31 @@ type transcriptRow struct {
 		Type    string          `json:"type"`
 		Content json.RawMessage `json:"content"`
 	} `json:"attachment"`
+}
+
+// commands returns the shell commands the agent started in the row.
+func (r transcriptRow) commands() []string {
+	var blocks []struct {
+		Type  string `json:"type"`
+		Name  string `json:"name"`
+		Input struct {
+			Command string `json:"command"`
+		} `json:"input"`
+	}
+
+	if r.Type != "assistant" || json.Unmarshal(r.Message.Content, &blocks) != nil {
+		return nil
+	}
+
+	var commands []string
+
+	for _, block := range blocks {
+		if block.Type == "tool_use" && block.Name == "Bash" {
+			commands = append(commands, block.Input.Command)
+		}
+	}
+
+	return commands
 }
 
 // delivered returns the context a hook put beside the prompt.

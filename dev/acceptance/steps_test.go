@@ -14,6 +14,10 @@ import (
 
 // unexported constants.
 const (
+	// captureBound is how long after a turn ends the vault must hold the notes of its lessons (793a2c).
+	captureBound = 2 * time.Minute
+	// capturePoll is how often the vault is looked at while a note is awaited.
+	capturePoll = 250 * time.Millisecond
 	// askStagingQuery makes the agent look the stagingReset note up itself, with a command that names no word of the
 	// note's situation.
 	askStagingQuery = "Run this shell command and tell me how many items it returned: " +
@@ -83,6 +87,29 @@ func (m *machine) agentMayNotRunEngram() {
 	m.t.Helper()
 
 	writeFile(m.t, filepath.Join(m.claudeDir, "settings.json"), "{}")
+}
+
+// awaitNote waits until a note of the vault satisfies match, or the bound passes, and returns the note with how long
+// after the turn ended it was written. It fails the test when no note satisfies match in time.
+func (m *machine) awaitNote(turnEnds time.Time, what string, match func(vaultNote) bool) (vaultNote, time.Duration) {
+	m.t.Helper()
+
+	deadline := turnEnds.Add(captureBound)
+
+	for {
+		for _, note := range m.notes() {
+			if match(note) {
+				return note, max(note.written.Sub(turnEnds), 0)
+			}
+		}
+
+		if time.Now().After(deadline) {
+			m.t.Fatalf("no note %s was in the vault within %s of the turn's end\nnotes: %v\n%s",
+				what, captureBound, m.noteNames(), m.hookLog())
+		}
+
+		time.Sleep(capturePoll)
+	}
 }
 
 // hasClaudeCode installs Claude Code's directory on the machine, with the one permission the scenarios need.
@@ -284,6 +311,39 @@ func (m *machine) mustSucceed(out result, what string) {
 	}
 }
 
+// noteNames lists the file names of the notes of the machine's vault.
+func (m *machine) noteNames() []string {
+	notes := m.notes()
+	names := make([]string, 0, len(notes))
+
+	for _, note := range notes {
+		names = append(names, note.name)
+	}
+
+	return names
+}
+
+// notes reads the notes of the machine's vault: the files named for a Luhmann ID, which the vault's own README is not.
+func (m *machine) notes() []vaultNote {
+	matches, err := filepath.Glob(filepath.Join(m.vault, "[0-9]*.md"))
+	if err != nil {
+		m.t.Fatalf("listing the notes of %s: %v", m.vault, err)
+	}
+
+	notes := make([]vaultNote, 0, len(matches))
+
+	for _, name := range matches {
+		data, readErr := os.ReadFile(name)
+		info, statErr := os.Stat(name)
+
+		if readErr == nil && statErr == nil {
+			notes = append(notes, vaultNote{name: filepath.Base(name), text: string(data), written: info.ModTime()})
+		}
+	}
+
+	return notes
+}
+
 // noteNamed returns the file name of the vault note with a slug.
 func (m *machine) noteNamed(slug string) string {
 	m.t.Helper()
@@ -346,6 +406,37 @@ func reportSection(report, harness string) []string {
 	}
 
 	return section
+}
+
+// vaultNote is a note of the vault as its file holds it.
+type vaultNote struct {
+	name    string
+	text    string
+	written time.Time // when the file was last written
+}
+
+// field returns the value of a line of the note's front matter, or "" when it has none.
+func (n vaultNote) field(name string) string {
+	for line := range strings.SplitSeq(n.text, "\n") {
+		if value, found := strings.CutPrefix(line, name+": "); found {
+			return value
+		}
+	}
+
+	return ""
+}
+
+// states reports whether the note's text holds every word given, whatever their case.
+func (n vaultNote) states(words ...string) bool {
+	lower := strings.ToLower(n.text)
+
+	for _, word := range words {
+		if !strings.Contains(lower, strings.ToLower(word)) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // step logs one line of the scenario a test mirrors, and runs it: the test's output reads as the Gherkin (793b9).
