@@ -753,109 +753,355 @@ Scenario: 793d4m1d A turn that a background task's notification starts is not ju
 
 ### 793d5a Mapping of 793a2a1a
 
+The product scenario [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2a1a The next session has memory after one engram update
+  Given a machine with Claude Code on which the user has never run engram update, and a vault holding a note that says when the staging database is reset
+  When the user runs engram update
+  And starts a Claude Code session in a project other than the one engram update was run in, and sends a prompt asking when the staging database is reset
+  Then the note is in the agent's context before the agent answers
+```
+
 Realized by `793d4b`, `793d2a` and `793d4a`.
 
 ### 793d5b Mapping of 793a2b1b
+
+The product scenario [793a2b1b A note delivered earlier in the session is not delivered again](./793a_product-spec.md#793a2b1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2b1b A note delivered earlier in the session is not delivered again
+  Given a session in which a prompt asking when the staging database is reset arrived with the staging note
+  When the user sends another prompt about the staging database reset
+  Then the second prompt arrives with nothing from the vault, and the staging note is in the agent's context once
+```
 
 Realized by `793d2a`, `793d4d` and `793d4a`.
 
 ### 793d5c Mapping of 793a2b1c
 
+The product scenario [793a2b1c A note the agent looked up itself is not delivered](./793a_product-spec.md#793a2b1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2b1c A note the agent looked up itself is not delivered
+  Given a session in which, before the user ran engram update, the agent looked up the staging note itself with engram query, and a vault that has gained another note about the staging database since
+  When the user runs engram update, resumes that session, and sends a prompt asking when the staging database is reset
+  Then the prompt arrives with the other note and not the staging note
+```
+
 Realized by `793d4d`, with the flow and the delivery of `793d5b`.
 
 ### 793d5d Mapping of 793a2b1d
+
+The product scenario [793a2b1d A prompt that matches no note arrives with nothing](./793a_product-spec.md#793a2b1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2b1d A prompt that matches no note arrives with nothing
+  Given the user has run engram update, a vault whose notes have nothing to do with the prompt, and a searchable conversation that does
+  When the user sends the prompt
+  Then the prompt arrives with nothing from the vault, and the agent answers it
+```
 
 Realized by `793d4a` and `793d2a`.
 
 ### 793d5e Mapping of 793a2d1a
 
+The product scenario [793a2d1a A slow lookup does not hold a prompt for more than 8 seconds](./793a_product-spec.md#793a2d1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2d1a A slow lookup does not hold a prompt for more than 8 seconds
+  Given the user has run engram update, and a lookup that takes 20 seconds
+  When the user sends a prompt
+  Then the prompt reaches the agent within 8 seconds, as the user typed it and with nothing from the vault, and the agent answers it
+```
+
 Realized by `793d2a` (the 7-second bound).
 
 ### 793d5f Mapping of 793a2a1e
+
+The product scenario [793a2a1e A vault that does not exist is not created](./793a_product-spec.md#793a2a1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2a1e A vault that does not exist is not created
+  Given a machine with Claude Code on which the user has run engram update, and whose configured vault no longer exists
+  When the user starts a session and sends a prompt
+  Then the agent answers the prompt, and the vault still does not exist
+```
 
 Realized by `793d4e` (the command creates no [vault](../../GLOSSARY.md#vault)), `793d4a` and `793d2a`.
 
 ### 793d5g Mapping of 793a2a1d
 
+The product scenario [793a2a1d Pi gets no automatic memory](./793a_product-spec.md#793a2a1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2a1d Pi gets no automatic memory
+  Given a machine with both Claude Code and Pi
+  When the user runs engram update
+  Then the report lists the automatic memory under Claude Code and not under Pi, and nothing of it is installed under ~/.pi
+```
+
 Realized by `793d4b` (mods are planned for Claude Code only).
 
 ### 793d5h Mapping of 793a2a1c
+
+The product scenario [793a2a1c A dry run turns nothing on](./793a_product-spec.md#793a2a1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2a1c A dry run turns nothing on
+  Given a machine with Claude Code on which the user has never run engram update, and a vault holding a note that says when the staging database is reset
+  When the user runs engram update --dry-run
+  And starts a session and sends a prompt asking when the staging database is reset
+  Then the report lists the automatic memory as planned, and the agent's context holds no note
+```
 
 Realized by `793d4b` (a dry run plans and reports the mod and writes none of it).
 
 ### 793d5i Mapping of 793a2a1b
 
+The product scenario [793a2a1b A second update still delivers each note once](./793a_product-spec.md#793a2a1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2a1b A second update still delivers each note once
+  Given a machine on which the user has run engram update once, and a vault holding a note that says when the staging database is reset
+  When the user runs engram update again
+  And starts a session and sends a prompt asking when the staging database is reset
+  Then the note is in the agent's context once
+```
+
 Realized by `793d4b` (one deployed mod, so one hook) and `793d4a`.
 
 ### 793d5j Mapping of 793a2c1a
+
+The product scenario [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2c1a A correction becomes a note
+  Given the user has run engram update, and a session in which the agent may not run engram commands and has answered a question about how to build a project
+  When the user corrects the agent's answer in a prompt, and the turn ends
+  Then within 2 minutes the vault holds a note that states the correction and says it was written automatically, and the agent wrote nothing to the vault
+```
 
 Realized by `793d2b`, `793d4g`, `793d4h` and `793d4f`; the [agent](./793a_product-spec.md#793a1a-terms) may not run `engram` commands, so the [note](../../GLOSSARY.md#permanent-note) is the writing's.
 
 ### 793d5k Mapping of 793a2c1b
 
+The product scenario [793a2c1b A request to remember becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2c1b A request to remember becomes a note
+  Given the user has run engram update, and a session in which the agent may not run engram commands
+  When the user asks the agent in a prompt to remember something, and the turn ends
+  Then within 2 minutes the vault holds a note that states it and says it was written automatically, and the agent wrote nothing to the vault
+```
+
 Realized by the components of `793d5j`; the instructions of the judgement name a request to remember as a lesson, and `793d4h` writes the kind `fact`.
 
 ### 793d5l Mapping of 793a2c1c
+
+The product scenario [793a2c1c An approach the user confirmed becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2c1c An approach the user confirmed becomes a note
+  Given the user has run engram update, and a session in which the agent may not run engram commands and has done a task one way
+  When the user tells the agent in a prompt that the way worked and to keep doing it, and the turn ends
+  Then within 2 minutes the vault holds a note that states the approach and says it was written automatically
+```
 
 Realized by `793d4g` (the task is in the context of the request and the confirmation in the [turn](./793a_product-spec.md#793a1a-terms)) with the components of `793d5j`; the instructions name an approach the user confirmed as a lesson.
 
 ### 793d5m Mapping of 793a2c1d
 
+The product scenario [793a2c1d The agent's own correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2c1d The agent's own correction becomes a note
+  Given the user has run engram update, and a session in which the agent may read files but may not run engram commands
+  When the user asks the agent in a prompt to guess what a file says and then to read it, and the agent says its guess was wrong and states what the file says, and the turn ends
+  Then within 2 minutes the vault holds a note that states what the file says and says it was written automatically
+```
+
 Realized by `793d4g` (the lines of the [turn](./793a_product-spec.md#793a1a-terms) hold the guess and its correction, as the [agent](./793a_product-spec.md#793a1a-terms) states both in text) with the components of `793d5j`; the instructions name the agent's own correction as a lesson.
 
 ### 793d5n Mapping of 793a2c1e
+
+The product scenario [793a2c1e An approach that succeeded with evidence becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2c1e An approach that succeeded with evidence becomes a note
+  Given the user has run engram update, and a session in which the agent may run a check script but may not run engram commands
+  When the agent, unsure whether an approach will make the check pass, tries it in a turn and the turn shows that the check passed
+  Then within 2 minutes the vault holds a note that states the approach and says it was written automatically
+```
 
 Realized by `793d4g` (the lines of the [turn](./793a_product-spec.md#793a1a-terms) hold what the [agent](./793a_product-spec.md#793a1a-terms) was unsure of and what it saw) with the components of `793d5j`; the instructions name an approach that succeeded with evidence as a lesson.
 
 ### 793d5o Mapping of 793a2c1f
 
+The product scenario [793a2c1f Guesses, plans and chatter produce no note](./793a_product-spec.md#793a2c1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2c1f Guesses, plans and chatter produce no note
+  Given the user has run engram update, and a session in which the agent may not run engram commands
+  When the user sends a prompt that the agent answers with a guess, a plan and chatter, and the turn ends
+  Then 2 minutes after the turn ends the vault holds no note
+```
+
 Realized by the components of `793d5j`, whose instructions name a guess, a plan and chatter as no lesson, and by `793d4k`: a reply with no lesson is recorded, so an empty result is a finished judgement.
 
 ### 793d5p Mapping of 793a2c1g
+
+The product scenario [793a2c1g A credential in the turn is not in the note](./793a_product-spec.md#793a2c1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2c1g A credential in the turn is not in the note
+  Given the user has run engram update, and a session in which the agent may not run engram commands
+  When the user asks the agent in a prompt to remember how to deploy, with the token and the password that the deploy needs, each in a recognised form, and the turn ends
+  Then within 2 minutes the vault holds a note that states how to deploy, and no note holds the token or the password
+```
 
 Realized by `793d4j`, `793d4g` (redaction comes before the cut) and `793d4h`, with the components of `793d5j`.
 
 ### 793d5q Mapping of 793a3c1a
 
+The product scenario [793a3c1a A lesson an earlier note states is not written again](./793a_product-spec.md#793a3c1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a3c1a A lesson an earlier note states is not written again
+  Given the user has run engram update, a vault holding a note that the user saved earlier and that states a lesson, and a session in which the agent may not run engram commands
+  When the user states the same lesson to the agent in a prompt, and the turn ends
+  Then 2 minutes after the turn ends the vault holds the earlier note only
+```
+
 Realized by `793d4g` (the request lists the earlier [note](../../GLOSSARY.md#permanent-note) among the notes nearest to the [turn](./793a_product-spec.md#793a1a-terms)) and `793d4h` (a lesson the earlier note covers is not written and the record names that note), with the lookup of `793d4a`.
 
 ### 793d5r Mapping of 793a3c1b
+
+The product scenario [793a3c1b A lesson the agent saved itself is not written again](./793a_product-spec.md#793a3c1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a3c1b A lesson the agent saved itself is not written again
+  Given the user has run engram update, and a session in which the agent may run engram commands
+  When the user asks the agent in a prompt to remember something and to save it with engram learn, and the turn ends
+  Then 2 minutes after the turn ends the vault holds one note for it, the one the agent saved
+```
 
 Realized by the components of `793d5q` and nothing new: the [note](../../GLOSSARY.md#permanent-note) the [agent](./793a_product-spec.md#793a1a-terms) saves with [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand) is in the [vault](../../GLOSSARY.md#vault) when the [turn](./793a_product-spec.md#793a1a-terms) ends, so the request lists it and `793d4h` writes nothing for the lesson it covers.
 
 ### 793d5s Mapping of 793a3e1a
 
+The product scenario [793a3e1a The agent's own lookups and saves keep working](./793a_product-spec.md#793a3e1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a3e1a The agent's own lookups and saves keep working
+  Given the user has run engram update, a vault holding a note that says when the staging database is reset, and a session in which the agent may run engram commands
+  When the user asks the agent in a prompt to look the staging note up with engram query and to save another note with engram learn
+  Then the agent's lookup shows the staging note, and the vault holds the note the agent saved, as the agent wrote it
+```
+
 Realized by no component of its own: the [agent](./793a_product-spec.md#793a1a-terms)'s commands are the binary's, which `793d2a` and `793d2b` neither wrap nor replace, and the writing changes the [vault](../../GLOSSARY.md#vault) only through the learn path, as new [notes](../../GLOSSARY.md#permanent-note).
 
 ### 793d5t Mapping of 793a3a1a
+
+The product scenario [793a3a1a A written note is delivered with later prompts](./793a_product-spec.md#793a3a1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a3a1a A written note is delivered with later prompts
+  Given the user has run engram update, and a session in which the user corrected the agent and the correction became a note
+  When the user sends a prompt that the note bears on, in that session and then in a new session
+  Then each of the two prompts arrives with the note
+```
 
 Realized by no component of its own: `793d4h` writes through the learn path, which embeds the [note](../../GLOSSARY.md#permanent-note), so `793d4a` finds it in a new [session](../../GLOSSARY.md#session); in the session where it was written `793d4d` does not count it as held, because it was neither delivered nor looked up.
 
 ### 793d5u Mapping of 793a2a1f
 
+The product scenario [793a2a1f A second update still writes each lesson as one note](./793a_product-spec.md#793a2a1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2a1f A second update still writes each lesson as one note
+  Given a machine on which the user has run engram update once
+  When the user runs engram update again, and corrects the agent in a prompt of a session
+  Then the vault holds one note for the correction
+```
+
 Realized by `793d4b` (one deployed mod, so one hook), with the components of `793d5j`.
 
 ### 793d5v Mapping of 793a2a1g
+
+The product scenario [793a2a1g A lesson is not written to a vault that does not exist](./793a_product-spec.md#793a2a1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2a1g A lesson is not written to a vault that does not exist
+  Given a machine with Claude Code on which the user has run engram update, and whose configured vault no longer exists
+  When the user corrects the agent in a prompt of a session, and the turn ends
+  Then the vault still does not exist 2 minutes after the turn ends
+```
 
 Realized by `793d4e`, `793d4g` (the judgement fails at its start, naming the path, so the model is not asked) and `793d4k` (the failure is recorded once).
 
 ### 793d5w Mapping of 793a2d1b
 
+The product scenario [793a2d1b Automatic memory's work starts no session of its own](./793a_product-spec.md#793a2d1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2d1b Automatic memory's work starts no session of its own
+  Given the user has run engram update, and a session in which the agent may not run engram commands
+  When the user corrects the agent in a prompt, and the turn ends
+  Then within 2 minutes the vault holds a note for the correction, and no session but the user's exists, so nothing was delivered to or written from another
+```
+
 Realized by `793d2b` (the model call raises no [prompt](./793a_product-spec.md#793a1a-terms) or [turn](./793a_product-spec.md#793a1a-terms) and starts no [session](../../GLOSSARY.md#session)) and `793d4m`.
 
 ### 793d5x Mapping of 793a2c1h
+
+The product scenario [793a2c1h A thanks that names no approach produces no note](./793a_product-spec.md#793a2c1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2c1h A thanks that names no approach produces no note
+  Given the user has run engram update, and a session in which the agent may not run engram commands and has done a task one way
+  When the user thanks the agent in a prompt, saying only that it worked, and the turn ends
+  Then 2 minutes after the turn ends the vault holds no note
+```
 
 Realized by the components of `793d5o`, with instructions that name chatter, a thanks or "it worked" that names no approach, and a success no uncertainty preceded as no lesson (`793b87`).
 
 ### 793d5y Mapping of 793a3c1c
 
+The product scenario [793a3c1c A lesson no earlier note states is written](./793a_product-spec.md#793a3c1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a3c1c A lesson no earlier note states is written
+  Given the user has run engram update, a vault holding a note that the user saved earlier and that states a lesson, and a session in which the agent may not run engram commands
+  When the user asks the agent in a prompt to remember a different lesson about the same subject, and the turn ends
+  Then within 2 minutes the vault holds the earlier note, unchanged, and a new note for the different lesson that says it was written automatically
+```
+
 Realized by the components of `793d5q` the other way round: the request lists the earlier [note](../../GLOSSARY.md#permanent-note) as it does for a lesson it states, and the model names it only for a lesson it states, so `793d4h` writes the lesson it does not name.
 
 ### 793d5z Mapping of 793a2c1i
 
+The product scenario [793a2c1i A request to remember is written when the agent says it did not save it](./793a_product-spec.md#793a2c1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2c1i A request to remember is written when the agent says it did not save it
+  Given the user has run engram update, and a session in which the agent may not run engram commands
+  When the user asks the agent in a prompt to remember something and not to save it itself, the agent says that it did not save it, and the turn ends
+  Then within 2 minutes the vault holds a note that states it and says it was written automatically
+```
+
 Realized by the components of `793d5k`, with instructions that say a request to remember is a lesson whatever the [agent](./793a_product-spec.md#793a1a-terms) says about saving it, even when it holds a secret (`793b90`).
 
 ### 793d5za Mapping of 793a2b1a
+
+The product scenario [793a2b1a The notes that bear on a prompt arrive with it](./793a_product-spec.md#793a2b1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2b1a The notes that bear on a prompt arrive with it
+  Given the user has run engram update, and a vault holding a note that says when the staging database is reset and a note about formatting Python files
+  When the user sends a prompt asking when the staging database is reset
+  Then before the agent acts its context holds the staging note and not the formatting note, and the prompt in the conversation is exactly as the user typed it
+```
 
 Realized by `793d2a` (the block arrives beside the [prompt](./793a_product-spec.md#793a1a-terms), which stays as typed), `793d4a` (the [note](../../GLOSSARY.md#permanent-note) that bears on the prompt and not the other) and `793d4c` (the form of the block).
 
