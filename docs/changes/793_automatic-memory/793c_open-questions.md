@@ -92,7 +92,7 @@ Default: the output is used only when the command exited 0 and the output begins
 
 ## 793c26 Does the delivery read the records where Claude Code writes them, and does the sweep follow?
 
-Default: the delivery reads `ENGRAM_TRANSCRIPT_DIR`, else `$CLAUDE_CONFIG_DIR/projects`, else `<home>/.claude/projects`; the sweep is unchanged (`793b51`). Alternatives: both use that order, which changes a canonical requirement of `[engram ingest](../../GLOSSARY.md#engram-ingest-subcommand)`; the delivery reads the home only. Open.
+Default: the delivery reads `ENGRAM_TRANSCRIPT_DIR`, else `$CLAUDE_CONFIG_DIR/projects`, else `<home>/.claude/projects`; the sweep is unchanged (`793b51`). Alternatives: both use that order, which changes a canonical requirement of [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand); the delivery reads the home only. Open.
 
 ## 793c27 Does the delivery's lookup need imptest evidence of its arguments, or a waiver?
 
@@ -120,7 +120,7 @@ Default: record the stall as an open risk, measure the cost of one delivery on a
 
 ## 793c33 Does the promise of automatic memory name a minimum version of Claude Code?
 
-Default: the promise stays unconditional, and a [session](../../GLOSSARY.md#session) that cannot load the mod steps aside (row 13 of `793b36`). Alternatives: the README and the report of `[engram update](../../GLOSSARY.md#engram-update)` name the minimum Claude Code version; `engram update` checks the version. Open.
+Default: the promise stays unconditional, and a [session](../../GLOSSARY.md#session) that cannot load the mod steps aside (row 13 of `793b36`). Alternatives: the README and the report of [`engram update`](../../GLOSSARY.md#engram-update) name the minimum Claude Code version; `engram update` checks the version. Open.
 
 ## 793c34 Does the delivery merge the parent vault, as `engram query` does?
 

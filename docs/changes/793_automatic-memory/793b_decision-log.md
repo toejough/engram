@@ -80,11 +80,11 @@ A lesson's [note](../../GLOSSARY.md#permanent-note) is in the [vault](../../GLOS
 
 ## 793b20 No modes and no off switch
 
-[Automatic memory](./793a_product-spec.md#793a1a-terms) is on whenever installed (`793a2a`), with no mode and no off switch; stopping it means removing what `[engram update](../../GLOSSARY.md#engram-update)` added, and no requirement covers how (row 10 of `793b36`). It follows the owner's earlier answer (`old 793c12`). A (owner may override).
+[Automatic memory](./793a_product-spec.md#793a1a-terms) is on whenever installed (`793a2a`), with no mode and no off switch; stopping it means removing what [`engram update`](../../GLOSSARY.md#engram-update) added, and no requirement covers how (row 10 of `793b36`). It follows the owner's earlier answer (`old 793c12`). A (owner may override).
 
 ## 793b21 Lessons are written straight into the vault
 
-A lesson becomes a [note](../../GLOSSARY.md#permanent-note) directly (`793a2c`), not a [pending offer](../../GLOSSARY.md#offer) awaiting review: the owner's earlier answer "written directly to the [vault](../../GLOSSARY.md#vault)" (`old 793c4`); curation is excluded (`793b8`) and open in `793c5`. A (default; owner may override).
+A lesson becomes a [note](../../GLOSSARY.md#permanent-note) in the [vault](../../GLOSSARY.md#vault) directly (`793a2c`), not a [pending offer](../../GLOSSARY.md#offer) awaiting review: the owner's earlier answer, "written directly to the vault" (`old 793c4`); curation is excluded (`793b8`) and open in `793c5`. A (default; owner may override).
 
 ## 793b22 The scope is top-level sessions and notes only
 
@@ -128,15 +128,15 @@ Withdrawn in review round 1: not a decision.
 
 ## 793b32 Test isolation
 
-The isolation rule of `793f7`, restated in `793e2` and `793e7`: the owner's rule from the earlier attempt, "temp HOMEs only; every engram/claude command from [agents](./793a_product-spec.md#793a1a-terms) needs explicit env HOME" (`old 793b245`). Review round 1 (`793b39`) found it missing: a literal run of "the user runs `[engram update](../../GLOSSARY.md#engram-update)`" would install into the real `~/.claude`. O (earlier attempt, 2026-10-11 to 2026-10-16), restated after review round 1.
+The isolation rule of `793f7`, restated in `793e2` and `793e7`, binds every [agent](./793a_product-spec.md#793a1a-terms)'s commands: the owner's rule from the earlier attempt, "temp HOMEs only; every engram/claude command from agents needs explicit env HOME" (`old 793b245`). Review round 1 (`793b39`) found it missing: a literal run of "the user runs [`engram update`](../../GLOSSARY.md#engram-update)" would install into the real `~/.claude`. O (earlier attempt, 2026-10-11 to 2026-10-16), restated after review round 1.
 
 ## 793b33 One agent review round per phase
 
-One review round per phase unless the owner asks for more; the author accepts or declines each finding and findings are not argued to resolution, superseding the root `AGENTS.md` default. The owner: "one [agent](./793a_product-spec.md#793a1a-terms) review round per phase unless asked." O 2026-10-11 (earlier attempt).
+One [agent](./793a_product-spec.md#793a1a-terms) review round per phase unless the owner asks for more; the author accepts or declines each finding and findings are not argued to resolution, superseding the root `AGENTS.md` default. The owner: "one agent review round per phase unless asked." O 2026-10-11 (earlier attempt).
 
 ## 793b34 The goal: what the main agent was already doing, just async
 
-The minimal set is read against the owner's goal, "to do what the main [agent](./793a_product-spec.md#793a1a-terms) was already doing, just async": `793a2b` is the query before acting, `793a2f` the sweep, `793a2c` the [notes](../../GLOSSARY.md#permanent-note) for explicit lessons; mid-task re-querying is not in the set (`793b8`). The owner: "The goal was to do what the main agent was already doing, just async." O 2026-10-16.
+What the main [agent](./793a_product-spec.md#793a1a-terms) was already doing, made async, is the minimal set: `793a2b` is the query before acting, `793a2f` the sweep, `793a2c` the [notes](../../GLOSSARY.md#permanent-note) for explicit lessons; mid-task re-querying is not in the set (`793b8`). The owner: "The goal was to do what the main agent was already doing, just async." O 2026-10-16.
 
 ## 793b35 The transcript sweep is in the minimal set
 
@@ -160,7 +160,7 @@ The minimal set reverses these answers the owner gave in the earlier attempt, be
 | 10 | turned off by uninstalling, with uninstall extended to remove it (`old 793c18`, `old 793c22`) | no requirement covers how (`793b20`) |
 | 11 | a note in the receiving [agent](./793a_product-spec.md#793a1a-terms)'s context is never re-injected, and a truncated note is not present (`old 793c7` item 5) | per session, even after a compaction (`793b27`) |
 | 12 | the prompt hold no longer than the agent's own lookup on the same vault and input (`old 793c7` item 4, `old 793c11`) | 8 seconds (`793c1`) |
-| 13 | the promise covers the sessions where the earlier attempt's mod runs, and `[engram update](../../GLOSSARY.md#engram-update)` reports when mods cannot load (`old 793c66`) | every Claude Code session started after the update (`793a2a`); where it cannot run, `793a2d` has it step aside, and no check is required |
+| 13 | the promise covers the sessions where the earlier attempt's mod runs, and [`engram update`](../../GLOSSARY.md#engram-update) reports when mods cannot load (`old 793c66`) | every Claude Code session started after the update (`793a2a`); where it cannot run, `793a2d` has it step aside, and no check is required |
 | 14 | the activity lines may reach the agent (`old 793c90`), and the previous turn's sentences ride the next prompt (`old 793c92`) | the user sees the activity in the session (`793a2e`); nothing carries it to the agent |
 
 ## 793b37 A turn followed by the end of the session is not covered
@@ -177,11 +177,11 @@ One opus review round on the step 1 documents (seven commits, `1bcf81b3` to `573
 
 ## 793b40 The scenarios of the first group
 
-Step 2 for the first group (`793e6a`) writes ten scenarios, one per mandatory branch: five under `793a2a`, four under `793a2b`, one under `793a2d` (the 8-second hold). The [agent](./793a_product-spec.md#793a1a-terms)'s own lookup is staged before the update and the [session](../../GLOSSARY.md#session) resumed after it, so the two routes to a held [note](../../GLOSSARY.md#permanent-note) can be told apart; the missing [vault](../../GLOSSARY.md#vault) is one removed after the update, because `[engram update](../../GLOSSARY.md#engram-update)` creates a missing one. A (default; owner may override).
+Step 2 for the first group (`793e6a`) writes ten scenarios, one per mandatory branch: five under `793a2a`, four under `793a2b`, one under `793a2d` (the 8-second hold). The [agent](./793a_product-spec.md#793a1a-terms)'s own lookup is staged before the update and the [session](../../GLOSSARY.md#session) resumed after it, so the two routes to a held [note](../../GLOSSARY.md#permanent-note) can be told apart; the missing [vault](../../GLOSSARY.md#vault) is one removed after the update, because [`engram update`](../../GLOSSARY.md#engram-update) creates a missing one. A (default; owner may override).
 
 ## 793b41 The mod, its place and its command
 
-The automatic behavior is one mod, `engram-memory`, in `agent-instructions/mods/`, deployed by `[engram update](../../GLOSSARY.md#engram-update)` with the [skills](../../GLOSSARY.md#skill) to `~/.claude/skills/engram-memory`; for each [prompt](./793a_product-spec.md#793a1a-terms) it runs the new command `engram auto deliver` (JSON on standard input) and puts its output beside the prompt, the command holding the logic (`793d1`). Only `prompt.submit` adds context without editing the prompt, and a real `claude -p` [session](../../GLOSSARY.md#session) showed that a linked mod loads. Rejected: a `UserPromptSubmit` hook in `~/.claude/settings.json` (`engram update` would edit a file the user owns on every run). A (default; owner may override).
+The automatic behavior is one mod, `engram-memory`, in `agent-instructions/mods/`, deployed by [`engram update`](../../GLOSSARY.md#engram-update) with the [skills](../../GLOSSARY.md#skill) to `~/.claude/skills/engram-memory`; for each [prompt](./793a_product-spec.md#793a1a-terms) it runs the new command `engram auto deliver` (JSON on standard input) and puts its output beside the prompt, the command holding the logic (`793d1`). Only `prompt.submit` adds context without editing the prompt, and a real `claude -p` [session](../../GLOSSARY.md#session) showed that a linked mod loads. Rejected: a `UserPromptSubmit` hook in `~/.claude/settings.json` (`engram update` would edit a file the user owns on every run). A (default; owner may override).
 
 ## 793b42 What the block says
 
@@ -205,7 +205,7 @@ The mod waits for `engram auto deliver` at most 7 seconds, by the process call's
 
 ## 793b47 A dry run reports the mod as a mod
 
-The report of `[engram update](../../GLOSSARY.md#engram-update)`, dry run or not, lists a mod in the Claude Code section with `agent-instructions/mods/<name>/` as its source (a [skill](../../GLOSSARY.md#skill) has `agent-instructions/skills/<name>/`); a dry run plans and reports the mod and writes none of it (`793a2a1c`). The first run showed the mod under `agent-instructions/skills/`. A (default; owner may override).
+The report of [`engram update`](../../GLOSSARY.md#engram-update), dry run or not, lists a mod in the Claude Code section with `agent-instructions/mods/<name>/` as its source (a [skill](../../GLOSSARY.md#skill) has `agent-instructions/skills/<name>/`); a dry run plans and reports the mod and writes none of it (`793a2a1c`). The first run showed the mod under `agent-instructions/skills/`. A (default; owner may override).
 
 ## 793b48 The conformance check reads this change's specs and fails when they are gone
 
@@ -221,7 +221,7 @@ The mod adds the command's output only when it exited 0 and the output begins `[
 
 ## 793b51 The delivery finds the records where Claude Code writes them
 
-`engram auto deliver` reads records from `--sessions`, else `ENGRAM_TRANSCRIPT_DIR`, else `$CLAUDE_CONFIG_DIR/projects`, else `<home>/.claude/projects` (`793d4f`); `[engram ingest](../../GLOSSARY.md#engram-ingest-subcommand)` keeps its order (792b17c6; `793c26`). A [session](../../GLOSSARY.md#session) started with `CLAUDE_CONFIG_DIR` writes there, so reading only the home never found the record. A (default; owner may override), on review.
+`engram auto deliver` reads records from `--sessions`, else `ENGRAM_TRANSCRIPT_DIR`, else `$CLAUDE_CONFIG_DIR/projects`, else `<home>/.claude/projects` (`793d4f`); [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand) keeps its order (792b17c6; `793c26`). A [session](../../GLOSSARY.md#session) started with `CLAUDE_CONFIG_DIR` writes there, so reading only the home never found the record. A (default; owner may override), on review.
 
 ## 793b52 The delivery runs its lookup through an injected function
 
@@ -265,7 +265,7 @@ One opus review round on commit `e62be9a4` found 3 major, 16 minor and 7 nit ite
 
 ## 793b62 The scenarios of the second group
 
-Step 2 for the second group (`793e6b`) writes fourteen scenarios, one per clause without one: seven under `793a2c` (the five kinds of confirmed lesson, guesses and chatter, a credential), two under `793a2a`, one under `793a2d` (its own [sessions](../../GLOSSARY.md#session)), one under `793a3a`, two under `793a3c` (a [note](../../GLOSSARY.md#permanent-note) saved earlier by someone else; one the [agent](./793a_product-spec.md#793a1a-terms) saved itself in the [turn](./793a_product-spec.md#793a1a-terms)) and one under `793a3e`. A session whose agent may not run engram commands proves a note was written "by [automatic memory](./793a_product-spec.md#793a1a-terms) and not by the agent". A (default; owner may override).
+[Automatic memory](./793a_product-spec.md#793a1a-terms)'s second group (`793e6b`): step 2 writes fourteen scenarios, one per clause without one: seven under `793a2c` (the five kinds of confirmed lesson, guesses and chatter, a credential), two under `793a2a`, one under `793a2d` (its own [sessions](../../GLOSSARY.md#session)), one under `793a3a`, two under `793a3c` (a [note](../../GLOSSARY.md#permanent-note) saved earlier by someone else; one the [agent](./793a_product-spec.md#793a1a-terms) saved itself in the [turn](./793a_product-spec.md#793a1a-terms)) and one under `793a3e`. A session whose agent may not run engram commands proves a note was written "by automatic memory and not by the agent". A (default; owner may override).
 
 ## 793b63 A turn is judged by one model call, and no session is started
 
@@ -281,7 +281,7 @@ The model request holds the instructions and a window: up to 6 lines before the 
 
 ## 793b66 What a lesson becomes
 
-A lesson becomes a feedback or fact [note](../../GLOSSARY.md#permanent-note) through the learn path of `[engram learn](../../GLOSSARY.md#engram-learn-subcommand)`, at the top of the order of the [vault](../../GLOSSARY.md#vault), with the source `written automatically (session <the session's ID>)`; a reply that is not a list, or a lesson that lacks a field or has an unknown kind, writes nothing and is recorded; links and replacements of notes are not written. The learn path is the one writer of notes. A (default; owner may override).
+A lesson becomes a feedback or fact [note](../../GLOSSARY.md#permanent-note) through the learn path of [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand), at the top of the order of the [vault](../../GLOSSARY.md#vault), with the source `written automatically (session <the session's ID>)`; a reply that is not a list, or a lesson that lacks a field or has an unknown kind, writes nothing and is recorded; links and replacements of notes are not written. The learn path is the one writer of notes. A (default; owner may override).
 
 ## 793b67 What automatic memory records
 
