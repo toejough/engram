@@ -68,6 +68,14 @@ type feedback struct {
 	action    string
 }
 
+// agentMayNotRunEngram takes away the agent's permission to run engram. The agent's own use of memory creates a missing
+// vault by design, so in a scenario about what automatic memory creates it would confound the result.
+func (m *machine) agentMayNotRunEngram() {
+	m.t.Helper()
+
+	writeFile(m.t, filepath.Join(m.claudeDir, "settings.json"), "{}")
+}
+
 // hasClaudeCode installs Claude Code's directory on the machine, with the one permission the scenarios need.
 func (m *machine) hasClaudeCode() {
 	m.t.Helper()
@@ -136,6 +144,13 @@ func (m *machine) hasStandInEngram(block string, wait time.Duration) {
 	}
 }
 
+// hasVault reports whether a vault exists at the machine's vault path.
+func (m *machine) hasVault() bool {
+	_, err := os.Stat(m.vault)
+
+	return err == nil
+}
+
 // hookFailures returns the lines of the machine's Claude Code debug logs that say the mod's hook failed and was
 // skipped: a prompt then goes on as if the mod were not installed, but the user sees that it failed.
 func (m *machine) hookFailures() []string {
@@ -202,31 +217,6 @@ func (m *machine) lookupStarted() bool {
 	return err == nil
 }
 
-// vaultIsRemoved removes the machine's vault, which an engram command or `engram update` created.
-func (m *machine) vaultIsRemoved() {
-	m.t.Helper()
-
-	err := os.RemoveAll(m.vault)
-	if err != nil {
-		m.t.Fatalf("removing the vault: %v", err)
-	}
-}
-
-// agentMayNotRunEngram takes away the agent's permission to run engram. The agent's own use of memory creates a missing
-// vault by design, so in a scenario about what automatic memory creates it would confound the result.
-func (m *machine) agentMayNotRunEngram() {
-	m.t.Helper()
-
-	writeFile(m.t, filepath.Join(m.claudeDir, "settings.json"), "{}")
-}
-
-// hasVault reports whether a vault exists at the machine's vault path.
-func (m *machine) hasVault() bool {
-	_, err := os.Stat(m.vault)
-
-	return err == nil
-}
-
 // lookupTakes makes every lookup of the machine take the given time: `engram` on the PATH waits, notes that it started,
 // and then runs the machine's own engram.
 func (m *machine) lookupTakes(wait time.Duration) {
@@ -289,6 +279,16 @@ func (m *machine) standInCalled() (string, map[string]string) {
 	}
 
 	return strings.TrimSpace(string(args)), request
+}
+
+// vaultIsRemoved removes the machine's vault, which an engram command or `engram update` created.
+func (m *machine) vaultIsRemoved() {
+	m.t.Helper()
+
+	err := os.RemoveAll(m.vault)
+	if err != nil {
+		m.t.Fatalf("removing the vault: %v", err)
+	}
 }
 
 // step logs one line of the scenario a test mirrors, and runs it: the test's output reads as the Gherkin (793b9).
