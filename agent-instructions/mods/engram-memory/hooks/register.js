@@ -2,7 +2,8 @@
 // binary (`engram auto deliver`); this module routes the prompt to it and puts what it prints beside the prompt.
 export function register(on) {
   on('prompt.submit', async ($, e, next) => {
-    const { stdout } = await $.process.run(['engram', 'auto', 'deliver'], { stdin: JSON.stringify({ text: e.text }) })
+    const request = { text: e.text, session: await $.session.id() }
+    const { stdout } = await $.process.run(['engram', 'auto', 'deliver'], { stdin: JSON.stringify(request) })
 
     return next({ ...e, context: [...(e.context ?? []), stdout.trim()] })
   })
