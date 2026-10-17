@@ -1,0 +1,105 @@
+# Automatic Memory - Implementation Plan
+
+Filled depth first ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)): a node's catalog is written when its requirements reach step 4 and is worked
+through step 5 before the next node starts. Nothing below is final until the last node is. The sections follow
+the [implementation plan guide](../../IMPLEMENTATION-PLAN-GUIDE.md#default-structure). Implementation shape is
+added with the first node's step 3. The guide's parallel worktree method is omitted because the nodes are
+worked in sequence on branch `feat/automatic-memory`.
+
+## 793e1 Purpose
+
+Source specifications: [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec) and [793d Automatic Memory - Technical Spec](./793d_technical-spec.md#automatic-memory---technical-spec). Scope: the five product requirements and six
+interactions of the first, taken through the owner's steps 2 to 5 ([793f5 How this change applies it](./793f_algorithm.md#793f5-how-this-change-applies-it)) in the order of
+[793e4 Depth-first order and dependency tree](#793e4-depth-first-order-and-dependency-tree).
+
+## 793e2 Test methods
+
+The shared cycle applies once to every test row (the owner's step 5, [793f2 The algorithm](./793f_algorithm.md#793f2-the-algorithm)):
+
+1. Write the test.
+2. Red: run it, confirm it fails for the expected reason, and commit.
+3. Green: make it pass with the minimum change, keep the whole suite passing, and commit.
+4. Refactor: minimize the code the branch introduces without obscuring its function and purpose, and commit.
+
+Classifications are acceptance (a product scenario executed literally against a real Claude Code
+[session](../../GLOSSARY.md#session)), example, property (`rapid`), interaction (`imptest`) and integration, as the guide defines
+them. A test name begins with its scenario ID ([793b9 Test execution](./793b_decision-log.md#793b9-test-execution)). A Go test that drives a real session needs a live
+model, so it carries the `network` build tag and skips with a clear reason when no login is present
+([technical spec guide](../../TECHNICAL-SPEC-GUIDE.md#test-suite-classification)).
+
+## 793e3 Test status
+
+`Not started` → `Red` → `Green-all` → `Done` ([793b13 Departure: one refactor pass](./793b_decision-log.md#793b13-departure-one-refactor-pass)). Each phase's commit sets the row's Status. The
+Red, Green and Refactor columns hold those commits' hashes, each filled in by the next commit ([793b30 Commit hashes are recorded by the next commit](./793b_decision-log.md#793b30-commit-hashes-are-recorded-by-the-next-commit)).
+
+## 793e4 Depth-first order and dependency tree
+
+The nodes in order, with the interactions each takes ([793b28 Depth-first order](./793b_decision-log.md#793b28-depth-first-order), [793b29 Interactions join the first node that has every capability they name](./793b_decision-log.md#793b29-interactions-join-the-first-node-that-has-every-capability-they-name)):
+
+| Node | Requirements | Interactions |
+| --- | --- | --- |
+| [793e6a On after update, and memory arrives with the prompt](#793e6a-on-after-update-and-memory-arrives-with-the-prompt) | [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update), [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) | [793a3b Nothing the agent already has is delivered again](./793a_product-spec.md#793a3b-nothing-the-agent-already-has-is-delivered-again) |
+| [793e6b Lessons are written without the agent](#793e6b-lessons-are-written-without-the-agent) | [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) | [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later), [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again), [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working), [793a3f Everything runs on the existing login and vault](./793a_product-spec.md#793a3f-everything-runs-on-the-existing-login-and-vault) |
+| [793e6c Never in the way](#793e6c-never-in-the-way) | [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) | none |
+| [793e6d The user can see what it did](#793e6d-the-user-can-see-what-it-did) | [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) | [793a3d Failures never break a prompt and always show](./793a_product-spec.md#793a3d-failures-never-break-a-prompt-and-always-show) |
+
+The first node takes the install requirement and the delivery requirement together because the install is
+only visible to the user when delivery works in a new [session](../../GLOSSARY.md#session). Each later node needs the previous node's committed result, because an
+interaction joins a capability to the ones before it.
+
+```mermaid
+graph TD
+    n793e6a["793e6a On after update, and memory arrives with the prompt<br/>Ready"] --> n793e6b["793e6b Lessons are written without the agent<br/>Blocked by: 793e6a"]
+    n793e6b --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6b"]
+    n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
+```
+
+## 793e5 Node status
+
+As in the [plan guide](../../IMPLEMENTATION-PLAN-GUIDE.md#node-status): `Blocked by`, `Ready`,
+`In progress: n/x entries complete`, `Complete` and `Merged`. Every node becomes `Merged` together, when branch
+`feat/automatic-memory` is merged to main.
+
+## 793e6 Test catalog
+
+Rows are added to a node when its scenarios exist, and are worked top to bottom.
+
+### 793e6a On after update, and memory arrives with the prompt
+
+Takes [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update), [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) and [793a3b Nothing the agent already has is delivered again](./793a_product-spec.md#793a3b-nothing-the-agent-already-has-is-delivered-again).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+
+### 793e6b Lessons are written without the agent
+
+Takes [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later), [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again), [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working) and [793a3f Everything runs on the existing login and vault](./793a_product-spec.md#793a3f-everything-runs-on-the-existing-login-and-vault).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+
+### 793e6c Never in the way
+
+Takes [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+
+### 793e6d The user can see what it did
+
+Takes [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) and [793a3d Failures never break a prompt and always show](./793a_product-spec.md#793a3d-failures-never-break-a-prompt-and-always-show).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+
+## 793e7 Completion gates
+
+- Every scenario in [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec) and [793d Automatic Memory - Technical Spec](./793d_technical-spec.md#automatic-memory---technical-spec) has a row, and every row is `Done`.
+- Every product scenario has a recorded literal run against a real Claude Code [session](../../GLOSSARY.md#session) that passed, and every
+  technical scenario has a passing Go test named with its ID.
+- Every `Done` row has its red, green and refactor commits recorded.
+- [targ](../../GLOSSARY.md#targ) passes, with `targ test` and `targ check-full`, on the final commit of the branch.
+- Every refactor commit message names the code it removed or merged, or states that nothing could be removed.
+- The product and technical deltas are promoted to the canonical specifications without changing stable IDs,
+  and this change directory is deleted, in the same merge as the implementation.
+- Every node is `Merged`.
