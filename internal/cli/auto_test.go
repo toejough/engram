@@ -252,6 +252,27 @@ func Test793d4d1c_HeldText_ASessionWithNoRecordOrAnIDThatIsNotAFileNameHoldsNoth
 	g.Expect(cli.ExportHeldText(deps, filepath.Join(parent, "no-such-directory"), sessionID)).To(BeEmpty())
 }
 
+func Test793d4e1a_Targets_AutoDeliverCreatesNoVault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := filepath.Join(t.TempDir(), "no-such-vault")
+
+	var stdout bytes.Buffer
+
+	stderr := executeForTestWithDeps(t, []string{"engram", "auto", "deliver", "--vault", vault}, func(d *cli.Deps) {
+		d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
+		d.Stdin = strings.NewReader(`{"text":"anything"}`)
+		d.Stdout = &stdout
+	})
+
+	_, statErr := os.Stat(vault)
+
+	g.Expect(os.IsNotExist(statErr)).To(BeTrue(), "no vault was created at "+vault)
+	g.Expect(stdout.String()).To(BeEmpty())
+	g.Expect(stderr).NotTo(ContainSubstring("created new vault"))
+}
+
 // TestTargets_AutoDeliver reaches the command the way the mod does, as `engram auto deliver` with the prompt on
 // standard input, so the wiring of the group, the flag and the dependencies is run.
 func TestTargets_AutoDeliverPrintsTheNotesThatBearOnThePromptOnStandardInput(t *testing.T) {

@@ -210,8 +210,8 @@ Takes [793a2a1e A vault that does not exist is not created](./793a_product-spec.
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2a1e | Dedicated example, product acceptance (`network`) | the promise as the user sees it: after the vault is removed a prompt is answered and the vault is still not there | Red | | | |
-| 793d4e1a | Dedicated example (default suite) | the dispatch of the command through `cli.Targets` over a real temporary path: the first-use step is in the target's wiring, not in the command, so only a dispatch can show whether it runs | Not started | | | |
+| 793a2a1e | Dedicated example, product acceptance (`network`) | the promise as the user sees it: after the vault is removed a prompt is answered and the vault is still not there | Red | d4336a43 | | |
+| 793d4e1a | Dedicated example (default suite) | the dispatch of the command through `cli.Targets` over a real temporary path: the first-use step is in the target's wiring, not in the command, so only a dispatch can show whether it runs | Red | | | |
 
 #### 793e6a8 Pi gets no automatic memory
 
