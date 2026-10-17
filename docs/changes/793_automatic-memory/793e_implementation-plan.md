@@ -70,14 +70,34 @@ capability to the ones before it.
 
 ```mermaid
 graph TD
-    n793e6a["793e6a On after update, and memory arrives with the prompt<br/>Ready"] --> n793e6b["793e6b Lessons are written without the agent<br/>Blocked by: 793e6a"]
+    n793e6a1["793e6a1 The next session has memory after one engram update<br/>Ready"]
+    n793e6a2["793e6a2 The notes that bear on a prompt arrive with it<br/>Blocked by: 793e6a1"]
+    n793e6a3["793e6a3 A note delivered earlier in the session is not delivered again<br/>Blocked by: 793e6a2"]
+    n793e6a4["793e6a4 A note the agent looked up itself is not delivered<br/>Blocked by: 793e6a3"]
+    n793e6a5["793e6a5 A prompt that matches no note arrives with nothing<br/>Blocked by: 793e6a4"]
+    n793e6a6["793e6a6 A slow lookup does not hold a prompt for more than 8 seconds<br/>Blocked by: 793e6a5"]
+    n793e6a7["793e6a7 A vault that does not exist is not created<br/>Blocked by: 793e6a6"]
+    n793e6a8["793e6a8 Pi gets no automatic memory<br/>Blocked by: 793e6a7"]
+    n793e6a9["793e6a9 A dry run turns nothing on<br/>Blocked by: 793e6a8"]
+    n793e6a10["793e6a10 A second update still delivers each note once<br/>Blocked by: 793e6a9"]
+    n793e6a1 --> n793e6a2
+    n793e6a2 --> n793e6a3
+    n793e6a3 --> n793e6a4
+    n793e6a4 --> n793e6a5
+    n793e6a5 --> n793e6a6
+    n793e6a6 --> n793e6a7
+    n793e6a7 --> n793e6a8
+    n793e6a8 --> n793e6a9
+    n793e6a9 --> n793e6a10
+    n793e6a10 --> n793e6b["793e6b Lessons are written without the agent<br/>Blocked by: 793e6a10"]
     n793e6b --> n793e6e["793e6e The conversation becomes searchable memory<br/>Blocked by: 793e6b"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
 ```
 
-The graph shows the groups. When step 2 writes a group's scenarios, the group's node is replaced, in the same
-place and with the same prerequisites, by one node per scenario, each with a catalog section under its group's.
+The graph shows the nodes of the first group, whose scenarios step 2 has written, and the other groups as they
+stand. When step 2 writes a group's scenarios, the group's node is replaced, in the same place and with the same
+prerequisites, by one node per scenario, each with a catalog section under its group's.
 
 ## 793e5 Node status
 
@@ -91,7 +111,74 @@ Rows are added when step 3 reaches a node, and are worked top to bottom, one nod
 
 ### 793e6a On after update, and memory arrives with the prompt
 
-Takes [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update), [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) and the 8-second hold of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way).
+Takes [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update), [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) and the 8-second hold of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), one node per scenario, in the order of the graph above.
+
+#### 793e6a1 The next session has memory after one engram update
+
+Takes [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+
+#### 793e6a2 The notes that bear on a prompt arrive with it
+
+Takes [793a2b1a The notes that bear on a prompt arrive with it](./793a_product-spec.md#793a2b1-uat-scenarios).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+
+#### 793e6a3 A note delivered earlier in the session is not delivered again
+
+Takes [793a2b1b A note delivered earlier in the session is not delivered again](./793a_product-spec.md#793a2b1-uat-scenarios).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+
+#### 793e6a4 A note the agent looked up itself is not delivered
+
+Takes [793a2b1c A note the agent looked up itself is not delivered](./793a_product-spec.md#793a2b1-uat-scenarios).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+
+#### 793e6a5 A prompt that matches no note arrives with nothing
+
+Takes [793a2b1d A prompt that matches no note arrives with nothing](./793a_product-spec.md#793a2b1-uat-scenarios).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+
+#### 793e6a6 A slow lookup does not hold a prompt for more than 8 seconds
+
+Takes [793a2d1a A slow lookup does not hold a prompt for more than 8 seconds](./793a_product-spec.md#793a2d1-uat-scenarios).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+
+#### 793e6a7 A vault that does not exist is not created
+
+Takes [793a2a1e A vault that does not exist is not created](./793a_product-spec.md#793a2a1-uat-scenarios).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+
+#### 793e6a8 Pi gets no automatic memory
+
+Takes [793a2a1d Pi gets no automatic memory](./793a_product-spec.md#793a2a1-uat-scenarios).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+
+#### 793e6a9 A dry run turns nothing on
+
+Takes [793a2a1c A dry run turns nothing on](./793a_product-spec.md#793a2a1-uat-scenarios).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+
+#### 793e6a10 A second update still delivers each note once
+
+Takes [793a2a1b A second update still delivers each note once](./793a_product-spec.md#793a2a1-uat-scenarios).
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
