@@ -148,8 +148,8 @@ Takes [793a2a1a The next session has memory after one engram update](./793a_prod
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 793a2a1a | Dedicated example, product acceptance (`network`) | the promise as the user sees it: a real session, started after a real `engram update`, holds the note before it acts | | Done | d598e57f | 4079d1d3 | c26a7d1c |
 | 793d4a1a | Dedicated example (default suite) | the command's contract through its standard input and output over an in-memory vault and a stub embedder: the lookup of notes for the text, and the shape of the block | | Done | a81ad4bb | 1e0a3a11 | 99e1ea5a |
-| 793d4a1b | Dedicated example (default suite) | the failure branch the mod relies on to step aside: the command fails and prints nothing when it cannot look the notes up. Written after the code: the error branch is required by errcheck and was written with the green of 793d4a1a, so the test passed when written | | Done | n/a | 04dbc127 | |
-| 793d4c1a | Property-based (`rapid`) with named examples (default suite) | the one guarantee an adversarial note must not break: the shape of the block, for any text a note can hold | for any notes whose fields hold arbitrary text, line breaks, control characters, the framing line and lines that read as notes: the block ends with one line feed and has one line more than notes; its first line is the same fixed framing line for every input and begins `[engram memory]`; every other line begins with a dash and a space, never with `[engram memory]`, and holds no control character and no white space but spaces | Done | 93d584e5 | | fa641f64 |
+| 793d4a1b | Dedicated example (default suite) | the failure branch the mod relies on to step aside: the command fails and prints nothing when it cannot look the notes up. Written after the code: the error branch is required by errcheck and was written with the green of 793d4a1a, so the test passed when written | | Done | n/a | 04dbc127 | be61a161 |
+| 793d4c1a | Property-based (`rapid`) with named examples (default suite) | the one guarantee an adversarial note must not break: the shape of the block, for any text a note can hold | for any notes whose fields hold arbitrary text, line breaks, control characters, the framing line and lines that read as notes: the block ends with one line feed and has one line more than notes; its first line is the same fixed framing line for every input and begins `[engram memory]`; every other line begins with a dash and a space, never with `[engram memory]`, and holds no control character and no white space but spaces | Done | 93d584e5 | f239e102 | fa641f64 |
 | 793d4b1a | Dedicated example (default suite) | the plan of the mod copies over an in-memory file system: finite and exact | | Done | 7f1b9628 | 90db8458 | 30c80c31 |
 | 793d4b1b | Dedicated example (default suite) | a source without mods plans none and fails nowhere: the existing sources and tests have no mods directory | | Done | 5b38f353 | 5dec69a1 | cecf5759 |
 | 793d4b1c | Dedicated example (default suite) | the wiring of the plan into the update, run through `Updater.Run` over an in-memory file system: the mod reaches the engram-owned root and is linked from the skills directory | | Done | a05fbcdd | 067f61ad | 647dfe7c |
@@ -162,7 +162,7 @@ Takes [793a2b1a The notes that bear on a prompt arrive with it](./793a_product-s
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
 | 793a2b1a | Dedicated example, product acceptance (`network`) | the delivery as the user sees it, with a note that does not bear on the prompt beside one that does: the session holds only the one, before it acts, and the prompt as typed | Done | n/a | b7ff882a | 9f1d0e84 |
-| 793d4a1c | Dedicated example (default suite) | the lookup's payload over a crafted payload: a note only the explore half picked is in the payload of any vault with a vocabulary, and a small test vault has none | Done | 435d427c | | 9f1d0e84 |
+| 793d4a1c | Dedicated example (default suite) | the lookup's payload over a crafted payload: a note only the explore half picked is in the payload of any vault with a vocabulary, and a small test vault has none | Done | 435d427c | cbbf9ca4 | 9f1d0e84 |
 
 #### 793e6a3 A note delivered earlier in the session is not delivered again
 
@@ -170,7 +170,7 @@ Takes [793a2b1b A note delivered earlier in the session is not delivered again](
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2b1b | Dedicated example, product acceptance (`network`) | the second promise of the delivery as the user sees it: two prompts in one real session, the second arriving with nothing from the vault | Green-all | 64cf7053 | 2cf56fc9 | ce8101b8 |
+| 793a2b1b | Dedicated example, product acceptance (`network`) | the second promise of the delivery as the user sees it: two prompts in one real session, the second arriving with nothing from the vault | Done | 64cf7053 | 2cf56fc9 | ce8101b8 |
 | 793d2a1b | Dedicated example, real dependency (`network`) | the session's ID reaches the command: the mod's value propagation, in a real Claude Code session against a stand-in engram | Done | ee4404a4 | 7771477f | c0541b31 |
 | 793d4a1e | Dedicated example (default suite) | no remaining note prints nothing, so a held note's second prompt carries no empty block, through `RunAutoDeliver` | Done | f6bea18c | 2cf56fc9 | d38d4777 |
 | 793d2a1c | Dedicated example, real dependency (`network`) | an empty output adds nothing: a context entry may not be empty, and the session's record must show no context, in a real Claude Code session against a stand-in engram | Done | f867c44c | f395ec9e | a32ff6a4 |
@@ -185,7 +185,7 @@ Takes [793a2b1c A note the agent looked up itself is not delivered](./793a_produ
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2b1c | Dedicated example, product acceptance (`network`) | the other route to a held note as the user sees it: the agent's own lookup, in a session that began before the update, then the update and a resumed session | Green-all | d94dcace | e7e823fd | e68f65f7 |
+| 793a2b1c | Dedicated example, product acceptance (`network`) | the other route to a held note as the user sees it: the agent's own lookup, in a session that began before the update, then the update and a resumed session | Done | d94dcace | e7e823fd | e68f65f7 |
 | 793d4d1d | Dedicated example (default suite) | what a tool printed counts as held, in both shapes a result is recorded in (a string and text blocks), and what the agent wrote does not | Done | 84f83b15 | e7e823fd | 31744d5c |
 
 #### 793e6a5 A prompt that matches no note arrives with nothing
@@ -194,7 +194,7 @@ Takes [793a2b1d A prompt that matches no note arrives with nothing](./793a_produ
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2b1d | Dedicated example, product acceptance (`network`) | the scope of the delivery as the user sees it: a conversation the agent's own lookup finds is not delivered, and a prompt that matches no note is answered as it would be without automatic memory | Green-all | n/a | - | 2f90f045 |
+| 793a2b1d | Dedicated example, product acceptance (`network`) | the scope of the delivery as the user sees it: a conversation the agent's own lookup finds is not delivered, and a prompt that matches no note is answered as it would be without automatic memory | Done | n/a | - | 2f90f045 |
 | 793d4a1f | Dedicated example (default suite) | the chunk index is never listed: the lookup reads notes only, over a chunk-index lister that fails the test when it is called | Done | n/a | be188b04 | 615f328c |
 
 #### 793e6a6 A slow lookup does not hold a prompt for more than 8 seconds
@@ -203,7 +203,7 @@ Takes [793a2d1a A slow lookup does not hold a prompt for more than 8 seconds](./
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2d1a | Dedicated example, product acceptance (`network`) | the bound as the user sees it: a real session whose lookup takes 20 seconds is held for under 8 and answered | Green-all | b87d5da6 | 17bcbc48 | 03de5169 |
+| 793a2d1a | Dedicated example, product acceptance (`network`) | the bound as the user sees it: a real session whose lookup takes 20 seconds is held for under 8 and answered | Done | b87d5da6 | 17bcbc48 | 03de5169 |
 | 793d2a1d | Dedicated example, real dependency (`network`) | the mod's bound and its quiet step aside, in a real Claude Code session against a stand-in engram that takes 20 seconds, read from the session's record and debug log | Done | ea20a874 | 17bcbc48 | 2e1e28d2 |
 
 #### 793e6a7 A vault that does not exist is not created
@@ -212,7 +212,7 @@ Takes [793a2a1e A vault that does not exist is not created](./793a_product-spec.
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2a1e | Dedicated example, product acceptance (`network`) | the promise as the user sees it: after the vault is removed a prompt is answered and the vault is still not there | Green-all | d4336a43 | e924dc61 | 151f36ea |
+| 793a2a1e | Dedicated example, product acceptance (`network`) | the promise as the user sees it: after the vault is removed a prompt is answered and the vault is still not there | Done | d4336a43 | e924dc61 | 151f36ea |
 | 793d4e1a | Dedicated example (default suite) | the dispatch of the command through `cli.Targets` over a real temporary path: the first-use step is in the target's wiring, not in the command, so only a dispatch can show whether it runs | Done | c0aa0717 | e924dc61 | 81f8f93b |
 
 #### 793e6a8 Pi gets no automatic memory
@@ -221,7 +221,7 @@ Takes [793a2a1d Pi gets no automatic memory](./793a_product-spec.md#793a2a1-uat-
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2a1d | Dedicated example, product acceptance (`network`) | the install as the user sees it on a machine with both harnesses: the report and the directories of Pi hold none of the mod (a real `engram update`, no model call) | Green-all | 0616adb8 | fdb1d048 | b17b8478 |
+| 793a2a1d | Dedicated example, product acceptance (`network`) | the install as the user sees it on a machine with both harnesses: the report and the directories of Pi hold none of the mod (a real `engram update`, no model call) | Done | 0616adb8 | fdb1d048 | b17b8478 |
 | 793d4b1d | Dedicated example (default suite) | the gate between the harnesses over the plan: finite and exact | Done | faac2a60 | fdb1d048 | a39fb137 |
 
 #### 793e6a9 A dry run turns nothing on
@@ -255,7 +255,7 @@ read the promoted specs, or deleted with the change, and until then it fails lou
 | --- | --- | --- | --- | --- | --- | --- |
 | `TestScenarioIDs_ListsEachScenarioOnceInOrder` | Dedicated example (dev suite, `targ` tag) | the pure reading of a spec: which scenario IDs it holds, with a scenario restated in a mapping counted once, and prose that merely names an ID left out | Done | e9831720 | 0a7a2596 | 4754603f |
 | `TestScenariosWithoutTest_NamesThoseNoTestSourceDeclares` | Dedicated example (dev suite, `targ` tag) | the pure comparison: an ID has a test only when a test function is named `Test<ID>_`, not when a comment or the longer name of another test mentions it | Done | 75a83363 | 11bfaf7d | a8841eeb |
-| `TestConformance_EveryScenarioOfTheSpecsHasATest` | Dedicated example (dev integration suite, `targ` and `integration` tags) | the real specs of this change against the real test files of the repository, `network`-tagged files included | Done | n/a | - | |
+| `TestConformance_EveryScenarioOfTheSpecsHasATest` | Dedicated example (dev integration suite, `targ` and `integration` tags) | the real specs of this change against the real test files of the repository, `network`-tagged files included | Done | n/a | - | 1588e189 |
 
 ### 793e6b Lessons are written without the agent
 
