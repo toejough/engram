@@ -123,3 +123,42 @@ func Test793a2b1b_ANoteDeliveredEarlierInTheSessionIsNotDeliveredAgain(t *testin
 		g.Expect(inSession.blocksNaming(stagingNote)).To(Equal(1), "blocks in the session that name the note")
 	})
 }
+
+func Test793a2b1c_ANoteTheAgentLookedUpItselfIsNotDelivered(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var (
+		stagingNote string
+		inSession   *session
+	)
+
+	step(t, "Given a session in which, before the user ran engram update, "+
+		"the agent looked up the staging note itself with engram query", func() {
+		machine.hasEngram()
+		machine.hasClaudeCode()
+		stagingNote = machine.learnsFact(stagingReset)
+
+		inSession = machine.startSession("a-project")
+		first := inSession.send(askStagingQuery)
+
+		g.Expect(first.toolResultsNaming(stagingNote)).To(BeTrue(), "the agent's own lookup printed the note")
+		g.Expect(first.blocks()).To(BeEmpty(), "the mod was not installed yet")
+	})
+
+	var second *turn
+
+	step(t, "When the user runs engram update, resumes that session, "+
+		"and sends a prompt asking when the staging database is reset", func() {
+		machine.mustSucceed(machine.update(), "engram update")
+
+		second = inSession.send(askStagingReset)
+		t.Logf("the agent replied %q (cost $%.4f)", second.reply, second.cost)
+	})
+
+	step(t, "Then the prompt arrives with nothing from the vault", func() {
+		g.Expect(second.blocks()).To(BeEmpty(), "blocks automatic memory delivered with the prompt")
+	})
+}

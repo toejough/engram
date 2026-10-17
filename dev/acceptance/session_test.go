@@ -354,6 +354,26 @@ func (t *turn) contexts() []string {
 	return entries
 }
 
+// toolResultsNaming reports whether a result of a tool the agent ran in this turn names a note: the agent looked it up.
+func (t *turn) toolResultsNaming(note string) bool {
+	for _, row := range t.rows {
+		var blocks []struct {
+			Type    string          `json:"type"`
+			Content json.RawMessage `json:"content"`
+		}
+
+		if row.Type == "user" && json.Unmarshal(row.Message.Content, &blocks) == nil {
+			for _, block := range blocks {
+				if block.Type == "tool_result" && strings.Contains(string(block.Content), note) {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
+}
+
 // claudeToken returns the login the live tests use, from the environment or the owner's credential file, and
 // skips the test when there is none. It is handed to the child's environment only, never to a command line or a log.
 func claudeToken(t *testing.T) string {

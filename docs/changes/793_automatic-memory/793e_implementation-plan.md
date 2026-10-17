@@ -168,7 +168,7 @@ Takes [793a2b1b A note delivered earlier in the session is not delivered again](
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2b1b | Dedicated example, product acceptance (`network`) | the second promise of the delivery as the user sees it: two prompts in one real session, the second arriving with nothing from the vault | Green-all | 64cf7053 | 2cf56fc9 | |
+| 793a2b1b | Dedicated example, product acceptance (`network`) | the second promise of the delivery as the user sees it: two prompts in one real session, the second arriving with nothing from the vault | Green-all | 64cf7053 | 2cf56fc9 | ce8101b8 |
 | 793d2a1b | Dedicated example, real dependency (`network`) | the session's ID reaches the command: the mod's value propagation, in a real Claude Code session against a stand-in engram | Done | ee4404a4 | 7771477f | c0541b31 |
 | 793d4a1e | Dedicated example (default suite) | no remaining note prints nothing, so a held note's second prompt carries no empty block, through `RunAutoDeliver` | Done | f6bea18c | 2cf56fc9 | d38d4777 |
 | 793d2a1c | Dedicated example, real dependency (`network`) | an empty output adds nothing: a context entry may not be empty, and the session's record must show no context, in a real Claude Code session against a stand-in engram | Done | f867c44c | f395ec9e | a32ff6a4 |
@@ -183,7 +183,7 @@ Takes [793a2b1c A note the agent looked up itself is not delivered](./793a_produ
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2b1c | Dedicated example, product acceptance (`network`) | the other route to a held note as the user sees it: the agent's own lookup, in a session that began before the update, then the update and a resumed session | Not started | | | |
+| 793a2b1c | Dedicated example, product acceptance (`network`) | the other route to a held note as the user sees it: the agent's own lookup, in a session that began before the update, then the update and a resumed session | Red | | | |
 | 793d4d1d | Dedicated example (default suite) | what a tool printed counts as held, in both shapes a result is recorded in (a string and text blocks), and what the agent wrote does not | Not started | | | |
 
 #### 793e6a5 A prompt that matches no note arrives with nothing

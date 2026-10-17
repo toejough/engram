@@ -12,6 +12,10 @@ import (
 
 // unexported constants.
 const (
+	// askStagingQuery makes the agent look the stagingReset note up itself, with a command that names no word of the
+	// note's situation.
+	askStagingQuery = "Run this shell command and tell me how many items it returned: " +
+		"engram query --phrase 'staging database reset schedule' --limit 5"
 	// askStagingReset is a prompt that the stagingReset note answers. The Zorblax staging database is made up, so
 	// the agent cannot know the answer without the note.
 	askStagingReset = "When is the Zorblax staging database reset?"
