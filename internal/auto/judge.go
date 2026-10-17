@@ -205,26 +205,20 @@ func noteLines(notes []Note) string {
 	return strings.Join(lines, "\n")
 }
 
-// oneLined writes text as one line: a break of the text's own is written ` ⏎ `, any other white space is a space, a
-// control or format character is dropped, and runs of spaces are one space, so that no message makes a line of its own
-// (793d4g).
+// oneLined writes text as one line as oneLine does, with a break of the text's own written ` ⏎ `, so that no message
+// makes a line of its own (793d4g).
 func oneLined(text string) string {
-	var line strings.Builder
+	var broken strings.Builder
 
 	for _, r := range text {
-		switch {
-		case isLineBreak(r):
-			line.WriteString(lineBreak)
-		case unicode.IsSpace(r):
-			line.WriteRune(' ')
-		case unicode.IsControl(r), unicode.Is(unicode.Cf, r):
-			continue
-		default:
-			line.WriteRune(r)
+		if isLineBreak(r) {
+			broken.WriteString(lineBreak)
+		} else {
+			broken.WriteRune(r)
 		}
 	}
 
-	return strings.Join(strings.Fields(line.String()), " ")
+	return oneLine(broken.String())
 }
 
 // promptTextOf reads the text of a prompt of the user: the content is a string, or text blocks. The content that holds
@@ -265,11 +259,7 @@ func sizeOf(lines []string) int {
 // withAnswer adds the final text as the last line of the turn unless a line of the turn already holds its beginning.
 func withAnswer(turn []string, answer string) []string {
 	line := agentLine(answer)
-	probe := strings.TrimPrefix(line, "Agent: ")
-
-	if runes := []rune(probe); len(runes) > answerProbe {
-		probe = string(runes[:answerProbe])
-	}
+	probe := clipped(strings.TrimPrefix(line, "Agent: "), answerProbe)
 
 	if probe == "" || slices.ContainsFunc(turn, func(existing string) bool { return strings.Contains(existing, probe) }) {
 		return turn
