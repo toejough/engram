@@ -717,3 +717,34 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 - **Alternatives:** the hook's own limit of 10 seconds (rejected: it does not count the call, and it is more than the
   8 seconds); a limit inside the command (rejected: a command that hangs cannot end itself).
 - **Decided by:** Author (default; owner may override).
+
+## 793b47 A dry run reports the mod as a mod
+
+- **Choice:** the report of [`engram update`](../../GLOSSARY.md#engram-update), with or without `--dry-run`, lists a mod
+  in the section of Claude Code with `agent-instructions/mods/<name>/` as its source, where a skill is listed with
+  `agent-instructions/skills/<name>/`. The dry run plans and reports the mod as it does the skills, and writes none of
+  it. The plan marks the files of a mod, and the report data marks each directory it counts, as a skill or a mod.
+- **Rationale:** a preview exists to tell the user what an update would turn on
+  ([793a2a1c A dry run turns nothing on](./793a_product-spec.md#793a2a1-uat-scenarios)). A mod listed under the source of
+  a skill names a directory it does not come from: the first run of that scenario showed the row
+  `agent-instructions/skills/engram-memory/`. The mark costs one field on the plan and one on the report data.
+- **Alternatives:** leave the row as it was (rejected: it names the wrong source); a section of the report for mods
+  (rejected: it changes the shape of the report for every reader, for no scenario).
+- **Decided by:** Author (default; owner may override).
+
+## 793b48 The conformance check reads this change's specs and fails when they are gone
+
+- **Choice:** the check that every scenario ID of the product spec and the technical spec has a test, a function named
+  `Test<ID>_...` in any `_test.go` file whatever its build tags, is a test of the dev integration suite, so
+  `targ check-full` runs it. It reads the specs from this change's directory and fails, naming the cause, when they are
+  not there; at promotion, when the directory is deleted, it moves to read the promoted specs or is deleted with the
+  change. It checks one direction: a test whose name carries no scenario ID, or one that names an ID no spec holds, is
+  not an error.
+- **Rationale:** the owner's rule ([793b9 Test execution](#793b9-test-execution)) asks for the check, and running it
+  with the other checks keeps it from being forgotten. Skipping when the specs are missing would let promotion drop the
+  guard unnoticed, and a missing input is a failure, not a pass. One direction is what the rule says: helper tests and
+  the tests of other changes carry no scenario ID of this one.
+- **Alternatives:** a target of its own outside `targ check-full` (rejected: it could be forgotten); skipping when the
+  directory is missing (rejected: it passes with nothing checked); both directions (rejected: other changes' tests carry
+  other IDs).
+- **Decided by:** Author (default; owner may override).

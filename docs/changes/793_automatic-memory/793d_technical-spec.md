@@ -123,7 +123,8 @@ Scenario: 793d2a1d A slow command is ended and the prompt continues
   own, the choice of notes to deliver is the delivery's; independent verification, it is tested over records of a
   session; stability, it survives any change to how the delivery uses it; necessity, a note the agent holds must not be
   delivered again ([793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt)).
-- **harness-deploy-sync** (updated): plans, links, reports and removes the mod as it does a skill directory.
+- **harness-deploy-sync** (updated): plans, links, reports and removes the mod as it does a skill directory, and
+  reports it as a mod ([793b47 A dry run reports the mod as a mod](./793b_decision-log.md#793b47-a-dry-run-reports-the-mod-as-a-mod)).
 - **query-engine** (retained): the lookup of notes for text, used as `engram query` uses it.
 - **Claude Code's mod runtime** (an external boundary, retained): loads a mod from `~/.claude/skills/<name>`, runs its
   `prompt.submit` function for each prompt, runs the commands it asks for, and carries the context it returns to the
