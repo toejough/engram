@@ -12,6 +12,14 @@ const MARKER = '[engram memory]'
 // A failure the writing records is cut to this many characters (793d4k).
 const FAILURE_MAX = 300
 
+// The bounds of the stages of the capture of a turn (793d2b): the call for the session's ID, `engram auto judge`,
+// `engram auto write` and the run of it that reports a failure. With the 60 seconds that the request of the model holds
+// they are 115 seconds, under the 2 minutes of the product (793a2c).
+const ID_BOUND_MS = 5000
+const JUDGE_BOUND_MS = 15000
+const WRITE_BOUND_MS = 20000
+const REPORT_BOUND_MS = 15000
+
 // Every request the judgement prints opens with this (793d4g); anything else is not a request.
 const REQUEST = '{"model":'
 
@@ -61,12 +69,13 @@ export function register(on) {
   })
 }
 
-// ask is the text of the model's answer to a request, and fails when the model gives none (793d2b).
+// ask is the text of the model's answer to a request, and fails when the model gives none (793d2b). The call ends at the
+// time limit that the request holds.
 async function ask($, request) {
   let reply
 
   try {
-    reply = await $.model.complete(JSON.parse(request))
+    reply = await $.model.complete(request)
   } catch (error) {
     throw new Error(`the model call failed: ${describe(error)}`)
   }
@@ -78,32 +87,46 @@ async function ask($, request) {
   return reply.text
 }
 
+// bounded is what a promise gives, or a failure that names it when it gives nothing within the bound: the host gives
+// some calls no time limit of their own (793d2b).
+async function bounded(promise, bound, what) {
+  let timer
+  const late = new Promise((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(`${what} gave nothing within ${bound} ms`)), bound)
+  })
+
+  try {
+    return await Promise.race([promise, late])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 // captureLessons judges a turn that ended, asks the model for the judgement and has the lessons written (793d2b). It
 // ends quietly when the judgement has nothing to judge, and has the writing record the failure of a step that fails:
-// the turn went on as if automatic memory were not installed.
+// the turn went on as if automatic memory were not installed. Each stage has its bound, and a session whose ID does
+// not come is left alone, since the writing cannot record anything without it.
 async function captureLessons($, e, turn) {
   let session = ''
 
   try {
-    session = await $.session.id()
+    session = await bounded($.session.id(), ID_BOUND_MS, "the call for the session's ID")
 
-    const request = await run($, 'judge', {
+    const printed = await run($, 'judge', {
       session,
       turn: e.turnId,
       text: turn.text,
       answer: e.answer,
       origin: turn.origin,
-    })
+    }, JUDGE_BOUND_MS)
 
-    if (request === '') {
+    if (printed === '') {
       return
     }
 
-    if (!request.startsWith(REQUEST)) {
-      throw new Error('engram auto judge printed what is not a request')
-    }
+    const reply = await ask($, requestOf(printed))
 
-    await run($, 'write', { session, turn: e.turnId, reply: await ask($, request) })
+    await run($, 'write', { session, turn: e.turnId, reply }, WRITE_BOUND_MS)
   } catch (error) {
     await report($, session, e.turnId, error)
   }
@@ -140,6 +163,20 @@ async function notesFor($, e) {
   }
 }
 
+// requestOf is the request for the model that the judgement printed, or a failure that names the judgement when what it
+// printed is not one, or is not a JSON object (793d2b).
+function requestOf(printed) {
+  if (!printed.startsWith(REQUEST)) {
+    throw new Error('engram auto judge printed what is not a request')
+  }
+
+  try {
+    return JSON.parse(printed)
+  } catch (error) {
+    throw new Error(`engram auto judge printed a request that is not JSON: ${describe(error)}`)
+  }
+}
+
 // originOf is the kind of origin that Claude Code stamped on a prompt, or nothing when it stamped none (793d2a).
 function originOf(e) {
   return e.origin?.kind ?? ''
@@ -163,7 +200,7 @@ async function report($, session, turn, error) {
   }
 
   try {
-    await run($, 'write', { session, turn, failure: describe(error).slice(0, FAILURE_MAX) })
+    await run($, 'write', { session, turn, failure: describe(error).slice(0, FAILURE_MAX) }, REPORT_BOUND_MS)
   } catch {
     // nothing more can be done
   }

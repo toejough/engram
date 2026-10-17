@@ -5,6 +5,7 @@ package dev
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -218,95 +219,6 @@ func Test793d2b1f_Mod_ATurnOfASubagentIsNotCaptured(t *testing.T) {
 	g.Expect(outcome.Calls).To(BeEmpty(), "neither the judgement, the model nor the writing was asked")
 }
 
-func Test793d2b1j_Mod_AStageThatStallsIsEndedAtItsBoundAndReported(t *testing.T) {
-	t.Parallel()
-
-	judged := map[string]any{"exitCode": 0, "stdout": requestPrinted}
-	answered := map[string]any{"isAnswered": true, "text": "THE REPLY"}
-
-	t.Run("the call for the session's ID", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		outcome := runCaptureDriver(t, captureScenario{Judge: judged, Model: answered, Stalls: "id"})
-
-		g.Expect(outcome.Delays).To(ContainElement(5000), "the mod waited 5 seconds for the ID")
-		g.Expect(outcome.Calls).To(BeEmpty(), "and then did nothing: no record can be made without the ID")
-	})
-
-	for name, stage := range map[string]struct {
-		stalls   string
-		want     []stepLimit
-		reported string
-	}{
-		"the judgement": {
-			stalls: "judge", reported: "engram auto judge",
-			want: []stepLimit{{"engram auto judge", 15000}, {"engram auto write", 15000}},
-		},
-		"the model's call": {
-			stalls: "model", reported: "model call",
-			want: []stepLimit{{"engram auto judge", 15000}, {"model", 60000}, {"engram auto write", 15000}},
-		},
-		"the writing": {
-			stalls: "write", reported: "engram auto write",
-			want: []stepLimit{
-				{"engram auto judge", 15000}, {"model", 60000}, {"engram auto write", 20000}, {"engram auto write", 15000},
-			},
-		},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			outcome := runCaptureDriver(t, captureScenario{Judge: judged, Model: answered, Stalls: stage.stalls})
-
-			g.Expect(outcome.stepsAndLimits()).To(Equal(stage.want), "the calls the mod made, with their time limits")
-
-			if len(outcome.Calls) > 0 {
-				last := outcome.Calls[len(outcome.Calls)-1]
-				g.Expect(last.Input["failure"]).To(ContainSubstring(stage.reported), "the failure names the stage")
-			}
-		})
-	}
-
-	t.Run("the stages together", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		outcome := runCaptureDriver(t, captureScenario{Judge: judged, Model: answered, Stalls: "write"})
-
-		// the longest chain: the ID, the judgement, the model, the writing that stalls, and the report of that
-		g.Expect(outcome.Delays).To(ContainElement(5000), "the bound of the ID")
-		g.Expect(outcome.limits()).To(HaveLen(4))
-		g.Expect(outcome.limits()).To(HaveEach(BeNumerically(">", 0)), "every stage has a limit")
-
-		total := 5000.0
-		for _, limit := range outcome.limits() {
-			total += limit
-		}
-
-		g.Expect(total).To(BeNumerically("<", 120000), "the stages together, in milliseconds")
-	})
-}
-
-func Test793d2b1k_Mod_ARequestThatIsNotJSONIsAFailureOfTheJudgement(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	outcome := runCaptureDriver(t, captureScenario{
-		Judge: map[string]any{"exitCode": 0, "stdout": `{"model": oops` + "\n"},
-		Model: map[string]any{"isAnswered": true, "text": "THE REPLY"},
-	})
-
-	g.Expect(outcome.Calls).To(HaveLen(2), "the judgement, and the report to the writing: the model was never asked")
-
-	if len(outcome.Calls) == 2 {
-		g.Expect(outcome.Calls[1].Step).To(Equal("engram auto write"))
-		g.Expect(outcome.Calls[1].Input["failure"]).To(ContainSubstring("engram auto judge"))
-	}
-}
-
 func Test793d2b1g_Mod_TheJudgementReceivesTheTextTheTurnBeganWith(t *testing.T) {
 	t.Parallel()
 
@@ -381,6 +293,95 @@ func Test793d2b1i_Mod_ATurnThatStartsWithNoTextHasNoOrigin(t *testing.T) {
 		g.Expect(judgements[1]).To(Equal(map[string]any{
 			"session": "a-session", "turn": "t2", "text": "", "answer": "continued", "origin": "",
 		}))
+	}
+}
+
+func Test793d2b1j_Mod_AStageThatStallsIsEndedAtItsBoundAndReported(t *testing.T) {
+	t.Parallel()
+
+	judged := map[string]any{"exitCode": 0, "stdout": requestPrinted}
+	answered := map[string]any{"isAnswered": true, "text": "THE REPLY"}
+
+	t.Run("the call for the session's ID", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		outcome := runCaptureDriver(t, captureScenario{Judge: judged, Model: answered, Stalls: "id"})
+
+		g.Expect(outcome.Delays).To(ContainElement(5000), "the mod waited 5 seconds for the ID")
+		g.Expect(outcome.Calls).To(BeEmpty(), "and then did nothing: no record can be made without the ID")
+	})
+
+	for name, stage := range map[string]struct {
+		stalls   string
+		want     []string
+		reported string
+	}{
+		"the judgement": {
+			stalls: "judge", reported: "engram auto judge",
+			want: []string{"engram auto judge: 15000", "engram auto write: 15000"},
+		},
+		"the model's call": {
+			stalls: "model", reported: "model call",
+			want: []string{"engram auto judge: 15000", "model: 60000", "engram auto write: 15000"},
+		},
+		"the writing": {
+			stalls: "write", reported: "engram auto write",
+			want: []string{
+				"engram auto judge: 15000", "model: 60000", "engram auto write: 20000", "engram auto write: 15000",
+			},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			outcome := runCaptureDriver(t, captureScenario{Judge: judged, Model: answered, Stalls: stage.stalls})
+
+			g.Expect(outcome.stepsAndLimits()).To(Equal(stage.want), "the calls the mod made, with their time limits")
+
+			if len(outcome.Calls) > 0 {
+				last := outcome.Calls[len(outcome.Calls)-1]
+				g.Expect(last.Input["failure"]).To(ContainSubstring(stage.reported), "the failure names the stage")
+			}
+		})
+	}
+
+	t.Run("the stages together", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		outcome := runCaptureDriver(t, captureScenario{Judge: judged, Model: answered, Stalls: "write"})
+
+		// the longest chain: the ID, the judgement, the model, the writing that stalls, and the report of that
+		g.Expect(outcome.Delays).To(ContainElement(5000), "the bound of the ID")
+		g.Expect(outcome.limits()).To(HaveLen(4))
+		g.Expect(outcome.limits()).To(HaveEach(BeNumerically(">", 0)), "every stage has a limit")
+
+		total := 5000.0
+		for _, limit := range outcome.limits() {
+			total += limit
+		}
+
+		g.Expect(total).To(BeNumerically("<", 120000), "the stages together, in milliseconds")
+	})
+}
+
+func Test793d2b1k_Mod_ARequestThatIsNotJSONIsAFailureOfTheJudgement(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runCaptureDriver(t, captureScenario{
+		Judge: map[string]any{"exitCode": 0, "stdout": `{"model": oops` + "\n"},
+		Model: map[string]any{"isAnswered": true, "text": "THE REPLY"},
+	})
+
+	g.Expect(outcome.Calls).To(HaveLen(2), "the judgement, and the report to the writing: the model was never asked")
+
+	if len(outcome.Calls) == 2 {
+		g.Expect(outcome.Calls[1].Step).To(Equal("engram auto write"))
+		g.Expect(outcome.Calls[1].Input["failure"]).To(ContainSubstring("engram auto judge"))
 	}
 }
 
@@ -551,12 +552,6 @@ console.log(JSON.stringify({ passed, delays, ran: ran.length }))
 		`"maxTokens":1500,"timeoutMs":60000}` + "\n"
 )
 
-// stepLimit is a call the mod made and the time limit it gave the call.
-type stepLimit struct {
-	step  string
-	limit float64
-}
-
 // captureOutcome is what captureDriver printed.
 type captureOutcome struct {
 	Returned struct {
@@ -570,6 +565,19 @@ type captureOutcome struct {
 		Asked     map[string]any `json:"asked"`
 		TimeoutMs float64        `json:"timeoutMs"`
 	} `json:"calls"`
+}
+
+// inputsOf returns the inputs of the calls that ran a step, in the order they were made.
+func (o captureOutcome) inputsOf(step string) []map[string]any {
+	var inputs []map[string]any
+
+	for _, call := range o.Calls {
+		if call.Step == step {
+			inputs = append(inputs, call.Input)
+		}
+	}
+
+	return inputs
 }
 
 // limits returns the time limit of each call the mod made, in order: that of a command, and that of the request of the
@@ -589,28 +597,15 @@ func (o captureOutcome) limits() []float64 {
 	return limits
 }
 
-// stepsAndLimits returns each call the mod made, in order, with its time limit.
-func (o captureOutcome) stepsAndLimits() []stepLimit {
-	steps := make([]stepLimit, 0, len(o.Calls))
+// stepsAndLimits returns each call the mod made, in order, with its time limit: "<step>: <milliseconds>".
+func (o captureOutcome) stepsAndLimits() []string {
+	steps := make([]string, 0, len(o.Calls))
 
 	for index, limit := range o.limits() {
-		steps = append(steps, stepLimit{step: o.Calls[index].Step, limit: limit})
+		steps = append(steps, fmt.Sprintf("%s: %.0f", o.Calls[index].Step, limit))
 	}
 
 	return steps
-}
-
-// inputsOf returns the inputs of the calls that ran a step, in the order they were made.
-func (o captureOutcome) inputsOf(step string) []map[string]any {
-	var inputs []map[string]any
-
-	for _, call := range o.Calls {
-		if call.Step == step {
-			inputs = append(inputs, call.Input)
-		}
-	}
-
-	return inputs
 }
 
 // captureScenario is how the stand-in host of captureDriver behaves: its judgement and its model, the origin of the
