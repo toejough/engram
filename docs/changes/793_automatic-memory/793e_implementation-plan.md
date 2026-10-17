@@ -301,7 +301,7 @@ Builds the pipeline the other nodes of the group extend: the mod's capture of a 
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1e | Dedicated example, product acceptance (`network`) | the [agent](./793a_product-spec.md#793a1a-terms) is unsure of an approach, tries it, and the [turn](./793a_product-spec.md#793a1a-terms) shows the check passed (the staging names the one command to run: the agent had added an echo the permission denied); the first node's instructions passed 17 of 20 runs (11 of 20 probes gave a lesson), and 10 of 10 runs (20 of 20 probes) once they said an approach the agent was unsure of, tried and saw succeed is a lesson | 10 of 10 | Done | 4a70996b | 6e918969 | 9cdc03f4 |
+| 793a2c1e | Dedicated example, product acceptance (`network`) | the [agent](./793a_product-spec.md#793a1a-terms) is unsure of an approach, tries it, and the [turn](./793a_product-spec.md#793a1a-terms) shows the check passed (the staging names the one command to run: the agent had added an echo that the permission denied); the first node's instructions passed 17 of 20 runs (11 of 20 probes gave a lesson): in the three failed runs the judgement found no lesson in a turn that says "I do not know whether the flag makes the check pass" and then "the check passed"; once they said an approach the agent was unsure of, tried and saw succeed is a lesson even when the user asked for the try, the probe gave 20 of 20 and the row 10 of 10 runs | 10 of 10 | Done | 4a70996b | 6e918969 | 9cdc03f4 |
 
 #### 793e6b6 Guesses, plans and chatter produce no note
 
