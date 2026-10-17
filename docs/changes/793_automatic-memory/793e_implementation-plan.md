@@ -344,7 +344,7 @@ Takes [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-
 | 793d4h1b | Dedicated example (default suite) | a fact lesson becomes a fact note with the mark | | Done | 14576dd7 | c9b440cf | |
 | 793d4h1c | Dedicated example (default suite) | the replies and lessons that write nothing | | Done | 14576dd7 | c9b440cf | |
 | 793d4h1d | Dedicated example (default suite) | the code fence a model may put around the list | | Done | 14576dd7 | c9b440cf | |
-| 793d2b1a | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the mod's routing of a turn against a stand-in host: the order of the three steps and what each is given; a live session cannot show what a stand-in records | | Not started | | | |
+| 793d2b1a | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the mod's routing of a turn against a stand-in host: the order of the three steps and what each is given; a live session cannot show what a stand-in records | | Red | | | |
 
 ### 793e6e The conversation becomes searchable memory
 

@@ -70,6 +70,34 @@ func Test793d2a1g_Mod_ASessionThatDoesNotGiveItsIDInTimeDoesNotHoldThePrompt(t *
 	g.Expect(outcome.Ran).To(BeZero(), "the command was run")
 }
 
+// Test793d2b1a_Mod_JudgesATurnAndGivesTheReplyToTheWriting runs the mod under node against a stand-in host: a live
+// session cannot show what a stand-in records. The stand-in's judgement does not answer until the driver lets it, so a
+// hook that waited for the job would not give the event's result back.
+func Test793d2b1a_Mod_JudgesATurnAndGivesTheReplyToTheWriting(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runCaptureDriver(t, captureDriver)
+
+	g.Expect(outcome.Returned.Text).To(Equal("Understood."), "the event's result is given back")
+	g.Expect(outcome.Held).To(BeFalse(), "the event's result was not given back while the judgement was running")
+	g.Expect(outcome.Calls).To(HaveLen(3), "the judgement, the model and the writing, in that order")
+
+	if len(outcome.Calls) != 3 {
+		return
+	}
+
+	g.Expect(outcome.Calls[0].Step).To(Equal("engram auto judge"))
+	g.Expect(outcome.Calls[0].Input).To(Equal(map[string]any{"session": "a-session", "answer": "Understood."}))
+	g.Expect(outcome.Calls[1].Step).To(Equal("model"))
+	g.Expect(outcome.Calls[1].Asked).To(Equal(map[string]any{
+		"model": "haiku", "effort": "low", "prompt": "THE PROMPT", "maxTokens": float64(1500), "timeoutMs": float64(60000),
+	}), "the request, exactly as the judgement printed it")
+	g.Expect(outcome.Calls[2].Step).To(Equal("engram auto write"))
+	g.Expect(outcome.Calls[2].Input).To(Equal(map[string]any{"session": "a-session", "reply": "THE REPLY"}))
+}
+
 // TestMods_EveryJavaScriptModuleParses: the real mods parse under the real node, and the real node rejects a broken
 // module, which the stand-in node of the unit tests cannot show (793b55).
 func TestMods_EveryJavaScriptModuleParses(t *testing.T) {
@@ -99,6 +127,53 @@ func TestMods_EveryJavaScriptModuleParses(t *testing.T) {
 
 // unexported constants.
 const (
+	// captureDriver runs the turn.complete hook of the module named by MOD against a host whose judgement prints a
+	// request once the driver lets it, whose model answers THE REPLY, and which records the order and the input of
+	// what the module asks of it. It prints what the hook returned, whether the hook was still waiting when the
+	// driver gave up on it, and the calls.
+	captureDriver = `
+import { pathToFileURL } from 'node:url'
+
+const { register } = await import(pathToFileURL(process.env.MOD).href)
+const handlers = {}
+register((name, handler) => { handlers[name] = handler })
+
+const request = { model: 'haiku', effort: 'low', prompt: 'THE PROMPT', maxTokens: 1500, timeoutMs: 60000 }
+const calls = []
+let letJudgementAnswer
+const judgement = new Promise((resolve) => { letJudgementAnswer = resolve })
+
+const host = {
+  session: { id: async () => 'a-session' },
+  process: {
+    run: async (argv, init) => {
+      calls.push({ step: argv.join(' '), input: JSON.parse(init.stdin) })
+      return argv[2] === 'judge' ? judgement : { exitCode: 0, stdout: '' }
+    },
+  },
+  model: {
+    complete: async (asked) => {
+      calls.push({ step: 'model', asked })
+      return { isAnswered: true, text: 'THE REPLY' }
+    },
+  },
+  ui: { log: () => {} },
+}
+
+const waited = Symbol('waited')
+const hook = handlers['turn.complete'](host, { answer: 'Understood.', turnId: 't1', reason: 'answer' },
+  async (event) => ({ text: event.answer }))
+const returned = await Promise.race([hook, new Promise((resolve) => setTimeout(() => resolve(waited), 500))])
+const held = returned === waited
+
+letJudgementAnswer({ exitCode: 0, stdout: JSON.stringify(request) + '\n' })
+
+for (let tick = 0; tick < 200 && calls.length < 3; tick++) {
+  await new Promise((resolve) => setTimeout(resolve, 10))
+}
+
+console.log(JSON.stringify({ returned: held ? {} : returned, held, calls }))
+`
 	// driverTimeout is how long the mod may take under the stand-in host before the test gives it up.
 	driverTimeout = 20 * time.Second
 	// hostDriver runs the prompt.submit hook of the module named by MOD against a host whose call for the session's ID
@@ -125,6 +200,63 @@ await handlers['prompt.submit'](host, { text: 'hello', context: [] }, async (eve
 console.log(JSON.stringify({ passed, delays, ran: ran.length }))
 `
 )
+
+// captureOutcome is what captureDriver printed.
+type captureOutcome struct {
+	Returned struct {
+		Text string `json:"text"`
+	} `json:"returned"`
+	Held  bool `json:"held"`
+	Calls []struct {
+		Step  string         `json:"step"`
+		Input map[string]any `json:"input"`
+		Asked map[string]any `json:"asked"`
+	} `json:"calls"`
+}
+
+// runCaptureDriver runs a driver under node against the mod of the source, and reads what it printed.
+func runCaptureDriver(t *testing.T, driver string) captureOutcome {
+	t.Helper()
+
+	node, findErr := findNode()
+	if findErr != nil {
+		t.Fatalf("finding node: %v", findErr)
+	}
+
+	source, readErr := os.ReadFile(filepath.Join(repositoryRoot, "agent-instructions", "mods", "engram-memory", "hooks",
+		"register.js"))
+	if readErr != nil {
+		t.Fatalf("reading the mod: %v", readErr)
+	}
+
+	// a module under a name that node reads as one, whatever release of node it is
+	module := filepath.Join(t.TempDir(), "register.mjs")
+
+	writeErr := os.WriteFile(module, source, 0o600)
+	if writeErr != nil {
+		t.Fatalf("writing the mod: %v", writeErr)
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), driverTimeout)
+	defer cancel()
+
+	command := exec.CommandContext(ctx, node, "--input-type=module", "--eval", driver)
+	command.Env = append(os.Environ(), "MOD="+module)
+
+	out, runErr := command.CombinedOutput()
+	if runErr != nil {
+		t.Fatalf("the mod did not run under the stand-in host (%v): %s", runErr, out)
+	}
+
+	var outcome captureOutcome
+
+	unmarshalErr := json.Unmarshal(out, &outcome)
+	if unmarshalErr != nil {
+		t.Fatalf("the driver printed %q: %v", out, unmarshalErr)
+	}
+
+	return outcome
+}
 
 // modulesOf reads every JavaScript file below a directory, by its path relative to the directory.
 func modulesOf(t *testing.T, dir string) map[string]string {
