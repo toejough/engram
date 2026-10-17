@@ -198,7 +198,7 @@ graph TD
     n793e6g15 --> n793e6g16
     n793e6g17["793e6g17 The runs of the judgement rows are tallied and the probe is kept<br/>Complete"]
     n793e6g16 --> n793e6g17
-    n793e6g18["793e6g18 The documents say what the group does<br/>Ready"]
+    n793e6g18["793e6g18 The documents say what the group does<br/>Complete"]
     n793e6g17 --> n793e6g18
     n793e6g18 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
@@ -724,11 +724,11 @@ Takes review findings 16, 17, 20, 27 and 28, which change no behaviour and have 
 
 | Finding | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 16 | Documentation | `README.md` and `AGENTS.md` name the commands `engram auto judge` and `engram auto write`, the flag `--records`, the field `origin` of the request (a delivery without it prints nothing), the capture of lessons, and the opt-in for headless [prompts](./793a_product-spec.md#793a1a-terms) (`ENGRAM_AUTO_CAPTURE_SDK`, `--capture-sdk`), where the delivery was named before | Not started | | | |
-| 17 | Documentation | [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) and [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) promise their work only while the [session](../../GLOSSARY.md#session) stays open for the 2 minutes, as [793b37 A turn followed by the end of the session is not covered](./793b_decision-log.md#793b37-a-turn-followed-by-the-end-of-the-session-is-not-covered) decided | Not started | | | |
-| 20 | Documentation | [793b89 Each automatic note is offered to the parent vault, and the duplicate check stays local](./793b_decision-log.md#793b89-each-automatic-note-is-offered-to-the-parent-vault-and-the-duplicate-check-stays-local) and [793c59 Should an automatic note be offered to the parent vault while the duplicate check ignores it?](./793c_open-questions.md#793c59-should-an-automatic-note-be-offered-to-the-parent-vault-while-the-duplicate-check-ignores-it); nothing is built | Not started | | | |
-| 27 | Documentation | eight links whose label was not the heading they point to: three labels cut short, three that named a lesson with a word that is not a defined term, and three that kept the word Modified of a heading | Not started | | | |
-| 28 | Documentation | the correction of the message of the commit `37b0e9a9`, in the intro of [793e6b6 Guesses, plans and chatter produce no note](#793e6b6-guesses-plans-and-chatter-produce-no-note), without an amend | Not started | | | |
+| 16 | Documentation | `README.md` and `AGENTS.md` name the commands `engram auto judge` and `engram auto write`, the flag `--records`, the field `origin` of the request (a delivery without it prints nothing), the capture of lessons, and the opt-in for headless [prompts](./793a_product-spec.md#793a1a-terms) (`ENGRAM_AUTO_CAPTURE_SDK`, `--capture-sdk`), where the delivery was named before | Done | n/a | 87688f5f | n/a |
+| 17 | Documentation | [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) and [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) promise their work only while the [session](../../GLOSSARY.md#session) stays open for the 2 minutes, as [793b37 A turn followed by the end of the session is not covered](./793b_decision-log.md#793b37-a-turn-followed-by-the-end-of-the-session-is-not-covered) decided | Done | n/a | 87688f5f | n/a |
+| 20 | Documentation | [793b89 Each automatic note is offered to the parent vault, and the duplicate check stays local](./793b_decision-log.md#793b89-each-automatic-note-is-offered-to-the-parent-vault-and-the-duplicate-check-stays-local) and [793c59 Should an automatic note be offered to the parent vault while the duplicate check ignores it?](./793c_open-questions.md#793c59-should-an-automatic-note-be-offered-to-the-parent-vault-while-the-duplicate-check-ignores-it); nothing is built | Done | n/a | 87688f5f | n/a |
+| 27 | Documentation | eight links whose label was not the heading they point to: three labels cut short, three that named a lesson with a word that is not a defined term, and three that kept the word Modified of a heading | Done | n/a | 87688f5f | n/a |
+| 28 | Documentation | the correction of the message of the commit `37b0e9a9`, in the intro of [793e6b6 Guesses, plans and chatter produce no note](#793e6b6-guesses-plans-and-chatter-produce-no-note), without an amend | Done | n/a | 87688f5f | n/a |
 
 ### 793e6e The conversation becomes searchable memory
 
