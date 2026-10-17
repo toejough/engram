@@ -1207,6 +1207,14 @@ func (u *Updater) planAndApply(
 		return report, planErr
 	}
 
+	// The mods are deployed with the skills: a mod is a directory of the skills directory (793d4b).
+	modOps, modPlanErr := planModCopies(filepath.Join(source.Root, "agent-instructions", "mods"), home, harnesses, u.FS)
+	if modPlanErr != nil {
+		return report, modPlanErr
+	}
+
+	skillOps = append(skillOps, modOps...)
+
 	report.GuidanceImports = u.detectGuidanceImports(home, harnesses)
 	report.GuidanceImported = len(report.GuidanceImports) > 0
 
