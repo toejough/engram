@@ -350,6 +350,53 @@ func Test793d4j1i_RunAutoWrite_ANoteHoldsNoCredentialThatCharactersNotShownSplit
 	})
 }
 
+func Test793d4k1g_RunAutoWrite_ALessonThatCannotBeWrittenIsRecordedOnceAndDoesNotFailTheCommand(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	records := &recordedFiles{}
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", RecordsDir: "/data/auto"},
+		cli.AutoWriteDeps{
+			Stdin: replyInput(feedbackLessonReply),
+			Learn: func(context.Context, cli.LearnArgs) (string, error) {
+				return "", errors.New("the vault is locked")
+			},
+			Now:         func() time.Time { return recordedAt },
+			WriteRecord: records.write,
+		}, &out)
+	g.Expect(err).NotTo(HaveOccurred(), "the failure is recorded, so the command succeeds")
+
+	g.Expect(records.kinds()).To(Equal([]string{"failed"}))
+	g.Expect(out.String()).To(BeEmpty(), "no note was written")
+
+	for _, record := range records.all() {
+		g.Expect(record).To(HaveKeyWithValue("slug", "format-before-commit"))
+		g.Expect(record["reason"]).To(ContainSubstring("the vault is locked"))
+	}
+}
+
+func Test793d4k1h_RunAutoWrite_AFailureThatCannotBeRecordedFailsTheCommand(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", RecordsDir: "/data/auto"},
+		cli.AutoWriteDeps{
+			Stdin: replyInput(feedbackLessonReply),
+			Learn: func(context.Context, cli.LearnArgs) (string, error) {
+				return "", errors.New("the vault is locked")
+			},
+			Now:         func() time.Time { return recordedAt },
+			WriteRecord: func(string, []byte) error { return errors.New("the disk is full") },
+		}, &out)
+
+	g.Expect(err).To(MatchError(ContainSubstring("the vault is locked")))
+}
+
 func Test793d4k1a_RunAutoWrite_ALessonThatIsWrittenIsRecordedWithItsNote(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
