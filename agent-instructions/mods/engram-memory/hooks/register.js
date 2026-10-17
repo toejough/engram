@@ -5,6 +5,8 @@ export function register(on) {
     const request = { text: e.text, session: await $.session.id() }
     const { stdout } = await $.process.run(['engram', 'auto', 'deliver'], { stdin: JSON.stringify(request) })
 
-    return next({ ...e, context: [...(e.context ?? []), stdout.trim()] })
+    const block = stdout.trim()
+
+    return next(block ? { ...e, context: [...(e.context ?? []), block] } : e)
   })
 }
