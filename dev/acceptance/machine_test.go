@@ -209,10 +209,12 @@ func (m *machine) run(dir string, extraEnv []string, name string, args ...string
 // update runs `engram update` as the user does: the machine's own engram, from a checkout of this branch, with the
 // machine's home. The checkout is the git-less copy of the module, so the working directory is outside any
 // repository (793f7).
-func (m *machine) update() result {
+func (m *machine) update(args ...string) result {
 	m.t.Helper()
 
-	return m.run(sharedBuild.source, nil, filepath.Join(m.gobin, engramBinaryName), "update")
+	arguments := slices.Concat([]string{"update"}, args)
+
+	return m.run(sharedBuild.source, nil, filepath.Join(m.gobin, engramBinaryName), arguments...)
 }
 
 // result is what a finished command left behind.

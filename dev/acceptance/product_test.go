@@ -48,6 +48,49 @@ func Test793a2a1a_NextSessionHasMemoryAfterOneEngramUpdate(t *testing.T) {
 	})
 }
 
+func Test793a2a1c_ADryRunTurnsNothingOn(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var stagingNote string
+
+	step(t, "Given a machine with Claude Code on which the user has never run engram update, "+
+		"and a vault holding a note that says when the staging database is reset", func() {
+		machine.hasEngram()
+		machine.hasClaudeCode()
+		machine.agentMayNotRunEngram()
+		stagingNote = machine.learnsFact(stagingReset)
+	})
+
+	var report result
+
+	step(t, "When the user runs engram update --dry-run", func() {
+		report = machine.update("--dry-run")
+		machine.mustSucceed(report, "engram update --dry-run")
+	})
+
+	var sent *turn
+
+	step(t, "And starts a session and sends a prompt asking when the staging database is reset", func() {
+		sent = machine.startSession("a-project").send(askStagingReset)
+		t.Logf("the agent replied %q (cost $%.4f)", sent.reply, sent.cost)
+	})
+
+	step(t, "Then the report lists the automatic memory as planned, and the agent's context holds no note", func() {
+		g.Expect(report.stdout).To(HavePrefix("[dry-run] engram update"), "the report says it is a dry run")
+		g.Expect(reportSection(report.stdout, "Claude Code")).To(
+			ContainElement(HavePrefix("agent-instructions/mods/"+modName+"/")), "the report lists the mod as planned")
+		g.Expect(machine.installed(machine.claudeDir, modName)).To(BeEmpty(), "nothing of the mod is installed")
+
+		g.Expect(sent.blocks()).To(BeEmpty(), "blocks automatic memory delivered with the prompt")
+		g.Expect(sent.contexts()).NotTo(ContainElement(ContainSubstring(stagingNote)), "any context beside the prompt")
+		g.Expect(sent.toolResultsNaming(stagingNote)).To(BeFalse(), "the agent looked the note up")
+		g.Expect(sent.reply).NotTo(BeEmpty(), "the agent answered")
+	})
+}
+
 func Test793a2a1d_PiGetsNoAutomaticMemory(t *testing.T) {
 	t.Parallel()
 
