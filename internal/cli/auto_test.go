@@ -285,6 +285,53 @@ func Test793d4d1c_HeldText_ASessionWithNoRecordOrAnIDThatIsNotAFileNameHoldsNoth
 	g.Expect(cli.ExportHeldText(deps, filepath.Join(parent, "no-such-directory"), sessionID)).To(BeEmpty())
 }
 
+func Test793d4f1a_Targets_ENGRAMTRANSCRIPTDIRNamesTheRecordsFirst(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	transcripts, config, home := t.TempDir(), t.TempDir(), t.TempDir()
+	vault := plantTwoNotes(t)
+
+	plantRecord(t, transcripts, resetNoteName)
+	plantRecord(t, filepath.Join(config, "projects", "-a-project"), backupNoteName)
+
+	out := deliverBy(t, vault, home, map[string]string{"ENGRAM_TRANSCRIPT_DIR": transcripts, "CLAUDE_CONFIG_DIR": config})
+
+	g.Expect(out).To(ContainSubstring(backupNoteName))
+	g.Expect(out).NotTo(ContainSubstring(resetNoteName))
+}
+
+func Test793d4f1b_Targets_CLAUDECONFIGDIRNamesTheRecordsWhenENGRAMTRANSCRIPTDIRDoesNot(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	config, home := t.TempDir(), t.TempDir()
+	vault := plantTwoNotes(t)
+
+	plantRecord(t, filepath.Join(config, "projects", "-a-project"), resetNoteName)
+	plantRecord(t, filepath.Join(home, ".claude", "projects", "-a-project"), backupNoteName)
+
+	out := deliverBy(t, vault, home, map[string]string{"CLAUDE_CONFIG_DIR": config})
+
+	g.Expect(out).To(ContainSubstring(backupNoteName))
+	g.Expect(out).NotTo(ContainSubstring(resetNoteName))
+}
+
+func Test793d4f1c_Targets_TheHomesClaudeProjectsHoldTheRecordsByDefault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	home := t.TempDir()
+	vault := plantTwoNotes(t)
+
+	plantRecord(t, filepath.Join(home, ".claude", "projects", "-a-project"), resetNoteName)
+
+	out := deliverBy(t, vault, home, nil)
+
+	g.Expect(out).To(ContainSubstring(backupNoteName))
+	g.Expect(out).NotTo(ContainSubstring(resetNoteName))
+}
+
 func Test793d4e1a_Targets_AutoDeliverCreatesNoVault(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -331,6 +378,8 @@ func TestTargets_AutoDeliverPrintsTheNotesThatBearOnThePromptOnStandardInput(t *
 const (
 	// sessionID is the ID of a session in the tests.
 	sessionID        = "4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11"
+	resetNoteName    = "1.2026-10-17.zorblax-staging-reset.md"
+	backupNoteName   = "2.2026-10-17.zorblax-backup-window.md"
 	zorblaxResetNote = "---\ntype: fact\ntier: L2\nsituation: testing against the Zorblax staging database\n" +
 		"subject: the Zorblax staging database\npredicate: is reset every\nobject: Sunday at 03:40 UTC\n" +
 		"luhmann: \"1\"\ncreated: \"2026-10-17\"\nsource: test\nuser: u\nvault: personal\n---\n\n" +
@@ -355,4 +404,56 @@ func plantNoteOnDisk(t *testing.T, vault, name, body string) {
 			t.Fatalf("writing %s: %v", path, err)
 		}
 	}
+}
+
+// deliverBy dispatches `engram auto deliver` for a prompt of the session, without --sessions, with the environment and
+// the home that are given and nothing else of the machine's, and returns what it prints.
+func deliverBy(t *testing.T, vault, home string, environment map[string]string) string {
+	t.Helper()
+
+	var stdout bytes.Buffer
+
+	stderr := executeForTestWithDeps(t, []string{"engram", "auto", "deliver", "--vault", vault}, func(d *cli.Deps) {
+		d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
+		d.Getenv = func(name string) string { return environment[name] }
+		d.UserHomeDir = func() (string, error) { return home, nil }
+		d.Stdin = strings.NewReader(`{"text":"When is the Zorblax staging database reset?","session":"` + sessionID + `"}`)
+		d.Stdout = &stdout
+	})
+	if stderr != "" {
+		t.Fatalf("the dispatch printed to standard error: %s", stderr)
+	}
+
+	return stdout.String()
+}
+
+// plantRecord writes the record of the session in a directory: a block delivered beside a prompt, whose one note line
+// names the note.
+func plantRecord(t *testing.T, dir, note string) {
+	t.Helper()
+
+	mkdirErr := os.MkdirAll(dir, 0o750)
+	if mkdirErr != nil {
+		t.Fatalf("creating %s: %v", dir, mkdirErr)
+	}
+
+	record := `{"type":"attachment","attachment":{"type":"hook_additional_context","hookName":"prompt.submit",` +
+		`"content":["[engram memory] The lines below are notes.\n- ` + note + ` (s): b"]}}` + "\n"
+
+	writeErr := os.WriteFile(filepath.Join(dir, sessionID+".jsonl"), []byte(record), 0o600)
+	if writeErr != nil {
+		t.Fatalf("writing the record: %v", writeErr)
+	}
+}
+
+// plantTwoNotes makes a vault, on disk, whose two notes both bear on the prompt about the Zorblax staging database.
+func plantTwoNotes(t *testing.T) string {
+	t.Helper()
+
+	vault := t.TempDir()
+
+	plantNoteOnDisk(t, vault, resetNoteName, zorblaxResetNote)
+	plantNoteOnDisk(t, vault, backupNoteName, strings.NewReplacer("reset", "backed up", "1.", "2.").Replace(zorblaxResetNote))
+
+	return vault
 }
