@@ -96,8 +96,8 @@ graph TD
     n793e6a4["793e6a4 A note the agent looked up itself is not delivered<br/>Complete"]
     n793e6a5["793e6a5 A prompt that matches no note arrives with nothing<br/>Complete"]
     n793e6a6["793e6a6 A slow lookup does not hold a prompt for more than 8 seconds<br/>Complete"]
-    n793e6a7["793e6a7 A vault that does not exist is not created<br/>Ready"]
-    n793e6a8["793e6a8 Pi gets no automatic memory<br/>Blocked by: 793e6a7"]
+    n793e6a7["793e6a7 A vault that does not exist is not created<br/>Complete"]
+    n793e6a8["793e6a8 Pi gets no automatic memory<br/>Ready"]
     n793e6a9["793e6a9 A dry run turns nothing on<br/>Blocked by: 793e6a8"]
     n793e6a10["793e6a10 A second update still delivers each note once<br/>Blocked by: 793e6a9"]
     n793e6a1 --> n793e6a2
