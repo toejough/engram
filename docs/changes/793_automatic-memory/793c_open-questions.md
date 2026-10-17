@@ -22,11 +22,11 @@ he answers. When he answers, the entry records the answer and the date and stays
 
 ## 793c2 How soon after a turn must automatic memory have finished writing?
 
-- **Context:** [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) says "within 2 minutes" because "shortly" cannot be verified. The earlier
+- **Context:** [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) and [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) say "within 2 minutes" because "shortly" cannot be verified. The earlier
   attempt set no bound for the normal path, and this attempt has not measured a capture yet.
 - **Options:** (a) 2 minutes. (b) 1 minute. (c) 5 minutes.
 - **Recommendation:** (a), until a measured capture replaces it when [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) is built.
-- **Blocks:** the scenarios of [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) and [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later).
+- **Blocks:** the scenarios of [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) and [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later).
 - **Status:** open. Default (a) taken: [793b18 Writing finishes within 2 minutes of a turn](./793b_decision-log.md#793b18-writing-finishes-within-2-minutes-of-a-turn).
 
 ## 793c3 Is the volume of delivered notes limited?

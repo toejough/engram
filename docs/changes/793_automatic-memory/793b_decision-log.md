@@ -55,13 +55,14 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 - **Alternatives:** none stated by the owner.
 - **Decided by:** Author (reading of the owner's rule; owner may override).
 
-## 793b6 The five requirements are the minimal set
+## 793b6 The six requirements are the minimal set
 
-- **Choice:** the five product requirements of [793a2 Automatic memory](./793a_product-spec.md#793a2-added-automatic-memory). Each is in because:
+- **Choice:** the six product requirements of [793a2 Automatic memory](./793a_product-spec.md#793a2-added-automatic-memory). Each is in because:
   - [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update): without it nothing is on for the user, and it must need no other step or the feature does
     not reach the user's [sessions](../../GLOSSARY.md#session) automatically.
   - [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt): the memory-retrieval half of the North Star.
   - [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent): the learning half of the North Star.
+  - [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory): the other half of what the main [agent](./793a_product-spec.md#793a1a-terms)'s learn did, its sweep ([793b34 The goal: what the main agent was already doing, just async](#793b34-the-goal-what-the-main-agent-was-already-doing-just-async)); without it only the lessons are automated and the conversation the agent's own lookup searches goes stale.
   - [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way): both halves run on every [prompt](./793a_product-spec.md#793a1a-terms) and [turn](./793a_product-spec.md#793a1a-terms), so a delay or a failure would hurt every
     session; bounding them is what lets the user leave them on.
   - [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did): the owner asked for capabilities that are "user visible and user validatable", and
@@ -88,8 +89,7 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 ## 793b8 Exclusions
 
 - **Choice:** nine capabilities the earlier attempt had are left out and listed in [793a4 Not in the minimal set](./793a_product-spec.md#793a4-not-in-the-minimal-set): memory at
-  [subagent](../../GLOSSARY.md#subagent) start and capture at subagent stop; memory at route results; the chunk-index deep lookup and the
-  [transcript](../../GLOSSARY.md#transcript) sweep ([`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand)); backlog capture of old transcripts; curation of
+  [subagent](../../GLOSSARY.md#subagent) start and capture at subagent stop; memory at route results; the chunk-index deep lookup; backlog capture of old [transcripts](../../GLOSSARY.md#transcript); curation of
   [pending offers](../../GLOSSARY.md#offer); a model-made relevance judgement before delivery; reinforcing an already-covered [note](../../GLOSSARY.md#permanent-note); a
   status line; the Pi [harness](../../GLOSSARY.md#harness).
 - **Rationale:** none is needed to deliver the North Star, and the owner asked for the "minimal set". The
@@ -231,12 +231,11 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 ## 793b18 Writing finishes within 2 minutes of a turn
 
 - **Choice:** a [note](../../GLOSSARY.md#permanent-note) for a lesson is in the [vault](../../GLOSSARY.md#vault)
-  within 2 minutes after the [turn](./793a_product-spec.md#793a1a-terms) that held it ends, written in
-  [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent).
-- **Rationale:** [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent)
-  needs a number to be testable. The earlier attempt set no bound for the normal path and this attempt has not
-  measured a capture yet, so 2 minutes is a guess with headroom, to be replaced by the measurement when the
-  requirement is built.
+  ([793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent)), and the [session](../../GLOSSARY.md#session)'s conversation is findable ([793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory)), within 2 minutes
+  after the [turn](./793a_product-spec.md#793a1a-terms) that held them ends.
+- **Rationale:** both promises need a number to be testable. The earlier attempt set no bound for the normal
+  path and this attempt has not measured a capture yet, so 2 minutes is a guess with headroom, to be replaced by
+  the measurement when [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) is built.
 - **Alternatives:** 1 minute or 5 minutes ([793c2 How soon after a turn must automatic memory have finished writing?](./793c_open-questions.md#793c2-how-soon-after-a-turn-must-automatic-memory-have-finished-writing)).
 - **Decided by:** Author (default; owner may override).
 
@@ -328,10 +327,12 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 
 ## 793b28 Depth-first order
 
-- **Choice:** [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update) and [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) go first and together, then [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), then
+- **Choice:** [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update) and [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) go first and together, then [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), then [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), then
   [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), then [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did).
-- **Rationale:** the only user-visible proof that the first is on is the second working in a new [session](../../GLOSSARY.md#session). The
-  learning half comes before the bounds and the line because those bound and report what the two halves do.
+- **Rationale:** the only user-visible proof that the first is on is the second working in a new
+  [session](../../GLOSSARY.md#session). The lessons come next, as the learning half of the North Star, and the
+  sweep follows them as the rest of what the main [agent](./793a_product-spec.md#793a1a-terms)'s learn did ([793b34 The goal: what the main agent was already doing, just async](#793b34-the-goal-what-the-main-agent-was-already-doing-just-async)). The bounds and the line come last
+  because they bound and report what the others do.
 - **Alternatives:** the order of the requirements as listed, with the install alone first. Rejected: its
   scenarios could not be run before delivery exists.
 - **Decided by:** Author.
@@ -340,7 +341,7 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 
 - **Choice:** in [793e Automatic Memory - Implementation Plan](./793e_implementation-plan.md#automatic-memory---implementation-plan), an interaction is worked with the first node whose requirements include every
   capability it names: [793a3b Nothing the agent already has is delivered again](./793a_product-spec.md#793a3b-nothing-the-agent-already-has-is-delivered-again) with the first node; [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later), [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again), [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working) and
-  [793a3f Everything runs on the existing login and vault](./793a_product-spec.md#793a3f-everything-runs-on-the-existing-login-and-vault) with the second; [793a3d Failures never break a prompt and always show](./793a_product-spec.md#793a3d-failures-never-break-a-prompt-and-always-show) with the fourth.
+  [793a3f Everything runs on the existing login and vault](./793a_product-spec.md#793a3f-everything-runs-on-the-existing-login-and-vault) with the second; [793a3d Failures never break a prompt and always show](./793a_product-spec.md#793a3d-failures-never-break-a-prompt-and-always-show) with the last.
 - **Rationale:** an interaction cannot be exercised before everything it joins exists, and delaying it further
   would leave its rule unchecked.
 - **Alternatives:** all interactions in a final node (rules unchecked for long), or each with its own earliest
@@ -394,3 +395,36 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   review round, unless the owner asks for more").
 - **Alternatives:** argue each review to resolution, as the root default does. Superseded by the owner's rule.
 - **Decided by:** Owner (Joe, 2026-10-11, in the earlier attempt).
+
+## 793b34 The goal: what the main agent was already doing, just async
+
+- **Choice:** the minimal set is read against the owner's statement of the goal. The main
+  [agent](./793a_product-spec.md#793a1a-terms)'s recall ran one `engram query` before acting; its learn ran
+  [`engram ingest --auto`](../../GLOSSARY.md#engram-ingest-subcommand) as a sweep and then wrote
+  [notes](../../GLOSSARY.md#permanent-note) in the [vault](../../GLOSSARY.md#vault) for explicit lessons.
+  [Automatic memory](./793a_product-spec.md#793a1a-terms) does those same things without the agent:
+  [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) delivers what one query before acting would have returned, [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) is the sweep, and [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) writes the
+  notes for explicit lessons. What the main agent did only by its own judgement mid-task, re-querying at moments
+  it chose, is not in the set ([793b8 Exclusions](#793b8-exclusions)).
+- **Rationale:** the owner, 2026-10-16, when asked why behavior was being adjusted in the earlier attempt, as
+  relayed to the author: "The goal was to do what the main agent was already doing, just async."
+- **Alternatives:** none.
+- **Decided by:** Owner (Joe, 2026-10-16).
+
+## 793b35 The transcript sweep is in the minimal set
+
+- **Choice:** [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) is a requirement: within 2 minutes after a [turn](./793a_product-spec.md#793a1a-terms) ends,
+  the [session](../../GLOSSARY.md#session)'s conversation so far can be found by the
+  [agent](./793a_product-spec.md#793a1a-terms)'s own memory lookup (`engram query`), without anyone running a
+  sweep. The first version of this change left the sweep out, together with the chunk-index deep lookup
+  ([793b8 Exclusions](#793b8-exclusions)); only the deep lookup, which delivers conversation fragments with a
+  [prompt](./793a_product-spec.md#793a1a-terms)'s [notes](../../GLOSSARY.md#permanent-note), stays out. The 2 minutes
+  are the default of [793b18 Writing finishes within 2 minutes of a turn](#793b18-writing-finishes-within-2-minutes-of-a-turn).
+- **Rationale:** the review's recommendation, accepted. The main agent's learn ran the sweep as its first job
+  ([793b34 The goal: what the main agent was already doing, just async](#793b34-the-goal-what-the-main-agent-was-already-doing-just-async)). Leaving it out automates only half of learning and lets the chunk layer go stale, so the agent's own
+  lookup would stop finding recent conversation. The owner's intent in the earlier attempt included it: indexing
+  after the turn, never making anyone wait (`old 793b240`, 2026-10-12), swept asynchronously at turn-end capture
+  (`old 793c27`, 2026-10-11).
+- **Alternatives:** leave the sweep to the agent's own learn [skill](../../GLOSSARY.md#skill), as in the first
+  version.
+- **Decided by:** Author, on the reviewer's recommendation (opus review round 1, 2026-10-17); owner may override.

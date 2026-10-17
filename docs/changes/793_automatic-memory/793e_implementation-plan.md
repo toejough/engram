@@ -8,7 +8,7 @@ worked in sequence on branch `feat/automatic-memory`.
 
 ## 793e1 Purpose
 
-Source specifications: [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec) and [793d Automatic Memory - Technical Spec](./793d_technical-spec.md#automatic-memory---technical-spec). Scope: the five product requirements and six
+Source specifications: [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec) and [793d Automatic Memory - Technical Spec](./793d_technical-spec.md#automatic-memory---technical-spec). Scope: the six product requirements and six
 interactions of the first, taken through the owner's steps 2 to 5 ([793f5 How this change applies it](./793f_algorithm.md#793f5-how-this-change-applies-it)) in the order of
 [793e4 Depth-first order and dependency tree](#793e4-depth-first-order-and-dependency-tree).
 
@@ -57,6 +57,7 @@ The nodes in order, with the interactions each takes ([793b28 Depth-first order]
 | --- | --- | --- |
 | [793e6a On after update, and memory arrives with the prompt](#793e6a-on-after-update-and-memory-arrives-with-the-prompt) | [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update), [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) | [793a3b Nothing the agent already has is delivered again](./793a_product-spec.md#793a3b-nothing-the-agent-already-has-is-delivered-again) |
 | [793e6b Lessons are written without the agent](#793e6b-lessons-are-written-without-the-agent) | [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) | [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later), [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again), [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working), [793a3f Everything runs on the existing login and vault](./793a_product-spec.md#793a3f-everything-runs-on-the-existing-login-and-vault) |
+| [793e6e The conversation becomes searchable memory](#793e6e-the-conversation-becomes-searchable-memory) | [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) | none |
 | [793e6c Never in the way](#793e6c-never-in-the-way) | [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) | none |
 | [793e6d The user can see what it did](#793e6d-the-user-can-see-what-it-did) | [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) | [793a3d Failures never break a prompt and always show](./793a_product-spec.md#793a3d-failures-never-break-a-prompt-and-always-show) |
 
@@ -67,7 +68,8 @@ interaction joins a capability to the ones before it.
 ```mermaid
 graph TD
     n793e6a["793e6a On after update, and memory arrives with the prompt<br/>Ready"] --> n793e6b["793e6b Lessons are written without the agent<br/>Blocked by: 793e6a"]
-    n793e6b --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6b"]
+    n793e6b --> n793e6e["793e6e The conversation becomes searchable memory<br/>Blocked by: 793e6b"]
+    n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
 ```
 
@@ -91,6 +93,13 @@ Takes [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-e
 ### 793e6b Lessons are written without the agent
 
 Takes [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later), [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again), [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working) and [793a3f Everything runs on the existing login and vault](./793a_product-spec.md#793a3f-everything-runs-on-the-existing-login-and-vault).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+
+### 793e6e The conversation becomes searchable memory
+
+Takes [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory).
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |

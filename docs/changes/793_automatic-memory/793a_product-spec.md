@@ -32,8 +32,10 @@ written depth first, so each requirement's scenario section stays pending until 
   back to the user.
 - **Automatic memory:** what this change adds, done without the user or the agent asking: it puts the
   [notes](../../GLOSSARY.md#permanent-note) that bear on a prompt in the agent's context
-  ([793a2b Memory arrives with the prompt](#793a2b-memory-arrives-with-the-prompt)) and writes notes for
-  lessons ([793a2c Lessons are written without the agent](#793a2c-lessons-are-written-without-the-agent)).
+  ([793a2b Memory arrives with the prompt](#793a2b-memory-arrives-with-the-prompt)), writes notes for
+  lessons ([793a2c Lessons are written without the agent](#793a2c-lessons-are-written-without-the-agent)) and
+  makes the conversation searchable
+  ([793a2f The conversation becomes searchable memory](#793a2f-the-conversation-becomes-searchable-memory)).
 
 ## 793a2 Added: Automatic memory
 
@@ -78,6 +80,18 @@ worked, or when the agent plainly corrected its own earlier claim. A turn that h
 chatter MUST NOT produce a note.
 
 #### 793a2c1 UAT Scenarios
+
+Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
+
+### 793a2f The conversation becomes searchable memory
+
+Requirement: 793a2f Within 2 minutes ([793c2 How soon after a turn must automatic memory have finished writing?](./793c_open-questions.md#793c2-how-soon-after-a-turn-must-automatic-memory-have-finished-writing)) after a
+[turn](#793a1a-terms) ends, [automatic memory](#793a1a-terms) MUST make the
+[session](../../GLOSSARY.md#session)'s conversation so far findable by the [agent](#793a1a-terms)'s own memory
+lookup (`engram query`), without the user or the agent running
+[`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand).
+
+#### 793a2f1 UAT Scenarios
 
 Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
 
@@ -185,10 +199,10 @@ separate change later ([793b8 Exclusions](./793b_decision-log.md#793b8-exclusion
   [agent](#793a1a-terms), not for the user.
 - Memory at route results: a [prompt](#793a1a-terms) already brings the
   [notes](../../GLOSSARY.md#permanent-note) that bear on it, and a route result is not a prompt.
-- The chunk-index deep lookup and the [transcript](../../GLOSSARY.md#transcript) sweep
-  ([`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand)): notes alone carry what the
-  [vault](../../GLOSSARY.md#vault) has learned.
-- Backlog capture of old transcripts: the lessons of new [turns](#793a1a-terms) are written by
+- The chunk-index deep lookup, which would deliver conversation fragments with a prompt's notes: notes alone
+  carry what the [vault](../../GLOSSARY.md#vault) has learned, and the agent finds a fragment when it asks
+  ([793a2f The conversation becomes searchable memory](#793a2f-the-conversation-becomes-searchable-memory)).
+- Backlog capture of old [transcripts](../../GLOSSARY.md#transcript): the lessons of new [turns](#793a1a-terms) are written by
   [793a2c Lessons are written without the agent](#793a2c-lessons-are-written-without-the-agent), and old ones
   can be mined later.
 - Curation of [pending offers](../../GLOSSARY.md#offer): lessons are written straight into the vault
