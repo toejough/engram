@@ -636,6 +636,11 @@ const returned = await Promise.race([hook, gaveUp])
 clearTimeout(giveUp)
 const held = returned === waited
 
+// a judgement that is held lets the sweep start while it runs
+for (let tick = 0; scenario.judge.hold && tick < 50 && sweeps.length === 0; tick++) {
+  await new Promise((resolve) => wait(resolve, 10))
+}
+
 releaseJudgement({ exitCode: scenario.judge.exitCode, stdout: scenario.judge.stdout })
 
 await settled()

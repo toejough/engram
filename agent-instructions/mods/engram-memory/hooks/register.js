@@ -1,6 +1,7 @@
-// Automatic memory: the notes of the vault that bear on a prompt arrive beside it (793a2b), and the lessons a turn holds
-// become notes after it (793a2c). The logic is in the engram binary (`engram auto deliver`, `judge` and `write`); this
-// module routes to it and puts what the delivery prints beside the prompt.
+// Automatic memory: the notes of the vault that bear on a prompt arrive beside it (793a2b), and after the turn the
+// lessons it holds become notes (793a2c) and its conversation is indexed (793a2f). The logic is in the engram binary
+// (`engram auto deliver`, `judge`, `write` and `sweep`); this module routes to it and puts what the delivery prints
+// beside the prompt.
 
 // The prompt is held for 8 seconds at most (793a2d): everything the module does for it, the call for the session's ID
 // and the command, is bounded at 7, and the second left is for starting the command and running the prompt's hooks.
@@ -19,6 +20,10 @@ const ID_BOUND_MS = 5000
 const JUDGE_BOUND_MS = 15000
 const WRITE_BOUND_MS = 20000
 const REPORT_BOUND_MS = 15000
+
+// The sweep of the conversation has a bound of its own (793d2c): the call for the ID, the sweep and the report of its
+// failure are 110 seconds, under the 2 minutes of the product (793a2f), and the capture's bounds are not extended.
+const SWEEP_BOUND_MS = 90000
 
 // Every request the judgement prints opens with this (793d4g); anything else is not a request.
 const REQUEST = '{"model":'
@@ -59,10 +64,11 @@ export function register(on) {
 
     turns.delete(e.turnId)
 
-    // the lessons are captured apart from the turn: the event's result does not wait for them; the turn of a subagent
-    // is left out
+    // the lessons are captured and the conversation is swept apart from the turn, and apart from each other: the
+    // event's result does not wait for them; the turn of a subagent is left out
     if (e.agentId === undefined) {
       void captureLessons($, e, turn)
+      void sweepConversation($, e, turn)
     }
 
     return result
@@ -203,6 +209,21 @@ async function report($, session, turn, error) {
     await run($, 'write', { session, turn, failure: describe(error).slice(0, FAILURE_MAX) }, REPORT_BOUND_MS)
   } catch {
     // nothing more can be done
+  }
+}
+
+// sweepConversation has the conversation of a turn that ended indexed, so that `engram query` finds it (793d2c). A
+// sweep that fails is reported to the writing, as a failed step of the capture is; a session whose ID does not come is
+// left alone, since the writing cannot record anything without it.
+async function sweepConversation($, e, turn) {
+  let session = ''
+
+  try {
+    session = await bounded($.session.id(), ID_BOUND_MS, "the call for the session's ID")
+
+    await run($, 'sweep', { session, origin: turn.origin }, SWEEP_BOUND_MS)
+  } catch (error) {
+    await report($, session, e.turnId, error)
   }
 }
 
