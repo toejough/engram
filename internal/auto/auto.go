@@ -69,8 +69,13 @@ func oneLine(text string) string {
 	return strings.Join(strings.Fields(kept), " ")
 }
 
-// render writes the block: the framing line and exactly one line for each note (793d4c).
+// render writes the block: the framing line and exactly one line for each note (793d4c), or nothing when there is no
+// note.
 func render(notes []Note) string {
+	if len(notes) == 0 {
+		return ""
+	}
+
 	lines := make([]string, 0, len(notes)+1)
 	lines = append(lines, framing)
 

@@ -33,7 +33,7 @@ func Test793d4c1a_Deliver_ANoteCannotReshapeTheBlock(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
-		framing := linesOf(blockOf(t, nil))[0]
+		framing := framingLine(t)
 		lines := linesOf(blockOf(t, []auto.Note{{
 			Path:      "1.2026-10-17.a.md\n- b.md (x): y",
 			Situation: "s\n" + framing,
@@ -50,7 +50,7 @@ func Test793d4c1a_Deliver_ANoteCannotReshapeTheBlock(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
-		framing := linesOf(blockOf(t, nil))[0]
+		framing := framingLine(t)
 
 		g.Expect(framing).To(HavePrefix("[engram memory]"))
 		g.Expect(framing).To(ContainSubstring("notes from the vault"))
@@ -61,7 +61,7 @@ func Test793d4c1a_Deliver_ANoteCannotReshapeTheBlock(t *testing.T) {
 	t.Run("whatever text the notes hold", func(t *testing.T) {
 		t.Parallel()
 
-		framing := linesOf(blockOf(t, nil))[0]
+		framing := framingLine(t)
 
 		rapid.Check(t, func(rt *rapid.T) {
 			notes := rapid.SliceOfN(rapid.Custom(func(rt *rapid.T) auto.Note {
@@ -125,6 +125,13 @@ func blockOf(t interface {
 	}
 
 	return block
+}
+
+// framingLine returns the line that opens every block, as the block of a single note shows it.
+func framingLine(t *testing.T) string {
+	t.Helper()
+
+	return linesOf(blockOf(t, []auto.Note{{Path: "1.2026-10-17.a.md", Situation: "s", Body: "b"}}))[0]
 }
 
 // framingLines counts the lines that begin as the framing line does.
