@@ -80,6 +80,10 @@ allow = [
 	'github.com/toejough/go-reorder',
 	'github.com/toejough/imptest',
 	'github.com/toejough/targ',
+	# Reading the declarations of the test files, for the conformance check (793b48).
+	'go/ast',
+	'go/parser',
+	'go/token',
 	'golang.org/x/term',
 	'golang.org/x/tools/go/packages',
 	'go.yaml.in/yaml/v3',

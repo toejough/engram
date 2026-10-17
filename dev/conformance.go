@@ -18,21 +18,8 @@ var (
 	scenarioLine = regexp.MustCompile(`(?m)^[ \t]*Scenario: (793[ad][0-9a-z]+) `)
 )
 
-// scenarioIDs returns the IDs of the scenarios a spec holds, each once, in the order they first appear.
-func scenarioIDs(spec string) []string {
-	var ids []string
-
-	for _, match := range scenarioLine.FindAllStringSubmatch(spec, -1) {
-		if !slices.Contains(ids, match[1]) {
-			ids = append(ids, match[1])
-		}
-	}
-
-	return ids
-}
-
-// declaredFunctions returns the names of the functions the Go sources declare, methods left out. Text that only reads as
-// a declaration (in a comment or a string literal) is no declaration, and a source that does not parse declares none.
+// declaredFunctions returns the names of the functions the Go sources declare, methods left out. Text that only reads
+// as a declaration (in a comment or a string literal) is no declaration; a source that does not parse declares none.
 func declaredFunctions(sources []string) []string {
 	var names []string
 
@@ -53,6 +40,19 @@ func declaredFunctions(sources []string) []string {
 	}
 
 	return names
+}
+
+// scenarioIDs returns the IDs of the scenarios a spec holds, each once, in the order they first appear.
+func scenarioIDs(spec string) []string {
+	var ids []string
+
+	for _, match := range scenarioLine.FindAllStringSubmatch(spec, -1) {
+		if !slices.Contains(ids, match[1]) {
+			ids = append(ids, match[1])
+		}
+	}
+
+	return ids
 }
 
 // scenariosWithoutTest returns the IDs, in their order, that no test source declares a test for: a function declared
