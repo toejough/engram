@@ -24,7 +24,7 @@ func Test793d2a1a_Mod_AddsTheBlockBesideThePrompt(t *testing.T) {
 	var sent *turn
 
 	step(t, "When a prompt is sent", func() {
-		sent = machine.startSession("a-project").sendOffline(promptHello)
+		sent = machine.startSession("a-project").sendOffline()
 	})
 
 	step(t, "Then the command received the prompt text, and the session holds the prompt exactly as sent "+
@@ -60,7 +60,7 @@ func Test793d2a1b_Mod_GivesTheCommandTheSessionsID(t *testing.T) {
 	})
 
 	step(t, "When a prompt is sent", func() {
-		inSession.sendOffline(promptHello)
+		inSession.sendOffline()
 	})
 
 	step(t, "Then the command received the ID of the session the prompt was sent in", func() {
@@ -85,7 +85,7 @@ func Test793d2a1c_Mod_AnEmptyOutputAddsNothing(t *testing.T) {
 	var sent *turn
 
 	step(t, "When a prompt is sent", func() {
-		sent = machine.startSession("a-project").sendOffline(promptHello)
+		sent = machine.startSession("a-project").sendOffline()
 	})
 
 	step(t, "Then the session holds the prompt exactly as sent and no context beside it", func() {
@@ -114,7 +114,7 @@ func Test793d2a1d_Mod_ASlowCommandIsEndedAndThePromptContinues(t *testing.T) {
 	var sent *turn
 
 	step(t, "When a prompt is sent", func() {
-		sent = machine.startSession("a-project").sendOffline(promptHello)
+		sent = machine.startSession("a-project").sendOffline()
 		t.Logf("the prompt waited %s", sent.hold())
 	})
 

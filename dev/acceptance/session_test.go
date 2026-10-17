@@ -211,12 +211,15 @@ func (s *session) send(prompt string) *turn {
 	return s.run(prompt, []string{tokenVariable + "=" + token}, token, false)
 }
 
-// sendOffline sends one prompt to an endpoint that is not there: the prompt's hooks run, the model is asked and never
-// answers, and the run is ended once the session's record shows the request. It needs no login and costs nothing.
-func (s *session) sendOffline(prompt string) *turn {
+// sendOffline sends the prompt promptHello to an endpoint that is not there: the prompt's hooks run, the model is asked
+// and never answers, and the run is ended once the session's record shows the request. It needs no login and costs
+// nothing.
+func (s *session) sendOffline() *turn {
 	s.machine.t.Helper()
 
-	return s.run(prompt, []string{"ANTHROPIC_API_KEY=" + fakeAPIKey, "ANTHROPIC_BASE_URL=" + offlineBaseURL}, "", true)
+	endpoint := []string{"ANTHROPIC_API_KEY=" + fakeAPIKey, "ANTHROPIC_BASE_URL=" + offlineBaseURL}
+
+	return s.run(promptHello, endpoint, "", true)
 }
 
 // turnOf cuts the last occurrence of a prompt, and what followed it, out of the session's record.
