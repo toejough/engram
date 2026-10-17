@@ -14,6 +14,8 @@ const (
 	// askStagingReset is a prompt that the stagingReset note answers. The Zorblax staging database is made up, so
 	// the agent cannot know the answer without the note.
 	askStagingReset = "When is the Zorblax staging database reset?"
+	// askStagingResetDay is another prompt that the stagingReset note answers.
+	askStagingResetDay = "What day of the week is the Zorblax staging database reset on?"
 	// claudeSettings lets the agent run engram, which the scenarios where it looks a note up itself need.
 	claudeSettings = `{"permissions":{"allow":["Bash(engram:*)"]}}`
 	learnSource    = "acceptance test"

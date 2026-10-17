@@ -107,6 +107,21 @@ func (s *session) requests() int {
 	return count
 }
 
+// blocksNaming counts the blocks automatic memory delivered in the whole session that name a note.
+func (s *session) blocksNaming(note string) int {
+	count := 0
+
+	for _, row := range s.rows() {
+		for _, entry := range row.delivered() {
+			if strings.HasPrefix(entry, engramMarker) && strings.Contains(entry, note) {
+				count++
+			}
+		}
+	}
+
+	return count
+}
+
 // rows reads the session's record, which is empty until Claude Code has written it.
 func (s *session) rows() []transcriptRow {
 	matches, err := filepath.Glob(filepath.Join(s.machine.transcripts, "*", s.id+".jsonl"))

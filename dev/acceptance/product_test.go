@@ -84,3 +84,42 @@ func Test793a2b1a_TheNotesThatBearOnAPromptArriveWithIt(t *testing.T) {
 		g.Expect(text).To(Equal(askStagingReset))
 	})
 }
+
+func Test793a2b1b_ANoteDeliveredEarlierInTheSessionIsNotDeliveredAgain(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var (
+		stagingNote string
+		inSession   *session
+	)
+
+	step(t, "Given a session in which a prompt asking when the staging database is reset "+
+		"arrived with the staging note", func() {
+		machine.hasEngram()
+		machine.hasClaudeCode()
+		stagingNote = machine.learnsFact(stagingReset)
+		machine.mustSucceed(machine.update(), "engram update")
+
+		inSession = machine.startSession("a-project")
+		first := inSession.send(askStagingReset)
+
+		g.Expect(first.blocks()).To(HaveLen(1), "blocks automatic memory delivered with the first prompt")
+		g.Expect(first.blocks()[0]).To(ContainSubstring(stagingNote))
+	})
+
+	var second *turn
+
+	step(t, "When the user sends another prompt about the staging database reset", func() {
+		second = inSession.send(askStagingResetDay)
+		t.Logf("the agent replied %q (cost $%.4f)", second.reply, second.cost)
+	})
+
+	step(t, "Then the second prompt arrives with nothing from the vault, "+
+		"and the staging note is in the agent's context once", func() {
+		g.Expect(second.blocks()).To(BeEmpty(), "blocks automatic memory delivered with the second prompt")
+		g.Expect(inSession.blocksNaming(stagingNote)).To(Equal(1), "blocks in the session that name the note")
+	})
+}
