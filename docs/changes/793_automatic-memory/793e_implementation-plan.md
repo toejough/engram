@@ -144,6 +144,7 @@ Takes [793a2a1a The next session has memory after one engram update](./793a_prod
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
+| 793a2a1a | Dedicated example, product acceptance (`network`) | the promise as the user sees it: a real session, started after a real `engram update`, holds the note before it acts | Red | | | |
 
 #### 793e6a2 The notes that bear on a prompt arrive with it
 
