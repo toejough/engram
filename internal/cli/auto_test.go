@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,7 +28,7 @@ func Test793d4a1a_RunAutoDeliver_PrintsTheNotesThatBearOnThePromptAsOneBlock(t *
 	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault},
 		cli.AutoDeliverDeps{
 			Stdin: strings.NewReader(`{"text":"When is the Zorblax staging database reset?"}`),
-			Query: newQueryDeps(memFS),
+			Query: queryOver(newQueryDeps(memFS)),
 		}, &out)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -54,7 +55,7 @@ func Test793d4a1b_RunAutoDeliver_AFailedLookupFailsTheCommandAndPrintsNothing(t 
 	var out bytes.Buffer
 
 	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: t.TempDir()},
-		cli.AutoDeliverDeps{Stdin: strings.NewReader(`{"text":"anything"}`), Query: query}, &out)
+		cli.AutoDeliverDeps{Stdin: strings.NewReader(`{"text":"anything"}`), Query: queryOver(query)}, &out)
 
 	g.Expect(err).To(MatchError(ContainSubstring("embedder down")))
 	g.Expect(out.String()).To(BeEmpty())
@@ -130,7 +131,7 @@ func Test793d4a1d_RunAutoDeliver_ANoteTheSessionHoldsIsLeftOut(t *testing.T) {
 	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault, SessionsDir: sessions},
 		cli.AutoDeliverDeps{
 			Stdin:    strings.NewReader(`{"text":"When is the Zorblax staging database reset?","session":"` + sessionID + `"}`),
-			Query:    newQueryDeps(memFS),
+			Query:    queryOver(newQueryDeps(memFS)),
 			ReadDir:  os.ReadDir,
 			ReadFile: os.ReadFile,
 		}, &out)
@@ -152,7 +153,7 @@ func Test793d4a1e_RunAutoDeliver_NoNoteToDeliverPrintsNothing(t *testing.T) {
 		err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: t.TempDir()},
 			cli.AutoDeliverDeps{
 				Stdin: strings.NewReader(`{"text":"anything","session":"` + sessionID + `"}`),
-				Query: newQueryDeps(newInMemoryFS()), ReadDir: os.ReadDir, ReadFile: os.ReadFile,
+				Query: queryOver(newQueryDeps(newInMemoryFS())), ReadDir: os.ReadDir, ReadFile: os.ReadFile,
 			}, &out)
 
 		g.Expect(err).NotTo(HaveOccurred())
@@ -177,7 +178,7 @@ func Test793d4a1e_RunAutoDeliver_NoNoteToDeliverPrintsNothing(t *testing.T) {
 		err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault, SessionsDir: sessions},
 			cli.AutoDeliverDeps{
 				Stdin: strings.NewReader(`{"text":"When is the Zorblax staging database reset?","session":"` + sessionID + `"}`),
-				Query: newQueryDeps(memFS), ReadDir: os.ReadDir, ReadFile: os.ReadFile,
+				Query: queryOver(newQueryDeps(memFS)), ReadDir: os.ReadDir, ReadFile: os.ReadFile,
 			}, &out)
 
 		g.Expect(err).NotTo(HaveOccurred())
@@ -204,7 +205,7 @@ func Test793d4a1f_RunAutoDeliver_TheChunkIndexIsNotSearched(t *testing.T) {
 
 	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault},
 		cli.AutoDeliverDeps{
-			Stdin: strings.NewReader(`{"text":"When is the Zorblax staging database reset?"}`), Query: query,
+			Stdin: strings.NewReader(`{"text":"When is the Zorblax staging database reset?"}`), Query: queryOver(query),
 		}, &out)
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -234,7 +235,7 @@ func Test793d4a1g_RunAutoDeliver_ANoteTheAgentFetchedByItsBasenameIsLeftOut(t *t
 	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault, SessionsDir: sessions},
 		cli.AutoDeliverDeps{
 			Stdin:    strings.NewReader(`{"text":"When is the Zorblax staging database reset?","session":"` + sessionID + `"}`),
-			Query:    newQueryDeps(memFS),
+			Query:    queryOver(newQueryDeps(memFS)),
 			ReadDir:  os.ReadDir,
 			ReadFile: os.ReadFile,
 		}, &out)
@@ -467,4 +468,11 @@ func plantTwoNotes(t *testing.T) string {
 	plantNoteOnDisk(t, vault, backupNoteName, backup)
 
 	return vault
+}
+
+// queryOver runs the lookup of engram query over the given dependencies.
+func queryOver(deps cli.QueryDeps) cli.QueryRun {
+	return func(ctx context.Context, args cli.QueryArgs, stdout io.Writer) error {
+		return cli.RunQuery(ctx, args, deps, stdout)
+	}
 }

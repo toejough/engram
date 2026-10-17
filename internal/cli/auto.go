@@ -25,12 +25,15 @@ type AutoDeliverArgs struct {
 type AutoDeliverDeps struct {
 	// Stdin carries the request: one JSON object with the prompt's text.
 	Stdin io.Reader
-	// Query is the lookup of notes, the one `engram query` uses.
-	Query QueryDeps
+	// Query runs the lookup of notes, the one `engram query` runs, and prints its payload.
+	Query QueryRun
 	// ReadDir and ReadFile read the session-log directory, where Claude Code keeps the record of each session.
 	ReadDir  func(path string) ([]fs.DirEntry, error)
 	ReadFile func(path string) ([]byte, error)
 }
+
+// QueryRun runs the lookup of `engram query` for the arguments it is given and prints its payload.
+type QueryRun func(ctx context.Context, args QueryArgs, stdout io.Writer) error
 
 // RunAutoDeliver reads a prompt from standard input and prints the block of the notes that bear on it (793d4a).
 func RunAutoDeliver(ctx context.Context, args AutoDeliverArgs, deps AutoDeliverDeps, stdout io.Writer) error {
@@ -98,12 +101,12 @@ func heldText(deps AutoDeliverDeps, dir, session string) string {
 
 // lookUpNotes runs the lookup of `engram query` for a text, as its message and its only phrase, and reads the notes
 // out of the payload it prints.
-func lookUpNotes(ctx context.Context, vault, text string, deps QueryDeps) ([]auto.Note, error) {
+func lookUpNotes(ctx context.Context, vault, text string, query QueryRun) ([]auto.Note, error) {
 	var payload bytes.Buffer
 
 	args := QueryArgs{Phrases: []string{text}, Text: text, VaultPath: vault}
 
-	queryErr := RunQuery(ctx, args, deps, &payload)
+	queryErr := query(ctx, args, &payload)
 	if queryErr != nil {
 		return nil, fmt.Errorf("looking up %q: %w", text, queryErr)
 	}
@@ -113,7 +116,16 @@ func lookUpNotes(ctx context.Context, vault, text string, deps QueryDeps) ([]aut
 
 // newAutoDeliverDeps wires RunAutoDeliver from the injected CLI capabilities — pure composition (#700).
 func newAutoDeliverDeps(d Deps) AutoDeliverDeps {
-	return AutoDeliverDeps{Stdin: d.Stdin, Query: newQueryDeps(d), ReadDir: d.FS.ReadDir, ReadFile: d.FS.ReadFile}
+	queryDeps := newQueryDeps(d)
+
+	return AutoDeliverDeps{
+		Stdin: d.Stdin,
+		Query: func(ctx context.Context, args QueryArgs, stdout io.Writer) error {
+			return RunQuery(ctx, args, queryDeps, stdout)
+		},
+		ReadDir:  d.FS.ReadDir,
+		ReadFile: d.FS.ReadFile,
+	}
 }
 
 // notesOf reads the notes out of an `engram query` payload.
