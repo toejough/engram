@@ -285,9 +285,9 @@ Takes review finding 14: no default gate parsed the mod's JavaScript ([793b55 Th
 
 | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| `TestModuleSyntax_FailsWhenNodeIsNotFound` | Injected and impure interaction (`imptest`, dev suite, `targ` tag) | review fix: a check that cannot run does not pass, so the missing runtime is an error that names node; the lookup of node is injected | Red | | | |
-| `TestModuleSyntax_NamesEachFileThatDoesNotParse` | Injected and impure interaction (`imptest`, dev suite, `targ` tag) | review fix: the parse of each file goes through node with the file read on standard input, and the files that do not parse are named with what node said, the others not; the process is injected | Red | | | |
-| `TestMods_EveryJavaScriptModuleParses` | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | review fix: the real mods under `agent-instructions/mods/` parse under the real node, and a broken module is rejected by the real node, which the stand-in cannot show | Red | | | |
+| `TestModuleSyntax_FailsWhenNodeIsNotFound` | Injected and impure interaction (`imptest`, dev suite, `targ` tag) | review fix: a check that cannot run does not pass, so the missing runtime is an error that names node; the lookup of node is injected | Green-all | 44d04314 | | |
+| `TestModuleSyntax_NamesEachFileThatDoesNotParse` | Injected and impure interaction (`imptest`, dev suite, `targ` tag) | review fix: the parse of each file goes through node with the file read on standard input, and the files that do not parse are named with what node said, the others not; the process is injected | Green-all | 44d04314 | | |
+| `TestMods_EveryJavaScriptModuleParses` | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | review fix: the real mods under `agent-instructions/mods/` parse under the real node, and a broken module is rejected by the real node, which the stand-in cannot show | Green-all | 44d04314 | | |
 
 ### 793e6b Lessons are written without the agent
 
