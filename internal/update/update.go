@@ -2424,6 +2424,17 @@ func planGuidanceCopies(
 	return ops, nil
 }
 
+// planModCopies plans the mods of the source (793d4b) as it plans skills: one CopyOp per file per harness, under the
+// harness's skills directory, in the directory named for the mod, so that a mod is deployed, linked and reported as a
+// skill directory is.
+func planModCopies(
+	srcMods, home string,
+	harnesses []HarnessSpec,
+	fileSystem Filesystem,
+) ([]CopyOp, error) {
+	return planSkillCopies(srcMods, home, harnesses, fileSystem)
+}
+
 // planSkillCopies enumerates every file under srcSkills and produces one
 // CopyOp per file per harness. Files keep their relative path under the
 // harness's SkillsTargetRel.
