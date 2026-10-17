@@ -25,6 +25,8 @@ The shape the first node's step 3 added, which later nodes extend:
 - `internal/update/update.go`: the plan of the mods of the source, appended to the plan of the skills.
 - `dev/acceptance/`: the tests that drive a real Claude Code session, under the `network` build tag; `dev/targs.go`:
   the `acceptance` target. No new Go dependency.
+- `dev/conformance.go`: the conformance check's reading of the scenario IDs of the two specs and of the tests that name
+  them; the check itself is a test of the dev integration suite, so `targ check-full` runs it.
 
 ## 793e2 Test methods
 
@@ -239,8 +241,21 @@ Takes [793a2a1b A second update still delivers each note once](./793a_product-sp
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2a1b | Dedicated example, product acceptance (`network`) | the repeat as the user sees it: two real updates, then one real prompt, and the note arrives once | Done | n/a | - | |
-| 793d4b1h | Dedicated example (default suite) | the idempotence for the new input: two runs of `Updater.Run` over an in-memory file system leave the same files and links, and the second report lists the mod once | Done | n/a | - | |
+| 793a2a1b | Dedicated example, product acceptance (`network`) | the repeat as the user sees it: two real updates, then one real prompt, and the note arrives once | Done | n/a | - | d206b5c9 |
+| 793d4b1h | Dedicated example (default suite) | the idempotence for the new input: two runs of `Updater.Run` over an in-memory file system leave the same files and links, and the second report lists the mod once | Done | n/a | - | d206b5c9 |
+
+#### The conformance check of the first group
+
+Takes the rule of [793e2 Test methods](#793e2-test-methods) that a conformance check asserts that every scenario ID in
+either spec has a test. It is not a scenario of the specs, so its tests carry no scenario ID; the rows are named by
+test. The check reads the specs of this change directory, which is deleted at promotion: at promotion it is moved to
+read the promoted specs, or deleted with the change, and until then it fails loudly when the specs are missing.
+
+| Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| `TestScenarioIDs_ListsEachScenarioOnceInOrder` | Dedicated example (dev suite, `targ` tag) | the pure reading of a spec: which scenario IDs it holds, with a scenario restated in a mapping counted once, and prose that merely names an ID left out | Not started | | | |
+| `TestScenariosWithoutTest_NamesThoseNoTestSourceDeclares` | Dedicated example (dev suite, `targ` tag) | the pure comparison: an ID has a test only when a test function is named `Test<ID>_`, not when a comment or the longer name of another test mentions it | Not started | | | |
+| `TestConformance_EveryScenarioOfTheSpecsHasATest` | Dedicated example (dev integration suite, `targ` and `integration` tags) | the real specs of this change against the real test files of the repository, `network`-tagged files included | Not started | | | |
 
 ### 793e6b Lessons are written without the agent
 
