@@ -21,10 +21,7 @@ func Test793a2c1a_ACorrectionBecomesANote(t *testing.T) {
 
 	step(t, "Given the user has run engram update, and a session in which the agent may not run engram commands "+
 		"and has answered a question about how to build a project", func() {
-		machine.hasEngram()
-		machine.hasClaudeCode()
-		machine.agentMayNotRunEngram()
-		machine.mustSucceed(machine.update(), "engram update")
+		machine.hasRunUpdate()
 
 		inSession = machine.startSession("zorblax")
 		chat = inSession.converse()
