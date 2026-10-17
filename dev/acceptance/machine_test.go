@@ -294,7 +294,7 @@ func (s *shared) build() error {
 	s.cache = filepath.Join(s.dir, "cache")
 
 	for name := range strings.FieldsSeq(buildInputs) {
-		copyErr := copyTree(filepath.Join(root, name), filepath.Join(s.source, name), true)
+		copyErr := copyTree(filepath.Join(root, name), filepath.Join(s.source, name))
 		if copyErr != nil {
 			return copyErr
 		}
@@ -381,10 +381,9 @@ func copyFile(src, dst string) error {
 	return errors.Join(copyErr, closeErr)
 }
 
-// copyTree copies the regular files of src into dst. With link set it links them where the file system allows, which
-// keeps the 90 MB model from being copied for each run; Claude Code identifies a module by its file, so a mod must be
-// copied, not linked.
-func copyTree(src, dst string, link bool) error {
+// copyTree copies the regular files of src into dst. It copies and never links: a link would make a file of dst the
+// file of src, so a run that wrote it would write the worktree, and Claude Code identifies a module by its file.
+func copyTree(src, dst string) error {
 	walkErr := filepath.WalkDir(src, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -408,10 +407,6 @@ func copyTree(src, dst string, link bool) error {
 		mkdirErr := os.MkdirAll(filepath.Dir(target), dirPerm)
 		if mkdirErr != nil {
 			return fmt.Errorf("creating the directory of %s: %w", target, mkdirErr)
-		}
-
-		if link && os.Link(path, target) == nil {
-			return nil
 		}
 
 		return copyFile(path, target)

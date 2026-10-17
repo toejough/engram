@@ -117,7 +117,7 @@ func (m *machine) hasMod() {
 
 	target := filepath.Join(m.claudeDir, "engram", "skills", modName)
 
-	copyErr := copyTree(filepath.Join(root, "agent-instructions", "mods", modName), target, false)
+	copyErr := copyTree(filepath.Join(root, "agent-instructions", "mods", modName), target)
 	if copyErr != nil {
 		m.t.Fatalf("installing the mod: %v", copyErr)
 	}
