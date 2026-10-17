@@ -10,7 +10,9 @@ says its earlier guess or claim was wrong and gives the corrected one plainly, a
 the build failed because of a stale cache": the lesson is the corrected cause or conclusion, a fact, even when the user
 only asked a question), or an approach confirmed to have worked: either the user says that it worked, or the agent
 tried an approach it was unsure about and the turn shows the outcome that proves it worked (a test passing, a check
-going green). A guess, a hypothesis, a "likely", "probably" or "may be" claim, or a plan not yet carried out is NOT a
+going green). An approach the agent was unsure of, tried and saw succeed is a lesson even when the user asked for the
+try: "I do not know whether the flag makes the check pass", then a run, then "the check passed", leaves the lesson that
+the flag makes the check pass. A guess, a hypothesis, a "likely", "probably" or "may be" claim, or a plan not yet carried out is NOT a
 lesson, even right after the agent gave up an earlier guess ("that was wrong, it is probably X" still leaves X a
 guess): leave a hedged claim out whole, never write it with its hedge kept ("is likely", "is probably"). What the agent
 tells a subagent to do (a brief, a plan step, a rule it restates) is NOT a lesson either, however firmly it is worded,
