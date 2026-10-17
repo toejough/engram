@@ -2,9 +2,11 @@ package auto_test
 
 import (
 	"encoding/json"
+	"strconv"
 	"strings"
 	"testing"
 	"unicode"
+	"unicode/utf8"
 
 	. "github.com/onsi/gomega"
 	"pgregory.net/rapid"
@@ -143,6 +145,97 @@ func Test793d4g1e_Judge_AMessageCannotMakeALineOfItsOwn(t *testing.T) {
 				rt.Fatalf("a line holds a line break or a control character: %q", line)
 			}
 		}
+	})
+}
+
+func Test793d4j1c_Judge_TheRequestHoldsNoCredentialOfTheTurn(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		first := credentialShape().Draw(rt, "first")
+		second := credentialShape().Draw(rt, "second")
+		record := strings.Join([]string{
+			userPrompt(jsonText("No, use the script. " + first.text + " and again")),
+			assistantText(jsonText("Understood, " + second.text)),
+		}, "\n")
+
+		request, found := auto.Judge([]byte(record), "the answer "+second.text)
+		if !found {
+			rt.Fatalf("a record with a prompt was judged nothing")
+		}
+
+		for _, secret := range []string{first.secret, second.secret} {
+			if strings.Contains(request.Prompt, secret) {
+				rt.Fatalf("the request holds the secret %q: %q", secret, request.Prompt)
+			}
+		}
+	})
+}
+
+func Test793d4g1f_Judge_ALineIsCutAfterItsCredentialsAreRedacted(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// a token that the cut falls in: it begins 9 characters before the end of a line of 1,200
+	token := "gh" + "p_" + strings.Repeat("aZ3", 12)
+	record := userPrompt(strings.Repeat("word ", 238) + token)
+
+	request, found := auto.Judge([]byte(record), "")
+
+	g.Expect(found).To(BeTrue())
+	g.Expect(request.Prompt).NotTo(ContainSubstring("ghp"))
+	g.Expect(request.Prompt).NotTo(ContainSubstring("aZ3aZ3"))
+	g.Expect(request.Prompt).To(ContainSubstring("[redacte"), "the redaction is what the cut left")
+}
+
+func Test793d4g1g_Judge_ALongConversationIsCutToTheBound(t *testing.T) {
+	t.Parallel()
+
+	t.Run("more context than the window holds", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		var rows []string
+
+		for index := range 10 {
+			rows = append(rows, userPrompt("context prompt "+strconv.Itoa(index)),
+				assistantText("context answer "+strconv.Itoa(index)))
+		}
+
+		rows = append(rows, userPrompt("the last prompt"), assistantText("the last answer"))
+
+		request, found := auto.Judge([]byte(strings.Join(rows, "\n")), "the last answer")
+
+		g.Expect(found).To(BeTrue())
+		g.Expect(windowOf(request.Prompt)).To(Equal([]string{
+			"User: context prompt 7", "Agent: context answer 7", "User: context prompt 8", "Agent: context answer 8",
+			"User: context prompt 9", "Agent: context answer 9",
+			"--- the turn ---", "User: the last prompt", "Agent: the last answer",
+		}))
+	})
+
+	t.Run("a turn with more lines than the window holds", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		rows := []string{userPrompt("an earlier prompt"), assistantText("an earlier answer"), userPrompt("the last prompt")}
+
+		for index := range 400 {
+			rows = append(rows, assistantText("step "+strconv.Itoa(index)+" "+strings.Repeat("x", 100)))
+		}
+
+		request, found := auto.Judge([]byte(strings.Join(rows, "\n")), "the final answer")
+
+		g.Expect(found).To(BeTrue())
+
+		lines := windowOf(request.Prompt)
+
+		g.Expect(utf8.RuneCountInString(strings.Join(lines, "\n"))).To(BeNumerically("<=", 8000))
+		g.Expect(lines[0]).To(Equal("--- the turn ---"), "the context went first")
+		g.Expect(lines[1]).To(Equal("User: the last prompt"))
+		g.Expect(lines[2]).To(Equal("--- some of the turn is left out ---"))
+		g.Expect(lines[len(lines)-2]).To(HavePrefix("Agent: step 399 "))
+		g.Expect(lines[len(lines)-1]).To(Equal("Agent: the final answer"))
 	})
 }
 

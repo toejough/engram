@@ -12,6 +12,7 @@ import (
 	"time"
 
 	. "github.com/onsi/gomega"
+	"pgregory.net/rapid"
 
 	"github.com/toejough/engram/internal/cli"
 )
@@ -280,6 +281,52 @@ func Test793d4k1e_RunAutoWrite_ARecordThatCannotBeWrittenDoesNotFailTheCommand(t
 	g.Expect(written).To(HaveLen(1))
 }
 
+func Test793d4j1d_RunAutoWrite_ANoteHoldsNoCredentialOfTheLesson(t *testing.T) {
+	t.Parallel()
+
+	secrets := credentialTexts()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		secret := rapid.SampledFrom(secrets).Draw(rt, "secret")
+		field := rapid.SampledFrom([]string{"situation", "behavior", "impact", "action"}).Draw(rt, "field")
+		fields := map[string]string{
+			"kind": "feedback", "slug": "keep-the-token-out", "situation": "using the deploy script",
+			"behavior": "ran it", "impact": "it failed", "action": "set the variable first",
+		}
+		fields[field] = "see " + secret + " for it"
+
+		reply, marshalErr := json.Marshal([]map[string]string{fields})
+		if marshalErr != nil {
+			rt.Fatalf("encoding the reply: %v", marshalErr)
+		}
+
+		written := map[string]string{}
+
+		var out bytes.Buffer
+
+		err := cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", RecordsDir: "/data/auto"},
+			cli.AutoWriteDeps{
+				Stdin:       replyInput(string(reply)),
+				Learn:       learnInto(written),
+				Now:         func() time.Time { return recordedAt },
+				WriteRecord: (&recordedFiles{}).write,
+			}, &out)
+		if err != nil {
+			rt.Fatalf("writing: %v", err)
+		}
+
+		if len(written) != 1 {
+			rt.Fatalf("%d notes were written for one lesson", len(written))
+		}
+
+		for _, note := range written {
+			if strings.Contains(note, secret) {
+				rt.Fatalf("the note holds the secret %q:\n%s", secret, note)
+			}
+		}
+	})
+}
+
 // unexported constants.
 const (
 	feedbackLessonReply = `[{"kind":"feedback","slug":"format-before-commit","situation":"committing a Python file",` +
@@ -292,6 +339,23 @@ const (
 var (
 	recordedAt = time.Date(2026, 10, 17, 12, 0, 0, 123, time.UTC)
 )
+
+// credentialTexts are secrets of the shapes the requirement names, built here and never written whole in this file: a
+// scanner of the repository would take a literal for a credential.
+func credentialTexts() []string {
+	return []string{
+		"AK" + "IA" + "0123456789ABCDEF",
+		"gh" + "p_" + strings.Repeat("aZ3", 12),
+		"s" + "k-" + strings.Repeat("Qw9", 10),
+		"ey" + "J" + "hbGciOiJI" + ".eyJzdWIiOiIx" + ".dBjftJeZ4CVP",
+		"xo" + "xb-" + "1234567890-abcdefghij",
+		"Bearer " + strings.Repeat("tok3n", 4),
+		"https://deploy:" + "hunter2hunter2" + "@example.test/x",
+		"password: " + "hunter2hunter2",
+		"api_key=" + "abc123def456ghi",
+		strings.Repeat("zorblaxsecret", 2) + "0123456789",
+	}
+}
 
 // recordedFiles is the place of the records, in memory: the files written to it, by path.
 type recordedFiles struct {

@@ -252,7 +252,8 @@ const waited = Symbol('waited')
 const hook = handlers['turn.complete'](host, { answer: 'Understood.', turnId: 'a-turn', reason: 'answer' },
   async (event) => ({ text: event.answer }))
 let giveUp
-const returned = await Promise.race([hook, new Promise((resolve) => { giveUp = setTimeout(() => resolve(waited), 500) })])
+const gaveUp = new Promise((resolve) => { giveUp = setTimeout(() => resolve(waited), 500) })
+const returned = await Promise.race([hook, gaveUp])
 clearTimeout(giveUp)
 const held = returned === waited
 
