@@ -148,6 +148,39 @@ func Test793a2c1d_TheAgentsOwnCorrectionBecomesANote(t *testing.T) {
 	})
 }
 
+func Test793a2c1e_AnApproachThatSucceededWithEvidenceBecomesANote(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var chat *conversation
+
+	step(t, "Given the user has run engram update, and a session in which the agent may run a check script "+
+		"but may not run engram commands", func() {
+		machine.hasRunUpdate("sh check.sh")
+
+		inSession := machine.startSession("zorblax")
+		inSession.hasFile("check.sh", checkScript)
+		chat = inSession.converse()
+	})
+
+	step(t, "When the agent, unsure whether an approach will make the check pass, tries it in a turn "+
+		"and the turn shows that the check passed", func() {
+		tried := chat.say(askToTryTheFlag)
+		t.Logf("the agent replied %q", tried.reply)
+	})
+
+	step(t, "Then within 2 minutes the vault holds a note that states the approach and says it was written "+
+		"automatically", func() {
+		note, took := machine.awaitNote(chat.turnEnds, "that states the approach",
+			func(note vaultNote) bool { return note.states("zorblax-safe") })
+		t.Logf("the note %s was written %s after the turn ended:\n%s", note.name, took, note.text)
+
+		g.Expect(note.source()).To(ContainSubstring("written automatically"))
+	})
+}
+
 // unexported constants.
 const (
 	// askHowToBuild is a question the agent cannot answer from anything but a guess: the project is made up.
@@ -162,8 +195,15 @@ const (
 		"Reply with one short sentence."
 	// askToSort is a task the agent does one way.
 	askToSort = "Print the lines of zorblax.txt in sorted order with the sort command. Reply with one short sentence."
+	// askToTryTheFlag makes the agent say what it does not know, try it, and say what it saw.
+	askToTryTheFlag = "You do not know whether passing --zorblax-safe makes check.sh pass: say so in one sentence. " +
+		"Then run exactly this one command, with nothing added to it: sh check.sh --zorblax-safe. " +
+		"Then say in one sentence whether the check passed."
 	// buildTarget is the word of the correction that no other text of the conversation holds.
 	buildTarget = "zorblax-build"
+	// checkScript passes only when it is given the flag.
+	checkScript = "#!/bin/sh\nif [ \"$1\" = \"--zorblax-safe\" ]; then echo \"CHECK PASSED\"; exit 0; fi\n" +
+		"echo \"CHECK FAILED: the flag is missing\"\nexit 1\n"
 	// confirmTheSort confirms the way the agent did askToSort.
 	confirmTheSort = "That worked - sorting zorblax.txt with the sort command was exactly the right way. " +
 		"Keep sorting Zorblax lists with the sort command. Reply with one short sentence."

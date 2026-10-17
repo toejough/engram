@@ -376,7 +376,7 @@ Takes [793a2c1e An approach that succeeded with evidence becomes a note](./793a_
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1e | Dedicated example, product acceptance (`network`) | the fifth kind: the [agent](./793a_product-spec.md#793a1a-terms) is unsure of an approach, tries it, and the [turn](./793a_product-spec.md#793a1a-terms) shows that the check passed; the mutation that makes it fail is instructions that do not name an approach that succeeded with evidence | Not started | | | |
+| 793a2c1e | Dedicated example, product acceptance (`network`) | the fifth kind: the [agent](./793a_product-spec.md#793a1a-terms) is unsure of an approach, tries it, and the [turn](./793a_product-spec.md#793a1a-terms) shows that the check passed. The staging names the one command to run, because the first version let the agent add an echo that the permission denied. With the instructions of the first node it passed 17 of 20 runs, under the bar of 9 in 10: in the three failed runs the judgement answered that the turn held no lesson, for a turn that says "I do not know whether the flag makes the check pass" and then "the check passed" (the same window gave a lesson in 11 of 20 probes) | Red | | | |
 
 ### 793e6e The conversation becomes searchable memory
 
