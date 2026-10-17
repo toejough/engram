@@ -439,6 +439,14 @@ Takes [793a3e1a The agent's own lookups and saves keep working](./793a_product-s
 | --- | --- | --- | --- | --- | --- | --- |
 | 793a3e1a | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the agent runs `engram query` and [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand) as it would without automatic memory, its lookup prints the staging [note](../../GLOSSARY.md#permanent-note), and the note it saved is in the vault, as the agent wrote it: its text when the [turn](./793a_product-spec.md#793a1a-terms) ends is its text after the judgement of the turn has finished. The test passes when written, because nothing in automatic memory touches the agent's commands or a note it did not write; the mutation that makes it fail is a write that changes the notes of the vault that it did not write | Done | n/a | 484efae2 | 1a9baaac |
 
+#### 793e6b11 A written note is delivered with later prompts
+
+Takes [793a3a1a A written note is delivered with later prompts](./793a_product-spec.md#793a3a1-uat-scenarios). It adds no component: a [note](../../GLOSSARY.md#permanent-note) that the writing makes is a note of the [vault](../../GLOSSARY.md#vault) like any other, which the delivery finds, and which the [session](../../GLOSSARY.md#session) that wrote it does not hold.
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| 793a3a1a | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the user corrects the [agent](./793a_product-spec.md#793a1a-terms), the correction becomes a note, and a later [prompt](./793a_product-spec.md#793a1a-terms) that the note bears on arrives with it, both in the session of the correction and in a new one; the blocks the test reads are the ones delivered beside each prompt. The test passes when written, because the delivery finds every note of the vault; the mutation that makes it fail is a delivery that leaves out the notes written automatically | Red | | | |
+
 ### 793e6e The conversation becomes searchable memory
 
 Takes [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory).

@@ -995,6 +995,19 @@ Scenario: 793a3e1a The agent's own lookups and saves keep working
 
 Realized by no component of its own. The [agent](./793a_product-spec.md#793a1a-terms)'s commands are the commands of the binary, which [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow) and [793d2b Turn capture flow](#793d2b-turn-capture-flow) neither wrap nor replace, and the commands of [automatic memory](./793a_product-spec.md#793a1a-terms) read the [vault](../../GLOSSARY.md#vault) and write to it only through [793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply), as new [notes](../../GLOSSARY.md#permanent-note) of the learn path of [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand): the writing has no way to change a note it did not write, because its only capability that writes to the vault is the learn path.
 
+### 793d5t Mapping of 793a3a1a
+
+The product scenario [793a3a1a A written note is delivered with later prompts](./793a_product-spec.md#793a3a1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a3a1a A written note is delivered with later prompts
+  Given the user has run engram update, and a session in which the user corrected the agent and the correction became a note
+  When the user sends a prompt that the note bears on, in that session and then in a new session
+  Then each of the two prompts arrives with the note
+```
+
+Realized by no component of its own. [793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply) writes the [note](../../GLOSSARY.md#permanent-note) through the learn path of [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand), which embeds it when it is written, so that the lookup of [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) finds it as it finds any note of the [vault](../../GLOSSARY.md#vault), in a new [session](../../GLOSSARY.md#session). In the session where it was written, [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) does not count it as held, because the [agent](./793a_product-spec.md#793a1a-terms) was never given it: it was neither delivered beside a [prompt](./793a_product-spec.md#793a1a-terms) nor looked up.
+
 ## 793d6 Recommended impact
 
 - **Repository:** a new directory `agent-instructions/mods/`; a new package `internal/auto` and a new command group
