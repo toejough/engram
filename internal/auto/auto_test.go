@@ -105,7 +105,9 @@ func Test793d4c1a_Deliver_ANoteCannotReshapeTheBlock(t *testing.T) {
 }
 
 // unexported constants.
-const maxNotes = 6
+const (
+	maxNotes = 6
+)
 
 // blockOf makes the block of the notes a lookup found.
 func blockOf(t interface {

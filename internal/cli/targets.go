@@ -123,28 +123,6 @@ func Targets(deps Deps) []any {
 	)
 }
 
-// autoTargets returns the automatic-memory subcommands (the `auto` group): the commands the memory mod runs.
-func autoTargets(
-	deps Deps,
-	withLog func(context.Context) context.Context,
-	errHandler func(error),
-) []any {
-	home := homeOrEmpty(deps)
-
-	return []any{
-		targ.Group("auto",
-			targ.Targ(func(ctx context.Context, a AutoDeliverArgs) {
-				a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
-
-				errHandler(runInVault(deps, a.VaultPath, func() error {
-					return RunAutoDeliver(withLog(ctx), a, newAutoDeliverDeps(deps), deps.Stdout)
-				}))
-			}).Name("deliver").Description(
-				"Print the block of the notes that bear on a prompt (the automatic-memory mod runs this for each prompt)"),
-		),
-	}
-}
-
 // amendResituateTargets returns the amend and resituate subcommands. Split out
 // of maintenanceTargets to stay within the per-function length budget.
 func amendResituateTargets(
@@ -176,6 +154,28 @@ func amendResituateTargets(
 			}))
 		}).Name("amend").Description(
 			"Amend a note in place: supersedes, provenance-merge, field-replacement, activate, discard, fold (--into)"),
+	}
+}
+
+// autoTargets returns the automatic-memory subcommands (the `auto` group): the commands the memory mod runs.
+func autoTargets(
+	deps Deps,
+	withLog func(context.Context) context.Context,
+	errHandler func(error),
+) []any {
+	home := homeOrEmpty(deps)
+
+	return []any{
+		targ.Group("auto",
+			targ.Targ(func(ctx context.Context, a AutoDeliverArgs) {
+				a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
+
+				errHandler(runInVault(deps, a.VaultPath, func() error {
+					return RunAutoDeliver(withLog(ctx), a, newAutoDeliverDeps(deps), deps.Stdout)
+				}))
+			}).Name("deliver").Description(
+				"Print the block of the notes that bear on a prompt (the automatic-memory mod runs this for each prompt)"),
+		),
 	}
 }
 

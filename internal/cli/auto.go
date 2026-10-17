@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
 
 	"go.yaml.in/yaml/v3"
 
@@ -89,11 +88,7 @@ func notesOf(payload []byte) ([]auto.Note, error) {
 
 		_, situation := frontmatterTypeAndSituation([]byte(frontmatter))
 
-		notes = append(notes, auto.Note{
-			Path:      item.Path,
-			Situation: situation,
-			Body:      strings.Join(strings.Fields(body), " "),
-		})
+		notes = append(notes, auto.Note{Path: item.Path, Situation: situation, Body: body})
 	}
 
 	return notes, nil
