@@ -114,6 +114,20 @@ func (m *machine) hasStandInEngram(block string) {
 	}
 }
 
+// hookFailures returns the lines of the machine's Claude Code debug logs that say the mod's hook failed and was
+// skipped: a prompt then goes on as if the mod were not installed, but the user sees that it failed.
+func (m *machine) hookFailures() []string {
+	var failures []string
+
+	for line := range strings.SplitSeq(m.hookLog(), "\n") {
+		if strings.Contains(line, "engram-memory") && strings.Contains(line, "skipped") {
+			failures = append(failures, line)
+		}
+	}
+
+	return failures
+}
+
 // hookLog returns the lines of the machine's Claude Code debug logs that say what became of its modules and hooks.
 func (m *machine) hookLog() string {
 	logs, _ := filepath.Glob(filepath.Join(m.root, "claude-debug-*.log"))

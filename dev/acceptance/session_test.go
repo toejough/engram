@@ -315,6 +315,17 @@ func (t *turn) agentActsAt() int {
 	return -1
 }
 
+// contexts returns every entry any hook put beside the prompt, whoever wrote it.
+func (t *turn) contexts() []string {
+	var entries []string
+
+	for _, row := range t.rows {
+		entries = append(entries, row.delivered()...)
+	}
+
+	return entries
+}
+
 // blockAt returns the index, in the turn's rows, of the row that delivered the first block, or -1.
 func (t *turn) blockAt() int {
 	for index, row := range t.rows {
