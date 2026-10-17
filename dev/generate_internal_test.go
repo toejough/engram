@@ -2,3 +2,5 @@
 package dev
 
 //go:generate impgen executeNilaway --dependency --name MockExecuteNilaway
+//go:generate impgen findNode --dependency --name MockFindNode
+//go:generate impgen parseModule --dependency --name MockParseModule

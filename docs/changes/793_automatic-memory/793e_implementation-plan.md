@@ -158,7 +158,7 @@ Takes [793a2a1a The next session has memory after one engram update](./793a_prod
 | 793d4b1b | Dedicated example (default suite) | a source without mods plans none and fails nowhere: the existing sources and tests have no mods directory | | Done | 5b38f353 | 5dec69a1 | cecf5759 |
 | 793d4b1c | Dedicated example (default suite) | the wiring of the plan into the update, run through `Updater.Run` over an in-memory file system: the mod reaches the engram-owned root and is linked from the skills directory | | Done | a05fbcdd | 067f61ad | 647dfe7c |
 | 793d2a1a | Dedicated example, real dependency (`network`) | the mod's routing and placement in a real Claude Code session against an `engram` that prints a chosen block; the session is never answered | | Done | 1d4ce5c7 | 4079d1d3 | dc501762 |
-| `TestSharedSource_NoFileIsSharedWithTheWorktree` | Dedicated example, real dependency (`network`) | review fix: the checkout that `engram update` runs in is a copy of the worktree's files and not links to them, so nothing a run writes in it can change the worktree ([793f7 Test isolation](./793f_algorithm.md#793f7-test-isolation)); the first version hard-linked every file | | Green-all | c19a15bd | | |
+| `TestSharedSource_NoFileIsSharedWithTheWorktree` | Dedicated example, real dependency (`network`) | review fix: the checkout that `engram update` runs in is a copy of the worktree's files and not links to them, so nothing a run writes in it can change the worktree ([793f7 Test isolation](./793f_algorithm.md#793f7-test-isolation)); the first version hard-linked every file | | Done | c19a15bd | 43446091 | |
 
 #### 793e6a2 The notes that bear on a prompt arrive with it
 
@@ -285,9 +285,9 @@ Takes review finding 14: no default gate parsed the mod's JavaScript ([793b55 Th
 
 | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| `TestModuleSyntax_FailsWhenNodeIsNotFound` | Injected and impure interaction (`imptest`, dev suite, `targ` tag) | review fix: a check that cannot run does not pass, so the missing runtime is an error that names node; the lookup of node is injected | Not started | | | |
-| `TestModuleSyntax_NamesEachFileThatDoesNotParse` | Injected and impure interaction (`imptest`, dev suite, `targ` tag) | review fix: the parse of each file goes through node with the file read on standard input, and the files that do not parse are named with what node said, the others not; the process is injected | Not started | | | |
-| `TestMods_EveryJavaScriptModuleParses` | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | review fix: the real mods under `agent-instructions/mods/` parse under the real node, and a broken module is rejected by the real node, which the stand-in cannot show | Not started | | | |
+| `TestModuleSyntax_FailsWhenNodeIsNotFound` | Injected and impure interaction (`imptest`, dev suite, `targ` tag) | review fix: a check that cannot run does not pass, so the missing runtime is an error that names node; the lookup of node is injected | Red | | | |
+| `TestModuleSyntax_NamesEachFileThatDoesNotParse` | Injected and impure interaction (`imptest`, dev suite, `targ` tag) | review fix: the parse of each file goes through node with the file read on standard input, and the files that do not parse are named with what node said, the others not; the process is injected | Red | | | |
+| `TestMods_EveryJavaScriptModuleParses` | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | review fix: the real mods under `agent-instructions/mods/` parse under the real node, and a broken module is rejected by the real node, which the stand-in cannot show | Red | | | |
 
 ### 793e6b Lessons are written without the agent
 
