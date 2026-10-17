@@ -944,8 +944,12 @@ Scenario: 793d4k1f A directory of records that cannot be made, and a record that
 Requirement: 793d4m The [prompt](./793a_product-spec.md#793a1a-terms)-delivery and the [turn](./793a_product-spec.md#793a1a-terms)-judgement MUST each read the `origin` of the JSON object they are
 given, the kind that Claude Code stamps on a prompt, and MUST act only for a prompt the user sends: one whose origin is
 `composer`, `bridge`, `slack-ping` or `sdk`. For any other origin, including none, each MUST print nothing, succeed and
-look nothing up. The definition is theirs, not the mod's: the mod gives the origin it received and decides nothing
-([793b64 The prompts the user sends](./793b_decision-log.md#793b64-the-prompts-the-user-sends)).
+look nothing up. The turn-judgement MUST also print nothing, succeed and look nothing up for a prompt of the origin
+`sdk`, which is the headless host's own turn (`claude -p`, the SDK), unless the user switched on the judgement of such
+turns: the flag `--capture-sdk` or the environment variable `ENGRAM_AUTO_CAPTURE_SDK` set to a true value (`1`), so that
+a script run with `claude -p` under the user's own home writes nothing by default. The definition is theirs, not the
+mod's: the mod gives the origin it received and decides nothing
+([793b64 The prompts the user sends](./793b_decision-log.md#793b64-the-prompts-the-user-sends), [793b84 A headless prompt is judged only when the user asks](./793b_decision-log.md#793b84-a-headless-prompt-is-judged-only-when-the-user-asks)).
 
 Owner: prompt-delivery and turn-judgement (the components of [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) and [793d4g Judging a turn](#793d4g-judging-a-turn))
 
@@ -955,7 +959,7 @@ Supports: [793a2d1b Automatic memory's work starts no session of its own](./793a
 
 ```gherkin
 Scenario: 793d4m1a A prompt of an origin the user sends is delivered for and its turn is judged
-  Given a vault holding a note that bears on a prompt, the record of a session whose turn began with that prompt, and each of the origins composer, bridge, slack-ping and sdk
+  Given a vault holding a note that bears on a prompt, the record of a session whose turn began with that prompt, and each of the origins composer, bridge, slack-ping and sdk, the judgement asked to judge the turns of headless prompts
   When the delivery is given the prompt, and the judgement is given the turn, with each origin
   Then the delivery prints its block and the judgement prints its request, with each
 
@@ -963,6 +967,11 @@ Scenario: 793d4m1b A prompt of any other origin is delivered nothing and its tur
   Given the same vault and record, and any origin but those four, including none: task-notification, scheduled-trigger, peer, channel, plugin, unclassified and the empty origin
   When the delivery is given the prompt, and the judgement is given the turn, with it
   Then each prints nothing, succeeds, and looks nothing up
+
+Scenario: 793d4m1c The turn of a headless prompt is judged only when the user asks
+  Given the record of a session whose turn began with a prompt of the origin sdk
+  When the judgement is given the turn, without the flag --capture-sdk and with it
+  Then without it the judgement prints nothing and succeeds, and with it the judgement prints its request
 ```
 
 ## 793d5 Product-scenario mapping

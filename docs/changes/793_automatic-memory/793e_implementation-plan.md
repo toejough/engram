@@ -184,7 +184,9 @@ graph TD
     n793e6g8 --> n793e6g9
     n793e6g10["793e6g10 A failure that is recorded is recorded once<br/>Complete"]
     n793e6g9 --> n793e6g10
-    n793e6g10 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
+    n793e6g11["793e6g11 A headless prompt is judged only when asked<br/>Ready"]
+    n793e6g10 --> n793e6g11
+    n793e6g11 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
     n793e6d --> n793e6f["793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d"]
@@ -638,6 +640,15 @@ Takes review finding 10. A lesson that the learn path could not write was record
 | --- | --- | --- | --- | --- | --- | --- |
 | 793d4k1g | Dedicated example (default suite) | a learn path that fails, through `RunAutoWrite`: one record of the kind `failed` with the reason, and the command succeeds | Done | 19c9a58f | 8d224a2d | ac7a5bf2 |
 | 793d4k1h | Dedicated example (default suite) | the same failure with a place for the records that cannot be written: the command fails with the reason, so that the failure is not lost. It passes when written, since every failure failed the command before; the mutation that makes it fail is a writing that succeeds whenever a lesson failed, run on a scratch copy of the branch | Done | n/a | 8d224a2d | ac7a5bf2 |
+
+#### 793e6g11 A headless prompt is judged only when the user asks
+
+Takes review finding 6. The origin `sdk` is the headless host's own [turn](./793a_product-spec.md#793a1a-terms) (`claude -p`, the SDK), so every headless run under the real home of the user, such as the user's own evaluations with fictional fixtures, wrote [notes](../../GLOSSARY.md#permanent-note) from its turns into the real [vault](../../GLOSSARY.md#vault) ([793b84 A headless prompt is judged only when the user asks](./793b_decision-log.md#793b84-a-headless-prompt-is-judged-only-when-the-user-asks), [793c39 Which origins count as the prompts the user sends?](./793c_open-questions.md#793c39-which-origins-count-as-the-prompts-the-user-sends)). The delivery for such a [prompt](./793a_product-spec.md#793a1a-terms) is unchanged. The acceptance machine sets the variable, since every acceptance scenario is driven by a headless run.
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| 793d4m1c | Dedicated example (default suite) | the judgement dispatched through the targets for a prompt of the origin `sdk`, without the flag and with it | Not started | | | |
+| 793d4m1a (amended) | Dedicated example (default suite) | the four origins of the user, with the judgement asked to judge headless turns | Not started | | | |
 
 ### 793e6e The conversation becomes searchable memory
 

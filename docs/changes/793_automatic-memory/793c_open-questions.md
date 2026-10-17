@@ -399,9 +399,11 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Context:** the mod delivered for every origin of a [prompt](./793a_product-spec.md#793a1a-terms) in the first group ([793c35 Does the mod tell a prompt the user sent from a prompt of another origin?](./793c_open-questions.md#793c35-does-the-mod-tell-a-prompt-the-user-sent-from-a-prompt-of-another-origin)), and this group
   adds the filter. A headless [session](../../GLOSSARY.md#session)'s prompt has the origin `sdk`, the same as a prompt another program sends with the SDK.
 - **Options:** (a) `composer`, `bridge`, `slack-ping` and `sdk`. (b) `composer`, `bridge` and `slack-ping`, so a headless session gets nothing.
-- **Recommendation:** (a): (b) would leave out the user's own `claude -p` runs, and the tests drive one.
+  (c) As (a) for the delivery, and for the judgement `sdk` only when the user switches it on with `ENGRAM_AUTO_CAPTURE_SDK`.
+- **Recommendation:** (a): (b) would leave out the user's own `claude -p` runs, and the tests drive one. After the
+  review, (c): a headless run under the real home writes fiction into the real [vault](../../GLOSSARY.md#vault) otherwise.
 - **Blocks:** nothing.
-- **Status:** open. Default (a) taken: [793b64 The prompts the user sends](./793b_decision-log.md#793b64-the-prompts-the-user-sends).
+- **Status:** open. Default (a) taken: [793b64 The prompts the user sends](./793b_decision-log.md#793b64-the-prompts-the-user-sends). Amended: the default became (c): [793b84 A headless prompt is judged only when the user asks](./793b_decision-log.md#793b84-a-headless-prompt-is-judged-only-when-the-user-asks).
 
 ## 793c40 Is the window of the judgement the right one?
 

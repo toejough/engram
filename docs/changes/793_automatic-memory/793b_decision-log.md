@@ -1426,3 +1426,20 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   record what it also fails with (rejected: the display of what [automatic memory](./793a_product-spec.md#793a1a-terms) did reads the records, and a
   failure of the learn path is the one the user most needs to see).
 - **Decided by:** Author (default; owner may override).
+
+## 793b84 A headless prompt is judged only when the user asks
+
+- **Choice:** the delivery acts for the four origins of [793b64 The prompts the user sends](#793b64-the-prompts-the-user-sends), as before, and the judgement of a
+  [turn](./793a_product-spec.md#793a1a-terms) acts for `composer`, `bridge` and `slack-ping`, and for `sdk` only when the user turned on the judgement of the
+  turns of headless [prompts](./793a_product-spec.md#793a1a-terms): the flag `--capture-sdk` of `engram auto judge`, or the environment variable
+  `ENGRAM_AUTO_CAPTURE_SDK` set to a true value. The acceptance machine sets the variable for every command it runs.
+- **Rationale:** review finding 6. The documentation of the host defines the origin `sdk` as the host's own turn (`claude -p`, the
+  SDK), and a [session](../../GLOSSARY.md#session) that a script runs with `claude -p` under the user's real home, such as the user's own evaluations with
+  fictional fixtures, would write [notes](../../GLOSSARY.md#permanent-note) of its fiction into the real [vault](../../GLOSSARY.md#vault). The delivery only reads, so it is left as it was; the writing is
+  what must be asked for. One variable is the one switch that the acceptance machine can set for all its runs, and a user
+  who wants the notes of their own scripts sets it in the same way.
+- **Alternatives:** judge no headless turn (rejected: the user's own `claude -p` work is then outside
+  [automatic memory](./793a_product-spec.md#793a1a-terms), and every acceptance scenario is a headless run); judge them all as before (rejected by the finding); a
+  setting file of the user's (rejected: a new place for a setting that the environment already is).
+- **Decided by:** Author (default; owner may override); the owner is asked in
+  [793c39 Which origins count as the prompts the user sends?](./793c_open-questions.md#793c39-which-origins-count-as-the-prompts-the-user-sends), with this default stated.
