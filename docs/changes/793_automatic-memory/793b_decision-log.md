@@ -593,3 +593,26 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   the owner.
 - **Alternatives:** decline a finding. None was declined.
 - **Decided by:** Reviewer (opus review round 1, 2026-10-17), accepted by the author.
+
+## 793b40 The scenarios of the first group
+
+- **Choice:** step 2 for the first group ([793e6a On after update, and memory arrives with the prompt](./793e_implementation-plan.md#793e6a-on-after-update-and-memory-arrives-with-the-prompt))
+  writes ten scenarios, one per mandatory branch and no more: five under [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update)
+  (the next session has memory in any project; a second update still delivers once; a dry run turns nothing on; Pi gets
+  nothing; a vault that does not exist is not created), four under [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt)
+  (the notes that bear on a prompt arrive with it; a note delivered earlier is not delivered again; a note the agent
+  looked up itself is not delivered; a prompt that matches no note, even when the conversation matches, arrives with
+  nothing) and one under [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) (a slow lookup does not hold a prompt for more
+  than 8 seconds). The clause of 793a2a about lessons is proved by a scenario written with [793e6b Lessons are written without the agent](./793e_implementation-plan.md#793e6b-lessons-are-written-without-the-agent).
+  The scenario for the hold is in this group because [793e4 Depth-first order and dependency tree](./793e_implementation-plan.md#793e4-depth-first-order-and-dependency-tree) gives the first group the
+  8-second hold, and the other scenarios of 793a2d wait for the group that finishes it.
+- **Rationale:** the owner's step 2 asks for the minimum scenarios that prove the requirement, and the product guide
+  asks for end-user-verifiable coverage of every mandatory branch. Two shapes are the author's: "the agent looked the
+  note up itself" is staged before the update and the session is resumed after it, because a prompt of that session
+  would otherwise deliver the note too and the two routes could not be told apart; and the missing vault is a vault
+  that was removed after the update, because `engram update` itself creates a missing vault, so a machine that never
+  ran it is not a machine on which the mod is installed.
+- **Alternatives:** fewer scenarios, folding the dry run and Pi into the first (rejected: their outcomes differ and
+  each needs its own report); a scenario for each of the delivered-note routes inside one (rejected: the plan guide
+  has one test per scenario ID, and the two routes are different interactions).
+- **Decided by:** Author (default; owner may override).

@@ -46,7 +46,37 @@ lesson MUST still become one note. `engram update` MUST NOT install anything int
 
 #### 793a2a1 UAT Scenarios
 
-Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
+```gherkin
+Scenario: 793a2a1a The next session has memory after one engram update
+  Given a machine with Claude Code on which the user has never run engram update, and a vault holding a note that says when the staging database is reset
+  When the user runs engram update
+  And starts a Claude Code session in a project other than the one engram update was run in, and sends a prompt asking when the staging database is reset
+  Then the note is in the agent's context before the agent answers
+
+Scenario: 793a2a1b A second update still delivers each note once
+  Given a machine on which the user has run engram update once, and a vault holding a note that says when the staging database is reset
+  When the user runs engram update again
+  And starts a session and sends a prompt asking when the staging database is reset
+  Then the note is in the agent's context once
+
+Scenario: 793a2a1c A dry run turns nothing on
+  Given a machine with Claude Code on which the user has never run engram update, and a vault holding a note that says when the staging database is reset
+  When the user runs engram update --dry-run
+  And starts a session and sends a prompt asking when the staging database is reset
+  Then the report lists the automatic memory as planned, and the agent's context holds no note
+
+Scenario: 793a2a1d Pi gets no automatic memory
+  Given a machine with both Claude Code and Pi
+  When the user runs engram update
+  Then the report lists the automatic memory under Claude Code and not under Pi, and nothing of it is installed under ~/.pi
+
+Scenario: 793a2a1e A vault that does not exist is not created
+  Given a machine with Claude Code on which the user has run engram update, and whose configured vault no longer exists
+  When the user starts a session and sends a prompt
+  Then the agent answers the prompt, and the vault still does not exist
+```
+
+The clause of [793a2a On after `engram update`](#793a2a-on-after-engram-update) about lessons is proved by a scenario written with [793e6b Lessons are written without the agent](./793e_implementation-plan.md#793e6b-lessons-are-written-without-the-agent) ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
 
 ### 793a2b Memory arrives with the prompt
 
@@ -63,7 +93,27 @@ when the agent asks. The notes arrive beside the prompt, which stays exactly as 
 
 #### 793a2b1 UAT Scenarios
 
-Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
+```gherkin
+Scenario: 793a2b1a The notes that bear on a prompt arrive with it
+  Given the user has run engram update, and a vault holding a note that says when the staging database is reset and a note about formatting Python files
+  When the user sends a prompt asking when the staging database is reset
+  Then before the agent acts its context holds the staging note and not the formatting note, and the prompt in the conversation is exactly as the user typed it
+
+Scenario: 793a2b1b A note delivered earlier in the session is not delivered again
+  Given a session in which a prompt asking when the staging database is reset arrived with the staging note
+  When the user sends another prompt about the staging database reset
+  Then the second prompt arrives with nothing from the vault, and the staging note is in the agent's context once
+
+Scenario: 793a2b1c A note the agent looked up itself is not delivered
+  Given a session in which, before the user ran engram update, the agent looked up the staging note itself with engram query
+  When the user runs engram update, resumes that session, and sends a prompt asking when the staging database is reset
+  Then the prompt arrives with nothing from the vault
+
+Scenario: 793a2b1d A prompt that matches no note arrives with nothing
+  Given the user has run engram update, a vault whose notes have nothing to do with the prompt, and a searchable conversation that does
+  When the user sends the prompt
+  Then the prompt arrives with nothing from the vault, and the agent answers it
+```
 
 ### 793a2c Lessons are written without the agent
 
@@ -105,7 +155,14 @@ it MUST step aside, and the session MUST continue as if automatic memory were no
 
 #### 793a2d1 UAT Scenarios
 
-Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
+```gherkin
+Scenario: 793a2d1a A slow lookup does not hold a prompt for more than 8 seconds
+  Given the user has run engram update, and a lookup that takes 20 seconds
+  When the user sends a prompt
+  Then the prompt reaches the agent within 8 seconds, as the user typed it and with nothing from the vault, and the agent answers it
+```
+
+The other scenarios of [793a2d Never in the way](#793a2d-never-in-the-way) are written with [793e6c Never in the way](./793e_implementation-plan.md#793e6c-never-in-the-way) ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
 
 ### 793a2e The user can see what it did
 
