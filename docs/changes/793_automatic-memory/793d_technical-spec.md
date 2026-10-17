@@ -39,6 +39,17 @@ the machinery that deploys the skills. (2) The mod runs a new command, `engram a
 command looks up the [notes](../../GLOSSARY.md#permanent-note) that bear on the prompt text, as `engram query` would,
 and prints them as one compact block, which the mod puts beside the prompt. The command, not the mod, holds the logic.
 
+**The lessons** are three more parts, on the same footing. (4) After a [turn](./793a_product-spec.md#793a1a-terms) of a prompt the user sent, the mod's
+`turn.complete` function, apart from the end of the turn, runs a new command, `engram auto judge`, which reads the turn
+from the session's record and prints the request of one model call. (5) The mod makes that call through the host's
+model API, with the user's own login, and (6) runs a new command, `engram auto write`, with the reply; the command reads
+the lessons the reply holds and writes each as a note through the learn path, marked as written automatically. The call
+raises neither a prompt nor a turn, so [automatic memory](./793a_product-spec.md#793a1a-terms) starts no session of its own
+([793b63 A turn is judged by one model call, and no session is started](./793b_decision-log.md#793b63-a-turn-is-judged-by-one-model-call-and-no-session-is-started)).
+(Verified with Claude Code 2.1.302: the `turn.complete` event carries the turn's final text and its ID, and fires when the
+session's record already holds the turn's last row; `$.model.complete` answers `haiku` within about two seconds, also from
+work left running after the hook that started it returned.)
+
 ## 793d2 Recommended sequence diffs
 
 ### 793d2a Prompt delivery flow
@@ -120,6 +131,50 @@ Scenario: 793d2a1g A session that does not give its ID in time does not hold the
   Then the mod lets the prompt continue as it was after the 7 seconds, with nothing added, and the command was never run
 ```
 
+### 793d2b Turn capture flow
+
+Added interactions are drawn solid.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Session as Claude Code session
+    participant Mod as automatic-memory-mod
+    participant Judgement as turn-judgement
+    participant Model as the host's model call
+    participant Writing as lesson-writing
+    participant Vault as the vault
+
+    User->>Session: the turn ends
+    Session->>Mod: 793d2b turn.complete with the turn's final text
+    Mod-->>Session: 793d2b the event's result, at once
+    Mod->>Judgement: 793d2b, 793d4g engram auto judge, the session's ID and the final text on standard input
+    Judgement-->>Mod: 793d4g the request for the model
+    Mod->>Model: 793d2b the request
+    Model-->>Mod: 793d2b the reply
+    Mod->>Writing: 793d2b, 793d4h engram auto write, the session's ID and the reply on standard input
+    Writing->>Vault: 793d4h a note for each lesson
+```
+
+Requirement: 793d2b For each [turn](./793a_product-spec.md#793a1a-terms) a Claude Code [session](../../GLOSSARY.md#session) completes, the automatic-memory-mod MUST
+give the event's result back at once, and MUST then, apart from the event, run `engram auto judge` with the session's ID
+and the turn's final text, as one JSON object, on standard input; when the command exited with 0 and printed a request,
+MUST ask the model for it through the host's model call, with the request exactly as printed; and when the model
+answered, MUST run `engram auto write` with the session's ID and the model's reply, as one JSON object, on standard input.
+
+Owner: automatic-memory-mod (the component of [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow))
+
+Supports: [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios).
+
+#### 793d2b1 Scenarios
+
+```gherkin
+Scenario: 793d2b1a The mod judges a turn and gives the reply to the writing
+  Given the mod, a session whose ID is known, an engram whose auto judge prints a request, and a model that answers
+  When a turn completes with a final text
+  Then the event's result is given back at once, auto judge received the session's ID and the final text, the model was asked the request exactly as printed, and auto write received the session's ID and the model's reply
+```
+
 ## 793d3 Recommended component diffs
 
 - **automatic-memory-mod** (added): the mod `engram-memory`, a hooks module in `agent-instructions/mods/engram-memory/`
@@ -127,7 +182,9 @@ Scenario: 793d2a1g A session that does not give its ID in time does not hold the
   at the prompt is stated without naming a function; ownership, the routing and the placement of the block are its
   own, the lookup is the command's; independent verification, it is tested in a real Claude Code [session](../../GLOSSARY.md#session) against an
   `engram` that prints a chosen block; stability, it survives any change to how the command finds notes; necessity,
-  without it nothing runs at a prompt.
+  without it nothing runs at a prompt. It also captures the lessons of a [turn](./793a_product-spec.md#793a1a-terms) after the turn ends
+  ([793d2b Turn capture flow](#793d2b-turn-capture-flow)): the routing of the judgement and of the write is its own, the
+  judgement and the write are the commands'.
 - **prompt-delivery** (added): the command `engram auto deliver` (`internal/cli/auto.go`, `internal/auto`,
   informational). Qualification: responsibility, turning a prompt into the block of notes that bear on it is stated
   without naming a function; ownership, the choice and rendering of notes are its own, the hook is the mod's;
@@ -139,11 +196,24 @@ Scenario: 793d2a1g A session that does not give its ID in time does not hold the
   own, the choice of notes to deliver is the delivery's; independent verification, it is tested over records of a
   session; stability, it survives any change to how the delivery uses it; necessity, a note the agent holds must not be
   delivered again ([793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt)).
+- **turn-judgement** (added): the command `engram auto judge` (`internal/cli/auto.go`, `internal/auto`, informational).
+  Qualification: responsibility, turning a turn into the request of the call that judges it is stated without naming a
+  function; ownership, the choice of the lines of a turn and the instructions of the judgement are its own, the call is
+  the mod's; independent verification, it is tested through its standard input and output over records of a session;
+  stability, it survives any change to the call; necessity, the mod holds no logic.
+- **lesson-writing** (added): the command `engram auto write` (`internal/cli/auto.go`, `internal/auto`, informational).
+  Qualification: responsibility, turning the model's reply into the [notes](../../GLOSSARY.md#permanent-note) of the [vault](../../GLOSSARY.md#vault) is stated without naming a
+  function; ownership, the reading of the reply and the mark of a note are its own, the write of a note is the learn
+  path's; independent verification, it is tested through its standard input and output over an in-memory vault;
+  stability, it survives any change to the instructions of the judgement; necessity, the notes must be written after the
+  turn without the [agent](./793a_product-spec.md#793a1a-terms).
+- **learn path** (retained): the write of a note, as [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand) does it (`RunLearn`).
 - **harness-deploy-sync** (updated): plans, links, reports and removes the mod as it does a [skill](../../GLOSSARY.md#skill) directory, and
   reports it as a mod ([793b47 A dry run reports the mod as a mod](./793b_decision-log.md#793b47-a-dry-run-reports-the-mod-as-a-mod)).
 - **query-engine** (retained): the lookup of notes for text, used as `engram query` uses it.
 - **Claude Code's mod runtime** (an external boundary, retained): loads a mod from `~/.claude/skills/<name>`, runs its
-  `prompt.submit` function for each prompt, runs the commands it asks for, and carries the context it returns to the
+  `prompt.submit` function for each prompt and its `turn.complete` function for each turn, runs the commands it asks
+  for, makes the model calls it asks for with the user's own login, and carries the context it returns to the
   model. The mod relies on that contract; nothing here tests it.
 
 ## 793d4 Recommended component-behavior diffs
@@ -423,6 +493,86 @@ Scenario: 793d4f1d No record is read when no directory can be found
   Then no record is read, and the block names the notes that bear on the prompt
 ```
 
+### 793d4g Judging a turn
+
+Requirement: 793d4g The [turn](./793a_product-spec.md#793a1a-terms)-judgement MUST read one JSON object with the `session`'s ID and the turn's final `answer`
+from standard input, and MUST find the [session](../../GLOSSARY.md#session)'s record as [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) does,
+in the directory of [793d4f Finding the records of sessions](#793d4f-finding-the-records-of-sessions). The turn is the last [prompt](./793a_product-spec.md#793a1a-terms) of the record and
+everything after it, and the conversation before it is the context. It MUST print one JSON object, the request for the
+model: `model` (`haiku`), `effort` (`low`), `prompt`, `maxTokens` and `timeoutMs`. The prompt MUST hold the instructions
+of the judgement, then the lines of the context, then the line `--- the turn ---`, then the lines of the turn. A line is
+one message and opens with `User: ` for a prompt, `Agent: ` for text of the [agent](./793a_product-spec.md#793a1a-terms), and `Agent used ` and the tool's name for a
+tool it called; a line break in a message is written ` ⏎ `, so that no message makes a line of its own. The final text is
+the last line of the turn when no line of the turn holds its first 80 characters. It MUST print nothing, and succeed,
+when the record holds no prompt or there is no record, and print nothing and fail, naming the cause, when its input is
+not a JSON object.
+
+Owner: turn-judgement (a new component; its canonical file at promotion is `turn-judgement.md`)
+
+Supports: [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios).
+
+#### 793d4g1 Scenarios
+
+```gherkin
+Scenario: 793d4g1a The request holds the instructions, the context and the turn
+  Given the record of a session with a first turn and a second turn in which the user corrected the agent
+  When the judgement is given the session and the second turn's final text
+  Then it prints a request for the model haiku at effort low whose prompt holds the instructions, the first turn's lines, the line --- the turn ---, and the second turn's lines, each opening with its label
+
+Scenario: 793d4g1b The final text is added when the record lacks it
+  Given the record of a session whose last row is the user's prompt
+  When the judgement is given the session and a final text
+  Then the last line of the turn is the final text, labelled as the agent's
+
+Scenario: 793d4g1c A session with no prompt in its record is judged nothing
+  Given a session with no record, and the record of a session with no prompt
+  When the judgement is given each
+  Then it prints nothing and succeeds both times
+
+Scenario: 793d4g1d An input that is not a JSON object fails the command
+  Given an input that is not a JSON object
+  When the judgement is given it
+  Then it prints nothing and fails with an error that names the input
+```
+
+### 793d4h Writing the lessons of a reply
+
+Requirement: 793d4h The lesson-writing MUST read one JSON object with the `session`'s ID and the model's `reply` from
+standard input. The reply is a JSON array of lessons, with or without a code fence around it. A lesson has a `kind`,
+which is `feedback`, with a `behavior`, an `impact` and an `action`, or `fact`, with a `subject`, a `predicate` and an
+`object`; a `slug` of lower-case letters, digits and dashes; and a `situation`. It MUST write each lesson as a
+[note](../../GLOSSARY.md#permanent-note) of its kind through the learn path of [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand), at the top of the order of the [vault](../../GLOSSARY.md#vault), with the source
+`written automatically (session <the session's ID>)`, and MUST print the path of each note it wrote. A reply that is not
+a list of lessons, and a lesson that lacks a field or has a kind it does not know, write nothing.
+
+Owner: lesson-writing (a new component; its canonical file at promotion is `lesson-writing.md`)
+
+Supports: [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios).
+
+#### 793d4h1 Scenarios
+
+```gherkin
+Scenario: 793d4h1a A feedback lesson becomes a feedback note marked as written automatically
+  Given a reply that holds one feedback lesson, and the ID of a session
+  When the lessons are written
+  Then the vault holds one feedback note with the lesson's situation, behavior, impact and action, whose source says it was written automatically and names the session, and the path of the note is printed
+
+Scenario: 793d4h1b A fact lesson becomes a fact note marked as written automatically
+  Given a reply that holds one fact lesson, and the ID of a session
+  When the lessons are written
+  Then the vault holds one fact note with the lesson's situation, subject, predicate and object, whose source says it was written automatically and names the session
+
+Scenario: 793d4h1c A reply that is not a list of lessons, or a lesson that is not whole, writes nothing
+  Given replies that are not JSON, that are an empty list, and that hold a lesson of an unknown kind, a lesson with no slug and a lesson with an empty field
+  When the lessons are written
+  Then the vault holds no note
+
+Scenario: 793d4h1d The code fence around the list is not part of it
+  Given a reply that holds one lesson inside a code fence
+  When the lessons are written
+  Then the vault holds the lesson's note
+```
+
 ## 793d5 Product-scenario mapping
 
 ### 793d5a Mapping of 793a2a1a
@@ -545,10 +695,27 @@ Scenario: 793a2a1b A second update still delivers each note once
 
 Realized by [793d4b Deploying the mods of the source](#793d4b-deploying-the-mods-of-the-source): the second update leaves one deployed mod, so the [session](../../GLOSSARY.md#session) loads one hook and the [prompt](./793a_product-spec.md#793a1a-terms) runs the command once; with [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt), which prints the block of the [note](../../GLOSSARY.md#permanent-note) once.
 
+### 793d5j Mapping of 793a2c1a
+
+The product scenario [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2c1a A correction becomes a note
+  Given the user has run engram update, and a session in which the agent may not run engram commands and has answered a question about how to build a project
+  When the user corrects the agent's answer in a prompt, and the turn ends
+  Then within 2 minutes the vault holds a note that states the correction and says it was written automatically, and the agent wrote nothing to the vault
+```
+
+Realized by [793d2b Turn capture flow](#793d2b-turn-capture-flow) (the mod runs the judgement after the [turn](./793a_product-spec.md#793a1a-terms), asks the model and gives the reply to the writing),
+[793d4g Judging a turn](#793d4g-judging-a-turn) (the command turns the turn that the [session](../../GLOSSARY.md#session)'s record holds into the request) and
+[793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply) (the command writes the lesson as a [note](../../GLOSSARY.md#permanent-note) marked as written automatically), with
+[793d4f Finding the records of sessions](#793d4f-finding-the-records-of-sessions) (the record is found where Claude Code writes it). The [agent](./793a_product-spec.md#793a1a-terms) wrote nothing because it may not run engram commands, so the note
+is the writing's.
+
 ## 793d6 Recommended impact
 
 - **Repository:** a new directory `agent-instructions/mods/`; a new package `internal/auto` and a new command group
-  `engram auto` with the command `deliver`; the update's deploy set gains the mods.
+  `engram auto` with the commands `deliver`, `judge` and `write`; the update's deploy set gains the mods.
 - **Dependencies:** none new in Go. A Claude Code release that loads mods: 2.1.302 is the build this was verified
   with, and the earlier attempt found 2.1.287 the first. `node`, which `targ check-full` needs to parse the mod's
   JavaScript and to run its tests ([793b55 The mod's JavaScript is parsed by a test of the dev integration suite](./793b_decision-log.md#793b55-the-mods-javascript-is-parsed-by-a-test-of-the-dev-integration-suite)).
@@ -556,7 +723,8 @@ Realized by [793d4b Deploying the mods of the source](#793d4b-deploying-the-mods
   `network` build tag, so `targ test` does not run them.
 - **Operational:** one process start and one lookup for each [prompt](./793a_product-spec.md#793a1a-terms), held for at most the bound of
   [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way): the mod's one timer of 7 seconds
-  ([793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow)).
+  ([793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow)). After each [turn](./793a_product-spec.md#793a1a-terms), two process starts and one model call
+  of the user's own login, apart from the turn ([793d2b Turn capture flow](#793d2b-turn-capture-flow)).
 - **Risk and complexity:** every prompt of every Claude Code session runs the command. A failure of the command does not
   reach the session: the mod adds nothing for a command that fails, that prints what is not a block, or that does not
   finish in 7 seconds ([793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow)). An open risk, recorded in

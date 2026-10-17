@@ -108,6 +108,20 @@ graph TD
     n793e6a8["793e6a8 Pi gets no automatic memory<br/>Complete"]
     n793e6a9["793e6a9 A dry run turns nothing on<br/>Complete"]
     n793e6a10["793e6a10 A second update still delivers each note once<br/>Complete"]
+    n793e6b1["793e6b1 A correction becomes a note<br/>Ready"]
+    n793e6b2["793e6b2 A request to remember becomes a note<br/>Blocked by: 793e6b1"]
+    n793e6b3["793e6b3 An approach the user confirmed becomes a note<br/>Blocked by: 793e6b2"]
+    n793e6b4["793e6b4 The agent's own correction becomes a note<br/>Blocked by: 793e6b3"]
+    n793e6b5["793e6b5 An approach that succeeded with evidence becomes a note<br/>Blocked by: 793e6b4"]
+    n793e6b6["793e6b6 Guesses, plans and chatter produce no note<br/>Blocked by: 793e6b5"]
+    n793e6b7["793e6b7 A credential in the turn is not in the note<br/>Blocked by: 793e6b6"]
+    n793e6b8["793e6b8 A lesson an earlier note states is not written again<br/>Blocked by: 793e6b7"]
+    n793e6b9["793e6b9 A lesson the agent saved itself is not written again<br/>Blocked by: 793e6b8"]
+    n793e6b10["793e6b10 The agent's own lookups and saves keep working<br/>Blocked by: 793e6b9"]
+    n793e6b11["793e6b11 A written note is delivered with later prompts<br/>Blocked by: 793e6b10"]
+    n793e6b12["793e6b12 A second update still writes each lesson as one note<br/>Blocked by: 793e6b11"]
+    n793e6b13["793e6b13 A lesson is not written to a vault that does not exist<br/>Blocked by: 793e6b12"]
+    n793e6b14["793e6b14 Automatic memory's work starts no session of its own<br/>Blocked by: 793e6b13"]
     n793e6a1 --> n793e6a2
     n793e6a2 --> n793e6a3
     n793e6a3 --> n793e6a4
@@ -117,14 +131,27 @@ graph TD
     n793e6a7 --> n793e6a8
     n793e6a8 --> n793e6a9
     n793e6a9 --> n793e6a10
-    n793e6a10 --> n793e6b["793e6b Lessons are written without the agent<br/>Ready"]
-    n793e6b --> n793e6e["793e6e The conversation becomes searchable memory<br/>Blocked by: 793e6b"]
+    n793e6a10 --> n793e6b1
+    n793e6b1 --> n793e6b2
+    n793e6b2 --> n793e6b3
+    n793e6b3 --> n793e6b4
+    n793e6b4 --> n793e6b5
+    n793e6b5 --> n793e6b6
+    n793e6b6 --> n793e6b7
+    n793e6b7 --> n793e6b8
+    n793e6b8 --> n793e6b9
+    n793e6b9 --> n793e6b10
+    n793e6b10 --> n793e6b11
+    n793e6b11 --> n793e6b12
+    n793e6b12 --> n793e6b13
+    n793e6b13 --> n793e6b14
+    n793e6b14 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Blocked by: 793e6b14"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
     n793e6d --> n793e6f["793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d"]
 ```
 
-The graph shows the nodes of the first group, whose scenarios step 2 has written, and the other groups as they
+The graph shows the nodes of the first two groups, whose scenarios step 2 has written, and the other groups as they
 stand. When step 2 writes a group's scenarios, the group's node is replaced, in the same place and with the same
 prerequisites, by one node per scenario, each with a catalog section under its group's.
 
@@ -297,10 +324,27 @@ Takes review finding 14: no default gate parsed the mod's JavaScript ([793b55 Th
 
 ### 793e6b Lessons are written without the agent
 
-Takes [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later), [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again) and [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working). It also takes the clause of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) that [automatic memory](./793a_product-spec.md#793a1a-terms) MUST NOT deliver to or write from its own [sessions](../../GLOSSARY.md#session), with its scenario and the filter by the origin of a [prompt](./793a_product-spec.md#793a1a-terms): this is the first group that starts sessions of its own, and until it is done the mod delivers for every origin ([793b58 The first group delivers for every origin of a prompt](./793b_decision-log.md#793b58-the-first-group-delivers-for-every-origin-of-a-prompt)).
+Takes [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later), [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again) and [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working). It also takes the clause of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) that [automatic memory](./793a_product-spec.md#793a1a-terms) MUST NOT deliver to or write from its own [sessions](../../GLOSSARY.md#session), with its scenario and the filter by the origin of a [prompt](./793a_product-spec.md#793a1a-terms): this is the first group that does work after a [turn](./793a_product-spec.md#793a1a-terms), and until it is done the mod delivers for every origin ([793b58 The first group delivers for every origin of a prompt](./793b_decision-log.md#793b58-the-first-group-delivers-for-every-origin-of-a-prompt)). [Automatic memory](./793a_product-spec.md#793a1a-terms) starts no [session](../../GLOSSARY.md#session) of its own ([793b63 A turn is judged by one model call, and no session is started](./793b_decision-log.md#793b63-a-turn-is-judged-by-one-model-call-and-no-session-is-started)), so the clause holds by construction, its scenario observes it, and the filter is built with the last node of the group ([793b64 The prompts the user sends](./793b_decision-log.md#793b64-the-prompts-the-user-sends)).
 
-| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- |
+One node for each of the fourteen scenarios of [793b62 The scenarios of the second group](./793b_decision-log.md#793b62-the-scenarios-of-the-second-group), in the order of the graph above; the rows of a node are added when step 3 reaches it.
+
+#### 793e6b1 A correction becomes a note
+
+Takes [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios). It builds the pipeline the other nodes of the group extend: the mod's capture of a [turn](./793a_product-spec.md#793a1a-terms), the judgement of the turn and the write of the lesson.
+
+| Gherkin | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793a2c1a | Dedicated example, product acceptance (`network`) | the promise as the user sees it: a real [session](../../GLOSSARY.md#session) in which the [agent](./793a_product-spec.md#793a1a-terms) may not run engram commands, a correction, and a [note](../../GLOSSARY.md#permanent-note) in the [vault](../../GLOSSARY.md#vault) that says it was written automatically within the bound; the time from the end of the turn to the note is measured | | Not started | | | |
+| 793d4g1a | Dedicated example (default suite) | the request over a record of the real format: the instructions, the context, the divider and the lines of the turn | | Not started | | | |
+| 793d4g1b | Dedicated example (default suite) | the final text fills in a record whose last row is not yet written | | Not started | | | |
+| 793d4g1c | Dedicated example (default suite) | the boundary cases: no record, and a record with no [prompt](./793a_product-spec.md#793a1a-terms) | | Not started | | | |
+| 793d4g1d | Dedicated example (default suite) | the failure branch of the command: an input that is not a JSON object, through `RunAutoJudge` | | Not started | | | |
+| 793d4g1e | Property-based (`rapid`) with named examples (default suite) | the one guarantee a message must not break: a message is one line | for any messages whose text holds line breaks of every kind, control and format characters and text that reads as a label: the lines of the turn are one for each message, each opens with its label, and no line holds a line break | Not started | | | |
+| 793d4h1a | Dedicated example (default suite) | a feedback lesson becomes a feedback note with the mark, through `RunAutoWrite` over an in-memory vault | | Not started | | | |
+| 793d4h1b | Dedicated example (default suite) | a fact lesson becomes a fact note with the mark | | Not started | | | |
+| 793d4h1c | Dedicated example (default suite) | the replies and lessons that write nothing | | Not started | | | |
+| 793d4h1d | Dedicated example (default suite) | the code fence a model may put around the list | | Not started | | | |
+| 793d2b1a | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the mod's routing of a turn against a stand-in host: the order of the three steps and what each is given; a live session cannot show what a stand-in records | | Not started | | | |
 
 ### 793e6e The conversation becomes searchable memory
 
