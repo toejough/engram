@@ -192,7 +192,7 @@ graph TD
     n793e6g12 --> n793e6g13
     n793e6g14["793e6g14 A thanks that names no approach produces no note<br/>Complete"]
     n793e6g13 --> n793e6g14
-    n793e6g15["793e6g15 A lesson no earlier note states is written<br/>Ready"]
+    n793e6g15["793e6g15 A lesson no earlier note states is written<br/>Complete"]
     n793e6g14 --> n793e6g15
     n793e6g15 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
@@ -689,7 +689,7 @@ Takes review finding 18. Only one side of [793a3c Nothing the vault already says
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a3c1c | Dedicated example, product acceptance (`network`) | the other side of the cover as the user sees it: a real [session](../../GLOSSARY.md#session), a vault with the note of one lesson about a database, a request to remember another lesson about the same database, and a new note in the vault that says it was written automatically within the bound, with the earlier note unchanged | | Not started | | | |
+| 793a3c1c | Dedicated example, product acceptance (`network`) | the other side of the cover as the user sees it: a real [session](../../GLOSSARY.md#session), a vault with the note of one lesson about a database, a request to remember another lesson about the same database, and a new note in the vault that says it was written automatically within the bound, with the earlier note unchanged. It passes when written; the mutation that makes it fail is an instruction that a nearest note about the same subject as the lesson covers it, run on a scratch copy of the branch: the row passed 1 of 6 runs | 10 of 10 runs | Done | n/a | 228d02b4 | f5f9a637 |
 
 ### 793e6e The conversation becomes searchable memory
 
