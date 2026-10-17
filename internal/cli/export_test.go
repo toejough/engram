@@ -126,6 +126,7 @@ var (
 	ExportHashChanged                      = hashChanged
 	ExportHashEqual                        = hashEqual
 	ExportHashUnknown                      = hashUnknown
+	ExportHeldText                         = heldText
 	ExportIDAndDateFromNoteFilename        = idAndDateFromNoteFilename
 	ExportIndexPathFor                     = indexPathFor
 	ExportInitVaultFromFS                  = initVaultFromFS

@@ -110,6 +110,26 @@ model_id: m@4
 	}
 }
 
+func Test793d4d1b_HeldText_TheRecordIsFoundUnderItsProjectDirectory(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	sessions := t.TempDir()
+	project := filepath.Join(sessions, "-home-joe-a-project")
+	g.Expect(os.MkdirAll(project, 0o750)).To(Succeed())
+
+	record := `{"type":"attachment","attachment":{"type":"hook_additional_context","hookName":"prompt.submit",` +
+		`"content":["[engram memory] the block of a session"]}}` + "\n"
+	g.Expect(os.WriteFile(filepath.Join(project, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(project, "another-session.jsonl"),
+		[]byte(strings.ReplaceAll(record, "the block of a session", "the block of another")), 0o600)).To(Succeed())
+
+	held, err := cli.ExportHeldText(cli.AutoDeliverDeps{ReadDir: os.ReadDir, ReadFile: os.ReadFile}, sessions, sessionID)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(held).To(ContainSubstring("the block of a session"))
+	g.Expect(held).NotTo(ContainSubstring("the block of another"))
+}
+
 // TestTargets_AutoDeliver reaches the command the way the mod does, as `engram auto deliver` with the prompt on
 // standard input, so the wiring of the group, the flag and the dependencies is run.
 func TestTargets_AutoDeliverPrintsTheNotesThatBearOnThePromptOnStandardInput(t *testing.T) {
