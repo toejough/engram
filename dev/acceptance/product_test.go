@@ -18,6 +18,7 @@ func Test793a2a1a_NextSessionHasMemoryAfterOneEngramUpdate(t *testing.T) {
 
 	step(t, "Given a machine with Claude Code on which the user has never run engram update, "+
 		"and a vault holding a note that says when the staging database is reset", func() {
+		machine.hasEngram()
 		machine.hasClaudeCode()
 		noteName = machine.learnsFact(stagingReset)
 	})

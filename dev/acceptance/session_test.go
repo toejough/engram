@@ -14,17 +14,25 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
 
 // unexported constants.
 const (
-	credentialFile    = ".config/claude-key.env"
-	engramMarker      = "[engram memory]"
+	credentialFile = ".config/claude-key.env"
+	engramMarker   = "[engram memory]"
+	// fakeAPIKey and offlineBaseURL send a prompt to an endpoint that is not there: the prompt's hooks run, the model
+	// is asked and never answers.
+	fakeAPIKey        = "sk-ant-acceptance-not-a-real-key"
 	liveBudgetUSD     = "2"
 	liveModel         = "sonnet"
+	offlineBaseURL    = "http://127.0.0.1:9"
+	offlineWait       = 60 * time.Second
+	pollInterval      = 50 * time.Millisecond
 	sessionTimeout    = 5 * time.Minute
+	stopGrace         = 10 * time.Second
 	tokenVariable     = "CLAUDE_CODE_OAUTH_TOKEN"
 	uuidBytes         = 16
 	uuidVariantBits   = 0x80
@@ -35,6 +43,7 @@ const (
 
 // unexported variables.
 var (
+	errNoRequest = errors.New("the session never asked the model")
 	errNoToken   = errors.New("no credentials")
 	tokenPattern = regexp.MustCompile(`^\s*(?:export\s+)?` + tokenVariable + `=(.*?)\s*$`)
 )
@@ -56,6 +65,46 @@ type session struct {
 	id      string
 	project string
 	prompts int
+}
+
+// endOnceAsked waits until the session's record shows one more request to the model than before, then ends the run.
+func (s *session) endOnceAsked(command *exec.Cmd, done chan error, before int) {
+	s.machine.t.Helper()
+
+	deadline := time.After(offlineWait)
+
+	for asked := false; !asked; {
+		select {
+		case <-done:
+			asked = true
+		case <-deadline:
+			s.machine.t.Fatalf("%v within %s", errNoRequest, offlineWait)
+		case <-time.After(pollInterval):
+			asked = s.requests() > before
+		}
+	}
+
+	_ = command.Process.Signal(syscall.SIGTERM)
+
+	select {
+	case <-done:
+	case <-time.After(stopGrace):
+		_ = command.Process.Kill()
+		<-done
+	}
+}
+
+// requests counts the requests to the model that the session's record holds.
+func (s *session) requests() int {
+	count := 0
+
+	for _, row := range s.rows() {
+		if row.Type == "api-request" {
+			count++
+		}
+	}
+
+	return count
 }
 
 // rows reads the session's record, which is empty until Claude Code has written it.
@@ -83,8 +132,8 @@ func (s *session) rows() []transcriptRow {
 	return rows
 }
 
-// run starts `claude -p` for one prompt and waits for it to finish.
-func (s *session) run(prompt string, credentials []string, secret string) *turn {
+// run starts `claude -p` for one prompt and waits for it to finish, or for the model to have been asked when offline.
+func (s *session) run(prompt string, credentials []string, secret string, offline bool) *turn {
 	s.machine.t.Helper()
 
 	requireClaude(s.machine.t)
@@ -118,9 +167,21 @@ func (s *session) run(prompt string, credentials []string, secret string) *turn 
 	command.Stdout = &stdout
 	command.Stderr = &stderr
 
-	err := command.Run()
-	if err != nil {
-		s.machine.t.Fatalf("claude failed: %v\n%s", err, redact(stderr.String(), secret))
+	before := s.requests()
+
+	startErr := command.Start()
+	if startErr != nil {
+		s.machine.t.Fatalf("starting claude: %v", startErr)
+	}
+
+	done := make(chan error, 1)
+
+	go func() { done <- command.Wait() }()
+
+	if offline {
+		s.endOnceAsked(command, done, before)
+	} else if waitErr := <-done; waitErr != nil {
+		s.machine.t.Fatalf("claude failed: %v\n%s", waitErr, redact(stderr.String(), secret))
 	}
 
 	return s.turnOf(prompt, stdout.String())
@@ -132,7 +193,15 @@ func (s *session) send(prompt string) *turn {
 
 	token := claudeToken(s.machine.t)
 
-	return s.run(prompt, []string{tokenVariable + "=" + token}, token)
+	return s.run(prompt, []string{tokenVariable + "=" + token}, token, false)
+}
+
+// sendOffline sends one prompt to an endpoint that is not there: the prompt's hooks run, the model is asked and never
+// answers, and the run is ended once the session's record shows the request. It needs no login and costs nothing.
+func (s *session) sendOffline(prompt string) *turn {
+	s.machine.t.Helper()
+
+	return s.run(prompt, []string{"ANTHROPIC_API_KEY=" + fakeAPIKey, "ANTHROPIC_BASE_URL=" + offlineBaseURL}, "", true)
 }
 
 // turnOf cuts the last occurrence of a prompt, and what followed it, out of the session's record.

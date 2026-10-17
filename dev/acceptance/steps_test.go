@@ -3,7 +3,9 @@
 package acceptance_test
 
 import (
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -15,6 +17,7 @@ const (
 	// claudeSettings lets the agent run engram, which the scenarios where it looks a note up itself need.
 	claudeSettings = `{"permissions":{"allow":["Bash(engram:*)"]}}`
 	learnSource    = "acceptance test"
+	modName        = "engram-memory"
 )
 
 // unexported variables.
@@ -43,6 +46,53 @@ func (m *machine) hasClaudeCode() {
 
 	mkdirAll(m.t, m.claudeDir)
 	writeFile(m.t, filepath.Join(m.claudeDir, "settings.json"), claudeSettings)
+}
+
+// hasMod installs the mod of this branch as `engram update` does: its files in the engram-owned root, and a link to
+// them from Claude Code's skills directory.
+func (m *machine) hasMod() {
+	m.t.Helper()
+
+	root, err := moduleRoot()
+	if err != nil {
+		m.t.Fatalf("finding the module: %v", err)
+	}
+
+	target := filepath.Join(m.claudeDir, "engram", "skills", modName)
+
+	copyErr := copyTree(filepath.Join(root, "agent-instructions", "mods", modName), target)
+	if copyErr != nil {
+		m.t.Fatalf("installing the mod: %v", copyErr)
+	}
+
+	mkdirAll(m.t, filepath.Join(m.claudeDir, "skills"))
+
+	linkErr := os.Symlink(target, filepath.Join(m.claudeDir, "skills", modName))
+	if linkErr != nil {
+		m.t.Fatalf("linking the mod: %v", linkErr)
+	}
+}
+
+// hasStandInEngram puts a stand-in for engram first on the machine's PATH: it records its arguments and standard
+// input, and prints the block it is given, whatever it is asked.
+func (m *machine) hasStandInEngram(block string) {
+	m.t.Helper()
+
+	dir := filepath.Join(m.root, "stand-in")
+	mkdirAll(m.t, dir)
+	writeFile(m.t, filepath.Join(dir, "block"), block)
+
+	script := "#!/bin/sh\nprintf '%s\\n' \"$*\" > '" + filepath.Join(dir, "args") + "'\ncat > '" +
+		filepath.Join(dir, "stdin") + "'\ncat '" + filepath.Join(dir, "block") + "'\n"
+	path := filepath.Join(m.gobin, engramBinaryName)
+
+	mkdirAll(m.t, m.gobin)
+	writeFile(m.t, path, script)
+
+	err := os.Chmod(path, 0o700)
+	if err != nil {
+		m.t.Fatalf("making the stand-in executable: %v", err)
+	}
 }
 
 // learnsFact writes a fact into the vault and returns the file name of the note.
@@ -75,6 +125,20 @@ func (m *machine) noteNamed(slug string) string {
 	}
 
 	return filepath.Base(matches[0])
+}
+
+// standInCalled returns the arguments and the standard input that the stand-in engram was run with.
+func (m *machine) standInCalled() (string, string) {
+	m.t.Helper()
+
+	args, argsErr := os.ReadFile(filepath.Join(m.root, "stand-in", "args"))
+	stdin, stdinErr := os.ReadFile(filepath.Join(m.root, "stand-in", "stdin"))
+
+	if argsErr != nil || stdinErr != nil {
+		m.t.Fatalf("the stand-in engram was never run (%v, %v)", argsErr, stdinErr)
+	}
+
+	return strings.TrimSpace(string(args)), string(stdin)
 }
 
 // step logs one line of the scenario a test mirrors, and runs it: the test's output reads as the Gherkin (793b9).

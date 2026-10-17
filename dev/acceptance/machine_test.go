@@ -137,19 +137,23 @@ func (m *machine) env(extra ...string) []string {
 		"ENGRAM_VAULT_PATH=" + m.vault,
 		"ENGRAM_CHUNKS_DIR=" + m.chunks,
 		"ENGRAM_TRANSCRIPT_DIR=" + m.transcripts,
-		"XDG_CACHE_HOME=" + sharedBuild.cache,
 		"GOFLAGS=-buildvcs=false",
 		"DISABLE_AUTOUPDATER=1",
+	}
+
+	if sharedBuild.cache != "" {
+		env = append(env, "XDG_CACHE_HOME="+sharedBuild.cache)
 	}
 
 	return slices.Concat(env, goEnv(), extra)
 }
 
-// installEngram puts the binary the machine runs `engram update` with into its GOBIN.
-func (m *machine) installEngram(binary string) {
+// hasEngram puts the engram that this branch builds into the machine's GOBIN, which is first on its PATH: the engram
+// a user has before running `engram update`.
+func (m *machine) hasEngram() {
 	m.t.Helper()
 
-	err := copyFile(binary, filepath.Join(m.gobin, engramBinaryName))
+	err := copyFile(prepareShared(m.t).binary, filepath.Join(m.gobin, engramBinaryName))
 	if err != nil {
 		m.t.Fatalf("installing engram on the machine: %v", err)
 	}
@@ -410,11 +414,9 @@ func moduleRoot() (string, error) {
 }
 
 // newMachine makes a computer with a home and nothing in it: no Claude Code, no vault, no engram on its PATH until the
-// scenario gives it one.
+// scenario gives it one (hasEngram).
 func newMachine(t *testing.T) *machine {
 	t.Helper()
-
-	build := prepareShared(t)
 
 	resolved, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -437,7 +439,6 @@ func newMachine(t *testing.T) *machine {
 	}
 
 	writeFile(t, machine.gitconfig, "")
-	machine.installEngram(build.binary)
 
 	return machine
 }
