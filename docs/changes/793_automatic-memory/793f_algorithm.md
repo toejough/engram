@@ -49,6 +49,14 @@ phase is one step applied to one unit: step 1 for the whole set, or step 2, 3, 4
 | 3, 4 | [793d Automatic Memory - Technical Spec](./793d_technical-spec.md#automatic-memory---technical-spec) | Step 3: the technical requirements, each a component behaviour or an interaction sequence, each tracing to the product scenarios it serves. Step 4: the Gherkin scenarios under each. |
 | 5 | [793e Automatic Memory - Implementation Plan](./793e_implementation-plan.md#automatic-memory---implementation-plan) | The red, green and refactor record, one row per test: red commit, green commit, refactor commit. |
 
+Operations: the two sections of the product spec that hold requirements,
+[793a2 Automatic memory](./793a_product-spec.md#793a2-added-automatic-memory) and
+[793a3 Interactions](./793a_product-spec.md#793a3-added-interactions), are Added operations. Any existing
+canonical node a requirement changes is found and recorded as a Modified or Removed operation with that
+requirement's scenarios. Scenarios are written depth first ([793f3 Depth first](#793f3-depth-first)), so each
+requirement's scenario section stays pending until the requirement is reached in
+[793e Automatic Memory - Implementation Plan](./793e_implementation-plan.md#automatic-memory---implementation-plan).
+
 Test execution ([793b9 Test execution](./793b_decision-log.md#793b9-test-execution)): each scenario in the
 product spec is executed by one Go test, named with the scenario ID, that drives a real Claude Code
 [session](../../GLOSSARY.md#session) in an isolated HOME ([793f7 Test isolation](#793f7-test-isolation)) and whose

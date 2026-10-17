@@ -20,7 +20,8 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 ## 793b2 North Star
 
 - **Choice:** the product statement is "I want to add automatic learning and memory retrieval.", kept in the
-  owner's own first-person words. It opens [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec) and is the one line every later artifact serves.
+  owner's own first-person words, with nothing added to it. It opens [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec), the problem
+  statement quotes it as the needed outcome, and it is the one line every later artifact serves.
 - **Departs from:** the [product spec guide](../../PRODUCT-SPEC-GUIDE.md#purpose), under which a product
   specification contains only a problem statement, product requirements and scenarios unless the user
   explicitly requests more.

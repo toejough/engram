@@ -11,17 +11,10 @@ gets value from the vault only when the agent consults it before acting and save
 [session](../../GLOSSARY.md#session) taught. Today both depend on the agent remembering, unprompted, to do so.
 Issue #793 measured that the agent saves about one moment in twenty that is worth saving, and that the
 instruction to look first was refused in 6 of 6 headless trials. The user cannot rely on the vault being
-consulted or growing, and cannot tell when it was not.
+consulted or growing, and once the work leaves the agent, the user no longer sees it.
 
-The needed outcome is the North Star: [automatic memory](#793a1a-terms). In every Claude Code session on the
-user's machine the vault is consulted and grows whether or not the agent thinks to, without getting in the
-user's way, and the user can see what it did.
-
-Both operations below are Added. Any existing canonical node a requirement changes is found and recorded as a
-Modified or Removed operation with that requirement's scenarios
-([793f5 How this change applies it](./793f_algorithm.md#793f5-how-this-change-applies-it)). Scenarios are
-written depth first, so each requirement's scenario section stays pending until the requirement is reached in
-[793e Automatic Memory - Implementation Plan](./793e_implementation-plan.md#automatic-memory---implementation-plan).
+The needed outcome is the North Star, in the owner's words: "I want to add automatic learning and memory
+retrieval."
 
 ### 793a1a Terms
 
@@ -134,9 +127,9 @@ Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
 Requirement: 793a3a A [note](../../GLOSSARY.md#permanent-note) that [automatic memory](#793a1a-terms) writes
 under [793a2c Lessons are written without the agent](#793a2c-lessons-are-written-without-the-agent) MUST be put
 in the [agent](#793a1a-terms)'s context under
-[793a2b Memory arrives with the prompt](#793a2b-memory-arrives-with-the-prompt) with later
-[prompts](#793a1a-terms), in the same [session](../../GLOSSARY.md#session) and in later sessions, whenever it
-bears on them.
+[793a2b Memory arrives with the prompt](#793a2b-memory-arrives-with-the-prompt) with
+[prompts](#793a1a-terms) sent after the note is written, in the same [session](../../GLOSSARY.md#session) and in
+later sessions, whenever it bears on them.
 
 #### 793a3a1 UAT Scenarios
 
