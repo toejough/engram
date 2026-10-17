@@ -108,9 +108,9 @@ func (m *machine) agentMayRun(commands ...string) {
 	writeFile(m.t, filepath.Join(m.claudeDir, "settings.json"), string(settings))
 }
 
-// awaitAutomaticNote waits for the note of a lesson, a note that holds every word given, logs it, and fails the test
-// unless the note says it was written automatically.
-func (m *machine) awaitAutomaticNote(turnEnds time.Time, what string, words ...string) {
+// awaitAutomaticNote waits for the note of a lesson, a note that holds every word given, logs it, fails the test
+// unless the note says it was written automatically, and returns the file name of the note.
+func (m *machine) awaitAutomaticNote(turnEnds time.Time, what string, words ...string) string {
 	m.t.Helper()
 
 	note, took := m.awaitNote(turnEnds, what, func(note vaultNote) bool { return note.states(words...) })
@@ -119,6 +119,8 @@ func (m *machine) awaitAutomaticNote(turnEnds time.Time, what string, words ...s
 	if !strings.Contains(note.source(), "written automatically") {
 		m.t.Fatalf("the source of %s does not say that it was written automatically: %q", note.name, note.source())
 	}
+
+	return note.name
 }
 
 // awaitNote waits until a note of the vault satisfies match, or the bound passes, and returns the note with how long
@@ -150,15 +152,24 @@ func (m *machine) awaitNote(turnEnds time.Time, what string, match func(vaultNot
 func (m *machine) awaitRecord(session string, turnEnds time.Time) string {
 	m.t.Helper()
 
+	return m.awaitRecords(session, turnEnds, 1)[0]
+}
+
+// awaitRecords waits until automatic memory has made count records of the turns of a session, and returns the kinds of
+// the records, oldest first. A write has ended when its records exist: they are made last.
+func (m *machine) awaitRecords(session string, turnEnds time.Time, count int) []string {
+	m.t.Helper()
+
 	deadline := turnEnds.Add(captureBound)
 
 	for {
-		if kinds := m.recordKinds(session); len(kinds) > 0 {
-			return kinds[0]
+		if kinds := m.recordKinds(session); len(kinds) >= count {
+			return kinds
 		}
 
 		if time.Now().After(deadline) {
-			m.t.Fatalf("automatic memory recorded nothing of the turn within %s of its end\n%s", captureBound, m.hookLog())
+			m.t.Fatalf("automatic memory made fewer than %d records of the turns within %s of the last one's end\n%s",
+				count, captureBound, m.hookLog())
 		}
 
 		time.Sleep(capturePoll)

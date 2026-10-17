@@ -216,6 +216,48 @@ func Test793a2c1g_ACredentialInTheTurnIsNotInTheNote(t *testing.T) {
 	})
 }
 
+func Test793a3a1a_AWrittenNoteIsDeliveredWithLaterPrompts(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var (
+		chat    *conversation
+		written string
+	)
+
+	step(t, "Given the user has run engram update, and a session in which the user corrected the agent and the "+
+		"correction became a note", func() {
+		machine.hasRunUpdate()
+
+		chat = machine.startSession("zorblax").converse()
+		answered := chat.say(askHowToBuild)
+		t.Logf("the agent replied %q", answered.reply)
+
+		corrected := chat.say(correctTheBuild)
+		t.Logf("the agent replied %q", corrected.reply)
+
+		written = machine.awaitAutomaticNote(chat.turnEnds, "that states the correction", buildTarget)
+
+		// the note is written when the write has ended: until it has embedded the note, a lookup finds no embedding
+		kinds := machine.awaitRecords(chat.session.id, chat.turnEnds, 2)
+		g.Expect(kinds[len(kinds)-1]).To(Equal("written"), "what became of the correction")
+	})
+
+	var inSession, inNewSession *turn
+
+	step(t, "When the user sends a prompt that the note bears on, in that session and then in a new session", func() {
+		inSession = chat.say(askHowToBuild)
+		inNewSession = machine.startSession("zorblax").send(askHowToBuild)
+	})
+
+	step(t, "Then each of the two prompts arrives with the note", func() {
+		g.Expect(inSession.blocks()).To(ConsistOf(ContainSubstring(written)), "blocks with the prompt in that session")
+		g.Expect(inNewSession.blocks()).To(ConsistOf(ContainSubstring(written)), "blocks with the prompt in a new session")
+	})
+}
+
 func Test793a3c1a_ALessonAnEarlierNoteStatesIsNotWrittenAgain(t *testing.T) {
 	t.Parallel()
 
