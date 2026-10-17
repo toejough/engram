@@ -573,6 +573,6 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Context:** [793b86 The acceptance run takes a count](./793b_decision-log.md#793b86-the-acceptance-run-takes-a-count) makes a tally of the runs of each such [scenario](./793a_product-spec.md#793a1a-terms) possible, and the earlier rows of the
   second group were held to 9 in 10.
 - **Options:** (a) 9 in 10. (b) 10 in 10. (c) A bar for each scenario by the cost of a miss.
-- **Recommendation:** (a): a model's judgement is not deterministic, and a bar of 10 in 10 turns one unlucky run into a red.
+- **Recommendation:** (a): a model's judgement is not deterministic, and a bar of 10 in 10 makes one unlucky run a red.
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b86 The acceptance run takes a count](./793b_decision-log.md#793b86-the-acceptance-run-takes-a-count).
