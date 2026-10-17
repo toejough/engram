@@ -23,8 +23,7 @@ The shared cycle applies once to every test row (the owner's step 5, [793f2 The 
 
 Classifications are the [plan guide's](../../IMPLEMENTATION-PLAN-GUIDE.md#test-classification): dedicated examples
 (the guide lists product acceptance scenarios and real dependency behavior tied to a pinned version among them),
-property-based tests
-(`rapid`), and injected and impure interaction tests (`imptest`). Suites are the
+property-based tests (`rapid`), and injected and impure interaction tests (`imptest`). Suites are the
 [technical spec guide's](../../TECHNICAL-SPEC-GUIDE.md#test-suite-classification): the default suite is pure and
 deterministic, a test that crosses a local impure boundary carries the `integration` build tag, and a test that
 needs a live remote service carries the `network` build tag.
@@ -38,7 +37,7 @@ When and Then lines one to one; its run output is the record
 [793d Automatic Memory - Technical Spec](./793d_technical-spec.md#automatic-memory---technical-spec) is executed by
 one Go test whose name carries the scenario ID. A conformance check asserts that every scenario ID in either spec
 has a test. A test that drives a real session needs a live model, so it carries the `network` build tag and skips
-with a clear reason when no login is present.
+with a clear reason when its isolated run has no credential to log in with.
 
 Every test or check that runs `engram` or `claude`, whatever its classification, follows
 [793f7 Test isolation](./793f_algorithm.md#793f7-test-isolation).

@@ -35,8 +35,8 @@ he answers. When he answers, the entry records the answer and the date and stays
   [vault](../../GLOSSARY.md#vault) with many related notes could flood the [agent](./793a_product-spec.md#793a1a-terms)'s context.
 - **Options:** (a) No number in the product spec; the technical spec limits the number of notes to the number the
   agent's own explicit lookup returns. (b) A maximum stated in [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt).
-- **Recommendation:** (a). The owner's answer on 2026-10-11 in the earlier attempt was that volume equals what
-  the agent's own lookup returns, with no per-[turn](./793a_product-spec.md#793a1a-terms) or per-[session](../../GLOSSARY.md#session) bounds.
+- **Recommendation:** (a). The owner's answer on 2026-10-11 in the earlier attempt (`old 793c7` items 1 and 2) was
+  that volume equals what the agent's own lookup returns, with no per-[turn](./793a_product-spec.md#793a1a-terms) or per-[session](../../GLOSSARY.md#session) bounds.
 - **Blocks:** scenarios of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) that involve many related notes.
 - **Status:** open. Default (a) taken: [793b19 Volume of delivered notes](./793b_decision-log.md#793b19-volume-of-delivered-notes).
 
@@ -45,7 +45,7 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Context:** issue #793's open decision 4. [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) says the [note](../../GLOSSARY.md#permanent-note) must be in the [vault](../../GLOSSARY.md#vault) within 2
   minutes.
 - **Options:** (a) Straight in, marked automatic. (b) As [pending offers](../../GLOSSARY.md#offer) reviewed with the curate [skill](../../GLOSSARY.md#skill).
-- **Recommendation:** (a), the owner's answer on 2026-10-11 in the earlier attempt.
+- **Recommendation:** (a), the owner's answer on 2026-10-11 in the earlier attempt (`old 793c4`).
 - **Blocks:** what "in the vault" means in the scenarios of [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent).
 - **Status:** open. Default (a) taken: [793b21 Lessons are written straight into the vault](./793b_decision-log.md#793b21-lessons-are-written-straight-into-the-vault).
 
@@ -53,8 +53,8 @@ he answers. When he answers, the entry records the answer and the date and stays
 
 - **Context:** [793b8 Exclusions](./793b_decision-log.md#793b8-exclusions) leaves out [subagents](../../GLOSSARY.md#subagent) and the chunk-index lookup. In the earlier attempt the owner
   answered the opposite on 2026-10-11 for subagents and [prompt](./793a_product-spec.md#793a1a-terms) sources: capture inside subagent [sessions](../../GLOSSARY.md#session), and
-  memory for every prompt regardless of source (`old 793c6` and `old 793c63`, `old 793c5`, 2026-10-11). The
-  full list of reversed answers is asked in [793c13 Which earlier owner answers may the minimal set reverse?](./793c_open-questions.md#793c13-which-earlier-owner-answers-may-the-minimal-set-reverse). A lookup that included the chunk index took about 12 seconds
+  memory for every prompt regardless of source (`old 793c6` and `old 793c63` for subagents, `old 793c5` for
+  prompt sources, 2026-10-11). The full list of reversed answers is asked in [793c13 Which earlier owner answers may the minimal set reverse?](./793c_open-questions.md#793c13-which-earlier-owner-answers-may-the-minimal-set-reverse). A lookup that included the chunk index took about 12 seconds
   on his [vault](../../GLOSSARY.md#vault) there, longer than the 8 seconds of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way).
 - **Options:** (a) The user's own sessions and [notes](../../GLOSSARY.md#permanent-note) only. (b) Add subagents. (c) Add the chunk-index
   lookup.
