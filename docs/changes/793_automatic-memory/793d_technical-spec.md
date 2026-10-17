@@ -157,8 +157,9 @@ an explore pick is sampled from the vocabulary, not matched to the text. The loo
 [792b24c1 Input and defaults](../../specs/technical/query-engine.md#792b24c1-input-and-defaults) bounds the number of
 lines, as it bounds the number of items the agent's own lookup returns
 ([793b19 Volume of delivered notes](./793b_decision-log.md#793b19-volume-of-delivered-notes)). It MUST leave out each
-note whose file name appears in the text that [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds)
-returns for the request's session. It MUST print nothing, and succeed, when no note remains. It MUST NOT search the chunk
+note whose basename, its file name without the suffix `.md`, appears in the text that
+[793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) returns for the request's session. It MUST
+print nothing, and succeed, when no note remains. It MUST NOT search the chunk
 index, so that only notes are delivered ([793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt)). It MUST print nothing and
 fail, naming the cause, when the lookup fails.
 
@@ -198,6 +199,11 @@ Scenario: 793d4a1f The chunk index is not searched
   Given a vault with a note that bears on the prompt, and a chunk index
   When the command is given the prompt
   Then the chunk index is never listed, and the block names the note
+
+Scenario: 793d4a1g A note the agent fetched by its basename is left out
+  Given a lookup that returns two notes, and a session whose record shows that the agent ran engram show with the basename of one of them
+  When the command is given a prompt of that session
+  Then the block names the other note only
 ```
 
 ### 793d4c Framing the notes of a block as data
@@ -228,11 +234,16 @@ Scenario: 793d4c1a A note cannot reshape the block
 Requirement: 793d4d The session-context MUST, given a session's ID, look for the session's record, the file named for
 the ID with the suffix `.jsonl`, in the session-log directory of
 [792b17c6 Session-log directory](../../specs/technical/ingestion-source-discovery.md#792b17c6-session-log-directory),
-directly in it or in one of its subdirectories. It MUST return the text of every block that was delivered beside a
-prompt of the session, that is of every record of the kind `attachment` whose type is `hook_additional_context`, and
-the text of every result of a tool that the agent ran, that is of every `tool_result` block of a `user` record, and
-nothing else of the record. It MUST return nothing, without an error, when the session has no record, when the
-record cannot be read, and when the ID is not a plain file name.
+directly in it or in one of its subdirectories. Of what the agent was given, it MUST return two things and nothing
+else of the record. The first is the file name of each note line of every block that was delivered beside a prompt of
+the session, that is of every entry, of a record of the kind `attachment` whose type is `hook_additional_context`, that
+begins with `[engram memory]`, a note line being a line of the block that begins with a dash and a space, and its file
+name the text after them up to the space before the situation's opening parenthesis. The second is, for every Bash
+command that the agent ran whose text contains `engram query` or `engram show`, the text of the command and the text of
+its result, the result being the `tool_result` block, of a `user` record, whose `tool_use_id` is the ID of the
+command's `tool_use` block. It MUST return nothing of the situations and bodies of the notes of a block, of the other
+entries beside a prompt, of the result of any other tool, of a prompt or of a reply. It MUST return nothing, without an
+error, when the session has no record, when the record cannot be read, and when the ID is not a plain file name.
 
 Owner: session-context (a new component; its canonical file at promotion is `session-context.md`)
 
@@ -241,15 +252,25 @@ Supports: [793a2b1b A note delivered earlier in the session is not delivered aga
 #### 793d4d1 Scenarios
 
 ```gherkin
-Scenario: 793d4d1a The blocks delivered beside prompts are what a session holds
-  Given the record of a session with a block delivered beside a prompt, and a prompt, a reply and other attachments
+Scenario: 793d4d1a The note lines of the blocks delivered beside prompts are what a session holds
+  Given the record of a session with a block delivered beside a prompt, whose note lines name two notes and whose first note's body names a third, an entry of another hook beside a prompt, a prompt, a reply and other attachments
   When what the session holds is read
-  Then the text is that of the block, and nothing of the prompt, the reply or the other attachments
+  Then the text holds the file names of the two notes, and nothing of the situations and bodies, the other hook's entry, the prompt, the reply or the other attachments
 
-Scenario: 793d4d1d What a tool printed is held
-  Given the record of a session in which the agent ran a command whose result names a note, as a string and as text blocks
+Scenario: 793d4d1d What the agent's own lookup printed is held
+  Given the record of a session in which the agent ran engram query as a Bash command, whose result names a note, as a string and as text blocks
   When what the session holds is read
-  Then the text holds the result, and nothing of the command the agent wrote or of the reply
+  Then the text holds the command and the result, and nothing of the reply
+
+Scenario: 793d4d1e A listing of the vault is not held
+  Given the record of a session in which the agent ran ls over the vault, whose result names a note
+  When what the session holds is read
+  Then the text does not hold the note's name
+
+Scenario: 793d4d1f A note fetched with engram show is held
+  Given the record of a session in which the agent ran engram show with the basename of a note, whose result does not name the note
+  When what the session holds is read
+  Then the text holds the command, which names the note
 
 Scenario: 793d4d1b The record is found under its project directory
   Given a session-log directory whose subdirectory for a project holds the record of the session

@@ -687,21 +687,32 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 
 ## 793b45 What a session holds
 
-- **Choice:** the agent holds a [note](../../GLOSSARY.md#permanent-note) when the note's file name appears in the text
-  the session's record shows the agent was given: the blocks delivered beside prompts (this node) and, with the next
-  node, the results of the tools it ran. The whole record counts, whatever a compaction removed
-  ([793b27 "Already has" is per session](#793b27-already-has-is-per-session)). The record is found by the session's ID,
-  in the session-log directory that `engram ingest` sweeps ([792b17c6 Session-log directory](../../specs/technical/ingestion-source-discovery.md#792b17c6-session-log-directory)),
+- **Choice:** the agent holds a [note](../../GLOSSARY.md#permanent-note) when the note's basename, its file name without
+  the suffix `.md`, appears in what the session's record shows the agent was given about notes. Two things count: the
+  file names on the note lines of the blocks delivered beside prompts, and the command and the result of each lookup the
+  agent ran itself, a Bash command whose text contains `engram query` or `engram show`, its result paired with it by the
+  tool's ID. Nothing else of the record counts: not the other context that a hook put beside a prompt, not the situations
+  and bodies of a block, not the result of any other tool, such as an `ls` of the vault or a `cat` of a note file. The
+  whole record counts, whatever a compaction removed ([793b27 "Already has" is per session](#793b27-already-has-is-per-session)).
+  The record is found by the session's ID, in the session-log directory that `engram ingest` sweeps
+  ([792b17c6 Session-log directory](../../specs/technical/ingestion-source-discovery.md#792b17c6-session-log-directory)),
   directly in it or in a subdirectory for a project. A session with no record holds nothing, which is the first prompt
   of every session. An ID that is not a plain file name holds nothing, so an ID cannot name a file outside the directory.
 - **Rationale:** the record is the only durable account of what reached the agent: the blocks a hook adds are recorded
   there as `hook_additional_context` records before the agent's first reply, and a resumed session reads the same
   record, so a module's own memory of what it delivered would be lost with the process. A file name is how every
-  `engram` payload and every block names a note, so comparing it is enough, and needs no parsing of the note.
+  `engram` payload and every block names a note, so comparing it is enough, and needs no parsing of the note. The first
+  version counted a note as held when its file name appeared anywhere in any tool result. The review of the first group
+  reproduced both errors of that: a session whose only contact with the vault was an `ls` of it was never delivered the
+  note it had not read, and `engram show <basename>` prints the note without its file name, so a note fetched that way
+  was delivered again. The basename is what `engram show` takes and what a wikilink holds, and every file name that names
+  the note contains it. A note that the agent read by another command (`cat`, `grep`, a read of the file) is not held
+  and is delivered again: that is the cost of counting only the lookups the agent is told to use.
 - **Alternatives:** a ledger of delivered notes kept by the mod or the command (rejected: it is lost when the process ends
   and needs a place to live); the session's messages from the module's `$.session.messages()` (rejected: they do not
-  include the context a hook added, which this checked).
-- **Decided by:** Author (default; owner may override).
+  include the context a hook added, which this checked); every tool result, the first version (rejected: reproduced).
+- **Decided by:** Author (default; owner may override); the pairing of lookups with their results and the basename are
+  the review's findings, accepted by the author.
 
 ## 793b46 The command is ended at 7 seconds
 

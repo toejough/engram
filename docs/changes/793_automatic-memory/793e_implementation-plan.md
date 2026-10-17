@@ -175,12 +175,13 @@ Takes [793a2b1b A note delivered earlier in the session is not delivered again](
 | 793d2a1b | Dedicated example, real dependency (`network`) | the session's ID reaches the command: the mod's value propagation, in a real Claude Code session against a stand-in engram | Done | ee4404a4 | 7771477f | c0541b31 |
 | 793d4a1e | Dedicated example (default suite) | no remaining note prints nothing, so a held note's second prompt carries no empty block, through `RunAutoDeliver` | Done | f6bea18c | 2cf56fc9 | d38d4777 |
 | 793d2a1c | Dedicated example, real dependency (`network`) | an empty output adds nothing: a context entry may not be empty, and the session's record must show no context, in a real Claude Code session against a stand-in engram | Done | f867c44c | f395ec9e | a32ff6a4 |
-| 793d2a1e | Dedicated example, real dependency (`network`) | review fix: a command that fails adds nothing, even when it printed a block; the stand-in exits with 1, as the `engram` of main does for a command it does not know, and the session's record must show no context | Done | 95dc389d | 5a4bb9dc | |
-| 793d2a1f | Dedicated example, real dependency (`network`) | review fix: output that is not a block adds nothing, even when the command succeeded; the stand-in exits with 0 and prints text that does not begin with the framing marker | Done | 95dc389d | 5a4bb9dc | |
+| 793d2a1e | Dedicated example, real dependency (`network`) | review fix: a command that fails adds nothing, even when it printed a block; the stand-in exits with 1, as the `engram` of main does for a command it does not know, and the session's record must show no context | Done | 95dc389d | 5a4bb9dc | 3f1a1ffd |
+| 793d2a1f | Dedicated example, real dependency (`network`) | review fix: output that is not a block adds nothing, even when the command succeeded; the stand-in exits with 0 and prints text that does not begin with the framing marker | Done | 95dc389d | 5a4bb9dc | 3f1a1ffd |
 | 793d4d1a | Dedicated example (default suite) | what counts as held: the blocks delivered beside prompts and nothing else of a record, over records of the real format | Done | 0d78b09e | 9bdc5e9e | a03c7312 |
 | 793d4d1b | Dedicated example (default suite) | the record is found in a project's subdirectory of the session-log directory, over a real temporary directory | Done | b9fb12de | 02318295 | 0bfe1688 |
 | 793d4d1c | Dedicated example (default suite) | the boundary cases: no record, and an ID that would leave the directory | Done | fce4516a | a460368a | 0bfe1688 |
 | 793d4a1d | Dedicated example (default suite) | the delivery leaves out a held note, through `RunAutoDeliver` over an in-memory vault and a real temporary session-log directory | Done | cf03701a | b9ec02b7 | 0bfe1688 |
+| 793d4d1a (amended) | Dedicated example (default suite) | review fix: only the note lines of the blocks delivered beside prompts hold a note, by file name, over records of the real format: the situation and body of a line, and the entries of other hooks, hold none | Not started | | | |
 
 #### 793e6a4 A note the agent looked up itself is not delivered
 
@@ -190,6 +191,10 @@ Takes [793a2b1c A note the agent looked up itself is not delivered](./793a_produ
 | --- | --- | --- | --- | --- | --- | --- |
 | 793a2b1c | Dedicated example, product acceptance (`network`) | the other route to a held note as the user sees it: the agent's own lookup, in a session that began before the update, then the update and a resumed session | Done | d94dcace | e7e823fd | e68f65f7 |
 | 793d4d1d | Dedicated example (default suite) | what a tool printed counts as held, in both shapes a result is recorded in (a string and text blocks), and what the agent wrote does not | Done | 84f83b15 | e7e823fd | 31744d5c |
+| 793d4d1d (amended) | Dedicated example (default suite) | review fix: only the agent's own lookups count, the Bash commands that run `engram query` or `engram show`, paired with their results by the tool's ID, in both shapes a result is recorded in; the command's text counts with its result | Not started | | | |
+| 793d4d1e | Dedicated example (default suite) | review fix: a listing of the vault is not a lookup, so a note it names is not held | Not started | | | |
+| 793d4d1f | Dedicated example (default suite) | review fix: `engram show` prints a note without its file name, so the text of the command, which names the note by its basename, is what holds it | Not started | | | |
+| 793d4a1g | Dedicated example (default suite) | review fix: the delivery leaves out a note the agent fetched by its basename, without `.md`, through `RunAutoDeliver` over an in-memory vault and a real temporary session-log directory | Not started | | | |
 
 #### 793e6a5 A prompt that matches no note arrives with nothing
 
