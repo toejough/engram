@@ -254,8 +254,9 @@ func (s *session) turnOf(prompt, stdout string) *turn {
 
 // transcriptRow is one line of the session's record, with the fields the tests read.
 type transcriptRow struct {
-	Type    string `json:"type"`
-	Message struct {
+	Type      string `json:"type"`
+	Timestamp string `json:"timestamp"`
+	Message   struct {
 		Role    string          `json:"role"`
 		Content json.RawMessage `json:"content"`
 	} `json:"message"`
@@ -352,6 +353,24 @@ func (t *turn) contexts() []string {
 	}
 
 	return entries
+}
+
+// hold returns how long the prompt waited before the model was asked: from the prompt's own row to the first request
+// to the model, or -1 when the model was not asked.
+func (t *turn) hold() time.Duration {
+	started, err := time.Parse(time.RFC3339Nano, t.rows[0].Timestamp)
+	if err != nil {
+		return -1
+	}
+
+	for _, row := range t.rows {
+		asked, parseErr := time.Parse(time.RFC3339Nano, row.Timestamp)
+		if row.Type == "api-request" && parseErr == nil {
+			return asked.Sub(started)
+		}
+	}
+
+	return -1
 }
 
 // toolResultsNaming reports whether a result of a tool the agent ran in this turn names a note: the agent looked it up.

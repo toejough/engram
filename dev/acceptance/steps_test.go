@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // unexported constants.
@@ -190,6 +192,34 @@ func (m *machine) learnsFeedback(note feedback) string {
 	m.mustSucceed(out, "learn feedback "+note.slug)
 
 	return m.noteNamed(note.slug)
+}
+
+// lookupStarted reports whether the slow lookup was started.
+func (m *machine) lookupStarted() bool {
+	_, err := os.Stat(filepath.Join(m.root, "slow", "started"))
+
+	return err == nil
+}
+
+// lookupTakes makes every lookup of the machine take the given time: `engram` on the PATH waits, notes that it started,
+// and then runs the machine's own engram.
+func (m *machine) lookupTakes(wait time.Duration) {
+	m.t.Helper()
+
+	dir := filepath.Join(m.root, "slow")
+	mkdirAll(m.t, dir)
+
+	script := "#!/bin/sh\n: > '" + filepath.Join(dir, "started") + "'\nsleep " + strconv.Itoa(int(wait.Seconds())) +
+		"\nexec '" + filepath.Join(m.gobin, engramBinaryName) + "' \"$@\"\n"
+	path := filepath.Join(dir, engramBinaryName)
+	writeFile(m.t, path, script)
+
+	err := os.Chmod(path, 0o700)
+	if err != nil {
+		m.t.Fatalf("making the slow engram executable: %v", err)
+	}
+
+	m.pathFront = dir
 }
 
 // mustSucceed fails the test when a command exited non-zero.

@@ -4,6 +4,7 @@ package acceptance_test
 
 import (
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 )
@@ -193,3 +194,47 @@ func Test793a2b1d_APromptThatMatchesNoNoteArrivesWithNothing(t *testing.T) {
 		g.Expect(sent.reply).NotTo(BeEmpty(), "the agent answered")
 	})
 }
+
+func Test793a2d1a_ASlowLookupDoesNotHoldAPromptForMoreThan8Seconds(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	step(t, "Given the user has run engram update, and a lookup that takes 20 seconds", func() {
+		machine.hasEngram()
+		machine.hasClaudeCode()
+		machine.learnsFact(stagingReset)
+		machine.mustSucceed(machine.update(), "engram update")
+		machine.lookupTakes(slowLookup)
+	})
+
+	var sent *turn
+
+	step(t, "When the user sends a prompt", func() {
+		sent = machine.startSession("a-project").send(askStagingReset)
+		t.Logf("the prompt waited %s; the agent replied %q (cost $%.4f)", sent.hold(), sent.reply, sent.cost)
+	})
+
+	step(t, "Then the prompt reaches the agent within 8 seconds, as the user typed it and with nothing from the vault, "+
+		"and the agent answers it", func() {
+		g.Expect(machine.lookupStarted()).To(BeTrue(), "the slow lookup was run")
+		g.Expect(sent.hold()).To(BeNumerically("<", holdLimit), "how long the prompt waited")
+		g.Expect(sent.hold()).To(BeNumerically(">", holdLimit/2), "the prompt did wait for the lookup")
+
+		text, isPrompt := sent.rows[0].promptText()
+		g.Expect(isPrompt).To(BeTrue())
+		g.Expect(text).To(Equal(askStagingReset))
+
+		g.Expect(sent.blocks()).To(BeEmpty(), "blocks automatic memory delivered with the prompt")
+		g.Expect(sent.reply).NotTo(BeEmpty(), "the agent answered")
+	})
+}
+
+// unexported constants.
+const (
+	// holdLimit is the longest a prompt may be held (793a2d).
+	holdLimit = 8 * time.Second
+	// slowLookup is a lookup that takes longer than the hold.
+	slowLookup = 20 * time.Second
+)

@@ -78,6 +78,7 @@ type machine struct {
 	gitconfig   string // GIT_CONFIG_GLOBAL, an empty file
 	work        string // the working directory of runs that need none of their own
 	tmp         string // TMPDIR
+	pathFront   string // a directory that comes first on the PATH of every command, or empty
 }
 
 // assertIsolated fails the test unless a run in dir with env reaches nothing of the owner's.
@@ -127,7 +128,8 @@ func (m *machine) engram(args ...string) result {
 // env is the whole environment of every command run on the machine.
 func (m *machine) env(extra ...string) []string {
 	env := []string{
-		"PATH=" + strings.Join([]string{m.gobin, filepath.Dir(lookPath("go")), systemPath}, ":"),
+		"PATH=" + strings.Join(slices.DeleteFunc(
+			[]string{m.pathFront, m.gobin, filepath.Dir(lookPath("go")), systemPath}, func(dir string) bool { return dir == "" }), ":"),
 		"HOME=" + m.home,
 		"TMPDIR=" + m.tmp,
 		"LANG=en_US.UTF-8",
