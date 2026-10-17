@@ -178,7 +178,11 @@ when the model answered, MUST run `engram auto write` with the session's ID, the
 JSON object, on standard input. When the command exited with 0 and printed nothing, it MUST do nothing more. When a step
 fails, because a command exited with other than 0 or printed what is not a request, or the model did not answer, or a
 call was ended or rejected, it MUST run `engram auto write` with the session's ID, the turn's ID and a `failure`, a
-sentence that names the step and how it failed, in place of the reply.
+sentence that names the step and how it failed, in place of the reply. A request that is not a JSON object is a
+failure of `engram auto judge`. It MUST bound each stage, so that the stages together take less than the 2 minutes of
+[793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent): the call for the session's ID 5 seconds, after which it does nothing, `engram auto judge`
+15 seconds, the model's call the 60 seconds of the request, `engram auto write` 20 seconds and the run of it that reports a
+failure 15 seconds, 115 seconds together; a stage that does not finish in its bound has failed.
 
 Owner: automatic-memory-mod (the component of [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow))
 
@@ -231,6 +235,16 @@ Scenario: 793d2b1i A turn that starts with no text has no origin
   Given the mod, and an engram whose auto judge prints a request
   When a prompt of the user starts a turn that completes, and a turn then starts with no text and completes
   Then auto judge received no origin for the second turn
+
+Scenario: 793d2b1j A stage that stalls is ended at its bound and reported
+  Given the mod, and a host in which, in turn, the call for the session's ID never answers, auto judge runs until its time limit, the model's call is cut at its time limit, and auto write runs until its time limit
+  When a turn completes
+  Then the mod waited for the ID 5 seconds and then did nothing, auto judge was given the time limit of 15 seconds, the model's request held 60 seconds, auto write was given 20 seconds, and the report of the failure to auto write was given 15 seconds, and those limits together are less than 120 seconds
+
+Scenario: 793d2b1k A request that is not JSON is a failure of the judgement
+  Given the mod, and an engram whose auto judge prints text that begins as a request and is not a JSON object
+  When a turn completes
+  Then the model was never asked, and auto write received a failure that names the judgement
 ```
 
 ## 793d3 Recommended component diffs

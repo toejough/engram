@@ -186,7 +186,9 @@ graph TD
     n793e6g9 --> n793e6g10
     n793e6g11["793e6g11 A headless prompt is judged only when asked<br/>Complete"]
     n793e6g10 --> n793e6g11
-    n793e6g11 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
+    n793e6g12["793e6g12 Each stage of the capture has a bound of its own<br/>Ready"]
+    n793e6g11 --> n793e6g12
+    n793e6g12 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
     n793e6d --> n793e6f["793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d"]
@@ -649,6 +651,15 @@ Takes review finding 6. The origin `sdk` is the headless host's own [turn](./793
 | --- | --- | --- | --- | --- | --- | --- |
 | 793d4m1c | Dedicated example (default suite) | the judgement dispatched through the targets for a prompt of the origin `sdk`, without the flag and with it | Done | 3310dd57 | f48a9910 | f7e18ddb |
 | 793d4m1a (amended) | Dedicated example (default suite) | the four origins of the user, with the judgement asked to judge headless turns | Done | 3310dd57 | f48a9910 | f7e18ddb |
+
+#### 793e6g12 Each stage of the capture has a bound of its own
+
+Takes review findings 12 and 24. The capture of a [turn](./793a_product-spec.md#793a1a-terms) had no bound for the call for the [session](../../GLOSSARY.md#session)'s ID and the 30 seconds that the host gives a process call by default for the commands, so the chain of 30 + 60 + 30 seconds left no margin under the 2 minutes of [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), and a call for the ID that never answered left the capture waiting for good; a request that was not JSON was reported as a failure of the model's call ([793b85 Each stage of the capture has a bound of its own](./793b_decision-log.md#793b85-each-stage-of-the-capture-has-a-bound-of-its-own)).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| 793d2b1j | Dedicated example, real dependency (`integration`, runs the mod under `node`) | a stand-in host in which each stage stalls in turn, with the timers of the mod fired at once: the limits the mod asks for are 5, 15, 60, 20 and 15 seconds, and each stalled stage is reported | Not started | | | |
+| 793d2b1k | Dedicated example, real dependency (`integration`, runs the mod under `node`) | a request that is not JSON is reported as a failure of the judgement | Not started | | | |
 
 ### 793e6e The conversation becomes searchable memory
 

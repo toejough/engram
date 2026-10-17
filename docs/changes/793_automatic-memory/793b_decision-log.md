@@ -1196,10 +1196,12 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 - **Choice:** after a [turn](./793a_product-spec.md#793a1a-terms) the mod gives the event's result back at once and runs the three steps one after the other apart
   from the event: the judgement, the model's call and the writing. A step that fails, because a command exits with other
   than 0 or prints what is not a request, or a call is ended or rejected, or the model gives no text, is reported to
-  the writing as a `failure` of up to 300 characters that names the step, and the writing records it as failed. The model's
-  call is bounded by the 60 seconds of the request and each command by the 30 seconds that the host gives a process
-  call unless it is told otherwise, so the longest the chain can take, 30 + 60 + 30 seconds, is the 2 minutes of the
-  product; no timer bounds the chain as a whole.
+  the writing as a `failure` of up to 300 characters that names the step, and the writing records it as failed. Each
+  stage has a bound of its own, restated by [793b85 Each stage of the capture has a bound of its own](#793b85-each-stage-of-the-capture-has-a-bound-of-its-own): the call for the
+  [session](../../GLOSSARY.md#session)'s ID 5 seconds, the judgement 15, the model's call the 60 seconds of the request, the writing 20 and the report
+  of a failure 15, which together are 115 seconds, under the 2 minutes of the product; no timer bounds the chain as a
+  whole. (As first decided, the stages had the 30 seconds that the host gives a process call unless it is told
+  otherwise, and the call for the session's ID had none, so the chain had no margin under the 2 minutes.)
 - **Rationale:** [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) is kept by stepping aside, and a record of the failure is what lets the user see
   that a write did not happen. In 246 [notes](../../GLOSSARY.md#permanent-note) written by the live runs of this change, four [sessions](../../GLOSSARY.md#session) at a time at most, the note was in the [vault](../../GLOSSARY.md#vault)
   between 0.9 and 6.0 seconds after the turn ended (median 1.8, 90th percentile 2.9), so the 2 minutes of
@@ -1208,7 +1210,8 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   nothing in the [session](../../GLOSSARY.md#session) waits for it); a retry of a failed step (rejected: a second model call, and the next turn
   captures its own lessons).
 - **Decided by:** Author (default; owner may override); the bound is asked in
-  [793c42 Should the bound of 2 minutes be tightened?](./793c_open-questions.md#793c42-should-the-bound-of-2-minutes-be-tightened).
+  [793c42 Should the bound of 2 minutes be tightened?](./793c_open-questions.md#793c42-should-the-bound-of-2-minutes-be-tightened). Restated in
+  [793b85 Each stage of the capture has a bound of its own](#793b85-each-stage-of-the-capture-has-a-bound-of-its-own).
 
 ## 793b71 The commands of the group auto take no first-use step
 
@@ -1443,3 +1446,24 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   setting file of the user's (rejected: a new place for a setting that the environment already is).
 - **Decided by:** Author (default; owner may override); the owner is asked in
   [793c39 Which origins count as the prompts the user sends?](./793c_open-questions.md#793c39-which-origins-count-as-the-prompts-the-user-sends), with this default stated.
+
+## 793b85 Each stage of the capture has a bound of its own
+
+- **Choice:** the mod bounds each stage of the capture: the call for the [session](../../GLOSSARY.md#session)'s ID at 5 seconds (it has no time limit of its own, so the
+  mod races it with a timer, and a session whose ID does not come is left alone, since no record can be made without it),
+  `engram auto judge` at 15 seconds, the model's call at the 60 seconds that its request holds, `engram auto write` at 20
+  and the report of a failure, which is a call of `engram auto write`, at 15. The stages together take 115 seconds at
+  most, under the 2 minutes of [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent). A stage that does not finish in its bound has failed and
+  is reported to the writing as any failed step is. A request that the judgement printed and that is not JSON is a
+  failure of the judgement, and not of the model's call.
+- **Rationale:** review findings 12 and 24. The stages had the 30 seconds that the host gives a process call by default,
+  and the call for the session's ID, the spawn of a command and the delay of the hook had none, so the chain of 30 + 60 +
+  30 seconds had no margin under the 2 minutes, and a stalled call for the ID could leave the capture waiting for good.
+  The bounds are many times the time a stage takes (the capture took 0.9 to 6.0 seconds in 246 live runs,
+  [793b70 The capture reports its own failures, and nothing times it as a whole](#793b70-the-capture-reports-its-own-failures-and-nothing-times-it-as-a-whole)). A request that failed to parse was reported as a failure of the model's
+  call, which sent the reader to the wrong stage.
+- **Alternatives:** a timer over the chain (rejected, as in 793b70: it would end a write about to finish); the bounds of the
+  host's default (rejected: the finding); shorter bounds (rejected: a loaded machine took 7 seconds to start a command, see
+  [793c32 Is the stall between the spawn of the command and its first instruction a risk to the product?](./793c_open-questions.md#793c32-is-the-stall-between-the-spawn-of-the-command-and-its-first-instruction-a-risk-to-the-product)).
+- **Decided by:** Author (default; owner may override); the bound is asked in
+  [793c42 Should the bound of 2 minutes be tightened?](./793c_open-questions.md#793c42-should-the-bound-of-2-minutes-be-tightened).

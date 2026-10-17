@@ -438,7 +438,7 @@ he answers. When he answers, the entry records the answer and the date and stays
   command its 30, which together are the 2 minutes; (b) and (c) would be broken by the first slow call and nothing
   enforces them.
 - **Blocks:** nothing.
-- **Status:** open. Default (a) taken: [793b70 The capture reports its own failures, and nothing times it as a whole](./793b_decision-log.md#793b70-the-capture-reports-its-own-failures-and-nothing-times-it-as-a-whole).
+- **Status:** open. Default (a) taken: [793b70 The capture reports its own failures, and nothing times it as a whole](./793b_decision-log.md#793b70-the-capture-reports-its-own-failures-and-nothing-times-it-as-a-whole). Restated: the stages have bounds of their own, which together are 115 seconds: [793b85 Each stage of the capture has a bound of its own](./793b_decision-log.md#793b85-each-stage-of-the-capture-has-a-bound-of-its-own).
 
 ## 793c43 Should a missing vault end the capture before the model is asked?
 
