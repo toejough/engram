@@ -24,7 +24,8 @@ The shape the first node's step 3 added, which later nodes extend:
   collaborators of `internal/auto` to the query engine and the file system.
 - `internal/update/update.go`: the plan of the mods of the source, appended to the plan of the skills.
 - `dev/acceptance/`: the tests that drive a real Claude Code session, under the `network` build tag; `dev/targs.go`:
-  the `acceptance` target. No new Go dependency.
+  the `acceptance` target, which runs at most four of them at once
+  ([793b49](./793b_decision-log.md#793b49-the-acceptance-run-is-capped-at-four-tests-at-once)). No new Go dependency.
 - `dev/conformance.go`: the conformance check's reading of the scenario IDs of the two specs and of the tests that name
   them; the check itself is a test of the dev integration suite, so `targ check-full` runs it.
 
