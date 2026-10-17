@@ -265,7 +265,8 @@ Scenario: 793a3a1a A written note is delivered with later prompts
 
 Requirement: 793a3c [Automatic memory](#793a1a-terms) MUST NOT write a [note](../../GLOSSARY.md#permanent-note)
 for a lesson that a note in the [vault](../../GLOSSARY.md#vault) already states, whoever wrote that note and
-whenever it was written.
+whenever it was written. A lesson that no note states is written even when a note states another lesson about the
+same subject.
 
 #### 793a3c1 UAT Scenarios
 
@@ -279,6 +280,11 @@ Scenario: 793a3c1b A lesson the agent saved itself is not written again
   Given the user has run engram update, and a session in which the agent may run engram commands
   When the user asks the agent in a prompt to remember something and to save it with engram learn, and the turn ends
   Then 2 minutes after the turn ends the vault holds one note for it, the one the agent saved
+
+Scenario: 793a3c1c A lesson no earlier note states is written
+  Given the user has run engram update, a vault holding a note that the user saved earlier and that states a lesson, and a session in which the agent may not run engram commands
+  When the user asks the agent in a prompt to remember a different lesson about the same subject, and the turn ends
+  Then within 2 minutes the vault holds the earlier note, unchanged, and a new note for the different lesson that says it was written automatically
 ```
 
 ### 793a3e Explicit memory use keeps working

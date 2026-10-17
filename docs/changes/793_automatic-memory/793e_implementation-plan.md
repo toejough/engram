@@ -192,7 +192,9 @@ graph TD
     n793e6g12 --> n793e6g13
     n793e6g14["793e6g14 A thanks that names no approach produces no note<br/>Complete"]
     n793e6g13 --> n793e6g14
-    n793e6g14 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
+    n793e6g15["793e6g15 A lesson no earlier note states is written<br/>Ready"]
+    n793e6g14 --> n793e6g15
+    n793e6g15 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
     n793e6d --> n793e6f["793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d"]
@@ -680,6 +682,14 @@ Takes review findings 14 and 22. The learn [skill](../../GLOSSARY.md#skill) hold
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 793a2c1h | Dedicated example, product acceptance (`network`) | the prohibition as the user sees it: after a task the [agent](./793a_product-spec.md#793a1a-terms) did one way, a [prompt](./793a_product-spec.md#793a1a-terms) that only thanks the agent and says that it worked is judged, and the [vault](../../GLOSSARY.md#vault) holds no [note](../../GLOSSARY.md#permanent-note) | 10 of 10 runs of the final instructions; 5 of 10 before them | Done | db1f61f6 | aca8f0a1 | 4611d8a8 |
+
+#### 793e6g15 A lesson no earlier note states is written
+
+Takes review finding 18. Only one side of [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again) was run live: a lesson that an earlier [note](../../GLOSSARY.md#permanent-note) states is left out ([793a3c1a A lesson an earlier note states is not written again](./793a_product-spec.md#793a3c1-uat-scenarios), [793a3c1b A lesson the agent saved itself is not written again](./793a_product-spec.md#793a3c1-uat-scenarios)). A judgement that took every lesson about the subject of a nearest note for covered would pass both rows and write nothing. The row is the other side: the [vault](../../GLOSSARY.md#vault) holds the staging-reset note, the user asks to remember the staging backup, and the lesson is written while the earlier note stays as it was. It is a judgement row, run 10 times.
+
+| Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793a3c1c | Dedicated example, product acceptance (`network`) | the other side of the cover as the user sees it: a real [session](../../GLOSSARY.md#session), a vault with the note of one lesson about a database, a request to remember another lesson about the same database, and a new note in the vault that says it was written automatically within the bound, with the earlier note unchanged | | Not started | | | |
 
 ### 793e6e The conversation becomes searchable memory
 
