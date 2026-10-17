@@ -290,14 +290,19 @@ func Test793d4e1a_Targets_AutoDeliverCreatesNoVault(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := filepath.Join(t.TempDir(), "no-such-vault")
+	sessions, home := t.TempDir(), t.TempDir()
 
 	var stdout bytes.Buffer
 
-	stderr := executeForTestWithDeps(t, []string{"engram", "auto", "deliver", "--vault", vault}, func(d *cli.Deps) {
-		d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
-		d.Stdin = strings.NewReader(`{"text":"anything"}`)
-		d.Stdout = &stdout
-	})
+	stderr := executeForTestWithDeps(t,
+		[]string{"engram", "auto", "deliver", "--vault", vault, "--sessions", sessions},
+		func(d *cli.Deps) {
+			d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
+			d.Getenv = func(string) string { return "" }
+			d.UserHomeDir = func() (string, error) { return home, nil }
+			d.Stdin = strings.NewReader(`{"text":"anything"}`)
+			d.Stdout = &stdout
+		})
 
 	_, statErr := os.Stat(vault)
 
@@ -360,15 +365,20 @@ func TestTargets_AutoDeliverPrintsTheNotesThatBearOnThePromptOnStandardInput(t *
 	g := NewWithT(t)
 
 	vault := t.TempDir()
+	sessions, home := t.TempDir(), t.TempDir()
 	plantNoteOnDisk(t, vault, "1.2026-10-17.zorblax-staging-reset.md", zorblaxResetNote)
 
 	var stdout bytes.Buffer
 
-	stderr := executeForTestWithDeps(t, []string{"engram", "auto", "deliver", "--vault", vault}, func(d *cli.Deps) {
-		d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
-		d.Stdin = strings.NewReader(`{"text":"When is the Zorblax staging database reset?"}`)
-		d.Stdout = &stdout
-	})
+	stderr := executeForTestWithDeps(t,
+		[]string{"engram", "auto", "deliver", "--vault", vault, "--sessions", sessions},
+		func(d *cli.Deps) {
+			d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
+			d.Getenv = func(string) string { return "" }
+			d.UserHomeDir = func() (string, error) { return home, nil }
+			d.Stdin = strings.NewReader(`{"text":"When is the Zorblax staging database reset?"}`)
+			d.Stdout = &stdout
+		})
 
 	g.Expect(stderr).To(BeEmpty())
 	g.Expect(stdout.String()).To(ContainSubstring("- 1.2026-10-17.zorblax-staging-reset.md (testing against"))
