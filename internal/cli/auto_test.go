@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -424,6 +425,46 @@ func Test793d4e1b_Targets_AutoJudgeCreatesNoVault(t *testing.T) {
 	g.Expect(stdout.String()).To(BeEmpty(), "the judgement printed no request")
 	g.Expect(stderr).To(ContainSubstring("no vault at " + vault))
 	g.Expect(stderr).NotTo(ContainSubstring("created new vault"))
+}
+
+func Test793d4m1c_Targets_TheTurnOfAHeadlessPromptIsJudgedOnlyWhenTheUserAsks(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		flags  []string
+		judged bool
+	}{
+		"without the flag": {},
+		"with the flag":    {flags: []string{"--capture-sdk"}, judged: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault, home := t.TempDir(), t.TempDir()
+			sessions := recordOfAPrompt(t)
+
+			var stdout bytes.Buffer
+
+			stderr := executeForTestWithDeps(t,
+				slices.Concat([]string{"engram", "auto", "judge", "--vault", vault, "--sessions", sessions}, test.flags),
+				func(d *cli.Deps) {
+					d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
+					d.Getenv = func(string) string { return "" }
+					d.UserHomeDir = func() (string, error) { return home, nil }
+					d.Stdin = originRequest("sdk", "answer", "On Sundays.")
+					d.Stdout = &stdout
+				})
+
+			g.Expect(stderr).To(BeEmpty())
+
+			if test.judged {
+				g.Expect(stdout.String()).To(HavePrefix(`{"model":`), "the request for the model")
+			} else {
+				g.Expect(stdout.String()).To(BeEmpty(), "the turn of a headless prompt is judged nothing")
+			}
+		})
+	}
 }
 
 func Test793d4e1c_Targets_AutoWriteCreatesNoVaultAndWritesNoNote(t *testing.T) {
