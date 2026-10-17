@@ -41,112 +41,17 @@ The first row of a node is its product scenario. Its red commit comes first, bef
 
 ## 793e4 Depth-first order and dependency tree
 
-A node is one product scenario, or a tightly coupled pair, taken through steps 3 to 5 before the next node starts (`793b38`). The groups, in order (`793b28`): step 2 writes a group's scenarios when the group is reached, and each scenario is a node of its group. The first node is the first scenario of `793a2a`, which needs the first delivery of `793a2b` to be visible, and the first group also takes the 8-second hold; each later node needs the previous node's committed result, because an interaction joins a capability to the ones before it.
+A node is one product scenario, or a tightly coupled pair, taken through steps 3 to 5 before the next node starts (`793b38`). The groups, in the order of the catalog (`793b28`): step 2 writes a group's scenarios when the group is reached, and each scenario is a node of its group, replacing the group's node in the same place with the same prerequisites. The first node is the first scenario of `793a2a`, which needs the first delivery of `793a2b` to be visible, and the first group also takes the 8-second hold; each later node needs the previous node's committed result, because an interaction joins a capability to the ones before it.
 
-| Group | Requirements | Interactions |
-| --- | --- | --- |
-| `793e6a` | `793a2a`, `793a2b` and the 8-second hold of `793a2d` | none |
-| `793e6b` | `793a2c`, and the clause of `793a2d` about its own [sessions](../../GLOSSARY.md#session) (`793b58`) | `793a3a`, `793a3c`, `793a3e` |
-| `793e6g` | the defects the second group's one review round found in `793a2c`, its interactions and its technical requirements | none |
-| `793e6e` | `793a2f` | none |
-| `793e6c` | the rest of `793a2d`, without the clause about its own sessions | none |
-| `793e6d` | `793a2e` | none |
-| `793e6f` | the clause of `793a2b` that the [notes](../../GLOSSARY.md#permanent-note) are those `engram query` returns, for a [vault](../../GLOSSARY.md#vault) that has a parent (`793c34`) | none |
-
-```mermaid
-graph TD
-    n793e6a1["793e6a1 The next session has memory after one engram update<br/>Complete"]
-    n793e6a2["793e6a2 The notes that bear on a prompt arrive with it<br/>Complete"]
-    n793e6a3["793e6a3 A note delivered earlier in the session is not delivered again<br/>Complete"]
-    n793e6a4["793e6a4 A note the agent looked up itself is not delivered<br/>Complete"]
-    n793e6a5["793e6a5 A prompt that matches no note arrives with nothing<br/>Complete"]
-    n793e6a6["793e6a6 A slow lookup does not hold a prompt for more than 8 seconds<br/>Complete"]
-    n793e6a7["793e6a7 A vault that does not exist is not created<br/>Complete"]
-    n793e6a8["793e6a8 Pi gets no automatic memory<br/>Complete"]
-    n793e6a9["793e6a9 A dry run turns nothing on<br/>Complete"]
-    n793e6a10["793e6a10 A second update still delivers each note once<br/>Complete"]
-    n793e6b1["793e6b1 A correction becomes a note<br/>Complete"]
-    n793e6b2["793e6b2 A request to remember becomes a note<br/>Complete"]
-    n793e6b3["793e6b3 An approach the user confirmed becomes a note<br/>Complete"]
-    n793e6b4["793e6b4 The agent's own correction becomes a note<br/>Complete"]
-    n793e6b5["793e6b5 An approach that succeeded with evidence becomes a note<br/>Complete"]
-    n793e6b6["793e6b6 Guesses, plans and chatter produce no note<br/>Complete"]
-    n793e6b7["793e6b7 A credential in the turn is not in the note<br/>Complete"]
-    n793e6b8["793e6b8 A lesson an earlier note states is not written again<br/>Complete"]
-    n793e6b9["793e6b9 A lesson the agent saved itself is not written again<br/>Complete"]
-    n793e6b10["793e6b10 The agent's own lookups and saves keep working<br/>Complete"]
-    n793e6b11["793e6b11 A written note is delivered with later prompts<br/>Complete"]
-    n793e6b12["793e6b12 A second update still writes each lesson as one note<br/>Complete"]
-    n793e6b13["793e6b13 A lesson is not written to a vault that does not exist<br/>Complete"]
-    n793e6b14["793e6b14 Automatic memory's work starts no session of its own<br/>Complete"]
-    n793e6a1 --> n793e6a2
-    n793e6a2 --> n793e6a3
-    n793e6a3 --> n793e6a4
-    n793e6a4 --> n793e6a5
-    n793e6a5 --> n793e6a6
-    n793e6a6 --> n793e6a7
-    n793e6a7 --> n793e6a8
-    n793e6a8 --> n793e6a9
-    n793e6a9 --> n793e6a10
-    n793e6a10 --> n793e6b1
-    n793e6b1 --> n793e6b2
-    n793e6b2 --> n793e6b3
-    n793e6b3 --> n793e6b4
-    n793e6b4 --> n793e6b5
-    n793e6b5 --> n793e6b6
-    n793e6b6 --> n793e6b7
-    n793e6b7 --> n793e6b8
-    n793e6b8 --> n793e6b9
-    n793e6b9 --> n793e6b10
-    n793e6b10 --> n793e6b11
-    n793e6b11 --> n793e6b12
-    n793e6b12 --> n793e6b13
-    n793e6b13 --> n793e6b14
-    n793e6g1["793e6g1 The rows the harness wrote are no prompt<br/>Complete"]
-    n793e6b14 --> n793e6g1
-    n793e6g2["793e6g2 The record is read once, and only the window is redacted<br/>Complete"]
-    n793e6g1 --> n793e6g2
-    n793e6g3["793e6g3 A turn is found by the text it began with<br/>Complete"]
-    n793e6g2 --> n793e6g3
-    n793e6g4["793e6g4 The instructions are the system of the request<br/>Complete"]
-    n793e6g3 --> n793e6g4
-    n793e6g5["793e6g5 Every name that holds a word of a secret is redacted<br/>Complete"]
-    n793e6g4 --> n793e6g5
-    n793e6g6["793e6g6 A field of a lesson is one line and a cut reply keeps its lessons<br/>Complete"]
-    n793e6g5 --> n793e6g6
-    n793e6g7["793e6g7 A note written automatically says so in its line<br/>Complete"]
-    n793e6g6 --> n793e6g7
-    n793e6g8["793e6g8 A credential split by characters not shown is redacted whole<br/>Complete"]
-    n793e6g7 --> n793e6g8
-    n793e6g9["793e6g9 A judgement without a vault or a record fails<br/>Complete"]
-    n793e6g8 --> n793e6g9
-    n793e6g10["793e6g10 A failure that is recorded is recorded once<br/>Complete"]
-    n793e6g9 --> n793e6g10
-    n793e6g11["793e6g11 A headless prompt is judged only when asked<br/>Complete"]
-    n793e6g10 --> n793e6g11
-    n793e6g12["793e6g12 Each stage of the capture has a bound of its own<br/>Complete"]
-    n793e6g11 --> n793e6g12
-    n793e6g13["793e6g13 The acceptance run can repeat a scenario<br/>Complete"]
-    n793e6g12 --> n793e6g13
-    n793e6g14["793e6g14 A thanks that names no approach produces no note<br/>Complete"]
-    n793e6g13 --> n793e6g14
-    n793e6g15["793e6g15 A lesson no earlier note states is written<br/>Complete"]
-    n793e6g14 --> n793e6g15
-    n793e6g16["793e6g16 A turn that a background task's notification starts is not judged<br/>Complete"]
-    n793e6g15 --> n793e6g16
-    n793e6g17["793e6g17 The runs of the judgement rows are tallied and the probe is kept<br/>Complete"]
-    n793e6g16 --> n793e6g17
-    n793e6g18["793e6g18 The documents say what the group does<br/>Complete"]
-    n793e6g17 --> n793e6g18
-    n793e6g19["793e6g19 A request to remember is written whatever the agent says<br/>Complete"]
-    n793e6g18 --> n793e6g19
-    n793e6g19 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
-    n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
-    n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
-    n793e6d --> n793e6f["793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d"]
-```
-
-The graph shows the nodes of the first two groups, whose scenarios step 2 has written, and the other groups as they stand; when step 2 writes a group's scenarios, the group's node is replaced, in the same place and with the same prerequisites, by one node per scenario, each with a catalog section under its group's.
+| Group | Requirements | Interactions | Status |
+| --- | --- | --- | --- |
+| `793e6a` | `793a2a`, `793a2b` and the 8-second hold of `793a2d` | none | Complete |
+| `793e6b` | `793a2c`, and the clause of `793a2d` about its own [sessions](../../GLOSSARY.md#session) (`793b58`) | `793a3a`, `793a3c`, `793a3e` | Complete |
+| `793e6g` | the defects the second group's one review round found in `793a2c`, its interactions and its technical requirements | none | Complete |
+| `793e6e` | `793a2f` | none | Ready |
+| `793e6c` | the rest of `793a2d`, without the clause about its own sessions | none | Blocked by: `793e6e` |
+| `793e6d` | `793a2e` | none | Blocked by: `793e6c` |
+| `793e6f` | the clause of `793a2b` that the [notes](../../GLOSSARY.md#permanent-note) are those `engram query` returns, for a [vault](../../GLOSSARY.md#vault) that has a parent (`793c34`) | none | Blocked by: `793e6d` |
 
 ## 793e9 Dependency graph
 
