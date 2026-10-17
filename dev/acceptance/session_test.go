@@ -291,6 +291,13 @@ func (s *session) endOnceAsked(command *exec.Cmd, done chan error, before int) {
 	}
 }
 
+// hasFile puts a file in the session's project directory.
+func (s *session) hasFile(name, content string) {
+	s.machine.t.Helper()
+
+	writeFile(s.machine.t, filepath.Join(s.project, name), content)
+}
+
 // requests counts the requests to the model that the session's record holds.
 func (s *session) requests() int {
 	count := 0

@@ -214,6 +214,38 @@ type captureOutcome struct {
 	} `json:"calls"`
 }
 
+// modulesOf reads every JavaScript file below a directory, by its path relative to the directory.
+func modulesOf(t *testing.T, dir string) map[string]string {
+	t.Helper()
+
+	modules := map[string]string{}
+
+	walkErr := filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil || entry.IsDir() || !strings.HasSuffix(path, ".js") {
+			return err
+		}
+
+		source, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+
+		relative, relErr := filepath.Rel(dir, path)
+		if relErr != nil {
+			return relErr
+		}
+
+		modules[relative] = string(source)
+
+		return nil
+	})
+	if walkErr != nil {
+		t.Fatalf("reading the JavaScript of %s: %v", dir, walkErr)
+	}
+
+	return modules
+}
+
 // runCaptureDriver runs a driver under node against the mod of the source, and reads what it printed.
 func runCaptureDriver(t *testing.T, driver string) captureOutcome {
 	t.Helper()
@@ -256,36 +288,4 @@ func runCaptureDriver(t *testing.T, driver string) captureOutcome {
 	}
 
 	return outcome
-}
-
-// modulesOf reads every JavaScript file below a directory, by its path relative to the directory.
-func modulesOf(t *testing.T, dir string) map[string]string {
-	t.Helper()
-
-	modules := map[string]string{}
-
-	walkErr := filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil || entry.IsDir() || !strings.HasSuffix(path, ".js") {
-			return err
-		}
-
-		source, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return readErr
-		}
-
-		relative, relErr := filepath.Rel(dir, path)
-		if relErr != nil {
-			return relErr
-		}
-
-		modules[relative] = string(source)
-
-		return nil
-	})
-	if walkErr != nil {
-		t.Fatalf("reading the JavaScript of %s: %v", dir, walkErr)
-	}
-
-	return modules
 }

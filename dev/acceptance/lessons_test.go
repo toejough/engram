@@ -44,8 +44,107 @@ func Test793a2c1a_ACorrectionBecomesANote(t *testing.T) {
 		})
 		t.Logf("the note %s was written %s after the turn ended:\n%s", note.name, took, note.text)
 
-		g.Expect(note.field("source")).To(ContainSubstring("written automatically"))
+		g.Expect(note.source()).To(ContainSubstring("written automatically"))
 		g.Expect(inSession.agentRan("engram")).To(BeFalse(), "the agent ran an engram command")
+	})
+}
+
+func Test793a2c1b_ARequestToRememberBecomesANote(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var chat *conversation
+
+	step(t, "Given the user has run engram update, and a session in which the agent may not run engram commands", func() {
+		machine.hasRunUpdate()
+
+		chat = machine.startSession("zorblax").converse()
+	})
+
+	step(t, "When the user asks the agent in a prompt to remember something, and the turn ends", func() {
+		asked := chat.say(askToRemember)
+		t.Logf("the agent replied %q", asked.reply)
+	})
+
+	step(t, "Then within 2 minutes the vault holds a note that states it and says it was written automatically, "+
+		"and the agent wrote nothing to the vault", func() {
+		note, took := machine.awaitNote(chat.turnEnds, "that states what was asked to be remembered",
+			func(note vaultNote) bool { return note.states("Sunday", "03:40") })
+		t.Logf("the note %s was written %s after the turn ended:\n%s", note.name, took, note.text)
+
+		g.Expect(note.source()).To(ContainSubstring("written automatically"))
+		g.Expect(chat.session.agentRan("engram")).To(BeFalse(), "the agent ran an engram command")
+	})
+}
+
+func Test793a2c1c_AnApproachTheUserConfirmedBecomesANote(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var chat *conversation
+
+	step(t, "Given the user has run engram update, and a session in which the agent may not run engram commands "+
+		"and has done a task one way", func() {
+		machine.hasRunUpdate("sort")
+
+		inSession := machine.startSession("zorblax")
+		inSession.hasFile("zorblax.txt", "pear\nfig\napple\n")
+		chat = inSession.converse()
+
+		done := chat.say(askToSort)
+		t.Logf("the agent replied %q", done.reply)
+	})
+
+	step(t, "When the user tells the agent in a prompt that the way worked and to keep doing it, and the turn ends",
+		func() {
+			confirmed := chat.say(confirmTheSort)
+			t.Logf("the agent replied %q", confirmed.reply)
+		})
+
+	step(t, "Then within 2 minutes the vault holds a note that states the approach and says it was written "+
+		"automatically", func() {
+		note, took := machine.awaitNote(chat.turnEnds, "that states the approach",
+			func(note vaultNote) bool { return note.states("sort", "zorblax") })
+		t.Logf("the note %s was written %s after the turn ended:\n%s", note.name, took, note.text)
+
+		g.Expect(note.source()).To(ContainSubstring("written automatically"))
+	})
+}
+
+func Test793a2c1d_TheAgentsOwnCorrectionBecomesANote(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var chat *conversation
+
+	step(t, "Given the user has run engram update, and a session in which the agent may read files "+
+		"but may not run engram commands", func() {
+		machine.hasRunUpdate()
+
+		inSession := machine.startSession("zorblax")
+		inSession.hasFile("zorblax.conf", "listen_port = 7731\n")
+		chat = inSession.converse()
+	})
+
+	step(t, "When the user asks the agent in a prompt to guess what a file says and then to read it, "+
+		"and the agent says its guess was wrong and states what the file says, and the turn ends", func() {
+		corrected := chat.say(askToGuessAndRead)
+		t.Logf("the agent replied %q", corrected.reply)
+	})
+
+	step(t, "Then within 2 minutes the vault holds a note that states what the file says and says it was written "+
+		"automatically", func() {
+		note, took := machine.awaitNote(chat.turnEnds, "that states what the file says",
+			func(note vaultNote) bool { return note.states("7731") })
+		t.Logf("the note %s was written %s after the turn ended:\n%s", note.name, took, note.text)
+
+		g.Expect(note.source()).To(ContainSubstring("written automatically"))
 	})
 }
 
@@ -53,8 +152,21 @@ func Test793a2c1a_ACorrectionBecomesANote(t *testing.T) {
 const (
 	// askHowToBuild is a question the agent cannot answer from anything but a guess: the project is made up.
 	askHowToBuild = "How do I build the Zorblax project? Answer in one line."
+	// askToGuessAndRead makes the agent state a guess, read a file whose content it cannot guess, and say that the guess
+	// was wrong.
+	askToGuessAndRead = "Before you read anything, say in one sentence which port the Zorblax service listens on, " +
+		"guessing from its name. Then read zorblax.conf with the Read tool. Then say in one sentence which port it " +
+		"really listens on, and say that your first guess was wrong."
+	// askToRemember asks for a fact to be remembered.
+	askToRemember = "Remember that the Zorblax staging database is reset every Sunday at 03:40 UTC. " +
+		"Reply with one short sentence."
+	// askToSort is a task the agent does one way.
+	askToSort = "Print the lines of zorblax.txt in sorted order with the sort command. Reply with one short sentence."
 	// buildTarget is the word of the correction that no other text of the conversation holds.
 	buildTarget = "zorblax-build"
+	// confirmTheSort confirms the way the agent did askToSort.
+	confirmTheSort = "That worked - sorting zorblax.txt with the sort command was exactly the right way. " +
+		"Keep sorting Zorblax lists with the sort command. Reply with one short sentence."
 	// correctTheBuild corrects whatever the agent answered to askHowToBuild.
 	correctTheBuild = "No - in the Zorblax project you build with make " + buildTarget + ", never with make all. " +
 		"Reply with one short sentence."

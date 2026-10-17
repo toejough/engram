@@ -352,7 +352,7 @@ Takes [793a2c1b A request to remember becomes a note](./793a_product-spec.md#793
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1b | Dedicated example, product acceptance (`network`) | the second kind of lesson as the user sees it: a request to remember, written as a fact; the pipeline of the first node already writes it, so the test passes when written, and the mutation that makes it fail is instructions of the judgement that do not name the request to remember | Not started | | | |
+| 793a2c1b | Dedicated example, product acceptance (`network`) | the second kind of lesson as the user sees it: a request to remember, written as a fact; the pipeline of the first node already writes it, so the test passes when written, and mutation checks, run on scratch copies of the branch: instructions of the judgement without the request to remember make it fail (3 of 3 runs), and so does a write that writes no note | Green-all | n/a | | |
 
 #### 793e6b3 An approach the user confirmed becomes a note
 
@@ -360,7 +360,7 @@ Takes [793a2c1c An approach the user confirmed becomes a note](./793a_product-sp
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1c | Dedicated example, product acceptance (`network`) | the third kind: a [turn](./793a_product-spec.md#793a1a-terms) in which the user says that the way the [agent](./793a_product-spec.md#793a1a-terms) did a task worked, with the task in the turn before; the mutation that makes it fail is instructions that do not name a confirmed approach | Not started | | | |
+| 793a2c1c | Dedicated example, product acceptance (`network`) | the third kind: a [turn](./793a_product-spec.md#793a1a-terms) in which the user says that the way the [agent](./793a_product-spec.md#793a1a-terms) did a task worked, with the task in the turn before; mutation checks, run on scratch copies of the branch: a write that writes no note makes it fail; instructions without the confirmed approach do not (3 of 3 runs passed, and the judgement of the same turn gave a lesson in 10 of 20 probes against 20 of 20), because the user's "keep doing it" is a rule of its own | Green-all | n/a | | |
 
 #### 793e6b4 The agent's own correction becomes a note
 
@@ -368,7 +368,7 @@ Takes [793a2c1d The agent's own correction becomes a note](./793a_product-spec.m
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1d | Dedicated example, product acceptance (`network`) | the fourth kind: the [agent](./793a_product-spec.md#793a1a-terms) states a guess, reads a file and says its guess was wrong, in one [turn](./793a_product-spec.md#793a1a-terms); the mutation that makes it fail is instructions that do not name the agent's own correction | Not started | | | |
+| 793a2c1d | Dedicated example, product acceptance (`network`) | the fourth kind: the [agent](./793a_product-spec.md#793a1a-terms) states a guess, reads a file and says its guess was wrong, in one [turn](./793a_product-spec.md#793a1a-terms); mutation check, run on a scratch copy of the branch: instructions of the judgement without the agent's own correction make it fail (3 of 3 runs) | Green-all | n/a | | |
 
 #### 793e6b5 An approach that succeeded with evidence becomes a note
 

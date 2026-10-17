@@ -89,6 +89,24 @@ func (m *machine) agentMayNotRunEngram() {
 	writeFile(m.t, filepath.Join(m.claudeDir, "settings.json"), "{}")
 }
 
+// agentMayRun gives the agent the permission to run the commands named, and not to run engram: a note that appears in
+// the vault is then not the agent's.
+func (m *machine) agentMayRun(commands ...string) {
+	m.t.Helper()
+
+	allowed := make([]string, 0, len(commands))
+	for _, command := range commands {
+		allowed = append(allowed, "Bash("+command+":*)")
+	}
+
+	settings, err := json.Marshal(map[string]any{"permissions": map[string]any{"allow": allowed}})
+	if err != nil {
+		m.t.Fatalf("encoding the agent's permissions: %v", err)
+	}
+
+	writeFile(m.t, filepath.Join(m.claudeDir, "settings.json"), string(settings))
+}
+
 // awaitNote waits until a note of the vault satisfies match, or the bound passes, and returns the note with how long
 // after the turn ended it was written. It fails the test when no note satisfies match in time.
 func (m *machine) awaitNote(turnEnds time.Time, what string, match func(vaultNote) bool) (vaultNote, time.Duration) {
@@ -162,6 +180,17 @@ func (m *machine) hasPi() {
 	m.t.Helper()
 
 	mkdirAll(m.t, filepath.Join(m.home, piDirectory))
+}
+
+// hasRunUpdate is a machine with Claude Code on which the user has run engram update, and on which the agent may run
+// the commands named and not engram.
+func (m *machine) hasRunUpdate(agentMayRun ...string) {
+	m.t.Helper()
+
+	m.hasEngram()
+	m.hasClaudeCode()
+	m.agentMayRun(agentMayRun...)
+	m.mustSucceed(m.update(), "engram update")
 }
 
 // hasStandInEngram puts a stand-in for engram first on the machine's PATH: it records its arguments and standard
@@ -395,10 +424,10 @@ type vaultNote struct {
 	written time.Time // when the file was last written
 }
 
-// field returns the value of a line of the note's front matter, or "" when it has none.
-func (n vaultNote) field(name string) string {
+// source returns the value of the line of the note's front matter that says where the note came from.
+func (n vaultNote) source() string {
 	for line := range strings.SplitSeq(n.text, "\n") {
-		if value, found := strings.CutPrefix(line, name+": "); found {
+		if value, found := strings.CutPrefix(line, "source: "); found {
 			return value
 		}
 	}
