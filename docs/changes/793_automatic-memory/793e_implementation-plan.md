@@ -188,7 +188,9 @@ graph TD
     n793e6g10 --> n793e6g11
     n793e6g12["793e6g12 Each stage of the capture has a bound of its own<br/>Complete"]
     n793e6g11 --> n793e6g12
-    n793e6g12 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
+    n793e6g13["793e6g13 The acceptance run can repeat a scenario<br/>Ready"]
+    n793e6g12 --> n793e6g13
+    n793e6g13 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
     n793e6d --> n793e6f["793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d"]
@@ -660,6 +662,14 @@ Takes review findings 12 and 24. The capture of a [turn](./793a_product-spec.md#
 | --- | --- | --- | --- | --- | --- | --- |
 | 793d2b1j | Dedicated example, real dependency (`integration`, runs the mod under `node`) | a stand-in host in which each stage stalls in turn, with the timers of the mod fired at once: the limits the mod asks for are 5, 15, 60, 20 and 15 seconds, and each stalled stage is reported | Done | 3349fc79 | dda4891f | 8b71e45e |
 | 793d2b1k | Dedicated example, real dependency (`integration`, runs the mod under `node`) | a request that is not JSON is reported as a failure of the judgement | Done | 3349fc79 | dda4891f | 8b71e45e |
+
+#### 793e6g13 The acceptance run can repeat a scenario
+
+Takes the part of review finding 7 about the tooling: the judgement of a [turn](./793a_product-spec.md#793a1a-terms) is a call of a model, so a scenario of it passes or fails by chance, and the bar of 9 passes in 10 runs ([793b86 The acceptance run takes a count](./793b_decision-log.md#793b86-the-acceptance-run-takes-a-count)) could be shown for only 8 of the 14 rows of the second group, because `targ acceptance` ran each test once. The rest of the finding, the `Runs` column of the rows and the probe behind the instructions, is worked at the end of the fixes, when every row is run. It is not a scenario of the specs, so its test carries no scenario ID; the row is named by test.
+
+| Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| `TestAcceptanceTestArgs_TagsPackageAndFilter` (amended) | Dedicated example (dev suite, `targ` tag) | the arguments of the run: the count is one by default, and the count given is passed on, with a time limit of 30 minutes for each run of the whole set | Not started | | | |
 
 ### 793e6e The conversation becomes searchable memory
 

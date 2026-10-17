@@ -1467,3 +1467,16 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   [793c32 Is the stall between the spawn of the command and its first instruction a risk to the product?](./793c_open-questions.md#793c32-is-the-stall-between-the-spawn-of-the-command-and-its-first-instruction-a-risk-to-the-product)).
 - **Decided by:** Author (default; owner may override); the bound is asked in
   [793c42 Should the bound of 2 minutes be tightened?](./793c_open-questions.md#793c42-should-the-bound-of-2-minutes-be-tightened).
+
+## 793b86 The acceptance run takes a count
+
+- **Choice:** `targ acceptance` takes a flag `--count`, one by default, that runs each test that many times, and gives the
+  run a time limit of 30 minutes for each repetition of the whole set. The tally of a [scenario](./793a_product-spec.md#793a1a-terms) that the judgement of a model decides is
+  its passes in 10 runs, with each red attributed to its cause, and the bar is 9 in 10.
+- **Rationale:** review finding 7. The run was fixed at one repetition (`-count=1`), so a row whose outcome depends on a
+  model's judgement had a tally only when someone ran the tests by hand, and 6 of the 14 rows of the second group had
+  none. A flag of the target keeps the tags, the cap of four tests at once ([793b49 The acceptance run is capped at four tests at once](#793b49-the-acceptance-run-is-capped-at-four-tests-at-once)) and the
+  isolation that the target gives every run.
+- **Alternatives:** a documented command of `go test -count=10` (rejected: it bypasses the tags, the cap and the time
+  limit of the target); the target run ten times by a loop (rejected: the module is built for each run).
+- **Decided by:** Author (default; owner may override).
