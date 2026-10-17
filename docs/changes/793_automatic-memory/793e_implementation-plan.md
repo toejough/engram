@@ -196,7 +196,7 @@ graph TD
     n793e6g14 --> n793e6g15
     n793e6g16["793e6g16 A turn that a background task's notification starts is not judged<br/>Complete"]
     n793e6g15 --> n793e6g16
-    n793e6g17["793e6g17 The runs of the judgement rows are tallied and the probe is kept<br/>Ready"]
+    n793e6g17["793e6g17 The runs of the judgement rows are tallied and the probe is kept<br/>Complete"]
     n793e6g16 --> n793e6g17
     n793e6g17 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
@@ -709,12 +709,12 @@ Takes the rest of review finding 7, the part that [793e6g13 The acceptance run c
 
 | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| `test_record_of_writes_a_line_for_each_row_and_a_result_for_a_tool` | Dedicated example (`pytest`) | the record that a fixture becomes, in the form of a record of Claude Code: a [prompt](./793a_product-spec.md#793a1a-terms), text of the agent, and a tool with its result | Not started | | | |
-| `test_record_of_refuses_a_row_that_is_none_of_the_three` | Dedicated example (`pytest`) | a row of a fixture that is none of the three fails the probe, and is not skipped | Not started | | | |
-| `test_verdict_names_what_a_reply_holds` | Table of examples (`pytest`) | what a reply is counted as, against what a fixture expects: none, a lesson with the words, a lesson without them, a [note](../../GLOSSARY.md#permanent-note) covered, a note written where one is covered, a code fence, and what is no list | Not started | | | |
-| `test_the_fixtures_hold_no_secret_whole_and_no_placeholder_once_loaded` | Dedicated example (`pytest`) | the secrets of the fixtures are built in the code and never written whole in the file, and none of their placeholders is left once the fixtures are loaded | Not started | | | |
-| `test_every_fixture_has_rows_a_turn_and_an_expectation` | Dedicated example (`pytest`) | every fixture can be judged: its rows end with the text of the agent, and it names what the judgement is expected to give | Not started | | | |
-| `test_drop_once_removes_one_occurrence_and_refuses_any_other_count` | Dedicated example (`pytest`) | the variant without a sentence removes exactly one occurrence, whatever white space the instructions break their lines with, and fails when the sentence is absent or occurs twice | Not started | | | |
+| `test_record_of_writes_a_line_for_each_row_and_a_result_for_a_tool` | Dedicated example (`pytest`) | the record that a fixture becomes, in the form of a record of Claude Code: a [prompt](./793a_product-spec.md#793a1a-terms), text of the agent, and a tool with its result | Done | 8cd3818f | 1a60466f | 79f0c77f |
+| `test_record_of_refuses_a_row_that_is_none_of_the_three` | Dedicated example (`pytest`) | a row of a fixture that is none of the three fails the probe, and is not skipped | Done | 8cd3818f | 1a60466f | 79f0c77f |
+| `test_verdict_names_what_a_reply_holds` | Table of examples (`pytest`) | what a reply is counted as, against what a fixture expects: none, a lesson with the words, a lesson without them, a [note](../../GLOSSARY.md#permanent-note) covered, a note written where one is covered, a code fence, and what is no list | Done | 8cd3818f | 1a60466f | 79f0c77f |
+| `test_the_fixtures_hold_no_secret_whole_and_no_placeholder_once_loaded` | Dedicated example (`pytest`) | the secrets of the fixtures are built in the code and never written whole in the file, and none of their placeholders is left once the fixtures are loaded | Done | 8cd3818f | 1a60466f | 79f0c77f |
+| `test_every_fixture_has_rows_a_turn_and_an_expectation` | Dedicated example (`pytest`) | every fixture can be judged: its rows end with the text of the agent, and it names what the judgement is expected to give | Done | 8cd3818f | 1a60466f | 79f0c77f |
+| `test_drop_once_removes_one_occurrence_and_refuses_any_other_count` | Dedicated example (`pytest`) | the variant without a sentence removes exactly one occurrence, whatever white space the instructions break their lines with, and fails when the sentence is absent or occurs twice | Done | 8cd3818f | 1a60466f | 79f0c77f |
 
 ### 793e6e The conversation becomes searchable memory
 
