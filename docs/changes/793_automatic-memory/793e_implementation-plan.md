@@ -29,7 +29,7 @@ Added by the third group ([793e6e The conversation becomes searchable memory](#7
 
 - `internal/cli/auto.go`, `internal/cli/targets.go`: the command `sweep`, which indexes the session's record with the ingest, wired outside the first-use step ([793b100 The sweep indexes the session's record after every turn](./793b_decision-log.md#793b100-the-sweep-indexes-the-sessions-record-after-every-turn), [793b101 A second sweep waits for the lock of the ingest](./793b_decision-log.md#793b101-a-second-sweep-waits-for-the-lock-of-the-ingest)).
 - `agent-instructions/mods/engram-memory/hooks/register.js`: the job that sweeps after `turn.complete`, apart from the capture ([793b102 The sweep and the capture run apart](./793b_decision-log.md#793b102-the-sweep-and-the-capture-run-apart)).
-- `dev/acceptance/sweep_test.go`, `dev/mods_integration_internal_test.go`, `internal/cli/auto_sweep_integration_test.go`: the scenario test, the stand-in host's tests of the job, and the tests over the real binary.
+- `dev/acceptance/sweep_test.go`, `dev/mods_integration_internal_test.go`, `dev/auto_sweep_integration_internal_test.go`: the scenario test, the stand-in host's tests of the job, and the tests over the real binary, which the dev integration suite runs because the integration gate of `internal/` runs only tests named for it.
 
 ## 793e2 Test methods
 
@@ -630,8 +630,8 @@ One node for the scenario of [793a2f The conversation becomes searchable memory]
 | 793d2c1b | Dedicated example, real dependency (`integration`) | a failing and an ended sweep are reported to the writing as failures naming the sweep | | Done | 57e25307 | 80d53086 | |
 | 793d2c1c | Dedicated example, real dependency (`integration`) | the bounds of the sweep and of the call for the ID, with the timers of the stand-in fired at once | | Done | 57e25307 | 80d53086 | |
 | 793d2c1d | Dedicated example, real dependency (`integration`) | a turn a [subagent](../../GLOSSARY.md#subagent) ran is not swept | | Done | n/a | 57e25307 | |
-| 793d4n1e | Dedicated example, real dependency (`integration`) | the real `engram` ended with a kill while it embeds: inherited behaviour of the ingest | | Not started | | | |
-| 793d4n1f | Dedicated example, real dependency (`integration`) | two real sweeps at once: the lost update of #660 | | Not started | | | |
+| 793d4n1e | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the real `engram` ended with a kill while it embeds: inherited behaviour of the ingest; passed when written; mutation (scratch copy): a lock that a kill leaves behind fails it | | Green-all | n/a | | |
+| 793d4n1f | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | two real sweeps at once: the lost update of #660; passed when written; mutations (scratch copies): no lock, and a lock that a kill leaves behind, fail it | | Green-all | n/a | | |
 
 ### 793e6c Never in the way
 
