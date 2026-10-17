@@ -73,7 +73,7 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
   and checked by the user.
 - **Alternatives:** fold the display into [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), or the install into [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt). Rejected: each has
   its own promise the user can verify (the line, and a fresh session after an update), so each keeps its own
-  scenarios, though [793e6a On after update, and memory arrives with the prompt](./793e_implementation-plan.md#793e6a-on-after-update-and-memory-arrives-with-the-prompt) works the last pair together.
+  scenarios, though [793e6a On after update, and memory arrives with the prompt](./793e_implementation-plan.md#793e6a-on-after-update-and-memory-arrives-with-the-prompt) works the install and the delivery together.
 - **Decided by:** Author.
 
 ## 793b7 The interactions are product requirements too
@@ -240,7 +240,7 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 - **Choice:** a lesson becomes a [note](../../GLOSSARY.md#permanent-note) directly ([793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent)), not a [pending offer](../../GLOSSARY.md#offer) awaiting review.
 - **Rationale:** the owner's answer on 2026-10-11 in the earlier attempt: "written directly to the [vault](../../GLOSSARY.md#vault)."
   Curation is excluded ([793a4 Not in the minimal set](./793a_product-spec.md#793a4-not-in-the-minimal-set)).
-- **Alternatives:** pending offers reviewed with the curate skill, issue #793's open decision 4
+- **Alternatives:** pending offers reviewed with the curate [skill](../../GLOSSARY.md#skill), issue #793's open decision 4
   ([793c5 Are lessons written straight into the vault or held for review?](./793c_open-questions.md#793c5-are-lessons-written-straight-into-the-vault-or-held-for-review)).
 - **Decided by:** Author (default; owner may override).
 

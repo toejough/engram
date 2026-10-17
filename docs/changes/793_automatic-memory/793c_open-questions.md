@@ -48,7 +48,7 @@ he answers. When he answers, the entry records the answer and the date and stays
 
 - **Context:** issue #793's open decision 4. [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) says the [note](../../GLOSSARY.md#permanent-note) must be in the [vault](../../GLOSSARY.md#vault) within the
   [capture delay](./793a_product-spec.md#793a1a-terms).
-- **Options:** (a) Straight in, marked automatic. (b) As [pending offers](../../GLOSSARY.md#offer) reviewed with the curate skill.
+- **Options:** (a) Straight in, marked automatic. (b) As [pending offers](../../GLOSSARY.md#offer) reviewed with the curate [skill](../../GLOSSARY.md#skill).
 - **Recommendation:** (a), the owner's answer on 2026-10-11 in the earlier attempt.
 - **Blocks:** what "in the vault" means in the scenarios of [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent).
 - **Status:** open. Default (a) taken: [793b21 Lessons are written straight into the vault](./793b_decision-log.md#793b21-lessons-are-written-straight-into-the-vault).
