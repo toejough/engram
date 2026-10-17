@@ -92,8 +92,8 @@ capability to the ones before it.
 graph TD
     n793e6a1["793e6a1 The next session has memory after one engram update<br/>Complete"]
     n793e6a2["793e6a2 The notes that bear on a prompt arrive with it<br/>Complete"]
-    n793e6a3["793e6a3 A note delivered earlier in the session is not delivered again<br/>Ready"]
-    n793e6a4["793e6a4 A note the agent looked up itself is not delivered<br/>Blocked by: 793e6a3"]
+    n793e6a3["793e6a3 A note delivered earlier in the session is not delivered again<br/>Complete"]
+    n793e6a4["793e6a4 A note the agent looked up itself is not delivered<br/>Ready"]
     n793e6a5["793e6a5 A prompt that matches no note arrives with nothing<br/>Blocked by: 793e6a4"]
     n793e6a6["793e6a6 A slow lookup does not hold a prompt for more than 8 seconds<br/>Blocked by: 793e6a5"]
     n793e6a7["793e6a7 A vault that does not exist is not created<br/>Blocked by: 793e6a6"]
