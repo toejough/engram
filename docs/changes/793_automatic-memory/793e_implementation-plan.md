@@ -498,6 +498,17 @@ Takes [793a2d1b Automatic memory's work starts no session of its own](./793a_pro
 | 793d2b1a (amended) | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the stand-in host raises the prompt and starts the turn before it completes it, and the judgement receives the origin beside the rest | Done | c7dfbc01 | dced50df | ac6b3288 |
 | 793d4a, 793d4e, 793d4f, 793d4g (amended) | Dedicated examples (default suite) | the earlier tests that dispatch the delivery or the judgement send the origin of a prompt the user sends, because a request with none is now answered with nothing | Done | n/a | dced50df | ac6b3288 |
 
+#### 793e6b15 The branches of the group that the gate of coverage found
+
+The gate of coverage of `targ check-full` found two functions of the group under 80%: the reading of a [prompt](./793a_product-spec.md#793a1a-terms) that is
+made of blocks, which only a live [session](../../GLOSSARY.md#session) had run, and the adapter that writes a record, whose two refusals no test
+made. They are rows of nodes already complete, added here with the commits that add them.
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| 793d4g1k | Dedicated example (default suite) | the shape of a prompt in the record of a session that a live session writes, and that no earlier row built: text blocks and an image are one prompt, and the result of a tool is none. It passes when written; the mutation that makes it fail is a reading that takes only a prompt that is a string | Red | | | |
+| 793d4k1f | Dedicated example (default suite) | the adapter of the records of the writing, dispatched through the targets over a file system that refuses, first to make the directory and then to create the record. It passes when written; the mutation that makes it fail is an adapter that returns the refusal to the command | Red | | | |
+
 ### 793e6e The conversation becomes searchable memory
 
 Takes [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory).

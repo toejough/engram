@@ -623,6 +623,11 @@ Scenario: 793d4g1g A long conversation is cut to the bound
   Given a record with more context than the window holds, and a turn with more lines than it holds
   When the judgement is given the session
   Then the context is its last 6 lines or fewer, the window is no longer than 8,000 characters, the first line of the turn and its last lines are kept, and the line that says that some of the turn is left out stands where they were
+
+Scenario: 793d4g1k A prompt of text blocks is one prompt, and the result of a tool is none
+  Given a record whose last prompt is made of two text blocks and an image, followed by a row that holds only the result of a tool
+  When the judgement is given the session
+  Then the turn begins with one line for the prompt, holding the text of both blocks, and the result of the tool makes no line
 ```
 
 ### 793d4h Writing the lessons of a reply
@@ -762,6 +767,11 @@ Scenario: 793d4k1e A record that cannot be written does not fail the command
   Given a reply that holds one lesson, and a place for the records that cannot be written
   When the lessons are written
   Then the note is written and the command succeeds
+
+Scenario: 793d4k1f A directory of records that cannot be made, and a record that cannot be created, do not fail the command
+  Given a vault, a reply that holds one lesson, and a file system that refuses to make the directory of the records, and then one that makes it and refuses to create the record
+  When engram auto write is dispatched with each
+  Then the note is written and the command succeeds with each
 ```
 
 ### 793d4m Telling the prompts the user sends
