@@ -2,16 +2,18 @@ package auto
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode"
 )
 
 // Redact replaces each text of the text that is shaped as a credential with `[redacted]` and keeps the name of an
 // assignment (793d4j): a private key block, a JSON web token, a key or token that opens with the name of its issuer, a
-// Bearer or Basic credential, the user and password of a URL, the value of an Authorization header, the value given to
-// a name that holds key, token, secret, password or the like, and a long run of letters and digits that is not a
-// commit. A secret of another shape, such as a password in a sentence or a token split over two lines, is not
-// redacted.
+// Bearer or Basic credential of 12 characters or more, the user and password of a URL, the value of an Authorization
+// header, the value given to a name that holds key, token, secret, password or the like, also when a sentence of up to
+// six words stands between the name and the `is` or `:` that gives it, and a long run of letters and digits that is
+// not a commit. A secret of another shape, such as a password that a sentence gives without `is` or `:`, or a token
+// split over two lines, is not redacted.
 func Redact(text string) string {
 	text = wholeCredential.ReplaceAllString(text, redacted)
 	text = urlUserinfo.ReplaceAllString(text, "${1}"+redacted+"@")
@@ -30,17 +32,22 @@ func Redact(text string) string {
 // unexported constants.
 const (
 	redacted = "[redacted]"
-	// sensitiveName is a name that holds a word of a secret.
-	sensitiveName = `(?:[\w.-]*(?:token|secret|passw(?:or)?d|pwd|api[-_ ]?key|apikey|credential|private[-_ ]?key|` +
-		`authorization|[_-]key)[\w.-]*|(?:[\w.-]*[_-])?pass)`
+	// sensitiveName is a name that holds a word of a secret, in any case, with anything before and after the word; it
+	// does not end with a full stop, which ends a sentence.
+	sensitiveName = `(?:[\w.-]*(?:token|secret|passw(?:or)?d|pwd|credential|key|authorization)(?:[\w.-]*[\w-])?|` +
+		`(?:[\w.-]*[_-])?pass)`
 	// space is the white space of ECMAScript: the unicode spaces between a name and its value.
 	space = `\s\x{a0}\x{1680}\x{2000}-\x{200a}\x{2028}\x{2029}\x{202f}\x{205f}\x{3000}\x{feff}`
+	// wordsBetween is how many words of a sentence may stand between a name and the `is` or `:` that gives its value.
+	wordsBetween = 6
 )
 
 // unexported variables.
 var (
-	// assignment is a sensitive name given a value, by `=`, `:` or `is`.
-	assignment = regexp.MustCompile(`(?i)(` + sensitiveName + `["']?[` + space + `]*(?::|=|\bis\b)[` + space + `]*)` +
+	// assignment is a sensitive name given a value, by `=`, `:` or `is`, with up to wordsBetween words of the same
+	// sentence between the name and the `is` or `:`: a word does not end a sentence, and holds no `=` or `:`.
+	assignment = regexp.MustCompile(`(?i)(` + sensitiveName + `["']?(?:[` + space + `]+[^` + space + `=:]*[^` + space +
+		`=:.;!?]){0,` + strconv.Itoa(wordsBetween) + `}?[` + space + `]*(?::|=|\bis\b)[` + space + `]*)` +
 		`("[^"\n]*"|'[^'\n]*'|[^` + space + `]+)`)
 	authorization = regexp.MustCompile(`(?i)(\bauthorization["']?[` + space + `]*[:=][` + space + `]*)[^\n]*`)
 	commitID      = regexp.MustCompile(`^[0-9a-f]{40}$`)
@@ -56,7 +63,7 @@ var (
 			`|\b(?:AKIA|ASIA)[0-9A-Z]{16}\b` +
 			`|\bAIza[0-9A-Za-z_-]{30,}` +
 			`|\bxox[abprs]-[A-Za-z0-9-]{10,}` +
-			`|(?i:\bBearer[` + space + `]+[A-Za-z0-9._~+/=-]+)` +
+			`|(?i:\bBearer[` + space + `]+[A-Za-z0-9._~+/=-]{12,})` +
 			`|(?i:\bBasic[` + space + `]+[A-Za-z0-9._~+/=-]{12,})`)
 )
 

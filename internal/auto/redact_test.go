@@ -63,9 +63,9 @@ func Test793d4j1e_Redact_TheValueOfEveryNameThatHoldsAWordOfASecretIsRedactedWha
 		value := "wJalr" + "XUtnFEMI/K7MDENG"
 
 		g.Expect(auto.Redact("key=hunter2hunter2")).To(Equal("key=[redacted]"))
-		g.Expect(auto.Redact("accessKey: "+value)).To(Equal("accessKey: [redacted]"))
+		g.Expect(auto.Redact("accessKey: " + value)).To(Equal("accessKey: [redacted]"))
 		g.Expect(auto.Redact("signingKey=abcd1234efgh")).To(Equal("signingKey=[redacted]"))
-		g.Expect(auto.Redact("x-api-key: "+value)).To(Equal("x-api-key: [redacted]"))
+		g.Expect(auto.Redact("x-api-key: " + value)).To(Equal("x-api-key: [redacted]"))
 		g.Expect(auto.Redact("DB_PASSWORD is hunter2hunter2")).To(Equal("DB_PASSWORD is [redacted]"))
 	})
 
@@ -142,7 +142,7 @@ func Test793d4j1g_Redact_ABearerCredentialIsRedactedFrom12Characters(t *testing.
 
 	g := NewWithT(t)
 
-	g.Expect(auto.Redact("Bearer "+strings.Repeat("a", 11))).To(Equal("Bearer " + strings.Repeat("a", 11)))
+	g.Expect(auto.Redact("Bearer " + strings.Repeat("a", 11))).To(Equal("Bearer " + strings.Repeat("a", 11)))
 	g.Expect(auto.Redact("Bearer " + strings.Repeat("a", 12))).To(Equal("[redacted]"))
 	g.Expect(auto.Redact("Authentication is by Bearer token, Basic is for tools")).
 		To(Equal("Authentication is by Bearer token, Basic is for tools"))
@@ -151,18 +151,20 @@ func Test793d4j1g_Redact_ABearerCredentialIsRedactedFrom12Characters(t *testing.
 // unexported constants.
 const (
 	alnum = "A-Za-z0-9"
-	// maxWordsBetween is how many words of a sentence may stand between a name and the is or colon that gives its value.
-	maxWordsBetween = 6
 	// the shapes credentialShape draws: tokens of an issuer up to lastToken, texts of a header up to lastHeader, and
 	// values of a name and long runs after them
 	lastHeader = 10
 	lastShape  = 13
 	lastToken  = 5
+	// maxWordsBetween is how many words of a sentence may stand between a name and the is or colon that gives its value.
+	maxWordsBetween = 6
 )
 
-// fillerWords are words of a sentence that are no name of a secret and no separator.
-var fillerWords = []string{"for", "the", "staging", "deploy", "of", "my", "new", "old", "admin", "server", "main",
-	"account"}
+// unexported variables.
+var (
+	fillerWords = []string{"for", "the", "staging", "deploy", "of", "my", "new", "old", "admin", "server", "main",
+		"account"}
+)
 
 // credential is a text shaped as a credential, the secret in it, and the name of an assignment that is kept.
 type credential struct {
@@ -283,13 +285,15 @@ func secretName(rt *rapid.T) string {
 	case "upper":
 		return strings.ToUpper(strings.Join(parts, "_"))
 	default:
-		camel := parts[0]
+		var camel strings.Builder
+
+		camel.WriteString(parts[0])
 
 		for _, part := range parts[1:] {
-			camel += strings.ToUpper(part[:1]) + part[1:]
+			camel.WriteString(strings.ToUpper(part[:1]) + part[1:])
 		}
 
-		return camel
+		return camel.String()
 	}
 }
 
