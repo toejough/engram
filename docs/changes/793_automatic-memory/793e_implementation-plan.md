@@ -176,7 +176,7 @@ graph TD
     n793e6g4 --> n793e6g5
     n793e6g6["793e6g6 A field of a lesson is one line and a cut reply keeps its lessons<br/>Complete"]
     n793e6g5 --> n793e6g6
-    n793e6g7["793e6g7 A note written automatically says so in its line<br/>Ready"]
+    n793e6g7["793e6g7 A note written automatically says so in its line<br/>Complete"]
     n793e6g6 --> n793e6g7
     n793e6g7 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
@@ -601,8 +601,8 @@ Takes review finding 15: the line of a [note](../../GLOSSARY.md#permanent-note) 
 
 | Gherkin | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793d4c1c | Dedicated example (default suite) | the delivery over an in-memory [vault](../../GLOSSARY.md#vault) with a note whose source is `written automatically` and one whose source is another, through `RunAutoDeliver` | | Not started | | | |
-| 793d4c1a (amended) | Property-based (`rapid`) with named examples (default suite) | the notes drawn have a source of arbitrary text, among it the words that mark a note written automatically | the properties of 793d4c1a, and the words `(written automatically)` end a line only when the source opens with `written automatically`, with nothing of the source in the line | Not started | | | |
+| 793d4c1c | Dedicated example (default suite) | the delivery over an in-memory [vault](../../GLOSSARY.md#vault) with a note whose source is `written automatically` and one whose source is another, through `RunAutoDeliver` | | Done | a031bf5c | a285e030 | b0591175 |
+| 793d4c1a (amended) | Property-based (`rapid`) with named examples (default suite) | the notes drawn have a source of arbitrary text, among it the words that mark a note written automatically | the properties of 793d4c1a, and the words `(written automatically)` end a line only when the source opens with `written automatically`, with nothing of the source in the line. It needs the field of the source, so it was written with the green; the mutations that make it fail were run on scratch copies of the branch: the words on every note, and the source written into the line | Done | n/a | a285e030 | b0591175 |
 
 ### 793e6e The conversation becomes searchable memory
 
