@@ -611,3 +611,14 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Recommendation:** (a): the probe is cheap enough to run 60 times, and the live rows still decide.
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b88 The judgement is measured by a probe of its own](./793b_decision-log.md#793b88-the-judgement-is-measured-by-a-probe-of-its-own).
+
+## 793c59 Should an automatic note be offered to the parent vault while the duplicate check ignores it?
+
+- **Context:** [793b89 Each automatic note is offered to the parent vault, and the duplicate check stays local](./793b_decision-log.md#793b89-each-automatic-note-is-offered-to-the-parent-vault-and-the-duplicate-check-stays-local) leaves two behaviours side by side for a [vault](../../GLOSSARY.md#vault) that has a
+  parent: every [note](../../GLOSSARY.md#permanent-note) written automatically is offered upward, and the check for a lesson that a note already states looks in the
+  local vault only. A lesson the parent holds is offered to it again.
+- **Options:** (a) As built: offer upward, check locally, and let the curation of the parent fold the duplicates. (b) Merge
+  the parent vault into the check, in the node that merges it for the delivery. (c) Do not offer automatic notes upward.
+- **Recommendation:** (a) until [793e6f The delivery merges the parent vault](./793e_implementation-plan.md#793e6f-the-delivery-merges-the-parent-vault) is built, then (b).
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b89 Each automatic note is offered to the parent vault, and the duplicate check stays local](./793b_decision-log.md#793b89-each-automatic-note-is-offered-to-the-parent-vault-and-the-duplicate-check-stays-local).

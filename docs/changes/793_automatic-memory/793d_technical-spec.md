@@ -1143,7 +1143,7 @@ Scenario: 793a2c1b A request to remember becomes a note
   Then within 2 minutes the vault holds a note that states it and says it was written automatically, and the agent wrote nothing to the vault
 ```
 
-Realized by the components of [793d5j Mapping of 793a2c1a](#793d5j-mapping-of-793a2c1a) with no behavior of their own: the instructions of the judgement name the request to remember as a [lesson](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), and
+Realized by the components of [793d5j Mapping of 793a2c1a](#793d5j-mapping-of-793a2c1a) with no behavior of their own: the instructions of the judgement name the request to remember as a lesson ([793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent)), and
 [793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply) writes a lesson of the kind `fact` as a fact [note](../../GLOSSARY.md#permanent-note).
 
 ### 793d5l Mapping of 793a2c1c
@@ -1291,7 +1291,7 @@ Scenario: 793a2a1g A lesson is not written to a vault that does not exist
   Then the vault still does not exist 2 minutes after the turn ends
 ```
 
-Realized by [793d4e Modified: First-use gating](#793d4e-modified-first-use-gating): the judgement and the writing, like the delivery, run against the path as it is and create nothing when it holds no [vault](../../GLOSSARY.md#vault). The judgement fails at its start, naming the path ([793d4g Judging a turn](#793d4g-judging-a-turn)), so that the model is not asked and no [note](../../GLOSSARY.md#permanent-note) is written, and [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did) records the failure that the [turn](./793a_product-spec.md#793a1a-terms) is left with, once.
+Realized by [793d4e First-use gating](#793d4e-modified-first-use-gating): the judgement and the writing, like the delivery, run against the path as it is and create nothing when it holds no [vault](../../GLOSSARY.md#vault). The judgement fails at its start, naming the path ([793d4g Judging a turn](#793d4g-judging-a-turn)), so that the model is not asked and no [note](../../GLOSSARY.md#permanent-note) is written, and [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did) records the failure that the [turn](./793a_product-spec.md#793a1a-terms) is left with, once.
 
 ### 793d5w Mapping of 793a2d1b
 

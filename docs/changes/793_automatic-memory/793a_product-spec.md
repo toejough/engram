@@ -133,7 +133,9 @@ Requirement: 793a2c When a [turn](#793a1a-terms) holds a confirmed lesson that t
 [vault](../../GLOSSARY.md#vault) does not already state
 ([793a3c Nothing the vault already says is written again](#793a3c-nothing-the-vault-already-says-is-written-again)),
 a [note](../../GLOSSARY.md#permanent-note) stating it MUST be in the vault within 2 minutes
-([793c2 How soon after a turn must automatic memory have finished writing?](./793c_open-questions.md#793c2-how-soon-after-a-turn-must-automatic-memory-have-finished-writing)) after the turn ends, written by
+([793c2 How soon after a turn must automatic memory have finished writing?](./793c_open-questions.md#793c2-how-soon-after-a-turn-must-automatic-memory-have-finished-writing)) after the turn ends, while the
+[session](../../GLOSSARY.md#session) stays open for those 2 minutes
+([793c14 Is a turn that is followed by the end of the session covered?](./793c_open-questions.md#793c14-is-a-turn-that-is-followed-by-the-end-of-the-session-covered)), written by
 [automatic memory](#793a1a-terms) and not by the [agent](#793a1a-terms), and marked as written automatically.
 A turn holds a confirmed lesson when the user corrected the agent, asked it to remember something, or
 confirmed that a particular approach worked, when the agent plainly corrected its own earlier claim, or when an
@@ -194,7 +196,8 @@ Scenario: 793a2c1h A thanks that names no approach produces no note
 ### 793a2f The conversation becomes searchable memory
 
 Requirement: 793a2f Within 2 minutes ([793c2 How soon after a turn must automatic memory have finished writing?](./793c_open-questions.md#793c2-how-soon-after-a-turn-must-automatic-memory-have-finished-writing)) after a
-[turn](#793a1a-terms) ends, [automatic memory](#793a1a-terms) MUST make the
+[turn](#793a1a-terms) ends, while the [session](../../GLOSSARY.md#session) stays open for those 2 minutes
+([793c14 Is a turn that is followed by the end of the session covered?](./793c_open-questions.md#793c14-is-a-turn-that-is-followed-by-the-end-of-the-session-covered)), [automatic memory](#793a1a-terms) MUST make the
 [session](../../GLOSSARY.md#session)'s conversation so far findable by the [agent](#793a1a-terms)'s own memory
 lookup (`engram query`), without the user or the agent running
 [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand).

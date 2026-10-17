@@ -1036,7 +1036,7 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 - **Choice:** step 2 for the second group ([793e6b Lessons are written without the agent](./793e_implementation-plan.md#793e6b-lessons-are-written-without-the-agent))
   writes fourteen scenarios, one for each clause that has none and no more: seven under
   [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent)
-  (the five kinds of confirmed [lesson](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) each become a [note](../../GLOSSARY.md#permanent-note):
+  (the five kinds of confirmed lesson ([793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent)) each become a [note](../../GLOSSARY.md#permanent-note):
   a correction, a request to remember, an approach the user confirmed, the [agent](./793a_product-spec.md#793a1a-terms)'s own correction and an
   approach that succeeded with evidence; a [turn](./793a_product-spec.md#793a1a-terms) of only guesses, plans and chatter produces no note; a credential
   of the turn is not in the note), two under [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update) (a second update still
@@ -1114,7 +1114,7 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   system with `User:`, `Agent:` or `Agent used` and the tool's name; the inputs and results of tools are not shown, so a
   tool the [agent](./793a_product-spec.md#793a1a-terms) ran is one line; a break inside a message is written ` ⏎ ` so that no message makes a line of its own.
   A line is cut to 1,200 characters and the window to 8,000, the oldest context first and then the middle of the turn,
-  and the final text is added when the [session](../../GLOSSARY.md#session)'s record lacks it. Every text is redacted before it is cut ([793b69 Credentials](#793b69-credentials-are-redacted-by-shape-and-the-rest-is-a-known-risk)).
+  and the final text is added when the [session](../../GLOSSARY.md#session)'s record lacks it. Every text is redacted before it is cut ([793b69 Credentials are redacted by shape, and the rest is a known risk](#793b69-credentials-are-redacted-by-shape-and-the-rest-is-a-known-risk)).
   The instructions are those of the earlier attempt, with a sentence that an approach the agent was unsure of, tried
   and saw succeed is a lesson, and with the bar of the learn [skill](../../GLOSSARY.md#skill) ([793b87 The instructions carry the bar of the learn skill](#793b87-the-instructions-carry-the-bar-of-the-learn-skill)).
   A reversal of the agent's own claim is written as a `fact`, the corrected cause or conclusion, and not as the
@@ -1163,7 +1163,7 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) will read the same files. One file for each effect needs no lock and no append, and the records are
   made last, so that their existence means the write has ended.
 - **Alternatives:** one log file (rejected: concurrent appends and a line cut by a crash); the records inside the
-  [vault](../../GLOSSARY.md#vault) (rejected: the vault is the user's notes, and the vault may not exist, see [793b71 First-use step](#793b71-the-commands-of-the-group-auto-take-no-first-use-step)).
+  [vault](../../GLOSSARY.md#vault) (rejected: the vault is the user's notes, and the vault may not exist, see [793b71 The commands of the group auto take no first-use step](#793b71-the-commands-of-the-group-auto-take-no-first-use-step)).
 - **Decided by:** Author (default; owner may override).
 
 ## 793b68 A lesson an earlier note states
@@ -1225,8 +1225,8 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 ## 793b71 The commands of the group auto take no first-use step
 
 - **Choice:** `engram auto judge` and `engram auto write`, like `engram auto deliver`, run against the path of the
-  [vault](../../GLOSSARY.md#vault) as it is and create nothing when it holds no vault ([793d4e Modified: First-use gating](./793d_technical-spec.md#793d4e-modified-first-use-gating)). The learn path fails
-  at the lock of a vault that is not there, so a [lesson](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) is not written, the writing records the failure, and the [turn](./793a_product-spec.md#793a1a-terms) has
+  [vault](../../GLOSSARY.md#vault) as it is and create nothing when it holds no vault ([793d4e First-use gating](./793d_technical-spec.md#793d4e-modified-first-use-gating)). The learn path fails
+  at the lock of a vault that is not there, so a lesson ([793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent)) is not written, the writing records the failure, and the [turn](./793a_product-spec.md#793a1a-terms) has
   cost a call of the model.
 - **Rationale:** the plan expected a change here: the learn path creating the vault. A first live run of the
   scenario [793a2a1g A lesson is not written to a vault that does not exist](./793a_product-spec.md#793a2a1-uat-scenarios) showed that it does not, so the node adds a test and no code.
@@ -1551,3 +1551,21 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   earlier probe as a claim of the log (rejected: the finding).
 - **Decided by:** Author (default; owner may override); the owner is asked in
   [793c58 Is the probe of the judgement the right way to change its instructions?](./793c_open-questions.md#793c58-is-the-probe-of-the-judgement-the-right-way-to-change-its-instructions).
+
+## 793b89 Each automatic note is offered to the parent vault, and the duplicate check stays local
+
+- **Choice:** `engram auto write` writes a lesson through the learn path, which under `ENGRAM_PARENT` offers each
+  [note](../../GLOSSARY.md#permanent-note) it writes to the parent [vault](../../GLOSSARY.md#vault), and the judgement looks up the notes nearest to a
+  [turn](./793a_product-spec.md#793a1a-terms), the ones that can cover a lesson, in the local vault only. A lesson that the parent vault already
+  states is therefore written locally and offered upward again, and the curation of the parent judges the offer as it
+  judges any other. Nothing is built for it here.
+- **Rationale:** review finding 20. The learn path is the one writer of notes ([793b66 What a lesson becomes](#793b66-what-a-lesson-becomes)), so a note written
+  automatically cannot differ from one the [agent](./793a_product-spec.md#793a1a-terms) writes, and the offer is a behaviour of that path that the writing
+  should not fork. The duplicate check is local for the reason the delivery is
+  ([793b57 The delivery looks up the local vault only, until a later node](#793b57-the-delivery-looks-up-the-local-vault-only-until-a-later-node)): the merge of the parent vault is one node of the
+  plan, [793e6f The delivery merges the parent vault](./793e_implementation-plan.md#793e6f-the-delivery-merges-the-parent-vault), and the lookup of the judgement is the same lookup.
+- **Alternatives:** merge the parent vault into the notes nearest to the turn now (rejected: the merge is one
+  node, and the review asked for the choice to be recorded and not built); do not offer automatic notes upward (rejected:
+  it forks the learn path, and the notes that [automatic memory](./793a_product-spec.md#793a1a-terms) writes are the ones a team vault is meant to receive).
+- **Decided by:** Author (default; owner may override); the owner is asked in
+  [793c59 Should an automatic note be offered to the parent vault while the duplicate check ignores it?](./793c_open-questions.md#793c59-should-an-automatic-note-be-offered-to-the-parent-vault-while-the-duplicate-check-ignores-it).

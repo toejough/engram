@@ -198,7 +198,9 @@ graph TD
     n793e6g15 --> n793e6g16
     n793e6g17["793e6g17 The runs of the judgement rows are tallied and the probe is kept<br/>Complete"]
     n793e6g16 --> n793e6g17
-    n793e6g17 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
+    n793e6g18["793e6g18 The documents say what the group does<br/>Ready"]
+    n793e6g17 --> n793e6g18
+    n793e6g18 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
     n793e6d --> n793e6f["793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d"]
@@ -433,7 +435,7 @@ Takes [793a2c1e An approach that succeeded with evidence becomes a note](./793a_
 
 #### 793e6b6 Guesses, plans and chatter produce no note
 
-Takes [793a2c1f Guesses, plans and chatter produce no note](./793a_product-spec.md#793a2c1-uat-scenarios). It adds the record of what became of a reply, which is what a test of an absence waits for, and the report of a failed step to it.
+Takes [793a2c1f Guesses, plans and chatter produce no note](./793a_product-spec.md#793a2c1-uat-scenarios). It adds the record of what became of a reply, which is what a test of an absence waits for, and the report of a failed step to it. The message of the commit `37b0e9a9` (the green of 793d4k1a) says that the directory of the records is "by default /engram/auto": the shell that wrote the message expanded `$XDG_DATA_HOME` to nothing. The directory is `$XDG_DATA_HOME/engram/auto`, the default of the flag `--records` of `engram auto write`; the commit is not amended.
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -510,7 +512,7 @@ Takes [793a2a1f A second update still writes each lesson as one note](./793a_pro
 
 #### 793e6b13 A lesson is not written to a vault that does not exist
 
-Takes [793a2a1g A lesson is not written to a vault that does not exist](./793a_product-spec.md#793a2a1-uat-scenarios). It extends the exemption of the delivery from the first-use step of the [vault](../../GLOSSARY.md#vault) ([793d4e Modified: First-use gating](./793d_technical-spec.md#793d4e-modified-first-use-gating)) to the judgement and the writing, which are wired outside it.
+Takes [793a2a1g A lesson is not written to a vault that does not exist](./793a_product-spec.md#793a2a1-uat-scenarios). It extends the exemption of the delivery from the first-use step of the [vault](../../GLOSSARY.md#vault) ([793d4e First-use gating](./793d_technical-spec.md#793d4e-modified-first-use-gating)) to the judgement and the writing, which are wired outside it.
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -715,6 +717,18 @@ Takes the rest of review finding 7, the part that [793e6g13 The acceptance run c
 | `test_the_fixtures_hold_no_secret_whole_and_no_placeholder_once_loaded` | Dedicated example (`pytest`) | the secrets of the fixtures are built in the code and never written whole in the file, and none of their placeholders is left once the fixtures are loaded | Done | 8cd3818f | 1a60466f | 79f0c77f |
 | `test_every_fixture_has_rows_a_turn_and_an_expectation` | Dedicated example (`pytest`) | every fixture can be judged: its rows end with the text of the agent, and it names what the judgement is expected to give | Done | 8cd3818f | 1a60466f | 79f0c77f |
 | `test_drop_once_removes_one_occurrence_and_refuses_any_other_count` | Dedicated example (`pytest`) | the variant without a sentence removes exactly one occurrence, whatever white space the instructions break their lines with, and fails when the sentence is absent or occurs twice | Done | 8cd3818f | 1a60466f | 79f0c77f |
+
+#### 793e6g18 The documents say what the group does
+
+Takes review findings 16, 17, 20, 27 and 28, which change no behaviour and have no test: a document has no red, and its refactor is the reading of the diff for what could be cut. The rows are named by finding, and they share the commit that makes the change.
+
+| Finding | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| 16 | Documentation | `README.md` and `AGENTS.md` name the commands `engram auto judge` and `engram auto write`, the flag `--records`, the field `origin` of the request (a delivery without it prints nothing), the capture of lessons, and the opt-in for headless [prompts](./793a_product-spec.md#793a1a-terms) (`ENGRAM_AUTO_CAPTURE_SDK`, `--capture-sdk`), where the delivery was named before | Not started | | | |
+| 17 | Documentation | [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) and [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) promise their work only while the [session](../../GLOSSARY.md#session) stays open for the 2 minutes, as [793b37 A turn followed by the end of the session is not covered](./793b_decision-log.md#793b37-a-turn-followed-by-the-end-of-the-session-is-not-covered) decided | Not started | | | |
+| 20 | Documentation | [793b89 Each automatic note is offered to the parent vault, and the duplicate check stays local](./793b_decision-log.md#793b89-each-automatic-note-is-offered-to-the-parent-vault-and-the-duplicate-check-stays-local) and [793c59 Should an automatic note be offered to the parent vault while the duplicate check ignores it?](./793c_open-questions.md#793c59-should-an-automatic-note-be-offered-to-the-parent-vault-while-the-duplicate-check-ignores-it); nothing is built | Not started | | | |
+| 27 | Documentation | eight links whose label was not the heading they point to: three labels cut short, three that named a lesson with a word that is not a defined term, and three that kept the word Modified of a heading | Not started | | | |
+| 28 | Documentation | the correction of the message of the commit `37b0e9a9`, in the intro of [793e6b6 Guesses, plans and chatter produce no note](#793e6b6-guesses-plans-and-chatter-produce-no-note), without an amend | Not started | | | |
 
 ### 793e6e The conversation becomes searchable memory
 

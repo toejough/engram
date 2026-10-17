@@ -2,7 +2,7 @@
 
 Persistent memory for LLM agents, backed by an agent-memory zettelkasten vault. Six skills read from and write to the vault on demand: `recall`, `learn`, `please`, `route`, `curate`, and `write-memory`. Each skill ships in `agent-instructions/skills/` via `engram update`. Additionally, `engram update`/`engram register-skills` (`--accept`/`--decline`/`--dry-run`/`--adopt`) offer a companion vault runbook note for every skill, command and Pi prompt template in the default folders — not only engram's six: Claude user skills and commands (symlinks followed), claude.ai-synced skills, Pi user and agents skills, Pi-configured skill/prompt paths and packages, enabled plugin skills and commands, and project-local Claude sources plus Pi sources for trusted projects. Each note is identified by a source-qualified skill key (`claude:route`, `claude:cmd:audit`, `superpowers:brainstorming`, `commit:cmd:commit`, `project:github.com/toejough/engram:cmd:opsx:apply`), with a slug derived from the key and `skill_key`/`skill_source` recorded on the note; every key is source-qualified; engram's own skills are keyed by the folder they are found in (e.g. `claude:route`, `pi:route`), identical copies collapse, and every preamble names the note's `skill_source`. Removal offers are limited to sources that were read successfully. Declines are remembered by hash, keyed by skill key, in vault-root `skill-registrations.json`; nothing is written without a terminal, and offers are answered by key, key-prefix pattern, or `@scope`. New/refreshed notes are pending offers the `curate` skill reviews. `recall` and `learn` invoke `write-memory` natively as a skill at their write sites, not reached by basename/wikilink. `please` is one note (its former three sub-runbooks merged into the single note/skill body). The runbook concept itself (captured runbooks with triggers, the shim follow-frame) remains unchanged — only the "skills are replaced by runbooks" direction is reversed.
 
-Automatic memory, on [Claude Code](docs/GLOSSARY.md#harness) only, is a mod and not a skill: `engram update` deploys `agent-instructions/mods/engram-memory` beside the skills, and for each prompt it runs `engram auto deliver`, which puts the vault notes that bear on the prompt beside it. The agent is not asked to remember.
+Automatic memory, on [Claude Code](docs/GLOSSARY.md#harness) only, is a mod and not a skill: `engram update` deploys `agent-instructions/mods/engram-memory` beside the skills, and for each prompt it runs `engram auto deliver`, which puts the vault notes that bear on the prompt beside it; after each turn it runs `engram auto judge`, asks the model for the lessons the turn holds, and has `engram auto write` write each as a note marked `written automatically` and record what became of it. It acts only for the prompts the user sends (origin `composer`, `bridge`, `slack-ping`), and leaves the turns of headless prompts (`sdk`, `claude -p`) unjudged unless `ENGRAM_AUTO_CAPTURE_SDK=1` is set. The agent is not asked to remember.
 
 ## Core Principles
 
@@ -15,7 +15,7 @@ Automatic memory, on [Claude Code](docs/GLOSSARY.md#harness) only, is a mod and 
 engram/
 ├── cmd/engram/        # CLI binary entry point — single-statement main() + checker-thin per-group functions supplying raw I/O primitives (targ check-thin-api-enforced)
 ├── internal/          # Non-public implementation
-│   ├── auto/          # Logic of automatic memory behind `engram auto deliver`: the block of vault notes that bear on a prompt and that the session does not already hold (pure: every collaborator is injected)
+│   ├── auto/          # Logic of automatic memory behind `engram auto deliver`, `judge` and `write`: the block of vault notes that bear on a prompt, the request that judges a turn, and the lessons of the reply written as notes (pure: every collaborator is injected)
 │   ├── chunk/         # Splits memory sources (stripped transcripts, markdown) into embedding-sized chunks for the auto-ingested vector space (pure string logic, no I/O)
 │   ├── cli/           # CLI command wiring (targ targets) + composition root: cli.NewDeps builds every production adapter from injected cli.Primitives
 │   ├── cluster/       # k-means clustering with silhouette-based auto-K, for recall clustering
@@ -28,7 +28,7 @@ engram/
 │   └── vaultgraph/    # Wikilink graph analysis of the vault
 ├── agent-instructions/
 │   ├── skills/        # Source for all six skills — recall, learn, please, route, curate, write-memory
-│   ├── mods/          # Source for the Claude Code mods `engram update` deploys beside the skills — `engram-memory`, which runs `engram auto deliver` for each prompt
+│   ├── mods/          # Source for the Claude Code mods `engram update` deploys beside the skills — `engram-memory`, which runs `engram auto deliver` for each prompt and `engram auto judge` and `write` after each turn
 │   └── guidance/      # Source for the deployable ambient guidance docs — recall-firing (`recall.md`), delegation-firing (`delegate.md`), learn-firing (`learn.md`), and runbook-follow-frame (`shim.md`) — synced by `engram update --with-guidance` to canonical paths in `~/.claude/engram/guidance/` (Claude Code) and `~/.pi/agent/engram/guidance/` (Pi); compat symlinks at old flat paths keep existing `@import` lines in CLAUDE.md / AGENTS.md resolving (792a11m in docs/specs/product/install-and-update.md); activated via `@import`
 ├── dev/               # Build tooling (targ definitions, linter configs); `dev/acceptance/` holds the tests that drive a real Claude Code session (`targ acceptance`)
 └── docs/              # Organized per docs/AGENTS.md: changes/, specs/, the authoring guides, GLOSSARY.md, ROADMAP.md, images/
@@ -40,7 +40,7 @@ engram/
 - `internal/cli/primitives.go` — Composition root (`cli.Primitives` + `cli.NewDeps`, which builds every production adapter from the injected primitives)
 - `internal/cli/targets.go` — Subcommand wiring
 - `agent-instructions/skills/{learn,recall,please,route,curate,write-memory}/SKILL.md` — Skill definitions for all six skills (each may also carry a companion `skill-claude-<name>` vault runbook note offered by `engram update`/`engram register-skills`)
-- `agent-instructions/mods/engram-memory/hooks/register.js` — the automatic-memory mod: on each prompt it runs `engram auto deliver` and puts what it prints beside the prompt
+- `agent-instructions/mods/engram-memory/hooks/register.js` — the automatic-memory mod: on each prompt it runs `engram auto deliver` and puts what it prints beside the prompt; after each turn it runs `engram auto judge`, asks the model, and runs `engram auto write`
 - `internal/auto/auto.go` — `auto.Deliver`, the block of the notes that bear on a prompt
 - `dev/targs.go` — Build targets (targ definitions)
 - `docs/AGENTS.md` — documentation conventions and the index of authoring guides; start here for any `docs/` work
