@@ -11,44 +11,65 @@ import (
 func Test793d4h1c_ParseLessons_AReplyThatIsNotAListOfLessonsWritesNothing(t *testing.T) {
 	t.Parallel()
 
-	for name, reply := range map[string]string{
-		"not JSON":      "I think there is one lesson here.",
-		"a JSON object": `{"kind":"fact"}`,
-		"an empty list": `[]`,
-		"no reply":      ``,
-		"a lesson of unknown kind": `[{"kind":"runbook","slug":"a-b","situation":"s","subject":"x",` +
-			`"predicate":"y","object":"z"}]`,
-		"a lesson with no slug": `[{"kind":"fact","slug":"","situation":"s","subject":"x","predicate":"y","object":"z"}]`,
-		"a lesson with a slug that is not kebab-case": `[{"kind":"fact","slug":"Not Kebab","situation":"s",` +
-			`"subject":"x","predicate":"y","object":"z"}]`,
-		"a lesson with no situation": `[{"kind":"fact","slug":"a-b","situation":" ","subject":"x",` +
-			`"predicate":"y","object":"z"}]`,
-		"a feedback lesson with an empty field": `[{"kind":"feedback","slug":"a-b","situation":"s","behavior":"x",` +
-			`"impact":"","action":"z"}]`,
-		"a fact lesson with a missing field": `[{"kind":"fact","slug":"a-b","situation":"s","subject":"x","predicate":"y"}]`,
-		"a fact lesson that holds the fields of a feedback lesson": `[{"kind":"fact","slug":"a-b","situation":"s",` +
-			`"behavior":"x","impact":"y","action":"z"}]`,
+	for name, testCase := range map[string]struct{ reply, slug, reason string }{
+		"not JSON":      {reply: "I think there is one lesson here.", reason: "not a list of lessons"},
+		"a JSON object": {reply: `{"kind":"fact"}`, reason: "not a list of lessons"},
+		"no reply":      {reply: ``, reason: "not a list of lessons"},
+		"a lesson of unknown kind": {reply: `[{"kind":"runbook","slug":"a-b","situation":"s","subject":"x",` +
+			`"predicate":"y","object":"z"}]`, slug: "a-b", reason: "kind"},
+		"a lesson with no slug": {reply: `[{"kind":"fact","slug":"","situation":"s","subject":"x",` +
+			`"predicate":"y","object":"z"}]`, reason: "slug"},
+		"a lesson with a slug that is not kebab-case": {reply: `[{"kind":"fact","slug":"Not Kebab","situation":"s",` +
+			`"subject":"x","predicate":"y","object":"z"}]`, slug: "Not Kebab", reason: "slug"},
+		"a lesson with no situation": {reply: `[{"kind":"fact","slug":"a-b","situation":" ","subject":"x",` +
+			`"predicate":"y","object":"z"}]`, slug: "a-b", reason: "situation"},
+		"a feedback lesson with an empty field": {reply: `[{"kind":"feedback","slug":"a-b","situation":"s",` +
+			`"behavior":"x","impact":"","action":"z"}]`, slug: "a-b", reason: "impact"},
+		"a fact lesson with a missing field": {reply: `[{"kind":"fact","slug":"a-b","situation":"s",` +
+			`"subject":"x","predicate":"y"}]`, slug: "a-b", reason: "object"},
+		"a fact lesson that holds the fields of a feedback lesson": {reply: `[{"kind":"fact","slug":"a-b",` +
+			`"situation":"s","behavior":"x","impact":"y","action":"z"}]`, slug: "a-b", reason: "subject"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			g := NewWithT(t)
 
-			lessons := auto.ParseLessons(reply)
+			lessons, skipped := auto.ParseLessons(testCase.reply)
 
 			g.Expect(lessons).To(BeEmpty())
+			g.Expect(skipped).To(HaveLen(1))
+
+			if len(skipped) == 1 {
+				g.Expect(skipped[0].Slug).To(Equal(testCase.slug))
+				g.Expect(skipped[0].Reason).To(ContainSubstring(testCase.reason))
+			}
 		})
 	}
+
+	t.Run("an empty list holds no lesson and leaves none out", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		lessons, skipped := auto.ParseLessons(`[]`)
+
+		g.Expect(lessons).To(BeEmpty())
+		g.Expect(skipped).To(BeEmpty())
+	})
 
 	t.Run("a whole lesson beside a lesson that is not whole", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
-		lessons := auto.ParseLessons(`[{"kind":"fact","slug":"","situation":"s","subject":"x",` +
+		lessons, skipped := auto.ParseLessons(`[{"kind":"fact","slug":"","situation":"s","subject":"x",` +
 			`"predicate":"y","object":"z"},` +
 			`{"kind":"fact","slug":"a-b","situation":"s","subject":"x","predicate":"y","object":"z"}]`)
 
 		g.Expect(lessons).To(HaveLen(1))
-		g.Expect(lessons[0].Slug).To(Equal("a-b"))
+		g.Expect(skipped).To(HaveLen(1))
+
+		if len(lessons) == 1 {
+			g.Expect(lessons[0].Slug).To(Equal("a-b"))
+		}
 	})
 }
 
@@ -67,11 +88,15 @@ func Test793d4h1d_ParseLessons_TheCodeFenceAroundTheListIsNotPartOfIt(t *testing
 			t.Parallel()
 			g := NewWithT(t)
 
-			lessons := auto.ParseLessons(reply)
+			lessons, skipped := auto.ParseLessons(reply)
 
+			g.Expect(skipped).To(BeEmpty())
 			g.Expect(lessons).To(HaveLen(1))
-			g.Expect(lessons[0].Kind).To(Equal("fact"))
-			g.Expect(lessons[0].Object).To(Equal("Sunday night"))
+
+			if len(lessons) == 1 {
+				g.Expect(lessons[0].Kind).To(Equal("fact"))
+				g.Expect(lessons[0].Object).To(Equal("Sunday night"))
+			}
 		})
 	}
 }
