@@ -218,8 +218,8 @@ he answers. When he answers, the entry records the answer and the date and stays
 
 - **Context:** [793a2b1c A note the agent looked up itself is not delivered](./793a_product-spec.md#793a2b1-uat-scenarios)
   ended with "nothing from the vault", which is also the outcome when the mod never loads.
-- **Options:** (a) The vault holds a second note that bears on the prompt, and the prompt arrives with it and not with the
-  note the agent looked up. (b) The scenario stays as it was.
+- **Options:** (a) The vault gains a second note that bears on the prompt after the agent's lookup, and the prompt arrives
+  with it and not with the note the agent looked up. (b) The scenario stays as it was.
 - **Recommendation:** (a): it tells a delivery that leaves out the held note from one that delivers nothing.
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b54 Two acceptance scenarios prove more than that nothing arrived](./793b_decision-log.md#793b54-two-acceptance-scenarios-prove-more-than-that-nothing-arrived).

@@ -865,15 +865,17 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 ## 793b54 Two acceptance scenarios prove more than that nothing arrived
 
 - **Choice:** [793a2b1c A note the agent looked up itself is not delivered](./793a_product-spec.md#793a2b1-uat-scenarios)
-  puts a second note about the staging database in the vault, which the agent did not look up, and its outcome is that
-  the prompt arrives with that note and not the staging note. The test of
+  has the vault gain a second note about the staging database after the agent's lookup, so the lookup could not have
+  printed it, and its outcome is that the prompt arrives with that note and not the staging note. The test of
   [793a2a1e A vault that does not exist is not created](./793a_product-spec.md#793a2a1-uat-scenarios) asserts that the mod
   ran its command for the prompt, with the marker that the test of 793a2d1a already uses; the scenario's text does not
   change.
 - **Rationale:** the review of the first group found that both tests asserted only that nothing arrived, so both also pass
   when the mod never loads. With one note, "nothing arrives" is the outcome of the right delivery and also of a mod that
   never ran; with a second note that bears on the prompt, the right outcome is the second note alone, which only a mod
-  that runs, and leaves out what the session holds, produces. The requirement
+  that runs, and leaves out what the session holds, produces. The second note comes after the agent's lookup because a
+  note that existed then is named in the lookup's payload even when the limit cuts it from the items: the clusters of the
+  payload list every note of the matched set, so a vault of two related notes cannot hold one the lookup left out. The requirement
   ([793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt)) already says
   the notes delivered are those the lookup returns, less those the agent has, so the product promise does not change.
 - **Alternatives:** leave the scenarios and add a separate scenario for a second note (rejected: the plan guide has one test
