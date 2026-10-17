@@ -9,6 +9,9 @@ const BOUND_MS = 7000
 // Every block the command prints opens with this (793d4c); anything else is not a block.
 const MARKER = '[engram memory]'
 
+// A failure the writing records is cut to this many characters (793d4k).
+const FAILURE_MAX = 300
+
 // Every request the judgement prints opens with this (793d4g); anything else is not a request.
 const REQUEST = '{"model":'
 
@@ -29,29 +32,55 @@ export function register(on) {
   })
 }
 
-// captureLessons judges a turn that ended, asks the model for the judgement and has the lessons written (793d2b). It
-// ends quietly when a step fails or has nothing to give: the turn went on as if automatic memory were not installed.
-async function captureLessons($, e) {
-  try {
-    const session = await $.session.id()
-    const request = await run($, 'judge', { session, answer: e.answer })
+// ask is the text of the model's answer to a request, and fails when the model gives none (793d2b).
+async function ask($, request) {
+  let reply
 
-    if (!request.startsWith(REQUEST)) {
+  try {
+    reply = await $.model.complete(JSON.parse(request))
+  } catch (error) {
+    throw new Error(`the model call failed: ${describe(error)}`)
+  }
+
+  if (!reply.isAnswered) {
+    throw new Error(`the model call was not answered: ${reply.reason}`)
+  }
+
+  return reply.text
+}
+
+// captureLessons judges a turn that ended, asks the model for the judgement and has the lessons written (793d2b). It
+// ends quietly when the judgement has nothing to judge, and has the writing record the failure of a step that fails:
+// the turn went on as if automatic memory were not installed.
+async function captureLessons($, e) {
+  let session = ''
+
+  try {
+    session = await $.session.id()
+
+    const request = await run($, 'judge', { session, turn: e.turnId, answer: e.answer })
+
+    if (request === '') {
       return
     }
 
-    const reply = await $.model.complete(JSON.parse(request))
-
-    if (reply.isAnswered) {
-      await run($, 'write', { session, reply: reply.text })
+    if (!request.startsWith(REQUEST)) {
+      throw new Error('engram auto judge printed what is not a request')
     }
-  } catch {
-    // nothing to do: the capture of this turn is over
+
+    await run($, 'write', { session, turn: e.turnId, reply: await ask($, request) })
+  } catch (error) {
+    await report($, session, e.turnId, error)
   }
 }
 
-// deliver is the block the command prints for the prompt, or nothing when the command fails or prints something that is
-// not a block. The command is ended at the bound by the time limit of the process call.
+// describe is the text of a failure.
+function describe(error) {
+  return error instanceof Error ? error.message : String(error)
+}
+
+// deliver is the block the command prints for the prompt, or nothing when it prints something that is not a block. The
+// command is ended at the bound by the time limit of the process call, and a command that fails fails the delivery.
 async function deliver($, e) {
   const block = await run($, 'deliver', { text: e.text, session: await $.session.id() }, BOUND_MS)
 
@@ -75,13 +104,36 @@ async function notesFor($, e) {
   }
 }
 
-// run is what a step of `engram auto` printed for an input, or nothing when the command failed. The command is ended
-// after timeoutMs, and after the default of the process call when there is none.
-async function run($, step, input, timeoutMs) {
-  const { exitCode, stdout } = await $.process.run(['engram', 'auto', step], {
-    stdin: JSON.stringify(input),
-    timeoutMs,
-  })
+// report has the writing record the failure of a step of the capture, when the session is known (793d4k). A report that
+// fails is the end of it.
+async function report($, session, turn, error) {
+  if (session === '') {
+    return
+  }
 
-  return exitCode === 0 ? stdout.trim() : ''
+  try {
+    await run($, 'write', { session, turn, failure: describe(error).slice(0, FAILURE_MAX) })
+  } catch {
+    // nothing more can be done
+  }
+}
+
+// run is what a step of `engram auto` printed for an input, and fails, naming the command, when it exits with other
+// than 0 or cannot be run. The command is ended after timeoutMs, and after the default of the process call when there
+// is none.
+async function run($, step, input, timeoutMs) {
+  const command = `engram auto ${step}`
+  let result
+
+  try {
+    result = await $.process.run(['engram', 'auto', step], { stdin: JSON.stringify(input), timeoutMs })
+  } catch (error) {
+    throw new Error(`${command} was ended or could not run: ${describe(error)}`)
+  }
+
+  if (result.exitCode !== 0) {
+    throw new Error(`${command} exited with ${result.exitCode}: ${String(result.stderr ?? '').trim().split('\n')[0]}`)
+  }
+
+  return result.stdout.trim()
 }

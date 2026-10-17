@@ -384,17 +384,17 @@ Takes [793a2c1f Guesses, plans and chatter produce no note](./793a_product-spec.
 
 | Gherkin | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1f | Dedicated example, product acceptance (`network`) | the prohibition as the user sees it: a [turn](./793a_product-spec.md#793a1a-terms) of a guess, a plan and chatter leaves no [note](../../GLOSSARY.md#permanent-note); the test waits for the record of the reply, so that an empty [vault](../../GLOSSARY.md#vault) is the judgement's result and not a judgement that did not finish | | Red | | | |
+| 793a2c1f | Dedicated example, product acceptance (`network`) | the prohibition as the user sees it: a [turn](./793a_product-spec.md#793a1a-terms) of a guess, a plan and chatter leaves no [note](../../GLOSSARY.md#permanent-note); the test waits for the record of the reply, so that an empty [vault](../../GLOSSARY.md#vault) is the judgement's result and not a judgement that did not finish | | Green-all | d9bd5a42 | 37b0e9a9 | |
 | 793d4k1a | Dedicated example (default suite) | the record of a lesson that is written, through `RunAutoWrite` with a stand-in for the place of the records | | Done | 14a513a9 | 37b0e9a9 | |
 | 793d4k1b | Dedicated example (default suite) | the record of a reply with no lesson | | Done | 14a513a9 | 37b0e9a9 | |
 | 793d4k1c | Dedicated example (default suite) | the records of a lesson left out and of a reply that is not a list, with the reasons | | Done | 14a513a9 | 37b0e9a9 | |
 | 793d4k1d | Dedicated example (default suite) | the record of a failure, with no note written | | Done | 14a513a9 | 37b0e9a9 | |
 | 793d4k1e | Dedicated example (default suite) | a place for the records that cannot be written leaves the write of the note as it was | | Done | 14a513a9 | 37b0e9a9 | |
 | 793d4h1c (amended) | Dedicated example (default suite) | the parsing returns the reasons it leaves a lesson out for, which the records hold; the earlier tests take the new return | | Done | 14a513a9 | 37b0e9a9 | |
-| 793d2b1a (amended) | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the [turn](./793a_product-spec.md#793a1a-terms)'s ID reaches both commands | | Red | | | |
+| 793d2b1a (amended) | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the [turn](./793a_product-spec.md#793a1a-terms)'s ID reaches both commands | | Green-all | 1cbaa962 | | |
 | 793d2b1b | Dedicated example, real dependency (`integration`, runs the mod under `node`) | a judgement that prints nothing ends the capture: no model call and no write | ; passes when written, and the mutation that makes it fail is a mod that asks the model although the judgement printed nothing | Green-all | n/a | | |
-| 793d2b1c | Dedicated example, real dependency (`integration`, runs the mod under `node`) | a step that fails is reported to the writing, as a failure that names the judgement: a command that exits with 1, one that prints what is not a request, and one that is ended | | Red | | | |
-| 793d2b1d | Dedicated example, real dependency (`integration`, runs the mod under `node`) | a model that does not answer is reported to the writing, as a failure that names the model call: an API error, no text, a call that rejects | | Red | | | |
+| 793d2b1c | Dedicated example, real dependency (`integration`, runs the mod under `node`) | a step that fails is reported to the writing, as a failure that names the judgement: a command that exits with 1, one that prints what is not a request, and one that is ended | | Green-all | 1cbaa962 | | |
+| 793d2b1d | Dedicated example, real dependency (`integration`, runs the mod under `node`) | a model that does not answer is reported to the writing, as a failure that names the model call: an API error, no text, a call that rejects | | Green-all | 1cbaa962 | | |
 
 ### 793e6e The conversation becomes searchable memory
 
