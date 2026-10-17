@@ -379,29 +379,29 @@ Instructions are changed with `dev/eval/auto-judge/probe.py` at hand: it builds 
 
 The instructions say a request by the user to remember something is a lesson even when it holds a secret (the lesson names it as redacted) and even when the [agent](./793a_product-spec.md#793a1a-terms) says it did not save it. `793a2c1g` tallied 8 of 10 (both misses wrote a rule against keeping credentials from the agent's remark) and `793a2c1i` passed 0 of 10; with both phrases 10 of 10 each, the other fixtures unmoved. The phrases placed elsewhere or worded differently lowered the covered lesson or the credential row. A (`793c60`).
 
-## 793b91 The documents are held to the minimum sufficient
+## 793b91 The documents follow the guides and are held to the minimum sufficient
 
-The documents of this change, and the lines it adds to `README.md` and `AGENTS.md`, are held to the bar of the code (step 5, `793f2`): "even the documents are wordy. I'd like you to try to reduce the documentation to the absolute minimum sufficient, similar to the rule about the code". O 2026-10-17.
+Two owner instructions of 2026-10-17. The reduction: "even the documents are wordy. I'd like you to try to reduce the documentation to the absolute minimum sufficient, similar to the rule about the code" (the rule of step 5, `793f2`), for the documents of this change and the lines it adds to `README.md` and `AGENTS.md`. Then: "Continue to follow the guide rules." So the documents lose prose and keep every element the guides require: the "ID title" links, the restated product scenarios, and the context, lettered options, recommendation, blocks and status of a question. O 2026-10-17.
 
 ## 793b92 Review of the documentation reduction
 
-The reduction of these documents (13 commits, `408e5d16` to `8f07087b`, about 73,000 words to 36,000) had one opus review round. It found the cut below sufficient where it removed what a reader needs to act or verify (decision reasons and rejected alternatives, accepted review findings, a measured baseline, clauses of requirements) and found departures from the guides that nobody had recorded. Applied in new commits: the reasons restored, the departures decided in `793b93` to `793b97`, the two older non-conformances asked in `793c66` and `793c67`, and the questions that block nothing withdrawn from `793c` to their entries here. R (opus, 2026-10-17), accepted by the author.
+The reduction of these documents (13 commits, `408e5d16` to `8f07087b`, about 73,000 words to 36,000) had one opus review round. It found the cut below sufficient where it removed what a reader needs to act or verify (decision reasons and rejected alternatives, accepted review findings, a measured baseline, clauses of requirements), and elements the guides require. Applied in new commits: the reasons restored; the guides' elements restored (`793b91`); the two older non-conformances asked in `793c66` and `793c67`; the questions that block nothing withdrawn from `793c` to their entries here. R (opus, 2026-10-17), accepted by the author.
 
-## 793b93 References are code-spanned IDs
+## 793b93 References are links
 
-A reference to a node of this change is its ID in a code span, not the "ID title" link that `docs/AGENTS.md` asks for: the titles in the labels would add about 5,600 words (`793b91`). A reference into `docs/specs` or another change stays a link. A mechanical rewrite restores the links if the owner asks (`793c61`). A, on the review of the reduction (`793b92`).
+Withdrawn: the owner said to follow the guides (`793b91`), so a reference to a node is its "ID title" link.
 
-## 793b94 The mapping cites the product scenario
+## 793b94 The mapping restates the product scenario
 
-Each mapping of `793d5` cites the ID of the product scenario and does not restate its text, as `docs/TECHNICAL-SPEC-GUIDE.md` asks at the first mapping: the 26 restatements were 1,859 words, a second copy of `793a` that had to follow every change to it (the Given and Then of `793a2b1c` changed in review). All 27 scenarios of `793a` are mapped (`793c62`). A, on the review of the reduction (`793b92`).
+Withdrawn: the owner said to follow the guides (`793b91`), so `793d5` restates each product scenario at its first mapping, and all 27 scenarios of `793a` are mapped.
 
-## 793b95 An open question is one line
+## 793b95 An open question has the guide's elements
 
-An entry of `793c` is one line: the question, the default with its reason, the lettered alternatives, what it blocks and, when it is not open, its status. `docs/AGENTS.md` asks a context, lettered options, a recommendation and what it blocks; the context and the recommendation repeated the entry here (`793c` was 9,164 words, 2,477 after the reduction). A question that blocks nothing is an author choice and is not asked: its entry is a stub that points here (`793c63`). A, on the review of the reduction (`793b92`).
+Withdrawn: the owner said to follow the guides (`793b91`), so a question has its context, lettered options, recommendation, blocks and status; a question that blocks nothing is an author choice and is not asked, but is withdrawn to its entry here (`docs/AGENTS.md`).
 
 ## 793b96 The order of the groups is a table
 
-`793e4` gives the order of the groups and their state in a table, with no chain graph (the first version's 90 lines listed the same order); `793e9`, with the status of each node in its label, is the one dependency graph. The plan guide has the graph carry the order; here the table does, because the nodes are worked one at a time on one branch (`793c64`). A, on the review of the reduction (`793b92`).
+`793e4` gives the order the groups are worked in as a table, with no second graph (the first version's 90-line chain graph listed the same order); `793e9`, with the status of each node in its label, is the one dependency graph and the source of what depends on what (`793c64`). A, on the review of the reduction (`793b92`).
 
 ## 793b97 The commit columns stay
 
