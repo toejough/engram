@@ -402,13 +402,13 @@ Takes [793a2c1g A credential in the turn is not in the note](./793a_product-spec
 
 | Gherkin | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1g | Dedicated example, product acceptance (`network`) | the prohibition as the user sees it: a request to remember how to deploy, with the token and the password the deploy needs, becomes a [note](../../GLOSSARY.md#permanent-note) that holds neither; the note is awaited, so that the absence of the credentials is not the absence of the note. The model is asked not to write a credential and leaves it out unprompted: the test passed 4 of 4 runs before the redaction existed, and 6 of 6 runs with that sentence of the instructions removed too, so no mutation of the live run makes it fail, and the properties below are the proof | | Done | n/a | d19d7f1d | |
-| 793d4j1a | Property-based (`rapid`) with named examples (default suite) | the one guarantee the whole promise rests on: no text of the shapes survives | for any filler text and any credential of the shapes of the requirement, placed anywhere in the text: the redacted text does not hold the credential, or the value of the assignment, and holds the filler as it was | Done | 39a32553 | 18f731af | |
-| 793d4j1b | Dedicated example (default suite) | what redaction leaves alone: the name of an assignment, a commit ID, a word, a sentence | | Done | 39a32553 | 18f731af | |
-| 793d4j1c | Property-based (`rapid`) with named examples (default suite) | the redaction comes before the model: whatever the messages of a record hold | for any messages that hold a credential of the shapes, among any text: the [prompt](./793a_product-spec.md#793a1a-terms) of the request holds none of the credentials | Done | 39a32553 | 18f731af | |
-| 793d4j1d | Property-based (`rapid`) with named examples (default suite) | the redaction of the writing: whatever the lessons of a reply hold | for any lessons whose fields hold a credential of the shapes: no [note](../../GLOSSARY.md#permanent-note) written holds one | Done | 39a32553 | 18f731af | |
-| 793d4g1f | Dedicated example (default suite) | the order of redaction and cut, on a token that the cut falls in | | Done | 39a32553 | 18f731af | |
-| 793d4g1g | Dedicated example (default suite) | the bounds of the window: the context, the whole, and the line that says some of the [turn](./793a_product-spec.md#793a1a-terms) is left out | | Done | 39a32553 | 18f731af | |
+| 793a2c1g | Dedicated example, product acceptance (`network`) | the prohibition as the user sees it: a request to remember how to deploy, with the token and the password the deploy needs, becomes a [note](../../GLOSSARY.md#permanent-note) that holds neither; the note is awaited, so that the absence of the credentials is not the absence of the note. The model is asked not to write a credential and leaves it out unprompted: the test passed 4 of 4 runs before the redaction existed, and 6 of 6 runs with that sentence of the instructions removed too, so no mutation of the live run makes it fail, and the properties below are the proof | | Done | n/a | d19d7f1d | f8487c99 |
+| 793d4j1a | Property-based (`rapid`) with named examples (default suite) | the one guarantee the whole promise rests on: no text of the shapes survives | for any filler text and any credential of the shapes of the requirement, placed anywhere in the text: the redacted text does not hold the credential, or the value of the assignment, and holds the filler as it was | Done | 39a32553 | 18f731af | f8487c99 |
+| 793d4j1b | Dedicated example (default suite) | what redaction leaves alone: the name of an assignment, a commit ID, a word, a sentence | | Done | 39a32553 | 18f731af | f8487c99 |
+| 793d4j1c | Property-based (`rapid`) with named examples (default suite) | the redaction comes before the model: whatever the messages of a record hold | for any messages that hold a credential of the shapes, among any text: the [prompt](./793a_product-spec.md#793a1a-terms) of the request holds none of the credentials | Done | 39a32553 | 18f731af | f8487c99 |
+| 793d4j1d | Property-based (`rapid`) with named examples (default suite) | the redaction of the writing: whatever the lessons of a reply hold | for any lessons whose fields hold a credential of the shapes: no [note](../../GLOSSARY.md#permanent-note) written holds one | Done | 39a32553 | 18f731af | f8487c99 |
+| 793d4g1f | Dedicated example (default suite) | the order of redaction and cut, on a token that the cut falls in | | Done | 39a32553 | 18f731af | f8487c99 |
+| 793d4g1g | Dedicated example (default suite) | the bounds of the window: the context, the whole, and the line that says some of the [turn](./793a_product-spec.md#793a1a-terms) is left out | | Done | 39a32553 | 18f731af | f8487c99 |
 
 #### 793e6b8 A lesson an earlier note states is not written again
 
@@ -416,12 +416,12 @@ Takes [793a3c1a A lesson an earlier note states is not written again](./793a_pro
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a3c1a | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the user saves a lesson, states it again in a [session](../../GLOSSARY.md#session), and the [vault](../../GLOSSARY.md#vault) holds the earlier [note](../../GLOSSARY.md#permanent-note) only; the test waits for the record of the reply, so that the absence of a second note is the result of the judgement | Green-all | 94373096 | | |
-| 793d4g1h | Dedicated example (default suite) | the nearest notes in the request, through `RunAutoJudge` over an in-memory [vault](../../GLOSSARY.md#vault) | Green-all | 54179dc0 | | |
-| 793d4g1i | Dedicated example (default suite) | the failure branch of the lookup, as the delivery has it | Green-all | 54179dc0 | | |
-| 793d4g1j | Dedicated example (default suite) | what a note may not do to the window: a line break, a credential, a body of any length | Green-all | 54179dc0 | | |
-| 793d4h1e | Dedicated example (default suite) | the cover: no write and a record that names the note | Green-all | 54179dc0 | | |
-| 793d4h1f | Dedicated example (default suite) | what is no cover: a file that is not in the [vault](../../GLOSSARY.md#vault), and a path outside it | Green-all | 54179dc0 | | |
+| 793a3c1a | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the user saves a lesson, states it again in a [session](../../GLOSSARY.md#session), and the [vault](../../GLOSSARY.md#vault) holds the earlier [note](../../GLOSSARY.md#permanent-note) only; the test waits for the record of the reply, so that the absence of a second note is the result of the judgement | Done | 94373096 | 8c7c58ae | fea2480a |
+| 793d4g1h | Dedicated example (default suite) | the nearest notes in the request, through `RunAutoJudge` over an in-memory [vault](../../GLOSSARY.md#vault) | Done | 54179dc0 | 8c7c58ae | fea2480a |
+| 793d4g1i | Dedicated example (default suite) | the failure branch of the lookup, as the delivery has it | Done | 54179dc0 | 8c7c58ae | fea2480a |
+| 793d4g1j | Dedicated example (default suite) | what a note may not do to the window: a line break, a credential, a body of any length | Done | 54179dc0 | 8c7c58ae | fea2480a |
+| 793d4h1e | Dedicated example (default suite) | the cover: no write and a record that names the note | Done | 54179dc0 | 8c7c58ae | fea2480a |
+| 793d4h1f | Dedicated example (default suite) | what is no cover: a file that is not in the [vault](../../GLOSSARY.md#vault), and a path outside it | Done | 54179dc0 | 8c7c58ae | fea2480a |
 
 ### 793e6e The conversation becomes searchable memory
 
