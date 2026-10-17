@@ -278,11 +278,14 @@ Requirement: 793d4b The harness-deploy-sync MUST plan one copy for every file un
 source for Claude Code, keeping the file's path relative to that directory and naming the file's top-level directory
 as the skill directory it is deployed in, so that a mod is deployed, linked, reported and removed as a skill directory
 is. It MUST plan none for [Pi](../../GLOSSARY.md#harness), and none, without an error, when that directory does not
-exist.
+exist. It MUST report each mod directory it deploys, in the section of Claude Code in the report of
+[`engram update`](../../GLOSSARY.md#engram-update), as a mod, with `agent-instructions/mods/<name>/` as its source,
+where a skill directory is reported with `agent-instructions/skills/<name>/`. A dry run MUST plan and report the mod
+and write none of its files.
 
 Owner: [harness-deploy-sync](../../specs/technical/harness-deploy-sync.md)
 
-Supports: [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2a1d Pi gets no automatic memory](./793a_product-spec.md#793a2a1-uat-scenarios).
+Supports: [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2a1d Pi gets no automatic memory](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2a1c A dry run turns nothing on](./793a_product-spec.md#793a2a1-uat-scenarios).
 
 #### 793d4b1 Scenarios
 
@@ -306,6 +309,21 @@ Scenario: 793d4b1d Pi is planned no mod
   Given a source whose agent-instructions/mods holds the mod engram-memory, and the harnesses Claude Code and Pi
   When the mod copies are planned
   Then they are planned for Claude Code only
+
+Scenario: 793d4b1e A deployed mod is reported as a mod
+  Given a checkout whose agent-instructions/mods holds the mod engram-memory and whose agent-instructions/skills holds the skill learn, and a machine with Claude Code
+  When engram update runs
+  Then the report of Claude Code lists learn as a skill directory and engram-memory as a mod directory
+
+Scenario: 793d4b1f The report names the mods directory as the source of a mod
+  Given a report of Claude Code with the skill directory learn and the mod directory engram-memory
+  When the report is written
+  Then the skill is listed from agent-instructions/skills/learn/ and the mod from agent-instructions/mods/engram-memory/
+
+Scenario: 793d4b1g A dry run plans the mod and writes none of it
+  Given a checkout whose agent-instructions/mods holds the mod engram-memory, and a machine with Claude Code
+  When engram update --dry-run runs
+  Then the report lists the mod, and no file of it and no link to it has been written
 ```
 
 ## 793d5 Product-scenario mapping
@@ -401,6 +419,20 @@ Scenario: 793a2a1d Pi gets no automatic memory
 ```
 
 Realized by [793d4b Deploying the mods of the source](#793d4b-deploying-the-mods-of-the-source): the mods are planned for Claude Code only, so the report of Pi lists the skills alone and Pi's directories hold none of the mod.
+
+### 793d5h Mapping of 793a2a1c
+
+The product scenario [793a2a1c A dry run turns nothing on](./793a_product-spec.md#793a2a1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2a1c A dry run turns nothing on
+  Given a machine with Claude Code on which the user has never run engram update, and a vault holding a note that says when the staging database is reset
+  When the user runs engram update --dry-run
+  And starts a session and sends a prompt asking when the staging database is reset
+  Then the report lists the automatic memory as planned, and the agent's context holds no note
+```
+
+Realized by [793d4b Deploying the mods of the source](#793d4b-deploying-the-mods-of-the-source): the dry run plans the mod, reports it as the mod it is, and writes none of it, so the session that follows loads no mod and the prompt arrives with no note.
 
 ## 793d6 Recommended impact
 
