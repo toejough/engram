@@ -218,6 +218,95 @@ func Test793d2b1f_Mod_ATurnOfASubagentIsNotCaptured(t *testing.T) {
 	g.Expect(outcome.Calls).To(BeEmpty(), "neither the judgement, the model nor the writing was asked")
 }
 
+func Test793d2b1j_Mod_AStageThatStallsIsEndedAtItsBoundAndReported(t *testing.T) {
+	t.Parallel()
+
+	judged := map[string]any{"exitCode": 0, "stdout": requestPrinted}
+	answered := map[string]any{"isAnswered": true, "text": "THE REPLY"}
+
+	t.Run("the call for the session's ID", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		outcome := runCaptureDriver(t, captureScenario{Judge: judged, Model: answered, Stalls: "id"})
+
+		g.Expect(outcome.Delays).To(ContainElement(5000), "the mod waited 5 seconds for the ID")
+		g.Expect(outcome.Calls).To(BeEmpty(), "and then did nothing: no record can be made without the ID")
+	})
+
+	for name, stage := range map[string]struct {
+		stalls   string
+		want     []stepLimit
+		reported string
+	}{
+		"the judgement": {
+			stalls: "judge", reported: "engram auto judge",
+			want: []stepLimit{{"engram auto judge", 15000}, {"engram auto write", 15000}},
+		},
+		"the model's call": {
+			stalls: "model", reported: "model call",
+			want: []stepLimit{{"engram auto judge", 15000}, {"model", 60000}, {"engram auto write", 15000}},
+		},
+		"the writing": {
+			stalls: "write", reported: "engram auto write",
+			want: []stepLimit{
+				{"engram auto judge", 15000}, {"model", 60000}, {"engram auto write", 20000}, {"engram auto write", 15000},
+			},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			outcome := runCaptureDriver(t, captureScenario{Judge: judged, Model: answered, Stalls: stage.stalls})
+
+			g.Expect(outcome.stepsAndLimits()).To(Equal(stage.want), "the calls the mod made, with their time limits")
+
+			if len(outcome.Calls) > 0 {
+				last := outcome.Calls[len(outcome.Calls)-1]
+				g.Expect(last.Input["failure"]).To(ContainSubstring(stage.reported), "the failure names the stage")
+			}
+		})
+	}
+
+	t.Run("the stages together", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		outcome := runCaptureDriver(t, captureScenario{Judge: judged, Model: answered, Stalls: "write"})
+
+		// the longest chain: the ID, the judgement, the model, the writing that stalls, and the report of that
+		g.Expect(outcome.Delays).To(ContainElement(5000), "the bound of the ID")
+		g.Expect(outcome.limits()).To(HaveLen(4))
+		g.Expect(outcome.limits()).To(HaveEach(BeNumerically(">", 0)), "every stage has a limit")
+
+		total := 5000.0
+		for _, limit := range outcome.limits() {
+			total += limit
+		}
+
+		g.Expect(total).To(BeNumerically("<", 120000), "the stages together, in milliseconds")
+	})
+}
+
+func Test793d2b1k_Mod_ARequestThatIsNotJSONIsAFailureOfTheJudgement(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runCaptureDriver(t, captureScenario{
+		Judge: map[string]any{"exitCode": 0, "stdout": `{"model": oops` + "\n"},
+		Model: map[string]any{"isAnswered": true, "text": "THE REPLY"},
+	})
+
+	g.Expect(outcome.Calls).To(HaveLen(2), "the judgement, and the report to the writing: the model was never asked")
+
+	if len(outcome.Calls) == 2 {
+		g.Expect(outcome.Calls[1].Step).To(Equal("engram auto write"))
+		g.Expect(outcome.Calls[1].Input["failure"]).To(ContainSubstring("engram auto judge"))
+	}
+}
+
 func Test793d2b1g_Mod_TheJudgementReceivesTheTextTheTurnBeganWith(t *testing.T) {
 	t.Parallel()
 
@@ -343,21 +432,33 @@ const calls = []
 let letJudgementAnswer
 const judgement = new Promise((resolve) => { letJudgementAnswer = resolve })
 
+// a stage that stalls: the timers of the mod fire at once and are recorded, and the driver waits with the real one
+const wait = globalThis.setTimeout
+const delays = []
+if (scenario.stalls) {
+  globalThis.setTimeout = (callback, delay) => { delays.push(delay); return wait(callback, 0) }
+}
+
 // the capture is over when the calls have not changed for 50 ms
 async function settled() {
   for (let last = -1, stable = 0, tick = 0; tick < 300 && stable < 5; tick++) {
-    await new Promise((resolve) => setTimeout(resolve, 10))
+    await new Promise((resolve) => wait(resolve, 10))
     stable = calls.length === last ? stable + 1 : 0
     last = calls.length
   }
 }
 
+// the host ends a command at the time limit it was given, and the model's call at the limit of its request; the
+// first run of the writing is the one that stalls
+let writes = 0
 const host = {
-  session: { id: async () => 'a-session' },
+  session: { id: () => (scenario.stalls === 'id' ? new Promise(() => {}) : Promise.resolve('a-session')) },
   process: {
     run: async (argv, init) => {
       if (argv[2] === 'deliver') return { exitCode: 0, stdout: '' }
-      calls.push({ step: argv.join(' '), input: JSON.parse(init.stdin) })
+      calls.push({ step: argv.join(' '), input: JSON.parse(init.stdin), timeoutMs: init.timeoutMs })
+      const ranTooLong = argv[2] === scenario.stalls && (argv[2] !== 'write' || ++writes === 1)
+      if (ranTooLong) throw new Error('the command ran too long')
       if (argv[2] !== 'judge') return { exitCode: 0, stdout: '' }
       if (scenario.judge.rejects) throw new Error(scenario.judge.rejects)
       return scenario.judge.hold ? judgement : scenario.judge
@@ -366,6 +467,7 @@ const host = {
   model: {
     complete: async (asked) => {
       calls.push({ step: 'model', asked })
+      if (scenario.stalls === 'model') return { isAnswered: false, reason: 'aborted' }
       if (scenario.model.rejects) throw new Error(scenario.model.rejects)
       return scenario.model
     },
@@ -389,7 +491,7 @@ if (scenario.script) {
   }
   letJudgementAnswer({ exitCode: scenario.judge.exitCode, stdout: scenario.judge.stdout })
   await settled()
-  console.log(JSON.stringify({ returned: {}, held: false, calls }))
+  console.log(JSON.stringify({ returned: {}, held: false, calls, delays }))
   process.exit(0)
 }
 
@@ -408,7 +510,7 @@ const waited = Symbol('waited')
 const hook = handlers['turn.complete'](host, { answer: 'Understood.', turnId: 'a-turn', reason: 'answer', ...agent },
   async (event) => ({ text: event.answer }))
 let giveUp
-const gaveUp = new Promise((resolve) => { giveUp = setTimeout(() => resolve(waited), 500) })
+const gaveUp = new Promise((resolve) => { giveUp = wait(() => resolve(waited), 500) })
 const returned = await Promise.race([hook, gaveUp])
 clearTimeout(giveUp)
 const held = returned === waited
@@ -417,7 +519,7 @@ letJudgementAnswer({ exitCode: scenario.judge.exitCode, stdout: scenario.judge.s
 
 await settled()
 
-console.log(JSON.stringify({ returned: held ? {} : returned, held, calls }))
+console.log(JSON.stringify({ returned: held ? {} : returned, held, calls, delays }))
 `
 	// driverTimeout is how long the mod may take under the stand-in host before the test gives it up.
 	driverTimeout = 20 * time.Second
@@ -449,17 +551,53 @@ console.log(JSON.stringify({ passed, delays, ran: ran.length }))
 		`"maxTokens":1500,"timeoutMs":60000}` + "\n"
 )
 
+// stepLimit is a call the mod made and the time limit it gave the call.
+type stepLimit struct {
+	step  string
+	limit float64
+}
+
 // captureOutcome is what captureDriver printed.
 type captureOutcome struct {
 	Returned struct {
 		Text string `json:"text"`
 	} `json:"returned"`
-	Held  bool `json:"held"`
-	Calls []struct {
-		Step  string         `json:"step"`
-		Input map[string]any `json:"input"`
-		Asked map[string]any `json:"asked"`
+	Held   bool  `json:"held"`
+	Delays []int `json:"delays"`
+	Calls  []struct {
+		Step      string         `json:"step"`
+		Input     map[string]any `json:"input"`
+		Asked     map[string]any `json:"asked"`
+		TimeoutMs float64        `json:"timeoutMs"`
 	} `json:"calls"`
+}
+
+// limits returns the time limit of each call the mod made, in order: that of a command, and that of the request of the
+// model's call.
+func (o captureOutcome) limits() []float64 {
+	limits := make([]float64, 0, len(o.Calls))
+
+	for _, call := range o.Calls {
+		if call.Step == "model" {
+			limit, _ := call.Asked["timeoutMs"].(float64)
+			limits = append(limits, limit)
+		} else {
+			limits = append(limits, call.TimeoutMs)
+		}
+	}
+
+	return limits
+}
+
+// stepsAndLimits returns each call the mod made, in order, with its time limit.
+func (o captureOutcome) stepsAndLimits() []stepLimit {
+	steps := make([]stepLimit, 0, len(o.Calls))
+
+	for index, limit := range o.limits() {
+		steps = append(steps, stepLimit{step: o.Calls[index].Step, limit: limit})
+	}
+
+	return steps
 }
 
 // inputsOf returns the inputs of the calls that ran a step, in the order they were made.
@@ -486,6 +624,8 @@ type captureScenario struct {
 	Agent  string           `json:"agent,omitempty"`
 	Text   string           `json:"text,omitempty"`
 	Script []map[string]any `json:"script,omitempty"`
+	// Stalls names the stage that stalls: id, judge, model or write
+	Stalls string `json:"stalls,omitempty"`
 }
 
 // modulesOf reads every JavaScript file below a directory, by its path relative to the directory.
