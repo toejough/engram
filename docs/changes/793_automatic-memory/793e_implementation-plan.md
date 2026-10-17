@@ -465,6 +465,21 @@ Takes [793a2a1g A lesson is not written to a vault that does not exist](./793a_p
 | 793d4e1b | Dedicated example (default suite) | the judgement command dispatched through the targets over a path that holds no vault: no vault afterwards, no creation line | Done | n/a | 415a79ab | d156945f |
 | 793d4e1c | Dedicated example (default suite) | the writing command dispatched through the targets over a path that holds no vault, with a reply that holds a lesson: no vault, no [note](../../GLOSSARY.md#permanent-note), nothing printed, no creation line | Done | n/a | 415a79ab | d156945f |
 
+#### 793e6b14 Automatic memory's work starts no session of its own
+
+Takes [793a2d1b Automatic memory's work starts no session of its own](./793a_product-spec.md#793a2d1-uat-scenarios), the scenario of the clause of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) about its own [sessions](../../GLOSSARY.md#session), and the filter by the origin of a [prompt](./793a_product-spec.md#793a1a-terms) that [793b58 The first group delivers for every origin of a prompt](./793b_decision-log.md#793b58-the-first-group-delivers-for-every-origin-of-a-prompt) moved here: the mod gives the delivery and the judgement the origin of the prompt, and they act only for the prompts the user sends ([793b64 The prompts the user sends](./793b_decision-log.md#793b64-the-prompts-the-user-sends)). The mod also leaves out the [turns](./793a_product-spec.md#793a1a-terms) of a [subagent](../../GLOSSARY.md#subagent).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| 793a2d1b | Dedicated example, product acceptance (`network`) | the observation as the user could make it: after a correction the [vault](../../GLOSSARY.md#vault) holds a [note](../../GLOSSARY.md#permanent-note) written from the user's session, and the record of sessions holds that one session only. The test passes when written, because the judgement is one call of the host's model call, which raises no session; the mutation that makes it fail is a judgement run in a headless `claude -p` of its own | Red | | | |
+| 793d4m1a | Dedicated example (default suite) | each of the four origins the user sends, through `RunAutoDeliver` and `RunAutoJudge` over an in-memory vault and a record: the block and the request are printed. It passes when written, because the commands ignore the origin; the mutation that makes it fail is a filter that leaves out one of the four | Red | | | |
+| 793d4m1b | Property-based (`rapid`) with named examples (default suite) | the filter itself: for any origin that is not one of the four, and for the kinds of origin that Claude Code names besides them, nothing is printed, the command succeeds and the lookup is never asked | Red | | | |
+| 793d2a1h | Dedicated example, real dependency (`network`, a real Claude Code against a stand-in `engram`) | the origin a real host stamps on a headless prompt, `sdk`, reaches the command | Red | | | |
+| 793d2b1e | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the origin of the prompt a turn began with, as the mod learns it from the events of the prompt and of the start of the turn, reaches the judgement | Red | | | |
+| 793d2b1f | Dedicated example, real dependency (`integration`, runs the mod under `node`) | a turn that a subagent ran is not captured: no judgement, no model call | Red | | | |
+| 793d2b1a (amended) | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the stand-in host raises the prompt and starts the turn before it completes it, and the judgement receives the origin beside the rest | Red | | | |
+| 793d4a, 793d4e, 793d4f, 793d4g (amended) | Dedicated examples (default suite) | the earlier tests that dispatch the delivery or the judgement send the origin of a prompt the user sends, because a request with none is now answered with nothing | Red | | | |
+
 ### 793e6e The conversation becomes searchable memory
 
 Takes [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory).

@@ -67,7 +67,7 @@ sequenceDiagram
 
     User->>Session: sends a prompt
     Session->>Mod: 793d2a prompt.submit with the prompt text
-    Mod->>Delivery: 793d2a, 793d4a engram auto deliver, the text on standard input
+    Mod->>Delivery: 793d2a, 793d4a engram auto deliver, the text, the session's ID and the origin on standard input
     rect rgb(235, 235, 235)
         Delivery->>Engine: 792b24c1, 792b24c5, 792b24c20 the notes for the text
         Engine-->>Delivery: 792b24c5 the notes that match
@@ -81,7 +81,8 @@ sequenceDiagram
 
 Requirement: 793d2a For each [prompt](./793a_product-spec.md#793a1a-terms) a Claude Code
 [session](../../GLOSSARY.md#session) raises, the automatic-memory-mod MUST run `engram auto deliver` with the prompt
-text and the session's ID, as one JSON object, on standard input, MUST add the command's output to the context of the prompt as one block when the command
+text, the session's ID and the prompt's origin, the kind that Claude Code stamps on the prompt (`composer`, `sdk`,
+`task-notification` and the rest), as one JSON object, on standard input, MUST add the command's output to the context of the prompt as one block when the command
 exited with 0 and the output begins with `[engram memory]`, and nothing otherwise, and MUST leave the prompt text as it
 received it. It MUST hold the prompt for its own work, the call for the session's ID and the wait for the command
 together, no longer than 7 seconds, so that the prompt is held for less than the 8 seconds of
@@ -129,6 +130,11 @@ Scenario: 793d2a1g A session that does not give its ID in time does not hold the
   Given the mod, and a session that never gives its ID
   When a prompt is sent
   Then the mod lets the prompt continue as it was after the 7 seconds, with nothing added, and the command was never run
+
+Scenario: 793d2a1h The command receives the prompt's origin
+  Given a session with the mod installed, and an engram whose auto deliver prints a block
+  When a prompt is sent from a headless session, with claude -p
+  Then the command received the origin sdk
 ```
 
 ### 793d2b Turn capture flow
@@ -149,7 +155,7 @@ sequenceDiagram
     User->>Session: the turn ends
     Session->>Mod: 793d2b turn.complete with the turn's final text
     Mod-->>Session: 793d2b the event's result, at once
-    Mod->>Judgement: 793d2b, 793d4g engram auto judge, the session's ID, the turn's ID and the final text on standard input
+    Mod->>Judgement: 793d2b, 793d4g engram auto judge, the session's ID, the turn's ID, the final text and the origin on standard input
     Judgement-->>Mod: 793d4g the request for the model
     Mod->>Model: 793d2b the request
     Model-->>Mod: 793d2b the reply
@@ -160,7 +166,9 @@ sequenceDiagram
 
 Requirement: 793d2b For each [turn](./793a_product-spec.md#793a1a-terms) a Claude Code [session](../../GLOSSARY.md#session) completes, the automatic-memory-mod MUST
 give the event's result back at once, and MUST then, apart from the event, run `engram auto judge` with the session's ID,
-the turn's ID and the turn's final text, as one JSON object, on standard input; when the command exited with 0 and
+the turn's ID, the turn's final text and the origin of the [prompt](./793a_product-spec.md#793a1a-terms) the turn began with, as one JSON object, on standard
+input; the origin of a turn is that of the last prompt the session raised before the turn started. It MUST leave out the
+turns that a [subagent](../../GLOSSARY.md#subagent) ran, which the event says an [agent](./793a_product-spec.md#793a1a-terms) ran, and do nothing for them; when the command exited with 0 and
 printed a request, MUST ask the model for it through the host's model call, with the request exactly as printed; and
 when the model answered, MUST run `engram auto write` with the session's ID, the turn's ID and the model's reply, as one
 JSON object, on standard input. When the command exited with 0 and printed nothing, it MUST do nothing more. When a step
@@ -177,8 +185,8 @@ Supports: [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-
 ```gherkin
 Scenario: 793d2b1a The mod judges a turn and gives the reply to the writing
   Given the mod, a session whose ID is known, an engram whose auto judge prints a request, and a model that answers
-  When a turn completes with a final text
-  Then the event's result is given back at once, auto judge received the session's ID, the turn's ID and the final text, the model was asked the request exactly as printed, and auto write received the session's ID, the turn's ID and the model's reply
+  When a prompt is raised, the turn starts, and it completes with a final text
+  Then the event's result is given back at once, auto judge received the session's ID, the turn's ID, the final text and the origin of the prompt, the model was asked the request exactly as printed, and auto write received the session's ID, the turn's ID and the model's reply
 
 Scenario: 793d2b1b A judgement that prints nothing ends the capture
   Given the mod, and an engram whose auto judge exits with 0 and prints nothing
@@ -194,6 +202,16 @@ Scenario: 793d2b1d A model that does not answer is reported to the writing
   Given the mod, an engram whose auto judge prints a request, and a model that answers with an API error, with no text, or by rejecting the call
   When a turn completes
   Then auto write received the session's ID, the turn's ID and a failure that names the model call
+
+Scenario: 793d2b1e The judgement receives the origin of the prompt the turn began with
+  Given the mod, and an engram whose auto judge prints a request
+  When a prompt of the origin task-notification is raised, a turn starts, and it completes
+  Then auto judge received the origin task-notification, beside the session's ID, the turn's ID and the final text
+
+Scenario: 793d2b1f A turn of a subagent is not captured
+  Given the mod, and an engram whose auto judge prints a request
+  When a turn that a subagent ran completes
+  Then auto judge was never run, and the model was never asked
 ```
 
 ## 793d3 Recommended component diffs
@@ -235,7 +253,7 @@ Scenario: 793d2b1d A model that does not answer is reported to the writing
   reports it as a mod ([793b47 A dry run reports the mod as a mod](./793b_decision-log.md#793b47-a-dry-run-reports-the-mod-as-a-mod)).
 - **query-engine** (retained): the lookup of notes for text, used as `engram query` uses it, by the delivery and by the judgement.
 - **Claude Code's mod runtime** (an external boundary, retained): loads a mod from `~/.claude/skills/<name>`, runs its
-  `prompt.submit` function for each prompt and its `turn.complete` function for each turn, runs the commands it asks
+  `prompt.submit` function for each prompt, its `turn.start` function when a turn starts and its `turn.complete` function for each turn, runs the commands it asks
   for, makes the model calls it asks for with the user's own login, and carries the context it returns to the
   model. The mod relies on that contract; nothing here tests it.
 
@@ -243,8 +261,9 @@ Scenario: 793d2b1d A model that does not answer is reported to the writing
 
 ### 793d4a Delivering the notes that bear on a prompt
 
-Requirement: 793d4a The [prompt](./793a_product-spec.md#793a1a-terms)-delivery MUST read one JSON object with the prompt's `text` from standard input and
-MUST print one block on standard output. The block opens with a line that begins `[engram memory]` and holds one
+Requirement: 793d4a The [prompt](./793a_product-spec.md#793a1a-terms)-delivery MUST read one JSON object with the prompt's `text`, its `session`'s ID and its `origin` from standard input and
+MUST print one block on standard output, or nothing when the origin is not one the user sends
+([793d4m Telling the prompts the user sends](#793d4m-telling-the-prompts-the-user-sends)). The block opens with a line that begins `[engram memory]` and holds one
 line for each [note](../../GLOSSARY.md#permanent-note) that bears on the text, in the order the lookup gave them: a
 dash, the note's file name, its situation in parentheses, a colon, and the note's body on one line. A note bears on
 the text when the lookup of
@@ -528,8 +547,9 @@ Scenario: 793d4f1d No record is read when no directory can be found
 
 ### 793d4g Judging a turn
 
-Requirement: 793d4g The [turn](./793a_product-spec.md#793a1a-terms)-judgement MUST read one JSON object with the `session`'s ID and the turn's final `answer`
-from standard input, and MUST find the [session](../../GLOSSARY.md#session)'s record as [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) does,
+Requirement: 793d4g The [turn](./793a_product-spec.md#793a1a-terms)-judgement MUST read one JSON object with the `session`'s ID, the turn's final `answer` and the
+`origin` of the [prompt](./793a_product-spec.md#793a1a-terms) the turn began with from standard input, MUST print nothing when the origin is not one the user sends
+([793d4m Telling the prompts the user sends](#793d4m-telling-the-prompts-the-user-sends)), and MUST find the [session](../../GLOSSARY.md#session)'s record as [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) does,
 in the directory of [793d4f Finding the records of sessions](#793d4f-finding-the-records-of-sessions). The turn is the last [prompt](./793a_product-spec.md#793a1a-terms) of the record and
 everything after it, and the conversation before it is the context. It MUST print one JSON object, the request for the
 model: `model` (`haiku`), `effort` (`low`), `prompt`, `maxTokens` and `timeoutMs`. The prompt MUST hold the instructions
@@ -742,6 +762,32 @@ Scenario: 793d4k1e A record that cannot be written does not fail the command
   Given a reply that holds one lesson, and a place for the records that cannot be written
   When the lessons are written
   Then the note is written and the command succeeds
+```
+
+### 793d4m Telling the prompts the user sends
+
+Requirement: 793d4m The [prompt](./793a_product-spec.md#793a1a-terms)-delivery and the [turn](./793a_product-spec.md#793a1a-terms)-judgement MUST each read the `origin` of the JSON object they are
+given, the kind that Claude Code stamps on a prompt, and MUST act only for a prompt the user sends: one whose origin is
+`composer`, `bridge`, `slack-ping` or `sdk`. For any other origin, including none, each MUST print nothing, succeed and
+look nothing up. The definition is theirs, not the mod's: the mod gives the origin it received and decides nothing
+([793b64 The prompts the user sends](./793b_decision-log.md#793b64-the-prompts-the-user-sends)).
+
+Owner: prompt-delivery and turn-judgement (the components of [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) and [793d4g Judging a turn](#793d4g-judging-a-turn))
+
+Supports: [793a2d1b Automatic memory's work starts no session of its own](./793a_product-spec.md#793a2d1-uat-scenarios). No clause of a requirement of the product spec names an origin, so none of its scenarios does: they are all raised by prompts the user sends, which this requirement lets through.
+
+#### 793d4m1 Scenarios
+
+```gherkin
+Scenario: 793d4m1a A prompt of an origin the user sends is delivered for and its turn is judged
+  Given a vault holding a note that bears on a prompt, the record of a session whose turn began with that prompt, and each of the origins composer, bridge, slack-ping and sdk
+  When the delivery is given the prompt, and the judgement is given the turn, with each origin
+  Then the delivery prints its block and the judgement prints its request, with each
+
+Scenario: 793d4m1b A prompt of any other origin is delivered nothing and its turn is judged nothing
+  Given the same vault and record, and any origin but those four, including none: task-notification, scheduled-trigger, peer, channel, plugin, unclassified and the empty origin
+  When the delivery is given the prompt, and the judgement is given the turn, with it
+  Then each prints nothing, succeeds, and looks nothing up
 ```
 
 ## 793d5 Product-scenario mapping
@@ -1043,6 +1089,19 @@ Scenario: 793a2a1g A lesson is not written to a vault that does not exist
 ```
 
 Realized by [793d4e Modified: First-use gating](#793d4e-modified-first-use-gating): the judgement and the writing, like the delivery, run against the path as it is and create nothing when it holds no [vault](../../GLOSSARY.md#vault). The judgement finds no [note](../../GLOSSARY.md#permanent-note) there, the learn path of [793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply) cannot take the lock of a vault that is not there and writes nothing, and [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did) records the failure that the [turn](./793a_product-spec.md#793a1a-terms) is left with.
+
+### 793d5w Mapping of 793a2d1b
+
+The product scenario [793a2d1b Automatic memory's work starts no session of its own](./793a_product-spec.md#793a2d1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2d1b Automatic memory's work starts no session of its own
+  Given the user has run engram update, and a session in which the agent may not run engram commands
+  When the user corrects the agent in a prompt, and the turn ends
+  Then within 2 minutes the vault holds a note for the correction, and no session but the user's exists, so nothing was delivered to or written from another
+```
+
+Realized by [793d2b Turn capture flow](#793d2b-turn-capture-flow): the model is asked through the host's model call, which raises no [prompt](./793a_product-spec.md#793a1a-terms) and no [turn](./793a_product-spec.md#793a1a-terms) and starts no [session](../../GLOSSARY.md#session), so the user's session is the only one and the [note](../../GLOSSARY.md#permanent-note) is written from it; and by [793d4m Telling the prompts the user sends](#793d4m-telling-the-prompts-the-user-sends), which lets only the prompts the user sends, and the turns they begin, reach the delivery and the judgement.
 
 ## 793d6 Recommended impact
 
