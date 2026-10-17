@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -105,6 +106,27 @@ func (m *machine) agentMayRun(commands ...string) {
 	}
 
 	writeFile(m.t, filepath.Join(m.claudeDir, "settings.json"), string(settings))
+}
+
+// awaitRecord waits until automatic memory has recorded what became of a turn of a session, and returns the kind of the
+// first record. A test of an absence waits for it, so that the absence is the result of the judgement and not of a
+// judgement that did not finish.
+func (m *machine) awaitRecord(session string, turnEnds time.Time) string {
+	m.t.Helper()
+
+	deadline := turnEnds.Add(captureBound)
+
+	for {
+		if kinds := m.recordKinds(session); len(kinds) > 0 {
+			return kinds[0]
+		}
+
+		if time.Now().After(deadline) {
+			m.t.Fatalf("automatic memory recorded nothing of the turn within %s of its end\n%s", captureBound, m.hookLog())
+		}
+
+		time.Sleep(capturePoll)
+	}
 }
 
 // awaitAutomaticNote waits for the note of a lesson, a note that holds every word given, logs it, and fails the test
@@ -351,6 +373,33 @@ func (m *machine) mustSucceed(out result, what string) {
 	if out.exit != 0 {
 		m.t.Fatalf("%s exited %d\nstdout: %s\nstderr: %s", what, out.exit, out.stdout, out.stderr)
 	}
+}
+
+// recordKinds returns the kinds of the records that automatic memory made for a session, oldest first: the records are
+// the JSON files of the session's directory in the engram data directory, named for the time they were made.
+func (m *machine) recordKinds(session string) []string {
+	files, err := filepath.Glob(filepath.Join(m.home, ".local", "share", "engram", "auto", session, "*.json"))
+	if err != nil {
+		m.t.Fatalf("listing the records of %s: %v", session, err)
+	}
+
+	slices.Sort(files)
+
+	kinds := make([]string, 0, len(files))
+
+	for _, name := range files {
+		data, readErr := os.ReadFile(name)
+
+		var record struct {
+			Kind string `json:"kind"`
+		}
+
+		if readErr == nil && json.Unmarshal(data, &record) == nil {
+			kinds = append(kinds, record.Kind)
+		}
+	}
+
+	return kinds
 }
 
 // noteNamed returns the file name of the vault note with a slug.

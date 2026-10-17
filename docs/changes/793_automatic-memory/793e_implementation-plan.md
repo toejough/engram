@@ -384,7 +384,7 @@ Takes [793a2c1f Guesses, plans and chatter produce no note](./793a_product-spec.
 
 | Gherkin | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1f | Dedicated example, product acceptance (`network`) | the prohibition as the user sees it: a [turn](./793a_product-spec.md#793a1a-terms) of a guess, a plan and chatter leaves no [note](../../GLOSSARY.md#permanent-note); the test waits for the record of the reply, so that an empty [vault](../../GLOSSARY.md#vault) is the judgement's result and not a judgement that did not finish | | Not started | | | |
+| 793a2c1f | Dedicated example, product acceptance (`network`) | the prohibition as the user sees it: a [turn](./793a_product-spec.md#793a1a-terms) of a guess, a plan and chatter leaves no [note](../../GLOSSARY.md#permanent-note); the test waits for the record of the reply, so that an empty [vault](../../GLOSSARY.md#vault) is the judgement's result and not a judgement that did not finish | | Red | | | |
 | 793d4k1a | Dedicated example (default suite) | the record of a lesson that is written, through `RunAutoWrite` with a stand-in for the place of the records | | Not started | | | |
 | 793d4k1b | Dedicated example (default suite) | the record of a reply with no lesson | | Not started | | | |
 | 793d4k1c | Dedicated example (default suite) | the records of a lesson left out and of a reply that is not a list, with the reasons | | Not started | | | |
