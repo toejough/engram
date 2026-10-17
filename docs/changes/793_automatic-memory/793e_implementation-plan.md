@@ -99,7 +99,7 @@ graph TD
     n793e6a7["793e6a7 A vault that does not exist is not created<br/>Complete"]
     n793e6a8["793e6a8 Pi gets no automatic memory<br/>Complete"]
     n793e6a9["793e6a9 A dry run turns nothing on<br/>Complete"]
-    n793e6a10["793e6a10 A second update still delivers each note once<br/>Ready"]
+    n793e6a10["793e6a10 A second update still delivers each note once<br/>Complete"]
     n793e6a1 --> n793e6a2
     n793e6a2 --> n793e6a3
     n793e6a3 --> n793e6a4
@@ -109,7 +109,7 @@ graph TD
     n793e6a7 --> n793e6a8
     n793e6a8 --> n793e6a9
     n793e6a9 --> n793e6a10
-    n793e6a10 --> n793e6b["793e6b Lessons are written without the agent<br/>Blocked by: 793e6a10"]
+    n793e6a10 --> n793e6b["793e6b Lessons are written without the agent<br/>Ready"]
     n793e6b --> n793e6e["793e6e The conversation becomes searchable memory<br/>Blocked by: 793e6b"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
@@ -239,8 +239,8 @@ Takes [793a2a1b A second update still delivers each note once](./793a_product-sp
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2a1b | Dedicated example, product acceptance (`network`) | the repeat as the user sees it: two real updates, then one real prompt, and the note arrives once | Green-all | n/a | - | |
-| 793d4b1h | Dedicated example (default suite) | the idempotence for the new input: two runs of `Updater.Run` over an in-memory file system leave the same files and links, and the second report lists the mod once | Green-all | n/a | - | |
+| 793a2a1b | Dedicated example, product acceptance (`network`) | the repeat as the user sees it: two real updates, then one real prompt, and the note arrives once | Done | n/a | - | |
+| 793d4b1h | Dedicated example (default suite) | the idempotence for the new input: two runs of `Updater.Run` over an in-memory file system leave the same files and links, and the second report lists the mod once | Done | n/a | - | |
 
 ### 793e6b Lessons are written without the agent
 
