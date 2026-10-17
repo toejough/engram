@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -56,7 +57,29 @@ func Test793d4g1a_RunAutoJudge_PrintsTheRequestForTheTurnTheRecordEndsWith(t *te
 	g.Expect(out.String()).To(HavePrefix(`{"model":`), "the mod knows a request by its first characters")
 }
 
-func Test793d4g1c_RunAutoJudge_ASessionWithNoRecordIsJudgedNothing(t *testing.T) {
+func Test793d4g1c_RunAutoJudge_ASessionWithNoPromptInItsRecordIsJudgedNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	sessions := t.TempDir()
+	record := `{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Understood."}]}}` + "\n"
+	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: sessions},
+		cli.AutoJudgeDeps{
+			Stdin:    strings.NewReader(`{"origin":"composer","session":"` + sessionID + `","answer":"Understood."}`),
+			Query:    queryOver(newQueryDeps(newInMemoryFS())),
+			ReadDir:  os.ReadDir,
+			ReadFile: os.ReadFile,
+		}, &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(out.String()).To(BeEmpty())
+}
+
+func Test793d4g1w_RunAutoJudge_ASessionWithNoRecordFailsTheCommand(t *testing.T) {
 	t.Parallel()
 
 	for name, session := range map[string]string{"a session no record holds": sessionID, "no session": ""} {
@@ -64,9 +87,11 @@ func Test793d4g1c_RunAutoJudge_ASessionWithNoRecordIsJudgedNothing(t *testing.T)
 			t.Parallel()
 			g := NewWithT(t)
 
+			sessions := t.TempDir()
+
 			var out bytes.Buffer
 
-			err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: t.TempDir()},
+			err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: sessions},
 				cli.AutoJudgeDeps{
 					Stdin:    strings.NewReader(`{"origin":"composer","session":"` + session + `","answer":"Understood."}`),
 					Query:    queryOver(newQueryDeps(newInMemoryFS())),
@@ -74,10 +99,40 @@ func Test793d4g1c_RunAutoJudge_ASessionWithNoRecordIsJudgedNothing(t *testing.T)
 					ReadFile: os.ReadFile,
 				}, &out)
 
-			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(err).To(MatchError(ContainSubstring("no record of session "+session+" under "+sessions)))
 			g.Expect(out.String()).To(BeEmpty())
 		})
 	}
+}
+
+func Test793d4g1x_RunAutoJudge_AVaultThatDoesNotExistFailsTheCommand(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	gone := filepath.Join(t.TempDir(), "no-such-vault")
+	sessions := t.TempDir()
+	record := `{"type":"user","message":{"role":"user","content":"No - build with make zorblax-build."}}` + "\n"
+	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
+
+	looked := false
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: gone, SessionsDir: sessions},
+		cli.AutoJudgeDeps{
+			Stdin: strings.NewReader(`{"origin":"composer","session":"` + sessionID + `","answer":"Understood."}`),
+			Query: func(context.Context, cli.QueryArgs, io.Writer) error {
+				looked = true
+
+				return nil
+			},
+			ReadDir:  os.ReadDir,
+			ReadFile: os.ReadFile,
+		}, &out)
+
+	g.Expect(err).To(MatchError(ContainSubstring("no vault at " + gone)))
+	g.Expect(out.String()).To(BeEmpty())
+	g.Expect(looked).To(BeFalse(), "the lookup was not run")
 }
 
 func Test793d4g1d_RunAutoJudge_AnInputThatIsNotAJSONObjectFailsTheCommand(t *testing.T) {

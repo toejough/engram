@@ -421,7 +421,8 @@ func Test793d4e1b_Targets_AutoJudgeCreatesNoVault(t *testing.T) {
 	_, statErr := os.Stat(vault)
 
 	g.Expect(os.IsNotExist(statErr)).To(BeTrue(), "no vault was created at "+vault)
-	g.Expect(stdout.String()).To(HavePrefix(`{"model":`), "the judgement ran and printed its request")
+	g.Expect(stdout.String()).To(BeEmpty(), "the judgement printed no request")
+	g.Expect(stderr).To(ContainSubstring("no vault at " + vault))
 	g.Expect(stderr).NotTo(ContainSubstring("created new vault"))
 }
 
