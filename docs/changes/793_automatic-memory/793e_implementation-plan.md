@@ -346,6 +346,38 @@ Takes [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-
 | 793d4h1d | Dedicated example (default suite) | the code fence a model may put around the list | | Done | 14576dd7 | c9b440cf | 2c6daae6 |
 | 793d2b1a | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the mod's routing of a turn against a stand-in host: the order of the three steps and what each is given; a live session cannot show what a stand-in records | | Done | 2f2b6012 | f43f21a6 | 28c04070 |
 
+#### 793e6b2 A request to remember becomes a note
+
+Takes [793a2c1b A request to remember becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| 793a2c1b | Dedicated example, product acceptance (`network`) | the second kind of lesson as the user sees it: a request to remember, written as a fact; the pipeline of the first node already writes it, so the test passes when written, and the mutation that makes it fail is instructions of the judgement that do not name the request to remember | Not started | | | |
+
+#### 793e6b3 An approach the user confirmed becomes a note
+
+Takes [793a2c1c An approach the user confirmed becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| 793a2c1c | Dedicated example, product acceptance (`network`) | the third kind: a [turn](./793a_product-spec.md#793a1a-terms) in which the user says that the way the [agent](./793a_product-spec.md#793a1a-terms) did a task worked, with the task in the turn before; the mutation that makes it fail is instructions that do not name a confirmed approach | Not started | | | |
+
+#### 793e6b4 The agent's own correction becomes a note
+
+Takes [793a2c1d The agent's own correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| 793a2c1d | Dedicated example, product acceptance (`network`) | the fourth kind: the [agent](./793a_product-spec.md#793a1a-terms) states a guess, reads a file and says its guess was wrong, in one [turn](./793a_product-spec.md#793a1a-terms); the mutation that makes it fail is instructions that do not name the agent's own correction | Not started | | | |
+
+#### 793e6b5 An approach that succeeded with evidence becomes a note
+
+Takes [793a2c1e An approach that succeeded with evidence becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| 793a2c1e | Dedicated example, product acceptance (`network`) | the fifth kind: the [agent](./793a_product-spec.md#793a1a-terms) is unsure of an approach, tries it, and the [turn](./793a_product-spec.md#793a1a-terms) shows that the check passed; the mutation that makes it fail is instructions that do not name an approach that succeeded with evidence | Not started | | | |
+
 ### 793e6e The conversation becomes searchable memory
 
 Takes [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory).

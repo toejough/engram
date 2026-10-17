@@ -164,7 +164,7 @@ answered, MUST run `engram auto write` with the session's ID and the model's rep
 
 Owner: automatic-memory-mod (the component of [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow))
 
-Supports: [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios).
+Supports: [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1b A request to remember becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1c An approach the user confirmed becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1d The agent's own correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1e An approach that succeeded with evidence becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios).
 
 #### 793d2b1 Scenarios
 
@@ -509,7 +509,7 @@ not a JSON object.
 
 Owner: turn-judgement (a new component; its canonical file at promotion is `turn-judgement.md`)
 
-Supports: [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios).
+Supports: [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1b A request to remember becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1c An approach the user confirmed becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1d The agent's own correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1e An approach that succeeded with evidence becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios).
 
 #### 793d4g1 Scenarios
 
@@ -547,7 +547,7 @@ a list of lessons, and a lesson that lacks a field or has a kind it does not kno
 
 Owner: lesson-writing (a new component; its canonical file at promotion is `lesson-writing.md`)
 
-Supports: [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios).
+Supports: [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1b A request to remember becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1c An approach the user confirmed becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1d The agent's own correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1e An approach that succeeded with evidence becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios).
 
 #### 793d4h1 Scenarios
 
@@ -711,6 +711,59 @@ Realized by [793d2b Turn capture flow](#793d2b-turn-capture-flow) (the mod runs 
 [793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply) (the command writes the lesson as a [note](../../GLOSSARY.md#permanent-note) marked as written automatically), with
 [793d4f Finding the records of sessions](#793d4f-finding-the-records-of-sessions) (the record is found where Claude Code writes it). The [agent](./793a_product-spec.md#793a1a-terms) wrote nothing because it may not run engram commands, so the note
 is the writing's.
+
+### 793d5k Mapping of 793a2c1b
+
+The product scenario [793a2c1b A request to remember becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2c1b A request to remember becomes a note
+  Given the user has run engram update, and a session in which the agent may not run engram commands
+  When the user asks the agent in a prompt to remember something, and the turn ends
+  Then within 2 minutes the vault holds a note that states it and says it was written automatically, and the agent wrote nothing to the vault
+```
+
+Realized by the components of [793d5j Mapping of 793a2c1a](#793d5j-mapping-of-793a2c1a) with no behavior of their own: the instructions of the judgement name the request to remember as a [lesson](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), and
+[793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply) writes a lesson of the kind `fact` as a fact [note](../../GLOSSARY.md#permanent-note).
+
+### 793d5l Mapping of 793a2c1c
+
+The product scenario [793a2c1c An approach the user confirmed becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2c1c An approach the user confirmed becomes a note
+  Given the user has run engram update, and a session in which the agent may not run engram commands and has done a task one way
+  When the user tells the agent in a prompt that the way worked and to keep doing it, and the turn ends
+  Then within 2 minutes the vault holds a note that states the approach and says it was written automatically
+```
+
+Realized by [793d4g Judging a turn](#793d4g-judging-a-turn) (the task the [agent](./793a_product-spec.md#793a1a-terms) did one way is in the context of the request, and the confirmation is in the [turn](./793a_product-spec.md#793a1a-terms)) with the components of [793d5j Mapping of 793a2c1a](#793d5j-mapping-of-793a2c1a): the instructions of the judgement name an approach the user confirmed as a lesson.
+
+### 793d5m Mapping of 793a2c1d
+
+The product scenario [793a2c1d The agent's own correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2c1d The agent's own correction becomes a note
+  Given the user has run engram update, and a session in which the agent may read files but may not run engram commands
+  When the user asks the agent in a prompt to guess what a file says and then to read it, and the agent says its guess was wrong and states what the file says, and the turn ends
+  Then within 2 minutes the vault holds a note that states what the file says and says it was written automatically
+```
+
+Realized by [793d4g Judging a turn](#793d4g-judging-a-turn) (the lines of the [turn](./793a_product-spec.md#793a1a-terms) hold the [agent](./793a_product-spec.md#793a1a-terms)'s guess and its correction, because the agent states both in text) with the components of [793d5j Mapping of 793a2c1a](#793d5j-mapping-of-793a2c1a): the instructions of the judgement name the agent's own correction as a lesson.
+
+### 793d5n Mapping of 793a2c1e
+
+The product scenario [793a2c1e An approach that succeeded with evidence becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2c1e An approach that succeeded with evidence becomes a note
+  Given the user has run engram update, and a session in which the agent may run a check script but may not run engram commands
+  When the agent, unsure whether an approach will make the check pass, tries it in a turn and the turn shows that the check passed
+  Then within 2 minutes the vault holds a note that states the approach and says it was written automatically
+```
+
+Realized by [793d4g Judging a turn](#793d4g-judging-a-turn) (the lines of the [turn](./793a_product-spec.md#793a1a-terms) hold what the [agent](./793a_product-spec.md#793a1a-terms) was unsure of and what it saw) with the components of [793d5j Mapping of 793a2c1a](#793d5j-mapping-of-793a2c1a): the instructions of the judgement name an approach that succeeded with evidence as a lesson.
 
 ## 793d6 Recommended impact
 
