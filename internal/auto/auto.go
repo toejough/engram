@@ -60,10 +60,11 @@ func namedIn(text string, note Note) bool {
 	return basename != "" && strings.Contains(text, basename)
 }
 
-// oneLine collapses text to single-spaced text without control characters, so that it cannot end its own line.
+// oneLine collapses text to single-spaced text without control or format characters, so that it cannot end its own line
+// or hide text from a reader (793d4c).
 func oneLine(text string) string {
 	kept := strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) && !unicode.IsSpace(r) {
+		if (unicode.IsControl(r) && !unicode.IsSpace(r)) || unicode.Is(unicode.Cf, r) {
 			return -1
 		}
 
