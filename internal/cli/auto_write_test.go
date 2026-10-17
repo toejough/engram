@@ -352,21 +352,6 @@ func (r *recordedFiles) write(path string, data []byte) error {
 	return nil
 }
 
-// replyInput is the input of the writing for a reply of the model.
-func replyInput(reply string) *strings.Reader {
-	return strings.NewReader(`{"session":"` + sessionID + `","turn":"` + turnID + `","reply":` + quoted(reply) + `}`)
-}
-
-// quoted is a string as JSON writes it.
-func quoted(text string) string {
-	encoded, err := json.Marshal(text)
-	if err != nil {
-		panic(err)
-	}
-
-	return string(encoded)
-}
-
 // learnInto is the learn path over an in-memory vault: it writes each note into the map, by its path, and returns the
 // path as `engram learn` prints it.
 func learnInto(written map[string]string) cli.LearnRun {
@@ -392,4 +377,19 @@ func learnInto(written map[string]string) cli.LearnRun {
 
 		return strings.TrimSpace(printed.String()), err
 	}
+}
+
+// quoted is a string as JSON writes it.
+func quoted(text string) string {
+	encoded, err := json.Marshal(text)
+	if err != nil {
+		panic(err)
+	}
+
+	return string(encoded)
+}
+
+// replyInput is the input of the writing for a reply of the model.
+func replyInput(reply string) *strings.Reader {
+	return strings.NewReader(`{"session":"` + sessionID + `","turn":"` + turnID + `","reply":` + quoted(reply) + `}`)
 }

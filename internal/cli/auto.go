@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"go.yaml.in/yaml/v3"
 
@@ -50,8 +51,9 @@ type AutoJudgeDeps struct {
 
 // AutoWriteArgs holds parsed flags for `engram auto write`.
 type AutoWriteArgs struct {
-	VaultPath string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
-	VaultName string `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name stamped on the note's vault: field (default \"personal\")"` //nolint:lll // single unbreakable struct-tag string
+	VaultPath  string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
+	VaultName  string `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name stamped on the note's vault: field (default \"personal\")"` //nolint:lll // single unbreakable struct-tag string
+	RecordsDir string `targ:"flag,name=records,desc=directory of the records of what automatic memory did (default $XDG_DATA_HOME/engram/auto)"`    //nolint:lll // single unbreakable struct-tag string
 }
 
 // AutoWriteDeps holds injected dependencies for RunAutoWrite.
@@ -60,6 +62,10 @@ type AutoWriteDeps struct {
 	Stdin io.Reader
 	// Learn writes a note through the learn path.
 	Learn LearnRun
+	// Now is the time a record is made at.
+	Now func() time.Time
+	// WriteRecord writes one record, a file of its own, and makes its directory.
+	WriteRecord func(path string, data []byte) error
 }
 
 // LearnRun writes a note through the learn path, as `engram learn` does, and returns the path it prints for the note.
@@ -134,20 +140,35 @@ func RunAutoWrite(ctx context.Context, args AutoWriteArgs, deps AutoWriteDeps, s
 		return fmt.Errorf("auto write: reading the reply: %w", decodeErr)
 	}
 
-	var failures []error
+	results := outcomes{base: auto.Record{At: deps.Now(), Session: reply.Session, Turn: reply.Turn}}
+	failures := writeLessons(ctx, args, deps, reply, &results, stdout)
 
-	for _, lesson := range auto.ParseLessons(reply.Text) {
-		path, learnErr := deps.Learn(ctx, learnArgsOfLesson(lesson, args, reply.Session))
-		if learnErr != nil {
-			failures = append(failures, fmt.Errorf("writing %s: %w", lesson.Slug, learnErr))
-
-			continue
-		}
-
-		_, _ = fmt.Fprintln(stdout, path)
-	}
+	writeRecords(deps, args.RecordsDir, results.records)
 
 	return errors.Join(failures...)
+}
+
+// unexported constants.
+const (
+	// the permissions of a record and of the directory of the records of a session
+	recordDirPerm  fs.FileMode = 0o750
+	recordFilePerm fs.FileMode = 0o600
+	// recordTimeFormat writes the time a record was made at in the name of its file: it sorts as the time does.
+	recordTimeFormat = "20060102T150405.000000000Z"
+)
+
+// outcomes is what became of a reply so far, as the records that tell it: base holds what they share.
+type outcomes struct {
+	base    auto.Record
+	records []auto.Record
+}
+
+// add adds the record of one outcome.
+func (o *outcomes) add(kind, note, slug, reason string) {
+	record := o.base
+	record.Kind, record.Note, record.Slug, record.Reason = kind, note, slug, reason
+
+	o.records = append(o.records, record)
 }
 
 // findRecord reads the record of a session, which Claude Code keeps as <ID>.jsonl in a directory of the session-log
@@ -181,6 +202,12 @@ func findRecord(
 // nothing, so a prompt is delivered a note it may already hold rather than none.
 func heldText(deps AutoDeliverDeps, dir, session string) string {
 	return auto.HeldText(recordOf(deps.ReadDir, deps.ReadFile, dir, session))
+}
+
+// isPlainName reports whether an ID is a plain file name: it names no directory, so it cannot name a file outside the
+// directory it is joined to.
+func isPlainName(name string) bool {
+	return name != "" && name == filepath.Base(name) && name != "." && name != ".."
 }
 
 // learnArgsOfLesson is the write of a lesson through the learn path: a note of its kind at the top of the order, whose
@@ -250,6 +277,20 @@ func newAutoWriteDeps(d Deps) AutoWriteDeps {
 
 			return strings.TrimSpace(printed.String()), err
 		},
+		Now: d.Now,
+		WriteRecord: func(path string, data []byte) error {
+			mkdirErr := d.FS.MkdirAll(filepath.Dir(path), recordDirPerm)
+			if mkdirErr != nil {
+				return fmt.Errorf("making the directory of the record %s: %w", path, mkdirErr)
+			}
+
+			writeErr := d.FS.WriteFileExcl(path, data, recordFilePerm)
+			if writeErr != nil {
+				return fmt.Errorf("writing the record %s: %w", path, writeErr)
+			}
+
+			return nil
+		},
 	}
 }
 
@@ -289,7 +330,7 @@ func notesOf(payload []byte) ([]auto.Note, error) {
 func recordOf(
 	readDir func(path string) ([]fs.DirEntry, error), readFile func(path string) ([]byte, error), dir, session string,
 ) []byte {
-	if dir == "" || session == "" || session != filepath.Base(session) || session == ".." {
+	if dir == "" || !isPlainName(session) {
 		return nil
 	}
 
@@ -306,4 +347,64 @@ func sessionsDirOf(getenv func(string) string, userHomeDir func() (string, error
 	}
 
 	return sessionDirFrom(getenv, userHomeDir)("")
+}
+
+// writeLessons writes the lessons of a reply through the learn path and adds what became of the reply, of each lesson
+// and of each lesson it leaves out to the outcomes. A failure to get a reply holds no lessons.
+func writeLessons(
+	ctx context.Context, args AutoWriteArgs, deps AutoWriteDeps, reply auto.Reply, results *outcomes, stdout io.Writer,
+) []error {
+	if reply.Failure != "" {
+		results.add(auto.RecordFailed, "", "", reply.Failure)
+
+		return nil
+	}
+
+	lessons, skipped := auto.ParseLessons(reply.Text)
+
+	for _, left := range skipped {
+		results.add(auto.RecordSkipped, "", left.Slug, left.Reason)
+	}
+
+	if len(lessons) == 0 && len(skipped) == 0 {
+		results.add(auto.RecordNothing, "", "", "")
+	}
+
+	var failures []error
+
+	for _, lesson := range lessons {
+		path, learnErr := deps.Learn(ctx, learnArgsOfLesson(lesson, args, reply.Session))
+		if learnErr != nil {
+			failures = append(failures, fmt.Errorf("writing %s: %w", lesson.Slug, learnErr))
+
+			results.add(auto.RecordFailed, "", lesson.Slug, learnErr.Error())
+
+			continue
+		}
+
+		_, _ = fmt.Fprintln(stdout, path)
+
+		results.add(auto.RecordWritten, filepath.Base(path), lesson.Slug, "")
+	}
+
+	return failures
+}
+
+// writeRecords writes each record as a file of its own in the directory of its session, named for the time it was made,
+// its place among the records of the reply and its kind. A record that cannot be written is left out (793d4k).
+func writeRecords(deps AutoWriteDeps, dir string, records []auto.Record) {
+	for index, record := range records {
+		if dir == "" || !isPlainName(record.Session) {
+			return
+		}
+
+		data, marshalErr := json.Marshal(record)
+		if marshalErr != nil {
+			continue
+		}
+
+		name := fmt.Sprintf("%s-%d-%s.json", record.At.UTC().Format(recordTimeFormat), index, record.Kind)
+
+		_ = deps.WriteRecord(filepath.Join(dir, record.Session, name), data)
+	}
 }

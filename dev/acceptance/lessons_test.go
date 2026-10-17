@@ -159,13 +159,39 @@ func Test793a2c1e_AnApproachThatSucceededWithEvidenceBecomesANote(t *testing.T) 
 	})
 }
 
+func Test793a2c1f_GuessesPlansAndChatterProduceNoNote(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var chat *conversation
+
+	step(t, "Given the user has run engram update, and a session in which the agent may not run engram commands", func() {
+		machine.hasRunUpdate()
+
+		chat = machine.startSession("zorblax").converse()
+	})
+
+	step(t, "When the user sends a prompt that the agent answers with a guess, a plan and chatter, and the turn ends",
+		func() {
+			answered := chat.say(askForAGuessAndAPlan)
+			t.Logf("the agent replied %q", answered.reply)
+		})
+
+	step(t, "Then 2 minutes after the turn ends the vault holds no note", func() {
+		g.Expect(machine.awaitRecord(chat.session.id, chat.turnEnds)).To(Equal("nothing"), "what became of the turn")
+		g.Expect(machine.noteNames()).To(BeEmpty(), "the notes of the vault")
+	})
+}
+
 // unexported constants.
 const (
-	// askHowToBuild is a question the agent cannot answer from anything but a guess: the project is made up.
-	askHowToBuild = "How do I build the Zorblax project? Answer in one line."
 	// askForAGuessAndAPlan makes the agent answer with a guess, a plan and chatter, none of which is a lesson.
 	askForAGuessAndAPlan = "What do you think is making the Zorblax service start slowly? " +
 		"Answer with a guess, then a plan, then a friendly remark. Do not read or run anything."
+	// askHowToBuild is a question the agent cannot answer from anything but a guess: the project is made up.
+	askHowToBuild = "How do I build the Zorblax project? Answer in one line."
 	// askToGuessAndRead makes the agent state a guess, read a file whose content it cannot guess, and say that the guess
 	// was wrong.
 	askToGuessAndRead = "Before you read anything, say in one sentence which port the Zorblax service listens on, " +
@@ -192,29 +218,3 @@ const (
 	correctTheBuild = "No - in the Zorblax project you build with make " + buildTarget + ", never with make all. " +
 		"Reply with one short sentence."
 )
-
-func Test793a2c1f_GuessesPlansAndChatterProduceNoNote(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	machine := newMachine(t)
-
-	var chat *conversation
-
-	step(t, "Given the user has run engram update, and a session in which the agent may not run engram commands", func() {
-		machine.hasRunUpdate()
-
-		chat = machine.startSession("zorblax").converse()
-	})
-
-	step(t, "When the user sends a prompt that the agent answers with a guess, a plan and chatter, and the turn ends",
-		func() {
-			answered := chat.say(askForAGuessAndAPlan)
-			t.Logf("the agent replied %q", answered.reply)
-		})
-
-	step(t, "Then 2 minutes after the turn ends the vault holds no note", func() {
-		g.Expect(machine.awaitRecord(chat.session.id, chat.turnEnds)).To(Equal("nothing"), "what became of the turn")
-		g.Expect(machine.noteNames()).To(BeEmpty(), "the notes of the vault")
-	})
-}

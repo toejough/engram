@@ -190,6 +190,10 @@ func autoTargets(
 				a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
 				a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
 
+				if a.RecordsDir == "" {
+					a.RecordsDir = filepath.Join(DataDirFromHome(home, deps.Getenv), "auto")
+				}
+
 				errHandler(RunAutoWrite(withLog(ctx), a, newAutoWriteDeps(deps), deps.Stdout))
 			}).Name("write").Description(
 				"Write the lessons of the model's reply as notes (the automatic-memory mod runs this after each judgement)"),
