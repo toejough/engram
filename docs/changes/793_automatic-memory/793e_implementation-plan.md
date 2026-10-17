@@ -182,7 +182,7 @@ graph TD
     n793e6g7 --> n793e6g8
     n793e6g9["793e6g9 A judgement without a vault or a record fails<br/>Complete"]
     n793e6g8 --> n793e6g9
-    n793e6g10["793e6g10 A failure that is recorded is recorded once<br/>Ready"]
+    n793e6g10["793e6g10 A failure that is recorded is recorded once<br/>Complete"]
     n793e6g9 --> n793e6g10
     n793e6g10 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
@@ -632,12 +632,12 @@ Takes review findings 9 and 13. With no [vault](../../GLOSSARY.md#vault) at the 
 
 #### 793e6g10 A failure that is recorded is recorded once
 
-Takes review finding 10. A lesson that the learn path could not write was recorded as `failed` by the writing, and the writing then failed the command, so that the mod reported the failure of its step to the writing, which recorded it again: two records of one failure ([793b83 A failure that is recorded does not fail the command](./793b_decision-log.md#793b83-a-failure-that-is-recorded-does-not-fail-the-command)).
+Takes review finding 10. A lesson that the learn path could not write was recorded as `failed` by the writing, and the writing then failed the command, so that the mod reported the failure of its step to the writing, which recorded it again: two records of one failure ([793b83 A failure that is recorded does not fail the command](./793b_decision-log.md#793b83-a-failure-that-is-recorded-does-not-fail-the-command)). The refactor commit of the node carries review finding 23: the check of the directory of the records, which does not change with the record, is made once before the loop that writes them.
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793d4k1g | Dedicated example (default suite) | a learn path that fails, through `RunAutoWrite`: one record of the kind `failed` with the reason, and the command succeeds | Not started | | | |
-| 793d4k1h | Dedicated example (default suite) | the same failure with a place for the records that cannot be written: the command fails with the reason, so that the failure is not lost | Not started | | | |
+| 793d4k1g | Dedicated example (default suite) | a learn path that fails, through `RunAutoWrite`: one record of the kind `failed` with the reason, and the command succeeds | Done | 19c9a58f | 8d224a2d | ac7a5bf2 |
+| 793d4k1h | Dedicated example (default suite) | the same failure with a place for the records that cannot be written: the command fails with the reason, so that the failure is not lost. It passes when written, since every failure failed the command before; the mutation that makes it fail is a writing that succeeds whenever a lesson failed, run on a scratch copy of the branch | Done | n/a | 8d224a2d | ac7a5bf2 |
 
 ### 793e6e The conversation becomes searchable memory
 
