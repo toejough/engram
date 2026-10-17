@@ -263,6 +263,36 @@ func Test793a2c1g_ACredentialInTheTurnIsNotInTheNote(t *testing.T) {
 	})
 }
 
+func Test793a2c1h_AThanksThatNamesNoApproachProducesNoNote(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var chat *conversation
+
+	step(t, "Given the user has run engram update, and a session in which the agent may not run engram commands "+
+		"and has done a task one way", func() {
+		machine.hasRunUpdate("sort")
+
+		inSession := machine.startSession("zorblax")
+		inSession.hasFile("zorblax.txt", "pear\nfig\napple\n")
+		chat = inSession.converse()
+
+		chat.tell(askToSort)
+	})
+
+	step(t, "When the user thanks the agent in a prompt, saying only that it worked, and the turn ends", func() {
+		chat.tell(thankForTheSort)
+	})
+
+	step(t, "Then 2 minutes after the turn ends the vault holds no note", func() {
+		g.Expect(machine.awaitRecords(chat.session.id, chat.turnEnds, 2)).To(Equal([]string{"nothing", "nothing"}),
+			"what became of the two turns")
+		g.Expect(machine.noteNames()).To(BeEmpty(), "the notes of the vault")
+	})
+}
+
 func Test793a2d1b_AutomaticMemorysWorkStartsNoSessionOfItsOwn(t *testing.T) {
 	t.Parallel()
 
@@ -498,4 +528,6 @@ const (
 	// repository would take a literal for a credential.
 	deployPassword = "hunter" + "2hunter2"
 	deployToken    = "gh" + "p_" + "aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3"
+	// thankForTheSort thanks the agent for askToSort and names no approach.
+	thankForTheSort = "Thanks, that worked. Reply with one short sentence."
 )
