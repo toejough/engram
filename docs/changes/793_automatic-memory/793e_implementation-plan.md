@@ -385,12 +385,12 @@ Takes [793a2c1f Guesses, plans and chatter produce no note](./793a_product-spec.
 | Gherkin | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 793a2c1f | Dedicated example, product acceptance (`network`) | the prohibition as the user sees it: a [turn](./793a_product-spec.md#793a1a-terms) of a guess, a plan and chatter leaves no [note](../../GLOSSARY.md#permanent-note); the test waits for the record of the reply, so that an empty [vault](../../GLOSSARY.md#vault) is the judgement's result and not a judgement that did not finish | | Red | | | |
-| 793d4k1a | Dedicated example (default suite) | the record of a lesson that is written, through `RunAutoWrite` with a stand-in for the place of the records | | Green-all | 14a513a9 | | |
-| 793d4k1b | Dedicated example (default suite) | the record of a reply with no lesson | | Green-all | 14a513a9 | | |
-| 793d4k1c | Dedicated example (default suite) | the records of a lesson left out and of a reply that is not a list, with the reasons | | Green-all | 14a513a9 | | |
-| 793d4k1d | Dedicated example (default suite) | the record of a failure, with no note written | | Green-all | 14a513a9 | | |
-| 793d4k1e | Dedicated example (default suite) | a place for the records that cannot be written leaves the write of the note as it was | | Green-all | 14a513a9 | | |
-| 793d4h1c (amended) | Dedicated example (default suite) | the parsing returns the reasons it leaves a lesson out for, which the records hold; the earlier tests take the new return | | Green-all | 14a513a9 | | |
+| 793d4k1a | Dedicated example (default suite) | the record of a lesson that is written, through `RunAutoWrite` with a stand-in for the place of the records | | Done | 14a513a9 | 37b0e9a9 | |
+| 793d4k1b | Dedicated example (default suite) | the record of a reply with no lesson | | Done | 14a513a9 | 37b0e9a9 | |
+| 793d4k1c | Dedicated example (default suite) | the records of a lesson left out and of a reply that is not a list, with the reasons | | Done | 14a513a9 | 37b0e9a9 | |
+| 793d4k1d | Dedicated example (default suite) | the record of a failure, with no note written | | Done | 14a513a9 | 37b0e9a9 | |
+| 793d4k1e | Dedicated example (default suite) | a place for the records that cannot be written leaves the write of the note as it was | | Done | 14a513a9 | 37b0e9a9 | |
+| 793d4h1c (amended) | Dedicated example (default suite) | the parsing returns the reasons it leaves a lesson out for, which the records hold; the earlier tests take the new return | | Done | 14a513a9 | 37b0e9a9 | |
 | 793d2b1a (amended) | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the [turn](./793a_product-spec.md#793a1a-terms)'s ID reaches both commands | | Not started | | | |
 | 793d2b1b | Dedicated example, real dependency (`integration`, runs the mod under `node`) | a judgement that prints nothing ends the capture: no model call and no write | | Not started | | | |
 | 793d2b1c | Dedicated example, real dependency (`integration`, runs the mod under `node`) | a step that fails is reported to the writing, as a failure that names the judgement: a command that exits with 1, one that prints what is not a request, and one that is ended | | Not started | | | |
