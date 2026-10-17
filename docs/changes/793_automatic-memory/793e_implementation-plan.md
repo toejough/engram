@@ -174,7 +174,7 @@ graph TD
     n793e6g3 --> n793e6g4
     n793e6g5["793e6g5 Every name that holds a word of a secret is redacted<br/>Complete"]
     n793e6g4 --> n793e6g5
-    n793e6g6["793e6g6 A field of a lesson is one line and a cut reply keeps its lessons<br/>Ready"]
+    n793e6g6["793e6g6 A field of a lesson is one line and a cut reply keeps its lessons<br/>Complete"]
     n793e6g5 --> n793e6g6
     n793e6g6 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
@@ -589,9 +589,9 @@ Takes review findings 11 and 26. The fields of a lesson were written to the [not
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793d4h1g | Dedicated example (default suite) | a lesson whose fields hold line breaks and a line that opens with `Supersedes:`, written through `RunAutoWrite` and the real renderers of the learn path | Not started | | | |
-| 793d4h1h | Dedicated example (default suite) | a reply cut inside a second lesson and a reply cut after a whole one: the whole lesson is written and the cut is recorded | Not started | | | |
-| 793d4h1c (amended) | Dedicated example (default suite) | a list followed by text is not a list: it passes when written; the mutation that makes it fail is a reading of the list that stops at its end and takes the rest for nothing | Not started | | | |
+| 793d4h1g | Dedicated example (default suite) | a lesson whose fields hold line breaks and a line that opens with `Supersedes:`, written through `RunAutoWrite` and the real renderers of the learn path | Done | 8ca175c0 | 63ab40ac | f85f0b2e |
+| 793d4h1h | Dedicated example (default suite) | a reply cut inside a second lesson and a reply cut after a whole one: the whole lesson is written and the cut is recorded | Done | 8ca175c0 | 63ab40ac | f85f0b2e |
+| 793d4h1c (amended) | Dedicated example (default suite) | a list that holds a whole lesson and is followed by text is not a list: it passes when written; the mutation that makes it fail is a reading of the list that stops at its end and takes the text after it for nothing, run on a scratch copy of the branch, where the lesson is written and the case fails (the case of the red held no lesson before the text, so the mutation did not fail it, and the green strengthened it) | Done | 8ca175c0 | 63ab40ac | f85f0b2e |
 
 ### 793e6e The conversation becomes searchable memory
 
