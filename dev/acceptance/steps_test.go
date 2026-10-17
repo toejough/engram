@@ -23,8 +23,11 @@ const (
 	askStagingResetDay = "What day of the week is the Zorblax staging database reset on?"
 	// claudeSettings lets the agent run engram, which the scenarios where it looks a note up itself need.
 	claudeSettings = `{"permissions":{"allow":["Bash(engram:*)"]}}`
-	learnSource    = "acceptance test"
-	modName        = "engram-memory"
+	// earlierConversation is a conversation that answers askStagingReset.
+	earlierConversation = "In an earlier session the user said that the Zorblax staging database is reset every " +
+		"Sunday at 03:40 UTC, and asked when the staging database is reset."
+	learnSource = "acceptance test"
+	modName     = "engram-memory"
 )
 
 // unexported variables.
@@ -69,6 +72,18 @@ func (m *machine) hasClaudeCode() {
 
 	mkdirAll(m.t, m.claudeDir)
 	writeFile(m.t, filepath.Join(m.claudeDir, "settings.json"), claudeSettings)
+}
+
+// hasConversation makes a conversation searchable: the text is indexed into the machine's chunk index, as `engram
+// ingest` does for a session, and the machine's own lookup finds it.
+func (m *machine) hasConversation(text string) {
+	m.t.Helper()
+
+	source := filepath.Join(m.root, "conversations", "an-earlier-session.md")
+	mkdirAll(m.t, filepath.Dir(source))
+	writeFile(m.t, source, text)
+
+	m.mustSucceed(m.engram("ingest", "--markdown", source), "ingest")
 }
 
 // hasMod installs the mod of this branch as `engram update` does: its files in the engram-owned root, and a link to

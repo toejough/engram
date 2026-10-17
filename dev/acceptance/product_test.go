@@ -162,3 +162,34 @@ func Test793a2b1c_ANoteTheAgentLookedUpItselfIsNotDelivered(t *testing.T) {
 		g.Expect(second.blocks()).To(BeEmpty(), "blocks automatic memory delivered with the prompt")
 	})
 }
+
+func Test793a2b1d_APromptThatMatchesNoNoteArrivesWithNothing(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	step(t, "Given the user has run engram update, a vault whose notes have nothing to do with the prompt, "+
+		"and a searchable conversation that does", func() {
+		machine.hasEngram()
+		machine.hasClaudeCode()
+		machine.learnsFeedback(formatPython)
+		machine.hasConversation(earlierConversation)
+		machine.mustSucceed(machine.update(), "engram update")
+
+		lookup := machine.engram("query", "--text", askStagingReset, "--phrase", askStagingReset)
+		g.Expect(lookup.stdout).To(ContainSubstring("kind: chunk"), "the agent's own lookup finds the conversation")
+	})
+
+	var sent *turn
+
+	step(t, "When the user sends the prompt", func() {
+		sent = machine.startSession("a-project").send(askStagingReset)
+		t.Logf("the agent replied %q (cost $%.4f)", sent.reply, sent.cost)
+	})
+
+	step(t, "Then the prompt arrives with nothing from the vault, and the agent answers it", func() {
+		g.Expect(sent.blocks()).To(BeEmpty(), "blocks automatic memory delivered with the prompt")
+		g.Expect(sent.reply).NotTo(BeEmpty(), "the agent answered")
+	})
+}
