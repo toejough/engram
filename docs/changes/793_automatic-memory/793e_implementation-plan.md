@@ -188,7 +188,7 @@ graph TD
     n793e6g10 --> n793e6g11
     n793e6g12["793e6g12 Each stage of the capture has a bound of its own<br/>Complete"]
     n793e6g11 --> n793e6g12
-    n793e6g13["793e6g13 The acceptance run can repeat a scenario<br/>Ready"]
+    n793e6g13["793e6g13 The acceptance run can repeat a scenario<br/>Complete"]
     n793e6g12 --> n793e6g13
     n793e6g13 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
@@ -669,7 +669,7 @@ Takes the part of review finding 7 about the tooling: the judgement of a [turn](
 
 | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| `TestAcceptanceTestArgs_TagsPackageAndFilter` (amended) | Dedicated example (dev suite, `targ` tag) | the arguments of the run: the count is one by default, and the count given is passed on, with a time limit of 30 minutes for each run of the whole set | Not started | | | |
+| `TestAcceptanceTestArgs_TagsPackageAndFilter` (amended) | Dedicated example (dev suite, `targ` tag) | the arguments of the run: the count is one by default, and the count given is passed on, with a time limit of 30 minutes for each run of the whole set | Done | def7a027 | 2f679d66 | 50f6a615 |
 
 ### 793e6e The conversation becomes searchable memory
 
