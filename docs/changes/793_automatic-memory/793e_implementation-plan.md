@@ -172,7 +172,7 @@ graph TD
     n793e6g2 --> n793e6g3
     n793e6g4["793e6g4 The instructions are the system of the request<br/>Complete"]
     n793e6g3 --> n793e6g4
-    n793e6g5["793e6g5 Every name that holds a word of a secret is redacted<br/>Ready"]
+    n793e6g5["793e6g5 Every name that holds a word of a secret is redacted<br/>Complete"]
     n793e6g4 --> n793e6g5
     n793e6g5 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
@@ -576,10 +576,10 @@ Takes review findings 3, 4 and 25. The pattern for a name that holds `key` neede
 
 | Gherkin | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793d4j1e | Property-based (`rapid`) with named examples (default suite) | the names the old pattern missed, `key`, `accessKey`, `signingKey`, `x-api-key`, built from every word of the requirement with a word before it, after it, or none, in snake, kebab, camel and upper case | for any name built so and any value given by `=`, `: ` or ` is `: the value is not in the redacted text, and the name is | Not started | | | |
-| 793d4j1f | Property-based (`rapid`) with named examples (default suite) | the sentence form: up to six words between the name and `is` or `:`, and the sentence of seven words left as it was | for any name of the requirement and up to six words of the same sentence before `is` or `:`: the value is gone and the name and the words are kept; with seven words the text is as it was | Not started | | | |
-| 793d4j1g | Dedicated example (default suite) | `Bearer` and 11 characters is as it was, `Bearer` and 12 is redacted | | Not started | | | |
-| 793d4j1a (amended) | Property-based (`rapid`) with named examples (default suite) | the shapes of a `Bearer` credential are of 12 characters or more | the properties of 793d4j1a, with a `Bearer` credential of 12 to 30 characters | Not started | | | |
+| 793d4j1e | Property-based (`rapid`) with named examples (default suite) | the names the old pattern missed, `key`, `accessKey`, `signingKey`, `x-api-key`, built from every word of the requirement with a word before it, after it, or none, in snake, kebab, camel and upper case | for any name built so and any value given by `=`, `: ` or ` is `: the value is not in the redacted text, and the name is | Done | 0fe2ba24 | cbd114bb | 5519b94e |
+| 793d4j1f | Property-based (`rapid`) with named examples (default suite) | the sentence form: up to six words between the name and `is` or `:`, and the sentence of seven words left as it was | for any name of the requirement and up to six words of the same sentence before `is` or `:`: the value is gone and the name and the words are kept; with seven words the text is as it was | Done | 0fe2ba24 | cbd114bb | 5519b94e |
+| 793d4j1g | Dedicated example (default suite) | `Bearer` and 11 characters is as it was, `Bearer` and 12 is redacted | | Done | 0fe2ba24 | cbd114bb | 5519b94e |
+| 793d4j1a (amended) | Property-based (`rapid`) with named examples (default suite) | the shapes of a `Bearer` credential are of 12 characters or more | the properties of 793d4j1a, with a `Bearer` credential of 12 to 30 characters | Done | 0fe2ba24 | cbd114bb | 5519b94e |
 
 ### 793e6e The conversation becomes searchable memory
 
