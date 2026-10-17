@@ -30,6 +30,7 @@ const (
 		"Sunday at 03:40 UTC, and asked when the staging database is reset."
 	learnSource = "acceptance test"
 	modName     = "engram-memory"
+	piDirectory = ".pi"
 )
 
 // unexported variables.
@@ -121,6 +122,13 @@ func (m *machine) hasMod() {
 	}
 }
 
+// hasPi installs Pi's directory on the machine.
+func (m *machine) hasPi() {
+	m.t.Helper()
+
+	mkdirAll(m.t, filepath.Join(m.home, piDirectory))
+}
+
 // hasStandInEngram puts a stand-in for engram first on the machine's PATH: it records its arguments and standard
 // input, waits as long as it is told to, and prints the block it is given, whatever it is asked.
 func (m *machine) hasStandInEngram(block string, wait time.Duration) {
@@ -186,6 +194,26 @@ func (m *machine) hookLog() string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+// installed lists the paths below a directory that contain a name, relative to the directory.
+func (m *machine) installed(dir, name string) []string {
+	m.t.Helper()
+
+	var found []string
+
+	walkErr := filepath.WalkDir(dir, func(path string, _ os.DirEntry, err error) error {
+		if err == nil && strings.Contains(path, name) {
+			found = append(found, strings.TrimPrefix(path, dir+string(filepath.Separator)))
+		}
+
+		return nil
+	})
+	if walkErr != nil {
+		m.t.Fatalf("listing %s: %v", dir, walkErr)
+	}
+
+	return found
 }
 
 // learnsFact writes a fact into the vault and returns the file name of the note.
@@ -289,6 +317,26 @@ func (m *machine) vaultIsRemoved() {
 	if err != nil {
 		m.t.Fatalf("removing the vault: %v", err)
 	}
+}
+
+// reportSection returns the lines that an update report lists under a harness ("Claude Code" or "Pi").
+func reportSection(report, harness string) []string {
+	var section []string
+
+	listing := false
+
+	for line := range strings.SplitSeq(report, "\n") {
+		switch {
+		case strings.HasPrefix(line, "  ") && strings.HasSuffix(line, "):") && !strings.HasPrefix(line, "   "):
+			listing = strings.HasPrefix(strings.TrimSpace(line), harness+" (")
+		case listing && strings.HasPrefix(line, "    "):
+			section = append(section, strings.TrimSpace(line))
+		default:
+			listing = false
+		}
+	}
+
+	return section
 }
 
 // step logs one line of the scenario a test mirrors, and runs it: the test's output reads as the Gherkin (793b9).

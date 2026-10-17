@@ -3,6 +3,7 @@
 package acceptance_test
 
 import (
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -44,6 +45,36 @@ func Test793a2a1a_NextSessionHasMemoryAfterOneEngramUpdate(t *testing.T) {
 		g.Expect(blocks[0]).To(ContainSubstring(stagingReset.object))
 		g.Expect(sent.blockAt()).To(BeNumerically(">=", 0))
 		g.Expect(sent.blockAt()).To(BeNumerically("<", sent.agentActsAt()), "the block comes before the agent acts")
+	})
+}
+
+func Test793a2a1d_PiGetsNoAutomaticMemory(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	step(t, "Given a machine with both Claude Code and Pi", func() {
+		machine.hasEngram()
+		machine.hasClaudeCode()
+		machine.hasPi()
+	})
+
+	var report result
+
+	step(t, "When the user runs engram update", func() {
+		report = machine.update()
+		machine.mustSucceed(report, "engram update")
+	})
+
+	step(t, "Then the report lists the automatic memory under Claude Code and not under Pi, "+
+		"and nothing of it is installed under ~/.pi", func() {
+		g.Expect(reportSection(report.stdout, "Claude Code")).To(ContainElement(ContainSubstring(modName)))
+		g.Expect(reportSection(report.stdout, "Pi")).NotTo(BeEmpty(), "Pi has a section of its own")
+		g.Expect(reportSection(report.stdout, "Pi")).NotTo(ContainElement(ContainSubstring(modName)))
+
+		g.Expect(machine.installed(machine.claudeDir, modName)).NotTo(BeEmpty(), "Claude Code has the mod")
+		g.Expect(machine.installed(filepath.Join(machine.home, piDirectory), modName)).To(BeEmpty())
 	})
 }
 
