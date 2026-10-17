@@ -114,12 +114,15 @@ type Commander interface {
 // SkillDir is the top-level skill subdir name (e.g. "learn") when the file
 // belongs to a skill, empty otherwise. GuidanceFile is the basename when
 // the file is a guidance .md, empty otherwise. Exactly one of these is set.
+// Mod is set when the skill directory is a mod of the source (793d4b), which is deployed as a skill directory is but
+// reported as a mod.
 type CopyOp struct {
 	Harness      Harness
 	Src          string
 	Dst          string
 	SkillDir     string
 	GuidanceFile string
+	Mod          bool
 }
 
 // DirEntry is the subset of fs.DirEntry used by Updater.
@@ -455,6 +458,7 @@ type Report struct {
 type SkillDirCount struct {
 	Name  string // top-level skill dir name, e.g. "learn"
 	Files int    // number of files copied into <skills-root>/<Name>/
+	Mod   bool   // the directory is a mod of the source, not a skill (793d4b)
 }
 
 // SourceInfo describes where the binary was installed from and where the
@@ -958,26 +962,15 @@ func (u *Updater) applyOps(
 // link path is adopted (792b29c8 Adopting earlier copies), never merely reported — see
 // materializeOrAdopt.
 func (u *Updater) applySkillLinks(rep *HarnessReport, spec HarnessSpec, skillOps []CopyOp, dryRun bool) {
-	skillCounts := map[string]int{}
-	skillOrder := make([]string, 0)
-
 	for _, copyOp := range skillOps {
-		if copyOp.Harness != spec.Name {
-			continue
+		if copyOp.Harness == spec.Name {
+			rep.SkillDirs = countSkillFile(rep.SkillDirs, copyOp)
 		}
-
-		if _, seen := skillCounts[copyOp.SkillDir]; !seen {
-			skillOrder = append(skillOrder, copyOp.SkillDir)
-		}
-
-		skillCounts[copyOp.SkillDir]++
 	}
 
-	rep.SkillDirs = collectSkillDirs(skillOrder, skillCounts)
-
-	for _, name := range skillOrder {
-		link := filepath.Join(rep.SkillsRoot, name)
-		target := filepath.Join(rep.EngramRoot, engramRootSkillsSubdir, name)
+	for _, dir := range rep.SkillDirs {
+		link := filepath.Join(rep.SkillsRoot, dir.Name)
+		target := filepath.Join(rep.EngramRoot, engramRootSkillsSubdir, dir.Name)
 
 		adopted, linkErr := materializeOrAdopt(u.FS, link, target, dryRun)
 		if linkErr != nil {
@@ -993,11 +986,7 @@ func (u *Updater) applySkillLinks(rep *HarnessReport, spec HarnessSpec, skillOps
 }
 
 func (u *Updater) applySkillOps(rep *HarnessReport, name Harness, skillOps []CopyOp, dryRun bool) {
-	skillCounts := map[string]int{}
-	skillOrder := make([]string, 0)
 	cleared := map[string]bool{}
-
-	defer func() { rep.SkillDirs = collectSkillDirs(skillOrder, skillCounts) }()
 
 	for _, copyOp := range skillOps {
 		if copyOp.Harness != name {
@@ -1016,11 +1005,7 @@ func (u *Updater) applySkillOps(rep *HarnessReport, name Harness, skillOps []Cop
 			return
 		}
 
-		if _, seen := skillCounts[copyOp.SkillDir]; !seen {
-			skillOrder = append(skillOrder, copyOp.SkillDir)
-		}
-
-		skillCounts[copyOp.SkillDir]++
+		rep.SkillDirs = countSkillFile(rep.SkillDirs, copyOp)
 	}
 }
 
@@ -1890,14 +1875,17 @@ func collectPrunableDirs(
 	return hasContent, nil
 }
 
-func collectSkillDirs(order []string, counts map[string]int) []SkillDirCount {
-	out := make([]SkillDirCount, 0, len(order))
+// countSkillFile counts one more file in the skill directory of a copy op, in the order the directories first appear.
+func countSkillFile(dirs []SkillDirCount, copyOp CopyOp) []SkillDirCount {
+	for index := range dirs {
+		if dirs[index].Name == copyOp.SkillDir {
+			dirs[index].Files++
 
-	for _, name := range order {
-		out = append(out, SkillDirCount{Name: name, Files: counts[name]})
+			return dirs
+		}
 	}
 
-	return out
+	return append(dirs, SkillDirCount{Name: copyOp.SkillDir, Files: 1, Mod: copyOp.Mod})
 }
 
 // collectWrittenPaths extracts all Dst (destination) paths from CopyOps
@@ -2449,7 +2437,12 @@ func planModCopies(
 	// a mod is a Claude Code concept: no other harness is planned one (793d4b)
 	claude := slices.DeleteFunc(slices.Clone(harnesses), func(spec HarnessSpec) bool { return spec.Name != HarnessClaude })
 
-	return planSkillCopies(srcMods, home, claude, fileSystem)
+	ops, err := planSkillCopies(srcMods, home, claude, fileSystem)
+	for index := range ops {
+		ops[index].Mod = true
+	}
+
+	return ops, err
 }
 
 // planSkillCopies enumerates every file under srcSkills and produces one
