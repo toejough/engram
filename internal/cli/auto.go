@@ -37,6 +37,7 @@ type AutoDeliverDeps struct {
 
 // AutoJudgeArgs holds parsed flags for `engram auto judge`.
 type AutoJudgeArgs struct {
+	VaultPath   string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
 	SessionsDir string `targ:"flag,name=sessions,desc=directory of recorded sessions (default ENGRAM_TRANSCRIPT_DIR then CLAUDE_CONFIG_DIR/projects then ~/.claude/projects)"` //nolint:lll // single unbreakable struct-tag string
 }
 
@@ -44,6 +45,8 @@ type AutoJudgeArgs struct {
 type AutoJudgeDeps struct {
 	// Stdin carries the turn that ended: one JSON object with the session's ID and the turn's final text.
 	Stdin io.Reader
+	// Query runs the lookup of the notes nearest to the turn, the one `engram query` runs.
+	Query QueryRun
 	// ReadDir and ReadFile read the session-log directory, where Claude Code keeps the record of each session.
 	ReadDir  func(path string) ([]fs.DirEntry, error)
 	ReadFile func(path string) ([]byte, error)
@@ -66,6 +69,8 @@ type AutoWriteDeps struct {
 	Now func() time.Time
 	// WriteRecord writes one record, a file of its own, and makes its directory.
 	WriteRecord func(path string, data []byte) error
+	// NoteExists reports whether a file is in the vault.
+	NoteExists func(path string) bool
 }
 
 // LearnRun writes a note through the learn path, as `engram learn` does, and returns the path it prints for the note.
@@ -104,7 +109,7 @@ func RunAutoDeliver(ctx context.Context, args AutoDeliverArgs, deps AutoDeliverD
 
 // RunAutoJudge reads a turn that ended from standard input and prints the request for the model that judges it, or
 // nothing when the session's record holds no prompt (793d4g).
-func RunAutoJudge(_ context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, stdout io.Writer) error {
+func RunAutoJudge(ctx context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, stdout io.Writer) error {
 	var turn auto.TurnEnd
 
 	decodeErr := json.NewDecoder(deps.Stdin).Decode(&turn)
@@ -112,7 +117,20 @@ func RunAutoJudge(_ context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, std
 		return fmt.Errorf("auto judge: reading the turn: %w", decodeErr)
 	}
 
-	request, found := auto.Judge(recordOf(deps.ReadDir, deps.ReadFile, args.SessionsDir, turn.Session), turn.Answer)
+	record := recordOf(deps.ReadDir, deps.ReadFile, args.SessionsDir, turn.Session)
+
+	var notes []auto.Note
+
+	if text := auto.TurnText(record); text != "" {
+		var lookupErr error
+
+		notes, lookupErr = lookUpNotes(ctx, args.VaultPath, text, deps.Query)
+		if lookupErr != nil {
+			return fmt.Errorf("auto judge: %w", lookupErr)
+		}
+	}
+
+	request, found := auto.Judge(record, turn.Answer, notes)
 	if !found {
 		return nil
 	}
@@ -169,6 +187,22 @@ func (o *outcomes) add(kind, note, slug, reason string) {
 	record.Kind, record.Note, record.Slug, record.Reason = kind, note, slug, reason
 
 	o.records = append(o.records, record)
+}
+
+// coveringNote returns the file name of the note of the vault that a lesson names as covering it, or nothing: only the
+// name of a file that is in the vault covers, with the suffix .md or without it (793d4h).
+func coveringNote(covered, vault string, exists func(path string) bool) string {
+	name := strings.TrimSuffix(covered, ".md")
+	if !isPlainName(name) {
+		return ""
+	}
+
+	name += ".md"
+	if exists(filepath.Join(vault, name)) {
+		return name
+	}
+
+	return ""
 }
 
 // findRecord reads the record of a session, which Claude Code keeps as <ID>.jsonl in a directory of the session-log
@@ -261,7 +295,16 @@ func newAutoDeliverDeps(d Deps) AutoDeliverDeps {
 
 // newAutoJudgeDeps wires RunAutoJudge from the injected CLI capabilities — pure composition (#700).
 func newAutoJudgeDeps(d Deps) AutoJudgeDeps {
-	return AutoJudgeDeps{Stdin: d.Stdin, ReadDir: d.FS.ReadDir, ReadFile: d.FS.ReadFile}
+	queryDeps := newQueryDeps(d)
+
+	return AutoJudgeDeps{
+		Stdin: d.Stdin,
+		Query: func(ctx context.Context, args QueryArgs, stdout io.Writer) error {
+			return RunQuery(ctx, args, queryDeps, stdout)
+		},
+		ReadDir:  d.FS.ReadDir,
+		ReadFile: d.FS.ReadFile,
+	}
 }
 
 // newAutoWriteDeps wires RunAutoWrite from the injected CLI capabilities — pure composition (#700).
@@ -278,6 +321,11 @@ func newAutoWriteDeps(d Deps) AutoWriteDeps {
 			return strings.TrimSpace(printed.String()), err
 		},
 		Now: d.Now,
+		NoteExists: func(path string) bool {
+			_, err := d.FS.Stat(path)
+
+			return err == nil
+		},
 		WriteRecord: func(path string, data []byte) error {
 			mkdirErr := d.FS.MkdirAll(filepath.Dir(path), recordDirPerm)
 			if mkdirErr != nil {
@@ -373,6 +421,12 @@ func writeLessons(
 	var failures []error
 
 	for _, lesson := range lessons {
+		if covering := coveringNote(lesson.Covered, args.VaultPath, deps.NoteExists); covering != "" {
+			results.add(auto.RecordSkipped, "", lesson.Slug, "the vault already states it: "+covering)
+
+			continue
+		}
+
 		path, learnErr := deps.Learn(ctx, learnArgsOfLesson(lesson, args, reply.Session))
 		if learnErr != nil {
 			failures = append(failures, fmt.Errorf("writing %s: %w", lesson.Slug, learnErr))

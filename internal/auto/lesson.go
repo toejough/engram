@@ -23,6 +23,7 @@ type Lesson struct {
 	Kind      string `json:"kind"`
 	Slug      string `json:"slug"`
 	Situation string `json:"situation"`
+	Covered   string `json:"covered"`
 	Behavior  string `json:"behavior"`
 	Impact    string `json:"impact"`
 	Action    string `json:"action"`
@@ -63,9 +64,9 @@ func (l Lesson) defect() string {
 // the slug something that is not one.
 func (l Lesson) redacted() Lesson {
 	return Lesson{
-		Kind: l.Kind, Slug: Redact(l.Slug), Situation: Redact(l.Situation), Behavior: Redact(l.Behavior),
-		Impact: Redact(l.Impact), Action: Redact(l.Action), Subject: Redact(l.Subject), Predicate: Redact(l.Predicate),
-		Object: Redact(l.Object),
+		Kind: l.Kind, Slug: Redact(l.Slug), Situation: Redact(l.Situation), Covered: Redact(l.Covered),
+		Behavior: Redact(l.Behavior), Impact: Redact(l.Impact), Action: Redact(l.Action), Subject: Redact(l.Subject),
+		Predicate: Redact(l.Predicate), Object: Redact(l.Object),
 	}
 }
 

@@ -28,8 +28,9 @@ type TurnEnd struct {
 
 // Judge returns the request for the model that judges the turn a session's record ends with, and false when the record
 // holds no prompt (793d4g). The turn is the last prompt of the record and everything after it, the lines before it are
-// the context, and the final text is the turn's last line when no line of the turn holds its beginning.
-func Judge(record []byte, answer string) (Judgement, bool) {
+// the context, and the final text is the turn's last line when no line of the turn holds its beginning. The notes are
+// the ones nearest to the turn, which the model may name as already stating a lesson.
+func Judge(record []byte, answer string, notes []Note) (Judgement, bool) {
 	lines, prompt := linesOf(record)
 	if prompt < 0 {
 		return Judgement{}, false
@@ -37,11 +38,30 @@ func Judge(record []byte, answer string) (Judgement, bool) {
 
 	context, turn := fit(lines[max(prompt-contextLines, 0):prompt], withAnswer(lines[prompt:], answer))
 	window := slices.Concat(context, []string{divider}, turn)
-	text := strings.NewReplacer("{window}", strings.Join(window, "\n"), "{notes}", noNotes).Replace(instructions)
+	text := strings.NewReplacer("{window}", strings.Join(window, "\n"), "{notes}", noteLines(notes)).Replace(instructions)
 
 	return Judgement{
 		Model: judgeModel, Effort: judgeEffort, Prompt: text, MaxTokens: judgeMaxTokens, TimeoutMs: judgeTimeoutMs,
 	}, true
+}
+
+// TurnText is the text of the prompts of the turn a session's record ends with, which the notes nearest to the turn are
+// looked up for (793d4g), or nothing when the record holds no prompt.
+func TurnText(record []byte) string {
+	lines, prompt := linesOf(record)
+	if prompt < 0 {
+		return ""
+	}
+
+	var texts []string
+
+	for _, line := range lines[prompt:] {
+		if text, isPrompt := strings.CutPrefix(line, "User: "); isPrompt {
+			texts = append(texts, text)
+		}
+	}
+
+	return clipped(strings.Join(texts, " "), lookupLimit)
 }
 
 // unexported constants.
@@ -62,7 +82,11 @@ const (
 	lineBreak = " ⏎ "
 	// lineLimit is how many characters of a message a line holds at most.
 	lineLimit = 1200
-	noNotes   = "(none)"
+	// lookupLimit is how many characters of the text of the turn the notes nearest to it are looked up for.
+	lookupLimit = 500
+	noNotes     = "(none)"
+	// noteLimit is how many characters of the body of a note a line holds at most.
+	noteLimit = 400
 	// windowLimit is how many characters the window holds at most.
 	windowLimit = 8000
 )
@@ -90,6 +114,15 @@ func agentLinesOf(content json.RawMessage) []string {
 	}
 
 	return lines
+}
+
+// clipped is the first limit characters of the text.
+func clipped(text string, limit int) string {
+	if runes := []rune(text); len(runes) > limit {
+		return string(runes[:limit])
+	}
+
+	return text
 }
 
 // fit cuts the window to windowLimit characters: the oldest lines of the context go first, and then the middle of the
@@ -151,13 +184,25 @@ func linesOf(record []byte) ([]string, int) {
 // messageText is the text of a message as a line holds it: redacted before anything is cut, written as one line, and
 // cut to the limit of a line (793d4j, 793d4g).
 func messageText(text string) string {
-	line := oneLined(Redact(text))
+	return clipped(oneLined(Redact(text)), lineLimit)
+}
 
-	if runes := []rune(line); len(runes) > lineLimit {
-		return string(runes[:lineLimit])
+// noteLines writes the notes nearest to the turn, one line each, in the form of a line of a block: redacted and written
+// as one line as the delivery writes it, and with the body cut to the limit of a note (793d4g, 793d4j). It writes none
+// when there are no notes.
+func noteLines(notes []Note) string {
+	if len(notes) == 0 {
+		return noNotes
 	}
 
-	return line
+	lines := make([]string, 0, len(notes))
+
+	for _, note := range notes {
+		lines = append(lines, "- "+oneLine(Redact(note.Path))+" ("+oneLine(Redact(note.Situation))+"): "+
+			clipped(oneLine(Redact(note.Body)), noteLimit))
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 // oneLined writes text as one line: a break of the text's own is written ` ⏎ `, any other white space is a space, a

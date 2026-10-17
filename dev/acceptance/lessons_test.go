@@ -216,6 +216,36 @@ func Test793a2c1g_ACredentialInTheTurnIsNotInTheNote(t *testing.T) {
 	})
 }
 
+func Test793a3c1a_ALessonAnEarlierNoteStatesIsNotWrittenAgain(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var (
+		earlier string
+		chat    *conversation
+	)
+
+	step(t, "Given the user has run engram update, a vault holding a note that the user saved earlier and that states "+
+		"a lesson, and a session in which the agent may not run engram commands", func() {
+		machine.hasRunUpdate()
+
+		earlier = machine.learnsFact(stagingReset)
+		chat = machine.startSession("zorblax").converse()
+	})
+
+	step(t, "When the user states the same lesson to the agent in a prompt, and the turn ends", func() {
+		stated := chat.say(askToRemember)
+		t.Logf("the agent replied %q", stated.reply)
+	})
+
+	step(t, "Then 2 minutes after the turn ends the vault holds the earlier note only", func() {
+		g.Expect(machine.awaitRecord(chat.session.id, chat.turnEnds)).To(Equal("skipped"), "what became of the turn")
+		g.Expect(machine.noteNames()).To(Equal([]string{earlier}), "the notes of the vault")
+	})
+}
+
 // unexported constants.
 const (
 	// askForAGuessAndAPlan makes the agent answer with a guess, a plan and chatter, none of which is a lesson.
@@ -256,33 +286,3 @@ const (
 	deployPassword = "hunter" + "2hunter2"
 	deployToken    = "gh" + "p_" + "aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3"
 )
-
-func Test793a3c1a_ALessonAnEarlierNoteStatesIsNotWrittenAgain(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	machine := newMachine(t)
-
-	var (
-		earlier string
-		chat    *conversation
-	)
-
-	step(t, "Given the user has run engram update, a vault holding a note that the user saved earlier and that states "+
-		"a lesson, and a session in which the agent may not run engram commands", func() {
-		machine.hasRunUpdate()
-
-		earlier = machine.learnsFact(stagingReset)
-		chat = machine.startSession("zorblax").converse()
-	})
-
-	step(t, "When the user states the same lesson to the agent in a prompt, and the turn ends", func() {
-		stated := chat.say(askToRemember)
-		t.Logf("the agent replied %q", stated.reply)
-	})
-
-	step(t, "Then 2 minutes after the turn ends the vault holds the earlier note only", func() {
-		g.Expect(machine.awaitRecord(chat.session.id, chat.turnEnds)).To(Equal("skipped"), "what became of the turn")
-		g.Expect(machine.noteNames()).To(Equal([]string{earlier}), "the notes of the vault")
-	})
-}

@@ -416,12 +416,12 @@ Takes [793a3c1a A lesson an earlier note states is not written again](./793a_pro
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a3c1a | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the user saves a lesson, states it again in a [session](../../GLOSSARY.md#session), and the [vault](../../GLOSSARY.md#vault) holds the earlier [note](../../GLOSSARY.md#permanent-note) only; the test waits for the record of the reply, so that the absence of a second note is the result of the judgement | Red | | | |
-| 793d4g1h | Dedicated example (default suite) | the nearest notes in the request, through `RunAutoJudge` over an in-memory [vault](../../GLOSSARY.md#vault) | Red | | | |
-| 793d4g1i | Dedicated example (default suite) | the failure branch of the lookup, as the delivery has it | Red | | | |
-| 793d4g1j | Dedicated example (default suite) | what a note may not do to the window: a line break, a credential, a body of any length | Red | | | |
-| 793d4h1e | Dedicated example (default suite) | the cover: no write and a record that names the note | Red | | | |
-| 793d4h1f | Dedicated example (default suite) | what is no cover: a file that is not in the [vault](../../GLOSSARY.md#vault), and a path outside it | Red | | | |
+| 793a3c1a | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the user saves a lesson, states it again in a [session](../../GLOSSARY.md#session), and the [vault](../../GLOSSARY.md#vault) holds the earlier [note](../../GLOSSARY.md#permanent-note) only; the test waits for the record of the reply, so that the absence of a second note is the result of the judgement | Green-all | 94373096 | | |
+| 793d4g1h | Dedicated example (default suite) | the nearest notes in the request, through `RunAutoJudge` over an in-memory [vault](../../GLOSSARY.md#vault) | Green-all | 54179dc0 | | |
+| 793d4g1i | Dedicated example (default suite) | the failure branch of the lookup, as the delivery has it | Green-all | 54179dc0 | | |
+| 793d4g1j | Dedicated example (default suite) | what a note may not do to the window: a line break, a credential, a body of any length | Green-all | 54179dc0 | | |
+| 793d4h1e | Dedicated example (default suite) | the cover: no write and a record that names the note | Green-all | 54179dc0 | | |
+| 793d4h1f | Dedicated example (default suite) | what is no cover: a file that is not in the [vault](../../GLOSSARY.md#vault), and a path outside it | Green-all | 54179dc0 | | |
 
 ### 793e6e The conversation becomes searchable memory
 

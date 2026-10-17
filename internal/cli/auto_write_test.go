@@ -113,6 +113,68 @@ func Test793d4h1c_RunAutoWrite_AReplyThatWritesNothingCallsNoLearn(t *testing.T)
 	}
 }
 
+func Test793d4h1e_RunAutoWrite_ALessonThatANoteOfTheVaultCoversIsNotWritten(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	written := map[string]string{}
+	records := &recordedFiles{}
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", RecordsDir: "/data/auto"},
+		cli.AutoWriteDeps{
+			Stdin:       replyInput(coveredLessonReply(zorblaxNote)),
+			Learn:       learnInto(written),
+			Now:         func() time.Time { return recordedAt },
+			WriteRecord: records.write,
+			NoteExists:  func(path string) bool { return path == "/vault/"+zorblaxNote },
+		}, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(written).To(BeEmpty())
+	g.Expect(records.kinds()).To(Equal([]string{"skipped"}))
+
+	for _, record := range records.all() {
+		g.Expect(record["reason"]).To(ContainSubstring(zorblaxNote))
+	}
+}
+
+func Test793d4h1f_RunAutoWrite_ACoverThatIsNotInTheVaultCoversNothing(t *testing.T) {
+	t.Parallel()
+
+	for name, cover := range map[string]struct {
+		covered string
+		exists  bool
+	}{
+		"a file that is not in the vault": {covered: "no-such-note.md"},
+		"a path outside the vault":        {covered: "../outside.md", exists: true},
+		"a path inside the vault":         {covered: "folder/note.md", exists: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			written := map[string]string{}
+
+			var out bytes.Buffer
+
+			err := cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", RecordsDir: "/data/auto"},
+				cli.AutoWriteDeps{
+					Stdin:       replyInput(coveredLessonReply(cover.covered)),
+					Learn:       learnInto(written),
+					Now:         func() time.Time { return recordedAt },
+					WriteRecord: (&recordedFiles{}).write,
+					// a path that exists, as far as the writing is told: only a plain file name of the vault may cover
+					NoteExists: func(path string) bool { return cover.exists && path == "/vault/"+cover.covered },
+				}, &out)
+
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(written).To(HaveLen(1))
+		})
+	}
+}
+
 func Test793d4j1d_RunAutoWrite_ANoteHoldsNoCredentialOfTheLesson(t *testing.T) {
 	t.Parallel()
 
@@ -157,65 +219,6 @@ func Test793d4j1d_RunAutoWrite_ANoteHoldsNoCredentialOfTheLesson(t *testing.T) {
 			}
 		}
 	})
-}
-
-func Test793d4h1e_RunAutoWrite_ALessonThatANoteOfTheVaultCoversIsNotWritten(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	written := map[string]string{}
-	records := &recordedFiles{}
-
-	var out bytes.Buffer
-
-	err := cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", RecordsDir: "/data/auto"},
-		cli.AutoWriteDeps{
-			Stdin:       replyInput(coveredLessonReply(zorblaxNote)),
-			Learn:       learnInto(written),
-			Now:         func() time.Time { return recordedAt },
-			WriteRecord: records.write,
-			NoteExists:  func(path string) bool { return path == "/vault/"+zorblaxNote },
-		}, &out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	g.Expect(written).To(BeEmpty())
-	g.Expect(records.kinds()).To(Equal([]string{"skipped"}))
-
-	for _, record := range records.all() {
-		g.Expect(record["reason"]).To(ContainSubstring(zorblaxNote))
-	}
-}
-
-func Test793d4h1f_RunAutoWrite_ACoverThatIsNotInTheVaultCoversNothing(t *testing.T) {
-	t.Parallel()
-
-	for name, covered := range map[string]string{
-		"a file that is not in the vault": "no-such-note.md",
-		"a path outside the vault":        "../outside.md",
-		"a path inside the vault":         "folder/note.md",
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			written := map[string]string{}
-
-			var out bytes.Buffer
-
-			err := cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", RecordsDir: "/data/auto"},
-				cli.AutoWriteDeps{
-					Stdin:       replyInput(coveredLessonReply(covered)),
-					Learn:       learnInto(written),
-					Now:         func() time.Time { return recordedAt },
-					WriteRecord: (&recordedFiles{}).write,
-					// every file exists, as far as the writing is told: only a plain file name of the vault may cover
-					NoteExists: func(path string) bool { return path == "/vault/"+covered },
-				}, &out)
-
-			g.Expect(err).NotTo(HaveOccurred())
-			g.Expect(written).To(HaveLen(1))
-		})
-	}
 }
 
 func Test793d4k1a_RunAutoWrite_ALessonThatIsWrittenIsRecordedWithItsNote(t *testing.T) {
@@ -388,11 +391,11 @@ func Test793d4k1e_RunAutoWrite_ARecordThatCannotBeWrittenDoesNotFailTheCommand(t
 
 // unexported constants.
 const (
-	zorblaxNote         = "1.2026-10-17.zorblax-staging-reset.md"
 	feedbackLessonReply = `[{"kind":"feedback","slug":"format-before-commit","situation":"committing a Python file",` +
 		`"covered":null,"behavior":"left trailing whitespace","impact":"the lint check failed",` +
 		`"action":"run the formatter before committing"}]`
-	turnID = "9b0a6a8e-5b0e-4f0e-8a3a-1f3c7d1e2b44"
+	turnID      = "9b0a6a8e-5b0e-4f0e-8a3a-1f3c7d1e2b44"
+	zorblaxNote = "1.2026-10-17.zorblax-staging-reset.md"
 )
 
 // unexported variables.
@@ -465,6 +468,13 @@ type secretText struct {
 	secret string
 }
 
+// coveredLessonReply is a reply with one lesson that names a note as covering it.
+func coveredLessonReply(covered string) string {
+	return `[{"kind":"fact","slug":"staging-reset","situation":"testing on the staging database",` +
+		`"covered":` + quoted(covered) + `,"subject":"the staging database","predicate":"is reset every",` +
+		`"object":"Sunday night"}]`
+}
+
 // credentialTexts are texts shaped as the credentials of the requirement, with the secret in each, built here and
 // never written whole in this file: a scanner of the repository would take a literal for a credential.
 func credentialTexts() []secretText {
@@ -517,13 +527,6 @@ func quoted(text string) string {
 	}
 
 	return string(encoded)
-}
-
-// coveredLessonReply is a reply with one lesson that names a note as covering it.
-func coveredLessonReply(covered string) string {
-	return `[{"kind":"fact","slug":"staging-reset","situation":"testing on the staging database",` +
-		`"covered":` + quoted(covered) + `,"subject":"the staging database","predicate":"is reset every",` +
-		`"object":"Sunday night"}]`
 }
 
 // replyInput is the input of the writing for a reply of the model.

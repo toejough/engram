@@ -179,6 +179,8 @@ func autoTargets(
 			}).Name("deliver").Description(
 				"Print the block of the notes that bear on a prompt (the automatic-memory mod runs this for each prompt)"),
 			targ.Targ(func(ctx context.Context, a AutoJudgeArgs) {
+				a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
+
 				if a.SessionsDir == "" {
 					a.SessionsDir = sessionsDirOf(deps.Getenv, deps.UserHomeDir)
 				}
