@@ -734,20 +734,26 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 
 ## 793b48 The conformance check reads this change's specs and fails when they are gone
 
-- **Choice:** the check that every scenario ID of the product spec and the technical spec has a test, a function named
-  `Test<ID>_...` in any `_test.go` file whatever its build tags, is a test of the dev integration suite, so
-  `targ check-full` runs it. It reads the specs from this change's directory and fails, naming the cause, when they are
+- **Choice:** the check that every scenario ID of the product spec and the technical spec has a test, a function
+  declared with the name `Test<ID>_...` in any `_test.go` file whatever its build tags, is a test of the dev integration
+  suite, so `targ check-full` runs it. It reads the declarations of the test files with the Go parser, not their text: a
+  comment, a string literal, a method, a function literal and a file that does not parse declare no test. It reads the
+  specs from this change's directory and fails, naming the cause, when they are
   not there; at promotion, when the directory is deleted, it moves to read the promoted specs or is deleted with the
   change. It checks one direction: a test whose name carries no scenario ID, or one that names an ID no spec holds, is
   not an error.
 - **Rationale:** the owner's rule ([793b9 Test execution](#793b9-test-execution)) asks for the check, and running it
   with the other checks keeps it from being forgotten. Skipping when the specs are missing would let promotion drop the
   guard unnoticed, and a missing input is a failure, not a pass. One direction is what the rule says: helper tests and
-  the tests of other changes carry no scenario ID of this one.
+  the tests of other changes carry no scenario ID of this one. The first version searched the text of the files for
+  `func Test<ID>_`. The review of the first group reproduced that it counted the declarations that the check's own
+  fixtures hold in string literals, and stayed green when the real `Test793a2a1a_` and `Test793d4b1h_` were renamed;
+  reading the declarations closes that.
 - **Alternatives:** a target of its own outside `targ check-full` (rejected: it could be forgotten); skipping when the
   directory is missing (rejected: it passes with nothing checked); both directions (rejected: other changes' tests carry
-  other IDs).
-- **Decided by:** Author (default; owner may override).
+  other IDs); the text search of the first version (rejected: it counts text that declares nothing).
+- **Decided by:** Author (default; owner may override). The reading of declarations is the review's finding, accepted by
+  the author.
 
 ## 793b49 The acceptance run is capped at four tests at once
 

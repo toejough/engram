@@ -26,8 +26,8 @@ The shape the first node's step 3 added, which later nodes extend:
 - `dev/acceptance/`: the tests that drive a real Claude Code session, under the `network` build tag; `dev/targs.go`:
   the `acceptance` target, which runs at most four of them at once
   ([793b49](./793b_decision-log.md#793b49-the-acceptance-run-is-capped-at-four-tests-at-once)). No new Go dependency.
-- `dev/conformance.go`: the conformance check's reading of the scenario IDs of the two specs and of the tests that name
-  them; the check itself is a test of the dev integration suite, so `targ check-full` runs it.
+- `dev/conformance.go`: the conformance check's reading of the scenario IDs of the two specs and of the test functions
+  that the test files declare; the check itself is a test of the dev integration suite, so `targ check-full` runs it.
 
 ## 793e2 Test methods
 
@@ -257,6 +257,7 @@ read the promoted specs, or deleted with the change, and until then it fails lou
 | `TestScenarioIDs_ListsEachScenarioOnceInOrder` | Dedicated example (dev suite, `targ` tag) | the pure reading of a spec: which scenario IDs it holds, with a scenario restated in a mapping counted once, and prose that merely names an ID left out | Done | e9831720 | 0a7a2596 | 4754603f |
 | `TestScenariosWithoutTest_NamesThoseNoTestSourceDeclares` | Dedicated example (dev suite, `targ` tag) | the pure comparison: an ID has a test only when a test function is named `Test<ID>_`, not when a comment or the longer name of another test mentions it | Done | 75a83363 | 11bfaf7d | a8841eeb |
 | `TestConformance_EveryScenarioOfTheSpecsHasATest` | Dedicated example (dev integration suite, `targ` and `integration` tags) | the real specs of this change against the real test files of the repository, `network`-tagged files included | Done | n/a | - | 1588e189 |
+| `TestScenariosWithoutTest_OnlyADeclaredFunctionIsATest` | Dedicated example (dev suite, `targ` tag) | review fix: a test is a function the Go parser finds declared, so the text of a declaration in a string literal, a method named like a test, a function literal and a file that does not parse declare none; the first version counted the text and stayed green when the real tests were renamed | Not started | | | |
 
 ### 793e6b Lessons are written without the agent
 
