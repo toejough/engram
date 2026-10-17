@@ -128,7 +128,7 @@ Withdrawn in review round 1: not a decision.
 
 ## 793b32 Test isolation
 
-The isolation rule of `793f7`, restated in `793e2` and `793e7`, binds every [agent](./793a_product-spec.md#793a1a-terms)'s commands: the owner's rule from the earlier attempt, "temp HOMEs only; every engram/claude command from agents needs explicit env HOME" (`old 793b245`). Review round 1 found it missing: a literal run of "the user runs [`engram update`](../../GLOSSARY.md#engram-update)" would install into the real `~/.claude`. O (earlier attempt), restated after review round 1.
+The isolation rule of `793f7`, restated in `793e2` and `793e7`, binds every [agent](./793a_product-spec.md#793a1a-terms)'s commands: the owner's rule from the earlier attempt, set between 2026-10-11 and 2026-10-16 and relayed to the author, "temp HOMEs only; every engram/claude command from agents needs explicit env HOME" (`old 793b245` records the first half). Review round 1 found it missing: a literal run of "the user runs [`engram update`](../../GLOSSARY.md#engram-update)" would install into the real `~/.claude`. O 2026-10-11 to 2026-10-16 (earlier attempt), restated after review round 1.
 
 ## 793b33 One agent review round per phase
 
@@ -173,7 +173,7 @@ Depth first is read per scenario: step 2 per requirement, then each product scen
 
 ## 793b39 Review round 1 of step 1
 
-One opus review round on the step 1 documents (seven commits, `1bcf81b3` to `57372f32`): approve with fixes, all accepted. Critical: nothing kept literal runs and `engram` or `claude` commands off the owner's real home, [vault](../../GLOSSARY.md#vault), `~/.pi` and GOBIN (`793b32`, `793f7`, `793e2`, `793e7`). Major: three departures credited to the owner were the author's readings (`793b11` to `793b13`); the goal, the mid-task exclusion, the reversed owner answers, the secrets MUST NOT and the display were missing or vague (`793b34`, `793b8`, `793b36`, `793b24`, `793b25`); three of the six interactions restated a rule (`793b7`). Retired, never reused: `793a3b`, `793a3d`, `793a3f`, `793a4`, `793c4`, `793c7`, `793c11`. R (opus, 2026-10-17).
+One opus review round on the step 1 documents (seven commits, `1bcf81b3` to `57372f32`): approve with fixes, all accepted. Critical: nothing kept literal runs and `engram` or `claude` commands off the owner's real home, [vault](../../GLOSSARY.md#vault), `~/.pi` and GOBIN (`793b32`, `793f7`, `793e2`, `793e7`). Major: three departures credited to the owner were the author's readings (`793b11` to `793b13`); the goal, the mid-task exclusion, the reversed owner answers, the secrets MUST NOT and the display were missing or vague (`793b34`, `793b8`, `793b36`, `793b24`, `793b25`); three of the six interactions restated a rule (`793b7`); `793a2d` forbade changing "what the [agent](./793a_product-spec.md#793a1a-terms) answered", now editing the user's [prompt](./793a_product-spec.md#793a1a-terms) and the text of the reply. Minor: the 8-second bound was called the owner's and the 2-minute delay lacked "a measurement replaces it" (`793b17`, `793b18`); `793a3a` said "later prompts", `793a2b` did not say which [notes](../../GLOSSARY.md#permanent-note) bear on a prompt, `793a2a` had untestable or missing rerun, other-[harness](../../GLOSSARY.md#harness) and dry-run clauses, `793a2c` named three kinds of lesson for the [skill](../../GLOSSARY.md#skill)'s four; defined words stood where a number belonged; the problem statement paraphrased the North Star and held a paragraph about the process; own [sessions](../../GLOSSARY.md#session) and a [turn](./793a_product-spec.md#793a1a-terms) followed by an exit were unaddressed (`793b37`); a section beyond the guide's three is now `793b8`, and `793c4`, `793c7` and `793c11` did not block; seven entries were no decision (the stubs); the commit columns were called the owner's record (`793b13`); the depth-first reading was unexamined (`793b38`), `793b5` rested on silence about reviews (`793b33`), product-scenario tests had four descriptions (`793b9`) and the 8-second hold belongs in the first node (`793b28`). Nit: `793b10` did not name the placeholders, `793e2` named categories the plan guide lacks, `793e7` lacked the guide's gates for `rapid`, `imptest` and valid- and invalid-path behavior, `793f4` defined a phase over requirements, not nodes. Retired, never reused: `793a3b`, `793a3d`, `793a3f`, `793a4`, `793c4`, `793c7`, `793c11`. R (opus, 2026-10-17).
 
 ## 793b40 The scenarios of the first group
 
@@ -189,7 +189,7 @@ The block is one framing line beginning `[engram memory]` ([notes](../../GLOSSAR
 
 ## 793b43 A note cannot reshape the block
 
-A [note](../../GLOSSARY.md#permanent-note)'s file name, situation and body are each written as one line with no control or format character (Unicode category Cf), so a note cannot write a line that imitates the framing or another note (`793d4c`); no quoting scheme. A security review of the first rendering found the hole; the first group's review added the format characters. R, accepted by the author.
+A [note](../../GLOSSARY.md#permanent-note)'s file name, situation and body are each written as one line with no control or format character (Unicode category Cf), so a note cannot write a line that imitates the framing or another note (`793d4c`); no quoting scheme. A security review of the first rendering found the hole; the first group's review added the format characters (`793b61` finding 20). A, on those reviews.
 
 ## 793b44 Only the notes that match are delivered, whole
 
@@ -245,11 +245,11 @@ The mod races the call for the [session](../../GLOSSARY.md#session)'s ID and the
 
 ## 793b57 The delivery looks up the local vault only, until a later node
 
-The first group's delivery looks up the local [vault](../../GLOSSARY.md#vault) only (`RunQuery`), where `engram query` also merges the parent vault (`ENGRAM_PARENT`); the merge is the plan node `793e6f` (`793c34`). A, on review (finding 4).
+The first group's delivery looks up the local [vault](../../GLOSSARY.md#vault) only (`RunQuery`), where `engram query` also merges the parent vault (`ENGRAM_PARENT`); the merge is the plan node `793e6f` (`793c34`). A, on review (`793b61` finding 4).
 
 ## 793b58 The first group delivers for every origin of a prompt
 
-Until `793e6b` the mod delivers for every origin of a [prompt](./793a_product-spec.md#793a1a-terms); `793e6b` takes the clause of `793a2d` that [automatic memory](./793a_product-spec.md#793a1a-terms) MUST NOT deliver to or write from its own [sessions](../../GLOSSARY.md#session), with the origin filter, being the first group that could start such sessions. A, on review (findings 5 and 6).
+Until `793e6b` the mod delivers for every origin of a [prompt](./793a_product-spec.md#793a1a-terms); `793e6b` takes the clause of `793a2d` that [automatic memory](./793a_product-spec.md#793a1a-terms) MUST NOT deliver to or write from its own [sessions](../../GLOSSARY.md#session), with the origin filter, being the first group that could start such sessions. A, on review (`793b61` findings 5 and 6).
 
 ## 793b59 The builder ran the tests once with the real home
 
@@ -261,7 +261,7 @@ The gate of `793e7` that nothing touched the owner's real `~/.claude`, `~/.local
 
 ## 793b61 Review of the first group
 
-One opus review round on commit `e62be9a4` found 3 major, 16 minor and 7 nit items (numbered 1 to 26); all were accepted but 25 and applied in a fix pass of new commits, none rewritten: `793b43`, `793b45` and `793b48` to `793b60`, with the entries `793c19`, `793c32` and `793c33`. 25 is declined: two red commits carry unrelated [harness](../../GLOSSARY.md#harness) edits, and commits are not rewritten. R (opus), accepted by the author except 25.
+One opus review round on commit `e62be9a4` found 3 major, 16 minor and 7 nit items (numbered 1 to 26); all were accepted but 25 and applied in a fix pass of new commits, none rewritten: `793b43`, `793b45` and `793b48` to `793b60`, with the entries `793c19`, `793c32` and `793c33`. Also applied: 10, tests that resolved a directory under the real home name their own and stub the environment, with no guard test (other tests rely on the real `Getenv`, and a guard would need an opt-out in each); 15, `793a2b` names the [notes](../../GLOSSARY.md#permanent-note) that bear on a [prompt](./793a_product-spec.md#793a1a-terms) by a term the user can check; 26, a test that took its lock in the source directory (found by bisecting the 1,660 tests of the package) has a temporary [vault](../../GLOSSARY.md#vault); and `Test792b17c6a1`, which read the machine's environment and failed under the `ENGRAM_TRANSCRIPT_DIR` of `793f7`, stubs it. 25 is declined: two red commits carry unrelated [harness](../../GLOSSARY.md#harness) edits, and commits are not rewritten. R (opus), accepted by the author except 25.
 
 ## 793b62 The scenarios of the second group
 
@@ -313,31 +313,31 @@ A test that a [note](../../GLOSSARY.md#permanent-note) was not written waits for
 
 ## 793b74 A row the harness wrote is no prompt
 
-A record row is a user's [prompt](./793a_product-spec.md#793a1a-terms) only if it is not marked meta, has no origin the user does not send (`793b64`), and keeps text after the cleaning of 792b15c3, which the judgement reuses; otherwise a [skill](../../GLOSSARY.md#skill)'s body, a task notification and a local command's caveat, name or output were each a `User:` line and could begin the [turn](./793a_product-spec.md#793a1a-terms). A, on review (finding 1).
+A record row is a user's [prompt](./793a_product-spec.md#793a1a-terms) only if it is not marked meta, has no origin the user does not send (`793b64`), and keeps text after the cleaning of 792b15c3, which the judgement reuses; otherwise a [skill](../../GLOSSARY.md#skill)'s body, a task notification and a local command's caveat, name or output were each a `User:` line and could begin the [turn](./793a_product-spec.md#793a1a-terms). A, on review (`793e6g` finding 1).
 
 ## 793b75 The record is read once, and the lines of the window are the only ones redacted
 
-The judgement reads the record once and redacts, writes as one line and cuts only the context and [turn](./793a_product-spec.md#793a1a-terms) lines; older messages are read for kind and text. Redacting every message cost 2.2 seconds for 2 MB and 8.4 for 11 MB per reading, and there were two readings. A, on review (finding 19).
+The judgement reads the record once and redacts, writes as one line and cuts only the context and [turn](./793a_product-spec.md#793a1a-terms) lines; older messages are read for kind and text. Redacting every message cost 2.2 seconds for 2 MB and 8.4 for 11 MB per reading, and there were two readings. A, on review (`793e6g` finding 19).
 
 ## 793b76 A turn is found by the text it began with
 
-The mod keeps each [prompt](./793a_product-spec.md#793a1a-terms)'s text and origin, and the judgement begins the [turn](./793a_product-spec.md#793a1a-terms) at the last record prompt with the text the turn started with (else the last prompt) and ends it after the final text (`793d2b`, `793d4g`): a prompt typed during a turn starts a turn of its own, so the last prompt is not always the turn's. Two prompts with the same text in one window are not told apart: rare, accepted. A, on review (findings 2 and 8).
+The mod keeps each [prompt](./793a_product-spec.md#793a1a-terms)'s text and origin, and the judgement begins the [turn](./793a_product-spec.md#793a1a-terms) at the last record prompt with the text the turn started with (else the last prompt) and ends it after the final text (`793d2b`, `793d4g`): a prompt typed during a turn starts a turn of its own, so the last prompt is not always the turn's. Two prompts with the same text in one window are not told apart: rare, accepted. A, on review (`793e6g` findings 2 and 8).
 
 ## 793b77 The instructions are the system of the request, and a < is written &lt;
 
-The request has a `system` (the instructions, nothing of the record) and a `prompt` (the window and [notes](../../GLOSSARY.md#permanent-note) between their tags); a `<` in the window or notes is written `&lt;`, which the instructions explain, so no message or note can close a section or forge a tag (review probe B). A, on review (finding 5).
+The request has a `system` (the instructions, nothing of the record) and a `prompt` (the window and [notes](../../GLOSSARY.md#permanent-note) between their tags); a `<` in the window or notes is written `&lt;`, which the instructions explain, so no message or note can close a section or forge a tag (review probe B). A, on review (`793e6g` finding 5).
 
 ## 793b78 The promise names the forms of credential that are redacted
 
-The promise of `793a2c` is that no [note](../../GLOSSARY.md#permanent-note) holds a credential in a recognised form, and it lists the forms; the redaction matches names holding a word of a secret with anything around it, redacts a value given by `=`, `:` or `is` with up to six words between, and a `Bearer` credential from 12 characters like `Basic` (a `Bearer` of one character redacted the word after it in prose). The live scenario passed with the redaction absent, so an absolute promise could not be failed. A, on review (findings 3, 4 and 25; `793c49`).
+The promise of `793a2c` is that no [note](../../GLOSSARY.md#permanent-note) holds a credential in a recognised form, and it lists the forms; the redaction matches names holding a word of a secret with anything around it, redacts a value given by `=`, `:` or `is` with up to six words between, and a `Bearer` credential from 12 characters like `Basic` (a `Bearer` of one character redacted the word after it in prose). The live scenario passed with the redaction absent, so an absolute promise could not be failed. A, on review (`793e6g` findings 3, 4 and 25; `793c49`).
 
 ## 793b79 A field of a lesson is one line, and a reply that is cut keeps its whole lessons
 
-Every lesson field is redacted and written as one line before writing (a `Supersedes:` line in a field is read by the [vault](../../GLOSSARY.md#vault) as a link), and lessons are read from the reply one by one, so a reply cut by the 1,500-token cap keeps its whole lessons, the cut recorded as skipped. A, on review (findings 11 and 26).
+Every lesson field is redacted and written as one line before writing (a `Supersedes:` line in a field is read by the [vault](../../GLOSSARY.md#vault) as a link), and lessons are read from the reply one by one, so a reply cut by the 1,500-token cap keeps its whole lessons, the cut recorded as skipped. A, on review (`793e6g` findings 11 and 26).
 
 ## 793b80 The delivered line shows the mark of a note written automatically
 
-The line of a [note](../../GLOSSARY.md#permanent-note) whose source opens with `written automatically` ends with the fixed words `(written automatically)`, appended so that the line's form (`793d4c`) and the reading of the file name (`793d4d`) do not change; the [agent](./793a_product-spec.md#793a1a-terms) should weigh such a note differently. A, on review (finding 15).
+The line of a [note](../../GLOSSARY.md#permanent-note) whose source opens with `written automatically` ends with the fixed words `(written automatically)`, appended so that the line's form (`793d4c`) and the reading of the file name (`793d4d`) do not change; the [agent](./793a_product-spec.md#793a1a-terms) should weigh such a note differently. A, on review (`793e6g` finding 15).
 
 ## 793b81 A text is written as one line before it is redacted, and cut last
 
@@ -345,35 +345,35 @@ Every text is written as one line first (control and format characters dropped, 
 
 ## 793b82 A judgement without a vault or a record fails, and the model is not asked
 
-`engram auto judge` fails, printing nothing and naming the cause, when no [vault](../../GLOSSARY.md#vault) exists at its path or no record of the [session](../../GLOSSARY.md#session) is found; the mod reports it, the writing records it once and the model is not asked. A record with no [prompt](./793a_product-spec.md#793a1a-terms) is judged nothing. Before, a missing vault cost a model call and two records per [turn](./793a_product-spec.md#793a1a-terms), and a wrong records directory lost captures silently. A, on review (findings 9 and 13); it amends `793c43`.
+`engram auto judge` fails, printing nothing and naming the cause, when no [vault](../../GLOSSARY.md#vault) exists at its path or no record of the [session](../../GLOSSARY.md#session) is found; the mod reports it, the writing records it once and the model is not asked. A record with no [prompt](./793a_product-spec.md#793a1a-terms) is judged nothing. Before, a missing vault cost a model call and two records per [turn](./793a_product-spec.md#793a1a-terms), and a wrong records directory lost captures silently. A, on review (`793e6g` findings 9 and 13); it amends `793c43`.
 
 ## 793b83 A failure that is recorded does not fail the command
 
-When a lesson cannot be written, `engram auto write` records `failed` and succeeds; it fails only when it could not record the failure, so one failure is neither recorded twice nor lost. A, on review (finding 10).
+When a lesson cannot be written, `engram auto write` records `failed` and succeeds; it fails only when it could not record the failure, so one failure is neither recorded twice nor lost. A, on review (`793e6g` finding 10).
 
 ## 793b84 A headless prompt is judged only when the user asks
 
-The delivery acts for the four origins of `793b64`; the judgement acts for `composer`, `bridge` and `slack-ping`, and for `sdk` only when `--capture-sdk` or `ENGRAM_AUTO_CAPTURE_SDK` (a true value) is set, so a script run with `claude -p` under the user's real home writes no fiction into the [vault](../../GLOSSARY.md#vault) (the delivery only reads). The acceptance machine sets the variable. A, on review (finding 6); `793c39`.
+The delivery acts for the four origins of `793b64`; the judgement acts for `composer`, `bridge` and `slack-ping`, and for `sdk` only when `--capture-sdk` or `ENGRAM_AUTO_CAPTURE_SDK` (a true value) is set, so a script run with `claude -p` under the user's real home writes no fiction into the [vault](../../GLOSSARY.md#vault) (the delivery only reads). The acceptance machine sets the variable. A, on review (`793e6g` finding 6); `793c39`.
 
 ## 793b85 Each stage of the capture has a bound of its own
 
-Stage bounds: the [session](../../GLOSSARY.md#session)-ID call 5 seconds (raced by a timer; no ID, no capture), `engram auto judge` 15, the model call 60, `engram auto write` 20, the failure report 15: 115 seconds, under 2 minutes; a stage that overruns has failed, and a non-JSON request is a failure of the judgement. The host's default of 30 seconds per call and an unbounded ID call left no margin; a timer over the chain is rejected as in `793b70`, and shorter bounds because a loaded machine took 7 seconds to start a command (`793c32`). A, on review (findings 12 and 24; `793c42`).
+Stage bounds: the [session](../../GLOSSARY.md#session)-ID call 5 seconds (raced by a timer; no ID, no capture), `engram auto judge` 15, the model call 60, `engram auto write` 20, the failure report 15: 115 seconds, under 2 minutes; a stage that overruns has failed, and a non-JSON request is a failure of the judgement. The host's default of 30 seconds per call and an unbounded ID call left no margin; a timer over the chain is rejected as in `793b70`, and shorter bounds because a loaded machine took 7 seconds to start a command (`793c32`). A, on review (`793e6g` findings 12 and 24; `793c42`).
 
 ## 793b86 The acceptance run takes a count
 
-`targ acceptance` takes `--count` (default 1) and a 30-minute limit per repetition of the whole set; a model-dependent scenario's tally is its passes in 10 runs, each red attributed to its cause, and the bar is 9 in 10. Six of the second group's 14 rows had no tally. A, on review (finding 7).
+`targ acceptance` takes `--count` (default 1) and a 30-minute limit per repetition of the whole set; a model-dependent scenario's tally is its passes in 10 runs, each red attributed to its cause, and the bar is 9 in 10. Six of the second group's 14 rows had no tally. A, on review (`793e6g` finding 7).
 
 ## 793b87 The instructions carry the bar of the learn skill
 
-The instructions carry the learn [skill](../../GLOSSARY.md#skill)'s bar: a lesson in the form in which it applies again, with exact names, commands, flags and values; a thanks or "it worked" that names no approach, or a success no uncertainty preceded, is no lesson; the `Brief:` clause is dropped; a lesson a nearest [note](../../GLOSSARY.md#permanent-note) already states is still listed with that note's file name. Without the last, `793a3c1a` passed 3 of 5 runs; with it, 10 of 10. The skill's "general principle, not the instance" is rejected: a note that names the project's build target and not `make zorblax-build` cannot be told from a guess, and the rows of `793a2c1a` and `793a2c1d` check the exact words. A, on review (findings 14 and 22; `793c56`).
+The instructions carry the learn [skill](../../GLOSSARY.md#skill)'s bar: a lesson in the form in which it applies again, with exact names, commands, flags and values; a thanks or "it worked" that names no approach, or a success no uncertainty preceded, is no lesson; the `Brief:` clause is dropped; a lesson a nearest [note](../../GLOSSARY.md#permanent-note) already states is still listed with that note's file name. Without the last, `793a3c1a` passed 3 of 5 runs; with it, 10 of 10. The skill's "general principle, not the instance" is rejected: a note that names the project's build target and not `make zorblax-build` cannot be told from a guess, and the rows of `793a2c1a` and `793a2c1d` check the exact words. A, on review (`793e6g` findings 14 and 22; `793c56`).
 
 ## 793b88 The judgement is measured by a probe of its own
 
-Instructions are changed with `dev/eval/auto-judge/probe.py` at hand: it builds the request with the real `engram auto judge` over fixtures of the live scenarios' [turns](./793a_product-spec.md#793a1a-terms), asks the model as the mod does 60 times or more per variant (20 did not separate 80% from 98%), and keeps a sentence only when its variant beats the one without on its fixture and no other falls by more than noise. The probe is part of no check. Rerun: unsure-approach 19 of 60 without the sentence, 60 with; thanks, no lesson, 43 then 60; covered 51 then 59; credential 54 throughout. A, on review (finding 7; `793c58`).
+Instructions are changed with `dev/eval/auto-judge/probe.py` at hand: it builds the request with the real `engram auto judge` over fixtures of the live scenarios' [turns](./793a_product-spec.md#793a1a-terms), asks the model as the mod does 60 times or more per variant (20 did not separate 80% from 98%), and keeps a sentence only when its variant beats the one without on its fixture and no other falls by more than noise. The probe is part of no check. Rerun: unsure-approach 19 of 60 without the sentence, 60 with; thanks, no lesson, 43 then 60; covered 51 then 59; credential 54 throughout. A, on review (`793e6g` finding 7; `793c58`).
 
 ## 793b89 Each automatic note is offered to the parent vault, and the duplicate check stays local
 
-`engram auto write` goes through the learn path, which under `ENGRAM_PARENT` offers each [note](../../GLOSSARY.md#permanent-note) to the parent [vault](../../GLOSSARY.md#vault); the judgement's nearest-notes lookup is local only, so a lesson the parent already states is written and offered again. Nothing is built: the learn path is the one writer, and the merge is the node `793e6f` (`793b57`). A, on review (finding 20); `793c59`.
+`engram auto write` goes through the learn path, which under `ENGRAM_PARENT` offers each [note](../../GLOSSARY.md#permanent-note) to the parent [vault](../../GLOSSARY.md#vault); the judgement's nearest-notes lookup is local only, so a lesson the parent already states is written and offered again. Nothing is built: the learn path is the one writer, and the merge is the node `793e6f` (`793b57`). A, on review (`793e6g` finding 20); `793c59`.
 
 ## 793b90 A request to remember is a lesson whatever the agent says about saving it
 
