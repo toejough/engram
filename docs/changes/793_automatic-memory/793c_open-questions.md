@@ -402,3 +402,59 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Recommendation:** (a): (b) would leave out the user's own `claude -p` runs, and the tests drive one.
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b64 The prompts the user sends](./793b_decision-log.md#793b64-the-prompts-the-user-sends).
+
+## 793c40 Is the window of the judgement the right one?
+
+- **Context:** [793b65 What the judgement reads, and what it is asked](./793b_decision-log.md#793b65-what-the-judgement-reads-and-what-it-is-asked) gives the model the last 6 lines before the [turn](./793a_product-spec.md#793a1a-terms) and the
+  turn, without the inputs and results of tools, cut to 1,200 characters a line and 8,000 a window.
+- **Options:** (a) As built. (b) The whole turn with the results of tools. (c) A smaller window, the turn alone.
+- **Recommendation:** (a): a lesson comes from words and outcomes, and the results of tools are where the credentials
+  and the bulk are. The probes and the live runs of this change used (a).
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b65 What the judgement reads, and what it is asked](./793b_decision-log.md#793b65-what-the-judgement-reads-and-what-it-is-asked).
+
+## 793c41 Is the risk of a secret of another shape acceptable?
+
+- **Context:** [793b69 Credentials are redacted by shape, and the rest is a known risk](./793b_decision-log.md#793b69-credentials-are-redacted-by-shape-and-the-rest-is-a-known-risk) redacts the shapes it lists. A password written in a sentence, a
+  token split over two lines, and the wrapped and percent-encoded forms that the earlier attempt covered are not
+  redacted, so such a secret in a [turn](./793a_product-spec.md#793a1a-terms) reaches the model and may reach a [note](../../GLOSSARY.md#permanent-note).
+- **Options:** (a) The shapes as built, the rest a known risk. (b) Port the earlier attempt's patterns. (c) Do not
+  write a note from a turn in which the redaction found a credential.
+- **Recommendation:** (a) for this change, with (c) as the next step if the owner finds the risk too large: (b) adds
+  patterns without making the risk go away, and (c) loses real lessons.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b69 Credentials are redacted by shape, and the rest is a known risk](./793b_decision-log.md#793b69-credentials-are-redacted-by-shape-and-the-rest-is-a-known-risk).
+
+## 793c42 Should the bound of 2 minutes be tightened?
+
+- **Context:** [793b70 The capture reports its own failures, and nothing times it as a whole](./793b_decision-log.md#793b70-the-capture-reports-its-own-failures-and-nothing-times-it-as-a-whole) measured 147 [notes](../../GLOSSARY.md#permanent-note) of the live runs, written 0.9 to 3.9 seconds after the [turn](./793a_product-spec.md#793a1a-terms)
+  ended, and enforces no bound over the chain.
+- **Options:** (a) Keep the 2 minutes of [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent). (b) Say 30 seconds. (c) Say 10 seconds.
+- **Recommendation:** (a): the number is the promise under load, when the model's call may take its 60 seconds and the
+  commands wait for a busy machine; (b) and (c) would be broken by the first slow call and nothing enforces them.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b70 The capture reports its own failures, and nothing times it as a whole](./793b_decision-log.md#793b70-the-capture-reports-its-own-failures-and-nothing-times-it-as-a-whole).
+
+## 793c43 Should a missing vault end the capture before the model is asked?
+
+- **Context:** [793b71 The commands of the group auto take no first-use step](./793b_decision-log.md#793b71-the-commands-of-the-group-auto-take-no-first-use-step) lets the capture run when the [vault](../../GLOSSARY.md#vault) was removed: each [turn](./793a_product-spec.md#793a1a-terms) costs a
+  call of the model, and records two failures that name the lock of a vault that is not there.
+- **Options:** (a) As built. (b) The judgement prints nothing when the vault is missing, so there is no call. (c) The
+  writing records a skip with the reason that the vault does not exist, and the judgement still runs.
+- **Recommendation:** (a) until the display of [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) shows the user that message; then (c).
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b71 The commands of the group auto take no first-use step](./793b_decision-log.md#793b71-the-commands-of-the-group-auto-take-no-first-use-step).
+
+## 793c44 Is the window between a note's file and its embedding a risk?
+
+- **Context:** during the 0.3 seconds that the learn path takes to embed a [note](../../GLOSSARY.md#permanent-note) after it creates the file, a lookup in a
+  [vault](../../GLOSSARY.md#vault) whose only note it is fails (`vault has notes but no current-model embeddings`), and so does a delivery; a
+  vault with other notes is not known to fail. [793b73 The tests of an absence wait for the end of the write, and for a settling time](./793b_decision-log.md#793b73-the-tests-of-an-absence-wait-for-the-end-of-the-write-and-for-a-settling-time) found it.
+- **Options:** (a) A risk to the first [prompt](./793a_product-spec.md#793a1a-terms) after the first note of an empty vault, which steps aside as any failed
+  delivery does. (b) Write the sidecar before the note, in the learn path. (c) Let the lookup skip a note with no
+  embedding.
+- **Recommendation:** (a): a prompt the user types 0.3 seconds after a note appeared is rare, the cost is one prompt
+  without its notes, and (b) and (c) change the lookup of the [agent](./793a_product-spec.md#793a1a-terms)'s own use of memory, which
+  [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working) keeps unchanged.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b73 The tests of an absence wait for the end of the write, and for a settling time](./793b_decision-log.md#793b73-the-tests-of-an-absence-wait-for-the-end-of-the-write-and-for-a-settling-time).

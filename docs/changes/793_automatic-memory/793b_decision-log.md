@@ -1106,3 +1106,145 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 - **Alternatives:** the origin read from the record at capture time (rejected: another vocabulary, and no record
   at delivery); `composer` alone (rejected: it would leave out the user's own headless and phone prompts).
 - **Decided by:** Author (default; owner may override).
+
+## 793b65 What the judgement reads, and what it is asked
+
+- **Choice:** the request for the model holds the instructions, then a window of the conversation: up to 6 lines
+  before the [turn](./793a_product-spec.md#793a1a-terms), the line `--- the turn ---`, and the lines of the turn. A line is one message, labelled by the
+  system with `User:`, `Agent:` or `Agent used` and the tool's name; the inputs and results of tools are not shown, so a
+  tool the [agent](./793a_product-spec.md#793a1a-terms) ran is one line; a break inside a message is written ` ⏎ ` so that no message makes a line of its own.
+  A line is cut to 1,200 characters and the window to 8,000, the oldest context first and then the middle of the turn,
+  and the final text is added when the [session](../../GLOSSARY.md#session)'s record lacks it. Every text is redacted before it is cut ([793b69 Credentials](#793b69-credentials-are-redacted-by-shape-and-the-rest-is-a-known-risk)).
+  The instructions are those of the earlier attempt, with a sentence that an approach the agent was unsure of, tried
+  and saw succeed is a lesson. The reply is a JSON list of lessons, each with a kind, a slug, a situation, the file name
+  of a [note](../../GLOSSARY.md#permanent-note) that already states it, and the fields of its kind ([793b66 What a lesson becomes](#793b66-what-a-lesson-becomes)).
+- **Rationale:** a lesson comes from the user's words and from the agent's claims and what overturned them, and the
+  inputs and results of tools are where a credential or a file's bulk is, so the window leaves them out. The sentence
+  was added because a probe of the judgement alone, over a turn in which the agent tried a flag and the check passed,
+  wrote the lesson in 11 of 20 runs without it and in 20 of 20 with it, and the live scenario
+  [793a2c1e An approach that succeeded with evidence becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios) then passed 10 of 10 runs.
+- **Alternatives:** the whole [transcript](../../GLOSSARY.md#transcript) of the session (rejected: its size and its credentials, and the call is paid by the
+  user's login); the inputs and results of tools (rejected for the same reason); the instructions of the earlier attempt
+  unchanged (rejected by the probe above).
+- **Decided by:** Author (default; owner may override); the owner is asked in
+  [793c40 Is the window of the judgement the right one?](./793c_open-questions.md#793c40-is-the-window-of-the-judgement-the-right-one).
+
+## 793b66 What a lesson becomes
+
+- **Choice:** a lesson becomes a feedback or a fact [note](../../GLOSSARY.md#permanent-note) through the learn path of
+  [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand), at the top of the order of the [vault](../../GLOSSARY.md#vault), with the source
+  `written automatically (session <the session's ID>)`, so that the note embeds on write as any note does and a reader
+  of the vault can tell it from one the [agent](./793a_product-spec.md#793a1a-terms) saved. A reply that is not a list, and a lesson that lacks a field or has a kind it does not
+  know, write nothing and are recorded with the reason. The other kinds of note, a link or a replacement of a note, are
+  not written.
+- **Rationale:** the learn path is the one writer of notes, so a note written automatically cannot differ in form from
+  one the agent writes, and the mark is the only difference the scenarios rely on.
+- **Alternatives:** a store of its own for the lessons (rejected: the delivery and the agent's lookup read the vault);
+  runbooks and replacements of notes (rejected: [793b8 Exclusions](#793b8-exclusions) leaves curation out).
+- **Decided by:** Author (default; owner may override).
+
+## 793b67 What automatic memory records
+
+- **Choice:** the writing makes one record for each thing that became of a reply, a [turn](./793a_product-spec.md#793a1a-terms) or a failure: `written` with the file
+  name of the [note](../../GLOSSARY.md#permanent-note), `skipped` with the reason, `nothing` for a reply with no lesson, and `failed` with the failure. A record is
+  a JSON file of its own in the directory `auto` of the engram data directory, below the directory named for the
+  [session](../../GLOSSARY.md#session), and named for the time it was made, its place among the records of the reply and its kind; the flag `--records` names the directory.
+  A record that cannot be written does not fail the command.
+- **Rationale:** a test of an absence has to know that the judgement finished, and the display of
+  [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) will read the same files. One file for each effect needs no lock and no append, and the records are
+  made last, so that their existence means the write has ended.
+- **Alternatives:** one log file (rejected: concurrent appends and a line cut by a crash); the records inside the
+  [vault](../../GLOSSARY.md#vault) (rejected: the vault is the user's notes, and the vault may not exist, see [793b71 First-use step](#793b71-the-commands-of-the-group-auto-take-no-first-use-step)).
+- **Decided by:** Author (default; owner may override).
+
+## 793b68 A lesson an earlier note states
+
+- **Choice:** the request shows the model the [notes](../../GLOSSARY.md#permanent-note) nearest to the [turn](./793a_product-spec.md#793a1a-terms): the lookup of
+  `engram query` for the first 500 characters of the text of the user's [prompts](./793a_product-spec.md#793a1a-terms) of the turn, each note as one line of
+  the form of the delivery, redacted and cut to 400 characters. The model may name, as `covered`, the file name of a note
+  that already states a lesson, and the writing leaves such a lesson out when the name is a plain file name of a file
+  that is in the [vault](../../GLOSSARY.md#vault), recording it as skipped; a name of another file, or a path, covers nothing.
+- **Rationale:** whether a note states the same lesson is a judgement of meaning, which the model makes and a
+  similarity threshold cannot; the lookup only offers the candidates. Checking that the named file exists keeps a
+  name the model made up from hiding a lesson. The note the [agent](./793a_product-spec.md#793a1a-terms) saves during the turn is in the vault when the turn ends, so it is among the
+  candidates, and that is how a lesson the agent saved itself is not written again.
+- **Alternatives:** a threshold on the distance between the lesson and the notes (rejected: no value separates "the
+  same lesson" from "a related one"); the whole vault in the request (rejected: its size).
+- **Decided by:** Author (default; owner may override).
+
+## 793b69 Credentials are redacted by shape, and the rest is a known risk
+
+- **Choice:** the judgement redacts every text of the [turn](./793a_product-spec.md#793a1a-terms) before it cuts or joins it and before the model sees it, and the writing
+  redacts every field of a lesson before it writes it. A text is a credential when it is a private key block; a JSON web
+  token; a key or token that opens with the name of its issuer; a `Bearer` or `Basic` credential; the user and the
+  password of a URL; the value of an `Authorization` header; the value given to a name that holds `key`, `token`,
+  `secret`, `password` and the like; or a run of 32 characters or more of letters and digits that is not the 40
+  hexadecimal digits of a commit. It is replaced by `[redacted]`, and the name of an assignment is kept. A secret of
+  another shape, such as a password in a sentence or a token split over two lines, is not redacted, and the wrapped and
+  percent-encoded patterns of the earlier attempt are not ported.
+- **Rationale:** the instruction not to write a credential is not a proof: a live model never wrote one in 10 runs of
+  the scenario [793a2c1g A credential in the turn is not in the note](./793a_product-spec.md#793a2c1-uat-scenarios) even with that sentence removed, so only properties over the redaction prove it,
+  and they hold for the shapes above.
+- **Alternatives:** a library of secret patterns (rejected: a dependency, and this change adds none); redacting the
+  [note](../../GLOSSARY.md#permanent-note) after the model wrote it only (rejected: the credential would have reached the model and the call is logged).
+- **Decided by:** Author (default; owner may override); the residual risk is asked in
+  [793c41 Is the risk of a secret of another shape acceptable?](./793c_open-questions.md#793c41-is-the-risk-of-a-secret-of-another-shape-acceptable).
+
+## 793b70 The capture reports its own failures, and nothing times it as a whole
+
+- **Choice:** after a [turn](./793a_product-spec.md#793a1a-terms) the mod gives the event's result back at once and runs the three steps one after the other apart
+  from the event: the judgement, the model's call and the writing. A step that fails, because a command exits with other
+  than 0 or prints what is not a request, or a call is ended or rejected, or the model gives no text, is reported to
+  the writing as a `failure` of up to 300 characters that names the step, and the writing records it as failed. The model's
+  call is bounded by the 60 seconds of the request, the commands by the host's own limit, and no timer bounds the
+  chain as a whole.
+- **Rationale:** [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) is kept by stepping aside, and a record of the failure is what lets the user see
+  that a write did not happen. In 147 [notes](../../GLOSSARY.md#permanent-note) written by the live runs of this change, the note was in the [vault](../../GLOSSARY.md#vault) between
+  0.9 and 3.9 seconds after the turn ended (median 1.9, 90th percentile 2.8), so the 2 minutes of
+  [793b18 Writing finishes within 2 minutes of a turn](#793b18-writing-finishes-within-2-minutes-of-a-turn) is a bound under load and not the usual time.
+- **Alternatives:** a timer of 2 minutes over the chain (rejected: it would end a write that is about to finish, and
+  nothing in the [session](../../GLOSSARY.md#session) waits for it); a retry of a failed step (rejected: a second model call, and the next turn
+  captures its own lessons).
+- **Decided by:** Author (default; owner may override); the bound is asked in
+  [793c42 Should the bound of 2 minutes be tightened?](./793c_open-questions.md#793c42-should-the-bound-of-2-minutes-be-tightened).
+
+## 793b71 The commands of the group auto take no first-use step
+
+- **Choice:** `engram auto judge` and `engram auto write`, like `engram auto deliver`, run against the path of the
+  [vault](../../GLOSSARY.md#vault) as it is and create nothing when it holds no vault ([793d4e Modified: First-use gating](./793d_technical-spec.md#793d4e-modified-first-use-gating)). The learn path fails
+  at the lock of a vault that is not there, so a [lesson](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) is not written, the writing records the failure, and the [turn](./793a_product-spec.md#793a1a-terms) has
+  cost a call of the model.
+- **Rationale:** the plan expected a change here: the learn path creating the vault. A first live run of the
+  scenario [793a2a1g A lesson is not written to a vault that does not exist](./793a_product-spec.md#793a2a1-uat-scenarios) showed that it does not, so the node adds a test and no code.
+- **Alternatives:** a clean skip before the call of the model when the vault is missing (rejected: more code for a state the
+  user made on purpose, and no scenario asks for it); the first-use step for the two commands (rejected: it creates
+  the vault the user removed).
+- **Decided by:** Author (default; owner may override); the cost is asked in
+  [793c43 Should a missing vault end the capture before the model is asked?](./793c_open-questions.md#793c43-should-a-missing-vault-end-the-capture-before-the-model-is-asked).
+
+## 793b72 The origin of a turn
+
+- **Choice:** the mod keeps the origin of the last [prompt](./793a_product-spec.md#793a1a-terms) its [session](../../GLOSSARY.md#session) raised, binds it to the next [turn](./793a_product-spec.md#793a1a-terms) of the main loop when
+  that turn starts, by the turn's ID, and gives it to the judgement when the turn completes; a turn that a
+  [subagent](../../GLOSSARY.md#subagent) ran is not captured. Where the mod learned no origin, it gives none, and the commands do nothing.
+- **Rationale:** [793b64 The prompts the user sends](#793b64-the-prompts-the-user-sends) puts the definition in Go and leaves the mod to hand over what it received; the end of a turn
+  names only the turn, and the prompt names the origin, so the turn's start is where the two meet. Turns of the main
+  loop do not overlap, but one that is typed over can end after the next has started, so the origin is kept by ID.
+- **Alternatives:** the origin read from the session's record when the turn ends (rejected in
+  [793b64 The prompts the user sends](#793b64-the-prompts-the-user-sends)); one variable for the origin of the running turn (rejected: a turn typed over would read the next
+  turn's origin).
+- **Decided by:** Author (default; owner may override).
+
+## 793b73 The tests of an absence wait for the end of the write, and for a settling time
+
+- **Choice:** a test that a [note](../../GLOSSARY.md#permanent-note) was not written waits until the records of the [turn](./793a_product-spec.md#793a1a-terms) exist, which are made last, and for 5 seconds
+  after them, before it counts the [notes](../../GLOSSARY.md#permanent-note); a test that a note is delivered waits for the records too, because a lookup in a
+  [vault](../../GLOSSARY.md#vault) whose only note is being written finds no embedding and the delivery steps aside.
+- **Rationale:** the first run of [793a3a1a A written note is delivered with later prompts](./793a_product-spec.md#793a3a1-uat-scenarios) sent its next [prompt](./793a_product-spec.md#793a1a-terms) as soon as the note's file existed and
+  got no note with it; the failure of the lookup, `vault has notes but no current-model embeddings`, lasted the 0.3
+  seconds the write took to embed the note. An absence proved at the instant of the first record would pass a write
+  that is about to put a second note beside the first, and the writes of one turn end within a second of each other.
+- **Alternatives:** wait the whole 2 minutes (rejected: every absence would cost 2 minutes); count the notes at the
+  first record (rejected above).
+- **Decided by:** Author (default; owner may override); the window is asked in
+  [793c44 Is the window between a note's file and its embedding a risk?](./793c_open-questions.md#793c44-is-the-window-between-a-notes-file-and-its-embedding-a-risk).

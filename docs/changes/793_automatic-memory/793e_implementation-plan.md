@@ -32,6 +32,24 @@ The shape the first node's step 3 added, which later nodes extend:
   runs them over the real mods, so `targ check-full` fails on a mod that does not parse
   ([793b55 The mod's JavaScript is parsed by a test of the dev integration suite](./793b_decision-log.md#793b55-the-mods-javascript-is-parsed-by-a-test-of-the-dev-integration-suite)).
 
+What the second group ([793e6b Lessons are written without the agent](#793e6b-lessons-are-written-without-the-agent)) added:
+
+- `internal/auto/judge.go`, `internal/auto/prompts/judge.txt`: the window of the judgement, the notes nearest to the
+  [turn](./793a_product-spec.md#793a1a-terms) and the instructions the model is asked ([793b65 What the judgement reads, and what it is asked](./793b_decision-log.md#793b65-what-the-judgement-reads-and-what-it-is-asked)).
+- `internal/auto/lesson.go`: the reading of the model's reply into lessons, and the records of what became of it
+  ([793b66 What a lesson becomes](./793b_decision-log.md#793b66-what-a-lesson-becomes), [793b67 What automatic memory records](./793b_decision-log.md#793b67-what-automatic-memory-records)).
+- `internal/auto/redact.go`: the redaction of credentials ([793b69 Credentials are redacted by shape, and the rest is a known risk](./793b_decision-log.md#793b69-credentials-are-redacted-by-shape-and-the-rest-is-a-known-risk)),
+  and `internal/auto/auto.go`: the origins of the prompts the user sends ([793b64 The prompts the user sends](./793b_decision-log.md#793b64-the-prompts-the-user-sends)).
+- `internal/cli/auto.go`, `internal/cli/targets.go`: the commands `judge` and `write`, wired outside the first-use step
+  ([793b71 The commands of the group auto take no first-use step](./793b_decision-log.md#793b71-the-commands-of-the-group-auto-take-no-first-use-step)).
+- `agent-instructions/mods/engram-memory/hooks/register.js`: the hooks `turn.start` and `turn.complete`, which run the
+  capture of a turn apart from the turn and keep the origin of each turn ([793b70 The capture reports its own failures, and nothing times it as a whole](./793b_decision-log.md#793b70-the-capture-reports-its-own-failures-and-nothing-times-it-as-a-whole),
+  [793b72 The origin of a turn](./793b_decision-log.md#793b72-the-origin-of-a-turn)).
+- `dev/acceptance/lessons_test.go`, `dev/acceptance/steps_test.go`, `dev/acceptance/session_test.go`: the tests of the
+  scenarios of the group, which run a conversation (one running `claude`) because the capture goes on after the turn
+  and a process that ends with the turn would end it ([793b37 A turn followed by the end of the session is not covered](./793b_decision-log.md#793b37-a-turn-followed-by-the-end-of-the-session-is-not-covered)), and the stand-in host of
+  the mod's tests in `dev/mods_integration_internal_test.go`.
+
 ## 793e2 Test methods
 
 The shared cycle applies once to every test row (the owner's step 5, [793f2 The algorithm](./793f_algorithm.md#793f2-the-algorithm)):
