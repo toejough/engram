@@ -35,22 +35,13 @@ type AutoDeliverDeps struct {
 	ReadFile func(path string) ([]byte, error)
 }
 
-// AutoJudgeArgs holds parsed flags for `engram auto judge`.
-type AutoJudgeArgs struct {
-	VaultPath   string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
-	SessionsDir string `targ:"flag,name=sessions,desc=directory of recorded sessions (default ENGRAM_TRANSCRIPT_DIR then CLAUDE_CONFIG_DIR/projects then ~/.claude/projects)"` //nolint:lll // single unbreakable struct-tag string
-}
+// AutoJudgeArgs holds parsed flags for `engram auto judge`: those of the delivery, because the judgement looks up
+// notes and reads the record of a session as the delivery does.
+type AutoJudgeArgs = AutoDeliverArgs
 
-// AutoJudgeDeps holds injected dependencies for RunAutoJudge.
-type AutoJudgeDeps struct {
-	// Stdin carries the turn that ended: one JSON object with the session's ID and the turn's final text.
-	Stdin io.Reader
-	// Query runs the lookup of the notes nearest to the turn, the one `engram query` runs.
-	Query QueryRun
-	// ReadDir and ReadFile read the session-log directory, where Claude Code keeps the record of each session.
-	ReadDir  func(path string) ([]fs.DirEntry, error)
-	ReadFile func(path string) ([]byte, error)
-}
+// AutoJudgeDeps holds injected dependencies for RunAutoJudge: those of the delivery, whose standard input carries the
+// turn that ended, one JSON object with the session's ID and the turn's final text.
+type AutoJudgeDeps = AutoDeliverDeps
 
 // AutoWriteArgs holds parsed flags for `engram auto write`.
 type AutoWriteArgs struct {
@@ -279,25 +270,12 @@ func lookUpNotes(ctx context.Context, vault, text string, query QueryRun) ([]aut
 	return notesOf(payload.Bytes())
 }
 
-// newAutoDeliverDeps wires RunAutoDeliver from the injected CLI capabilities — pure composition (#700).
+// newAutoDeliverDeps wires RunAutoDeliver and RunAutoJudge from the injected CLI capabilities - pure composition
+// (#700).
 func newAutoDeliverDeps(d Deps) AutoDeliverDeps {
 	queryDeps := newQueryDeps(d)
 
 	return AutoDeliverDeps{
-		Stdin: d.Stdin,
-		Query: func(ctx context.Context, args QueryArgs, stdout io.Writer) error {
-			return RunQuery(ctx, args, queryDeps, stdout)
-		},
-		ReadDir:  d.FS.ReadDir,
-		ReadFile: d.FS.ReadFile,
-	}
-}
-
-// newAutoJudgeDeps wires RunAutoJudge from the injected CLI capabilities — pure composition (#700).
-func newAutoJudgeDeps(d Deps) AutoJudgeDeps {
-	queryDeps := newQueryDeps(d)
-
-	return AutoJudgeDeps{
 		Stdin: d.Stdin,
 		Query: func(ctx context.Context, args QueryArgs, stdout io.Writer) error {
 			return RunQuery(ctx, args, queryDeps, stdout)

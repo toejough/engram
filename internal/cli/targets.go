@@ -185,7 +185,7 @@ func autoTargets(
 					a.SessionsDir = sessionsDirOf(deps.Getenv, deps.UserHomeDir)
 				}
 
-				errHandler(RunAutoJudge(withLog(ctx), a, newAutoJudgeDeps(deps), deps.Stdout))
+				errHandler(RunAutoJudge(withLog(ctx), a, newAutoDeliverDeps(deps), deps.Stdout))
 			}).Name("judge").Description(
 				"Print the request for the model that judges a turn (the automatic-memory mod runs this after each turn)"),
 			targ.Targ(func(ctx context.Context, a AutoWriteArgs) {
