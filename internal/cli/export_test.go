@@ -151,7 +151,6 @@ var (
 	ExportNamedClustersToSeedTerms         = namedClustersToSeedTerms
 	ExportNewActivateDeps                  = newActivateDeps
 	ExportNewAmendDeps                     = newAmendDeps
-	ExportNotesOf                          = notesOf
 	ExportNewErrHandler                    = newErrHandler
 	ExportNewExchangeState                 = newExchangeState
 	ExportNewIdentityDeps                  = newIdentityDeps
@@ -166,6 +165,7 @@ var (
 	ExportNoteContainsAnyRemoval     = noteContainsAnyRemoval
 	ExportNoteHasPendingMarker       = noteHasPendingMarker
 	ExportNotesMissingIdentityFields = notesMissingIdentityFields
+	ExportNotesOf                    = notesOf
 	ExportOldVocabFilesPresent       = oldVocabFilesPresent
 	ExportParentBase                 = parentBase
 	ExportParseCreatedFromNote       = parseCreatedFromNote

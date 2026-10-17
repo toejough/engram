@@ -91,8 +91,8 @@ capability to the ones before it.
 ```mermaid
 graph TD
     n793e6a1["793e6a1 The next session has memory after one engram update<br/>Complete"]
-    n793e6a2["793e6a2 The notes that bear on a prompt arrive with it<br/>Ready"]
-    n793e6a3["793e6a3 A note delivered earlier in the session is not delivered again<br/>Blocked by: 793e6a2"]
+    n793e6a2["793e6a2 The notes that bear on a prompt arrive with it<br/>Complete"]
+    n793e6a3["793e6a3 A note delivered earlier in the session is not delivered again<br/>Ready"]
     n793e6a4["793e6a4 A note the agent looked up itself is not delivered<br/>Blocked by: 793e6a3"]
     n793e6a5["793e6a5 A prompt that matches no note arrives with nothing<br/>Blocked by: 793e6a4"]
     n793e6a6["793e6a6 A slow lookup does not hold a prompt for more than 8 seconds<br/>Blocked by: 793e6a5"]
@@ -159,8 +159,8 @@ Takes [793a2b1a The notes that bear on a prompt arrive with it](./793a_product-s
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2b1a | Dedicated example, product acceptance (`network`) | the delivery as the user sees it, with a note that does not bear on the prompt beside one that does: the session holds only the one, before it acts, and the prompt as typed | Green-all | n/a | b7ff882a | |
-| 793d4a1c | Dedicated example (default suite) | the lookup's payload over a crafted payload: a note only the explore half picked is in the payload of any vault with a vocabulary, and a small test vault has none | Green-all | 435d427c | | |
+| 793a2b1a | Dedicated example, product acceptance (`network`) | the delivery as the user sees it, with a note that does not bear on the prompt beside one that does: the session holds only the one, before it acts, and the prompt as typed | Done | n/a | b7ff882a | |
+| 793d4a1c | Dedicated example (default suite) | the lookup's payload over a crafted payload: a note only the explore half picked is in the payload of any vault with a vocabulary, and a small test vault has none | Done | 435d427c | | |
 
 #### 793e6a3 A note delivered earlier in the session is not delivered again
 
