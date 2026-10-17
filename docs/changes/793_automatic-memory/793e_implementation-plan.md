@@ -45,8 +45,9 @@ Every test or check that runs `engram` or `claude`, whatever its classification,
 
 ## 793e3 Test status
 
-`Not started` → `Red` → `Green-all` → `Done` ([793b13 Departure: one refactor pass](./793b_decision-log.md#793b13-departure-one-refactor-pass)). Each phase's commit sets the row's Status. The
-Red, Green and Refactor columns hold those commits' hashes, each filled in by the next commit ([793b30 Commit hashes are recorded by the next commit](./793b_decision-log.md#793b30-commit-hashes-are-recorded-by-the-next-commit)).
+`Not started` → `Red` → `Green-all` → `Done` ([793b13 Departure: one refactor pass, and extra catalog columns](./793b_decision-log.md#793b13-departure-one-refactor-pass-and-extra-catalog-columns)).
+Each phase's commit sets the row's Status. The Red, Green and Refactor columns hold those commits' hashes, each
+filled in by the next commit.
 
 ## 793e4 Depth-first order and dependency tree
 

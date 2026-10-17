@@ -37,7 +37,8 @@ own commit.
 
 Reading ([793b5 Reading of the delegation rule](./793b_decision-log.md#793b5-reading-of-the-delegation-rule)):
 the orchestrating [session](../../GLOSSARY.md#session) does no object-level work itself. Search and lookups go
-to haiku, all writing and building go to sonnet, and every review goes to opus, one review round per phase. A
+to haiku, all writing and building go to sonnet, and every review goes to opus, one review round per phase (the
+owner's rule, [793b33 One agent review round per phase](./793b_decision-log.md#793b33-one-agent-review-round-per-phase)). A
 phase is one step applied to one unit: step 1 for the whole set, or step 2, 3, 4 or 5 for one requirement.
 
 ## 793f5 How this change applies it
@@ -57,18 +58,21 @@ every scenario ID in either spec has a test.
 
 ## 793f6 Departures from the guides
 
-Each follows from the owner's algorithm and is his decision.
+Two are the owner's: depth first and the North Star line. The others are the author's readings of his words, and
+he may override them.
 
-- **Depth first:** the documents are partial until the last requirement is done; the guides expect each
-  complete first ([793b10 Departure: depth-first fill](./793b_decision-log.md#793b10-departure-depth-first-fill)).
-- **No interview or approval gates:** the work is autonomous and the owner reviews at the end
-  ([793b11 Departure: no interview or approval gates](./793b_decision-log.md#793b11-departure-no-interview-or-approval-gates)).
-- **No option analysis:** step 3 takes the minimal components a scenario needs
-  ([793b12 Departure: no option analysis](./793b_decision-log.md#793b12-departure-no-option-analysis)).
-- **One refactor pass:** one pass per test replaces the plan guide's four refactor checkpoints
-  ([793b13 Departure: one refactor pass](./793b_decision-log.md#793b13-departure-one-refactor-pass)).
-- **A North Star line:** the product spec opens with it, beyond the product guide's three sections
+- **Depth first** (the owner): the documents are partial until the last requirement is done; the guides expect
+  each complete first ([793b10 Departure: depth-first fill](./793b_decision-log.md#793b10-departure-depth-first-fill)).
+- **A North Star line** (the owner): the product spec opens with it, beyond the product guide's three sections
   ([793b14 Departure: the North Star line](./793b_decision-log.md#793b14-departure-the-north-star-line)).
+- **No interview or approval gates** (the author's reading of "work autonomously"): the work is autonomous and
+  the owner reviews at the end
+  ([793b11 Departure: no interview or approval gates](./793b_decision-log.md#793b11-departure-no-interview-or-approval-gates)).
+- **No option analysis** (the author's reading of step 3): step 3 takes the minimal components a scenario needs
+  ([793b12 Departure: no option analysis](./793b_decision-log.md#793b12-departure-no-option-analysis)).
+- **One refactor pass, and extra catalog columns** (the author's reading of step 5; the columns are the author's
+  choice): one pass per test replaces the plan guide's four refactor checkpoints, and the catalog tables gain three
+  commit columns ([793b13 Departure: one refactor pass, and extra catalog columns](./793b_decision-log.md#793b13-departure-one-refactor-pass-and-extra-catalog-columns)).
 
 ## 793f7 Test isolation
 

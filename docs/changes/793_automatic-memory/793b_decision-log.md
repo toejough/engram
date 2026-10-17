@@ -47,15 +47,12 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 
 ## 793b5 Reading of the delegation rule
 
-- **Choice:** the orchestrating [session](../../GLOSSARY.md#session) does no object-level work itself; search and lookups go to
-  haiku, all writing and building go to sonnet, and every review goes to opus, one review round per phase. A
-  phase is one step applied to one unit: step 1 for the whole set, or step 2, 3, 4 or 5 for one requirement.
-- **Rationale:** the plain reading of "orchestrate", "search", "work" and "review". One review round follows
-  [docs/AGENTS.md](../../AGENTS.md#decisions-and-open-questions) ("A change spec MUST get one agent review
-  round, unless the owner asks for more"). For code it departs from the default of reviews argued to
-  resolution in the root [AGENTS.md](../../../AGENTS.md#issue-workflow-default).
-- **Alternatives:** argue each review to resolution, as the root default does. Not adopted: the owner named one
-  model for review and said nothing of argument.
+- **Choice:** the orchestrating [session](../../GLOSSARY.md#session) does no object-level work itself; search and
+  lookups go to haiku, all writing and building go to sonnet, and every review goes to opus. A phase, the unit of
+  one review round ([793b33 One agent review round per phase](#793b33-one-agent-review-round-per-phase)), is one
+  step applied to one unit: step 1 for the whole set, or step 2, 3, 4 or 5 for one requirement.
+- **Rationale:** the plain reading of "orchestrate", "search", "work" and "review".
+- **Alternatives:** none stated by the owner.
 - **Decided by:** Author (reading of the owner's rule; owner may override).
 
 ## 793b6 The five requirements are the minimal set
@@ -142,10 +139,11 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
   [technical](../../TECHNICAL-SPEC-GUIDE.md#authoring-workflow) and
   [plan](../../IMPLEMENTATION-PLAN-GUIDE.md#authoring-workflow) guides, and "resolve material ambiguity with the
   user before writing" in [docs/AGENTS.md](../../AGENTS.md#general-documentation-rules).
-- **Rationale:** the owner: "Work autonomously till you think you're done." He was unavailable, so each
-  question has a default instead ([793c Automatic Memory - Open Questions](./793c_open-questions.md#automatic-memory---open-questions)).
+- **Rationale:** the author reads the owner's "Work autonomously till you think you're done." as dropping the
+  interviews and approvals. He was unavailable, so each question has a default instead
+  ([793c Automatic Memory - Open Questions](./793c_open-questions.md#automatic-memory---open-questions)).
 - **Alternatives:** stop and wait for the owner at each document.
-- **Decided by:** Owner (Joe, 2026-10-16).
+- **Decided by:** Author (reading of the owner's "Work autonomously"; owner may override).
 
 ## 793b12 Departure: no option analysis
 
@@ -155,23 +153,32 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
   [technical spec guide](../../TECHNICAL-SPEC-GUIDE.md#default-structure). The guide allows a section to be
   omitted when it does not apply, and asks for the reason where a reviewer first needs it; this entry is the
   reason, and [793d Automatic Memory - Technical Spec](./793d_technical-spec.md#automatic-memory---technical-spec) repeats it.
-- **Rationale:** the owner's step 3: "identify the minimal set of components and how they must behave and
-  interact to implement the functionality the test requires."
+- **Rationale:** the author reads the owner's step 3, "identify the minimal set of components and how they must
+  behave and interact to implement the functionality the test requires.", as asking for the minimal components a
+  scenario needs and no comparison of options.
 - **Alternatives:** compare holistic options before choosing components.
-- **Decided by:** Owner (Joe, 2026-10-16).
+- **Decided by:** Author (reading of the owner's step 3; owner may override).
 
-## 793b13 Departure: one refactor pass
+## 793b13 Departure: one refactor pass, and extra catalog columns
 
 - **Choice:** one refactor commit per test, aimed at minimizing the code the branch adds without obscuring its
   purpose. The statuses are `Not started`, `Red`, `Green-all` and `Done`, with `Done` set by the refactor
-  commit.
+  commit. The catalog tables in [793e Automatic Memory - Implementation Plan](./793e_implementation-plan.md#automatic-memory---implementation-plan)
+  add three columns, Red commit, Green commit and Refactor commit, that hold the hash of each phase's commit.
+  Each phase's own commit sets the row's Status, and each hash is filled in by the next commit, because a commit
+  cannot contain its own hash and amending it would change the hash.
 - **Departs from:** Test Status in the [plan guide](../../IMPLEMENTATION-PLAN-GUIDE.md#test-status), which has
   `Green-single` and `Green-all`, then four refactor checkpoints (complexity, consistency, boundaries,
-  performance).
+  performance), and the guide's Test Catalog columns (Gherkin, Classification, Why and Status, with Properties for
+  `rapid` tests), which have no commit columns.
 - **Rationale:** the owner's step 5: "write it, make it pass, then refactor to minimize the code introduced by
-  the branch without obfuscating its function and purpose."
-- **Alternatives:** keep the four checkpoints.
-- **Decided by:** Owner (Joe, 2026-10-16).
+  the branch without obfuscating its function and purpose." The single refactor pass is the author's reading of
+  that step. The owner asked for no record of the commits; the three columns are the author's choice, so that
+  each phase of a test can be found.
+- **Alternatives:** keep the four checkpoints; keep no commit hashes, which loses the pointer from a row to its
+  phases.
+- **Decided by:** Author (reading of the owner's step 5; owner may override). The extra columns are the author's
+  own choice, which the owner did not ask for.
 
 ## 793b14 Departure: the North Star line
 
@@ -331,13 +338,9 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 
 ## 793b30 Commit hashes are recorded by the next commit
 
-- **Choice:** in [793e Automatic Memory - Implementation Plan](./793e_implementation-plan.md#automatic-memory---implementation-plan), the Red, Green and Refactor columns of a row hold the hashes of those phases'
-  commits, each filled in by the next commit; each phase's own commit sets the row's Status.
-- **Rationale:** a commit cannot contain its own hash, and amending it to add one changes the hash; the plan
-  guide requires the status to change in the commit that establishes the checkpoint.
-- **Alternatives:** amend each commit with its own hash (impossible), or keep no hashes (this loses the red,
-  green and refactor record the owner asked for).
-- **Decided by:** Author.
+Folded into [793b13 Departure: one refactor pass, and extra catalog columns](#793b13-departure-one-refactor-pass-and-extra-catalog-columns)
+in review round 1, which records the extra catalog columns as a departure. Not a separate decision; the ID is
+kept so that links do not dangle.
 
 ## 793b31 Glossary terms stay in the Terms list until promotion
 
@@ -370,3 +373,16 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 - **Alternatives:** none: it is the owner's rule.
 - **Decided by:** Owner (Joe, in the earlier attempt, 2026-10-11 to 2026-10-16), restated here after review
   round 1.
+
+## 793b33 One agent review round per phase
+
+- **Choice:** each phase gets one round of review, unless the owner asks for more. The author accepts or
+  declines each finding and records the outcome; findings are not argued to resolution. For this change that
+  supersedes the default of the root [AGENTS.md](../../../AGENTS.md#issue-workflow-default), whose implementation
+  and plan reviews are argued to resolution.
+- **Rationale:** the owner, in the earlier attempt on 2026-10-11, as relayed to the author: "one agent review
+  round per phase unless asked." `old 793b174` records the same cap for a change spec, and
+  [docs/AGENTS.md](../../AGENTS.md#decisions-and-open-questions) carries it ("A change spec MUST get one agent
+  review round, unless the owner asks for more").
+- **Alternatives:** argue each review to resolution, as the root default does. Superseded by the owner's rule.
+- **Decided by:** Owner (Joe, 2026-10-11, in the earlier attempt).
