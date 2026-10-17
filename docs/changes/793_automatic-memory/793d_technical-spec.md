@@ -281,11 +281,12 @@ is. It MUST plan none for [Pi](../../GLOSSARY.md#harness), and none, without an 
 exist. It MUST report each mod directory it deploys, in the section of Claude Code in the report of
 [`engram update`](../../GLOSSARY.md#engram-update), as a mod, with `agent-instructions/mods/<name>/` as its source,
 where a skill directory is reported with `agent-instructions/skills/<name>/`. A dry run MUST plan and report the mod
-and write none of its files.
+and write none of its files. A second `engram update` MUST leave the deployed mod as the first left it: the same files
+and the same link, with no second copy of the mod, and the report lists the mod once.
 
 Owner: [harness-deploy-sync](../../specs/technical/harness-deploy-sync.md)
 
-Supports: [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2a1d Pi gets no automatic memory](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2a1c A dry run turns nothing on](./793a_product-spec.md#793a2a1-uat-scenarios).
+Supports: [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2a1d Pi gets no automatic memory](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2a1c A dry run turns nothing on](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2a1b A second update still delivers each note once](./793a_product-spec.md#793a2a1-uat-scenarios).
 
 #### 793d4b1 Scenarios
 
@@ -324,6 +325,11 @@ Scenario: 793d4b1g A dry run plans the mod and writes none of it
   Given a checkout whose agent-instructions/mods holds the mod engram-memory, and a machine with Claude Code
   When engram update --dry-run runs
   Then the report lists the mod, and no file of it and no link to it has been written
+
+Scenario: 793d4b1h A second update leaves the mod as the first left it
+  Given a checkout whose agent-instructions/mods holds the mod engram-memory, a machine with Claude Code, and engram update run once
+  When engram update runs again
+  Then the files of the mod and the link to it are those the first run left, and the report lists the mod once
 ```
 
 ## 793d5 Product-scenario mapping
@@ -433,6 +439,20 @@ Scenario: 793a2a1c A dry run turns nothing on
 ```
 
 Realized by [793d4b Deploying the mods of the source](#793d4b-deploying-the-mods-of-the-source): the dry run plans the mod, reports it as the mod it is, and writes none of it, so the session that follows loads no mod and the prompt arrives with no note.
+
+### 793d5i Mapping of 793a2a1b
+
+The product scenario [793a2a1b A second update still delivers each note once](./793a_product-spec.md#793a2a1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2a1b A second update still delivers each note once
+  Given a machine on which the user has run engram update once, and a vault holding a note that says when the staging database is reset
+  When the user runs engram update again
+  And starts a session and sends a prompt asking when the staging database is reset
+  Then the note is in the agent's context once
+```
+
+Realized by [793d4b Deploying the mods of the source](#793d4b-deploying-the-mods-of-the-source): the second update leaves one deployed mod, so the session loads one hook and the prompt runs the command once; with [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt), which prints the block of the note once.
 
 ## 793d6 Recommended impact
 

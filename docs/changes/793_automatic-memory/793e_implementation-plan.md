@@ -228,10 +228,10 @@ Takes [793a2a1c A dry run turns nothing on](./793a_product-spec.md#793a2a1-uat-s
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2a1c | Dedicated example, product acceptance (`network`) | the preview as the user sees it: a dry run reports the mod and installs nothing, and the next session has no memory | Done | c8342310 | 6628b251 | |
+| 793a2a1c | Dedicated example, product acceptance (`network`) | the preview as the user sees it: a dry run reports the mod and installs nothing, and the next session has no memory | Done | c8342310 | 6628b251 | c45fb971 |
 | 793d4b1e | Dedicated example (default suite) | the report data: a mod directory is told from a skill directory, through `Updater.Run` over an in-memory file system | Done | e47a17b1 | 3123a3c3 | 49fd7aa0 |
 | 793d4b1f | Dedicated example (default suite) | the report's rows: the source printed for a mod, through the report writer over a constructed report | Done | 318651db | 6628b251 | a758cadc |
-| 793d4b1g | Dedicated example (default suite) | the dry run's promise for the new input: the mod is planned and reported and none of it is written, through `Updater.Run` over an in-memory file system | Done | n/a | - | |
+| 793d4b1g | Dedicated example (default suite) | the dry run's promise for the new input: the mod is planned and reported and none of it is written, through `Updater.Run` over an in-memory file system | Done | n/a | - | c45fb971 |
 
 #### 793e6a10 A second update still delivers each note once
 
@@ -239,6 +239,8 @@ Takes [793a2a1b A second update still delivers each note once](./793a_product-sp
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
+| 793a2a1b | Dedicated example, product acceptance (`network`) | the repeat as the user sees it: two real updates, then one real prompt, and the note arrives once | Not started | | | |
+| 793d4b1h | Dedicated example (default suite) | the idempotence for the new input: two runs of `Updater.Run` over an in-memory file system leave the same files and links, and the second report lists the mod once | Not started | | | |
 
 ### 793e6b Lessons are written without the agent
 
