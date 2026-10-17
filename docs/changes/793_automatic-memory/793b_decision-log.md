@@ -975,3 +975,56 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 - **Alternatives:** reword the sentence without file names (rejected: it changes what a new vault contains, which is not
   this change's to change).
 - **Decided by:** Author (default; owner may override), on the docs check.
+
+## 793b61 Review of the first group
+
+- **Choice:** the first group ([793e6a On after update, and memory arrives with the prompt](./793e_implementation-plan.md#793e6a-on-after-update-and-memory-arrives-with-the-prompt))
+  had one review round, run by opus on commit `e62be9a4`, which found 3 major, 16 minor and 7 nit items, numbered 1 to 26.
+  The author accepted every finding but 25 and applied them in a fix pass of new commits on the branch; no existing commit
+  was amended, rebased or rewritten. Where each is applied:
+  - **Major.** 1, the mod used the output of a command whatever its exit code:
+    [793b50 The mod uses what the command printed only when it succeeded and printed a block](#793b50-the-mod-uses-what-the-command-printed-only-when-it-succeeded-and-printed-a-block).
+    2 and 22, a [note](../../GLOSSARY.md#permanent-note) counted as held when its file name was in any tool result, and the second [prompt](./793a_product-spec.md#793a1a-terms) of the product
+    scenario ran in a resumed process: [793b45 What a session holds](#793b45-what-a-session-holds) and the product scenario
+    of the second prompt, now run through one live process. 3, the conformance check counted text:
+    [793b48 The conformance check reads this change's specs and fails when they are gone](#793b48-the-conformance-check-reads-this-changes-specs-and-fails-when-they-are-gone).
+  - **Minor.** 4, the parent [vault](../../GLOSSARY.md#vault): [793b57 The delivery looks up the local vault only, until a later node](#793b57-the-delivery-looks-up-the-local-vault-only-until-a-later-node).
+    5 and 6, delivery for every origin and the own-[session](../../GLOSSARY.md#session) clause:
+    [793b58 The first group delivers for every origin of a prompt](#793b58-the-first-group-delivers-for-every-origin-of-a-prompt).
+    7, a skip that ran nothing: [793b53 A missing login or Claude Code fails an acceptance test](#793b53-a-missing-login-or-claude-code-fails-an-acceptance-test).
+    8, two scenarios that proved only silence: [793b54 Two acceptance scenarios prove more than that nothing arrived](#793b54-two-acceptance-scenarios-prove-more-than-that-nothing-arrived).
+    9, the mutation checks of two tests that passed when written, recorded in their catalog rows and not by amending their
+    commits: a delivery that prints the block when the lookup fails fails the first, and a delivery of every note of the
+    vault fails the second, which a delivery of every item of the payload does not. 10, tests that resolved a directory under
+    the real home: they name a directory of their own and stub the environment, and no guard test is added, because other
+    tests rely on the real `Getenv` by design and a guard would need an opt-out in each. 11, the one run with the real home:
+    [793b59 The builder ran the tests once with the real home](#793b59-the-builder-ran-the-tests-once-with-the-real-home).
+    12, the stall: [793b49 The acceptance run is capped at four tests at once](#793b49-the-acceptance-run-is-capped-at-four-tests-at-once)
+    and [793c32 Is the stall between the spawn of the command and its first instruction a risk to the product?](./793c_open-questions.md#793c32-is-the-stall-between-the-spawn-of-the-command-and-its-first-instruction-a-risk-to-the-product).
+    13, `CLAUDE_CONFIG_DIR`: [793b51 The delivery finds the records where Claude Code writes them](#793b51-the-delivery-finds-the-records-where-claude-code-writes-them).
+    14, no gate parsed the mod: [793b55 The mod's JavaScript is parsed by a test of the dev integration suite](#793b55-the-mods-javascript-is-parsed-by-a-test-of-the-dev-integration-suite).
+    15, the wording of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt),
+    which names the notes that bear on a prompt by a term the user can check. 16, the `imptest` evidence:
+    [793b52 The delivery runs its lookup through an injected function](#793b52-the-delivery-runs-its-lookup-through-an-injected-function).
+    17, three stale sentences of the technical spec, corrected. 18, the dashes of the Green column, filled. 19, the entries
+    of the open questions for the decisions of the first group, added, with the two non-blocking owner questions of the review
+    ([793c19 Is the body of a note delivered whole, and on one line?](./793c_open-questions.md#793c19-is-the-body-of-a-note-delivered-whole-and-on-one-line)
+    and [793c33 Does the promise of automatic memory name a minimum version of Claude Code?](./793c_open-questions.md#793c33-does-the-promise-of-automatic-memory-name-a-minimum-version-of-claude-code)).
+  - **Nit.** 20, format characters in a note: [793b43 A note cannot reshape the block](#793b43-a-note-cannot-reshape-the-block).
+    21, the call for the session's ID outside the bound: [793b56 The 7 seconds bound the whole hook, not the command alone](#793b56-the-7-seconds-bound-the-whole-hook-not-the-command-alone).
+    23, the shared checkout hard-linked the worktree's files, now copies. 24, the fields and the parameter nothing read, removed.
+    26, a test that took its lock in the source directory: found by bisecting the 1,660 tests of the package, and given a
+    temporary vault. 25 is declined: two red commits carry unrelated [harness](../../GLOSSARY.md#harness) edits, and the history stays as it is, because
+    commits are not to be rewritten.
+  - **Docs checks.** The heading of the conformance section has its ID, the bare IDs and the Modified labels are fixed, the
+    first use of every defined term in a node is linked, and the restated sentences of 792a2e stay verbatim:
+    [793b60 The restated sentences of 792a2e are kept as they are](#793b60-the-restated-sentences-of-792a2e-are-kept-as-they-are).
+  - **Found on the way.** `Test792b17c6a1` read the machine's environment and failed under the isolation of
+    [793f7 Test isolation](./793f_algorithm.md#793f7-test-isolation), which sets `ENGRAM_TRANSCRIPT_DIR`; it stubs the
+    environment now.
+- **Rationale:** [Decisions and Open Questions](../../AGENTS.md#decisions-and-open-questions) has each review round record
+  its outcome in the decision log, and its questions in the open-questions file, before anything goes to the owner; the
+  author's choices of the fix pass are the entries that come before this one, from the mod's use of the command's output
+  to the restated sentences, each with its entry in the open questions.
+- **Alternatives:** decline a finding. One was declined (25).
+- **Decided by:** Reviewer (opus review of the first group), accepted by the author, except 25, declined by the author.

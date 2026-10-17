@@ -314,6 +314,12 @@ he answers. When he answers, the entry records the answer and the date and stays
   debug log showed `$.process.run` logging the spawn at once and then `prompt.submit settled in 7060.0ms`, with no output
   from the child, so the stall is between the spawn and the child's first instruction. The effect for a user on a loaded
   machine is that the [prompt](./793a_product-spec.md#793a1a-terms) is held about 7 seconds and nothing is delivered or shown. The cause is not established.
+  The cost of one delivery on an idle machine, so that the groups that add work to the path know what they add to,
+  measured on the machine this was built on (10 cores, a load average of 2.2 at the start), in an isolated home with a [vault](../../GLOSSARY.md#vault)
+  of 10 [notes](../../GLOSSARY.md#permanent-note), 5 runs of each after one run to warm the model: `engram auto deliver` for one prompt took 0.189 to 0.201
+  seconds (mean 0.193) with no record of the [session](../../GLOSSARY.md#session) and 0.189 to 0.207 (mean 0.195) with a record of about 300 KB, and
+  `engram query` for the same text took 0.188 to 0.197 (mean 0.191). The delivery costs what a query costs, a process
+  start, the model and the lookup; reading the record adds about 2 milliseconds.
 - **Options:** (a) Record it as an open risk, measure the cost of one delivery on an idle machine so that the groups that
   add work to the path know what they add to, and optimise nothing. (b) Find and remove the stall in this change. (c) Accept
   the risk without recording it.
