@@ -59,58 +59,58 @@ The graph is derived from the catalog of [793e6 Test catalog](#793e6-test-catalo
 
 ```mermaid
 flowchart TD
-    a1[793e6a1 Memory after one update<br/>Complete] --> a2[793e6a2 Notes arrive with the prompt<br/>Complete]
-    a2 --> a3[793e6a3 A delivered note is not repeated<br/>Complete]
-    a3 --> a4[793e6a4 A note looked up is not delivered<br/>Complete]
-    a4 --> a5[793e6a5 A prompt that matches no note<br/>Complete]
-    a1 --> a6[793e6a6 A slow lookup holds 8 seconds at most<br/>Complete] & a7[793e6a7 A missing vault is not created<br/>Complete] & a8[793e6a8 Pi gets no automatic memory<br/>Complete] & a9[793e6a9 A dry run turns nothing on<br/>Complete] & a10[793e6a10 A second update delivers once<br/>Complete] & a11[793e6a11 Conformance check<br/>Complete] & a12[793e6a12 JavaScript parse gate<br/>Complete]
-    a4 --> b1[793e6b1 A correction becomes a note<br/>Complete]
-    b1 --> b2[793e6b2 A request to remember<br/>Complete] & b3[793e6b3 A confirmed approach<br/>Complete] & b4[793e6b4 A self correction<br/>Complete] & b5[793e6b5 An approach that succeeded<br/>Complete] & b6[793e6b6 Guesses and chatter write nothing<br/>Complete] & b7[793e6b7 A credential is not in the note<br/>Complete] & b10[793e6b10 Agent commands keep working<br/>Complete] & b11[793e6b11 A written note is delivered later<br/>Complete] & b12[793e6b12 A second update writes once<br/>Complete] & b13[793e6b13 No write to a missing vault<br/>Complete] & b14[793e6b14 No session of its own<br/>Complete]
-    a10 --> b12
-    a7 --> b13
-    b6 --> b8[793e6b8 A covered lesson is not rewritten<br/>Complete] --> b9[793e6b9 A saved lesson is not rewritten<br/>Complete]
-    b14 --> b15[793e6b15 Branches found by coverage<br/>Complete]
-    b6 --> b15
-    b15 --> g1[793e6g1 Harness rows are no prompt<br/>Complete]
-    b14 --> g1
-    g1 --> g2[793e6g2 Record read once<br/>Complete] --> g3[793e6g3 A turn found by its text<br/>Complete]
-    b7 --> g2
-    g2 --> g4[793e6g4 Instructions are the system<br/>Complete]
-    b8 --> g4
-    b7 --> g5[793e6g5 Redaction names and promise<br/>Complete] --> g6[793e6g6 Lesson fields are one line<br/>Complete]
-    b1 --> g7[793e6g7 Automatic mark in the line<br/>Complete]
-    g6 --> g8[793e6g8 Redact whole after normalizing<br/>Complete]
-    g2 --> g8
-    b13 --> g9[793e6g9 No vault or record fails<br/>Complete]
-    b6 --> g10[793e6g10 A failure is recorded once<br/>Complete]
-    b14 --> g11[793e6g11 Headless prompts are opt in<br/>Complete]
-    b1 --> g12[793e6g12 Bounds for each stage<br/>Complete]
-    a1 --> g13[793e6g13 Acceptance run takes a count<br/>Complete]
-    b6 --> g14[793e6g14 A thanks writes nothing<br/>Complete]
-    g13 --> g14
-    b8 --> g15[793e6g15 A different lesson is written<br/>Complete]
-    g13 --> g15
-    g11 --> g16[793e6g16 A notification turn is not judged<br/>Complete]
-    g13 --> g16
-    g13 --> g17[793e6g17 Tally of runs and probe<br/>Complete]
-    g14 --> g17
-    g11 --> g18[793e6g18 Documents and decisions<br/>Complete]
-    b6 --> g18
-    b2 --> g19[793e6g19 A request to remember is always written<br/>Complete]
-    g14 --> g19
-    g17 --> g19
-    g12 --> e6[793e6e Searchable conversation<br/>Ready]
-    a6 --> c6[793e6c Never in the way<br/>Blocked by: 793e6e]
-    g12 --> c6
-    g10 --> d6[793e6d The user sees what it did<br/>Blocked by: 793e6c]
-    a2 --> f6[793e6f Delivery merges the parent vault<br/>Blocked by: 793e6d]
+    n793e6a1[793e6a1 The next session has memory after one engram update<br/>Complete] --> n793e6a2[793e6a2 The notes that bear on a prompt arrive with it<br/>Complete]
+    n793e6a2 --> n793e6a3[793e6a3 A note delivered earlier in the session is not delivered again<br/>Complete]
+    n793e6a3 --> n793e6a4[793e6a4 A note the agent looked up itself is not delivered<br/>Complete]
+    n793e6a4 --> n793e6a5[793e6a5 A prompt that matches no note arrives with nothing<br/>Complete]
+    n793e6a1 --> n793e6a6[793e6a6 A slow lookup does not hold a prompt for more than 8 seconds<br/>Complete] & n793e6a7[793e6a7 A vault that does not exist is not created<br/>Complete] & n793e6a8[793e6a8 Pi gets no automatic memory<br/>Complete] & n793e6a9[793e6a9 A dry run turns nothing on<br/>Complete] & n793e6a10[793e6a10 A second update still delivers each note once<br/>Complete] & n793e6a11[793e6a11 The conformance check of the first group<br/>Complete] & n793e6a12[793e6a12 The gate that parses the mod's JavaScript<br/>Complete]
+    n793e6a4 --> n793e6b1[793e6b1 A correction becomes a note<br/>Complete]
+    n793e6b1 --> n793e6b2[793e6b2 A request to remember becomes a note<br/>Complete] & n793e6b3[793e6b3 An approach the user confirmed becomes a note<br/>Complete] & n793e6b4[793e6b4 The agent's own correction becomes a note<br/>Complete] & n793e6b5[793e6b5 An approach that succeeded with evidence becomes a note<br/>Complete] & n793e6b6[793e6b6 Guesses, plans and chatter produce no note<br/>Complete] & n793e6b7[793e6b7 A credential in the turn is not in the note<br/>Complete] & n793e6b10[793e6b10 The agent's own lookups and saves keep working<br/>Complete] & n793e6b11[793e6b11 A written note is delivered with later prompts<br/>Complete] & n793e6b12[793e6b12 A second update still writes each lesson as one note<br/>Complete] & n793e6b13[793e6b13 A lesson is not written to a vault that does not exist<br/>Complete] & n793e6b14[793e6b14 Automatic memory's work starts no session of its own<br/>Complete]
+    n793e6a10 --> n793e6b12
+    n793e6a7 --> n793e6b13
+    n793e6b6 --> n793e6b8[793e6b8 A lesson an earlier note states is not written again<br/>Complete] --> n793e6b9[793e6b9 A lesson the agent saved itself is not written again<br/>Complete]
+    n793e6b14 --> n793e6b15[793e6b15 The branches of the group that the gate of coverage found<br/>Complete]
+    n793e6b6 --> n793e6b15
+    n793e6b15 --> n793e6g1[793e6g1 The rows the harness wrote are no prompt<br/>Complete]
+    n793e6b14 --> n793e6g1
+    n793e6g1 --> n793e6g2[793e6g2 The record is read once, and only the window is redacted<br/>Complete] --> n793e6g3[793e6g3 A turn is found by the text it began with<br/>Complete]
+    n793e6b7 --> n793e6g2
+    n793e6g2 --> n793e6g4[793e6g4 The instructions are the system of the request, and a message cannot close the window<br/>Complete]
+    n793e6b8 --> n793e6g4
+    n793e6b7 --> n793e6g5[793e6g5 Every name that holds a word of a secret is redacted, and the promise names the forms<br/>Complete] --> n793e6g6[793e6g6 A field of a lesson is one line, and a reply that is cut keeps its whole lessons<br/>Complete]
+    n793e6b1 --> n793e6g7[793e6g7 A note written automatically says so in its line<br/>Complete]
+    n793e6g6 --> n793e6g8[793e6g8 A credential that characters that are not shown split is redacted whole<br/>Complete]
+    n793e6g2 --> n793e6g8
+    n793e6b13 --> n793e6g9[793e6g9 A judgement without a vault or a record fails, and the model is not asked<br/>Complete]
+    n793e6b6 --> n793e6g10[793e6g10 A failure that is recorded is recorded once<br/>Complete]
+    n793e6b14 --> n793e6g11[793e6g11 A headless prompt is judged only when the user asks<br/>Complete]
+    n793e6b1 --> n793e6g12[793e6g12 Each stage of the capture has a bound of its own<br/>Complete]
+    n793e6a1 --> n793e6g13[793e6g13 The acceptance run can repeat a scenario<br/>Complete]
+    n793e6b6 --> n793e6g14[793e6g14 A thanks that names no approach produces no note, and the instructions carry the bar of the learn skill<br/>Complete]
+    n793e6g13 --> n793e6g14
+    n793e6b8 --> n793e6g15[793e6g15 A lesson no earlier note states is written<br/>Complete]
+    n793e6g13 --> n793e6g15
+    n793e6g11 --> n793e6g16[793e6g16 A turn that a background task's notification starts is not judged<br/>Complete]
+    n793e6g13 --> n793e6g16
+    n793e6g13 --> n793e6g17[793e6g17 The runs of the judgement rows are tallied, and the probe behind the instructions is kept<br/>Complete]
+    n793e6g14 --> n793e6g17
+    n793e6g11 --> n793e6g18[793e6g18 The documents say what the group does<br/>Complete]
+    n793e6b6 --> n793e6g18
+    n793e6b2 --> n793e6g19[793e6g19 A request to remember is written, whatever the agent says about saving it<br/>Complete]
+    n793e6g14 --> n793e6g19
+    n793e6g17 --> n793e6g19
+    n793e6g12 --> n793e6e[793e6e The conversation becomes searchable memory<br/>Ready]
+    n793e6a6 --> n793e6c[793e6c Never in the way<br/>Blocked by: 793e6e]
+    n793e6g12 --> n793e6c
+    n793e6g10 --> n793e6d[793e6d The user can see what it did<br/>Blocked by: 793e6c]
+    n793e6a2 --> n793e6f[793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d]
     classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
     classDef blocked fill:#eeeeee,stroke:#757575,color:#000,stroke-dasharray:5 5
-    class a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,b15,g1,g2,g3,g4,g5,g6,g7,g8,g9,g10,g11,g12,g13,g14,g15,g16,g17,g18,g19 complete
-    class e6 ready
-    class c6,d6,f6 blocked
+    class n793e6a1,n793e6a2,n793e6a3,n793e6a4,n793e6a5,n793e6a6,n793e6a7,n793e6a8,n793e6a9,n793e6a10,n793e6a11,n793e6a12,n793e6b1,n793e6b2,n793e6b3,n793e6b4,n793e6b5,n793e6b6,n793e6b7,n793e6b8,n793e6b9,n793e6b10,n793e6b11,n793e6b12,n793e6b13,n793e6b14,n793e6b15,n793e6g1,n793e6g2,n793e6g3,n793e6g4,n793e6g5,n793e6g6,n793e6g7,n793e6g8,n793e6g9,n793e6g10,n793e6g11,n793e6g12,n793e6g13,n793e6g14,n793e6g15,n793e6g16,n793e6g17,n793e6g18,n793e6g19 complete
+    class n793e6e ready
+    class n793e6c,n793e6d,n793e6f blocked
 ```
 
 Colour follows the status: green `Complete`, blue `Ready`, dashed grey `Blocked by`, yellow `In progress` (none now). A group is `Blocked by` the previous group of the order of [793e4 Depth-first order](#793e4-depth-first-order), which adds no arrow: the order is the rule that a later group needs the previous group's committed result.
