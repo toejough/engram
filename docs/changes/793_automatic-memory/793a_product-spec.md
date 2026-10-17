@@ -80,10 +80,10 @@ Requirement: 793a2c When a [turn](#793a1a-terms) holds a confirmed lesson that t
 a [note](../../GLOSSARY.md#permanent-note) stating it MUST be in the vault within 2 minutes
 ([793c2 How soon after a turn must automatic memory have finished writing?](./793c_open-questions.md#793c2-how-soon-after-a-turn-must-automatic-memory-have-finished-writing)) after the turn ends, written by
 [automatic memory](#793a1a-terms) and not by the [agent](#793a1a-terms), and marked as written automatically.
-A turn holds a confirmed
-lesson when the user corrected the agent, asked it to remember something, or confirmed that an approach
-worked, or when the agent plainly corrected its own earlier claim. A turn that holds only guesses, plans or
-chatter MUST NOT produce a note.
+A turn holds a confirmed lesson when the user corrected the agent, asked it to remember something, or
+confirmed that an approach worked, when the agent plainly corrected its own earlier claim, or when an
+uncertain approach succeeded with evidence in the turn. A turn that holds only guesses, plans or chatter MUST
+NOT produce a note. A note MUST NOT contain a credential, token, key or password that appeared in the turn.
 
 #### 793a2c1 UAT Scenarios
 

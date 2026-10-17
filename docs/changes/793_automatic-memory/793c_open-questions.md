@@ -83,13 +83,15 @@ he answers. When he answers, the entry records the answer and the date and stays
 ## 793c8 What about secrets in written notes?
 
 - **Context:** automatic [notes](../../GLOSSARY.md#permanent-note) quote what the user typed, including anything typed in a correction, and the
-  [vault](../../GLOSSARY.md#vault) may be under version control. The earlier attempt held a MUST NOT on it (the owner, 2026-10-11) that
-  its final set no longer carries.
+  [vault](../../GLOSSARY.md#vault) may be under version control. The earlier attempt's final product spec no
+  longer carried the MUST NOT on it that the owner had set (`old 793c7` item 10, 2026-10-11).
 - **Options:** (a) No rule in [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec). (b) Add "a note MUST NOT contain a secret" to [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent).
-- **Recommendation:** (b). The default is (a) only because [docs/AGENTS.md](../../AGENTS.md#general-documentation-rules)
-  says to document confirmed scope and the restart did not confirm it; the owner can add it with one sentence.
-- **Blocks:** nothing now; the scenarios of [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) if (b) is chosen.
-- **Status:** open. Default (a) taken: [793b24 Secrets in written notes are not addressed](./793b_decision-log.md#793b24-secrets-in-written-notes-are-not-addressed).
+- **Recommendation:** (b).
+- **Blocks:** the scenarios of [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent).
+- **Status:** answered (Joe, 2026-10-11, in the earlier attempt: `old 793c7` item 10; the redaction approach and
+  its residual risk ratified on 2026-10-13, `old 793b324`).
+- **Answer:** (b): a note MUST NOT contain a credential, token, key or password that appeared in the [turn](./793a_product-spec.md#793a1a-terms).
+- **Applied in:** [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), and [793b24 A note holds no secret](./793b_decision-log.md#793b24-a-note-holds-no-secret).
 
 ## 793c9 Does a turn with nothing to report get a line?
 

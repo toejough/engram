@@ -305,16 +305,20 @@ Folded into [793b2 North Star](#793b2-north-star) in review round 1. The ID is k
 - **Alternatives:** the targets of issue #793's open decision 1 ([793c7 Are there capture rate or precision targets?](./793c_open-questions.md#793c7-are-there-capture-rate-or-precision-targets)).
 - **Decided by:** Author (default; owner may override).
 
-## 793b24 Secrets in written notes are not addressed
+## 793b24 A note holds no secret
 
-- **Choice:** [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec) states no rule about secrets in a written [note](../../GLOSSARY.md#permanent-note).
-- **Rationale:** [docs/AGENTS.md](../../AGENTS.md#general-documentation-rules) says to document only
-  confirmed scope, and the restart confirmed five requirements. The earlier attempt held a MUST NOT on it (the
-  owner, 2026-10-11) that its final set no longer carries, keeping only a rule that hides secrets in warning
-  texts.
-- **Alternatives:** add "a note MUST NOT contain a secret" to [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent). The author recommends it
-  ([793c8 What about secrets in written notes?](./793c_open-questions.md#793c8-what-about-secrets-in-written-notes)).
-- **Decided by:** Author (default; owner may override).
+- **Choice:** [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) says a [note](../../GLOSSARY.md#permanent-note) MUST NOT contain a credential, token, key or
+  password that appeared in the [turn](./793a_product-spec.md#793a1a-terms). How it is met, and what risk remains, belong to the technical spec
+  at step 3.
+- **Rationale:** the owner's earlier decision, applied here: secrets are a MUST NOT (`old 793c7` item 10,
+  2026-10-11). The earlier attempt's product spec dropped the clause when it was re-derived from his intent
+  (`old 793b241`, 2026-10-12), but its technical spec kept pattern-based redaction, and he ratified the residual
+  risk on 2026-10-13: secrets of shapes the patterns do not cover can still reach the model provider and the
+  [vault](../../GLOSSARY.md#vault) (`old 793b324`, over `old 793d19a`). Automatic notes quote what the user typed,
+  including anything typed in a correction, and the vault may be under version control. Review round 1 found that
+  the first version of this entry, which left the rule out as unconfirmed scope, missed that decision.
+- **Alternatives:** no rule in the product spec. Rejected: the owner decided otherwise.
+- **Decided by:** Owner (Joe, 2026-10-11 and 2026-10-13, in the earlier attempt), applied here by the author.
 
 ## 793b25 A turn with nothing to report shows no line
 
