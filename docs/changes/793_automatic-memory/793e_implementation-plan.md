@@ -626,9 +626,9 @@ One node for the scenario of [793a2f The conversation becomes searchable memory]
 | 793d4n1c | Dedicated example | the origins that are swept nothing, and the headless one with and without the flag | | Done | f6802712 | 904f4a38 | |
 | 793d4n1d | Dedicated example | the failure branches: an index that fails and an input that is not a JSON object | | Done | f6802712 | 904f4a38 | |
 | 793d4e1d | Dedicated example | the first-use step is in the target's wiring, so only a dispatch through `cli.Targets` shows whether it runs | | Done | f6802712 | 904f4a38 | |
-| 793d2c1a | Dedicated example, real dependency (`integration`) | the stand-in host does not answer the judgement until the driver lets it, which a live [session](../../GLOSSARY.md#session) cannot show | | Green-all | 57e25307 | | |
-| 793d2c1b | Dedicated example, real dependency (`integration`) | a failing and an ended sweep are reported to the writing as failures naming the sweep | | Green-all | 57e25307 | | |
-| 793d2c1c | Dedicated example, real dependency (`integration`) | the bounds of the sweep and of the call for the ID, with the timers of the stand-in fired at once | | Green-all | 57e25307 | | |
+| 793d2c1a | Dedicated example, real dependency (`integration`) | the stand-in host does not answer the judgement until the driver lets it, which a live [session](../../GLOSSARY.md#session) cannot show | | Done | 57e25307 | 80d53086 | |
+| 793d2c1b | Dedicated example, real dependency (`integration`) | a failing and an ended sweep are reported to the writing as failures naming the sweep | | Done | 57e25307 | 80d53086 | |
+| 793d2c1c | Dedicated example, real dependency (`integration`) | the bounds of the sweep and of the call for the ID, with the timers of the stand-in fired at once | | Done | 57e25307 | 80d53086 | |
 | 793d2c1d | Dedicated example, real dependency (`integration`) | a turn a [subagent](../../GLOSSARY.md#subagent) ran is not swept | | Done | n/a | 57e25307 | |
 | 793d4n1e | Dedicated example, real dependency (`integration`) | the real `engram` ended with a kill while it embeds: inherited behaviour of the ingest | | Not started | | | |
 | 793d4n1f | Dedicated example, real dependency (`integration`) | two real sweeps at once: the lost update of #660 | | Not started | | | |

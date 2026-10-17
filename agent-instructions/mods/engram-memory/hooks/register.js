@@ -64,11 +64,11 @@ export function register(on) {
 
     turns.delete(e.turnId)
 
-    // the lessons are captured and the conversation is swept apart from the turn, and apart from each other: the
-    // event's result does not wait for them; the turn of a subagent is left out
+    // the lessons are captured and the conversation is swept (793d2c) apart from the turn, and apart from each other:
+    // the event's result does not wait for them; the turn of a subagent is left out
     if (e.agentId === undefined) {
-      void captureLessons($, e, turn)
-      void sweepConversation($, e, turn)
+      void afterTurn($, e, (session) => captureLessons($, e, turn, session))
+      void afterTurn($, e, (session) => run($, 'sweep', { session, origin: turn.origin }, SWEEP_BOUND_MS))
     }
 
     return result
@@ -108,34 +108,39 @@ async function bounded(promise, bound, what) {
   }
 }
 
-// captureLessons judges a turn that ended, asks the model for the judgement and has the lessons written (793d2b). It
-// ends quietly when the judgement has nothing to judge, and has the writing record the failure of a step that fails:
-// the turn went on as if automatic memory were not installed. Each stage has its bound, and a session whose ID does
-// not come is left alone, since the writing cannot record anything without it.
-async function captureLessons($, e, turn) {
+// afterTurn does a job of the capture of a turn that ended, with the session's ID, and has the writing record the
+// failure of a step that fails: the turn went on as if automatic memory were not installed. A session whose ID does not
+// come is left alone, since the writing cannot record anything without it (793d2b, 793d2c).
+async function afterTurn($, e, job) {
   let session = ''
 
   try {
     session = await bounded($.session.id(), ID_BOUND_MS, "the call for the session's ID")
 
-    const printed = await run($, 'judge', {
-      session,
-      turn: e.turnId,
-      text: turn.text,
-      answer: e.answer,
-      origin: turn.origin,
-    }, JUDGE_BOUND_MS)
-
-    if (printed === '') {
-      return
-    }
-
-    const reply = await ask($, requestOf(printed))
-
-    await run($, 'write', { session, turn: e.turnId, reply }, WRITE_BOUND_MS)
+    await job(session)
   } catch (error) {
     await report($, session, e.turnId, error)
   }
+}
+
+// captureLessons judges a turn that ended, asks the model for the judgement and has the lessons written (793d2b). It
+// ends quietly when the judgement has nothing to judge. Each stage has its bound.
+async function captureLessons($, e, turn, session) {
+  const printed = await run($, 'judge', {
+    session,
+    turn: e.turnId,
+    text: turn.text,
+    answer: e.answer,
+    origin: turn.origin,
+  }, JUDGE_BOUND_MS)
+
+  if (printed === '') {
+    return
+  }
+
+  const reply = await ask($, requestOf(printed))
+
+  await run($, 'write', { session, turn: e.turnId, reply }, WRITE_BOUND_MS)
 }
 
 // describe is the text of a failure.
@@ -209,21 +214,6 @@ async function report($, session, turn, error) {
     await run($, 'write', { session, turn, failure: describe(error).slice(0, FAILURE_MAX) }, REPORT_BOUND_MS)
   } catch {
     // nothing more can be done
-  }
-}
-
-// sweepConversation has the conversation of a turn that ended indexed, so that `engram query` finds it (793d2c). A
-// sweep that fails is reported to the writing, as a failed step of the capture is; a session whose ID does not come is
-// left alone, since the writing cannot record anything without it.
-async function sweepConversation($, e, turn) {
-  let session = ''
-
-  try {
-    session = await bounded($.session.id(), ID_BOUND_MS, "the call for the session's ID")
-
-    await run($, 'sweep', { session, origin: turn.origin }, SWEEP_BOUND_MS)
-  } catch (error) {
-    await report($, session, e.turnId, error)
   }
 }
 
