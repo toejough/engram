@@ -103,7 +103,8 @@ func RunAutoDeliver(ctx context.Context, args AutoDeliverArgs, deps AutoDeliverD
 }
 
 // RunAutoJudge reads a turn that ended from standard input and prints the request for the model that judges it, or
-// nothing when the session's record holds no prompt (793d4g).
+// nothing when the session's record holds no prompt. It fails, printing nothing, when no vault exists at the path or
+// no record of the session is found, so that the model is not asked for a turn that cannot be judged (793d4g).
 func RunAutoJudge(ctx context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, stdout io.Writer) error {
 	var turn auto.TurnEnd
 
@@ -116,7 +117,15 @@ func RunAutoJudge(ctx context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, s
 		return nil
 	}
 
+	_, vaultErr := deps.ReadDir(args.VaultPath)
+	if vaultErr != nil {
+		return fmt.Errorf("auto judge: no vault at %s: %w", args.VaultPath, vaultErr)
+	}
+
 	record := recordOf(deps.ReadDir, deps.ReadFile, args.SessionsDir, turn.Session)
+	if record == nil {
+		return fmt.Errorf("%w %s under %s", errNoRecord, turn.Session, args.SessionsDir)
+	}
 
 	request, found, judgeErr := auto.Judge(ctx, record, turn,
 		func(ctx context.Context, text string) ([]auto.Note, error) {
@@ -168,6 +177,12 @@ const (
 	recordFilePerm fs.FileMode = 0o600
 	// recordTimeFormat writes the time a record was made at in the name of its file: it sorts as the time does.
 	recordTimeFormat = "20060102T150405.000000000Z"
+)
+
+// unexported variables.
+var (
+	// errNoRecord begins the failure of a judgement that finds no record of its session.
+	errNoRecord = errors.New("auto judge: no record of session")
 )
 
 // outcomes is what became of a reply so far, as the records that tell it: base holds what they share.
