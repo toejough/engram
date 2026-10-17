@@ -218,23 +218,14 @@ Folded into [793b2 North Star](#793b2-north-star) in review round 1. The ID is k
 
 ## 793b15 Artifact names
 
-- **Choice:** the change directory is `793_automatic-memory`. The letters are a product spec, b decision log,
-  c open questions, d technical spec, e implementation plan and f algorithm; the process document is
-  `793f_algorithm.md`, not an unlettered `793_algorithm.md`.
-- **Rationale:** "Issue-Rooted Change IDs" in [docs/AGENTS.md](../../AGENTS.md#issue-rooted-change-ids)
-  requires every change artifact to extend the issue key with alternating lowercase letters and numbers, and no
-  guide names a process document, so it takes the next free letter.
-- **Alternatives:** `793_algorithm.md`. Rejected: it breaks the ID rule.
-- **Decided by:** Author.
+Withdrawn in review round 1: not a decision. "Issue-Rooted Change IDs" in
+[docs/AGENTS.md](../../AGENTS.md#issue-rooted-change-ids) dictates the lettered file names. The ID is kept so
+that links do not dangle.
 
 ## 793b16 One subject term
 
-- **Choice:** the spec's subject is "[automatic memory](./793a_product-spec.md#793a1a-terms)", defined in [793a1a Terms](./793a_product-spec.md#793a1a-terms), throughout; not "the memory
-  system" or "the System".
-- **Rationale:** one term for one thing, shortened from the North Star's own words. A "system" has no
-  definition in the glossary and would be a second name for the same behavior.
-- **Alternatives:** "the memory system". Rejected for that reason.
-- **Decided by:** Author.
+Withdrawn in review round 1: not a decision. The product spec names its subject with the term its Terms list
+defines. The ID is kept so that links do not dangle.
 
 ## 793b17 A prompt is held for at most 8 seconds
 
@@ -275,12 +266,15 @@ Folded into [793b2 North Star](#793b2-north-star) in review round 1. The ID is k
 ## 793b20 No modes and no off switch
 
 - **Choice:** [automatic memory](./793a_product-spec.md#793a1a-terms) is on whenever it is installed ([793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update)). There is no observe mode and no
-  off switch; stopping it means removing what [`engram update`](../../GLOSSARY.md#engram-update) added, and no requirement
-  covers how.
-- **Rationale:** the owner's answer on 2026-10-11 in the earlier attempt: "remove modes; the System is active
-  whenever installed", and disabling or uninstalling it stops it.
-- **Alternatives:** observe and active modes with a kill switch, as issue #793 expected ([793c4 Are there modes or an off switch?](./793c_open-questions.md#793c4-are-there-modes-or-an-off-switch)).
-- **Decided by:** Author (default; owner may override).
+  off switch; stopping it means removing what [`engram update`](../../GLOSSARY.md#engram-update) added, and no
+  requirement covers how.
+- **Rationale:** the owner's answer in the earlier attempt (`old 793c12` (a), 2026-10-11): remove modes, the
+  System is active whenever installed, and disabling or uninstalling stops it. The choice follows that
+  answer, so it is a decision here and not a question for the owner. He also answered that uninstall is extended
+  to remove it (`old 793c18` (a) and `old 793c22` (b), 2026-10-11); no requirement here covers that, which is
+  row 10 of [793b36 Earlier owner answers this minimal set reverses](./793b_decision-log.md#793b36-earlier-owner-answers-this-minimal-set-reverses).
+- **Alternatives:** observe and active modes with a kill switch, as issue #793 expected.
+- **Decided by:** Author (follows the owner's earlier answer; owner may override).
 
 ## 793b21 Lessons are written straight into the vault
 
@@ -307,11 +301,14 @@ Folded into [793b2 North Star](#793b2-north-star) in review round 1. The ID is k
 ## 793b23 No capture rate or precision targets
 
 - **Choice:** [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec) states no target; the scenarios of [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) are the proof.
-- **Rationale:** the owner's step 2 proves a requirement with scenarios, and the earlier attempt's targets (a
-  capture rate above the 5.6% baseline and recorded precision, the owner on 2026-10-11) need measurement the
-  minimal set leaves out.
-- **Alternatives:** the targets of issue #793's open decision 1 ([793c7 Are there capture rate or precision targets?](./793c_open-questions.md#793c7-are-there-capture-rate-or-precision-targets)).
-- **Decided by:** Author (default; owner may override).
+- **Rationale:** the owner's step 2 proves a requirement with scenarios. In the earlier attempt the owner set a
+  capture rate above the 5.6% baseline and recorded precision (`old 793c7` items 7 and 8, 2026-10-11), then moved
+  the measurement requirements, those targets included, out of the product spec into issue #850
+  (`parallel memory agent: measurement and evaluation`; `old 793b182`, 2026-10-11). This change follows that
+  move, so it is a decision here and not a question for the owner.
+- **Alternatives:** the targets of issue #793's open decision 1, a precision bar of 70% and a capture rate of
+  50%.
+- **Decided by:** Author (follows the owner's earlier decision; owner may override).
 
 ## 793b24 A note holds no secret
 

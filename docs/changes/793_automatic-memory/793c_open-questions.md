@@ -40,15 +40,6 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Blocks:** scenarios of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) that involve many related notes.
 - **Status:** open. Default (a) taken: [793b19 Volume of delivered notes](./793b_decision-log.md#793b19-volume-of-delivered-notes).
 
-## 793c4 Are there modes or an off switch?
-
-- **Context:** issue #793 expected observe and active modes and a kill switch. The earlier attempt removed
-  modes on the owner's answer of 2026-10-11: active whenever installed, and disabling or uninstalling stops it.
-- **Options:** (a) None. (b) An off switch. (c) An observe mode first.
-- **Recommendation:** (a) for the minimal set; (b) and (c) can be separate changes.
-- **Blocks:** nothing in [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec).
-- **Status:** open. Default (a) taken: [793b20 No modes and no off switch](./793b_decision-log.md#793b20-no-modes-and-no-off-switch).
-
 ## 793c5 Are lessons written straight into the vault or held for review?
 
 - **Context:** issue #793's open decision 4. [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) says the [note](../../GLOSSARY.md#permanent-note) must be in the [vault](../../GLOSSARY.md#vault) within 2
@@ -70,15 +61,6 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Recommendation:** (a) for the minimal set. This reverses his earlier answers, so it needs his confirmation.
 - **Blocks:** the scope of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) and [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), and [793b8 Exclusions](./793b_decision-log.md#793b8-exclusions).
 - **Status:** open. Default (a) taken: [793b22 The scope is top-level sessions and notes only](./793b_decision-log.md#793b22-the-scope-is-top-level-sessions-and-notes-only).
-
-## 793c7 Are there capture rate or precision targets?
-
-- **Context:** issue #793's open decision 1. In the earlier attempt the owner answered on 2026-10-11 that the
-  capture rate must exceed the 5.6% baseline and that precision must be recorded.
-- **Options:** (a) None in [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec); the scenarios are the proof. (b) The earlier targets.
-- **Recommendation:** (a): measuring a rate needs machinery the minimal set leaves out.
-- **Blocks:** nothing in [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec).
-- **Status:** open. Default (a) taken: [793b23 No capture rate or precision targets](./793b_decision-log.md#793b23-no-capture-rate-or-precision-targets).
 
 ## 793c8 What about secrets in written notes?
 
@@ -173,3 +155,14 @@ he answers. When he answers, the entry records the answer and the date and stays
   out. The cost is that a lesson in the last turn before an exit can be lost.
 - **Blocks:** the scenarios of [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) and [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) for a session that ends within 2 minutes after a turn.
 - **Status:** open. Default (a) taken: [793b37 A turn followed by the end of the session is not covered](./793b_decision-log.md#793b37-a-turn-followed-by-the-end-of-the-session-is-not-covered).
+
+## 793c15 Should the activity be shown in the agent's reply, so that it reaches the claude.ai mobile and web view?
+
+- **Context:** the owner follows [sessions](../../GLOSSARY.md#session) from the claude.ai mobile app and sees none of what [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) shows there;
+  the only route the earlier attempt found was the [agent](./793a_product-spec.md#793a1a-terms)'s own reply (`old 793c93`).
+- **Options:** (a) Leave it in the session only. (b) Ask the agent to end its reply
+  with one fixed activity line.
+- **Recommendation:** (a).
+- **Blocks:** nothing.
+- **Status:** parked (Joe, 2026-10-16, in the earlier attempt: `old 793c93`): "Nah, leave it for now." Revisit
+  after the behavior of [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec) has landed.
