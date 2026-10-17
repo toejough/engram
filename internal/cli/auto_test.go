@@ -153,6 +153,8 @@ func TestTargets_AutoDeliverPrintsTheNotesThatBearOnThePromptOnStandardInput(t *
 
 // unexported constants.
 const (
+	// sessionID is the ID of a session in the tests.
+	sessionID        = "4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11"
 	zorblaxResetNote = "---\ntype: fact\ntier: L2\nsituation: testing against the Zorblax staging database\n" +
 		"subject: the Zorblax staging database\npredicate: is reset every\nobject: Sunday at 03:40 UTC\n" +
 		"luhmann: \"1\"\ncreated: \"2026-10-17\"\nsource: test\nuser: u\nvault: personal\n---\n\n" +

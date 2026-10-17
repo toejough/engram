@@ -173,7 +173,7 @@ Takes [793a2b1b A note delivered earlier in the session is not delivered again](
 | 793d4a1e | Dedicated example (default suite) | no remaining note prints nothing, so a held note's second prompt carries no empty block, through `RunAutoDeliver` | Not started | | | |
 | 793d2a1c | Dedicated example, real dependency (`network`) | an empty output adds nothing: a context entry may not be empty, and the session's record must show no context, in a real Claude Code session against a stand-in engram | Green-all | f867c44c | f395ec9e | |
 | 793d4d1a | Dedicated example (default suite) | what counts as held: the blocks delivered beside prompts and nothing else of a record, over records of the real format | Green-all | 0d78b09e | 9bdc5e9e | |
-| 793d4d1b | Dedicated example (default suite) | the record is found in a project's subdirectory of the session-log directory, over a real temporary directory | Red | | | |
+| 793d4d1b | Dedicated example (default suite) | the record is found in a project's subdirectory of the session-log directory, over a real temporary directory | Green-all | b9fb12de | | |
 | 793d4d1c | Dedicated example (default suite) | the boundary cases: no record, and an ID that would leave the directory | Not started | | | |
 | 793d4a1d | Dedicated example (default suite) | the delivery leaves out a held note, through `RunAutoDeliver` over an in-memory vault and a real temporary session-log directory | Not started | | | |
 

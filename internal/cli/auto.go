@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
+	"path/filepath"
 	"slices"
 
 	"go.yaml.in/yaml/v3"
@@ -24,6 +26,9 @@ type AutoDeliverDeps struct {
 	Stdin io.Reader
 	// Query is the lookup of notes, the one `engram query` uses.
 	Query QueryDeps
+	// ReadDir and ReadFile read the session-log directory, where Claude Code keeps the record of each session.
+	ReadDir  func(path string) ([]fs.DirEntry, error)
+	ReadFile func(path string) ([]byte, error)
 }
 
 // RunAutoDeliver reads a prompt from standard input and prints the block of the notes that bear on it (793d4a).
@@ -48,6 +53,36 @@ func RunAutoDeliver(ctx context.Context, args AutoDeliverArgs, deps AutoDeliverD
 	}
 
 	return nil
+}
+
+// findRecord reads the record of a session, which Claude Code keeps as <ID>.jsonl in a directory of the session-log
+// directory for the project, or in the session-log directory itself.
+func findRecord(deps AutoDeliverDeps, dir, session string) []byte {
+	name := session + ".jsonl"
+	candidates := []string{filepath.Join(dir, name)}
+
+	// a directory that cannot be listed has no project directories to search
+	entries, _ := deps.ReadDir(dir)
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			candidates = append(candidates, filepath.Join(dir, entry.Name(), name))
+		}
+	}
+
+	for _, candidate := range candidates {
+		record, err := deps.ReadFile(candidate)
+		if err == nil {
+			return record
+		}
+	}
+
+	return nil
+}
+
+// heldText returns the text of what a session's agent holds of the vault (793d4d).
+func heldText(deps AutoDeliverDeps, dir, session string) (string, error) {
+	return auto.HeldText(findRecord(deps, dir, session)), nil
 }
 
 // lookUpNotes runs the lookup of `engram query` for a text, as its message and its only phrase, and reads the notes
