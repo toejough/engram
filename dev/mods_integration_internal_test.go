@@ -97,7 +97,8 @@ func Test793d2b1a_Mod_JudgesATurnAndGivesTheReplyToTheWriting(t *testing.T) {
 	}))
 	g.Expect(outcome.Calls[1].Step).To(Equal("model"))
 	g.Expect(outcome.Calls[1].Asked).To(Equal(map[string]any{
-		"model": "haiku", "effort": "low", "prompt": "THE PROMPT", "maxTokens": float64(1500), "timeoutMs": float64(60000),
+		"model": "haiku", "effort": "low", "system": "THE INSTRUCTIONS", "prompt": "THE PROMPT",
+		"maxTokens": float64(1500), "timeoutMs": float64(60000),
 	}), "the request, exactly as the judgement printed it")
 	g.Expect(outcome.Calls[2].Step).To(Equal("engram auto write"))
 	g.Expect(outcome.Calls[2].Input).To(Equal(map[string]any{
@@ -444,7 +445,8 @@ await handlers['prompt.submit'](host, { text: 'hello', context: [] }, async (eve
 console.log(JSON.stringify({ passed, delays, ran: ran.length }))
 `
 	// requestPrinted is what a judgement prints for a turn: the request for the model, as one JSON object.
-	requestPrinted = `{"model":"haiku","effort":"low","prompt":"THE PROMPT","maxTokens":1500,"timeoutMs":60000}` + "\n"
+	requestPrinted = `{"model":"haiku","effort":"low","system":"THE INSTRUCTIONS","prompt":"THE PROMPT",` +
+		`"maxTokens":1500,"timeoutMs":60000}` + "\n"
 )
 
 // captureOutcome is what captureDriver printed.

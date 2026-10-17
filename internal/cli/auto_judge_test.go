@@ -219,9 +219,9 @@ func Test793d4g1r_RunAutoJudge_APromptTypedAheadDoesNotBeginTheTurnOfTheOneBefor
 		`{"type":"user","message":{"role":"user","content":"Thanks. Now list the files."}}`,
 	}, "\n") + "\n"
 
-	window := judgedWindow(t, record, `{"origin":"composer","session":"`+sessionID+`",`+
+	window := judged(t, record, `{"origin":"composer","session":"`+sessionID+`",`+
 		`"text":"Which port does zorblax listen on? Guess, then read zorblax.conf.",`+
-		`"answer":"I guessed 8080, but that was wrong: zorblax.conf says it listens on 7731."}`)
+		`"answer":"I guessed 8080, but that was wrong: zorblax.conf says it listens on 7731."}`).window()
 
 	g.Expect(window).To(Equal([]string{
 		"--- the turn ---",
@@ -244,7 +244,8 @@ func Test793d4g1s_RunAutoJudge_ATurnThatANotificationStartedAfterItIsNotPartOfIt
 	asked := "Run this exact Bash command with run_in_background set to true: sleep 6; echo finished-zorblax. " +
 		"Then reply with the single word started."
 
-	window := judgedWindow(t, record, `{"origin":"sdk","session":"`+sessionID+`","text":"`+asked+`","answer":"started"}`)
+	window := judged(t, record,
+		`{"origin":"sdk","session":"`+sessionID+`","text":"`+asked+`","answer":"started"}`).window()
 
 	g.Expect(window).To(Equal([]string{
 		"--- the turn ---",
@@ -252,6 +253,21 @@ func Test793d4g1s_RunAutoJudge_ATurnThatANotificationStartedAfterItIsNotPartOfIt
 		"Agent used Bash",
 		"Agent: started",
 	}))
+}
+
+func Test793d4g1u_RunAutoJudge_TheInstructionsAreTheSystemOfTheRequest(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	record := `{"type":"user","message":{"role":"user","content":"No - build with make zorblax-build."}}` + "\n"
+
+	request := judged(t, record, `{"origin":"composer","session":"`+sessionID+`","answer":"Understood."}`)
+
+	g.Expect(request.System).To(HavePrefix("You keep the long-term memory of an AI coding agent."))
+	g.Expect(request.System).NotTo(ContainSubstring("make zorblax-build"), "nothing of the record")
+	g.Expect(request.Prompt).To(HavePrefix("<window>\n"))
+	g.Expect(request.Prompt).To(HaveSuffix("\n</notes>"))
+	g.Expect(request.Prompt).NotTo(ContainSubstring("You keep the long-term memory"), "none of the instructions")
 }
 
 func Test793d4g1t_RunAutoJudge_ATextThatNoPromptHasBeginsTheTurnAtTheLastPrompt(t *testing.T) {
@@ -264,8 +280,8 @@ func Test793d4g1t_RunAutoJudge_ATextThatNoPromptHasBeginsTheTurnAtTheLastPrompt(
 		`{"type":"user","message":{"role":"user","content":"No - build with make zorblax-build."}}`,
 	}, "\n") + "\n"
 
-	window := judgedWindow(t, record, `{"origin":"composer","session":"`+sessionID+`",`+
-		`"text":"/learn remember zorblax","answer":"Understood."}`)
+	window := judged(t, record, `{"origin":"composer","session":"`+sessionID+`",`+
+		`"text":"/learn remember zorblax","answer":"Understood."}`).window()
 
 	g.Expect(window).To(Equal([]string{
 		"User: How do I build the Zorblax project?",
@@ -276,9 +292,22 @@ func Test793d4g1t_RunAutoJudge_ATextThatNoPromptHasBeginsTheTurnAtTheLastPrompt(
 	}))
 }
 
-// judgedWindow runs the judgement over the record of a session with the input the mod gives it, and returns the lines
-// of the window of the request.
-func judgedWindow(t *testing.T, record, input string) []string {
+// judgedRequest is the request that the judgement prints: the fields of it that the tests read.
+type judgedRequest struct {
+	System string `json:"system"`
+	Prompt string `json:"prompt"`
+}
+
+// window returns the lines of the window of the request.
+func (r judgedRequest) window() []string {
+	_, rest, _ := strings.Cut(r.Prompt, "<window>\n")
+	window, _, _ := strings.Cut(rest, "\n</window>")
+
+	return strings.Split(window, "\n")
+}
+
+// judged runs the judgement over the record of a session with the input the mod gives it, and returns the request.
+func judged(t *testing.T, record, input string) judgedRequest {
 	t.Helper()
 
 	g := NewWithT(t)
@@ -296,14 +325,9 @@ func judgedWindow(t *testing.T, record, input string) []string {
 		}, &out)
 	g.Expect(err).NotTo(HaveOccurred())
 
-	var request struct {
-		Prompt string `json:"prompt"`
-	}
+	var request judgedRequest
 
 	g.Expect(json.Unmarshal(out.Bytes(), &request)).To(Succeed(), "the output is one JSON object: %q", out.String())
 
-	_, rest, _ := strings.Cut(request.Prompt, "<window>\n")
-	window, _, _ := strings.Cut(rest, "\n</window>")
-
-	return strings.Split(window, "\n")
+	return request
 }
