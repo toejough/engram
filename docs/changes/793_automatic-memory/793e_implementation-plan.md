@@ -194,7 +194,7 @@ graph TD
     n793e6g13 --> n793e6g14
     n793e6g15["793e6g15 A lesson no earlier note states is written<br/>Complete"]
     n793e6g14 --> n793e6g15
-    n793e6g16["793e6g16 A turn that a background task's notification starts is not judged<br/>Ready"]
+    n793e6g16["793e6g16 A turn that a background task's notification starts is not judged<br/>Complete"]
     n793e6g15 --> n793e6g16
     n793e6g16 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
@@ -699,7 +699,7 @@ Takes review finding 21. Of the origins that [793d4m Telling the prompts the use
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793d4m1d | Dedicated example, real dependency (`network`) | the origins of a real session end to end: the agent starts a task with `sleep` in the background, the notification starts a turn that the agent answers, and automatic memory has made the one record of the user's turn and no more, and the [vault](../../GLOSSARY.md#vault) holds no note | | Not started | | | |
+| 793d4m1d | Dedicated example, real dependency (`network`) | the origins of a real session end to end: the agent starts a task with `sleep` in the background, the notification starts a turn that the agent answers, and automatic memory has made the one record of the user's turn and no more, and the [vault](../../GLOSSARY.md#vault) holds no note. It passes when written; the mutation that makes it fail is a mod that gives the judgement the origin `composer` for every prompt, run on a scratch copy of the branch: the row passed 0 of 3 runs, each finding two records of the turns where one is expected | 10 of 10 runs | Done | n/a | 36c4017c | 44d399f8 |
 
 ### 793e6e The conversation becomes searchable memory
 
