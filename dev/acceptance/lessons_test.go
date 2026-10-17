@@ -429,6 +429,41 @@ func Test793a3c1b_ALessonTheAgentSavedItselfIsNotWrittenAgain(t *testing.T) {
 	})
 }
 
+func Test793a3c1c_ALessonNoEarlierNoteStatesIsWritten(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var (
+		earlier     string
+		earlierText string
+		chat        *conversation
+	)
+
+	step(t, "Given the user has run engram update, a vault holding a note that the user saved earlier and that states "+
+		"a lesson, and a session in which the agent may not run engram commands", func() {
+		machine.hasRunUpdate()
+
+		earlier = machine.learnsFact(stagingReset)
+		earlierText = machine.noteText(earlier)
+		chat = machine.startSession("zorblax").converse()
+	})
+
+	step(t, "When the user asks the agent in a prompt to remember a different lesson about the same subject, "+
+		"and the turn ends", func() {
+		chat.tell(askToRememberTheBackup)
+	})
+
+	step(t, "Then within 2 minutes the vault holds the earlier note, unchanged, and a new note for the different "+
+		"lesson that says it was written automatically", func() {
+		added := machine.awaitAutomaticNote(chat.turnEnds, "that states the backup", "Monday", "05:00")
+
+		g.Expect(machine.noteNames()).To(ConsistOf(earlier, added), "the notes of the vault")
+		g.Expect(machine.noteText(earlier)).To(Equal(earlierText), "the earlier note")
+	})
+}
+
 func Test793a3e1a_TheAgentsOwnLookupsAndSavesKeepWorking(t *testing.T) {
 	t.Parallel()
 
@@ -496,6 +531,9 @@ const (
 		"Then reply with one short sentence."
 	// askToRemember asks for a fact to be remembered.
 	askToRemember = "Remember that the Zorblax staging database is reset every Sunday at 03:40 UTC. " +
+		"Reply with one short sentence."
+	// askToRememberTheBackup asks to remember a second lesson about the database that stagingReset is about.
+	askToRememberTheBackup = "Remember that the Zorblax staging database is backed up every Monday at 05:00 UTC. " +
 		"Reply with one short sentence."
 	// askToRememberTheDeploy asks to remember a deploy whose token and password must not reach the vault.
 	askToRememberTheDeploy = "Remember how to deploy to staging: run the staging deploy script with DEPLOY_TOKEN=" +
