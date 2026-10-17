@@ -180,7 +180,7 @@ graph TD
     n793e6g6 --> n793e6g7
     n793e6g8["793e6g8 A credential split by characters not shown is redacted whole<br/>Complete"]
     n793e6g7 --> n793e6g8
-    n793e6g9["793e6g9 A judgement without a vault or a record fails<br/>Ready"]
+    n793e6g9["793e6g9 A judgement without a vault or a record fails<br/>Complete"]
     n793e6g8 --> n793e6g9
     n793e6g9 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
@@ -623,10 +623,10 @@ Takes review findings 9 and 13. With no [vault](../../GLOSSARY.md#vault) at the 
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793d4g1w | Dedicated example (default suite) | a session no record holds and no session at all, through `RunAutoJudge` over a real temporary directory: the command fails and names the session and the directory | Not started | | | |
-| 793d4g1x | Dedicated example (default suite) | a path that holds no vault: the command fails naming the path, prints nothing, and the lookup is never run (the stand-in of the lookup fails the test when it is called) | Not started | | | |
-| 793d4g1c (amended) | Dedicated example (default suite) | only the record of a session with no [prompt](./793a_product-spec.md#793a1a-terms) is judged nothing now | Not started | | | |
-| 793d4e1b (amended) | Dedicated example (default suite) | the judgement dispatched through the targets over a path that holds no vault creates none, as before, and now fails and prints no request | Not started | | | |
+| 793d4g1w | Dedicated example (default suite) | a session no record holds and no session at all, through `RunAutoJudge` over a real temporary directory: the command fails and names the session and the directory | Done | 4f85c7b3 | f0fdbe00 | ccb03b61 |
+| 793d4g1x | Dedicated example (default suite) | a path that holds no vault: the command fails naming the path, prints nothing, and the lookup is never run (the stand-in of the lookup fails the test when it is called) | Done | 4f85c7b3 | f0fdbe00 | ccb03b61 |
+| 793d4g1c (amended) | Dedicated example (default suite) | only the record of a session with no [prompt](./793a_product-spec.md#793a1a-terms) is judged nothing now. It passes when written, since the cases it keeps are those that already succeeded; the mutation that makes it fail is a judgement that fails when the record holds no prompt, run on a scratch copy of the branch | Done | n/a | f0fdbe00 | ccb03b61 |
+| 793d4e1b (amended) | Dedicated example (default suite) | the judgement dispatched through the targets over a path that holds no vault creates none, as before, and now fails and prints no request | Done | 4f85c7b3 | f0fdbe00 | ccb03b61 |
 
 ### 793e6e The conversation becomes searchable memory
 
