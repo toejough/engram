@@ -447,6 +447,14 @@ Takes [793a3a1a A written note is delivered with later prompts](./793a_product-s
 | --- | --- | --- | --- | --- | --- | --- |
 | 793a3a1a | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the user corrects the [agent](./793a_product-spec.md#793a1a-terms), the correction becomes a note, and a later [prompt](./793a_product-spec.md#793a1a-terms) that the note bears on arrives with it, both in the session of the correction and in a new one; the blocks the test reads are the ones delivered beside each prompt. The test passes when written, because the delivery finds every note of the vault; the mutation that makes it fail is a delivery that leaves out the notes written automatically | Done | n/a | 5d63aa30 | 5b695a5a |
 
+#### 793e6b12 A second update still writes each lesson as one note
+
+Takes [793a2a1f A second update still writes each lesson as one note](./793a_product-spec.md#793a2a1-uat-scenarios). It adds no component: the second update leaves one deployed mod, as it does for the delivery of the first group.
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| 793a2a1f | Dedicated example, product acceptance (`network`) | the repeat as the user sees it: two real updates, then a correction in a [session](../../GLOSSARY.md#session), and the [vault](../../GLOSSARY.md#vault) holds one [note](../../GLOSSARY.md#permanent-note) for it; the test waits for the end of the write and then for a settling time, so that a second note written beside the first would be seen. The test passes when written, because the update is idempotent over the [skills](../../GLOSSARY.md#skill) already; the mutation that makes it fail is a mod that registers its capture of the [turn](./793a_product-spec.md#793a1a-terms) twice | Red | | | |
+
 ### 793e6e The conversation becomes searchable memory
 
 Takes [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory).

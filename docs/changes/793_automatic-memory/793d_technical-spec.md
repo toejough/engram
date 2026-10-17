@@ -1008,6 +1008,19 @@ Scenario: 793a3a1a A written note is delivered with later prompts
 
 Realized by no component of its own. [793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply) writes the [note](../../GLOSSARY.md#permanent-note) through the learn path of [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand), which embeds it when it is written, so that the lookup of [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) finds it as it finds any note of the [vault](../../GLOSSARY.md#vault), in a new [session](../../GLOSSARY.md#session). In the session where it was written, [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) does not count it as held, because the [agent](./793a_product-spec.md#793a1a-terms) was never given it: it was neither delivered beside a [prompt](./793a_product-spec.md#793a1a-terms) nor looked up.
 
+### 793d5u Mapping of 793a2a1f
+
+The product scenario [793a2a1f A second update still writes each lesson as one note](./793a_product-spec.md#793a2a1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2a1f A second update still writes each lesson as one note
+  Given a machine on which the user has run engram update once
+  When the user runs engram update again, and corrects the agent in a prompt of a session
+  Then the vault holds one note for the correction
+```
+
+Realized by [793d4b Deploying the mods of the source](#793d4b-deploying-the-mods-of-the-source): the second update leaves one deployed mod, so the [session](../../GLOSSARY.md#session) loads one hook and the [turn](./793a_product-spec.md#793a1a-terms) is captured once, with the components of [793d5j Mapping of 793a2c1a](#793d5j-mapping-of-793a2c1a), which write the correction as one [note](../../GLOSSARY.md#permanent-note).
+
 ## 793d6 Recommended impact
 
 - **Repository:** a new directory `agent-instructions/mods/`; a new package `internal/auto` and a new command group
