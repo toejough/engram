@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io/fs"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -389,6 +391,47 @@ func Test793d4k1e_RunAutoWrite_ARecordThatCannotBeWrittenDoesNotFailTheCommand(t
 	g.Expect(written).To(HaveLen(1))
 }
 
+func Test793d4k1f_Targets_ADirectoryOfRecordsThatCannotBeMadeAndARecordThatCannotBeCreatedDoNotFailTheCommand(
+	t *testing.T,
+) {
+	t.Parallel()
+
+	for name, refuses := range map[string]refusingFS{
+		"the directory of the records cannot be made": {mkdir: true},
+		"the record cannot be created":                {create: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault, records, home := t.TempDir(), t.TempDir(), t.TempDir()
+
+			var stdout bytes.Buffer
+
+			stderr := executeForTestWithDeps(t,
+				[]string{"engram", "auto", "write", "--vault", vault, "--records", records},
+				func(d *cli.Deps) {
+					refuses.EdgeFS, refuses.below = d.FS, records
+
+					d.FS = refuses
+					d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
+					d.Getenv = func(string) string { return "" }
+					d.UserHomeDir = func() (string, error) { return home, nil }
+					d.Stdin = replyInput(`[{"kind":"fact","slug":"staging-reset","situation":"testing on the staging database",` +
+						`"covered":null,"subject":"the staging database","predicate":"is reset every","object":"Sunday night"}]`)
+					d.Stdout = &stdout
+				})
+
+			g.Expect(stderr).To(BeEmpty(), "the command succeeded")
+			g.Expect(stdout.String()).To(ContainSubstring(".staging-reset.md"), "the path of the note")
+
+			notes, globErr := filepath.Glob(filepath.Join(vault, "*.staging-reset.md"))
+			g.Expect(globErr).NotTo(HaveOccurred())
+			g.Expect(notes).To(HaveLen(1), "the note is in the vault")
+		})
+	}
+}
+
 // unexported constants.
 const (
 	feedbackLessonReply = `[{"kind":"feedback","slug":"format-before-commit","situation":"committing a Python file",` +
@@ -400,6 +443,7 @@ const (
 
 // unexported variables.
 var (
+	errRefused = errors.New("refused")
 	recordedAt = time.Date(2026, 10, 17, 12, 0, 0, 123, time.UTC)
 )
 
@@ -460,6 +504,33 @@ func (r *recordedFiles) write(path string, data []byte) error {
 	r.files[path] = data
 
 	return nil
+}
+
+// refusingFS is a file system that refuses to make a directory below a path, or to create a file in it.
+type refusingFS struct {
+	cli.EdgeFS
+
+	below  string
+	mkdir  bool
+	create bool
+}
+
+// MkdirAll refuses a directory below the path when the file system was told to.
+func (f refusingFS) MkdirAll(path string, perm fs.FileMode) error {
+	if f.mkdir && strings.HasPrefix(path, f.below) {
+		return errRefused
+	}
+
+	return f.EdgeFS.MkdirAll(path, perm)
+}
+
+// WriteFileExcl refuses a file below the path when the file system was told to.
+func (f refusingFS) WriteFileExcl(path string, data []byte, perm fs.FileMode) error {
+	if f.create && strings.HasPrefix(path, f.below) {
+		return errRefused
+	}
+
+	return f.EdgeFS.WriteFileExcl(path, data, perm)
 }
 
 // secretText is a text shaped as a credential, and the secret in it.

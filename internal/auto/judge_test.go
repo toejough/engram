@@ -269,6 +269,27 @@ func Test793d4g1j_Judge_ANoteCannotReshapeTheWindow(t *testing.T) {
 	g.Expect(request.Prompt).NotTo(ContainSubstring(token))
 }
 
+func Test793d4g1k_Judge_APromptOfTextBlocksIsOnePromptAndTheResultOfAToolIsNone(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	record := strings.Join([]string{
+		`{"type":"user","message":{"role":"user","content":[{"type":"text","text":"Look at this."},` +
+			`{"type":"image","source":{"type":"base64","data":"AAAA"}},{"type":"text","text":"Is it right?"}]}}`,
+		bashCall("t1", "ls"),
+		toolResult("t1", `"zorblax.txt"`),
+	}, "\n")
+
+	request, found := auto.Judge([]byte(record), "", nil)
+
+	g.Expect(found).To(BeTrue())
+	g.Expect(windowOf(request.Prompt)).To(Equal([]string{
+		"--- the turn ---",
+		"User: Look at this. ⏎ Is it right?",
+		"Agent used Bash",
+	}))
+}
+
 func Test793d4j1c_Judge_TheRequestHoldsNoCredentialOfTheTurn(t *testing.T) {
 	t.Parallel()
 
