@@ -49,7 +49,7 @@ written depth first, so each requirement's scenario section stays pending until 
 Requirement: 793a2a When the user runs [`engram update`](../../GLOSSARY.md#engram-update) on a machine that has
 Claude Code, [automatic memory](#793a1a-terms) MUST be on for every Claude Code
 [session](../../GLOSSARY.md#session) the user starts on that machine afterwards, in any project. Turning it on
-MUST NOT need any step other than running `engram update`: no new credential, setting or file for the user to
+MUST NOT need any step other than running `engram update`: no new credential or configuration for the user to
 supply. Running `engram update` again MUST leave automatic memory exactly as the first run left it. A session
 in any other [harness](../../GLOSSARY.md#harness) MUST behave exactly as before.
 
