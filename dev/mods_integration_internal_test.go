@@ -385,6 +385,111 @@ func Test793d2b1k_Mod_ARequestThatIsNotJSONIsAFailureOfTheJudgement(t *testing.T
 	}
 }
 
+func Test793d2c1a_Mod_SweepsTheConversationAfterATurnApartFromTheCapture(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	outcome := runCaptureDriver(t, captureScenario{
+		Judge: map[string]any{"hold": true, "exitCode": 0, "stdout": requestPrinted},
+		Model: map[string]any{"isAnswered": true, "text": "THE REPLY"},
+	})
+
+	g.Expect(outcome.Returned.Text).To(Equal("Understood."), "the event's result is given back")
+	g.Expect(outcome.Held).To(BeFalse(), "the event's result was not given back while the sweep was running")
+	g.Expect(outcome.Sweeps).To(HaveLen(1), "the sweep was run once")
+
+	if len(outcome.Sweeps) != 1 {
+		return
+	}
+
+	g.Expect(outcome.Sweeps[0].Step).To(Equal("engram auto sweep"))
+	g.Expect(outcome.Sweeps[0].Input).To(Equal(map[string]any{"session": "a-session", "origin": "composer"}))
+	g.Expect(outcome.Sweeps[0].WhileJudging).To(BeTrue(), "the sweep did not wait for the judgement")
+}
+
+func Test793d2c1b_Mod_ASweepThatFailsIsReportedToTheWriting(t *testing.T) {
+	t.Parallel()
+
+	for name, sweep := range map[string]map[string]any{
+		"a sweep that exits with 1": {"exitCode": 1, "stdout": "Error: no record of session\n"},
+		"a sweep that is ended":     {"rejects": "the command ran for 90000 ms"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			outcome := runCaptureDriver(t, captureScenario{
+				Judge: map[string]any{"exitCode": 0, "stdout": ""},
+				Sweep: sweep,
+			})
+
+			reports := outcome.inputsOf("engram auto write")
+
+			g.Expect(reports).To(HaveLen(1), "the report to the writing")
+
+			if len(reports) != 1 {
+				return
+			}
+
+			g.Expect(reports[0]).To(HaveKeyWithValue("session", "a-session"))
+			g.Expect(reports[0]).To(HaveKeyWithValue("turn", "a-turn"))
+			g.Expect(reports[0]).NotTo(HaveKey("reply"))
+			g.Expect(reports[0]["failure"]).To(ContainSubstring("engram auto sweep"))
+		})
+	}
+}
+
+func Test793d2c1c_Mod_ASweepThatStallsIsEndedAtItsBoundAndReported(t *testing.T) {
+	t.Parallel()
+
+	t.Run("the call for the session's ID", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		outcome := runCaptureDriver(t, captureScenario{
+			Judge: map[string]any{"exitCode": 0, "stdout": ""}, Stalls: "id",
+		})
+
+		g.Expect(outcome.Delays).To(ContainElement(5000), "the mod waited 5 seconds for the ID")
+		g.Expect(outcome.Sweeps).To(BeEmpty(), "and then did not sweep")
+	})
+
+	t.Run("the sweep", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		outcome := runCaptureDriver(t, captureScenario{
+			Judge: map[string]any{"exitCode": 0, "stdout": ""}, Stalls: "sweep",
+		})
+
+		g.Expect(outcome.Sweeps).To(HaveLen(1))
+
+		reports := outcome.stepsAndLimits()
+
+		g.Expect(reports).To(ContainElement("engram auto write: 15000"), "the report of the failure")
+
+		if len(outcome.Sweeps) == 1 {
+			g.Expect(outcome.Sweeps[0].TimeoutMs).To(BeNumerically("==", 90000), "the bound of the sweep")
+			g.Expect(5000+outcome.Sweeps[0].TimeoutMs+15000).To(BeNumerically("<", 120000),
+				"the ID, the sweep and the report together, in milliseconds")
+		}
+	})
+}
+
+func Test793d2c1d_Mod_ATurnOfASubagentIsNotSwept(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	outcome := runCaptureDriver(t, captureScenario{
+		Judge: map[string]any{"exitCode": 0, "stdout": requestPrinted},
+		Model: map[string]any{"isAnswered": true, "text": "THE REPLY"},
+		Agent: "a-subagent",
+	})
+
+	g.Expect(outcome.Returned.Text).To(Equal("Understood."), "the event's result is given back")
+	g.Expect(outcome.Sweeps).To(BeEmpty(), "the sweep was never run")
+}
+
 // TestMods_EveryJavaScriptModuleParses: the real mods parse under the real node, and the real node rejects a broken
 // module, which the stand-in node of the unit tests cannot show (793b55).
 func TestMods_EveryJavaScriptModuleParses(t *testing.T) {
@@ -419,8 +524,9 @@ const (
 	// steps of its script are done in order. Its
 	// judgement answers once the driver lets it (hold), exits with a code and prints a text, or rejects, and its model
 	// answers with a result or rejects. It records the order and the input of what the module asks of it, except the
-	// delivery, and prints what the hook of the end of the turn returned, whether that hook was still waiting when the
-	// driver gave up on it, and the calls.
+	// delivery and the sweep, and prints what the hook of the end of the turn returned, whether that hook was still
+	// waiting when the driver gave up on it, the calls, and the sweeps, which it records apart with whether the judgement
+	// was still running when each was run.
 	captureDriver = `
 import { pathToFileURL } from 'node:url'
 
@@ -430,8 +536,14 @@ register((name, handler) => { handlers[name] = handler })
 
 const scenario = JSON.parse(process.env.SCENARIO)
 const calls = []
+const sweeps = []
 let letJudgementAnswer
+let judgementReleased = false
 const judgement = new Promise((resolve) => { letJudgementAnswer = resolve })
+function releaseJudgement(result) {
+  judgementReleased = true
+  letJudgementAnswer(result)
+}
 
 // a stage that stalls: the timers of the mod fire at once and are recorded, and the driver waits with the real one
 const wait = globalThis.setTimeout
@@ -440,12 +552,13 @@ if (scenario.stalls) {
   globalThis.setTimeout = (callback, delay) => { delays.push(delay); return wait(callback, 0) }
 }
 
-// the capture is over when the calls have not changed for 50 ms
+// the capture and the sweep are over when the calls have not changed for 50 ms
 async function settled() {
   for (let last = -1, stable = 0, tick = 0; tick < 300 && stable < 5; tick++) {
     await new Promise((resolve) => wait(resolve, 10))
-    stable = calls.length === last ? stable + 1 : 0
-    last = calls.length
+    const total = calls.length + sweeps.length
+    stable = total === last ? stable + 1 : 0
+    last = total
   }
 }
 
@@ -457,6 +570,13 @@ const host = {
   process: {
     run: async (argv, init) => {
       if (argv[2] === 'deliver') return { exitCode: 0, stdout: '' }
+      if (argv[2] === 'sweep') {
+        sweeps.push({ step: argv.join(' '), input: JSON.parse(init.stdin), timeoutMs: init.timeoutMs,
+          whileJudging: !judgementReleased })
+        if (scenario.stalls === 'sweep') throw new Error('the command ran too long')
+        if (scenario.sweep?.rejects) throw new Error(scenario.sweep.rejects)
+        return scenario.sweep ?? { exitCode: 0, stdout: '' }
+      }
       calls.push({ step: argv.join(' '), input: JSON.parse(init.stdin), timeoutMs: init.timeoutMs })
       const ranTooLong = argv[2] === scenario.stalls && (argv[2] !== 'write' || ++writes === 1)
       if (ranTooLong) throw new Error('the command ran too long')
@@ -490,9 +610,9 @@ if (scenario.script) {
       await handlers['turn.complete'](host, completed, async (event) => ({ text: event.answer }))
     }
   }
-  letJudgementAnswer({ exitCode: scenario.judge.exitCode, stdout: scenario.judge.stdout })
+  releaseJudgement({ exitCode: scenario.judge.exitCode, stdout: scenario.judge.stdout })
   await settled()
-  console.log(JSON.stringify({ returned: {}, held: false, calls, delays }))
+  console.log(JSON.stringify({ returned: {}, held: false, calls, sweeps, delays }))
   process.exit(0)
 }
 
@@ -516,11 +636,11 @@ const returned = await Promise.race([hook, gaveUp])
 clearTimeout(giveUp)
 const held = returned === waited
 
-letJudgementAnswer({ exitCode: scenario.judge.exitCode, stdout: scenario.judge.stdout })
+releaseJudgement({ exitCode: scenario.judge.exitCode, stdout: scenario.judge.stdout })
 
 await settled()
 
-console.log(JSON.stringify({ returned: held ? {} : returned, held, calls, delays }))
+console.log(JSON.stringify({ returned: held ? {} : returned, held, calls, sweeps, delays }))
 `
 	// driverTimeout is how long the mod may take under the stand-in host before the test gives it up.
 	driverTimeout = 20 * time.Second
@@ -565,6 +685,12 @@ type captureOutcome struct {
 		Asked     map[string]any `json:"asked"`
 		TimeoutMs float64        `json:"timeoutMs"`
 	} `json:"calls"`
+	Sweeps []struct {
+		Step         string         `json:"step"`
+		Input        map[string]any `json:"input"`
+		TimeoutMs    float64        `json:"timeoutMs"`
+		WhileJudging bool           `json:"whileJudging"`
+	} `json:"sweeps"`
 }
 
 // inputsOf returns the inputs of the calls that ran a step, in the order they were made.
@@ -608,18 +734,19 @@ func (o captureOutcome) stepsAndLimits() []string {
 	return steps
 }
 
-// captureScenario is how the stand-in host of captureDriver behaves: its judgement and its model, the origin of the
-// prompt the turn begins with (composer when empty), the text of the prompt (hello when empty), the subagent that ran
-// the turn, if one did, and a script of prompts raised, turns started and turns completed, in the order given, which
-// stands in place of the one prompt and the one turn.
+// captureScenario is how the stand-in host of captureDriver behaves: its judgement, its model and its sweep, the origin
+// of the prompt the turn begins with (composer when empty), the text of the prompt (hello when empty), the subagent
+// that ran the turn, if one did, and a script of prompts raised, turns started and turns completed, in the order given,
+// which stands in place of the one prompt and the one turn.
 type captureScenario struct {
 	Judge  map[string]any   `json:"judge"`
 	Model  map[string]any   `json:"model"`
+	Sweep  map[string]any   `json:"sweep,omitempty"`
 	Origin string           `json:"origin,omitempty"`
 	Agent  string           `json:"agent,omitempty"`
 	Text   string           `json:"text,omitempty"`
 	Script []map[string]any `json:"script,omitempty"`
-	// Stalls names the stage that stalls: id, judge, model or write
+	// Stalls names the stage that stalls: id, judge, model, write or sweep
 	Stalls string `json:"stalls,omitempty"`
 }
 
