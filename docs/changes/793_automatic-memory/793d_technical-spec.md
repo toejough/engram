@@ -551,7 +551,13 @@ Scenario: 793d4f1d No record is read when no directory can be found
 Requirement: 793d4g The [turn](./793a_product-spec.md#793a1a-terms)-judgement MUST read one JSON object with the `session`'s ID, the turn's final `answer` and the
 `origin` of the [prompt](./793a_product-spec.md#793a1a-terms) the turn began with from standard input, MUST print nothing when the origin is not one the user sends
 ([793d4m Telling the prompts the user sends](#793d4m-telling-the-prompts-the-user-sends)), and MUST find the [session](../../GLOSSARY.md#session)'s record as [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) does,
-in the directory of [793d4f Finding the records of sessions](#793d4f-finding-the-records-of-sessions). The turn is the last [prompt](./793a_product-spec.md#793a1a-terms) of the record and
+in the directory of [793d4f Finding the records of sessions](#793d4f-finding-the-records-of-sessions). A [prompt](./793a_product-spec.md#793a1a-terms) is a
+row of the record that the user sent. A row that the [harness](../../GLOSSARY.md#harness) wrote is none, and makes no line: a row marked as meta
+(the body of a [skill](../../GLOSSARY.md#skill) that the [agent](./793a_product-spec.md#793a1a-terms) invoked), a row stamped with an origin that the user does not send ([793d4m Telling the prompts the user sends](#793d4m-telling-the-prompts-the-user-sends)),
+such as a task notification or a message of a peer session delivered into the turn, and a row whose text begins as
+[792b15c3 Harness noise](../../specs/technical/transcript-reader.md#792b15c3-harness-noise) drops text: a system reminder, the base directory of a skill, the caveat or the output of a
+local command, a task notification. A block of a prompt that begins so is left out of it, and the prompt of a slash
+command is its arguments, and none when it has none. The turn is the last prompt of the record and
 everything after it, and the conversation before it is the context. It MUST print one JSON object, the request for the
 model: `model` (`haiku`), `effort` (`low`), `prompt`, `maxTokens` and `timeoutMs`. The prompt MUST hold the instructions
 of the judgement, then the lines of the context, then the line `--- the turn ---`, then the lines of the turn. A line is
@@ -629,6 +635,31 @@ Scenario: 793d4g1k A prompt of text blocks is one prompt, and the result of a to
   Given a record whose last prompt is made of two text blocks and an image, followed by a row that holds only the result of a tool
   When the judgement is given the session
   Then the turn begins with one line for the prompt, holding the text of both blocks, and the result of the tool makes no line
+
+Scenario: 793d4g1l The body of a skill is no prompt
+  Given the record of a session whose turn began with a prompt of the user, in which the agent invoked a skill and the harness wrote the skill's body as a row marked as meta
+  When the judgement is given the session
+  Then the request has no line for the skill's body, and the turn begins with the user's prompt
+
+Scenario: 793d4g1m A system reminder in the row of a prompt is not part of the prompt
+  Given a record whose last prompt is a row of two text blocks, the user's words and a system reminder, followed by a row that holds only a system reminder
+  When the judgement is given the session
+  Then the prompt is one line of the user's words alone, and the row of the system reminder makes no line
+
+Scenario: 793d4g1n A task notification delivered into a turn is no prompt
+  Given the record of a session whose turn began with a prompt of the user, and in which a task notification was delivered as a row of the user's before the agent's last text
+  When the judgement is given the session
+  Then the request has no line for the notification, and the turn begins with the user's prompt
+
+Scenario: 793d4g1o A command that ran locally is no prompt, and a slash command is its arguments
+  Given the record of a session whose turn began with a prompt of the user and holds, after it, the caveat, the name with no arguments and the output of a command that ran locally, and a record whose prompt is a slash command given arguments
+  When the judgement is given each
+  Then none of the rows of the command that ran locally is a line of the first request, and the prompt of the second is the arguments
+
+Scenario: 793d4g1p A row of an origin the user does not send is no prompt
+  Given a record whose turn began with a prompt of the user, and a row of the user's stamped with the origin peer whose text opens with none of the marks of the harness, delivered before the agent's last text
+  When the judgement is given the session
+  Then the request has no line for that row, and the turn begins with the user's prompt
 ```
 
 ### 793d4h Writing the lessons of a reply

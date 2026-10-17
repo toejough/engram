@@ -103,6 +103,7 @@ a group's scenarios when the group is reached, and each scenario is a node of it
 | --- | --- | --- |
 | [793e6a On after update, and memory arrives with the prompt](#793e6a-on-after-update-and-memory-arrives-with-the-prompt) | [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update), [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) and the 8-second hold of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) | none |
 | [793e6b Lessons are written without the agent](#793e6b-lessons-are-written-without-the-agent) | [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), and the clause of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) about its own [sessions](../../GLOSSARY.md#session) ([793b58 The first group delivers for every origin of a prompt](./793b_decision-log.md#793b58-the-first-group-delivers-for-every-origin-of-a-prompt)) | [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later), [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again), [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working) |
+| [793e6g The fixes of the review round of the second group](#793e6g-the-fixes-of-the-review-round-of-the-second-group) | the defects that the one review round of the second group found in [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), its interactions and its technical requirements | none |
 | [793e6e The conversation becomes searchable memory](#793e6e-the-conversation-becomes-searchable-memory) | [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) | none |
 | [793e6c Never in the way](#793e6c-never-in-the-way) | the rest of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), without the clause about its own sessions | none |
 | [793e6d The user can see what it did](#793e6d-the-user-can-see-what-it-did) | [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) | none |
@@ -163,7 +164,9 @@ graph TD
     n793e6b11 --> n793e6b12
     n793e6b12 --> n793e6b13
     n793e6b13 --> n793e6b14
-    n793e6b14 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
+    n793e6g1["793e6g1 The rows the harness wrote are no prompt<br/>Ready"]
+    n793e6b14 --> n793e6g1
+    n793e6g1 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
     n793e6d --> n793e6f["793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d"]
@@ -508,6 +511,22 @@ made. They are rows of nodes already complete, added here with the commits that 
 | --- | --- | --- | --- | --- | --- | --- |
 | 793d4g1k | Dedicated example (default suite) | the shape of a prompt in the record of a session that a live session writes, and that no earlier row built: text blocks and an image are one prompt, and the result of a tool is none. It passes when written; the mutation that makes it fail is a reading that takes only a prompt that is a string | Done | n/a | ff86e468 | ae900c02 |
 | 793d4k1f | Dedicated example (default suite) | the adapter of the records of the writing, dispatched through the targets over a file system that refuses, first to make the directory and then to create the record. It passes when written; the mutation that makes it fail is an adapter that returns the refusal to the command | Done | n/a | ff86e468 | ae900c02 |
+
+### 793e6g The fixes of the review round of the second group
+
+The second group had one review round ([793b33 One agent review round per phase](./793b_decision-log.md#793b33-one-agent-review-round-per-phase)), which found a blocker, six major defects, and minor defects and nits in the nodes of [793e6b Lessons are written without the agent](#793e6b-lessons-are-written-without-the-agent). Each fix that changes behaviour goes through the cycle of [793e2 Test methods](#793e2-test-methods) again, with a scenario ID in the family of the requirement it changes, and the nodes below are worked in order. A row that has no red commit says why in its text.
+
+#### 793e6g1 The rows the harness wrote are no prompt
+
+Takes review finding 1, the blocker: every row of the record that had text of the user's became a `User:` line, and the last such row began the [turn](./793a_product-spec.md#793a1a-terms), whatever wrote it. The body of a [skill](../../GLOSSARY.md#skill) that the [agent](./793a_product-spec.md#793a1a-terms) invoked, a task notification, the caveat of a command that ran locally and the name of that command were each the [prompt](./793a_product-spec.md#793a1a-terms) of a turn of the user's when they were the last row. The rows of the tests are the rows of a real [session](../../GLOSSARY.md#session) record written by Claude Code 2.1.302, except the row of a system reminder in the row of a prompt, which no record of that release holds ([793b74 A row the harness wrote is no prompt](./793b_decision-log.md#793b74-a-row-the-harness-wrote-is-no-prompt)).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| 793d4g1l | Dedicated example (default suite) | the body of a skill, a row marked as meta, over the rows of a real record: it was the last row of the user's, so it was the prompt | Not started | | | |
+| 793d4g1m | Dedicated example (default suite) | a system reminder in the row of a prompt, and a row that holds one only: the shape that [792b15c3 Harness noise](../../specs/technical/transcript-reader.md#792b15c3-harness-noise) drops, built from the rule since no record of the release holds it | Not started | | | |
+| 793d4g1n | Dedicated example (default suite) | a task notification, a row of the user's stamped with an origin the user does not send, over the rows of a real record | Not started | | | |
+| 793d4g1o | Dedicated example (default suite) | the caveat, the name and the output of a command that ran locally, over the rows of a real record, and a slash command given arguments | Not started | | | |
+| 793d4g1p | Dedicated example (default suite) | a row of the origin peer whose text has none of the marks of the harness: the origin alone keeps it out | Not started | | | |
 
 ### 793e6e The conversation becomes searchable memory
 

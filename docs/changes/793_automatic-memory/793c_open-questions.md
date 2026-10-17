@@ -459,3 +459,13 @@ he answers. When he answers, the entry records the answer and the date and stays
   [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working) keeps unchanged.
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b73 The tests of an absence wait for the end of the write, and for a settling time](./793b_decision-log.md#793b73-the-tests-of-an-absence-wait-for-the-end-of-the-write-and-for-a-settling-time).
+
+## 793c45 Is the reading of a prompt in the record the rule of the transcript-reader?
+
+- **Context:** [793b74 A row the harness wrote is no prompt](./793b_decision-log.md#793b74-a-row-the-harness-wrote-is-no-prompt) makes the judgement read a [prompt](./793a_product-spec.md#793a1a-terms) as the [transcript](../../GLOSSARY.md#transcript)-reader does, and adds the flag of meta rows and the
+  origin of the row, which the record of Claude Code 2.1.302 stamps.
+- **Options:** (a) The rule of 792b15c3, the flag and the origin. (b) The origin and the flag alone. (c) A list of marks of
+  the judgement's own.
+- **Recommendation:** (a): (b) leaves the command rows, and (c) copies a rule that has an owner.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b74 A row the harness wrote is no prompt](./793b_decision-log.md#793b74-a-row-the-harness-wrote-is-no-prompt).

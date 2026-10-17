@@ -1249,3 +1249,21 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   first record (rejected above).
 - **Decided by:** Author (default; owner may override); the window is asked in
   [793c44 Is the window between a note's file and its embedding a risk?](./793c_open-questions.md#793c44-is-the-window-between-a-notes-file-and-its-embedding-a-risk).
+
+## 793b74 A row the harness wrote is no prompt
+
+- **Choice:** a row of a [session](../../GLOSSARY.md#session)'s record is a [prompt](./793a_product-spec.md#793a1a-terms) of the user's only when it is a row of the user's that is not marked as
+  meta, is not stamped with an origin the user does not send ([793b64 The prompts the user sends](#793b64-the-prompts-the-user-sends)), and still has text once the cleaning of
+  [792b15c3 Harness noise](../../specs/technical/transcript-reader.md#792b15c3-harness-noise) is applied to it: the judgement reuses that cleaning, which the [transcript](../../GLOSSARY.md#transcript)-reader already implements, and
+  adds no rule of its own about text. A row that is not a prompt makes no line of the window and cannot begin the [turn](./793a_product-spec.md#793a1a-terms).
+- **Rationale:** review finding 1, the blocker. Rows of a real record written by Claude Code 2.1.302, captured in this fix
+  pass: the body of a [skill](../../GLOSSARY.md#skill) is a row of the user's marked `isMeta`; a task notification is a row of the user's stamped
+  `origin.kind` `task-notification`, with text that opens `<task-notification>`; the caveat of a command that ran locally is a row
+  marked `isMeta`, its name a row of the user's whose arguments are empty, and its output a row of type `system`. Each was a
+  `User:` line, and the last of them began the turn, so the model judged a skill's body or a notification as the user's
+  words. No record of that release holds a system reminder in the row of a prompt (they are rows of their own), but older
+  records do, which is why the rule of the transcript-reader drops them.
+- **Alternatives:** the origin the record stamps, as the only rule (rejected: the skill body and the command rows carry
+  none); a list of the marks of the harness in the judgement (rejected: a second copy of 792b15c3 that would drift); the
+  `promptSource` field of the record (rejected: older records lack it).
+- **Decided by:** Author (default; owner may override).
