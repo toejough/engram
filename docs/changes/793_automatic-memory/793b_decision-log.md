@@ -1372,3 +1372,24 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 - **Alternatives:** the mark at the start of the line (rejected: it changes the leading form that the reading of what a
   session holds relies on); the mark in the framing line (rejected: it names no note); no mark (rejected: the finding).
 - **Decided by:** Author (default; owner may override).
+
+## 793b81 A text is written as one line before it is redacted, and cut last
+
+- **Choice:** every text that the judgement shows the model or the writing puts in a [note](../../GLOSSARY.md#permanent-note) is written as one line first (its control and format
+  characters dropped and its white space collapsed), then redacted, then cut, and in the window then escaped
+  ([793b77 The instructions are the system of the request, and a < is written &lt;](#793b77-the-instructions-are-the-system-of-the-request-and-a--is-written-lt)). In the window the mark of a line break (`⏎`) counts as white space for the
+  patterns of the redaction, and an `Authorization` header ends at it, so that the value on the line after its name is
+  still found and a header does not take the rest of the message.
+- **Rationale:** a finding of the automated security review of the commit of the fields of a lesson, confirmed by
+  construction. The redaction matches a credential only when its characters are together. Writing a text as one line drops
+  the characters that are not shown (zero-width characters, a soft hyphen, a byte-order mark, a control character), so a
+  credential that they split is not matched when the redaction comes first, and the writing as one line then joins the
+  pieces into a whole credential that reaches the model or the note. The lines of the window and of the notes had the
+  redaction first since the first group ([793b69 Credentials are redacted by shape, and the rest is a known risk](#793b69-credentials-are-redacted-by-shape-and-the-rest-is-a-known-risk)), and the fields of a lesson
+  since [793b79 A field of a lesson is one line, and a reply that is cut keeps its whole lessons](#793b79-a-field-of-a-lesson-is-one-line-and-a-reply-that-is-cut-keeps-its-whole-lessons). White space is only collapsed, never dropped, so it cannot join the pieces of a
+  credential.
+- **Alternatives:** redact before and after the writing as one line (rejected: the first pass is the one that cannot see
+  a split credential, and the second needs the line breaks as white space anyway); drop the characters that are not
+  shown before the redaction and collapse the white space after it (rejected: two forms of the text, where one is the
+  text that the model and the note get).
+- **Decided by:** Author (default; owner may override), on the review finding relayed by the coordinator.

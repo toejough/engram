@@ -178,7 +178,9 @@ graph TD
     n793e6g5 --> n793e6g6
     n793e6g7["793e6g7 A note written automatically says so in its line<br/>Complete"]
     n793e6g6 --> n793e6g7
-    n793e6g7 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
+    n793e6g8["793e6g8 A credential split by characters not shown is redacted whole<br/>Ready"]
+    n793e6g7 --> n793e6g8
+    n793e6g8 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
     n793e6d --> n793e6f["793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d"]
@@ -603,6 +605,15 @@ Takes review finding 15: the line of a [note](../../GLOSSARY.md#permanent-note) 
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 793d4c1c | Dedicated example (default suite) | the delivery over an in-memory [vault](../../GLOSSARY.md#vault) with a note whose source is `written automatically` and one whose source is another, through `RunAutoDeliver` | | Done | a031bf5c | a285e030 | b0591175 |
 | 793d4c1a (amended) | Property-based (`rapid`) with named examples (default suite) | the notes drawn have a source of arbitrary text, among it the words that mark a note written automatically | the properties of 793d4c1a, and the words `(written automatically)` end a line only when the source opens with `written automatically`, with nothing of the source in the line. It needs the field of the source, so it was written with the green; the mutations that make it fail were run on scratch copies of the branch: the words on every note, and the source written into the line | Done | n/a | a285e030 | b0591175 |
+
+#### 793e6g8 A credential that characters that are not shown split is redacted whole
+
+Takes a finding of the automated security review of the commit of [793e6g6 A field of a lesson is one line, and a reply that is cut keeps its whole lessons](#793e6g6-a-field-of-a-lesson-is-one-line-and-a-reply-that-is-cut-keeps-its-whole-lessons), confirmed by construction. Writing a text as one line drops its control and format characters, so a credential split by a zero-width character, a soft hyphen, a byte-order mark or a control character is not matched by the redaction when the redaction comes first, and the writing as one line then joins its pieces into a whole credential that reaches the [note](../../GLOSSARY.md#permanent-note) or the model. The lines of the window and of the notes of the judgement had the redaction first since the first group, and the fields of a lesson had it since 793e6g6. The order is the text written as one line, then redacted, then cut ([793b81 A text is written as one line before it is redacted, and cut last](./793b_decision-log.md#793b81-a-text-is-written-as-one-line-before-it-is-redacted-and-cut-last)).
+
+| Gherkin | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793d4j1h | Property-based (`rapid`) with named examples (default suite) | the [turn](./793a_product-spec.md#793a1a-terms) text, the final text and the notes of the request, with a credential of every shape split by a character that is not shown, and the named examples of the review: a key of the AWS example split by a zero-width space, a name split so that it is not one, a token split by a soft hyphen, and a key split by a stray tab | for any credential of the shapes of the requirement and any character that is not shown or white space put inside its secret, in a message of the user, a text of the [agent](./793a_product-spec.md#793a1a-terms), the final text and a note: the [prompt](./793a_product-spec.md#793a1a-terms) of the request does not hold the secret | Not started | | | |
+| 793d4j1i | Property-based (`rapid`) with named examples (default suite) | the fields of a lesson, written through `RunAutoWrite` and the real renderers of the learn path, with the same split credentials | for any credential of the shapes and any such character put inside its secret, in any field of a lesson: no note written holds the secret | Not started | | | |
 
 ### 793e6e The conversation becomes searchable memory
 

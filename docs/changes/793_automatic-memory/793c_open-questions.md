@@ -535,3 +535,12 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Recommendation:** (a): it costs 22 characters for a note, and tells the agent what the [vault](../../GLOSSARY.md#vault) already tells a reader.
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b80 The delivered line shows the mark of a note written automatically](./793b_decision-log.md#793b80-the-delivered-line-shows-the-mark-of-a-note-written-automatically).
+
+## 793c52 Is the redaction of a text written as one line the right order?
+
+- **Context:** [793b81 A text is written as one line before it is redacted, and cut last](./793b_decision-log.md#793b81-a-text-is-written-as-one-line-before-it-is-redacted-and-cut-last) writes a text as one line, then redacts it, then cuts it, so that a [turn](./793a_product-spec.md#793a1a-terms) text cannot reach
+  the model or a [note](../../GLOSSARY.md#permanent-note) as a credential that characters not shown had split. The mark of a line break is white space to the patterns.
+- **Options:** (a) The order of the decision. (b) The redaction first, as before. (c) The redaction before and after.
+- **Recommendation:** (a): (b) leaks a split credential, and (c) keeps the pass that cannot see it.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b81 A text is written as one line before it is redacted, and cut last](./793b_decision-log.md#793b81-a-text-is-written-as-one-line-before-it-is-redacted-and-cut-last).

@@ -593,7 +593,7 @@ hold, between the tags `<window>` and `</window>`, the lines of the context, the
 lines of the turn. A line is
 one message and opens with `User: ` for a prompt, `Agent: ` for text of the [agent](./793a_product-spec.md#793a1a-terms), and `Agent used ` and the tool's name for a
 tool it called; a line break in a message is written ` ⏎ `, so that no message makes a line of its own. The text of every
-message of the window is redacted ([793d4j Redacting credentials](#793d4j-redacting-credentials)) before it is cut or joined with another, and no other message is
+message of the window is written as one line and then redacted ([793d4j Redacting credentials](#793d4j-redacting-credentials)) before it is cut or joined with another, and no other message is
 redacted: the command MUST read the record once, so that the time it takes does not grow with the length of the
 session, and a record of 1 MB is judged within 2 seconds. A line is cut to its first
 1,200 characters, and a `<` in it is then written `&lt;`, which the instructions say, so that no message can close the
@@ -602,8 +602,8 @@ context first and then the middle of the turn, where the line `--- some of the t
 the lines left out. The final text is the last line of the turn when no line of the turn holds its first 80
 characters. The prompt MUST also hold, as lines of the section of [notes](../../GLOSSARY.md#permanent-note) between the tags `<notes>` and `</notes>`, the notes nearest to the turn: the notes
 that the lookup of [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) returns for the text of the prompts of the turn, each in the form of a line of a
-block (a dash, the file name, the situation in parentheses, a colon and the body), with its text redacted, written as
-one line, cut to 400 characters and then escaped in the same way, so that no note can close the section of notes, or the word `(none)` when there are none. It MUST print nothing, and succeed,
+block (a dash, the file name, the situation in parentheses, a colon and the body), with its text written as
+one line and then redacted, cut to 400 characters and then escaped in the same way, so that no note can close the section of notes, or the word `(none)` when there are none. It MUST print nothing, and succeed,
 when the record holds no prompt or there is no record, and print nothing and fail, naming the cause, when its input is
 not a JSON object or the lookup fails.
 
@@ -797,6 +797,9 @@ Scenario: 793d4h1h A reply that is cut keeps the lessons before the cut
 Requirement: 793d4j The [turn](./793a_product-spec.md#793a1a-terms)-judgement MUST redact every text of the [turn](./793a_product-spec.md#793a1a-terms) that is shaped as a credential before it cuts the
 text or joins it with another and before the model sees any of it, and the lesson-writing MUST redact every field of a
 lesson before the lesson is written, so that no [note](../../GLOSSARY.md#permanent-note) holds a credential, token, key or password that appeared in the [turn](./793a_product-spec.md#793a1a-terms).
+Each text is first written as one line, with its control and format characters dropped, then redacted, and only then
+cut, so that a credential which characters that are not shown split is whole when it is redacted, and cannot be joined
+by writing the text as one line afterwards.
 A text is shaped as a credential when it is a private key block; a JSON web token; a key or token that opens with the
 name of its issuer (`sk-`, `pk-`, `rk-`, `ghp_`, `gho_`, `ghs_`, `ghu_`, `ghr_`, `github_pat_`, `npm_`, `glpat-`,
 `AKIA`, `ASIA`, `AIza`, `xoxa-`, `xoxb-`, `xoxp-`, `xoxr-`, `xoxs-`); a `Bearer` or `Basic` credential of 12 characters
@@ -850,6 +853,16 @@ Scenario: 793d4j1g A Bearer credential is redacted from 12 characters
   Given the word Bearer followed by 11 characters, and by 12
   When the text is redacted
   Then the first is as it was and the second is redacted
+
+Scenario: 793d4j1h A credential that characters that are not shown split is not in the request
+  Given a message, an answer and a note that hold a credential of each shape, a zero-width character, a soft hyphen, a byte-order mark, a bidirectional override or a control character inside it
+  When the judgement is given the session
+  Then the prompt of the request holds none of the credentials
+
+Scenario: 793d4j1i A credential that characters that are not shown split is not in the note
+  Given a reply whose lessons hold a credential of each shape in every field, a zero-width character, a soft hyphen, a byte-order mark, a bidirectional override or a control character inside it
+  When the lessons are written
+  Then no note holds any of them
 ```
 
 ### 793d4k Recording what automatic memory did
