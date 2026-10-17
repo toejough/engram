@@ -10,7 +10,8 @@ import (
 
 // TestAcceptanceTestArgs_TagsPackageAndFilter pins what targ acceptance runs: the tests of the acceptance package
 // with the network tag, which no default target selects, at most four at once (793b49), only the tests the filter
-// names when it is given, and each of them as many times as the count says, with 30 minutes for each repetition (793b86).
+// names when it is given, and each of them as many times as the count says, with 30 minutes for each repetition
+// (793b86).
 func TestAcceptanceTestArgs_TagsPackageAndFilter(t *testing.T) {
 	t.Parallel()
 

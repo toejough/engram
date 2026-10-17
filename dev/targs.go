@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -51,6 +52,8 @@ func init() {
 
 // unexported constants.
 const (
+	// acceptanceMinutes is the time limit of one repetition of the whole set of those tests (793b86).
+	acceptanceMinutes = 30
 	// acceptancePackage holds the tests that drive real Claude Code sessions in isolated homes (793b9); they carry
 	// the network build tag, so no default target runs them.
 	acceptancePackage = "./dev/acceptance"
@@ -144,9 +147,10 @@ var (
 	watchTarget = targ.Targ(watch).Name("watch").Description(targdev.Watch.GetDescription())
 )
 
-// acceptanceArgs holds the optional test filter of targ acceptance.
+// acceptanceArgs holds the optional test filter and the count of targ acceptance.
 type acceptanceArgs struct {
-	Run string `targ:"flag,name=run,desc=run only the tests whose names match this regular expression"`
+	Count int    `targ:"flag,name=count,default=1,desc=run each test this many times (default 1)"`
+	Run   string `targ:"flag,name=run,desc=run only the tests whose names match this regular expression"`
 }
 
 // evalArgs holds the positional arm name and optional trials count for targ eval.
@@ -157,8 +161,10 @@ type evalArgs struct {
 
 // acceptanceTestArgs is the go test command line of targ acceptance.
 func acceptanceTestArgs(args acceptanceArgs) []string {
+	count := max(args.Count, 1)
 	argv := []string{
-		"test", "-count=1", "-timeout=30m", "-v", "-parallel=" + acceptanceParallel, "-tags=" + acceptanceTags,
+		"test", "-count=" + strconv.Itoa(count), "-timeout=" + strconv.Itoa(acceptanceMinutes*count) + "m", "-v",
+		"-parallel=" + acceptanceParallel, "-tags=" + acceptanceTags,
 	}
 	if args.Run != "" {
 		argv = append(argv, "-run", args.Run)
