@@ -851,6 +851,10 @@ Realized by the components of `793d5q` the other way round: the model names the 
 
 Realized by the components of `793d5k`, with instructions that say a request to remember is a lesson whatever the [agent](./793a_product-spec.md#793a1a-terms) says about saving it, even when it holds a secret (`793b90`).
 
+### 793d5za Mapping of 793a2b1a
+
+Realized by `793d2a` (the block arrives beside the [prompt](./793a_product-spec.md#793a1a-terms), which stays as typed), `793d4a` (the [note](../../GLOSSARY.md#permanent-note) that bears on the prompt and not the other) and `793d4c` (the form of the block).
+
 ## 793d6 Recommended impact
 
 - **Repository:** a new directory `agent-instructions/mods/`, a new package `internal/auto` and a new command group `engram auto` (`deliver`, `judge`, `write`); the update's deploy set gains the mods.
