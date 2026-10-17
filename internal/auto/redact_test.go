@@ -148,6 +148,58 @@ func Test793d4j1g_Redact_ABearerCredentialIsRedactedFrom12Characters(t *testing.
 		To(Equal("Authentication is by Bearer token, Basic is for tools"))
 }
 
+func Test793d4j1h_Judge_ACredentialThatCharactersNotShownSplitIsNotInTheRequest(t *testing.T) {
+	t.Parallel()
+
+	t.Run("the splits of the review", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		// built here and never written whole in this file: a scanner of the repository would take a literal for a key
+		key := "AK" + "IA" + "IOSFODNN7EXAMPLE"
+		token := "gh" + "p_" + "aZ3aZ3aZ3a" + "Z3aZ3aZ3aZ3aZ3aZ3aZ3aZ3"
+		password := "hunter" + "2hunter2"
+
+		for name, text := range map[string]string{
+			"a key split by a zero-width space":  "use " + key[:6] + "\u200b" + key[6:] + " for the deploy",
+			"a token split by a soft hyphen":     "use " + token[:12] + "\u00ad" + token[12:] + " for the deploy",
+			"a token split by a control char":    "use " + token[:12] + "\x00" + token[12:] + " for the deploy",
+			"a name split so that it is no name": "the pass\u200bword: " + password,
+		} {
+			request, found := judge(t, userPrompt(jsonText(text)), "ok", nil)
+
+			g.Expect(found).To(BeTrue(), name)
+			g.Expect(request.Prompt).NotTo(ContainSubstring(key), name)
+			g.Expect(request.Prompt).NotTo(ContainSubstring(token), name)
+			g.Expect(request.Prompt).NotTo(ContainSubstring(password), name)
+		}
+	})
+
+	t.Run("any credential, any split, in a message, an answer and a note", func(t *testing.T) {
+		t.Parallel()
+
+		rapid.Check(t, func(rt *rapid.T) {
+			inMessage := splitCredential().Draw(rt, "in a message")
+			inAnswer := splitCredential().Draw(rt, "in an answer")
+			inNote := splitCredential().Draw(rt, "in a note")
+			record := userPrompt(jsonText("No, use the script. "+inMessage.text+" and again")) + "\n" +
+				assistantText(jsonText("Understood, "+inAnswer.text))
+
+			request, found := judge(rt, record, "the answer "+inAnswer.text,
+				[]auto.Note{{Path: "1.md", Situation: "s", Body: "note " + inNote.text}})
+			if !found {
+				rt.Fatalf("a record with a prompt was judged nothing")
+			}
+
+			for _, secret := range []string{inMessage.secret, inAnswer.secret, inNote.secret} {
+				if strings.Contains(request.Prompt, secret) {
+					rt.Fatalf("the request holds the secret %q: %q", secret, request.Prompt)
+				}
+			}
+		})
+	})
+}
+
 // unexported constants.
 const (
 	alnum = "A-Za-z0-9"
@@ -162,6 +214,10 @@ const (
 
 // unexported variables.
 var (
+	// notShown are the characters and the white space that can be put inside a credential: a zero-width space and
+	// joiner, a soft hyphen, a byte-order mark, a bidirectional override and isolate, control characters, a tab and a
+	// space.
+	notShown    = []string{"\u200b", "\u200d", "\u00ad", "\ufeff", "\u202e", "\u2066", "\x00", "\x1b", "\x7f", "\t", " "}
 	fillerWords = []string{"for", "the", "staging", "deploy", "of", "my", "new", "old", "admin", "server", "main",
 		"account"}
 )
@@ -295,6 +351,21 @@ func secretName(rt *rapid.T) string {
 
 		return camel.String()
 	}
+}
+
+// splitCredential generates a credential of a shape with a character that is not shown, or white space, put inside its
+// secret: the secret as it was is in no text of the credential.
+func splitCredential() *rapid.Generator[credential] {
+	return rapid.Custom(func(rt *rapid.T) credential {
+		found := credentialShape().Draw(rt, "credential")
+		at := rapid.IntRange(1, max(len(found.secret)-1, 1)).Draw(rt, "split at")
+		at = min(at, len(found.secret))
+		inside := rapid.SampledFrom(notShown).Draw(rt, "inside")
+
+		found.text = strings.Replace(found.text, found.secret, found.secret[:at]+inside+found.secret[at:], 1)
+
+		return found
+	})
 }
 
 // word draws a text of the characters of an alphabet, as long as a range says.

@@ -302,6 +302,54 @@ func Test793d4j1d_RunAutoWrite_ANoteHoldsNoCredentialOfTheLesson(t *testing.T) {
 	})
 }
 
+func Test793d4j1i_RunAutoWrite_ANoteHoldsNoCredentialThatCharactersNotShownSplit(t *testing.T) {
+	t.Parallel()
+
+	secrets := credentialTexts()
+	// the characters that can be put inside a credential: a zero-width space and joiner, a soft hyphen, a byte-order
+	// mark, a bidirectional override, control characters, a tab and a space
+	notShown := []string{"\u200b", "\u200d", "\u00ad", "\ufeff", "\u202e", "\x00", "\x1b", "\x7f", "\t", " "}
+
+	rapid.Check(t, func(rt *rapid.T) {
+		found := rapid.SampledFrom(secrets).Draw(rt, "secret")
+		at := rapid.IntRange(1, len(found.secret)-1).Draw(rt, "split at")
+		inside := rapid.SampledFrom(notShown).Draw(rt, "inside")
+		field := rapid.SampledFrom([]string{"situation", "behavior", "impact", "action"}).Draw(rt, "field")
+		fields := map[string]string{
+			"kind": "feedback", "slug": "keep-the-token-out", "situation": "using the deploy script",
+			"behavior": "ran it", "impact": "it failed", "action": "set the variable first",
+		}
+		fields[field] = "see " + strings.Replace(found.text, found.secret,
+			found.secret[:at]+inside+found.secret[at:], 1) + " for it"
+
+		reply, marshalErr := json.Marshal([]map[string]string{fields})
+		if marshalErr != nil {
+			rt.Fatalf("encoding the reply: %v", marshalErr)
+		}
+
+		written := map[string]string{}
+
+		var out bytes.Buffer
+
+		err := cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", RecordsDir: "/data/auto"},
+			cli.AutoWriteDeps{
+				Stdin:       replyInput(string(reply)),
+				Learn:       learnInto(written),
+				Now:         func() time.Time { return recordedAt },
+				WriteRecord: (&recordedFiles{}).write,
+			}, &out)
+		if err != nil {
+			rt.Fatalf("writing: %v", err)
+		}
+
+		for _, note := range written {
+			if strings.Contains(note, found.secret) {
+				rt.Fatalf("the note holds the secret %q:\n%s", found.secret, note)
+			}
+		}
+	})
+}
+
 func Test793d4k1a_RunAutoWrite_ALessonThatIsWrittenIsRecordedWithItsNote(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
