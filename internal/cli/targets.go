@@ -171,7 +171,7 @@ func autoTargets(
 				a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
 
 				if a.SessionsDir == "" {
-					a.SessionsDir = sessionDirFrom(deps.Getenv, deps.UserHomeDir)("")
+					a.SessionsDir = sessionsDirOf(deps.Getenv, deps.UserHomeDir)
 				}
 
 				// no first-use step: a prompt must not create the vault the user removed (793d4e)

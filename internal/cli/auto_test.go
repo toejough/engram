@@ -285,6 +285,27 @@ func Test793d4d1c_HeldText_ASessionWithNoRecordOrAnIDThatIsNotAFileNameHoldsNoth
 	g.Expect(cli.ExportHeldText(deps, filepath.Join(parent, "no-such-directory"), sessionID)).To(BeEmpty())
 }
 
+func Test793d4e1a_Targets_AutoDeliverCreatesNoVault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := filepath.Join(t.TempDir(), "no-such-vault")
+
+	var stdout bytes.Buffer
+
+	stderr := executeForTestWithDeps(t, []string{"engram", "auto", "deliver", "--vault", vault}, func(d *cli.Deps) {
+		d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
+		d.Stdin = strings.NewReader(`{"text":"anything"}`)
+		d.Stdout = &stdout
+	})
+
+	_, statErr := os.Stat(vault)
+
+	g.Expect(os.IsNotExist(statErr)).To(BeTrue(), "no vault was created at "+vault)
+	g.Expect(stdout.String()).To(BeEmpty())
+	g.Expect(stderr).NotTo(ContainSubstring("created new vault"))
+}
+
 func Test793d4f1a_Targets_ENGRAMTRANSCRIPTDIRNamesTheRecordsFirst(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -332,27 +353,6 @@ func Test793d4f1c_Targets_TheHomesClaudeProjectsHoldTheRecordsByDefault(t *testi
 	g.Expect(out).NotTo(ContainSubstring(resetNoteName))
 }
 
-func Test793d4e1a_Targets_AutoDeliverCreatesNoVault(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := filepath.Join(t.TempDir(), "no-such-vault")
-
-	var stdout bytes.Buffer
-
-	stderr := executeForTestWithDeps(t, []string{"engram", "auto", "deliver", "--vault", vault}, func(d *cli.Deps) {
-		d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
-		d.Stdin = strings.NewReader(`{"text":"anything"}`)
-		d.Stdout = &stdout
-	})
-
-	_, statErr := os.Stat(vault)
-
-	g.Expect(os.IsNotExist(statErr)).To(BeTrue(), "no vault was created at "+vault)
-	g.Expect(stdout.String()).To(BeEmpty())
-	g.Expect(stderr).NotTo(ContainSubstring("created new vault"))
-}
-
 // TestTargets_AutoDeliver reaches the command the way the mod does, as `engram auto deliver` with the prompt on
 // standard input, so the wiring of the group, the flag and the dependencies is run.
 func TestTargets_AutoDeliverPrintsTheNotesThatBearOnThePromptOnStandardInput(t *testing.T) {
@@ -376,35 +376,16 @@ func TestTargets_AutoDeliverPrintsTheNotesThatBearOnThePromptOnStandardInput(t *
 
 // unexported constants.
 const (
+	backupNoteName = "2.2026-10-17.zorblax-backup-window.md"
+	resetNoteName  = "1.2026-10-17.zorblax-staging-reset.md"
 	// sessionID is the ID of a session in the tests.
 	sessionID        = "4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11"
-	resetNoteName    = "1.2026-10-17.zorblax-staging-reset.md"
-	backupNoteName   = "2.2026-10-17.zorblax-backup-window.md"
 	zorblaxResetNote = "---\ntype: fact\ntier: L2\nsituation: testing against the Zorblax staging database\n" +
 		"subject: the Zorblax staging database\npredicate: is reset every\nobject: Sunday at 03:40 UTC\n" +
 		"luhmann: \"1\"\ncreated: \"2026-10-17\"\nsource: test\nuser: u\nvault: personal\n---\n\n" +
 		"Information learned: when in testing against the Zorblax staging database, " +
 		"the Zorblax staging database is reset every Sunday at 03:40 UTC.\n"
 )
-
-// plantNoteOnDisk writes a note and its embedding sidecar into a vault directory.
-func plantNoteOnDisk(t *testing.T, vault, name, body string) {
-	t.Helper()
-
-	sidecar, err := embed.BuildSidecar(context.Background(), stubEmbedder{modelID: "m@4", dims: 4}, []byte(body))
-	if err != nil {
-		t.Fatalf("building the sidecar: %v", err)
-	}
-
-	for path, content := range map[string][]byte{
-		filepath.Join(vault, name):                    []byte(body),
-		filepath.Join(vault, embed.SidecarPath(name)): embed.MarshalSidecar(sidecar),
-	} {
-		if err := os.WriteFile(path, content, 0o600); err != nil {
-			t.Fatalf("writing %s: %v", path, err)
-		}
-	}
-}
 
 // deliverBy dispatches `engram auto deliver` for a prompt of the session, without --sessions, with the environment and
 // the home that are given and nothing else of the machine's, and returns what it prints.
@@ -425,6 +406,25 @@ func deliverBy(t *testing.T, vault, home string, environment map[string]string) 
 	}
 
 	return stdout.String()
+}
+
+// plantNoteOnDisk writes a note and its embedding sidecar into a vault directory.
+func plantNoteOnDisk(t *testing.T, vault, name, body string) {
+	t.Helper()
+
+	sidecar, err := embed.BuildSidecar(context.Background(), stubEmbedder{modelID: "m@4", dims: 4}, []byte(body))
+	if err != nil {
+		t.Fatalf("building the sidecar: %v", err)
+	}
+
+	for path, content := range map[string][]byte{
+		filepath.Join(vault, name):                    []byte(body),
+		filepath.Join(vault, embed.SidecarPath(name)): embed.MarshalSidecar(sidecar),
+	} {
+		if err := os.WriteFile(path, content, 0o600); err != nil {
+			t.Fatalf("writing %s: %v", path, err)
+		}
+	}
 }
 
 // plantRecord writes the record of the session in a directory: a block delivered beside a prompt, whose one note line
@@ -453,7 +453,8 @@ func plantTwoNotes(t *testing.T) string {
 	vault := t.TempDir()
 
 	plantNoteOnDisk(t, vault, resetNoteName, zorblaxResetNote)
-	plantNoteOnDisk(t, vault, backupNoteName, strings.NewReplacer("reset", "backed up", "1.", "2.").Replace(zorblaxResetNote))
+	backup := strings.NewReplacer("reset", "backed up", "1.", "2.").Replace(zorblaxResetNote)
+	plantNoteOnDisk(t, vault, backupNoteName, backup)
 
 	return vault
 }

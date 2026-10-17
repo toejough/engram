@@ -196,9 +196,9 @@ Takes [793a2b1c A note the agent looked up itself is not delivered](./793a_produ
 | 793d4d1e | Dedicated example (default suite) | review fix: a listing of the vault is not a lookup, so a note it names is not held | Done | d183d346 | 642adbd6 | 642a4c9a |
 | 793d4d1f | Dedicated example (default suite) | review fix: `engram show` prints a note without its file name, so the text of the command, which names the note by its basename, is what holds it | Done | d183d346 | 642adbd6 | 642a4c9a |
 | 793d4a1g | Dedicated example (default suite) | review fix: the delivery leaves out a note the agent fetched by its basename, without `.md`, through `RunAutoDeliver` over an in-memory vault and a real temporary session-log directory | Done | d183d346 | 642adbd6 | 642a4c9a |
-| 793d4f1a | Dedicated example (default suite) | review fix: `ENGRAM_TRANSCRIPT_DIR` names the records of sessions before `CLAUDE_CONFIG_DIR` does, through the dispatch of `engram auto deliver` with the environment stubbed and real temporary directories | Green-all | n/a | | |
-| 793d4f1b | Dedicated example (default suite) | review fix: `CLAUDE_CONFIG_DIR/projects` names them when `ENGRAM_TRANSCRIPT_DIR` does not, and the home's `.claude/projects` is then not read; the record's place was checked with a real headless session | Red | | | |
-| 793d4f1c | Dedicated example (default suite) | review fix: the home's `.claude/projects` holds them when neither variable is set, which no test of the delivery had run | Green-all | n/a | | |
+| 793d4f1a | Dedicated example (default suite) | review fix: `ENGRAM_TRANSCRIPT_DIR` names the records of sessions before `CLAUDE_CONFIG_DIR` does, through the dispatch of `engram auto deliver` with the environment stubbed and real temporary directories | Green-all | n/a | 9ca57f87 | |
+| 793d4f1b | Dedicated example (default suite) | review fix: `CLAUDE_CONFIG_DIR/projects` names them when `ENGRAM_TRANSCRIPT_DIR` does not, and the home's `.claude/projects` is then not read; the record's place was checked with a real headless session | Green-all | 9ca57f87 | | |
+| 793d4f1c | Dedicated example (default suite) | review fix: the home's `.claude/projects` holds them when neither variable is set, which no test of the delivery had run | Green-all | n/a | 9ca57f87 | |
 
 #### 793e6a5 A prompt that matches no note arrives with nothing
 

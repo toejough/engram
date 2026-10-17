@@ -145,3 +145,15 @@ func notesOf(payload []byte) ([]auto.Note, error) {
 
 	return notes, nil
 }
+
+// sessionsDirOf is where the records of sessions are read from when --sessions is not given (793d4f): the directory
+// ENGRAM_TRANSCRIPT_DIR names when it is set, else the projects directory of CLAUDE_CONFIG_DIR when that is set, where
+// Claude Code writes the records of a session started with it, else the home's .claude/projects.
+func sessionsDirOf(getenv func(string) string, userHomeDir func() (string, error)) string {
+	config := getenv("CLAUDE_CONFIG_DIR")
+	if config != "" && getenv("ENGRAM_TRANSCRIPT_DIR") == "" {
+		return filepath.Join(config, "projects")
+	}
+
+	return sessionDirFrom(getenv, userHomeDir)("")
+}
