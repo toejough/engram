@@ -39,6 +39,48 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+// TestSharedSource_NoFileIsSharedWithTheWorktree: the checkout that engram update runs in is a copy of the worktree's
+// files, not links to them, so nothing a run writes in it can change the worktree (793f7).
+func TestSharedSource_NoFileIsSharedWithTheWorktree(t *testing.T) {
+	t.Parallel()
+
+	root, err := moduleRoot()
+	if err != nil {
+		t.Fatalf("finding the module: %v", err)
+	}
+
+	source := prepareShared(t).source
+
+	var linked []string
+
+	walkErr := filepath.WalkDir(source, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil || !entry.Type().IsRegular() {
+			return err
+		}
+
+		relative, relErr := filepath.Rel(source, path)
+		if relErr != nil {
+			return fmt.Errorf("relative path of %s: %w", path, relErr)
+		}
+
+		copied, copiedErr := os.Stat(path)
+		original, originalErr := os.Stat(filepath.Join(root, relative))
+
+		if copiedErr == nil && originalErr == nil && os.SameFile(copied, original) {
+			linked = append(linked, relative)
+		}
+
+		return nil
+	})
+	if walkErr != nil {
+		t.Fatalf("walking the checkout: %v", walkErr)
+	}
+
+	if len(linked) > 0 {
+		t.Fatalf("%d files of the checkout are links to the worktree's own, the first being %s", len(linked), linked[0])
+	}
+}
+
 // unexported constants.
 const (
 	// the names of the directories and files of the module that building and updating need; everything else of the
