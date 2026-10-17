@@ -394,7 +394,10 @@ func Test792b14c9a5_NewActivateDeps_BumpsRealSidecar(t *testing.T) {
 
 	deps := cli.ExportNewActivateDeps(cli.ExportNewTestOsDeps())
 
-	runErr := cli.ExportRunActivate(context.Background(), cli.ActivateArgs{Notes: []string{notePath}}, deps)
+	// the vault is the temporary directory: with none, the command takes its lock in the working directory, which for
+	// a test is the package's source directory
+	runErr := cli.ExportRunActivate(context.Background(),
+		cli.ActivateArgs{Notes: []string{notePath}, Vault: dir}, deps)
 	g.Expect(runErr).NotTo(HaveOccurred())
 
 	if runErr != nil {
