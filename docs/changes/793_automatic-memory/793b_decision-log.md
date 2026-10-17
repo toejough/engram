@@ -1267,3 +1267,18 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   none); a list of the marks of the harness in the judgement (rejected: a second copy of 792b15c3 that would drift); the
   `promptSource` field of the record (rejected: older records lack it).
 - **Decided by:** Author (default; owner may override).
+
+## 793b75 The record is read once, and the lines of the window are the only ones redacted
+
+- **Choice:** the judgement reads a [session](../../GLOSSARY.md#session)'s record once, takes the lookup of the [notes](../../GLOSSARY.md#permanent-note) as a function it is given, as the delivery does ([793b52 The delivery runs its lookup through an injected function](#793b52-the-delivery-runs-its-lookup-through-an-injected-function)), and
+  redacts, writes as one line and cuts only the lines of the context and of the [turn](./793a_product-spec.md#793a1a-terms): the messages before the context are read for their
+  kind and their text and not redacted. The text the notes are looked up for is read from the lines of the turn.
+- **Rationale:** review finding 19. Measured on a scratch copy of the branch before the change: 2.2 seconds for a record of
+  2 MB (1,000 messages of 3,000 characters) and 8.4 seconds for one of 11 MB, for each of the two readings the command made
+  (the text of the turn, and the request), before the model was asked. The redaction of every message was the cost: the
+  parse of the same record is about a hundredth of it. The bound of the scenario, 2 seconds for 4 MB, fails the old
+  reading by a factor of four and passes the new one by a factor of twenty or more.
+- **Alternatives:** keep the two readings and make each cheaper (rejected: the parse is still done twice and the surface
+  stays larger); keep the lines of the first reading for the second (rejected: state between two calls); read only the
+  end of the record (rejected: the start of a long turn would be cut).
+- **Decided by:** Author (default; owner may override).

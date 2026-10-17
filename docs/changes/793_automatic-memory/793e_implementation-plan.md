@@ -166,7 +166,9 @@ graph TD
     n793e6b13 --> n793e6b14
     n793e6g1["793e6g1 The rows the harness wrote are no prompt<br/>Complete"]
     n793e6b14 --> n793e6g1
-    n793e6g1 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
+    n793e6g2["793e6g2 The record is read once, and only the window is redacted<br/>Ready"]
+    n793e6g1 --> n793e6g2
+    n793e6g2 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
     n793e6d --> n793e6f["793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d"]
@@ -527,6 +529,14 @@ Takes review finding 1, the blocker: every row of the record that had text of th
 | 793d4g1n | Dedicated example (default suite) | a task notification, a row of the user's stamped with an origin the user does not send, over the rows of a real record | Done | 9f1dbc38 | 7aae5d32 | 34fd01b0 |
 | 793d4g1o | Dedicated example (default suite) | the caveat, the name and the output of a command that ran locally, over the rows of a real record, and a slash command given arguments | Done | 9f1dbc38 | 7aae5d32 | 34fd01b0 |
 | 793d4g1p | Dedicated example (default suite) | a row of the origin peer whose text has none of the marks of the harness: the origin alone keeps it out | Done | 9f1dbc38 | 7aae5d32 | 34fd01b0 |
+
+#### 793e6g2 The record is read once, and only the window is redacted
+
+Takes review finding 19: the judgement parsed the whole record and redacted every message of it twice for each [turn](./793a_product-spec.md#793a1a-terms), once to find the text that the [notes](../../GLOSSARY.md#permanent-note) are looked up for and once to build the request. Measured on a scratch copy of the branch before this node, a record of 2 MB (1,000 messages of 3,000 characters) took 2.2 seconds for each of the two readings and a record of 11 MB 8.4 seconds, before the model was asked; the redaction is the cost, the parse about a hundredth of it ([793b75 The record is read once, and the lines of the window are the only ones redacted](./793b_decision-log.md#793b75-the-record-is-read-once-and-the-lines-of-the-window-are-the-only-ones-redacted)).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| 793d4g1q | Dedicated example (default suite) | a record of 4 MB through `RunAutoJudge` over a real temporary directory: the request is printed within 2 seconds; the old reading took 8 seconds, so the bound fails it by a factor of four and the new one passes it by a factor of twenty or more | Not started | | | |
 
 ### 793e6e The conversation becomes searchable memory
 
