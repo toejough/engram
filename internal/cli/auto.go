@@ -462,10 +462,14 @@ func writeLessons(
 // its place among the records of the reply and its kind, and reports whether every record was written. A record that
 // cannot be written is left out (793d4k).
 func writeRecords(deps AutoWriteDeps, dir string, records []auto.Record) bool {
+	if dir == "" {
+		return len(records) == 0
+	}
+
 	written := true
 
 	for index, record := range records {
-		if dir == "" || !isPlainName(record.Session) {
+		if !isPlainName(record.Session) {
 			return false
 		}
 
