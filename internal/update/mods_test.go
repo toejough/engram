@@ -1,6 +1,7 @@
 package update_test
 
 import (
+	"context"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -56,4 +57,33 @@ func Test793d4b1b_PlanModCopies_ASourceWithNoModsPlansNone(t *testing.T) {
 	ops, err := update.ExportPlanModCopies("/src/agent-instructions/mods", "/home/joe", harnesses, newMemFS())
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(ops).To(BeEmpty())
+}
+
+func Test793d4b1c_Updater_Run_DeploysAndLinksTheMod(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+	fileSystem.dirs["/home/joe/.claude"] = true
+	fileSystem.dirs["/repo"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("learn skill")
+	fileSystem.files["/repo/agent-instructions/mods/engram-memory/hooks/register.js"] = []byte("the mod")
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+	g.Expect(report.Harnesses[0].Err).NotTo(HaveOccurred())
+
+	g.Expect(fileSystem.written).To(HaveKey("/home/joe/.claude/engram/skills/engram-memory/hooks/register.js"))
+	g.Expect(fileSystem.symlinks["/home/joe/.claude/skills/engram-memory"]).
+		To(Equal("/home/joe/.claude/engram/skills/engram-memory"))
 }
