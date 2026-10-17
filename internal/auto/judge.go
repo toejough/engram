@@ -188,8 +188,8 @@ func messageText(text string) string {
 }
 
 // noteLines writes the notes nearest to the turn, one line each, in the form of a line of a block: redacted and written
-// as one line as the delivery writes it, and with the body cut to the limit of a note (793d4g, 793d4j). It writes none
-// when there are no notes.
+// as one line as the delivery writes it, and with the body cut to the limit of a note (793d4g, 793d4j). It writes
+// (none) when there are no notes.
 func noteLines(notes []Note) string {
 	if len(notes) == 0 {
 		return noNotes
