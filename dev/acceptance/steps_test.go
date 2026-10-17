@@ -202,6 +202,31 @@ func (m *machine) lookupStarted() bool {
 	return err == nil
 }
 
+// vaultIsRemoved removes the machine's vault, which an engram command or `engram update` created.
+func (m *machine) vaultIsRemoved() {
+	m.t.Helper()
+
+	err := os.RemoveAll(m.vault)
+	if err != nil {
+		m.t.Fatalf("removing the vault: %v", err)
+	}
+}
+
+// agentMayNotRunEngram takes away the agent's permission to run engram. The agent's own use of memory creates a missing
+// vault by design, so in a scenario about what automatic memory creates it would confound the result.
+func (m *machine) agentMayNotRunEngram() {
+	m.t.Helper()
+
+	writeFile(m.t, filepath.Join(m.claudeDir, "settings.json"), "{}")
+}
+
+// hasVault reports whether a vault exists at the machine's vault path.
+func (m *machine) hasVault() bool {
+	_, err := os.Stat(m.vault)
+
+	return err == nil
+}
+
 // lookupTakes makes every lookup of the machine take the given time: `engram` on the PATH waits, notes that it started,
 // and then runs the machine's own engram.
 func (m *machine) lookupTakes(wait time.Duration) {

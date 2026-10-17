@@ -238,3 +238,34 @@ const (
 	// slowLookup is a lookup that takes longer than the hold.
 	slowLookup = 20 * time.Second
 )
+
+func Test793a2a1e_AVaultThatDoesNotExistIsNotCreated(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	step(t, "Given a machine with Claude Code on which the user has run engram update, "+
+		"and whose configured vault no longer exists", func() {
+		machine.hasEngram()
+		machine.hasClaudeCode()
+		machine.agentMayNotRunEngram()
+		machine.mustSucceed(machine.update(), "engram update")
+		machine.vaultIsRemoved()
+
+		g.Expect(machine.hasVault()).To(BeFalse(), "the vault is gone")
+	})
+
+	var sent *turn
+
+	step(t, "When the user starts a session and sends a prompt", func() {
+		sent = machine.startSession("a-project").send(askStagingReset)
+		t.Logf("the agent replied %q (cost $%.4f)", sent.reply, sent.cost)
+	})
+
+	step(t, "Then the agent answers the prompt, and the vault still does not exist", func() {
+		g.Expect(sent.reply).NotTo(BeEmpty(), "the agent answered")
+		g.Expect(sent.blocks()).To(BeEmpty(), "blocks automatic memory delivered with the prompt")
+		g.Expect(machine.hasVault()).To(BeFalse(), "a vault exists at "+machine.vault)
+	})
+}
