@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // Judgement is the request of the call of the model that judges a turn: the fields the host's model call takes
@@ -34,7 +35,8 @@ func Judge(record []byte, answer string) (Judgement, bool) {
 		return Judgement{}, false
 	}
 
-	window := slices.Concat(lines[:prompt], []string{divider}, withAnswer(lines[prompt:], answer))
+	context, turn := fit(lines[max(prompt-contextLines, 0):prompt], withAnswer(lines[prompt:], answer))
+	window := slices.Concat(context, []string{divider}, turn)
 	text := strings.NewReplacer("{window}", strings.Join(window, "\n"), "{notes}", noNotes).Replace(instructions)
 
 	return Judgement{
@@ -46,15 +48,23 @@ func Judge(record []byte, answer string) (Judgement, bool) {
 const (
 	// answerProbe is how many characters of the final text tell that a line of the turn already holds it.
 	answerProbe = 80
+	// contextLines is how many lines of the conversation before the turn the window holds at most.
+	contextLines = 6
 	// divider is the line that ends the context and opens the turn.
 	divider        = "--- the turn ---"
 	judgeEffort    = "low"
 	judgeMaxTokens = 1500
 	judgeModel     = "haiku"
 	judgeTimeoutMs = 60000
+	// leftOut stands in the turn for the lines of its middle that the window could not hold.
+	leftOut = "--- some of the turn is left out ---"
 	// lineBreak stands in a line for a break of the message's own.
 	lineBreak = " ⏎ "
+	// lineLimit is how many characters of a message a line holds at most.
+	lineLimit = 1200
 	noNotes   = "(none)"
+	// windowLimit is how many characters the window holds at most.
+	windowLimit = 8000
 )
 
 //go:embed prompts/judge.txt
@@ -62,7 +72,7 @@ var instructions string
 
 // agentLine is the line of a text of the agent.
 func agentLine(text string) string {
-	return "Agent: " + oneLined(text)
+	return "Agent: " + messageText(text)
 }
 
 // agentLinesOf reads the lines of the texts and the tool uses of one message of the agent.
@@ -72,7 +82,7 @@ func agentLinesOf(content json.RawMessage) []string {
 
 	for _, block := range blocks {
 		switch {
-		case block.Type == "text" && oneLined(block.Text) != "":
+		case block.Type == "text" && messageText(block.Text) != "":
 			lines = append(lines, agentLine(block.Text))
 		case block.Type == "tool_use":
 			lines = append(lines, "Agent used "+oneLined(block.Name))
@@ -80,6 +90,28 @@ func agentLinesOf(content json.RawMessage) []string {
 	}
 
 	return lines
+}
+
+// fit cuts the window to windowLimit characters: the oldest lines of the context go first, and then the middle of the
+// turn, where leftOut stands in place of the lines left out.
+func fit(context, turn []string) ([]string, []string) {
+	for len(context) > 0 && sizeOf(context)+sizeOf(turn) > windowLimit {
+		context = context[1:]
+	}
+
+	if sizeOf(turn) <= windowLimit {
+		return context, turn
+	}
+
+	budget := windowLimit - sizeOf([]string{turn[0], leftOut})
+	last := len(turn)
+
+	for last > 1 && budget >= sizeOf(turn[last-1:last]) {
+		last--
+		budget -= sizeOf(turn[last : last+1])
+	}
+
+	return context, slices.Concat([]string{turn[0], leftOut}, turn[last:])
 }
 
 // isLineBreak reports a character that ends a line.
@@ -104,7 +136,7 @@ func linesOf(record []byte) ([]string, int) {
 
 		switch row.Type {
 		case "user":
-			if text := oneLined(promptTextOf(row.Message.Content)); text != "" {
+			if text := messageText(promptTextOf(row.Message.Content)); text != "" {
 				prompt = len(lines)
 				lines = append(lines, "User: "+text)
 			}
@@ -114,6 +146,18 @@ func linesOf(record []byte) ([]string, int) {
 	}
 
 	return lines, prompt
+}
+
+// messageText is the text of a message as a line holds it: redacted before anything is cut, written as one line, and
+// cut to the limit of a line (793d4j, 793d4g).
+func messageText(text string) string {
+	line := oneLined(Redact(text))
+
+	if runes := []rune(line); len(runes) > lineLimit {
+		return string(runes[:lineLimit])
+	}
+
+	return line
 }
 
 // oneLined writes text as one line: a break of the text's own is written ` ⏎ `, any other white space is a space, a
@@ -160,6 +204,17 @@ func promptTextOf(content json.RawMessage) string {
 	}
 
 	return strings.Join(parts, "\n")
+}
+
+// sizeOf is how many characters the lines take in the window, a line break after each.
+func sizeOf(lines []string) int {
+	size := 0
+
+	for _, line := range lines {
+		size += utf8.RuneCountInString(line) + 1
+	}
+
+	return size
 }
 
 // withAnswer adds the final text as the last line of the turn unless a line of the turn already holds its beginning.

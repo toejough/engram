@@ -59,6 +59,16 @@ func (l Lesson) defect() string {
 	return ""
 }
 
+// redacted is the lesson with each text of it redacted (793d4j): a secret cannot be a slug, because the redaction makes
+// the slug something that is not one.
+func (l Lesson) redacted() Lesson {
+	return Lesson{
+		Kind: l.Kind, Slug: Redact(l.Slug), Situation: Redact(l.Situation), Behavior: Redact(l.Behavior),
+		Impact: Redact(l.Impact), Action: Redact(l.Action), Subject: Redact(l.Subject), Predicate: Redact(l.Predicate),
+		Object: Redact(l.Object),
+	}
+}
+
 // Record is what became of a reply of the model, or of the failure to get one, as the display of what automatic memory
 // did reads it (793d4k): a lesson that was written or left out, a reply with no lesson, or a failure. A lesson has a
 // slug, and a note that was written has a file name.
@@ -102,7 +112,9 @@ func ParseLessons(reply string) ([]Lesson, []Skipped) {
 
 	var skipped []Skipped
 
-	for _, lesson := range lessons {
+	for _, found := range lessons {
+		lesson := found.redacted()
+
 		if reason := lesson.defect(); reason != "" {
 			skipped = append(skipped, Skipped{Slug: lesson.Slug, Reason: reason})
 

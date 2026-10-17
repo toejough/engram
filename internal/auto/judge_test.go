@@ -148,30 +148,6 @@ func Test793d4g1e_Judge_AMessageCannotMakeALineOfItsOwn(t *testing.T) {
 	})
 }
 
-func Test793d4j1c_Judge_TheRequestHoldsNoCredentialOfTheTurn(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		first := credentialShape().Draw(rt, "first")
-		second := credentialShape().Draw(rt, "second")
-		record := strings.Join([]string{
-			userPrompt(jsonText("No, use the script. " + first.text + " and again")),
-			assistantText(jsonText("Understood, " + second.text)),
-		}, "\n")
-
-		request, found := auto.Judge([]byte(record), "the answer "+second.text)
-		if !found {
-			rt.Fatalf("a record with a prompt was judged nothing")
-		}
-
-		for _, secret := range []string{first.secret, second.secret} {
-			if strings.Contains(request.Prompt, secret) {
-				rt.Fatalf("the request holds the secret %q: %q", secret, request.Prompt)
-			}
-		}
-	})
-}
-
 func Test793d4g1f_Judge_ALineIsCutAfterItsCredentialsAreRedacted(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -195,7 +171,7 @@ func Test793d4g1g_Judge_ALongConversationIsCutToTheBound(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
-		var rows []string
+		rows := make([]string, 0, 22)
 
 		for index := range 10 {
 			rows = append(rows, userPrompt("context prompt "+strconv.Itoa(index)),
@@ -218,7 +194,9 @@ func Test793d4g1g_Judge_ALongConversationIsCutToTheBound(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
-		rows := []string{userPrompt("an earlier prompt"), assistantText("an earlier answer"), userPrompt("the last prompt")}
+		rows := make([]string, 0, 403)
+		rows = append(rows, userPrompt("an earlier prompt"), assistantText("an earlier answer"),
+			userPrompt("the last prompt"))
 
 		for index := range 400 {
 			rows = append(rows, assistantText("step "+strconv.Itoa(index)+" "+strings.Repeat("x", 100)))
@@ -236,6 +214,30 @@ func Test793d4g1g_Judge_ALongConversationIsCutToTheBound(t *testing.T) {
 		g.Expect(lines[2]).To(Equal("--- some of the turn is left out ---"))
 		g.Expect(lines[len(lines)-2]).To(HavePrefix("Agent: step 399 "))
 		g.Expect(lines[len(lines)-1]).To(Equal("Agent: the final answer"))
+	})
+}
+
+func Test793d4j1c_Judge_TheRequestHoldsNoCredentialOfTheTurn(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		first := credentialShape().Draw(rt, "first")
+		second := credentialShape().Draw(rt, "second")
+		record := strings.Join([]string{
+			userPrompt(jsonText("No, use the script. " + first.text + " and again")),
+			assistantText(jsonText("Understood, " + second.text)),
+		}, "\n")
+
+		request, found := auto.Judge([]byte(record), "the answer "+second.text)
+		if !found {
+			rt.Fatalf("a record with a prompt was judged nothing")
+		}
+
+		for _, secret := range []string{first.secret, second.secret} {
+			if strings.Contains(request.Prompt, secret) {
+				rt.Fatalf("the request holds the secret %q: %q", secret, request.Prompt)
+			}
+		}
 	})
 }
 
