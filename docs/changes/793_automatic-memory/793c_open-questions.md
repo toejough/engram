@@ -516,3 +516,13 @@ he answers. When he answers, the entry records the answer and the date and stays
   promise depend on the model, and (b) lowers the risk without making the promise provable.
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b78 The promise names the forms of credential that are redacted](./793b_decision-log.md#793b78-the-promise-names-the-forms-of-credential-that-are-redacted).
+
+## 793c50 Is a lesson of a cut reply worth writing?
+
+- **Context:** [793b79 A field of a lesson is one line, and a reply that is cut keeps its whole lessons](./793b_decision-log.md#793b79-a-field-of-a-lesson-is-one-line-and-a-reply-that-is-cut-keeps-its-whole-lessons) keeps the whole lessons of a reply that the cap of the model's reply cut. A lesson
+  before the cut was judged as the others were, and the lesson the cut ended is lost.
+- **Options:** (a) Keep the whole lessons, and record the cut. (b) Write nothing from a reply that was cut, as before.
+  (c) Raise the cap of the reply.
+- **Recommendation:** (a): a lesson is whole or it is not, whatever follows it; (c) does not remove the cut.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b79 A field of a lesson is one line, and a reply that is cut keeps its whole lessons](./793b_decision-log.md#793b79-a-field-of-a-lesson-is-one-line-and-a-reply-that-is-cut-keeps-its-whole-lessons).

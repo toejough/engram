@@ -174,7 +174,9 @@ graph TD
     n793e6g3 --> n793e6g4
     n793e6g5["793e6g5 Every name that holds a word of a secret is redacted<br/>Complete"]
     n793e6g4 --> n793e6g5
-    n793e6g5 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
+    n793e6g6["793e6g6 A field of a lesson is one line and a cut reply keeps its lessons<br/>Ready"]
+    n793e6g5 --> n793e6g6
+    n793e6g6 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
     n793e6d --> n793e6f["793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d"]
@@ -580,6 +582,16 @@ Takes review findings 3, 4 and 25. The pattern for a name that holds `key` neede
 | 793d4j1f | Property-based (`rapid`) with named examples (default suite) | the sentence form: up to six words between the name and `is` or `:`, and the sentence of seven words left as it was | for any name of the requirement and up to six words of the same sentence before `is` or `:`: the value is gone and the name and the words are kept; with seven words the text is as it was | Done | 0fe2ba24 | cbd114bb | 5519b94e |
 | 793d4j1g | Dedicated example (default suite) | `Bearer` and 11 characters is as it was, `Bearer` and 12 is redacted | | Done | 0fe2ba24 | cbd114bb | 5519b94e |
 | 793d4j1a (amended) | Property-based (`rapid`) with named examples (default suite) | the shapes of a `Bearer` credential are of 12 characters or more | the properties of 793d4j1a, with a `Bearer` credential of 12 to 30 characters | Done | 0fe2ba24 | cbd114bb | 5519b94e |
+
+#### 793e6g6 A field of a lesson is one line, and a reply that is cut keeps its whole lessons
+
+Takes review findings 11 and 26. The fields of a lesson were written to the [note](../../GLOSSARY.md#permanent-note) as the model gave them, so an `action` with line breaks wrote a line of the body that opened with `Supersedes: [[...]]`, which the hash of a note and the vocabulary read as written by the machine, and a link of the [vault](../../GLOSSARY.md#vault) with it. A reply that the model's cap of 1,500 tokens cut lost every lesson it held, because the list was no longer valid JSON ([793b79 A field of a lesson is one line, and a reply that is cut keeps its whole lessons](./793b_decision-log.md#793b79-a-field-of-a-lesson-is-one-line-and-a-reply-that-is-cut-keeps-its-whole-lessons)).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| 793d4h1g | Dedicated example (default suite) | a lesson whose fields hold line breaks and a line that opens with `Supersedes:`, written through `RunAutoWrite` and the real renderers of the learn path | Not started | | | |
+| 793d4h1h | Dedicated example (default suite) | a reply cut inside a second lesson and a reply cut after a whole one: the whole lesson is written and the cut is recorded | Not started | | | |
+| 793d4h1c (amended) | Dedicated example (default suite) | a list followed by text is not a list: it passes when written; the mutation that makes it fail is a reading of the list that stops at its end and takes the rest for nothing | Not started | | | |
 
 ### 793e6e The conversation becomes searchable memory
 

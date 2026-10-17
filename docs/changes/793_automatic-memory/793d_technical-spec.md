@@ -728,9 +728,13 @@ the file name of a [note](../../GLOSSARY.md#permanent-note) of the [vault](../..
 written: it is recorded as skipped, with the name of the note; a name of a file that is not in the [vault](../../GLOSSARY.md#vault), or that is not
 a file name, covers nothing. It MUST write each other lesson as a
 [note](../../GLOSSARY.md#permanent-note) of its kind through the learn path of [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand), at the top of the order of the [vault](../../GLOSSARY.md#vault), with the source
-`written automatically (session <the session's ID>)`, and MUST print the path of each note it wrote. A reply that is not
+`written automatically (session <the session's ID>)`, and MUST print the path of each note it wrote. Every field of a
+lesson is written as one line, as a line of the window is ([793d4g Judging a turn](#793d4g-judging-a-turn)): its line breaks and white space become single
+spaces and its control and format characters are dropped, so that a field cannot make a line of the note of its own,
+such as a line that opens with `Supersedes:`, which the vault reads as a link. A reply that is not
 a list of lessons, and a lesson that lacks a field or has a kind it does not know, write nothing, and each is recorded
-with the reason ([793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did)).
+with the reason ([793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did)). A reply that is cut, so that it ends before its list does, keeps the lessons
+that are whole before the cut, and the cut is recorded as skipped, with its reason.
 
 Owner: lesson-writing (a new component; its canonical file at promotion is `lesson-writing.md`)
 
@@ -768,6 +772,16 @@ Scenario: 793d4h1f A cover that is not in the vault covers nothing
   Given a reply whose lesson names as covering it a file that is not in the vault, and a reply whose lesson names a path outside the vault
   When the lessons are written
   Then the lesson is written in each
+
+Scenario: 793d4h1g A field of a lesson cannot make a line of the note of its own
+  Given a reply whose lesson has line breaks in every field, one of them opening a line with Supersedes: and a link
+  When the lessons are written
+  Then the body of the note is one line, and no line of it opens with Supersedes:
+
+Scenario: 793d4h1h A reply that is cut keeps the lessons before the cut
+  Given a reply that holds one whole lesson and then ends inside a second, and a reply that ends after a whole lesson, before the end of its list
+  When the lessons are written
+  Then the whole lesson is written in each, and one record, of the kind skipped, says that the reply was cut
 ```
 
 ### 793d4j Redacting credentials

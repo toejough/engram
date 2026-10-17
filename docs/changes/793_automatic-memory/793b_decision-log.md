@@ -1343,3 +1343,18 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   and the promise would depend on the model).
 - **Decided by:** Author (default; owner may override); the promise is asked in
   [793c49 Should the promise that a note holds no credential stay absolute?](./793c_open-questions.md#793c49-should-the-promise-that-a-note-holds-no-credential-stay-absolute).
+
+## 793b79 A field of a lesson is one line, and a reply that is cut keeps its whole lessons
+
+- **Choice:** every field of a lesson is redacted and written as one line before the lesson is written, as the lines of the
+  window are (line breaks and white space become single spaces, control and format characters are dropped). The lessons
+  are read from the reply one by one, so that a reply that ends before its list does keeps the lessons that are whole
+  before the cut, and the cut is recorded as skipped with the reason that the reply was cut. A list followed by text is
+  still not a list.
+- **Rationale:** review findings 11 and 26. A field with a line break wrote lines of the [note](../../GLOSSARY.md#permanent-note) of its own, among them a line that
+  opens with `Supersedes:`, which the hash of a note and the vocabulary read as machine-written and the [vault](../../GLOSSARY.md#vault) as a link.
+  The reply is capped at 1,500 tokens, and a reply cut by the cap was no valid list, so all its lessons were lost
+  for one that was not whole.
+- **Alternatives:** raise the cap and read the list as before (rejected: a longer reply can still be cut, and loses every
+  lesson); leave out a lesson whose field has a line break (rejected: it loses a lesson for a form that one line holds).
+- **Decided by:** Author (default; owner may override).
