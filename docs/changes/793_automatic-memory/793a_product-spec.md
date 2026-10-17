@@ -175,8 +175,8 @@ Scenario: 793a2c1f Guesses, plans and chatter produce no note
 
 Scenario: 793a2c1g A credential in the turn is not in the note
   Given the user has run engram update, and a session in which the agent may not run engram commands
-  When the user corrects the agent in a prompt that also holds a token and a password, and the turn ends
-  Then within 2 minutes the vault holds a note that states the correction, and no note holds the token or the password
+  When the user asks the agent in a prompt to remember how to deploy, with the token and the password that the deploy needs, and the turn ends
+  Then within 2 minutes the vault holds a note that states how to deploy, and no note holds the token or the password
 ```
 
 ### 793a2f The conversation becomes searchable memory

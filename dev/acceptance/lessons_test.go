@@ -187,6 +187,13 @@ func Test793a2c1f_GuessesPlansAndChatterProduceNoNote(t *testing.T) {
 
 // unexported constants.
 const (
+	// askToRememberTheDeploy asks to remember a deploy whose token and password must not reach the vault.
+	askToRememberTheDeploy = "Remember how to deploy to staging: run the staging deploy script with DEPLOY_TOKEN=" +
+		deployToken + " set, and its password is " + deployPassword + ". Reply with one short sentence."
+	// deployPassword and deployToken are secrets built here and never written whole in this file: a scanner of the
+	// repository would take a literal for a credential.
+	deployPassword = "hunter" + "2hunter2"
+	deployToken    = "gh" + "p_" + "aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3"
 	// askForAGuessAndAPlan makes the agent answer with a guess, a plan and chatter, none of which is a lesson.
 	askForAGuessAndAPlan = "What do you think is making the Zorblax service start slowly? " +
 		"Answer with a guess, then a plan, then a friendly remark. Do not read or run anything."
@@ -218,3 +225,34 @@ const (
 	correctTheBuild = "No - in the Zorblax project you build with make " + buildTarget + ", never with make all. " +
 		"Reply with one short sentence."
 )
+
+func Test793a2c1g_ACredentialInTheTurnIsNotInTheNote(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var chat *conversation
+
+	step(t, "Given the user has run engram update, and a session in which the agent may not run engram commands", func() {
+		machine.hasRunUpdate()
+
+		chat = machine.startSession("zorblax").converse()
+	})
+
+	step(t, "When the user asks the agent in a prompt to remember how to deploy, with the token and the password "+
+		"that the deploy needs, and the turn ends", func() {
+		asked := chat.say(askToRememberTheDeploy)
+		t.Logf("the agent replied %q", asked.reply)
+	})
+
+	step(t, "Then within 2 minutes the vault holds a note that states how to deploy, and no note holds the token "+
+		"or the password", func() {
+		machine.awaitAutomaticNote(chat.turnEnds, "that states how to deploy", "staging")
+
+		for _, note := range machine.notes() {
+			g.Expect(note.text).NotTo(ContainSubstring(deployToken), note.name)
+			g.Expect(note.text).NotTo(ContainSubstring(deployPassword), note.name)
+		}
+	})
+}
