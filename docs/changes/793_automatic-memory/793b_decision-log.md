@@ -273,9 +273,11 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
   [subagents](../../GLOSSARY.md#subagent), and delivery looks up [notes](../../GLOSSARY.md#permanent-note) only, not the chunk index.
 - **Rationale:** both follow from "minimal" and from the hold of 8 seconds ([793b17 A prompt is held for at most 8 seconds](#793b17-a-prompt-is-held-for-at-most-8-seconds)): a lookup that included the chunk index
   took about 12 seconds on the owner's [vault](../../GLOSSARY.md#vault) in the earlier attempt.
-- **Alternatives:** the owner's answers on 2026-10-11 in the earlier attempt: capture inside subagent sessions,
-  and memory for every prompt regardless of source. This entry reverses them for the minimal set
-  ([793c6 Is the scope top-level sessions and notes only?](./793c_open-questions.md#793c6-is-the-scope-top-level-sessions-and-notes-only)).
+- **Alternatives:** the owner's answers in the earlier attempt: capture inside subagent sessions (`old 793c6`,
+  2026-10-11) and delivery at a subagent's start (`old 793c63`, 2026-10-11), memory for every prompt regardless of
+  source (`old 793c5`, 2026-10-11), and chunk stubs (`old 793c15`, 2026-10-11; `old 793c87`, 2026-10-14). This
+  entry reverses them for the minimal set. They are rows 1, 2 and 5 of [793b36 Earlier owner answers this minimal set reverses](./793b_decision-log.md#793b36-earlier-owner-answers-this-minimal-set-reverses), and the owner is asked in [793c6 Is the scope top-level sessions and notes only?](./793c_open-questions.md#793c6-is-the-scope-top-level-sessions-and-notes-only) and
+  [793c13 Which earlier owner answers may the minimal set reverse?](./793c_open-questions.md#793c13-which-earlier-owner-answers-may-the-minimal-set-reverse).
 - **Decided by:** Author (default; owner may override).
 
 ## 793b23 No capture rate or precision targets
@@ -321,7 +323,10 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 - **Choice:** in [793a3b Nothing the agent already has is delivered again](./793a_product-spec.md#793a3b-nothing-the-agent-already-has-is-delivered-again) the [agent](./793a_product-spec.md#793a1a-terms) "already has" a [note](../../GLOSSARY.md#permanent-note) when [automatic memory](./793a_product-spec.md#793a1a-terms) delivered it earlier in the
   same [session](../../GLOSSARY.md#session) or the agent looked it up in it, even after the session's context was compacted.
 - **Rationale:** it is the literal reading of "this session" and needs no knowledge of what the agent still
-  holds; the earlier attempt used the receiving agent's context instead (the owner, 2026-10-11).
+  holds. It reverses the owner's answer in the earlier attempt (`old 793c7` item 5, 2026-10-11): never re-inject
+  means never a note already in the receiving agent's context, and a truncated note is not present, so a note
+  removed by a compaction could be delivered again. It is row 11 of [793b36 Earlier owner answers this minimal set reverses](./793b_decision-log.md#793b36-earlier-owner-answers-this-minimal-set-reverses), and the owner is asked in [793c10 Does "already has" survive a compaction?](./793c_open-questions.md#793c10-does-already-has-survive-a-compaction) and
+  [793c13 Which earlier owner answers may the minimal set reverse?](./793c_open-questions.md#793c13-which-earlier-owner-answers-may-the-minimal-set-reverse).
 - **Alternatives:** deliver a note again after the context was compacted ([793c10 Does "already has" survive a compaction?](./793c_open-questions.md#793c10-does-already-has-survive-a-compaction)).
 - **Decided by:** Author (default; owner may override).
 
@@ -428,3 +433,54 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 - **Alternatives:** leave the sweep to the agent's own learn [skill](../../GLOSSARY.md#skill), as in the first
   version.
 - **Decided by:** Author, on the reviewer's recommendation (opus review round 1, 2026-10-17); owner may override.
+
+## 793b36 Earlier owner answers this minimal set reverses
+
+- **Choice:** the minimal set reverses these answers the owner gave in the earlier attempt. Each reversal's
+  default stands as the author's, and [793c13 Which earlier owner answers may the minimal set reverse?](./793c_open-questions.md#793c13-which-earlier-owner-answers-may-the-minimal-set-reverse) asks the owner about all of them together. Each row names the earlier
+  entries and their dates, then what this change does:
+  1. [Subagents](../../GLOSSARY.md#subagent): capture inside subagent [sessions](../../GLOSSARY.md#session) (`old 793c6`, 2026-10-11), and delivery at a [subagent](../../GLOSSARY.md#subagent)'s start
+     with capture at its stop (`old 793c63` (a), 2026-10-11). Here: the user's own sessions only ([793b22 The scope is top-level sessions and notes only](./793b_decision-log.md#793b22-the-scope-is-top-level-sessions-and-notes-only)).
+  2. [Prompt](./793a_product-spec.md#793a1a-terms) sources: memory for every prompt regardless of source (`old 793c5`, 2026-10-11). Here: prompts
+     the user sends.
+  3. Route results: tier evidence before the orchestrator routes a unit (`old 793c39` (b) and `old 793c64` (a),
+     2026-10-11). Here: none.
+  4. Mid-task moments: delivery at the moments where recall should fire (`old 793b187`, 2026-10-11, and
+     `old 793b240`, 2026-10-12; `old 793c49` (b) and `old 793c55` (a), 2026-10-11). Here: the prompt only
+     ([793c12 Is memory delivered at mid-task moments?](./793c_open-questions.md#793c12-is-memory-delivered-at-mid-task-moments)).
+  5. Chunk stubs: conversation fragments delivered beside the [notes](../../GLOSSARY.md#permanent-note) (`old 793c15` (b), 2026-10-11), kept by a
+     background pass when the full lookup proved too slow (`old 793c87` (a), 2026-10-14). Here: none delivered.
+  6. Relevance filter and moment classification: two model judgements before delivery (`old 793c69` (a),
+     2026-10-12), kept on haiku at the lowest effort (`old 793c79` (a), 2026-10-14). Here: none.
+  7. Curation after the [turn](./793a_product-spec.md#793a1a-terms): indexing and curation after each turn (`old 793b240`, 2026-10-12), curation run by
+     the System (`old 793c43` (a), 2026-10-11). Here: indexing is back as [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory); curation of
+     [pending offers](../../GLOSSARY.md#offer) is out.
+  8. Backlog capture: leftover sessions of any [harness](../../GLOSSARY.md#harness) picked up by the next session (`old 793c67`,
+     2026-10-12; `old 793c65` (a), 2026-10-11; cut-off `old 793c75`, 2026-10-13). Here: none ([793b37 A turn followed by the end of the session is not covered](./793b_decision-log.md#793b37-a-turn-followed-by-the-end-of-the-session-is-not-covered)).
+  9. Reinforcing a note: a MUST (`old 793c14` (b), 2026-10-11), no longer named in the intent of `old 793b240`.
+     Here: a lesson the [vault](../../GLOSSARY.md#vault) already states is not written again, and nothing more.
+  10. Stopping it: turned off by uninstalling, with uninstall extended to remove it (`old 793c18` (a) and
+      `old 793c22` (b), 2026-10-11). Here: no requirement covers how ([793b20 No modes and no off switch](./793b_decision-log.md#793b20-no-modes-and-no-off-switch)).
+  11. "Already has": a note already in the receiving [agent](./793a_product-spec.md#793a1a-terms)'s context is never re-injected, and a truncated
+      note is not present (`old 793c7` item 5, 2026-10-11). Here: per session, even after a compaction ([793b27 "Already has" is per session](./793b_decision-log.md#793b27-already-has-is-per-session)).
+  12. The prompt hold: no longer than the agent's own lookup on the same vault and input (`old 793c7` item 4 and
+      `old 793c11` (b), 2026-10-11). Here: 8 seconds ([793c1 How long may a prompt be held?](./793c_open-questions.md#793c1-how-long-may-a-prompt-be-held)).
+- **Rationale:** the owner asked for the minimal set (step 1 of his algorithm) and a restart from before the mod
+  existed ([793b1 Start over](#793b1-start-over)). Each reversed capability needs a measurement, a second model
+  judgement or machinery that the set leaves out, and a separate change can bring any of them back.
+- **Alternatives:** keep any of the twelve in the minimal set ([793c13 Which earlier owner answers may the minimal set reverse?](./793c_open-questions.md#793c13-which-earlier-owner-answers-may-the-minimal-set-reverse)).
+- **Decided by:** Author (default; owner may override).
+
+## 793b37 A turn followed by the end of the session is not covered
+
+- **Choice:** [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) and [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) promise their work within 2 minutes after a [turn](./793a_product-spec.md#793a1a-terms) ends, and only while the
+  [session](../../GLOSSARY.md#session) stays open that long: a turn followed by the end of the session within the 2 minutes is not covered.
+  [793c14 Is a turn that is followed by the end of the session covered?](./793c_open-questions.md#793c14-is-a-turn-that-is-followed-by-the-end-of-the-session-covered) asks whether it should be.
+- **Rationale:** covering it needs work that outlives the session, a pick-up by a later session, or a hold on the
+  exit, and the minimal set leaves out backlog capture ([793b8 Exclusions](./793b_decision-log.md#793b8-exclusions)) and may not hold a session ([793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way)). The earlier
+  attempt recorded such a final turn as lost (`old 793b203`) before it kept unfinished work for the next session
+  (`old 793c65`, 2026-10-11) and then picked up leftover sessions (`old 793c67`, 2026-10-12). The cost is that a
+  lesson in the last turn before an exit can be lost.
+- **Alternatives:** covered, by letting the work finish after the session ends or by finishing it in the next
+  session ([793c14 Is a turn that is followed by the end of the session covered?](./793c_open-questions.md#793c14-is-a-turn-that-is-followed-by-the-end-of-the-session-covered)).
+- **Decided by:** Author (default; owner may override).

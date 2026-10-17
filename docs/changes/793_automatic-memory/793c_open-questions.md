@@ -62,7 +62,8 @@ he answers. When he answers, the entry records the answer and the date and stays
 
 - **Context:** [793a4 Not in the minimal set](./793a_product-spec.md#793a4-not-in-the-minimal-set) leaves out [subagents](../../GLOSSARY.md#subagent) and the chunk-index lookup. In the earlier attempt the owner
   answered the opposite on 2026-10-11 for subagents and [prompt](./793a_product-spec.md#793a1a-terms) sources: capture inside subagent [sessions](../../GLOSSARY.md#session), and
-  memory for every prompt regardless of source. A lookup that included the chunk index took about 12 seconds
+  memory for every prompt regardless of source (`old 793c6` and `old 793c63`, `old 793c5`, 2026-10-11). The
+  full list of reversed answers is asked in [793c13 Which earlier owner answers may the minimal set reverse?](./793c_open-questions.md#793c13-which-earlier-owner-answers-may-the-minimal-set-reverse). A lookup that included the chunk index took about 12 seconds
   on his [vault](../../GLOSSARY.md#vault) there, longer than the 8 seconds of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way).
 - **Options:** (a) The user's own sessions and [notes](../../GLOSSARY.md#permanent-note) only. (b) Add subagents. (c) Add the chunk-index
   lookup.
@@ -102,9 +103,72 @@ he answers. When he answers, the entry records the answer and the date and stays
 ## 793c10 Does "already has" survive a compaction?
 
 - **Context:** [793a3b Nothing the agent already has is delivered again](./793a_product-spec.md#793a3b-nothing-the-agent-already-has-is-delivered-again) does not deliver a [note](../../GLOSSARY.md#permanent-note) the [agent](./793a_product-spec.md#793a1a-terms) already has in the [session](../../GLOSSARY.md#session). When the
-  session's context is compacted, the agent may no longer hold the note's text.
+  session's context is compacted, the agent may no longer hold the note's text. The owner's earlier answer was the
+  other way: never re-inject a note already in the receiving agent's context, and a truncated note is not present
+  (`old 793c7` item 5, 2026-10-11), so default (a) reverses it (row 11 of [793c13 Which earlier owner answers may the minimal set reverse?](./793c_open-questions.md#793c13-which-earlier-owner-answers-may-the-minimal-set-reverse)).
 - **Options:** (a) Per session: a note delivered once is not delivered again, whatever the agent still holds.
   (b) Deliver it again after a compaction.
 - **Recommendation:** (a) for the minimal set: (b) needs knowledge of what the agent still holds.
 - **Blocks:** the scenarios of [793a3b Nothing the agent already has is delivered again](./793a_product-spec.md#793a3b-nothing-the-agent-already-has-is-delivered-again).
 - **Status:** open. Default (a) taken: [793b27 "Already has" is per session](./793b_decision-log.md#793b27-already-has-is-per-session).
+
+## 793c12 Is memory delivered at mid-task moments?
+
+- **Context:** issue #793 asks for automatic recall "at human [prompts](./793a_product-spec.md#793a1a-terms), tool results and
+  [subagent](../../GLOSSARY.md#subagent) dispatch".
+  [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) delivers at the [prompt](./793a_product-spec.md#793a1a-terms) only. The main [agent](./793a_product-spec.md#793a1a-terms)'s recall also fired mid-task, by its own judgement:
+  before it endorsed or ranked an approach, before it declared work done, after a failure it could not explain,
+  and before it started building a new approach
+  ([792a19a Recall fires at four decision moments](../../specs/product/ambient-guidance.md#792a19a-recall-fires-at-four-decision-moments)).
+  In the earlier attempt the owner approved delivery at those moments (`old 793b187`, 2026-10-11, and
+  `old 793b240`, 2026-10-12). The minimal set leaves them out ([793b8 Exclusions](./793b_decision-log.md#793b8-exclusions)).
+- **Options:** (a) The prompt only. (b) The prompt and tool results. (c) The prompt, tool results and the four
+  decision moments.
+- **Recommendation:** (a) for the minimal set. The main agent's mid-task re-queries were moments it chose by
+  judgement, and finding them from outside needs a model judgement or a look at every tool result, which the
+  set leaves out. (b) or (c) can be a later change.
+- **Blocks:** nothing in the minimal set; the scope of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) if (b) or (c) is chosen.
+- **Status:** open. Default (a) taken: [793b8 Exclusions](./793b_decision-log.md#793b8-exclusions).
+
+## 793c13 Which earlier owner answers may the minimal set reverse?
+
+- **Context:** the minimal set leaves out, or does differently, things the owner answered on in the earlier
+  attempt. The table lists every one with its earlier entry and date; the default for each row is the
+  author's ([793b36 Earlier owner answers this minimal set reverses](./793b_decision-log.md#793b36-earlier-owner-answers-this-minimal-set-reverses)). Rows 1, 2 and 5 are also the question of [793c6 Is the scope top-level sessions and notes only?](./793c_open-questions.md#793c6-is-the-scope-top-level-sessions-and-notes-only), row 4 of [793c12 Is memory delivered at mid-task moments?](./793c_open-questions.md#793c12-is-memory-delivered-at-mid-task-moments), row 11 of [793c10 Does "already has" survive a compaction?](./793c_open-questions.md#793c10-does-already-has-survive-a-compaction) and row 12
+  of [793c1 How long may a prompt be held?](./793c_open-questions.md#793c1-how-long-may-a-prompt-be-held); answering here answers those too.
+
+| # | What | Earlier owner answer | This change |
+| --- | --- | --- | --- |
+| 1 | [Subagents](../../GLOSSARY.md#subagent) | capture inside subagent [sessions](../../GLOSSARY.md#session): yes (`old 793c6`, 2026-10-11); delivery at a [subagent](../../GLOSSARY.md#subagent)'s start and capture at its stop (`old 793c63` (a), 2026-10-11) | the user's own sessions only |
+| 2 | [Prompt](./793a_product-spec.md#793a1a-terms) sources | memory for every prompt regardless of source (`old 793c5`, 2026-10-11) | prompts the user sends |
+| 3 | Route results | tier evidence delivered before the orchestrator routes a unit (`old 793c39` (b) and `old 793c64` (a), 2026-10-11) | none |
+| 4 | Mid-task moments | delivery at the moments where recall should fire (`old 793b187`, 2026-10-11, and `old 793b240`, 2026-10-12; `old 793c49` (b) and `old 793c55` (a), 2026-10-11) | the prompt only |
+| 5 | Chunk stubs | conversation fragments delivered beside the [notes](../../GLOSSARY.md#permanent-note) as stubs (`old 793c15` (b), 2026-10-11), kept by a background pass when the full lookup proved too slow (`old 793c87` (a), 2026-10-14) | none delivered; the [agent](./793a_product-spec.md#793a1a-terms) finds fragments when it asks ([793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory)) |
+| 6 | Relevance filter and moment classification | two model judgements before delivery (`old 793c69` (a), 2026-10-12), kept on haiku at the lowest effort (`old 793c79` (a), 2026-10-14) | none; the agent judges what it is given |
+| 7 | Curation after the [turn](./793a_product-spec.md#793a1a-terms) | indexing and curation after each turn (`old 793b240`, 2026-10-12); curation run by the System (`old 793c43` (a), 2026-10-11) | indexing is back as [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory); curation of [pending offers](../../GLOSSARY.md#offer) is out |
+| 8 | Backlog capture | leftover sessions of any [harness](../../GLOSSARY.md#harness) picked up by the next session (`old 793c67`, 2026-10-12; `old 793c65` (a), 2026-10-11; cut-off `old 793c75`, 2026-10-13) | none; a turn followed by the end of the session is [793c14 Is a turn that is followed by the end of the session covered?](./793c_open-questions.md#793c14-is-a-turn-that-is-followed-by-the-end-of-the-session-covered) |
+| 9 | Reinforcing a note | reinforcement is a MUST (`old 793c14` (b), 2026-10-11); the intent of 2026-10-12 (`old 793b240`) no longer names it | a lesson the [vault](../../GLOSSARY.md#vault) already states is not written again, and nothing more |
+| 10 | Stopping it | turned off by uninstalling, with uninstall extended to remove it (`old 793c18` (a) and `old 793c22` (b), 2026-10-11) | no requirement covers how ([793b20 No modes and no off switch](./793b_decision-log.md#793b20-no-modes-and-no-off-switch)) |
+| 11 | "Already has" | a note already in the receiving agent's context is never re-injected; a truncated note is not present (`old 793c7` item 5, 2026-10-11) | per session, even after a compaction |
+| 12 | The prompt hold | no longer than the agent's own lookup on the same vault and input (`old 793c7` item 4 and `old 793c11` (b), 2026-10-11) | 8 seconds |
+
+- **Options:** (a) Accept every reversal for the minimal set; any row can come back as a separate change.
+  (b) Keep named rows in the minimal set; the owner names them by number.
+- **Recommendation:** (a). The owner asked for the minimal set, each row needs a measurement, a second model
+  judgement or machinery the set leaves out, and a separate change can restore any of them.
+- **Blocks:** the scope of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt), [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) and [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) for the rows kept.
+- **Status:** open. Defaults taken: [793b36 Earlier owner answers this minimal set reverses](./793b_decision-log.md#793b36-earlier-owner-answers-this-minimal-set-reverses).
+
+## 793c14 Is a turn that is followed by the end of the session covered?
+
+- **Context:** [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) promises a [note](../../GLOSSARY.md#permanent-note) within 2 minutes after a [turn](./793a_product-spec.md#793a1a-terms) ends, and [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) makes the conversation
+  findable within the same 2 minutes. A user who ends the [session](../../GLOSSARY.md#session) right after a turn leaves [automatic memory](./793a_product-spec.md#793a1a-terms) no time to
+  finish. The earlier attempt recorded such a final turn as lost (`old 793b203`), then kept unfinished work for
+  the next session (`old 793c65` (a), 2026-10-11), then picked up leftover sessions of any [harness](../../GLOSSARY.md#harness)
+  (`old 793c67`, 2026-10-12). The minimal set has none of those (row 8 of [793c13 Which earlier owner answers may the minimal set reverse?](./793c_open-questions.md#793c13-which-earlier-owner-answers-may-the-minimal-set-reverse)).
+- **Options:** (a) Not covered: the promise holds while the session stays open for the 2 minutes. (b) Covered:
+  the work finishes after the session ends, or the next session finishes it.
+- **Recommendation:** (a) for the minimal set: (b) needs work that outlives the session, which the set leaves
+  out. The cost is that a lesson in the last turn before an exit can be lost.
+- **Blocks:** the scenarios of [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) and [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) for a session that ends within 2 minutes after a turn.
+- **Status:** open. Default (a) taken: [793b37 A turn followed by the end of the session is not covered](./793b_decision-log.md#793b37-a-turn-followed-by-the-end-of-the-session-is-not-covered).
