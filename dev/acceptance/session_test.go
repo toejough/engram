@@ -563,8 +563,8 @@ func (t *turn) toolResultsNaming(note string) bool {
 }
 
 // claudeToken returns the login the live tests use, from the environment or the owner's credential file, and
-// fails the test when there is none (793b53). It is handed to the child's environment only, never to a command line or a
-// log.
+// fails the test when there is none (793b53). It is handed to the child's environment only, never to a command line
+// or a log.
 func claudeToken(t *testing.T) string {
 	t.Helper()
 
