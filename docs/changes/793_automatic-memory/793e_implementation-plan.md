@@ -190,7 +190,7 @@ graph TD
     n793e6g11 --> n793e6g12
     n793e6g13["793e6g13 The acceptance run can repeat a scenario<br/>Complete"]
     n793e6g12 --> n793e6g13
-    n793e6g14["793e6g14 A thanks that names no approach produces no note<br/>Ready"]
+    n793e6g14["793e6g14 A thanks that names no approach produces no note<br/>Complete"]
     n793e6g13 --> n793e6g14
     n793e6g14 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
@@ -679,7 +679,7 @@ Takes review findings 14 and 22. The learn [skill](../../GLOSSARY.md#skill) hold
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1h | Dedicated example, product acceptance (`network`) | the prohibition as the user sees it: after a task the [agent](./793a_product-spec.md#793a1a-terms) did one way, a [prompt](./793a_product-spec.md#793a1a-terms) that only thanks the agent and says that it worked is judged, and the [vault](../../GLOSSARY.md#vault) holds no [note](../../GLOSSARY.md#permanent-note) | | Not started | | | |
+| 793a2c1h | Dedicated example, product acceptance (`network`) | the prohibition as the user sees it: after a task the [agent](./793a_product-spec.md#793a1a-terms) did one way, a [prompt](./793a_product-spec.md#793a1a-terms) that only thanks the agent and says that it worked is judged, and the [vault](../../GLOSSARY.md#vault) holds no [note](../../GLOSSARY.md#permanent-note) | 10 of 10 runs of the final instructions; 5 of 10 before them | Done | db1f61f6 | aca8f0a1 | 4611d8a8 |
 
 ### 793e6e The conversation becomes searchable memory
 

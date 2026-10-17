@@ -1499,15 +1499,22 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   [turn](./793a_product-spec.md#793a1a-terms), with the exact names, commands, flags and values it depends on kept. A thanks, or an "it worked", that names
   no approach confirms nothing, and a success that no uncertainty and no bet preceded is no lesson. And the clause that
   named a line beginning `Brief:` as the [agent](./793a_product-spec.md#793a1a-terms)'s instruction to a [subagent](../../GLOSSARY.md#subagent) is dropped: it was left from the earlier attempt, whose
-  window held the briefs of the agent, and the window of this judgement holds no input of a tool.
+  window held the briefs of the agent, and the window of this judgement holds no input of a tool. The description of the
+  field `covered` also says that a lesson a nearest [note](../../GLOSSARY.md#permanent-note) already states is still listed, with that note's file name, so
+  that the writing records a skip for it and not nothing.
 - **Rationale:** review findings 14 and 22. The learn skill has the bar and the judgement did not, so a turn in which the
   user said only "thanks, that worked" was a confirmed approach for it. The scenario
   [793a2c1h A thanks that names no approach produces no note](./793a_product-spec.md#793a2c1-uat-scenarios) holds the bar as the user sees it, and its runs before and after the change are
   in [793e6g14 A thanks that names no approach produces no note, and the instructions carry the bar of the learn skill](./793e_implementation-plan.md#793e6g14-a-thanks-that-names-no-approach-produces-no-note-and-the-instructions-carry-the-bar-of-the-learn-skill).
   The exact names stay because they are what a later lookup matches, and what the rows of the scenarios check in the [note](../../GLOSSARY.md#permanent-note).
+  The sentence about `covered` is there because the others, alone, made the model leave out a lesson that a note
+  already states: the row of [793a3c1a A lesson an earlier note states is not written again](./793a_product-spec.md#793a3c1-uat-scenarios) passed 3 of 5 runs, where it had passed 10 of 10,
+  and the judgement alone listed the covered lesson in 148 of 180 runs, against 176 of 180 before the change. With the
+  sentence the row passed 10 of 10 runs and the judgement alone listed it in 98 of 100.
 - **Alternatives:** the skill's words "the general principle, not the instance" as they stand (rejected: a note that
   says to build with the target of the project, and not `make zorblax-build`, cannot be told from a guess, and the rows of
   [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios) and [793a2c1d The agent's own correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios) check the exact words); leaving the thanks to the model (rejected: see the runs);
-  the four kinds of the skill copied in full (rejected: the instructions name the kinds already).
+  the four kinds of the skill copied in full (rejected: the instructions name the kinds already); the bar without the
+  sentence about `covered` (rejected: the runs above).
 - **Decided by:** Author (default; owner may override); the owner is asked in
   [793c56 Is the bar of the learn skill the bar for a note written automatically?](./793c_open-questions.md#793c56-is-the-bar-of-the-learn-skill-the-bar-for-a-note-written-automatically).
