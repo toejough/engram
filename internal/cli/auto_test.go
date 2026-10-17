@@ -130,6 +130,32 @@ func Test793d4d1b_HeldText_TheRecordIsFoundUnderItsProjectDirectory(t *testing.T
 	g.Expect(held).NotTo(ContainSubstring("the block of another"))
 }
 
+func Test793d4d1c_HeldText_ASessionWithNoRecordOrAnIDThatIsNotAFileNameHoldsNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	parent := t.TempDir()
+	sessions := filepath.Join(parent, "sessions")
+	g.Expect(os.MkdirAll(sessions, 0o750)).To(Succeed())
+
+	// a record outside the session-log directory, which an ID that leaves the directory would reach
+	record := `{"type":"attachment","attachment":{"type":"hook_additional_context","hookName":"prompt.submit",` +
+		`"content":["[engram memory] a block outside the directory"]}}` + "\n"
+	g.Expect(os.WriteFile(filepath.Join(parent, "outside.jsonl"), []byte(record), 0o600)).To(Succeed())
+
+	deps := cli.AutoDeliverDeps{ReadDir: os.ReadDir, ReadFile: os.ReadFile}
+
+	for _, id := range []string{sessionID, "../outside", "nested/" + sessionID, "..", "."} {
+		held, err := cli.ExportHeldText(deps, sessions, id)
+		g.Expect(err).NotTo(HaveOccurred(), id)
+		g.Expect(held).To(BeEmpty(), id)
+	}
+
+	held, err := cli.ExportHeldText(deps, filepath.Join(parent, "no-such-directory"), sessionID)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(held).To(BeEmpty())
+}
+
 // TestTargets_AutoDeliver reaches the command the way the mod does, as `engram auto deliver` with the prompt on
 // standard input, so the wiring of the group, the flag and the dependencies is run.
 func TestTargets_AutoDeliverPrintsTheNotesThatBearOnThePromptOnStandardInput(t *testing.T) {
