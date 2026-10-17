@@ -455,6 +455,16 @@ Takes [793a2a1f A second update still writes each lesson as one note](./793a_pro
 | --- | --- | --- | --- | --- | --- | --- |
 | 793a2a1f | Dedicated example, product acceptance (`network`) | the repeat as the user sees it: two real updates, then a correction in a [session](../../GLOSSARY.md#session), and the [vault](../../GLOSSARY.md#vault) holds one [note](../../GLOSSARY.md#permanent-note) for it; the test waits for the end of the write and then for a settling time, so that a second note written beside the first would be seen. The test passes when written, because the update is idempotent over the [skills](../../GLOSSARY.md#skill) already; the mutation that makes it fail is a mod that registers its capture of the [turn](./793a_product-spec.md#793a1a-terms) twice | Done | n/a | 164a85e8 | 4ed50702 |
 
+#### 793e6b13 A lesson is not written to a vault that does not exist
+
+Takes [793a2a1g A lesson is not written to a vault that does not exist](./793a_product-spec.md#793a2a1-uat-scenarios). It extends the exemption of the delivery from the first-use step of the [vault](../../GLOSSARY.md#vault) ([793d4e Modified: First-use gating](./793d_technical-spec.md#793d4e-modified-first-use-gating)) to the judgement and the writing, which are wired outside it.
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| 793a2a1g | Dedicated example, product acceptance (`network`) | the prohibition as the user sees it: after a correction in a [session](../../GLOSSARY.md#session) of a machine whose vault was removed, the vault is still not there once the capture has ended; the test waits for the records of both [turns](./793a_product-spec.md#793a1a-terms) and a settling time, so that the absence is the result of the capture and not of a capture that did not finish. The test passes when written: the learn path takes the lock of the vault before it writes, and fails when the vault is not there, so nothing creates it; the mutation that makes it fail is a writing wired inside the first-use step | Red | | | |
+| 793d4e1b | Dedicated example (default suite) | the judgement command dispatched through the targets over a path that holds no vault: no vault afterwards, no creation line | Red | | | |
+| 793d4e1c | Dedicated example (default suite) | the writing command dispatched through the targets over a path that holds no vault, with a reply that holds a lesson: no vault, no [note](../../GLOSSARY.md#permanent-note), nothing printed, no creation line | Red | | | |
+
 ### 793e6e The conversation becomes searchable memory
 
 Takes [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory).

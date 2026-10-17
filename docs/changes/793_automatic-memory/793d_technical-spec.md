@@ -401,14 +401,14 @@ Scenario: 793d4d1c A session with no record, or an ID that is not a file name, h
 
 Target: [792b2c3 First-use gating](../../specs/technical/command-line-surface.md#792b2c3-first-use-gating)
 
-Requirement: 792b2c3 For every [vault](../../GLOSSARY.md#vault)-resolving command other than `auto deliver`, the command-line-surface MUST ask the
+Requirement: 792b2c3 For every [vault](../../GLOSSARY.md#vault)-resolving command other than the commands of the group `auto` (`auto deliver`, `auto judge` and `auto write`), the command-line-surface MUST ask the
 [vault-identity-registry](../../specs/technical/vault-identity-registry.md) to ensure the vault at the resolved path before running the command, and
-MUST NOT run the command when that step fails. For `auto deliver` it MUST NOT ask: the command runs against the path
+MUST NOT run the command when that step fails. For a command of the group `auto` it MUST NOT ask: the command runs against the path
 as it is, and creates nothing when the path holds no vault.
 
 Owner: [command-line-surface](../../specs/technical/command-line-surface.md)
 
-Supports: [793a2a1e A vault that does not exist is not created](./793a_product-spec.md#793a2a1-uat-scenarios).
+Supports: [793a2a1e A vault that does not exist is not created](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2a1g A lesson is not written to a vault that does not exist](./793a_product-spec.md#793a2a1-uat-scenarios).
 
 #### 793d4e1 Scenarios
 
@@ -417,6 +417,16 @@ Scenario: 793d4e1a The delivery command creates no vault
   Given no vault exists at the resolved path
   When engram auto deliver is dispatched
   Then no vault exists at the path afterwards, nothing is printed to standard output and no creation line is printed
+
+Scenario: 793d4e1b The judgement command creates no vault
+  Given no vault exists at the resolved path, and a session whose record holds a prompt
+  When engram auto judge is dispatched
+  Then no vault exists at the path afterwards and no creation line is printed
+
+Scenario: 793d4e1c The writing command creates no vault and writes no note
+  Given no vault exists at the resolved path, and a reply that holds one lesson
+  When engram auto write is dispatched
+  Then no vault exists at the path afterwards, no note was written, nothing is printed to standard output and no creation line is printed
 ```
 
 ### 793d4b Deploying the mods of the source
@@ -1020,6 +1030,19 @@ Scenario: 793a2a1f A second update still writes each lesson as one note
 ```
 
 Realized by [793d4b Deploying the mods of the source](#793d4b-deploying-the-mods-of-the-source): the second update leaves one deployed mod, so the [session](../../GLOSSARY.md#session) loads one hook and the [turn](./793a_product-spec.md#793a1a-terms) is captured once, with the components of [793d5j Mapping of 793a2c1a](#793d5j-mapping-of-793a2c1a), which write the correction as one [note](../../GLOSSARY.md#permanent-note).
+
+### 793d5v Mapping of 793a2a1g
+
+The product scenario [793a2a1g A lesson is not written to a vault that does not exist](./793a_product-spec.md#793a2a1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2a1g A lesson is not written to a vault that does not exist
+  Given a machine with Claude Code on which the user has run engram update, and whose configured vault no longer exists
+  When the user corrects the agent in a prompt of a session, and the turn ends
+  Then the vault still does not exist 2 minutes after the turn ends
+```
+
+Realized by [793d4e Modified: First-use gating](#793d4e-modified-first-use-gating): the judgement and the writing, like the delivery, run against the path as it is and create nothing when it holds no [vault](../../GLOSSARY.md#vault). The judgement finds no [note](../../GLOSSARY.md#permanent-note) there, the learn path of [793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply) cannot take the lock of a vault that is not there and writes nothing, and [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did) records the failure that the [turn](./793a_product-spec.md#793a1a-terms) is left with.
 
 ## 793d6 Recommended impact
 
