@@ -125,12 +125,7 @@ func Test793d4m1b_Auto_APromptOfAnyOtherOriginIsDeliveredNothingAndItsTurnIsJudg
 // originRequest is the JSON object that the memory mod hands to a command: the field given, the session of the record
 // recordOfAPrompt writes, and the origin.
 func originRequest(origin, field, value string) io.Reader {
-	encoded, err := json.Marshal(map[string]string{field: value, "session": sessionID, "origin": origin})
-	if err != nil {
-		panic(err)
-	}
-
-	return bytes.NewReader(encoded)
+	return requestOf(map[string]string{field: value, "session": sessionID, "origin": origin})
 }
 
 // recordOfAPrompt writes the record of a session whose last turn began with a prompt, and returns the directory of the
@@ -149,12 +144,17 @@ func recordOfAPrompt(tb testing.TB) string {
 	return dir
 }
 
-// userPrompt is the request that the memory mod hands to the delivery for a prompt the user typed, in a session.
-func userPrompt(text, session string) io.Reader {
-	encoded, err := json.Marshal(map[string]string{"text": text, "session": session, "origin": "composer"})
+// requestOf is the JSON object that the memory mod hands to a command, with the fields given, as a reader.
+func requestOf(fields map[string]string) io.Reader {
+	encoded, err := json.Marshal(fields)
 	if err != nil {
 		panic(err)
 	}
 
 	return bytes.NewReader(encoded)
+}
+
+// userPrompt is the request that the memory mod hands to the delivery for a prompt the user typed, in a session.
+func userPrompt(text, session string) io.Reader {
+	return requestOf(map[string]string{"text": text, "session": session, "origin": "composer"})
 }
