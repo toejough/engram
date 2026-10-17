@@ -144,23 +144,29 @@ sequenceDiagram
     participant Model as the host's model call
     participant Writing as lesson-writing
     participant Vault as the vault
+    participant Record as the record of what it did
 
     User->>Session: the turn ends
     Session->>Mod: 793d2b turn.complete with the turn's final text
     Mod-->>Session: 793d2b the event's result, at once
-    Mod->>Judgement: 793d2b, 793d4g engram auto judge, the session's ID and the final text on standard input
+    Mod->>Judgement: 793d2b, 793d4g engram auto judge, the session's ID, the turn's ID and the final text on standard input
     Judgement-->>Mod: 793d4g the request for the model
     Mod->>Model: 793d2b the request
     Model-->>Mod: 793d2b the reply
-    Mod->>Writing: 793d2b, 793d4h engram auto write, the session's ID and the reply on standard input
+    Mod->>Writing: 793d2b, 793d4h engram auto write, the session's ID, the turn's ID and the reply on standard input
     Writing->>Vault: 793d4h a note for each lesson
+    Writing->>Record: 793d4k what became of the reply
 ```
 
 Requirement: 793d2b For each [turn](./793a_product-spec.md#793a1a-terms) a Claude Code [session](../../GLOSSARY.md#session) completes, the automatic-memory-mod MUST
-give the event's result back at once, and MUST then, apart from the event, run `engram auto judge` with the session's ID
-and the turn's final text, as one JSON object, on standard input; when the command exited with 0 and printed a request,
-MUST ask the model for it through the host's model call, with the request exactly as printed; and when the model
-answered, MUST run `engram auto write` with the session's ID and the model's reply, as one JSON object, on standard input.
+give the event's result back at once, and MUST then, apart from the event, run `engram auto judge` with the session's ID,
+the turn's ID and the turn's final text, as one JSON object, on standard input; when the command exited with 0 and
+printed a request, MUST ask the model for it through the host's model call, with the request exactly as printed; and
+when the model answered, MUST run `engram auto write` with the session's ID, the turn's ID and the model's reply, as one
+JSON object, on standard input. When the command exited with 0 and printed nothing, it MUST do nothing more. When a step
+fails, because a command exited with other than 0 or printed what is not a request, or the model did not answer, or a
+call was ended or rejected, it MUST run `engram auto write` with the session's ID, the turn's ID and a `failure`, a
+sentence that names the step and how it failed, in place of the reply.
 
 Owner: automatic-memory-mod (the component of [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow))
 
@@ -172,7 +178,22 @@ Supports: [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-
 Scenario: 793d2b1a The mod judges a turn and gives the reply to the writing
   Given the mod, a session whose ID is known, an engram whose auto judge prints a request, and a model that answers
   When a turn completes with a final text
-  Then the event's result is given back at once, auto judge received the session's ID and the final text, the model was asked the request exactly as printed, and auto write received the session's ID and the model's reply
+  Then the event's result is given back at once, auto judge received the session's ID, the turn's ID and the final text, the model was asked the request exactly as printed, and auto write received the session's ID, the turn's ID and the model's reply
+
+Scenario: 793d2b1b A judgement that prints nothing ends the capture
+  Given the mod, and an engram whose auto judge exits with 0 and prints nothing
+  When a turn completes
+  Then the model was never asked, and auto write was never run
+
+Scenario: 793d2b1c A step that fails is reported to the writing
+  Given the mod, and an engram whose auto judge exits with 1, prints text that is not a request, or is ended before it answers
+  When a turn completes
+  Then the model was never asked, and auto write received the session's ID, the turn's ID and a failure that names the judgement
+
+Scenario: 793d2b1d A model that does not answer is reported to the writing
+  Given the mod, an engram whose auto judge prints a request, and a model that answers with an API error, with no text, or by rejecting the call
+  When a turn completes
+  Then auto write received the session's ID, the turn's ID and a failure that names the model call
 ```
 
 ## 793d3 Recommended component diffs
@@ -206,7 +227,8 @@ Scenario: 793d2b1a The mod judges a turn and gives the reply to the writing
   function; ownership, the reading of the reply and the mark of a note are its own, the write of a note is the learn
   path's; independent verification, it is tested through its standard input and output over an in-memory vault;
   stability, it survives any change to the instructions of the judgement; necessity, the notes must be written after the
-  turn without the [agent](./793a_product-spec.md#793a1a-terms).
+  turn without the [agent](./793a_product-spec.md#793a1a-terms). It also keeps the record of what became of each reply
+  ([793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did)).
 - **learn path** (retained): the write of a note, as [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand) does it (`RunLearn`).
 - **harness-deploy-sync** (updated): plans, links, reports and removes the mod as it does a [skill](../../GLOSSARY.md#skill) directory, and
   reports it as a mod ([793b47 A dry run reports the mod as a mod](./793b_decision-log.md#793b47-a-dry-run-reports-the-mod-as-a-mod)).
@@ -537,13 +559,15 @@ Scenario: 793d4g1d An input that is not a JSON object fails the command
 
 ### 793d4h Writing the lessons of a reply
 
-Requirement: 793d4h The lesson-writing MUST read one JSON object with the `session`'s ID and the model's `reply` from
-standard input. The reply is a JSON array of lessons, with or without a code fence around it. A lesson has a `kind`,
+Requirement: 793d4h The lesson-writing MUST read one JSON object with the `session`'s ID, the `turn`'s ID and either the
+model's `reply` or, when the model gave none, the `failure` that left the mod without one, from standard input. The reply
+is a JSON array of lessons, with or without a code fence around it. A lesson has a `kind`,
 which is `feedback`, with a `behavior`, an `impact` and an `action`, or `fact`, with a `subject`, a `predicate` and an
 `object`; a `slug` of lower-case letters, digits and dashes; and a `situation`. It MUST write each lesson as a
 [note](../../GLOSSARY.md#permanent-note) of its kind through the learn path of [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand), at the top of the order of the [vault](../../GLOSSARY.md#vault), with the source
 `written automatically (session <the session's ID>)`, and MUST print the path of each note it wrote. A reply that is not
-a list of lessons, and a lesson that lacks a field or has a kind it does not know, write nothing.
+a list of lessons, and a lesson that lacks a field or has a kind it does not know, write nothing, and each is recorded
+with the reason ([793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did)).
 
 Owner: lesson-writing (a new component; its canonical file at promotion is `lesson-writing.md`)
 
@@ -571,6 +595,50 @@ Scenario: 793d4h1d The code fence around the list is not part of it
   Given a reply that holds one lesson inside a code fence
   When the lessons are written
   Then the vault holds the lesson's note
+```
+
+### 793d4k Recording what automatic memory did
+
+Requirement: 793d4k The lesson-writing MUST record what became of each reply or failure it reads, in a place the display of
+what [automatic memory](./793a_product-spec.md#793a1a-terms) did can read ([793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did)): one record for each lesson it wrote, of the kind `written`, with the file
+name of the [note](../../GLOSSARY.md#permanent-note); one for each lesson it left out, of the kind `skipped`, with the lesson's slug and the reason; one for a
+reply that is not a list of lessons, of the kind `skipped`, with the reason; one for a reply that holds no lesson, of the
+kind `nothing`; and one for a failure, of the kind `failed`, with the failure. A record is a JSON file of its own, in the
+directory `auto` of the engram data directory and in the directory named for the ID of the [session](../../GLOSSARY.md#session); its name opens with the
+time it was made, and it holds the time, the session's ID, the [turn](./793a_product-spec.md#793a1a-terms)'s ID, the kind, the note, the slug and the reason. A record
+that cannot be written does not fail the command.
+
+Owner: lesson-writing (a new component; its canonical file at promotion is `lesson-writing.md`)
+
+Supports: [793a2c1f Guesses, plans and chatter produce no note](./793a_product-spec.md#793a2c1-uat-scenarios).
+
+#### 793d4k1 Scenarios
+
+```gherkin
+Scenario: 793d4k1a A lesson that is written is recorded with its note
+  Given a reply that holds one lesson
+  When the lessons are written
+  Then one record, of the kind written, holds the file name of the note, the session's ID and the turn's ID
+
+Scenario: 793d4k1b A reply with no lesson is recorded as nothing
+  Given a reply that is an empty list
+  When the lessons are written
+  Then one record, of the kind nothing, holds the session's ID and the turn's ID
+
+Scenario: 793d4k1c A lesson left out, and a reply that is not a list, are recorded with the reason
+  Given a reply that holds a lesson with no slug beside a lesson that is whole, and a reply that is not a list
+  When the lessons are written
+  Then the lesson that is whole is written, and the lesson with no slug and the reply that is not a list are each recorded as skipped with a reason that names what is wrong
+
+Scenario: 793d4k1d A failure is recorded
+  Given a failure in place of a reply
+  When the lessons are written
+  Then one record, of the kind failed, holds the failure, and no note is written
+
+Scenario: 793d4k1e A record that cannot be written does not fail the command
+  Given a reply that holds one lesson, and a place for the records that cannot be written
+  When the lessons are written
+  Then the note is written and the command succeeds
 ```
 
 ## 793d5 Product-scenario mapping
@@ -764,6 +832,21 @@ Scenario: 793a2c1e An approach that succeeded with evidence becomes a note
 ```
 
 Realized by [793d4g Judging a turn](#793d4g-judging-a-turn) (the lines of the [turn](./793a_product-spec.md#793a1a-terms) hold what the [agent](./793a_product-spec.md#793a1a-terms) was unsure of and what it saw) with the components of [793d5j Mapping of 793a2c1a](#793d5j-mapping-of-793a2c1a): the instructions of the judgement name an approach that succeeded with evidence as a lesson.
+
+### 793d5o Mapping of 793a2c1f
+
+The product scenario [793a2c1f Guesses, plans and chatter produce no note](./793a_product-spec.md#793a2c1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2c1f Guesses, plans and chatter produce no note
+  Given the user has run engram update, and a session in which the agent may not run engram commands
+  When the user sends a prompt that the agent answers with a guess, a plan and chatter, and the turn ends
+  Then 2 minutes after the turn ends the vault holds no note
+```
+
+Realized by the components of [793d5j Mapping of 793a2c1a](#793d5j-mapping-of-793a2c1a), whose instructions of the judgement name a guess, a plan and chatter as no lesson, and by
+[793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did): the record of a reply that holds no lesson is what shows that the [turn](./793a_product-spec.md#793a1a-terms) was judged, so that a [vault](../../GLOSSARY.md#vault) that holds no
+[note](../../GLOSSARY.md#permanent-note) is the result of the judgement and not of a judgement that did not finish.
 
 ## 793d6 Recommended impact
 
