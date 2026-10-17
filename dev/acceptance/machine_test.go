@@ -182,6 +182,8 @@ func (m *machine) env(extra ...string) []string {
 		"ENGRAM_TRANSCRIPT_DIR=" + m.transcripts,
 		"GOFLAGS=-buildvcs=false",
 		"DISABLE_AUTOUPDATER=1",
+		// every scenario is driven by a headless run, whose turns are judged only when the user asks for it (793d4m)
+		"ENGRAM_AUTO_CAPTURE_SDK=1",
 	}
 
 	if sharedBuild.cache != "" {

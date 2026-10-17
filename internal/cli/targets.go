@@ -165,25 +165,29 @@ func autoTargets(
 ) []any {
 	home := homeOrEmpty(deps)
 
-	// no first-use step in any of the three: a prompt or a turn must not create the vault the user removed (793d4e)
-	reading := func(run func(context.Context, AutoDeliverArgs, AutoDeliverDeps, io.Writer) error,
-	) func(context.Context, AutoDeliverArgs) {
-		return func(ctx context.Context, a AutoDeliverArgs) {
-			a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
-
-			if a.SessionsDir == "" {
-				a.SessionsDir = sessionsDirOf(deps.Getenv, deps.UserHomeDir)
-			}
-
-			errHandler(run(withLog(ctx), a, newAutoDeliverDeps(deps), deps.Stdout))
+	// no first-use step in any of the three: a prompt or a turn must not create the vault the user removed (793d4e);
+	// paths is the vault and the directory of the records of sessions that the delivery and the judgement read
+	paths := func(vault, sessions string) (string, string) {
+		if sessions == "" {
+			sessions = sessionsDirOf(deps.Getenv, deps.UserHomeDir)
 		}
+
+		return resolveVault(vault, home, deps.Getenv), sessions
 	}
 
 	return []any{
 		targ.Group("auto",
-			targ.Targ(reading(RunAutoDeliver)).Name("deliver").Description(
+			targ.Targ(func(ctx context.Context, a AutoDeliverArgs) {
+				a.VaultPath, a.SessionsDir = paths(a.VaultPath, a.SessionsDir)
+
+				errHandler(RunAutoDeliver(withLog(ctx), a, newAutoDeliverDeps(deps), deps.Stdout))
+			}).Name("deliver").Description(
 				"Print the block of the notes that bear on a prompt (the automatic-memory mod runs this for each prompt)"),
-			targ.Targ(reading(RunAutoJudge)).Name("judge").Description(
+			targ.Targ(func(ctx context.Context, a AutoJudgeArgs) {
+				a.VaultPath, a.SessionsDir = paths(a.VaultPath, a.SessionsDir)
+
+				errHandler(RunAutoJudge(withLog(ctx), a, newAutoDeliverDeps(deps), deps.Stdout))
+			}).Name("judge").Description(
 				"Print the request for the model that judges a turn (the automatic-memory mod runs this after each turn)"),
 			targ.Targ(func(ctx context.Context, a AutoWriteArgs) {
 				a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)

@@ -36,8 +36,12 @@ type AutoDeliverDeps struct {
 }
 
 // AutoJudgeArgs holds parsed flags for `engram auto judge`: those of the delivery, because the judgement looks up
-// notes and reads the record of a session as the delivery does.
-type AutoJudgeArgs = AutoDeliverArgs
+// notes and reads the record of a session as the delivery does, and the switch for the turns of headless prompts.
+type AutoJudgeArgs struct {
+	VaultPath   string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
+	SessionsDir string `targ:"flag,name=sessions,desc=directory of recorded sessions (default ENGRAM_TRANSCRIPT_DIR then CLAUDE_CONFIG_DIR/projects then ~/.claude/projects)"`                            //nolint:lll // single unbreakable struct-tag string
+	CaptureSDK  bool   `targ:"flag,name=capture-sdk,env=ENGRAM_AUTO_CAPTURE_SDK,desc=judge the turns of headless prompts (origin sdk) too; off by default so a script run with claude -p writes no note"` //nolint:lll // single unbreakable struct-tag string
+}
 
 // AutoJudgeDeps holds injected dependencies for RunAutoJudge: those of the delivery, whose standard input carries the
 // turn that ended, one JSON object with the session's ID and the turn's final text.
@@ -113,7 +117,7 @@ func RunAutoJudge(ctx context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, s
 		return fmt.Errorf("auto judge: reading the turn: %w", decodeErr)
 	}
 
-	if !auto.UserSent(turn.Origin) {
+	if !auto.Judged(turn.Origin, args.CaptureSDK) {
 		return nil
 	}
 

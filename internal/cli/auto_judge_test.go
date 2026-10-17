@@ -244,7 +244,7 @@ func Test793d4g1s_RunAutoJudge_ATurnThatANotificationStartedAfterItIsNotPartOfIt
 		"Then reply with the single word started."
 
 	window := judged(t, record,
-		`{"origin":"sdk","session":"`+sessionID+`","text":"`+asked+`","answer":"started"}`).window()
+		`{"origin":"composer","session":"`+sessionID+`","text":"`+asked+`","answer":"started"}`).window()
 
 	g.Expect(window).To(Equal([]string{
 		"--- the turn ---",

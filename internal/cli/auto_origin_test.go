@@ -39,7 +39,7 @@ func Test793d4m1a_Auto_APromptOfAnOriginTheUserSendsIsDeliveredForAndItsTurnIsJu
 			g.Expect(delivered.String()).To(HavePrefix("[engram memory]"), "the block of the note")
 
 			judgeErr := cli.RunAutoJudge(context.Background(),
-				cli.AutoJudgeArgs{VaultPath: vault, SessionsDir: recordOfAPrompt(t)},
+				cli.AutoJudgeArgs{VaultPath: vault, SessionsDir: recordOfAPrompt(t), CaptureSDK: true},
 				cli.AutoJudgeDeps{
 					Stdin:    originRequest(origin, "answer", "On Sundays."),
 					Query:    queryOver(newQueryDeps(memFS)),
