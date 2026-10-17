@@ -428,13 +428,11 @@ type transcriptRow struct {
 	Type      string `json:"type"`
 	Timestamp string `json:"timestamp"`
 	Message   struct {
-		Role    string          `json:"role"`
 		Content json.RawMessage `json:"content"`
 	} `json:"message"`
 	Attachment struct {
-		Type     string          `json:"type"`
-		Content  json.RawMessage `json:"content"`
-		HookName string          `json:"hookName"`
+		Type    string          `json:"type"`
+		Content json.RawMessage `json:"content"`
 	} `json:"attachment"`
 }
 
