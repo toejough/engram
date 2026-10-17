@@ -33,7 +33,7 @@ func Test793d4a1a_RunAutoDeliver_PrintsTheNotesThatBearOnThePromptAsOneBlock(t *
 
 	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault},
 		cli.AutoDeliverDeps{
-			Stdin: strings.NewReader(`{"text":"When is the Zorblax staging database reset?"}`),
+			Stdin: userPrompt("When is the Zorblax staging database reset?", ""),
 			Query: queryOver(newQueryDeps(memFS)),
 		}, &out)
 	g.Expect(err).NotTo(HaveOccurred())
@@ -61,7 +61,7 @@ func Test793d4a1b_RunAutoDeliver_AFailedLookupFailsTheCommandAndPrintsNothing(t 
 	var out bytes.Buffer
 
 	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: t.TempDir()},
-		cli.AutoDeliverDeps{Stdin: strings.NewReader(`{"text":"anything"}`), Query: queryOver(query)}, &out)
+		cli.AutoDeliverDeps{Stdin: userPrompt("anything", ""), Query: queryOver(query)}, &out)
 
 	g.Expect(err).To(MatchError(ContainSubstring("embedder down")))
 	g.Expect(out.String()).To(BeEmpty())
@@ -136,7 +136,7 @@ func Test793d4a1d_RunAutoDeliver_ANoteTheSessionHoldsIsLeftOut(t *testing.T) {
 
 	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault, SessionsDir: sessions},
 		cli.AutoDeliverDeps{
-			Stdin:    strings.NewReader(`{"text":"When is the Zorblax staging database reset?","session":"` + sessionID + `"}`),
+			Stdin:    userPrompt("When is the Zorblax staging database reset?", sessionID),
 			Query:    queryOver(newQueryDeps(memFS)),
 			ReadDir:  os.ReadDir,
 			ReadFile: os.ReadFile,
@@ -158,7 +158,7 @@ func Test793d4a1e_RunAutoDeliver_NoNoteToDeliverPrintsNothing(t *testing.T) {
 
 		err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: t.TempDir()},
 			cli.AutoDeliverDeps{
-				Stdin: strings.NewReader(`{"text":"anything","session":"` + sessionID + `"}`),
+				Stdin: userPrompt("anything", sessionID),
 				Query: queryOver(newQueryDeps(newInMemoryFS())), ReadDir: os.ReadDir, ReadFile: os.ReadFile,
 			}, &out)
 
@@ -183,7 +183,7 @@ func Test793d4a1e_RunAutoDeliver_NoNoteToDeliverPrintsNothing(t *testing.T) {
 
 		err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault, SessionsDir: sessions},
 			cli.AutoDeliverDeps{
-				Stdin: strings.NewReader(`{"text":"When is the Zorblax staging database reset?","session":"` + sessionID + `"}`),
+				Stdin: userPrompt("When is the Zorblax staging database reset?", sessionID),
 				Query: queryOver(newQueryDeps(memFS)), ReadDir: os.ReadDir, ReadFile: os.ReadFile,
 			}, &out)
 
@@ -211,7 +211,7 @@ func Test793d4a1f_RunAutoDeliver_TheChunkIndexIsNotSearched(t *testing.T) {
 
 	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault},
 		cli.AutoDeliverDeps{
-			Stdin: strings.NewReader(`{"text":"When is the Zorblax staging database reset?"}`), Query: queryOver(query),
+			Stdin: userPrompt("When is the Zorblax staging database reset?", ""), Query: queryOver(query),
 		}, &out)
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -240,7 +240,7 @@ func Test793d4a1g_RunAutoDeliver_ANoteTheAgentFetchedByItsBasenameIsLeftOut(t *t
 
 	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault, SessionsDir: sessions},
 		cli.AutoDeliverDeps{
-			Stdin:    strings.NewReader(`{"text":"When is the Zorblax staging database reset?","session":"` + sessionID + `"}`),
+			Stdin:    userPrompt("When is the Zorblax staging database reset?", sessionID),
 			Query:    queryOver(newQueryDeps(memFS)),
 			ReadDir:  os.ReadDir,
 			ReadFile: os.ReadFile,
@@ -263,7 +263,7 @@ func Test793d4a1h_RunAutoDeliver_AsksTheLookupForThePromptsTextAsItsMessageAndIt
 
 		done <- cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: "/a/vault"},
 			cli.AutoDeliverDeps{
-				Stdin: strings.NewReader(`{"text":"When is the Zorblax staging database reset?"}`), Query: query,
+				Stdin: userPrompt("When is the Zorblax staging database reset?", ""), Query: query,
 			}, &out)
 	}()
 
@@ -341,7 +341,7 @@ func Test793d4e1a_Targets_AutoDeliverCreatesNoVault(t *testing.T) {
 			d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
 			d.Getenv = func(string) string { return "" }
 			d.UserHomeDir = func() (string, error) { return home, nil }
-			d.Stdin = strings.NewReader(`{"text":"anything"}`)
+			d.Stdin = userPrompt("anything", "")
 			d.Stdout = &stdout
 		})
 
@@ -369,7 +369,7 @@ func Test793d4e1b_Targets_AutoJudgeCreatesNoVault(t *testing.T) {
 			d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
 			d.Getenv = func(string) string { return "" }
 			d.UserHomeDir = func() (string, error) { return home, nil }
-			d.Stdin = strings.NewReader(`{"session":"` + sessionID + `","answer":"Understood."}`)
+			d.Stdin = strings.NewReader(`{"origin":"composer","session":"` + sessionID + `","answer":"Understood."}`)
 			d.Stdout = &stdout
 		})
 
@@ -474,7 +474,7 @@ func Test793d4f1d_Targets_NoRecordIsReadWhenNoDirectoryCanBeFound(t *testing.T) 
 		d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
 		d.Getenv = func(string) string { return "" }
 		d.UserHomeDir = func() (string, error) { return "", errNoHome }
-		d.Stdin = strings.NewReader(`{"text":"When is the Zorblax staging database reset?","session":"` + sessionID + `"}`)
+		d.Stdin = userPrompt("When is the Zorblax staging database reset?", sessionID)
 		d.Stdout = &stdout
 		d.FS = recordsReadFS{EdgeFS: d.FS, reads: &reads}
 	})
@@ -503,7 +503,7 @@ func TestTargets_AutoDeliverPrintsTheNotesThatBearOnThePromptOnStandardInput(t *
 			d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
 			d.Getenv = func(string) string { return "" }
 			d.UserHomeDir = func() (string, error) { return home, nil }
-			d.Stdin = strings.NewReader(`{"text":"When is the Zorblax staging database reset?"}`)
+			d.Stdin = userPrompt("When is the Zorblax staging database reset?", "")
 			d.Stdout = &stdout
 		})
 
@@ -563,7 +563,7 @@ func deliverBy(t *testing.T, vault, home string, environment map[string]string) 
 		d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
 		d.Getenv = func(name string) string { return environment[name] }
 		d.UserHomeDir = func() (string, error) { return home, nil }
-		d.Stdin = strings.NewReader(`{"text":"When is the Zorblax staging database reset?","session":"` + sessionID + `"}`)
+		d.Stdin = userPrompt("When is the Zorblax staging database reset?", sessionID)
 		d.Stdout = &stdout
 	})
 	if stderr != "" {

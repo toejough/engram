@@ -23,10 +23,11 @@ type Note struct {
 	Body      string // what the note says, on one line
 }
 
-// Request is a prompt, as the memory mod hands it over.
+// Request is a prompt, as the memory mod hands it over: its text, the session it was raised in and its origin.
 type Request struct {
 	Text    string `json:"text"`
 	Session string `json:"session"`
+	Origin  string `json:"origin"`
 }
 
 // Deliver returns the block of the notes that bear on the prompt and that the session does not hold (793d4a).
@@ -41,6 +42,12 @@ func Deliver(ctx context.Context, request Request, lookup Lookup, held Held) (st
 	notes = slices.DeleteFunc(notes, func(note Note) bool { return namedIn(heldText, note) })
 
 	return render(notes), nil
+}
+
+// UserSent reports whether a prompt of an origin is one the user sends (793d4m): typed at the terminal, sent from the
+// phone or web client, pinged from Slack, or sent by the headless host. Any other origin, and none, is not.
+func UserSent(origin string) bool {
+	return slices.Contains([]string{"composer", "bridge", "slack-ping", "sdk"}, origin)
 }
 
 // unexported constants.

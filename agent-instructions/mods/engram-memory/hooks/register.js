@@ -15,18 +15,39 @@ const FAILURE_MAX = 300
 // Every request the judgement prints opens with this (793d4g); anything else is not a request.
 const REQUEST = '{"model":'
 
+// The origin of the last prompt the session raised, and the origin of each turn the main loop has started and not
+// completed, by the turn's ID (793d2b): the prompt names its origin, the end of the turn names only the turn.
+let lastOrigin = ''
+const originsOfTurns = new Map()
+
 export function register(on) {
   on('prompt.submit', async ($, e, next) => {
+    lastOrigin = originOf(e)
+
     const block = await notesFor($, e)
 
     return next(block ? { ...e, context: [...(e.context ?? []), block] } : e)
   })
 
+  on('turn.start', async (_$, e, next) => {
+    if (e.agentId === undefined) {
+      originsOfTurns.set(e.turnId, lastOrigin)
+    }
+
+    return next(e)
+  })
+
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
+    const origin = originsOfTurns.get(e.turnId) ?? ''
 
-    // the lessons are captured apart from the turn: the event's result does not wait for them
-    void captureLessons($, e)
+    originsOfTurns.delete(e.turnId)
+
+    // the lessons are captured apart from the turn: the event's result does not wait for them; the turn of a subagent
+    // is left out
+    if (e.agentId === undefined) {
+      void captureLessons($, e, origin)
+    }
 
     return result
   })
@@ -52,13 +73,13 @@ async function ask($, request) {
 // captureLessons judges a turn that ended, asks the model for the judgement and has the lessons written (793d2b). It
 // ends quietly when the judgement has nothing to judge, and has the writing record the failure of a step that fails:
 // the turn went on as if automatic memory were not installed.
-async function captureLessons($, e) {
+async function captureLessons($, e, origin) {
   let session = ''
 
   try {
     session = await $.session.id()
 
-    const request = await run($, 'judge', { session, turn: e.turnId, answer: e.answer })
+    const request = await run($, 'judge', { session, turn: e.turnId, answer: e.answer, origin })
 
     if (request === '') {
       return
@@ -82,7 +103,8 @@ function describe(error) {
 // deliver is the block the command prints for the prompt, or nothing when it prints something that is not a block. The
 // command is ended at the bound by the time limit of the process call, and a command that fails fails the delivery.
 async function deliver($, e) {
-  const block = await run($, 'deliver', { text: e.text, session: await $.session.id() }, BOUND_MS)
+  const input = { text: e.text, session: await $.session.id(), origin: originOf(e) }
+  const block = await run($, 'deliver', input, BOUND_MS)
 
   return block.startsWith(MARKER) ? block : ''
 }
@@ -102,6 +124,11 @@ async function notesFor($, e) {
   } finally {
     clearTimeout(timer)
   }
+}
+
+// originOf is the kind of origin that Claude Code stamped on a prompt, or nothing when it stamped none (793d2a).
+function originOf(e) {
+  return e.origin?.kind ?? ''
 }
 
 // report has the writing record the failure of a step of the capture, when the session is known (793d4k). A report that

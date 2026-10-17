@@ -20,10 +20,12 @@ type Judgement struct {
 	TimeoutMs int    `json:"timeoutMs"`
 }
 
-// TurnEnd is a turn that has ended, as the memory mod hands it over: the session it was in and its final text (793d4g).
+// TurnEnd is a turn that has ended, as the memory mod hands it over: the session it was in, its final text and the
+// origin of the prompt it began with (793d4g).
 type TurnEnd struct {
 	Session string `json:"session"`
 	Answer  string `json:"answer"`
+	Origin  string `json:"origin"`
 }
 
 // Judge returns the request for the model that judges the turn a session's record ends with, and false when the record

@@ -148,3 +148,13 @@ func recordOfAPrompt(tb testing.TB) string {
 
 	return dir
 }
+
+// userPrompt is the request that the memory mod hands to the delivery for a prompt the user typed, in a session.
+func userPrompt(text, session string) io.Reader {
+	encoded, err := json.Marshal(map[string]string{"text": text, "session": session, "origin": "composer"})
+	if err != nil {
+		panic(err)
+	}
+
+	return bytes.NewReader(encoded)
+}

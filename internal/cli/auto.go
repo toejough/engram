@@ -79,6 +79,10 @@ func RunAutoDeliver(ctx context.Context, args AutoDeliverArgs, deps AutoDeliverD
 		return fmt.Errorf("auto deliver: reading the request: %w", decodeErr)
 	}
 
+	if !auto.UserSent(request.Origin) {
+		return nil
+	}
+
 	block, err := auto.Deliver(ctx, request,
 		func(ctx context.Context, text string) ([]auto.Note, error) {
 			return lookUpNotes(ctx, args.VaultPath, text, deps.Query)
@@ -106,6 +110,10 @@ func RunAutoJudge(ctx context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, s
 	decodeErr := json.NewDecoder(deps.Stdin).Decode(&turn)
 	if decodeErr != nil {
 		return fmt.Errorf("auto judge: reading the turn: %w", decodeErr)
+	}
+
+	if !auto.UserSent(turn.Origin) {
+		return nil
 	}
 
 	record := recordOf(deps.ReadDir, deps.ReadFile, args.SessionsDir, turn.Session)

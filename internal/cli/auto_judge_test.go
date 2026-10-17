@@ -33,7 +33,7 @@ func Test793d4g1a_RunAutoJudge_PrintsTheRequestForTheTurnTheRecordEndsWith(t *te
 
 	err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: sessions},
 		cli.AutoJudgeDeps{
-			Stdin:    strings.NewReader(`{"session":"` + sessionID + `","answer":"Understood."}`),
+			Stdin:    strings.NewReader(`{"origin":"composer","session":"` + sessionID + `","answer":"Understood."}`),
 			Query:    queryOver(newQueryDeps(newInMemoryFS())),
 			ReadDir:  os.ReadDir,
 			ReadFile: os.ReadFile,
@@ -66,7 +66,7 @@ func Test793d4g1c_RunAutoJudge_ASessionWithNoRecordIsJudgedNothing(t *testing.T)
 
 			err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: t.TempDir()},
 				cli.AutoJudgeDeps{
-					Stdin:    strings.NewReader(`{"session":"` + session + `","answer":"Understood."}`),
+					Stdin:    strings.NewReader(`{"origin":"composer","session":"` + session + `","answer":"Understood."}`),
 					Query:    queryOver(newQueryDeps(newInMemoryFS())),
 					ReadDir:  os.ReadDir,
 					ReadFile: os.ReadFile,
@@ -110,7 +110,7 @@ func Test793d4g1h_RunAutoJudge_TheNearestNotesAreInTheRequest(t *testing.T) {
 
 	err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: vault, SessionsDir: sessions},
 		cli.AutoJudgeDeps{
-			Stdin:    strings.NewReader(`{"session":"` + sessionID + `","answer":"On Sundays."}`),
+			Stdin:    strings.NewReader(`{"origin":"composer","session":"` + sessionID + `","answer":"On Sundays."}`),
 			Query:    queryOver(newQueryDeps(memFS)),
 			ReadDir:  os.ReadDir,
 			ReadFile: os.ReadFile,
@@ -143,7 +143,7 @@ func Test793d4g1i_RunAutoJudge_AFailedLookupFailsTheCommandAndPrintsNothing(t *t
 
 	err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: sessions},
 		cli.AutoJudgeDeps{
-			Stdin:    strings.NewReader(`{"session":"` + sessionID + `","answer":"On Sundays."}`),
+			Stdin:    strings.NewReader(`{"origin":"composer","session":"` + sessionID + `","answer":"On Sundays."}`),
 			Query:    queryOver(query),
 			ReadDir:  os.ReadDir,
 			ReadFile: os.ReadFile,
