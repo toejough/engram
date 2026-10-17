@@ -1875,19 +1875,6 @@ func collectPrunableDirs(
 	return hasContent, nil
 }
 
-// countSkillFile counts one more file in the skill directory of a copy op, in the order the directories first appear.
-func countSkillFile(dirs []SkillDirCount, copyOp CopyOp) []SkillDirCount {
-	for index := range dirs {
-		if dirs[index].Name == copyOp.SkillDir {
-			dirs[index].Files++
-
-			return dirs
-		}
-	}
-
-	return append(dirs, SkillDirCount{Name: copyOp.SkillDir, Files: 1, Mod: copyOp.Mod})
-}
-
 // collectWrittenPaths extracts all Dst (destination) paths from CopyOps
 // for a given harness, used to track written files in manifest mode.
 func collectWrittenPaths(skillOps, guidanceOps []CopyOp, name Harness) []string {
@@ -1908,6 +1895,19 @@ func collectWrittenPaths(skillOps, guidanceOps []CopyOp, name Harness) []string 
 	sort.Strings(out)
 
 	return out
+}
+
+// countSkillFile counts one more file in the skill directory of a copy op, in the order the directories first appear.
+func countSkillFile(dirs []SkillDirCount, copyOp CopyOp) []SkillDirCount {
+	for index := range dirs {
+		if dirs[index].Name == copyOp.SkillDir {
+			dirs[index].Files++
+
+			return dirs
+		}
+	}
+
+	return append(dirs, SkillDirCount{Name: copyOp.SkillDir, Files: 1, Mod: copyOp.Mod})
 }
 
 // createSymlink materializes a fresh symlink at an absent surface path

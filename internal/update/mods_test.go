@@ -65,19 +65,7 @@ func Test793d4b1c_Updater_Run_DeploysAndLinksTheMod(t *testing.T) {
 
 	g := NewWithT(t)
 
-	fileSystem := newMemFS()
-	fileSystem.dirs["/home/joe/.claude"] = true
-	fileSystem.dirs["/repo"] = true
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("learn skill")
-	fileSystem.files["/repo/agent-instructions/mods/engram-memory/hooks/register.js"] = []byte("the mod")
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
+	updater, fileSystem := updaterOverCheckoutWithMod()
 
 	report, err := updater.Run(context.Background(), update.Options{})
 	g.Expect(err).NotTo(HaveOccurred())
@@ -120,6 +108,21 @@ func Test793d4b1e_Updater_Run_ReportsTheModAsAMod(t *testing.T) {
 
 	g := NewWithT(t)
 
+	updater, _ := updaterOverCheckoutWithMod()
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+
+	g.Expect(report.Harnesses[0].SkillDirs).To(ConsistOf(
+		update.SkillDirCount{Name: "learn", Files: 1},
+		update.SkillDirCount{Name: "engram-memory", Files: 1, Mod: true},
+	))
+}
+
+// updaterOverCheckoutWithMod returns an updater over an in-memory machine with Claude Code and a checkout that holds
+// the skill learn and the mod engram-memory, and the file system it works on.
+func updaterOverCheckoutWithMod() (*update.Updater, *memFS) {
 	fileSystem := newMemFS()
 	fileSystem.dirs["/home/joe/.claude"] = true
 	fileSystem.dirs["/repo"] = true
@@ -134,12 +137,5 @@ func Test793d4b1e_Updater_Run_ReportsTheModAsAMod(t *testing.T) {
 		Spawn: noopSpawner{},
 	}
 
-	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.Harnesses).To(HaveLen(1))
-
-	g.Expect(report.Harnesses[0].SkillDirs).To(ConsistOf(
-		update.SkillDirCount{Name: "learn", Files: 1},
-		update.SkillDirCount{Name: "engram-memory", Files: 1, Mod: true},
-	))
+	return updater, fileSystem
 }
