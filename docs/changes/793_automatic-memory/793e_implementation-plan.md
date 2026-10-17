@@ -455,7 +455,7 @@ Takes [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1a | Dedicated example, product acceptance (`network`) | the promise as the user sees it: a real [session](../../GLOSSARY.md#session) in which the [agent](./793a_product-spec.md#793a1a-terms) may not run engram commands, a correction, and a [note](../../GLOSSARY.md#permanent-note) in the [vault](../../GLOSSARY.md#vault) that says it was written automatically within the bound; the time from the end of the turn to the note is measured | |  | Done | c67dd902 | f43f21a6 | 28c04070 |
+| 793a2c1a | Dedicated example, product acceptance (`network`) | the promise as the user sees it: a real [session](../../GLOSSARY.md#session) in which the [agent](./793a_product-spec.md#793a1a-terms) may not run engram commands, a correction, and a [note](../../GLOSSARY.md#permanent-note) in the [vault](../../GLOSSARY.md#vault) that says it was written automatically within the bound; the time from the end of the turn to the note is measured |  | 10 of 10 | Done | c67dd902 | f43f21a6 | 28c04070 |
 | 793d4g1a | Dedicated example (default suite) | the request over a record of the real format: the instructions, the context, the divider and the lines of the turn | |  | Done | 6dde6226 | 507d4c77 | a8bbc16f |
 | 793d4g1b | Dedicated example (default suite) | the final text fills in a record whose last row is not yet written | |  | Done | 6dde6226 | 507d4c77 | a8bbc16f |
 | 793d4g1c | Dedicated example (default suite) | the boundary cases: no record, and a record with no [prompt](./793a_product-spec.md#793a1a-terms) | |  | Done | 6dde6226 | 507d4c77 | a8bbc16f |
@@ -473,7 +473,7 @@ Takes [793a2c1b A request to remember becomes a note](./793a_product-spec.md#793
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1b | Dedicated example, product acceptance (`network`) | the second kind of lesson as the user sees it: a request to remember, written as a fact; the pipeline of the first node already writes it, so the test passes when written, and mutation checks, run on scratch copies of the branch: instructions of the judgement without the request to remember make it fail (3 of 3 runs), and so does a write that writes no [note](../../GLOSSARY.md#permanent-note) | | Done | n/a | d01d5c35 | 9cdc03f4 |
+| 793a2c1b | Dedicated example, product acceptance (`network`) | the second kind of lesson as the user sees it: a request to remember, written as a fact; the pipeline of the first node already writes it, so the test passes when written, and mutation checks, run on scratch copies of the branch: instructions of the judgement without the request to remember make it fail (3 of 3 runs), and so does a write that writes no [note](../../GLOSSARY.md#permanent-note) | 9 of 10; the miss: an attempt to save the note by hand that was denied, which the check that no engram command ran counted, though the note was written automatically 1.7 seconds after the end | Done | n/a | d01d5c35 | 9cdc03f4 |
 
 #### 793e6b3 An approach the user confirmed becomes a note
 
@@ -481,7 +481,7 @@ Takes [793a2c1c An approach the user confirmed becomes a note](./793a_product-sp
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1c | Dedicated example, product acceptance (`network`) | the third kind: a [turn](./793a_product-spec.md#793a1a-terms) in which the user says that the way the [agent](./793a_product-spec.md#793a1a-terms) did a task worked, with the task in the turn before; mutation checks, run on scratch copies of the branch: a write that writes no [note](../../GLOSSARY.md#permanent-note) makes it fail; instructions without the confirmed approach do not (3 of 3 runs passed, and the judgement of the same turn gave a lesson in 10 of 20 probes against 20 of 20), because the user's "keep doing it" is a rule of its own | | Done | n/a | d01d5c35 | 9cdc03f4 |
+| 793a2c1c | Dedicated example, product acceptance (`network`) | the third kind: a [turn](./793a_product-spec.md#793a1a-terms) in which the user says that the way the [agent](./793a_product-spec.md#793a1a-terms) did a task worked, with the task in the turn before; mutation checks, run on scratch copies of the branch: a write that writes no [note](../../GLOSSARY.md#permanent-note) makes it fail; instructions without the confirmed approach do not (3 of 3 runs passed, and the judgement of the same turn gave a lesson in 10 of 20 probes against 20 of 20), because the user's "keep doing it" is a rule of its own | 10 of 10 | Done | n/a | d01d5c35 | 9cdc03f4 |
 
 #### 793e6b4 The agent's own correction becomes a note
 
@@ -489,7 +489,7 @@ Takes [793a2c1d The agent's own correction becomes a note](./793a_product-spec.m
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1d | Dedicated example, product acceptance (`network`) | the fourth kind: the [agent](./793a_product-spec.md#793a1a-terms) states a guess, reads a file and says its guess was wrong, in one [turn](./793a_product-spec.md#793a1a-terms); mutation check, run on a scratch copy of the branch: instructions of the judgement without the agent's own correction make it fail (3 of 3 runs) | | Done | n/a | d01d5c35 | 9cdc03f4 |
+| 793a2c1d | Dedicated example, product acceptance (`network`) | the fourth kind: the [agent](./793a_product-spec.md#793a1a-terms) states a guess, reads a file and says its guess was wrong, in one [turn](./793a_product-spec.md#793a1a-terms); mutation check, run on a scratch copy of the branch: instructions of the judgement without the agent's own correction make it fail (3 of 3 runs) | 10 of 10 | Done | n/a | d01d5c35 | 9cdc03f4 |
 
 #### 793e6b5 An approach that succeeded with evidence becomes a note
 
@@ -497,7 +497,7 @@ Takes [793a2c1e An approach that succeeded with evidence becomes a note](./793a_
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1e | Dedicated example, product acceptance (`network`) | the fifth kind: the [agent](./793a_product-spec.md#793a1a-terms) is unsure of an approach, tries it, and the [turn](./793a_product-spec.md#793a1a-terms) shows that the check passed. The staging names the one command to run, because the first version let the agent add an echo that the permission denied. With the instructions of the first node it passed 17 of 20 runs, under the bar of 9 in 10: in the three failed runs the judgement answered that the turn held no lesson, for a turn that says "I do not know whether the flag makes the check pass" and then "the check passed" (the same window gave a lesson in 11 of 20 probes, and in 20 of 20 once the instructions said that an approach the agent was unsure of, tried and saw succeed is a lesson even when the user asked for the try; the test then passed 10 of 10 runs) | | Done | 4a70996b | 6e918969 | 9cdc03f4 |
+| 793a2c1e | Dedicated example, product acceptance (`network`) | the fifth kind: the [agent](./793a_product-spec.md#793a1a-terms) is unsure of an approach, tries it, and the [turn](./793a_product-spec.md#793a1a-terms) shows that the check passed. The staging names the one command to run, because the first version let the agent add an echo that the permission denied. With the instructions of the first node it passed 17 of 20 runs, under the bar of 9 in 10: in the three failed runs the judgement answered that the turn held no lesson, for a turn that says "I do not know whether the flag makes the check pass" and then "the check passed" (the same window gave a lesson in 11 of 20 probes, and in 20 of 20 once the instructions said that an approach the agent was unsure of, tried and saw succeed is a lesson even when the user asked for the try; the test then passed 10 of 10 runs) | 10 of 10 | Done | 4a70996b | 6e918969 | 9cdc03f4 |
 
 #### 793e6b6 Guesses, plans and chatter produce no note
 
@@ -505,7 +505,7 @@ Takes [793a2c1f Guesses, plans and chatter produce no note](./793a_product-spec.
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1f | Dedicated example, product acceptance (`network`) | the prohibition as the user sees it: a [turn](./793a_product-spec.md#793a1a-terms) of a guess, a plan and chatter leaves no [note](../../GLOSSARY.md#permanent-note); the test waits for the record of the reply, so that an empty [vault](../../GLOSSARY.md#vault) is the judgement's result and not a judgement that did not finish | |  | Done | d9bd5a42 | 37b0e9a9 | 807da19e |
+| 793a2c1f | Dedicated example, product acceptance (`network`) | the prohibition as the user sees it: a [turn](./793a_product-spec.md#793a1a-terms) of a guess, a plan and chatter leaves no [note](../../GLOSSARY.md#permanent-note); the test waits for the record of the reply, so that an empty [vault](../../GLOSSARY.md#vault) is the judgement's result and not a judgement that did not finish |  | 10 of 10 | Done | d9bd5a42 | 37b0e9a9 | 807da19e |
 | 793d4k1a | Dedicated example (default suite) | the record of a lesson that is written, through `RunAutoWrite` with a stand-in for the place of the records | |  | Done | 14a513a9 | 37b0e9a9 | 53c07dbc |
 | 793d4k1b | Dedicated example (default suite) | the record of a reply with no lesson | |  | Done | 14a513a9 | 37b0e9a9 | 53c07dbc |
 | 793d4k1c | Dedicated example (default suite) | the records of a lesson left out and of a reply that is not a list, with the reasons | |  | Done | 14a513a9 | 37b0e9a9 | 53c07dbc |
@@ -523,7 +523,7 @@ Takes [793a2c1g A credential in the turn is not in the note](./793a_product-spec
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1g | Dedicated example, product acceptance (`network`) | the prohibition as the user sees it: a request to remember how to deploy, with the token and the password the deploy needs, becomes a [note](../../GLOSSARY.md#permanent-note) that holds neither; the note is awaited, so that the absence of the credentials is not the absence of the note. The model is asked not to write a credential and leaves it out unprompted: the test passed 4 of 4 runs before the redaction existed, and 6 of 6 runs with that sentence of the instructions removed too, so no mutation of the live run makes it fail, and the properties below are the proof | |  | Done | n/a | d19d7f1d | f8487c99 |
+| 793a2c1g | Dedicated example, product acceptance (`network`) | the prohibition as the user sees it: a request to remember how to deploy, with the token and the password the deploy needs, becomes a [note](../../GLOSSARY.md#permanent-note) that holds neither; the note is awaited, so that the absence of the credentials is not the absence of the note. The model is asked not to write a credential and leaves it out unprompted: the test passed 4 of 4 runs before the redaction existed, and 6 of 6 runs with that sentence of the instructions removed too, so no mutation of the live run makes it fail, and the properties below are the proof |  | 10 of 10; 8 of 10 before the last change of the instructions, where both misses wrote a rule against keeping credentials and no note of the deploy | Done | n/a | d19d7f1d | f8487c99 |
 | 793d4j1a | Property-based (`rapid`) with named examples (default suite) | the one guarantee the whole promise rests on: no text of the shapes survives | for any filler text and any credential of the shapes of the requirement, placed anywhere in the text: the redacted text does not hold the credential, or the value of the assignment, and holds the filler as it was | | Done | 39a32553 | 18f731af | f8487c99 |
 | 793d4j1b | Dedicated example (default suite) | what redaction leaves alone: the name of an assignment, a commit ID, a word, a sentence | |  | Done | 39a32553 | 18f731af | f8487c99 |
 | 793d4j1c | Property-based (`rapid`) with named examples (default suite) | the redaction comes before the model: whatever the messages of a record hold | for any messages that hold a credential of the shapes, among any text: the [prompt](./793a_product-spec.md#793a1a-terms) of the request holds none of the credentials | | Done | 39a32553 | 18f731af | f8487c99 |
@@ -537,7 +537,7 @@ Takes [793a3c1a A lesson an earlier note states is not written again](./793a_pro
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a3c1a | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the user saves a lesson, states it again in a [session](../../GLOSSARY.md#session), and the [vault](../../GLOSSARY.md#vault) holds the earlier [note](../../GLOSSARY.md#permanent-note) only; the test waits for the record of the reply, so that the absence of a second note is the result of the judgement | | Done | 94373096 | 8c7c58ae | fea2480a |
+| 793a3c1a | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the user saves a lesson, states it again in a [session](../../GLOSSARY.md#session), and the [vault](../../GLOSSARY.md#vault) holds the earlier [note](../../GLOSSARY.md#permanent-note) only; the test waits for the record of the reply, so that the absence of a second note is the result of the judgement | 10 of 10 | Done | 94373096 | 8c7c58ae | fea2480a |
 | 793d4g1h | Dedicated example (default suite) | the nearest notes in the request, through `RunAutoJudge` over an in-memory [vault](../../GLOSSARY.md#vault) | | Done | 54179dc0 | 8c7c58ae | fea2480a |
 | 793d4g1i | Dedicated example (default suite) | the failure branch of the lookup, as the delivery has it | | Done | 54179dc0 | 8c7c58ae | fea2480a |
 | 793d4g1j | Dedicated example (default suite) | what a note may not do to the window: a line break, a credential, a body of any length | | Done | 54179dc0 | 8c7c58ae | fea2480a |
@@ -550,7 +550,7 @@ Takes [793a3c1b A lesson the agent saved itself is not written again](./793a_pro
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a3c1b | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the user asks the agent to remember something and to save it with `engram learn`, the agent runs the command, and the [vault](../../GLOSSARY.md#vault) holds that one note, not marked as written automatically; the test waits for the record of the reply, so that the absence of a second note is the result of the judgement. The test passes when written, because the judgement of the eighth node already lists the notes nearest to the turn; the mutation that makes it fail is a judgement that is shown no notes | | Done | n/a | 819f717b | 7e2468d9 |
+| 793a3c1b | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the user asks the agent to remember something and to save it with `engram learn`, the agent runs the command, and the [vault](../../GLOSSARY.md#vault) holds that one note, not marked as written automatically; the test waits for the record of the reply, so that the absence of a second note is the result of the judgement. The test passes when written, because the judgement of the eighth node already lists the notes nearest to the turn; the mutation that makes it fail is a judgement that is shown no notes | 10 of 10 | Done | n/a | 819f717b | 7e2468d9 |
 
 #### 793e6b10 The agent's own lookups and saves keep working
 
@@ -558,7 +558,7 @@ Takes [793a3e1a The agent's own lookups and saves keep working](./793a_product-s
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a3e1a | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the agent runs `engram query` and [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand) as it would without automatic memory, its lookup prints the staging [note](../../GLOSSARY.md#permanent-note), and the note it saved is in the vault, as the agent wrote it: its text when the [turn](./793a_product-spec.md#793a1a-terms) ends is its text after the judgement of the turn has finished. The test passes when written, because nothing in automatic memory touches the agent's commands or a note it did not write; the mutation that makes it fail is a write that changes the notes of the vault that it did not write | | Done | n/a | 484efae2 | 1a9baaac |
+| 793a3e1a | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the agent runs `engram query` and [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand) as it would without automatic memory, its lookup prints the staging [note](../../GLOSSARY.md#permanent-note), and the note it saved is in the vault, as the agent wrote it: its text when the [turn](./793a_product-spec.md#793a1a-terms) ends is its text after the judgement of the turn has finished. The test passes when written, because nothing in automatic memory touches the agent's commands or a note it did not write; the mutation that makes it fail is a write that changes the notes of the vault that it did not write | 10 of 10 | Done | n/a | 484efae2 | 1a9baaac |
 
 #### 793e6b11 A written note is delivered with later prompts
 
@@ -566,7 +566,7 @@ Takes [793a3a1a A written note is delivered with later prompts](./793a_product-s
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a3a1a | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the user corrects the [agent](./793a_product-spec.md#793a1a-terms), the correction becomes a note, and a later [prompt](./793a_product-spec.md#793a1a-terms) that the note bears on arrives with it, both in the session of the correction and in a new one; the blocks the test reads are the ones delivered beside each prompt. The test passes when written, because the delivery finds every note of the vault; the mutation that makes it fail is a delivery that leaves out the notes written automatically | | Done | n/a | 5d63aa30 | 5b695a5a |
+| 793a3a1a | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the user corrects the [agent](./793a_product-spec.md#793a1a-terms), the correction becomes a note, and a later [prompt](./793a_product-spec.md#793a1a-terms) that the note bears on arrives with it, both in the session of the correction and in a new one; the blocks the test reads are the ones delivered beside each prompt. The test passes when written, because the delivery finds every note of the vault; the mutation that makes it fail is a delivery that leaves out the notes written automatically | 10 of 10 | Done | n/a | 5d63aa30 | 5b695a5a |
 
 #### 793e6b12 A second update still writes each lesson as one note
 
@@ -574,7 +574,7 @@ Takes [793a2a1f A second update still writes each lesson as one note](./793a_pro
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2a1f | Dedicated example, product acceptance (`network`) | the repeat as the user sees it: two real updates, then a correction in a [session](../../GLOSSARY.md#session), and the [vault](../../GLOSSARY.md#vault) holds one [note](../../GLOSSARY.md#permanent-note) for it; the test waits for the end of the write and then for a settling time, so that a second note written beside the first would be seen. The test passes when written, because the update is idempotent over the [skills](../../GLOSSARY.md#skill) already; the mutation that makes it fail is a mod that registers its capture of the [turn](./793a_product-spec.md#793a1a-terms) twice | | Done | n/a | 164a85e8 | 4ed50702 |
+| 793a2a1f | Dedicated example, product acceptance (`network`) | the repeat as the user sees it: two real updates, then a correction in a [session](../../GLOSSARY.md#session), and the [vault](../../GLOSSARY.md#vault) holds one [note](../../GLOSSARY.md#permanent-note) for it; the test waits for the end of the write and then for a settling time, so that a second note written beside the first would be seen. The test passes when written, because the update is idempotent over the [skills](../../GLOSSARY.md#skill) already; the mutation that makes it fail is a mod that registers its capture of the [turn](./793a_product-spec.md#793a1a-terms) twice | 10 of 10 | Done | n/a | 164a85e8 | 4ed50702 |
 
 #### 793e6b13 A lesson is not written to a vault that does not exist
 
@@ -582,7 +582,7 @@ Takes [793a2a1g A lesson is not written to a vault that does not exist](./793a_p
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2a1g | Dedicated example, product acceptance (`network`) | the prohibition as the user sees it: after a correction in a [session](../../GLOSSARY.md#session) of a machine whose vault was removed, the vault is still not there once the capture has ended; the test waits for the records of both [turns](./793a_product-spec.md#793a1a-terms) and a settling time, so that the absence is the result of the capture and not of a capture that did not finish. The test passes when written: the learn path takes the lock of the vault before it writes, and fails when the vault is not there, so nothing creates it; the mutation that makes it fail is a writing wired inside the first-use step | | Done | n/a | 415a79ab | d156945f |
+| 793a2a1g | Dedicated example, product acceptance (`network`) | the prohibition as the user sees it: after a correction in a [session](../../GLOSSARY.md#session) of a machine whose vault was removed, the vault is still not there once the capture has ended; the test waits for the records of both [turns](./793a_product-spec.md#793a1a-terms) and a settling time, so that the absence is the result of the capture and not of a capture that did not finish. The test passes when written: the learn path takes the lock of the vault before it writes, and fails when the vault is not there, so nothing creates it; the mutation that makes it fail is a writing wired inside the first-use step | 10 of 10 | Done | n/a | 415a79ab | d156945f |
 | 793d4e1b | Dedicated example (default suite) | the judgement command dispatched through the targets over a path that holds no vault: no vault afterwards, no creation line | | Done | n/a | 415a79ab | d156945f |
 | 793d4e1c | Dedicated example (default suite) | the writing command dispatched through the targets over a path that holds no vault, with a reply that holds a lesson: no vault, no [note](../../GLOSSARY.md#permanent-note), nothing printed, no creation line | | Done | n/a | 415a79ab | d156945f |
 
@@ -592,7 +592,7 @@ Takes [793a2d1b Automatic memory's work starts no session of its own](./793a_pro
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2d1b | Dedicated example, product acceptance (`network`) | the observation as the user could make it: after a correction the [vault](../../GLOSSARY.md#vault) holds a [note](../../GLOSSARY.md#permanent-note) written from the user's session, and the record of sessions holds that one session only. The test passes when written, because the judgement is one call of the host's model call, which raises no session; the mutation that makes it fail is a judgement run in a headless `claude -p` of its own | | Done | n/a | cdbbad8f | ac6b3288 |
+| 793a2d1b | Dedicated example, product acceptance (`network`) | the observation as the user could make it: after a correction the [vault](../../GLOSSARY.md#vault) holds a [note](../../GLOSSARY.md#permanent-note) written from the user's session, and the record of sessions holds that one session only. The test passes when written, because the judgement is one call of the host's model call, which raises no session; the mutation that makes it fail is a judgement run in a headless `claude -p` of its own | 10 of 10 | Done | n/a | cdbbad8f | ac6b3288 |
 | 793d4m1a | Dedicated example (default suite) | each of the four origins the user sends, through `RunAutoDeliver` and `RunAutoJudge` over an in-memory vault and a record: the block and the request are printed. It passes when written, because the commands ignore the origin; the mutation that makes it fail is a filter that leaves out one of the four, and with `bridge` left out the case of `bridge` fails | | Done | n/a | c7dfbc01 | ac6b3288 |
 | 793d4m1b | Property-based (`rapid`) with named examples (default suite) | the filter itself: for any origin that is not one of the four, and for the kinds of origin that Claude Code names besides them, nothing is printed, the command succeeds and the lookup is never asked | | Done | c7dfbc01 | dced50df | ac6b3288 |
 | 793d2a1h | Dedicated example, real dependency (`network`, a real Claude Code against a stand-in `engram`) | the origin a real host stamps on a headless prompt, `sdk`, reaches the command | | Done | c7dfbc01 | dced50df | ac6b3288 |
@@ -753,7 +753,7 @@ Takes review findings 14 and 22. The learn [skill](../../GLOSSARY.md#skill) hold
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1h | Dedicated example, product acceptance (`network`) | the prohibition as the user sees it: after a task the [agent](./793a_product-spec.md#793a1a-terms) did one way, a [prompt](./793a_product-spec.md#793a1a-terms) that only thanks the agent and says that it worked is judged, and the [vault](../../GLOSSARY.md#vault) holds no [note](../../GLOSSARY.md#permanent-note) | 10 of 10 runs of the final instructions; 5 of 10 before them | Done | db1f61f6 | aca8f0a1 | 4611d8a8 |
+| 793a2c1h | Dedicated example, product acceptance (`network`) | the prohibition as the user sees it: after a task the [agent](./793a_product-spec.md#793a1a-terms) did one way, a [prompt](./793a_product-spec.md#793a1a-terms) that only thanks the agent and says that it worked is judged, and the [vault](../../GLOSSARY.md#vault) holds no [note](../../GLOSSARY.md#permanent-note) | 10 of 10; 5 of 10 before the instructions carried the bar of the learn skill | Done | db1f61f6 | aca8f0a1 | 4611d8a8 |
 
 #### 793e6g15 A lesson no earlier note states is written
 
@@ -761,7 +761,7 @@ Takes review finding 18. Only one side of [793a3c Nothing the vault already says
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a3c1c | Dedicated example, product acceptance (`network`) | the other side of the cover as the user sees it: a real [session](../../GLOSSARY.md#session), a vault with the note of one lesson about a database, a request to remember another lesson about the same database, and a new note in the vault that says it was written automatically within the bound, with the earlier note unchanged. It passes when written; the mutation that makes it fail is an instruction that a nearest note about the same subject as the lesson covers it, run on a scratch copy of the branch: the row passed 1 of 6 runs | 10 of 10 runs | Done | n/a | 228d02b4 | f5f9a637 |
+| 793a3c1c | Dedicated example, product acceptance (`network`) | the other side of the cover as the user sees it: a real [session](../../GLOSSARY.md#session), a vault with the note of one lesson about a database, a request to remember another lesson about the same database, and a new note in the vault that says it was written automatically within the bound, with the earlier note unchanged. It passes when written; the mutation that makes it fail is an instruction that a nearest note about the same subject as the lesson covers it, run on a scratch copy of the branch: the row passed 1 of 6 runs | 10 of 10 | Done | n/a | 228d02b4 | f5f9a637 |
 
 #### 793e6g16 A turn that a background task's notification starts is not judged
 
@@ -769,7 +769,7 @@ Takes review finding 21. Of the origins that [793d4m Telling the prompts the use
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793d4m1d | Dedicated example, real dependency (`network`) | the origins of a real session end to end: the agent starts a task with `sleep` in the background, the notification starts a turn that the agent answers, and automatic memory has made the one record of the user's turn and no more, and the [vault](../../GLOSSARY.md#vault) holds no note. It passes when written; the mutation that makes it fail is a mod that gives the judgement the origin `composer` for every prompt, run on a scratch copy of the branch: the row passed 0 of 3 runs, each finding two records of the turns where one is expected | 10 of 10 runs | Done | n/a | 36c4017c | 44d399f8 |
+| 793d4m1d | Dedicated example, real dependency (`network`) | the origins of a real session end to end: the agent starts a task with `sleep` in the background, the notification starts a turn that the agent answers, and automatic memory has made the one record of the user's turn and no more, and the [vault](../../GLOSSARY.md#vault) holds no note. It passes when written; the mutation that makes it fail is a mod that gives the judgement the origin `composer` for every prompt, run on a scratch copy of the branch: the row passed 0 of 3 runs, each finding two records of the turns where one is expected | 10 of 10 | Done | n/a | 36c4017c | 44d399f8 |
 
 #### 793e6g17 The runs of the judgement rows are tallied, and the probe behind the instructions is kept
 
@@ -802,7 +802,7 @@ Takes what the last tally of the live rows found, which is not a finding of the 
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1i | Dedicated example, product acceptance (`network`) | the promise as the user sees it: a real [session](../../GLOSSARY.md#session) in which the agent is asked to remember a fact and not to save it, says that it did not, and a note of the fact is in the [vault](../../GLOSSARY.md#vault) within the bound, marked as written automatically | | Done | 22f3ac26 | f010be6f | 15b9b340 |
+| 793a2c1i | Dedicated example, product acceptance (`network`) | the promise as the user sees it: a real [session](../../GLOSSARY.md#session) in which the agent is asked to remember a fact and not to save it, says that it did not, and a note of the fact is in the [vault](../../GLOSSARY.md#vault) within the bound, marked as written automatically | 10 of 10; 0 of 10 before the last change of the instructions | Done | 22f3ac26 | f010be6f | 15b9b340 |
 
 ### 793e6e The conversation becomes searchable memory
 

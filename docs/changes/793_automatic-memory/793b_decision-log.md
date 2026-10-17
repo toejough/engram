@@ -1119,6 +1119,8 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   and saw succeed is a lesson, and with the bar of the learn [skill](../../GLOSSARY.md#skill) ([793b87 The instructions carry the bar of the learn skill](#793b87-the-instructions-carry-the-bar-of-the-learn-skill)).
   A reversal of the agent's own claim is written as a `fact`, the corrected cause or conclusion, and not as the
   feedback that the learn skill writes for a reversal ([793c57 Should a reversal of the agent's own claim be written as a fact or as feedback?](./793c_open-questions.md#793c57-should-a-reversal-of-the-agents-own-claim-be-written-as-a-fact-or-as-feedback)).
+  A request by the user to remember something is a lesson even when it holds a secret and even when the agent says that
+  it did not save it ([793b90 A request to remember is a lesson whatever the agent says about saving it](#793b90-a-request-to-remember-is-a-lesson-whatever-the-agent-says-about-saving-it)).
   The reply is a JSON list of lessons, each with a kind, a slug, a situation, the file name
   of a [note](../../GLOSSARY.md#permanent-note) that already states it, and the fields of its kind ([793b66 What a lesson becomes](#793b66-what-a-lesson-becomes)).
 - **Rationale:** a lesson comes from the user's words and from the agent's claims and what overturned them, and the
