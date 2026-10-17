@@ -171,6 +171,7 @@ func Test793a2a1e_AVaultThatDoesNotExistIsNotCreated(t *testing.T) {
 		machine.agentMayNotRunEngram()
 		machine.mustSucceed(machine.update(), "engram update")
 		machine.vaultIsRemoved()
+		machine.lookupTakes(0) // no wait: the machine's engram only notes that it was run
 
 		g.Expect(machine.hasVault()).To(BeFalse(), "the vault is gone")
 	})
@@ -183,6 +184,7 @@ func Test793a2a1e_AVaultThatDoesNotExistIsNotCreated(t *testing.T) {
 	})
 
 	step(t, "Then the agent answers the prompt, and the vault still does not exist", func() {
+		g.Expect(machine.lookupStarted()).To(BeTrue(), "the mod ran its command for the prompt")
 		g.Expect(sent.reply).NotTo(BeEmpty(), "the agent answered")
 		g.Expect(sent.blocks()).To(BeEmpty(), "blocks automatic memory delivered with the prompt")
 		g.Expect(machine.hasVault()).To(BeFalse(), "a vault exists at "+machine.vault)
@@ -278,12 +280,13 @@ func Test793a2b1c_ANoteTheAgentLookedUpItselfIsNotDelivered(t *testing.T) {
 	machine := newMachine(t)
 
 	var (
-		stagingNote string
-		inSession   *session
+		stagingNote, backupNote string
+		inSession               *session
 	)
 
 	step(t, "Given a session in which, before the user ran engram update, "+
-		"the agent looked up the staging note itself with engram query", func() {
+		"the agent looked up the staging note itself with engram query, "+
+		"and a vault that has gained another note about the staging database since", func() {
 		machine.hasEngram()
 		machine.hasClaudeCode()
 		stagingNote = machine.learnsFact(stagingReset)
@@ -293,6 +296,8 @@ func Test793a2b1c_ANoteTheAgentLookedUpItselfIsNotDelivered(t *testing.T) {
 
 		g.Expect(first.toolResultsNaming(stagingNote)).To(BeTrue(), "the agent's own lookup printed the note")
 		g.Expect(first.blocks()).To(BeEmpty(), "the mod was not installed yet")
+
+		backupNote = machine.learnsFact(stagingBackup)
 	})
 
 	var second *turn
@@ -305,8 +310,12 @@ func Test793a2b1c_ANoteTheAgentLookedUpItselfIsNotDelivered(t *testing.T) {
 		t.Logf("the agent replied %q (cost $%.4f)", second.reply, second.cost)
 	})
 
-	step(t, "Then the prompt arrives with nothing from the vault", func() {
-		g.Expect(second.blocks()).To(BeEmpty(), "blocks automatic memory delivered with the prompt")
+	step(t, "Then the prompt arrives with the other note and not the staging note", func() {
+		blocks := second.blocks()
+
+		g.Expect(blocks).To(HaveLen(1), "blocks automatic memory delivered with the prompt")
+		g.Expect(blocks[0]).To(ContainSubstring(backupNote))
+		g.Expect(blocks[0]).NotTo(ContainSubstring(stagingNote))
 	})
 }
 

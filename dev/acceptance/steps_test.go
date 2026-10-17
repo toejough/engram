@@ -42,6 +42,14 @@ var (
 		impact:    "the lint check failed",
 		action:    "run black on the file before committing",
 	}
+	// stagingBackup is a second note about the same database, which bears on the same prompt.
+	stagingBackup = fact{
+		slug:      "zorblax-staging-backup",
+		situation: "testing against the Zorblax staging database",
+		subject:   "the Zorblax staging database",
+		predicate: "is backed up every",
+		object:    "Monday at 05:00 UTC",
+	}
 	stagingReset = fact{
 		slug:      "zorblax-staging-reset",
 		situation: "testing against the Zorblax staging database",
