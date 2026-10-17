@@ -170,9 +170,9 @@ Takes [793a2b1b A note delivered earlier in the session is not delivered again](
 | --- | --- | --- | --- | --- | --- | --- |
 | 793a2b1b | Dedicated example, product acceptance (`network`) | the second promise of the delivery as the user sees it: two prompts in one real session, the second arriving with nothing from the vault | Red | | | |
 | 793d2a1b | Dedicated example, real dependency (`network`) | the session's ID reaches the command: the mod's value propagation, in a real Claude Code session against a stand-in engram | Green-all | ee4404a4 | 7771477f | |
-| 793d4a1e | Dedicated example (default suite) | no remaining note prints nothing, so a held note's second prompt carries no empty block, through `RunAutoDeliver` | Green-all | f6bea18c | 2cf56fc9 | |
+| 793d4a1e | Dedicated example (default suite) | no remaining note prints nothing, so a held note's second prompt carries no empty block, through `RunAutoDeliver` | Done | f6bea18c | 2cf56fc9 | |
 | 793d2a1c | Dedicated example, real dependency (`network`) | an empty output adds nothing: a context entry may not be empty, and the session's record must show no context, in a real Claude Code session against a stand-in engram | Green-all | f867c44c | f395ec9e | |
-| 793d4d1a | Dedicated example (default suite) | what counts as held: the blocks delivered beside prompts and nothing else of a record, over records of the real format | Done | 0d78b09e | 9bdc5e9e | |
+| 793d4d1a | Dedicated example (default suite) | what counts as held: the blocks delivered beside prompts and nothing else of a record, over records of the real format | Done | 0d78b09e | 9bdc5e9e | a03c7312 |
 | 793d4d1b | Dedicated example (default suite) | the record is found in a project's subdirectory of the session-log directory, over a real temporary directory | Done | b9fb12de | 02318295 | 0bfe1688 |
 | 793d4d1c | Dedicated example (default suite) | the boundary cases: no record, and an ID that would leave the directory | Done | fce4516a | a460368a | 0bfe1688 |
 | 793d4a1d | Dedicated example (default suite) | the delivery leaves out a held note, through `RunAutoDeliver` over an in-memory vault and a real temporary session-log directory | Done | cf03701a | b9ec02b7 | 0bfe1688 |
