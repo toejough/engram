@@ -194,6 +194,7 @@ Takes [793a2b1c A note the agent looked up itself is not delivered](./793a_produ
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
 | 793a2b1c | Dedicated example, product acceptance (`network`) | the other route to a held note as the user sees it: the agent's own lookup, in a session that began before the update, then the update and a resumed session | Done | d94dcace | e7e823fd | e68f65f7 |
+| 793a2b1c (a second note) | Dedicated example, product acceptance (`network`) | review fix: the vault also holds a second note that bears on the prompt and that the agent did not look up, and the prompt arrives with it and not with the first, so a mod that never loads no longer passes. Passes when written; the mutation that makes it fail is a mod that does not load, which the test before passed | Green-all | n/a | | |
 | 793d4d1d | Dedicated example (default suite) | what a tool printed counts as held, in both shapes a result is recorded in (a string and text blocks), and what the agent wrote does not | Done | 84f83b15 | e7e823fd | 31744d5c |
 | 793d4d1d (amended) | Dedicated example (default suite) | review fix: only the agent's own lookups count, the Bash commands that run `engram query` or `engram show`, paired with their results by the tool's ID, in both shapes a result is recorded in; the command's text counts with its result | Done | d183d346 | 642adbd6 | 642a4c9a |
 | 793d4d1e | Dedicated example (default suite) | review fix: a listing of the vault is not a lookup, so a note it names is not held | Done | d183d346 | 642adbd6 | 642a4c9a |
@@ -230,6 +231,7 @@ Takes [793a2a1e A vault that does not exist is not created](./793a_product-spec.
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
 | 793a2a1e | Dedicated example, product acceptance (`network`) | the promise as the user sees it: after the vault is removed a prompt is answered and the vault is still not there | Done | d4336a43 | e924dc61 | 151f36ea |
+| 793a2a1e (the command ran) | Dedicated example, product acceptance (`network`) | review fix: the test asserts that the mod ran its command for the prompt, by a marker the machine's `engram` writes, so a mod that never loads no longer passes. Passes when written; the mutation that makes it fail is a mod that does not load, which the test before passed | Green-all | n/a | | |
 | 793d4e1a | Dedicated example (default suite) | the dispatch of the command through `cli.Targets` over a real temporary path: the first-use step is in the target's wiring, not in the command, so only a dispatch can show whether it runs | Done | c0aa0717 | e924dc61 | 81f8f93b |
 
 #### 793e6a8 Pi gets no automatic memory

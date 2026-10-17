@@ -105,9 +105,9 @@ Scenario: 793a2b1b A note delivered earlier in the session is not delivered agai
   Then the second prompt arrives with nothing from the vault, and the staging note is in the agent's context once
 
 Scenario: 793a2b1c A note the agent looked up itself is not delivered
-  Given a session in which, before the user ran engram update, the agent looked up the staging note itself with engram query
+  Given a session in which, before the user ran engram update, the agent looked up the staging note itself with engram query, and a vault that also holds another note about the staging database
   When the user runs engram update, resumes that session, and sends a prompt asking when the staging database is reset
-  Then the prompt arrives with nothing from the vault
+  Then the prompt arrives with the other note and not the staging note
 
 Scenario: 793a2b1d A prompt that matches no note arrives with nothing
   Given the user has run engram update, a vault whose notes have nothing to do with the prompt, and a searchable conversation that does

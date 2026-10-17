@@ -448,9 +448,9 @@ The product scenario [793a2b1c A note the agent looked up itself is not delivere
 
 ```gherkin
 Scenario: 793a2b1c A note the agent looked up itself is not delivered
-  Given a session in which, before the user ran engram update, the agent looked up the staging note itself with engram query
+  Given a session in which, before the user ran engram update, the agent looked up the staging note itself with engram query, and a vault that also holds another note about the staging database
   When the user runs engram update, resumes that session, and sends a prompt asking when the staging database is reset
-  Then the prompt arrives with nothing from the vault
+  Then the prompt arrives with the other note and not the staging note
 ```
 
 Realized by [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) (the result of the agent's own `engram query` is in the session's record, and names the note) with the flow and the delivery of [793d5b Mapping of 793a2b1b](#793d5b-mapping-of-793a2b1b).
