@@ -446,7 +446,7 @@ he answers. When he answers, the entry records the answer and the date and stays
   writing records a skip with the reason that the vault does not exist, and the judgement still runs.
 - **Recommendation:** (a) until the display of [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) shows the user that message; then (c).
 - **Blocks:** nothing.
-- **Status:** open. Default (a) taken: [793b71 The commands of the group auto take no first-use step](./793b_decision-log.md#793b71-the-commands-of-the-group-auto-take-no-first-use-step).
+- **Status:** open. Default (a) taken: [793b71 The commands of the group auto take no first-use step](./793b_decision-log.md#793b71-the-commands-of-the-group-auto-take-no-first-use-step). Amended: the default became (b) in the form of a failure, which the writing records once, with no call of the model: [793b82 A judgement without a vault or a record fails, and the model is not asked](./793b_decision-log.md#793b82-a-judgement-without-a-vault-or-a-record-fails-and-the-model-is-not-asked).
 
 ## 793c44 Is the window between a note's file and its embedding a risk?
 
@@ -544,3 +544,14 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Recommendation:** (a): (b) leaks a split credential, and (c) keeps the pass that cannot see it.
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b81 A text is written as one line before it is redacted, and cut last](./793b_decision-log.md#793b81-a-text-is-written-as-one-line-before-it-is-redacted-and-cut-last).
+
+## 793c53 Should a judgement without a record fail, and be recorded as a failure?
+
+- **Context:** [793b82 A judgement without a vault or a record fails, and the model is not asked](./793b_decision-log.md#793b82-a-judgement-without-a-vault-or-a-record-fails-and-the-model-is-not-asked) makes the judgement of a [session](../../GLOSSARY.md#session) whose record it cannot find a failure that the
+  writing records as `failed`, where it was a success with no trace. The review asked for a record of a skipped write.
+- **Options:** (a) A failure, recorded as `failed` by the path every failed step takes. (b) A record of the kind `skipped`,
+  which needs a second report from the mod. (c) Success with no trace, as before.
+- **Recommendation:** (a): the mod reports every failed step one way, and the display of what [automatic memory](./793a_product-spec.md#793a1a-terms) did will
+  show the reason either way.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b82 A judgement without a vault or a record fails, and the model is not asked](./793b_decision-log.md#793b82-a-judgement-without-a-vault-or-a-record-fails-and-the-model-is-not-asked).

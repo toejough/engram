@@ -604,8 +604,10 @@ characters. The prompt MUST also hold, as lines of the section of [notes](../../
 that the lookup of [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) returns for the text of the prompts of the turn, each in the form of a line of a
 block (a dash, the file name, the situation in parentheses, a colon and the body), with its text written as
 one line and then redacted, cut to 400 characters and then escaped in the same way, so that no note can close the section of notes, or the word `(none)` when there are none. It MUST print nothing, and succeed,
-when the record holds no prompt or there is no record, and print nothing and fail, naming the cause, when its input is
-not a JSON object or the lookup fails.
+when the record holds no prompt, and print nothing and fail, naming the cause, when its input is not a JSON object,
+when no [vault](../../GLOSSARY.md#vault) exists at the path of the vault, when there is no record of the session in the directory of the records,
+or when the lookup fails: a capture that cannot be judged is then recorded once, with its reason, and the model is not
+asked.
 
 Owner: turn-judgement (a new component; its canonical file at promotion is `turn-judgement.md`)
 
@@ -625,9 +627,9 @@ Scenario: 793d4g1b The final text is added when the record lacks it
   Then the last line of the turn is the final text, labelled as the agent's
 
 Scenario: 793d4g1c A session with no prompt in its record is judged nothing
-  Given a session with no record, and the record of a session with no prompt
-  When the judgement is given each
-  Then it prints nothing and succeeds both times
+  Given the record of a session with no prompt
+  When the judgement is given the session
+  Then it prints nothing and succeeds
 
 Scenario: 793d4g1d An input that is not a JSON object fails the command
   Given an input that is not a JSON object
@@ -693,6 +695,16 @@ Scenario: 793d4g1p A row of an origin the user does not send is no prompt
   Given a record whose turn began with a prompt of the user, and a row of the user's stamped with the origin peer whose text opens with none of the marks of the harness, delivered before the agent's last text
   When the judgement is given the session
   Then the request has no line for that row, and the turn begins with the user's prompt
+
+Scenario: 793d4g1w A session with no record fails the command
+  Given a session that no record holds, and no session at all
+  When the judgement is given each
+  Then it prints nothing and fails each time, with an error that names the session and the directory of the records
+
+Scenario: 793d4g1x A vault that does not exist fails the command
+  Given a path that holds no vault, and the record of a session with a prompt
+  When the judgement is given the session
+  Then it prints nothing, fails with an error that names the path, and looks nothing up
 
 Scenario: 793d4g1q A long record is judged in time
   Given the record of a session of 1 MB, of which the turn is the last prompt
@@ -1238,7 +1250,7 @@ Scenario: 793a2a1g A lesson is not written to a vault that does not exist
   Then the vault still does not exist 2 minutes after the turn ends
 ```
 
-Realized by [793d4e Modified: First-use gating](#793d4e-modified-first-use-gating): the judgement and the writing, like the delivery, run against the path as it is and create nothing when it holds no [vault](../../GLOSSARY.md#vault). The judgement finds no [note](../../GLOSSARY.md#permanent-note) there, the learn path of [793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply) cannot take the lock of a vault that is not there and writes nothing, and [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did) records the failure that the [turn](./793a_product-spec.md#793a1a-terms) is left with.
+Realized by [793d4e Modified: First-use gating](#793d4e-modified-first-use-gating): the judgement and the writing, like the delivery, run against the path as it is and create nothing when it holds no [vault](../../GLOSSARY.md#vault). The judgement fails at its start, naming the path ([793d4g Judging a turn](#793d4g-judging-a-turn)), so that the model is not asked and no [note](../../GLOSSARY.md#permanent-note) is written, and [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did) records the failure that the [turn](./793a_product-spec.md#793a1a-terms) is left with, once.
 
 ### 793d5w Mapping of 793a2d1b
 

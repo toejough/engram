@@ -180,7 +180,9 @@ graph TD
     n793e6g6 --> n793e6g7
     n793e6g8["793e6g8 A credential split by characters not shown is redacted whole<br/>Complete"]
     n793e6g7 --> n793e6g8
-    n793e6g8 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
+    n793e6g9["793e6g9 A judgement without a vault or a record fails<br/>Ready"]
+    n793e6g8 --> n793e6g9
+    n793e6g9 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
     n793e6d --> n793e6f["793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d"]
@@ -614,6 +616,17 @@ Takes a finding of the automated security review of the commit of [793e6g6 A fie
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 793d4j1h | Property-based (`rapid`) with named examples (default suite) | the [turn](./793a_product-spec.md#793a1a-terms) text, the final text and the notes of the request, with a credential of every shape split by a character that is not shown, and the named examples of the review: a key of the AWS example split by a zero-width space, a name split so that it is not one, a token split by a soft hyphen, and a key split by a stray tab | for any credential of the shapes of the requirement and any character that is not shown or white space put inside its secret, in a message of the user, a text of the [agent](./793a_product-spec.md#793a1a-terms), the final text and a note: the [prompt](./793a_product-spec.md#793a1a-terms) of the request does not hold the secret | Done | 29c28bf2 | 2409b8ee | 9aed1e2f |
 | 793d4j1i | Property-based (`rapid`) with named examples (default suite) | the fields of a lesson, written through `RunAutoWrite` and the real renderers of the learn path, with the same split credentials | for any credential of the shapes and any such character put inside its secret, in any field of a lesson: no note written holds the secret | Done | 29c28bf2 | 2409b8ee | 9aed1e2f |
+
+#### 793e6g9 A judgement without a vault or a record fails, and the model is not asked
+
+Takes review findings 9 and 13. With no [vault](../../GLOSSARY.md#vault) at the path the judgement printed a request all the same, so each [turn](./793a_product-spec.md#793a1a-terms) cost a call of the model and left two records of a failure that named the lock of the vault; and when no record of the [session](../../GLOSSARY.md#session) was found it succeeded and left no record, so that the capture was lost without a trace ([793b82 A judgement without a vault or a record fails, and the model is not asked](./793b_decision-log.md#793b82-a-judgement-without-a-vault-or-a-record-fails-and-the-model-is-not-asked)).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| 793d4g1w | Dedicated example (default suite) | a session no record holds and no session at all, through `RunAutoJudge` over a real temporary directory: the command fails and names the session and the directory | Not started | | | |
+| 793d4g1x | Dedicated example (default suite) | a path that holds no vault: the command fails naming the path, prints nothing, and the lookup is never run (the stand-in of the lookup fails the test when it is called) | Not started | | | |
+| 793d4g1c (amended) | Dedicated example (default suite) | only the record of a session with no [prompt](./793a_product-spec.md#793a1a-terms) is judged nothing now | Not started | | | |
+| 793d4e1b (amended) | Dedicated example (default suite) | the judgement dispatched through the targets over a path that holds no vault creates none, as before, and now fails and prints no request | Not started | | | |
 
 ### 793e6e The conversation becomes searchable memory
 

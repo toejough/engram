@@ -1222,7 +1222,8 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   user made on purpose, and no scenario asks for it); the first-use step for the two commands (rejected: it creates
   the vault the user removed).
 - **Decided by:** Author (default; owner may override); the cost is asked in
-  [793c43 Should a missing vault end the capture before the model is asked?](./793c_open-questions.md#793c43-should-a-missing-vault-end-the-capture-before-the-model-is-asked).
+  [793c43 Should a missing vault end the capture before the model is asked?](./793c_open-questions.md#793c43-should-a-missing-vault-end-the-capture-before-the-model-is-asked). Superseded in part by
+  [793b82 A judgement without a vault or a record fails, and the model is not asked](#793b82-a-judgement-without-a-vault-or-a-record-fails-and-the-model-is-not-asked): the judgement fails at a missing vault.
 
 ## 793b72 The origin of a turn
 
@@ -1393,3 +1394,20 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   shown before the redaction and collapse the white space after it (rejected: two forms of the text, where one is the
   text that the model and the note get).
 - **Decided by:** Author (default; owner may override), on the review finding relayed by the coordinator.
+
+## 793b82 A judgement without a vault or a record fails, and the model is not asked
+
+- **Choice:** `engram auto judge` fails, naming the cause and printing nothing, when no [vault](../../GLOSSARY.md#vault) exists at its path (it asks the file system
+  for the directory, as it does for the records) and when it finds no record of the [session](../../GLOSSARY.md#session) in the directory of the records; the mod
+  reports the failure to the writing, which records it once, and the model is not asked. A record that holds no [prompt](./793a_product-spec.md#793a1a-terms) is
+  still judged nothing. The commands still create no vault ([793b71 The commands of the group auto take no first-use step](#793b71-the-commands-of-the-group-auto-take-no-first-use-step)).
+- **Rationale:** review findings 9 and 13. With no vault the judgement printed a request, the mod asked the model for it, the
+  writing failed at the lock of the vault, and the mod reported that failure to the writing again: a call of the model and
+  two records for each [turn](./793a_product-spec.md#793a1a-terms) ([793c43 Should a missing vault end the capture before the model is asked?](./793c_open-questions.md#793c43-should-a-missing-vault-end-the-capture-before-the-model-is-asked) recommended waiting for the display of what [automatic memory](./793a_product-spec.md#793a1a-terms) did; the call is
+  the cost that it avoids now). When no record was found the judgement exited with 0 and left nothing, so a capture lost to
+  a wrong directory of records, which is a setting, could not be seen.
+- **Alternatives:** the judgement prints nothing and succeeds when the vault is missing (rejected: the failure is the one
+  thing the user could see in the records, and a vault removed on purpose leaves one failed record for each turn of that
+  session, which says so); a skipped record for a missing record of the session (rejected: the mod reports every failed
+  step to the writing as a failure, and a second kind of report would need a second path).
+- **Decided by:** Author (default; owner may override). It amends the default of 793c43.
