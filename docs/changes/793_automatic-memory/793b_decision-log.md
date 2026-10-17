@@ -79,14 +79,19 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 
 ## 793b7 The interactions are product requirements too
 
-- **Choice:** the four interactions of [793a3 Interactions](./793a_product-spec.md#793a3-added-interactions) are requirements with their own scenario sections, not a
-  prose appendix. Where a requirement and an interaction touch one rule, the rule is stated once and the other
-  cites it: [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) cites [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again), and [793a3d Failures never break a prompt and always show](./793a_product-spec.md#793a3d-failures-never-break-a-prompt-and-always-show) joins
-  [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) to [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did).
+- **Choice:** the three interactions of [793a3 Interactions](./793a_product-spec.md#793a3-added-interactions) are requirements with their own scenario sections, not a
+  prose appendix. Each is a way two capabilities work together, and each can be tested: [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later) joins writing and
+  delivery, [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again) joins writing and the [notes](../../GLOSSARY.md#permanent-note) already in the
+  [vault](../../GLOSSARY.md#vault), and [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working) joins automatic and explicit memory
+  use. Where a requirement and an interaction touch one rule, the rule is stated once and the other cites it:
+  [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) cites [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again).
 - **Rationale:** the owner's step 1 asks for the capabilities "and how they must interact to achieve the goal.
   These are the product requirements."
 - **Alternatives:** a non-normative paragraph about interactions. Rejected: the owner's step 2 asks for
-  scenarios for every requirement, and a paragraph has none.
+  scenarios for every requirement, and a paragraph has none. Review round 1 cut the other three of the original
+  six, because each restated a rule of one requirement and was not a way two capabilities work together:
+  `793a3b` is folded into [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt), and the words of `793a3d` and `793a3f` moved into [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) and [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update). The
+  three IDs are retired and never reused.
 - **Decided by:** Author (reading of the owner's step 1; owner may validate).
 
 ## 793b8 Exclusions
@@ -320,23 +325,27 @@ Folded into [793b2 North Star](#793b2-north-star) in review round 1. The ID is k
 - **Alternatives:** no rule in the product spec. Rejected: the owner decided otherwise.
 - **Decided by:** Owner (Joe, 2026-10-11 and 2026-10-13, in the earlier attempt), applied here by the author.
 
-## 793b25 A turn with nothing to report shows no line
+## 793b25 What is shown after a turn, and when
 
-- **Choice:** [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) applies to [turns](./793a_product-spec.md#793a1a-terms) on which something was delivered, written or skipped.
-- **Rationale:** the earlier attempt omitted zero counts and showed nothing for a turn without events; a line
-  on every turn would be noise.
-- **Alternatives:** a line on every turn, so the user can tell [automatic memory](./793a_product-spec.md#793a1a-terms) is on ([793c9 Does a turn with nothing to report get a line?](./793c_open-questions.md#793c9-does-a-turn-with-nothing-to-report-get-a-line)).
+- **Choice:** [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) applies when [automatic memory](./793a_product-spec.md#793a1a-terms) delivered a
+  [note](../../GLOSSARY.md#permanent-note), wrote a note, or could not do a delivery or a write; a
+  [turn](./793a_product-spec.md#793a1a-terms) with nothing to report shows nothing. By the time the user sends
+  the next [prompt](./793a_product-spec.md#793a1a-terms), the user can see what was delivered for the previous
+  prompt, what was written from the previous turn, and each delivery or write it could not do, with the reason.
+  A write that finishes after the next prompt is sent is shown when it finishes. The requirement fixes no number
+  of lines.
+- **Rationale:** the earlier attempt omitted zero counts and showed nothing for a turn without events;
+  something on every turn would be noise. Its intent was a one-line summary (`old 793b240`), but a write can
+  finish up to 2 minutes after the turn ends ([793b18 Writing finishes within 2 minutes of a turn](./793b_decision-log.md#793b18-writing-finishes-within-2-minutes-of-a-turn)), so one line cannot always hold it. Tying the promise to
+  the next prompt gives it a time the user can check; the first version, which showed the line "once automatic
+  memory has finished its work for the turn", gave none.
+- **Alternatives:** something shown on every turn, so the user can tell automatic memory is on ([793c9 Does a turn with nothing to report show anything?](./793c_open-questions.md#793c9-does-a-turn-with-nothing-to-report-show-anything)); the first
+  version's single line, shown once the turn's work is finished.
 - **Decided by:** Author (default; owner may override).
 
 ## 793b26 The line waits for the turn's work
 
-- **Choice:** the line of [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) appears once [automatic memory](./793a_product-spec.md#793a1a-terms) has finished its work for the [turn](./793a_product-spec.md#793a1a-terms), with
-  no number of its own.
-- **Rationale:** a write that completes after the turn ends can only be reported when it is done; the latest
-  that can be is 2 minutes ([793b18 Writing finishes within 2 minutes of a turn](#793b18-writing-finishes-within-2-minutes-of-a-turn)) plus the time to show it.
-- **Alternatives:** show the line at the end of the turn and report the write in a second line. Rejected:
-  [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) promises one line.
-- **Decided by:** Author.
+Folded into [793b25 What is shown after a turn, and when](./793b_decision-log.md#793b25-what-is-shown-after-a-turn-and-when) in review round 1. The ID is kept so that links do not dangle.
 
 ## 793b27 "Already has" is per session
 
@@ -352,12 +361,14 @@ Folded into [793b2 North Star](#793b2-north-star) in review round 1. The ID is k
 
 ## 793b28 Depth-first order
 
-- **Choice:** [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update) and [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) go first and together, then [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), then [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), then
-  [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), then [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did).
+- **Choice:** [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update) and [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) go first and together, with the 8-second hold of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way); then [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), then [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory),
+  then the rest of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), then [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did).
 - **Rationale:** the only user-visible proof that the first is on is the second working in a new
-  [session](../../GLOSSARY.md#session). The lessons come next, as the learning half of the North Star, and the
-  sweep follows them as the rest of what the main [agent](./793a_product-spec.md#793a1a-terms)'s learn did ([793b34 The goal: what the main agent was already doing, just async](#793b34-the-goal-what-the-main-agent-was-already-doing-just-async)). The bounds and the line come last
-  because they bound and report what the others do.
+  [session](../../GLOSSARY.md#session). The hold belongs with the first delivery, because a delivery must not
+  hold a [prompt](./793a_product-spec.md#793a1a-terms) longer than [793b17 A prompt is held for at most 8 seconds](./793b_decision-log.md#793b17-a-prompt-is-held-for-at-most-8-seconds) allows from the start. The lessons come next, as the learning half of the North
+  Star, and the sweep follows them as the rest of what the main [agent](./793a_product-spec.md#793a1a-terms)'s
+  learn did ([793b34 The goal: what the main agent was already doing, just async](./793b_decision-log.md#793b34-the-goal-what-the-main-agent-was-already-doing-just-async)). The rest of the bounds and the display come last because they bound and report what the
+  others do.
 - **Alternatives:** the order of the requirements as listed, with the install alone first. Rejected: its
   scenarios could not be run before delivery exists.
 - **Decided by:** Author.
@@ -365,7 +376,7 @@ Folded into [793b2 North Star](#793b2-north-star) in review round 1. The ID is k
 ## 793b29 Interactions join the first node that has every capability they name
 
 - **Choice:** in [793e Automatic Memory - Implementation Plan](./793e_implementation-plan.md#automatic-memory---implementation-plan), an interaction is worked with the first node whose requirements include every
-  capability it names: [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later), [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again) and [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working) with the second; [793a3d Failures never break a prompt and always show](./793a_product-spec.md#793a3d-failures-never-break-a-prompt-and-always-show) with the last.
+  capability it names: [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later), [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again) and [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working) with the second.
 - **Rationale:** an interaction cannot be exercised before everything it joins exists, and delaying it further
   would leave its rule unchecked.
 - **Alternatives:** all interactions in a final node (rules unchecked for long), or each with its own earliest

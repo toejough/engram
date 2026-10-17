@@ -17,7 +17,7 @@ he answers. When he answers, the entry records the answer and the date and stays
   longer hold (`old 793b317`, `old 793c87`, 2026-10-14), and a lookup of [notes](../../GLOSSARY.md#permanent-note)
   alone took about 1.4 seconds there. (d) is his own rule, but it moves with the vault and on his would allow a
   hold of more than 10 seconds.
-- **Blocks:** the scenarios of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) and [793a3d Failures never break a prompt and always show](./793a_product-spec.md#793a3d-failures-never-break-a-prompt-and-always-show).
+- **Blocks:** the scenarios of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) that test the hold, which [793e6a On after update, and memory arrives with the prompt](./793e_implementation-plan.md#793e6a-on-after-update-and-memory-arrives-with-the-prompt) works.
 - **Status:** open. Default (a) taken: [793b17 A prompt is held for at most 8 seconds](./793b_decision-log.md#793b17-a-prompt-is-held-for-at-most-8-seconds).
 
 ## 793c2 How soon after a turn must automatic memory have finished writing?
@@ -93,14 +93,13 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Answer:** (b): a note MUST NOT contain a credential, token, key or password that appeared in the [turn](./793a_product-spec.md#793a1a-terms).
 - **Applied in:** [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), and [793b24 A note holds no secret](./793b_decision-log.md#793b24-a-note-holds-no-secret).
 
-## 793c9 Does a turn with nothing to report get a line?
+## 793c9 Does a turn with nothing to report show anything?
 
-- **Context:** [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) shows a line only on a [turn](./793a_product-spec.md#793a1a-terms) on which something was delivered, written or
-  skipped.
-- **Options:** (a) No line. (b) A line on every turn, so the user can tell [automatic memory](./793a_product-spec.md#793a1a-terms) is on.
+- **Context:** [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) shows something only on a [turn](./793a_product-spec.md#793a1a-terms) on which something was delivered, written or could not be done.
+- **Options:** (a) Nothing is shown. (b) Something is shown on every turn, so the user can tell [automatic memory](./793a_product-spec.md#793a1a-terms) is on.
 - **Recommendation:** (a), as in the earlier attempt, which omitted zero counts.
 - **Blocks:** the scenarios of [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did), and any scenario that needs a turn with nothing to report.
-- **Status:** open. Default (a) taken: [793b25 A turn with nothing to report shows no line](./793b_decision-log.md#793b25-a-turn-with-nothing-to-report-shows-no-line).
+- **Status:** open. Default (a) taken: [793b25 What is shown after a turn, and when](./793b_decision-log.md#793b25-what-is-shown-after-a-turn-and-when).
 
 ## 793c10 Does "already has" survive a compaction?
 

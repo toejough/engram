@@ -104,9 +104,11 @@ Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
 ### 793a2d Never in the way
 
 Requirement: 793a2d [Automatic memory](#793a1a-terms) MUST NOT hold a [prompt](#793a1a-terms) for longer than
-8 seconds ([793c1 How long may a prompt be held?](./793c_open-questions.md#793c1-how-long-may-a-prompt-be-held)), MUST NOT change what the user typed or what the [agent](#793a1a-terms)
-answered, and MUST NOT break or stall a [session](../../GLOSSARY.md#session). When it cannot do its work, for
-any reason, it MUST step aside, and the session MUST continue as if automatic memory were not installed.
+8 seconds ([793c1 How long may a prompt be held?](./793c_open-questions.md#793c1-how-long-may-a-prompt-be-held)), MUST NOT edit the user's prompt or the text of the
+[agent](#793a1a-terms)'s reply, MUST NOT break or stall a [session](../../GLOSSARY.md#session), and MUST NOT
+deliver to or write from its own sessions, the sessions it starts itself to do its work. When it cannot do its
+work, for any reason, including a delivery that does not finish within those 8 seconds and a write that fails,
+it MUST step aside, and the session MUST continue as if automatic memory were not installed.
 
 #### 793a2d1 UAT Scenarios
 
@@ -114,12 +116,12 @@ Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
 
 ### 793a2e The user can see what it did
 
-Requirement: 793a2e After each [turn](#793a1a-terms) on which [automatic memory](#793a1a-terms) delivered a
-[note](../../GLOSSARY.md#permanent-note), wrote a note or skipped a step, it MUST show the user, in the
-[session](../../GLOSSARY.md#session) and in one line, each note it delivered for the turn's
-[prompt](#793a1a-terms), each note it wrote for the turn, and each step it skipped with the reason, so the
-user can see its work without going to the [vault](../../GLOSSARY.md#vault). The line MUST appear once
-automatic memory has finished its work for the turn.
+Requirement: 793a2e When [automatic memory](#793a1a-terms) delivered a [note](../../GLOSSARY.md#permanent-note),
+wrote a note, or could not do a delivery or a write, the user MUST be able to see in the
+[session](../../GLOSSARY.md#session), by the time the user sends the next [prompt](#793a1a-terms), what it
+delivered for the previous prompt, what it wrote from the previous [turn](#793a1a-terms), and each delivery or
+write it could not do, with the reason, without going to the [vault](../../GLOSSARY.md#vault). A write that
+finishes after the next prompt is sent MUST be shown when it finishes.
 
 #### 793a2e1 UAT Scenarios
 
@@ -147,20 +149,6 @@ for a lesson that a note in the [vault](../../GLOSSARY.md#vault) already states,
 whenever it was written.
 
 #### 793a3c1 UAT Scenarios
-
-Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
-
-### 793a3d Failures never break a prompt and always show
-
-Requirement: 793a3d A delivery under
-[793a2b Memory arrives with the prompt](#793a2b-memory-arrives-with-the-prompt) that does not finish within
-8 seconds ([793c1 How long may a prompt be held?](./793c_open-questions.md#793c1-how-long-may-a-prompt-be-held)), and any other failure of that delivery or of the writing under
-[793a2c Lessons are written without the agent](#793a2c-lessons-are-written-without-the-agent), MUST be treated
-under [793a2d Never in the way](#793a2d-never-in-the-way) as [automatic memory](#793a1a-terms) being unable to
-do its work, and MUST be shown as a skipped step in the line of
-[793a2e The user can see what it did](#793a2e-the-user-can-see-what-it-did).
-
-#### 793a3d1 UAT Scenarios
 
 Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
 
