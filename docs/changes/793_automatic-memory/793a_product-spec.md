@@ -164,8 +164,9 @@ Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
 ### 793a3e Explicit memory use keeps working
 
 Requirement: 793a3e The [agent](#793a1a-terms)'s own explicit use of memory, such as `engram query`,
-`engram learn` and the [recall](../../GLOSSARY.md#recall-skill) and [learn](../../GLOSSARY.md#learn-skill)
-skills, MUST keep working unchanged alongside [automatic memory](#793a1a-terms).
+[`engram learn`](../../GLOSSARY.md#engram-learn-subcommand), the [recall skill](../../GLOSSARY.md#recall-skill)
+and the [learn skill](../../GLOSSARY.md#learn-skill), MUST keep working unchanged alongside
+[automatic memory](#793a1a-terms).
 
 #### 793a3e1 UAT Scenarios
 
