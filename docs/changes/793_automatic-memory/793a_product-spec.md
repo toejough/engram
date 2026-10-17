@@ -2,7 +2,7 @@
 
 > **North Star:** I want to add automatic learning and memory retrieval.
 >
-> The owner, Joe, 2026-10-16 (`793b2`).
+> The owner, Joe, 2026-10-16 ([793b2 North Star](./793b_decision-log.md#793b2-north-star)).
 
 ## 793a1 Problem Statement
 
@@ -14,7 +14,7 @@ Anyone who works with an [agent](#793a1a-terms) in Claude Code and keeps a [vaul
 - **Prompt:** a message the user sends to the [agent](#793a1a-terms).
 - **Turn:** a [prompt](#793a1a-terms) and everything the agent does in answer, until it hands control back to the user.
 - **Bears on a prompt:** a [note](../../GLOSSARY.md#permanent-note) bears on a prompt when `engram query`, run with the prompt's text as its message and only phrase, returns it as a match for that text: not as a fragment of a conversation, not as one of the extra notes the command samples to widen what it returns. The user can run that command and read the notes.
-- **Automatic memory:** what this change adds, done without the user or the agent asking: notes that bear on a prompt arrive in the agent's context (`793a2b`), lessons are written as notes (`793a2c`) and the conversation becomes searchable (`793a2f`).
+- **Automatic memory:** what this change adds, done without the user or the agent asking: notes that bear on a prompt arrive in the agent's context ([793a2b Memory arrives with the prompt](#793a2b-memory-arrives-with-the-prompt)), lessons are written as notes ([793a2c Lessons are written without the agent](#793a2c-lessons-are-written-without-the-agent)) and the conversation becomes searchable ([793a2f The conversation becomes searchable memory](#793a2f-the-conversation-becomes-searchable-memory)).
 
 ## 793a2 Added: Automatic memory
 
@@ -66,7 +66,7 @@ Scenario: 793a2a1g A lesson is not written to a vault that does not exist
 
 ### 793a2b Memory arrives with the prompt
 
-Requirement: 793a2b When the user sends a [prompt](#793a1a-terms), [automatic memory](#793a1a-terms) MUST put the [notes](../../GLOSSARY.md#permanent-note) that [bear on it](#793a1a-terms), less those the [agent](#793a1a-terms) already has, in the agent's context before the agent acts, unasked. The agent has a note when automatic memory delivered it earlier in the same [session](../../GLOSSARY.md#session) or the agent looked it up in that session; such a note MUST NOT be put there again. Only notes are delivered; the conversation (`793a2f`) is found when the agent asks. The notes arrive beside the prompt, which stays exactly as the user typed it (`793a2d`).
+Requirement: 793a2b When the user sends a [prompt](#793a1a-terms), [automatic memory](#793a1a-terms) MUST put the [notes](../../GLOSSARY.md#permanent-note) that [bear on it](#793a1a-terms), less those the [agent](#793a1a-terms) already has, in the agent's context before the agent acts, unasked. The agent has a note when automatic memory delivered it earlier in the same [session](../../GLOSSARY.md#session) or the agent looked it up in that session; such a note MUST NOT be put there again. Only notes are delivered; the conversation ([793a2f The conversation becomes searchable memory](#793a2f-the-conversation-becomes-searchable-memory)) is found when the agent asks. The notes arrive beside the prompt, which stays exactly as the user typed it ([793a2d Never in the way](#793a2d-never-in-the-way)).
 
 #### 793a2b1 UAT Scenarios
 
@@ -94,7 +94,7 @@ Scenario: 793a2b1d A prompt that matches no note arrives with nothing
 
 ### 793a2c Lessons are written without the agent
 
-Requirement: 793a2c When a [turn](#793a1a-terms) holds a confirmed lesson that the [vault](../../GLOSSARY.md#vault) does not already state (`793a3c`), a [note](../../GLOSSARY.md#permanent-note) stating it MUST be in the vault within 2 minutes (`793c2`) after the turn ends, while the [session](../../GLOSSARY.md#session) stays open for those 2 minutes (`793c14`), written by [automatic memory](#793a1a-terms) and not by the [agent](#793a1a-terms), and marked as written automatically. A turn holds a confirmed lesson when the user corrected the agent, asked it to remember something (even if the agent says it did not save it) or confirmed that an approach worked, when the agent plainly corrected its own earlier claim, or when an uncertain approach succeeded with evidence in the turn. A turn that holds only guesses, plans or chatter MUST NOT produce a note; a thanks or "it worked" that names no approach is chatter. A note MUST NOT contain a credential, token, key or password that appeared in the turn in a recognised form (`793c49`): a private key block; a key or token that opens with the name of the service that issued it (GitHub, npm, GitLab, Slack, Google or AWS); a signed token of three parts joined by dots; a `Bearer` or `Basic` credential of 12 characters or more; the user and password of a web address; the value of an `Authorization` header; the value a name holding key, token, secret, password, credential or private key is given by `=`, `:` or `is`, with up to six words of the sentence between the name and `:` or `is`; or a run of 32 or more letters and digits. A credential in any other form, such as a password a sentence gives without `is` or `:`, or a token split over two lines, is not promised away.
+Requirement: 793a2c When a [turn](#793a1a-terms) holds a confirmed lesson that the [vault](../../GLOSSARY.md#vault) does not already state ([793a3c Nothing the vault already says is written again](#793a3c-nothing-the-vault-already-says-is-written-again)), a [note](../../GLOSSARY.md#permanent-note) stating it MUST be in the vault within 2 minutes ([793c2 How soon after a turn must automatic memory have finished writing?](./793c_open-questions.md#793c2-how-soon-after-a-turn-must-automatic-memory-have-finished-writing)) after the turn ends, while the [session](../../GLOSSARY.md#session) stays open for those 2 minutes ([793c14 Is a turn that is followed by the end of the session covered?](./793c_open-questions.md#793c14-is-a-turn-that-is-followed-by-the-end-of-the-session-covered)), written by [automatic memory](#793a1a-terms) and not by the [agent](#793a1a-terms), and marked as written automatically. A turn holds a confirmed lesson when the user corrected the agent, asked it to remember something (even if the agent says it did not save it) or confirmed that an approach worked, when the agent plainly corrected its own earlier claim, or when an uncertain approach succeeded with evidence in the turn. A turn that holds only guesses, plans or chatter MUST NOT produce a note; a thanks or "it worked" that names no approach is chatter. A note MUST NOT contain a credential, token, key or password that appeared in the turn in a recognised form ([793c49 Should the promise that a note holds no credential stay absolute?](./793c_open-questions.md#793c49-should-the-promise-that-a-note-holds-no-credential-stay-absolute)): a private key block; a key or token that opens with the name of the service that issued it (GitHub, npm, GitLab, Slack, Google or AWS); a signed token of three parts joined by dots; a `Bearer` or `Basic` credential of 12 characters or more; the user and password of a web address; the value of an `Authorization` header; the value a name holding key, token, secret, password, credential or private key is given by `=`, `:` or `is`, with up to six words of the sentence between the name and `:` or `is`; or a run of 32 or more letters and digits. A credential in any other form, such as a password a sentence gives without `is` or `:`, or a token split over two lines, is not promised away.
 
 #### 793a2c1 UAT Scenarios
 
@@ -147,15 +147,15 @@ Scenario: 793a2c1i A request to remember is written when the agent says it did n
 
 ### 793a2f The conversation becomes searchable memory
 
-Requirement: 793a2f Within 2 minutes (`793c2`) after a [turn](#793a1a-terms) ends, while the [session](../../GLOSSARY.md#session) stays open for those 2 minutes (`793c14`), [automatic memory](#793a1a-terms) MUST make the session's conversation so far findable by the [agent](#793a1a-terms)'s own memory lookup (`engram query`), without the user or the agent running [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand).
+Requirement: 793a2f Within 2 minutes ([793c2 How soon after a turn must automatic memory have finished writing?](./793c_open-questions.md#793c2-how-soon-after-a-turn-must-automatic-memory-have-finished-writing)) after a [turn](#793a1a-terms) ends, while the [session](../../GLOSSARY.md#session) stays open for those 2 minutes ([793c14 Is a turn that is followed by the end of the session covered?](./793c_open-questions.md#793c14-is-a-turn-that-is-followed-by-the-end-of-the-session-covered)), [automatic memory](#793a1a-terms) MUST make the session's conversation so far findable by the [agent](#793a1a-terms)'s own memory lookup (`engram query`), without the user or the agent running [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand).
 
 #### 793a2f1 UAT Scenarios
 
-Pending step 2 (`793f3`).
+Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
 
 ### 793a2d Never in the way
 
-Requirement: 793a2d [Automatic memory](#793a1a-terms) MUST NOT hold a [prompt](#793a1a-terms) for longer than 8 seconds (`793c1`), MUST NOT edit the user's prompt or the text of the [agent](#793a1a-terms)'s reply, MUST NOT break or stall a [session](../../GLOSSARY.md#session), and MUST NOT deliver to or write from its own sessions, the sessions it starts itself to do its work. When it cannot do its work, for any reason, including a delivery that does not finish within those 8 seconds and a write that fails, it MUST step aside, and the session MUST continue as if automatic memory were not installed.
+Requirement: 793a2d [Automatic memory](#793a1a-terms) MUST NOT hold a [prompt](#793a1a-terms) for longer than 8 seconds ([793c1 How long may a prompt be held?](./793c_open-questions.md#793c1-how-long-may-a-prompt-be-held)), MUST NOT edit the user's prompt or the text of the [agent](#793a1a-terms)'s reply, MUST NOT break or stall a [session](../../GLOSSARY.md#session), and MUST NOT deliver to or write from its own sessions, the sessions it starts itself to do its work. When it cannot do its work, for any reason, including a delivery that does not finish within those 8 seconds and a write that fails, it MUST step aside, and the session MUST continue as if automatic memory were not installed.
 
 #### 793a2d1 UAT Scenarios
 
@@ -171,7 +171,7 @@ Scenario: 793a2d1b Automatic memory's work starts no session of its own
   Then within 2 minutes the vault holds a note for the correction, and no session but the user's exists, so nothing was delivered to or written from another
 ```
 
-The other clauses' scenarios are pending step 2 (`793e6c`).
+The other clauses' scenarios are pending step 2 ([793e6c Never in the way](./793e_implementation-plan.md#793e6c-never-in-the-way)).
 
 ### 793a2e The user can see what it did
 
@@ -179,13 +179,13 @@ Requirement: 793a2e When [automatic memory](#793a1a-terms) delivered a [note](..
 
 #### 793a2e1 UAT Scenarios
 
-Pending step 2 (`793f3`).
+Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
 
 ## 793a3 Added: Interactions
 
 ### 793a3a What is written is delivered later
 
-Requirement: 793a3a A [note](../../GLOSSARY.md#permanent-note) that [automatic memory](#793a1a-terms) writes (`793a2c`) MUST be put in the [agent](#793a1a-terms)'s context (`793a2b`) with every [prompt](#793a1a-terms) sent after it is written, in the same [session](../../GLOSSARY.md#session) and in later sessions, that it bears on.
+Requirement: 793a3a A [note](../../GLOSSARY.md#permanent-note) that [automatic memory](#793a1a-terms) writes ([793a2c Lessons are written without the agent](#793a2c-lessons-are-written-without-the-agent)) MUST be put in the [agent](#793a1a-terms)'s context ([793a2b Memory arrives with the prompt](#793a2b-memory-arrives-with-the-prompt)) with every [prompt](#793a1a-terms) sent after it is written, in the same [session](../../GLOSSARY.md#session) and in later sessions, that it bears on.
 
 #### 793a3a1 UAT Scenarios
 
@@ -238,6 +238,6 @@ Scenario: 793a3e1a The agent's own lookups and saves keep working
 
 Target: [792a2e First-use vault creation](../../specs/product/vault-identity.md#792a2e-first-use-vault-creation)
 
-Requirement: 792a2e Every command that resolves a vault path, other than the commands that [automatic memory](#793a1a-terms) runs on its own, MUST, when no [vault](../../GLOSSARY.md#vault) exists at that path, create one before the command runs, whether or not `ENGRAM_PARENT` is set, and print exactly one stderr line, `engram: created new vault at <path>`. The new vault contains `.obsidian/app.json`, a `.gitignore`, a starter `README.md`, a vault ID ([792a2h Stable vault ID](../../specs/product/vault-identity.md#792a2h-stable-vault-id)) and the `.engram/` state directory ([792a2k Exchange state outside tracked files](../../specs/product/vault-identity.md#792a2k-exchange-state-outside-tracked-files)). A command that automatic memory runs on its own creates no vault (`793a2a`).
+Requirement: 792a2e Every command that resolves a vault path, other than the commands that [automatic memory](#793a1a-terms) runs on its own, MUST, when no [vault](../../GLOSSARY.md#vault) exists at that path, create one before the command runs, whether or not `ENGRAM_PARENT` is set, and print exactly one stderr line, `engram: created new vault at <path>`. The new vault contains `.obsidian/app.json`, a `.gitignore`, a starter `README.md`, a vault ID ([792a2h Stable vault ID](../../specs/product/vault-identity.md#792a2h-stable-vault-id)) and the `.engram/` state directory ([792a2k Exchange state outside tracked files](../../specs/product/vault-identity.md#792a2k-exchange-state-outside-tracked-files)). A command that automatic memory runs on its own creates no vault ([793a2a On after `engram update`](#793a2a-on-after-engram-update)).
 
-Rationale: a [prompt](#793a1a-terms) must not create a vault the user has not asked for, and a missing vault is the user's to create with a command they run (scenario `793a2a1e`).
+Rationale: a [prompt](#793a1a-terms) must not create a vault the user has not asked for, and a missing vault is the user's to create with a command they run (scenario [793a2a1e A vault that does not exist is not created](#793a2a1-uat-scenarios)).
