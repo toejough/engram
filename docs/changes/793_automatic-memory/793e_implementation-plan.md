@@ -410,6 +410,19 @@ Takes [793a2c1g A credential in the turn is not in the note](./793a_product-spec
 | 793d4g1f | Dedicated example (default suite) | the order of redaction and cut, on a token that the cut falls in | | Done | 39a32553 | 18f731af | |
 | 793d4g1g | Dedicated example (default suite) | the bounds of the window: the context, the whole, and the line that says some of the [turn](./793a_product-spec.md#793a1a-terms) is left out | | Done | 39a32553 | 18f731af | |
 
+#### 793e6b8 A lesson an earlier note states is not written again
+
+Takes [793a3c1a A lesson an earlier note states is not written again](./793a_product-spec.md#793a3c1-uat-scenarios). It gives the judgement the [notes](../../GLOSSARY.md#permanent-note) nearest to the [turn](./793a_product-spec.md#793a1a-terms), and the writing the cover a lesson may name.
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| 793a3c1a | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the user saves a lesson, states it again in a [session](../../GLOSSARY.md#session), and the [vault](../../GLOSSARY.md#vault) holds the earlier [note](../../GLOSSARY.md#permanent-note) only; the test waits for the record of the reply, so that the absence of a second note is the result of the judgement | Not started | | | |
+| 793d4g1h | Dedicated example (default suite) | the nearest notes in the request, through `RunAutoJudge` over an in-memory [vault](../../GLOSSARY.md#vault) | Not started | | | |
+| 793d4g1i | Dedicated example (default suite) | the failure branch of the lookup, as the delivery has it | Not started | | | |
+| 793d4g1j | Dedicated example (default suite) | what a note may not do to the window: a line break, a credential, a body of any length | Not started | | | |
+| 793d4h1e | Dedicated example (default suite) | the cover: no write and a record that names the note | Not started | | | |
+| 793d4h1f | Dedicated example (default suite) | what is no cover: a file that is not in the [vault](../../GLOSSARY.md#vault), and a path outside it | Not started | | | |
+
 ### 793e6e The conversation becomes searchable memory
 
 Takes [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory).

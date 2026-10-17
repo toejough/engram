@@ -233,7 +233,7 @@ Scenario: 793d2b1d A model that does not answer is reported to the writing
 - **learn path** (retained): the write of a note, as [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand) does it (`RunLearn`).
 - **harness-deploy-sync** (updated): plans, links, reports and removes the mod as it does a [skill](../../GLOSSARY.md#skill) directory, and
   reports it as a mod ([793b47 A dry run reports the mod as a mod](./793b_decision-log.md#793b47-a-dry-run-reports-the-mod-as-a-mod)).
-- **query-engine** (retained): the lookup of notes for text, used as `engram query` uses it.
+- **query-engine** (retained): the lookup of notes for text, used as `engram query` uses it, by the delivery and by the judgement.
 - **Claude Code's mod runtime** (an external boundary, retained): loads a mod from `~/.claude/skills/<name>`, runs its
   `prompt.submit` function for each prompt and its `turn.complete` function for each turn, runs the commands it asks
   for, makes the model calls it asks for with the user's own login, and carries the context it returns to the
@@ -530,9 +530,12 @@ message is redacted ([793d4j Redacting credentials](#793d4j-redacting-credential
 1,200 characters; the context is its last 6 lines; and the window is cut to 8,000 characters, the oldest lines of the
 context first and then the middle of the turn, where the line `--- some of the turn is left out ---` stands in place of
 the lines left out. The final text is the last line of the turn when no line of the turn holds its first 80
-characters. It MUST print nothing, and succeed,
+characters. The prompt MUST also hold, as lines of the section of [notes](../../GLOSSARY.md#permanent-note), the notes nearest to the turn: the notes
+that the lookup of [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) returns for the text of the prompts of the turn, each in the form of a line of a
+block (a dash, the file name, the situation in parentheses, a colon and the body), with its text redacted, written as
+one line and cut to 400 characters, or the word `(none)` when there are none. It MUST print nothing, and succeed,
 when the record holds no prompt or there is no record, and print nothing and fail, naming the cause, when its input is
-not a JSON object.
+not a JSON object or the lookup fails.
 
 Owner: turn-judgement (a new component; its canonical file at promotion is `turn-judgement.md`)
 
@@ -571,6 +574,21 @@ Scenario: 793d4g1f A line is cut after its credentials are redacted
   When the lines of the turn are made
   Then no part of the token is in the request
 
+Scenario: 793d4g1h The nearest notes are in the request
+  Given a vault holding a note that says when the staging database is reset and a note about formatting Python files, and the record of a session whose turn asks about the staging database
+  When the judgement is given the session
+  Then the request lists the staging note, with its file name, its situation and its body on one line, and not the formatting note
+
+Scenario: 793d4g1i A failed lookup fails the command and prints nothing
+  Given a lookup that fails
+  When the judgement is given the record of a session with a prompt
+  Then it fails with an error that names the lookup's failure, and it prints nothing
+
+Scenario: 793d4g1j A note cannot reshape the window
+  Given a note whose situation and body hold line breaks, a credential and more than 400 characters
+  When the request is made
+  Then the note is one line of the section of notes, the credential is redacted, and the body is cut to 400 characters
+
 Scenario: 793d4g1g A long conversation is cut to the bound
   Given a record with more context than the window holds, and a turn with more lines than it holds
   When the judgement is given the session
@@ -583,7 +601,10 @@ Requirement: 793d4h The lesson-writing MUST read one JSON object with the `sessi
 model's `reply` or, when the model gave none, the `failure` that left the mod without one, from standard input. The reply
 is a JSON array of lessons, with or without a code fence around it. A lesson has a `kind`,
 which is `feedback`, with a `behavior`, an `impact` and an `action`, or `fact`, with a `subject`, a `predicate` and an
-`object`; a `slug` of lower-case letters, digits and dashes; and a `situation`. It MUST write each lesson as a
+`object`; a `slug` of lower-case letters, digits and dashes; and a `situation`. A lesson may also name, as `covered`,
+the file name of a [note](../../GLOSSARY.md#permanent-note) of the [vault](../../GLOSSARY.md#vault) that already states it. A lesson whose `covered` names a file of the [vault](../../GLOSSARY.md#vault) MUST NOT be
+written: it is recorded as skipped, with the name of the note; a name of a file that is not in the [vault](../../GLOSSARY.md#vault), or that is not
+a file name, covers nothing. It MUST write each other lesson as a
 [note](../../GLOSSARY.md#permanent-note) of its kind through the learn path of [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand), at the top of the order of the [vault](../../GLOSSARY.md#vault), with the source
 `written automatically (session <the session's ID>)`, and MUST print the path of each note it wrote. A reply that is not
 a list of lessons, and a lesson that lacks a field or has a kind it does not know, write nothing, and each is recorded
@@ -615,6 +636,16 @@ Scenario: 793d4h1d The code fence around the list is not part of it
   Given a reply that holds one lesson inside a code fence
   When the lessons are written
   Then the vault holds the lesson's note
+
+Scenario: 793d4h1e A lesson that a note of the vault covers is not written
+  Given a vault holding a note, and a reply whose lesson names that note as covering it
+  When the lessons are written
+  Then no note is written, and one record, of the kind skipped, names the note that covers the lesson
+
+Scenario: 793d4h1f A cover that is not in the vault covers nothing
+  Given a reply whose lesson names as covering it a file that is not in the vault, and a reply whose lesson names a path outside the vault
+  When the lessons are written
+  Then the lesson is written in each
 ```
 
 ### 793d4j Redacting credentials
@@ -923,6 +954,20 @@ Scenario: 793a2c1g A credential in the turn is not in the note
 
 Realized by [793d4j Redacting credentials](#793d4j-redacting-credentials) (the judgement redacts the [turn](./793a_product-spec.md#793a1a-terms) before the model sees it, and the writing redacts the lesson before the [note](../../GLOSSARY.md#permanent-note) is written), [793d4g Judging a turn](#793d4g-judging-a-turn) (the redaction comes before the cut) and
 [793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply) (the [note](../../GLOSSARY.md#permanent-note) of the correction is written), with the components of [793d5j Mapping of 793a2c1a](#793d5j-mapping-of-793a2c1a).
+
+### 793d5q Mapping of 793a3c1a
+
+The product scenario [793a3c1a A lesson an earlier note states is not written again](./793a_product-spec.md#793a3c1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a3c1a A lesson an earlier note states is not written again
+  Given the user has run engram update, a vault holding a note that the user saved earlier and that states a lesson, and a session in which the agent may not run engram commands
+  When the user states the same lesson to the agent in a prompt, and the turn ends
+  Then 2 minutes after the turn ends the vault holds the earlier note only
+```
+
+Realized by [793d4g Judging a turn](#793d4g-judging-a-turn) (the request lists the [note](../../GLOSSARY.md#permanent-note) nearest to the [turn](./793a_product-spec.md#793a1a-terms), so the earlier note is there for the model to name) and
+[793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply) (the lesson that the earlier note covers is not written, and the record says which note covers it), with the lookup of [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt).
 
 ## 793d6 Recommended impact
 
