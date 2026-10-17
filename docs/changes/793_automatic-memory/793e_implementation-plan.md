@@ -453,7 +453,7 @@ Takes [793a2a1f A second update still writes each lesson as one note](./793a_pro
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2a1f | Dedicated example, product acceptance (`network`) | the repeat as the user sees it: two real updates, then a correction in a [session](../../GLOSSARY.md#session), and the [vault](../../GLOSSARY.md#vault) holds one [note](../../GLOSSARY.md#permanent-note) for it; the test waits for the end of the write and then for a settling time, so that a second note written beside the first would be seen. The test passes when written, because the update is idempotent over the [skills](../../GLOSSARY.md#skill) already; the mutation that makes it fail is a mod that registers its capture of the [turn](./793a_product-spec.md#793a1a-terms) twice | Red | | | |
+| 793a2a1f | Dedicated example, product acceptance (`network`) | the repeat as the user sees it: two real updates, then a correction in a [session](../../GLOSSARY.md#session), and the [vault](../../GLOSSARY.md#vault) holds one [note](../../GLOSSARY.md#permanent-note) for it; the test waits for the end of the write and then for a settling time, so that a second note written beside the first would be seen. The test passes when written, because the update is idempotent over the [skills](../../GLOSSARY.md#skill) already; the mutation that makes it fail is a mod that registers its capture of the [turn](./793a_product-spec.md#793a1a-terms) twice | Done | n/a | 164a85e8 | 4ed50702 |
 
 ### 793e6e The conversation becomes searchable memory
 
