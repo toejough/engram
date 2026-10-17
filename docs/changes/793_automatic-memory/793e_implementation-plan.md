@@ -352,7 +352,7 @@ Takes [793a2c1b A request to remember becomes a note](./793a_product-spec.md#793
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1b | Dedicated example, product acceptance (`network`) | the second kind of lesson as the user sees it: a request to remember, written as a fact; the pipeline of the first node already writes it, so the test passes when written, and mutation checks, run on scratch copies of the branch: instructions of the judgement without the request to remember make it fail (3 of 3 runs), and so does a write that writes no note | Green-all | n/a | | |
+| 793a2c1b | Dedicated example, product acceptance (`network`) | the second kind of lesson as the user sees it: a request to remember, written as a fact; the pipeline of the first node already writes it, so the test passes when written, and mutation checks, run on scratch copies of the branch: instructions of the judgement without the request to remember make it fail (3 of 3 runs), and so does a write that writes no note | Done | n/a | d01d5c35 | |
 
 #### 793e6b3 An approach the user confirmed becomes a note
 
@@ -360,7 +360,7 @@ Takes [793a2c1c An approach the user confirmed becomes a note](./793a_product-sp
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1c | Dedicated example, product acceptance (`network`) | the third kind: a [turn](./793a_product-spec.md#793a1a-terms) in which the user says that the way the [agent](./793a_product-spec.md#793a1a-terms) did a task worked, with the task in the turn before; mutation checks, run on scratch copies of the branch: a write that writes no note makes it fail; instructions without the confirmed approach do not (3 of 3 runs passed, and the judgement of the same turn gave a lesson in 10 of 20 probes against 20 of 20), because the user's "keep doing it" is a rule of its own | Green-all | n/a | | |
+| 793a2c1c | Dedicated example, product acceptance (`network`) | the third kind: a [turn](./793a_product-spec.md#793a1a-terms) in which the user says that the way the [agent](./793a_product-spec.md#793a1a-terms) did a task worked, with the task in the turn before; mutation checks, run on scratch copies of the branch: a write that writes no note makes it fail; instructions without the confirmed approach do not (3 of 3 runs passed, and the judgement of the same turn gave a lesson in 10 of 20 probes against 20 of 20), because the user's "keep doing it" is a rule of its own | Done | n/a | d01d5c35 | |
 
 #### 793e6b4 The agent's own correction becomes a note
 
@@ -368,7 +368,7 @@ Takes [793a2c1d The agent's own correction becomes a note](./793a_product-spec.m
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1d | Dedicated example, product acceptance (`network`) | the fourth kind: the [agent](./793a_product-spec.md#793a1a-terms) states a guess, reads a file and says its guess was wrong, in one [turn](./793a_product-spec.md#793a1a-terms); mutation check, run on a scratch copy of the branch: instructions of the judgement without the agent's own correction make it fail (3 of 3 runs) | Green-all | n/a | | |
+| 793a2c1d | Dedicated example, product acceptance (`network`) | the fourth kind: the [agent](./793a_product-spec.md#793a1a-terms) states a guess, reads a file and says its guess was wrong, in one [turn](./793a_product-spec.md#793a1a-terms); mutation check, run on a scratch copy of the branch: instructions of the judgement without the agent's own correction make it fail (3 of 3 runs) | Done | n/a | d01d5c35 | |
 
 #### 793e6b5 An approach that succeeded with evidence becomes a note
 
@@ -376,7 +376,7 @@ Takes [793a2c1e An approach that succeeded with evidence becomes a note](./793a_
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1e | Dedicated example, product acceptance (`network`) | the fifth kind: the [agent](./793a_product-spec.md#793a1a-terms) is unsure of an approach, tries it, and the [turn](./793a_product-spec.md#793a1a-terms) shows that the check passed. The staging names the one command to run, because the first version let the agent add an echo that the permission denied. With the instructions of the first node it passed 17 of 20 runs, under the bar of 9 in 10: in the three failed runs the judgement answered that the turn held no lesson, for a turn that says "I do not know whether the flag makes the check pass" and then "the check passed" (the same window gave a lesson in 11 of 20 probes, and in 20 of 20 once the instructions said that an approach the agent was unsure of, tried and saw succeed is a lesson even when the user asked for the try; the test then passed 10 of 10 runs) | Green-all | 4a70996b | | |
+| 793a2c1e | Dedicated example, product acceptance (`network`) | the fifth kind: the [agent](./793a_product-spec.md#793a1a-terms) is unsure of an approach, tries it, and the [turn](./793a_product-spec.md#793a1a-terms) shows that the check passed. The staging names the one command to run, because the first version let the agent add an echo that the permission denied. With the instructions of the first node it passed 17 of 20 runs, under the bar of 9 in 10: in the three failed runs the judgement answered that the turn held no lesson, for a turn that says "I do not know whether the flag makes the check pass" and then "the check passed" (the same window gave a lesson in 11 of 20 probes, and in 20 of 20 once the instructions said that an approach the agent was unsure of, tried and saw succeed is a lesson even when the user asked for the try; the test then passed 10 of 10 runs) | Done | 4a70996b | 6e918969 | |
 
 ### 793e6e The conversation becomes searchable memory
 

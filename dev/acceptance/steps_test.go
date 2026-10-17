@@ -107,6 +107,19 @@ func (m *machine) agentMayRun(commands ...string) {
 	writeFile(m.t, filepath.Join(m.claudeDir, "settings.json"), string(settings))
 }
 
+// awaitAutomaticNote waits for the note of a lesson, a note that holds every word given, logs it, and fails the test
+// unless the note says it was written automatically.
+func (m *machine) awaitAutomaticNote(turnEnds time.Time, what string, words ...string) {
+	m.t.Helper()
+
+	note, took := m.awaitNote(turnEnds, what, func(note vaultNote) bool { return note.states(words...) })
+	m.t.Logf("the note %s was written %s after the turn ended:\n%s", note.name, took, note.text)
+
+	if !strings.Contains(note.source(), "written automatically") {
+		m.t.Fatalf("the source of %s does not say that it was written automatically: %q", note.name, note.source())
+	}
+}
+
 // awaitNote waits until a note of the vault satisfies match, or the bound passes, and returns the note with how long
 // after the turn ended it was written. It fails the test when no note satisfies match in time.
 func (m *machine) awaitNote(turnEnds time.Time, what string, match func(vaultNote) bool) (vaultNote, time.Duration) {

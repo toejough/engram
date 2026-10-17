@@ -39,12 +39,8 @@ func Test793a2c1a_ACorrectionBecomesANote(t *testing.T) {
 
 	step(t, "Then within 2 minutes the vault holds a note that states the correction and says it was written "+
 		"automatically, and the agent wrote nothing to the vault", func() {
-		note, took := machine.awaitNote(chat.turnEnds, "that states the correction", func(note vaultNote) bool {
-			return note.states(buildTarget)
-		})
-		t.Logf("the note %s was written %s after the turn ended:\n%s", note.name, took, note.text)
+		machine.awaitAutomaticNote(chat.turnEnds, "that states the correction", buildTarget)
 
-		g.Expect(note.source()).To(ContainSubstring("written automatically"))
 		g.Expect(inSession.agentRan("engram")).To(BeFalse(), "the agent ran an engram command")
 	})
 }
@@ -70,11 +66,8 @@ func Test793a2c1b_ARequestToRememberBecomesANote(t *testing.T) {
 
 	step(t, "Then within 2 minutes the vault holds a note that states it and says it was written automatically, "+
 		"and the agent wrote nothing to the vault", func() {
-		note, took := machine.awaitNote(chat.turnEnds, "that states what was asked to be remembered",
-			func(note vaultNote) bool { return note.states("Sunday", "03:40") })
-		t.Logf("the note %s was written %s after the turn ended:\n%s", note.name, took, note.text)
+		machine.awaitAutomaticNote(chat.turnEnds, "that states what was asked to be remembered", "Sunday", "03:40")
 
-		g.Expect(note.source()).To(ContainSubstring("written automatically"))
 		g.Expect(chat.session.agentRan("engram")).To(BeFalse(), "the agent ran an engram command")
 	})
 }
@@ -82,7 +75,6 @@ func Test793a2c1b_ARequestToRememberBecomesANote(t *testing.T) {
 func Test793a2c1c_AnApproachTheUserConfirmedBecomesANote(t *testing.T) {
 	t.Parallel()
 
-	g := NewWithT(t)
 	machine := newMachine(t)
 
 	var chat *conversation
@@ -107,18 +99,13 @@ func Test793a2c1c_AnApproachTheUserConfirmedBecomesANote(t *testing.T) {
 
 	step(t, "Then within 2 minutes the vault holds a note that states the approach and says it was written "+
 		"automatically", func() {
-		note, took := machine.awaitNote(chat.turnEnds, "that states the approach",
-			func(note vaultNote) bool { return note.states("sort", "zorblax") })
-		t.Logf("the note %s was written %s after the turn ended:\n%s", note.name, took, note.text)
-
-		g.Expect(note.source()).To(ContainSubstring("written automatically"))
+		machine.awaitAutomaticNote(chat.turnEnds, "that states the approach", "sort", "zorblax")
 	})
 }
 
 func Test793a2c1d_TheAgentsOwnCorrectionBecomesANote(t *testing.T) {
 	t.Parallel()
 
-	g := NewWithT(t)
 	machine := newMachine(t)
 
 	var chat *conversation
@@ -140,18 +127,13 @@ func Test793a2c1d_TheAgentsOwnCorrectionBecomesANote(t *testing.T) {
 
 	step(t, "Then within 2 minutes the vault holds a note that states what the file says and says it was written "+
 		"automatically", func() {
-		note, took := machine.awaitNote(chat.turnEnds, "that states what the file says",
-			func(note vaultNote) bool { return note.states("7731") })
-		t.Logf("the note %s was written %s after the turn ended:\n%s", note.name, took, note.text)
-
-		g.Expect(note.source()).To(ContainSubstring("written automatically"))
+		machine.awaitAutomaticNote(chat.turnEnds, "that states what the file says", "7731")
 	})
 }
 
 func Test793a2c1e_AnApproachThatSucceededWithEvidenceBecomesANote(t *testing.T) {
 	t.Parallel()
 
-	g := NewWithT(t)
 	machine := newMachine(t)
 
 	var chat *conversation
@@ -173,11 +155,7 @@ func Test793a2c1e_AnApproachThatSucceededWithEvidenceBecomesANote(t *testing.T) 
 
 	step(t, "Then within 2 minutes the vault holds a note that states the approach and says it was written "+
 		"automatically", func() {
-		note, took := machine.awaitNote(chat.turnEnds, "that states the approach",
-			func(note vaultNote) bool { return note.states("zorblax-safe") })
-		t.Logf("the note %s was written %s after the turn ended:\n%s", note.name, took, note.text)
-
-		g.Expect(note.source()).To(ContainSubstring("written automatically"))
+		machine.awaitAutomaticNote(chat.turnEnds, "that states the approach", "zorblax-safe")
 	})
 }
 
