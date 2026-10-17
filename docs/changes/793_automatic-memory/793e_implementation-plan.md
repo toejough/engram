@@ -235,13 +235,13 @@ Rows are added when step 3 reaches a node, and worked top to bottom, one node at
 | 793d4a1a | Dedicated example (default suite) | the command's contract over standard input and output, an in-memory vault and a stub embedder |  | Done | a81ad4bb | 1e0a3a11 | 99e1ea5a |
 | 793d4a1b | Dedicated example (default suite) | the failure branch the mod relies on to step aside; written with `793d4a1a`'s green, so it passed when written; mutation: a delivery that prints the block when the lookup fails fails it |  | Done | n/a | 04dbc127 | be61a161 |
 | 793d4c1a | Property-based (`rapid`) with named examples (default suite) | the guarantee an adversarial note must not break: the block's shape | for any notes with arbitrary text, line breaks, control characters, the framing line and lines that read as notes: the block ends with one line feed and has one line more than notes; its first line is the fixed framing line beginning `[engram memory]`; every other line begins with a dash and a space, never with `[engram memory]`, and holds no control character and no white space but spaces | Done | 93d584e5 | f239e102 | fa641f64 |
-| 793d4c1a (amended) | Property-based (`rapid`) with named examples (default suite) | review fix: the same with format characters among the hostile text | as above with control and format characters in the text: no line holds a control character, a format character or white space but a space | Done | b4a8ae72 | 10bf851f | 5a774bf5 |
-| 793d4c1b | Dedicated example (default suite) | review fix: zero-width and bidirectional characters, byte-order mark and soft hyphen are dropped and the words joined |  | Done | b4a8ae72 | 10bf851f | 5a774bf5 |
+| 793d4c1a (amended) | Property-based (`rapid`) with named examples (default suite) | the same with format characters among the hostile text | as above with control and format characters in the text: no line holds a control character, a format character or white space but a space | Done | b4a8ae72 | 10bf851f | 5a774bf5 |
+| 793d4c1b | Dedicated example (default suite) | zero-width and bidirectional characters, byte-order mark and soft hyphen are dropped and the words joined |  | Done | b4a8ae72 | 10bf851f | 5a774bf5 |
 | 793d4b1a | Dedicated example (default suite) | the mod copies' plan, finite and exact |  | Done | 7f1b9628 | 90db8458 | 30c80c31 |
 | 793d4b1b | Dedicated example (default suite) | a source without mods plans none and fails nowhere |  | Done | 5b38f353 | 5dec69a1 | cecf5759 |
 | 793d4b1c | Dedicated example (default suite) | the plan wired into `Updater.Run`: the mod reaches the engram-owned root and is linked from the [skills](../../GLOSSARY.md#skill) directory |  | Done | a05fbcdd | 067f61ad | 647dfe7c |
 | 793d2a1a | Dedicated example, real dependency (`network`) | the mod's routing and placement in a real session against an `engram` that prints a chosen block |  | Done | 1d4ce5c7 | 4079d1d3 | dc501762 |
-| `TestSharedSource_NoFileIsSharedWithTheWorktree` | Dedicated example, real dependency (`network`) | review fix: the checkout `engram update` runs in copies the worktree's files, not links them (`793f7`); the first version hard-linked every file |  | Done | c19a15bd | 43446091 | 44d04314 |
+| `TestSharedSource_NoFileIsSharedWithTheWorktree` | Dedicated example, real dependency (`network`) | the checkout `engram update` runs in copies the worktree's files, not links them (`793f7`); the first version hard-linked every file |  | Done | c19a15bd | 43446091 | 44d04314 |
 
 #### 793e6a2 The notes that bear on a prompt arrive with it
 
@@ -255,36 +255,36 @@ Rows are added when step 3 reaches a node, and worked top to bottom, one node at
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
 | 793a2b1b | Dedicated example, product acceptance (`network`) | two [prompts](./793a_product-spec.md#793a1a-terms) in one real [session](../../GLOSSARY.md#session); the second arrives with nothing from the [vault](../../GLOSSARY.md#vault) | Done | 64cf7053 | 2cf56fc9 | ce8101b8 |
-| 793a2b1b (one live process) | Dedicated example, product acceptance (`network`) | review fix: both prompts through one running `claude`, so the second delivery reads a record written while open; passed when written; mutation: a delivery that ignores what the session holds gives the second prompt the block | Done | n/a | cf672314 | 03ce6777 |
+| 793a2b1b (one live process) | Dedicated example, product acceptance (`network`) | both prompts through one running `claude`, so the second delivery reads a record written while open; passed when written; mutation: a delivery that ignores what the session holds gives the second prompt the block | Done | n/a | cf672314 | 03ce6777 |
 | 793d2a1b | Dedicated example, real dependency (`network`) | the session's ID reaches the command, in a real session against a stand-in engram | Done | ee4404a4 | 7771477f | c0541b31 |
 | 793d4a1e | Dedicated example (default suite) | no remaining [note](../../GLOSSARY.md#permanent-note) prints nothing, so a held note's second prompt carries no empty block | Done | f6bea18c | 2cf56fc9 | d38d4777 |
 | 793d2a1c | Dedicated example, real dependency (`network`) | an empty output adds nothing: the session's record shows no context | Done | f867c44c | f395ec9e | a32ff6a4 |
-| 793d2a1e | Dedicated example, real dependency (`network`) | review fix: a failing command adds nothing even when it printed a block | Done | 95dc389d | 5a4bb9dc | 3f1a1ffd |
-| 793d2a1f | Dedicated example, real dependency (`network`) | review fix: output that is not a block adds nothing even on exit 0 | Done | 95dc389d | 5a4bb9dc | 3f1a1ffd |
-| 793d2a1g | Dedicated example, real dependency (`integration`, runs the mod under `node`) | review fix: the 7 seconds bound the whole hook; node runs the mod against a stand-in host whose ID call never answers (a live session cannot stall there), and the event passes unchanged after one 7-second timer without running the command | Done | 9d0f9d36 | e86e4625 | efeaa801 |
+| 793d2a1e | Dedicated example, real dependency (`network`) | a failing command adds nothing even when it printed a block | Done | 95dc389d | 5a4bb9dc | 3f1a1ffd |
+| 793d2a1f | Dedicated example, real dependency (`network`) | output that is not a block adds nothing even on exit 0 | Done | 95dc389d | 5a4bb9dc | 3f1a1ffd |
+| 793d2a1g | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the 7 seconds bound the whole hook; node runs the mod against a stand-in host whose ID call never answers (a live session cannot stall there), and the event passes unchanged after one 7-second timer without running the command | Done | 9d0f9d36 | e86e4625 | efeaa801 |
 | 793d4d1a | Dedicated example (default suite) | what counts as held: the blocks delivered beside prompts and nothing else, over records of the real format | Done | 0d78b09e | 9bdc5e9e | a03c7312 |
 | 793d4d1b | Dedicated example (default suite) | the record is found in a project's subdirectory of the session-log directory | Done | b9fb12de | 02318295 | 0bfe1688 |
 | 793d4d1c | Dedicated example (default suite) | boundaries: no record, an ID that would leave the directory | Done | fce4516a | a460368a | 0bfe1688 |
 | 793d4a1d | Dedicated example (default suite) | the delivery leaves out a held note | Done | cf03701a | b9ec02b7 | 0bfe1688 |
-| 793d4d1a (amended) | Dedicated example (default suite) | review fix: only the note lines of delivered blocks hold a note, by file name; situations, bodies and other hooks' entries hold none | Done | d183d346 | 642adbd6 | 642a4c9a |
+| 793d4d1a (amended) | Dedicated example (default suite) | only the note lines of delivered blocks hold a note, by file name; situations, bodies and other hooks' entries hold none | Done | d183d346 | 642adbd6 | 642a4c9a |
 
 #### 793e6a4 A note the agent looked up itself is not delivered
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
 | 793a2b1c | Dedicated example, product acceptance (`network`) | the other route to a held [note](../../GLOSSARY.md#permanent-note): the [agent](./793a_product-spec.md#793a1a-terms)'s own lookup in a [session](../../GLOSSARY.md#session) begun before the update, then the update and a resumed session | Done | d94dcace | e7e823fd | e68f65f7 |
-| 793a2b1c (a second note) | Dedicated example, product acceptance (`network`) | review fix: the [vault](../../GLOSSARY.md#vault) gains a second note after the agent's lookup and the [prompt](./793a_product-spec.md#793a1a-terms) arrives with it, so a mod that never loads no longer passes; passed when written; mutation: a mod that does not load | Done | n/a | 49bfdb06 | f9e6cd3f |
+| 793a2b1c (a second note) | Dedicated example, product acceptance (`network`) | the [vault](../../GLOSSARY.md#vault) gains a second note after the agent's lookup and the [prompt](./793a_product-spec.md#793a1a-terms) arrives with it, so a mod that never loads no longer passes; passed when written; mutation: a mod that does not load | Done | n/a | 49bfdb06 | f9e6cd3f |
 | 793d4d1d | Dedicated example (default suite) | what a tool printed counts as held in both result shapes; what the agent wrote does not | Done | 84f83b15 | e7e823fd | 31744d5c |
-| 793d4d1d (amended) | Dedicated example (default suite) | review fix: only the agent's own `engram query` and `engram show` commands count, paired with their results by tool ID | Done | d183d346 | 642adbd6 | 642a4c9a |
-| 793d4d1e | Dedicated example (default suite) | review fix: a listing of the vault is not a lookup | Done | d183d346 | 642adbd6 | 642a4c9a |
-| 793d4d1f | Dedicated example (default suite) | review fix: `engram show` prints a note without its file name, so the command's text holds it | Done | d183d346 | 642adbd6 | 642a4c9a |
-| 793d4a1g | Dedicated example (default suite) | review fix: a note the agent fetched by its basename without `.md` is left out | Done | d183d346 | 642adbd6 | 642a4c9a |
-| 793d4a1h | Injected and impure interaction (`imptest`, default suite) | review fix: the lookup runs once, for the vault given, with the prompt's text as message and only phrase (a left-out message passes every test over the real engine); the seam, the lookup as a function, was made first by refactor 8f30df47 | Done | n/a | dcaadbc0 | d18002dd |
-| 793d4a1i | Injected and impure interaction (`imptest`, default suite) | review fix: `Deliver` gives the lookup the request's text and the session reading the request's session ID; mutation: a `Deliver` that gives either an empty string | Done | n/a | d909ac5d | d18002dd |
-| 793d4f1a | Dedicated example (default suite) | review fix: `ENGRAM_TRANSCRIPT_DIR` names the records before `CLAUDE_CONFIG_DIR` | Done | n/a | 9ca57f87 | 8fa41f48 |
-| 793d4f1b | Dedicated example (default suite) | review fix: `CLAUDE_CONFIG_DIR/projects` names them when `ENGRAM_TRANSCRIPT_DIR` does not, and the home's `.claude/projects` is then not read; the place was checked with a real headless session | Done | 9ca57f87 | a2616081 | 8fa41f48 |
-| 793d4f1c | Dedicated example (default suite) | review fix: the home's `.claude/projects` when neither variable is set, which no test had run | Done | n/a | 9ca57f87 | 8fa41f48 |
-| 793d4f1d | Dedicated example (default suite) | review fix, found on the way: with no home directory the records directory is empty and the delivery read `<session>.jsonl` from the working directory | Done | b4358c93 | 9755ff6d | b7451101 |
+| 793d4d1d (amended) | Dedicated example (default suite) | only the agent's own `engram query` and `engram show` commands count, paired with their results by tool ID | Done | d183d346 | 642adbd6 | 642a4c9a |
+| 793d4d1e | Dedicated example (default suite) | a listing of the vault is not a lookup | Done | d183d346 | 642adbd6 | 642a4c9a |
+| 793d4d1f | Dedicated example (default suite) | `engram show` prints a note without its file name, so the command's text holds it | Done | d183d346 | 642adbd6 | 642a4c9a |
+| 793d4a1g | Dedicated example (default suite) | a note the agent fetched by its basename without `.md` is left out | Done | d183d346 | 642adbd6 | 642a4c9a |
+| 793d4a1h | Injected and impure interaction (`imptest`, default suite) | the lookup runs once, for the vault given, with the prompt's text as message and only phrase (a left-out message passes every test over the real engine); the seam, the lookup as a function, was made first by refactor 8f30df47 | Done | n/a | dcaadbc0 | d18002dd |
+| 793d4a1i | Injected and impure interaction (`imptest`, default suite) | `Deliver` gives the lookup the request's text and the session reading the request's session ID; mutation: a `Deliver` that gives either an empty string | Done | n/a | d909ac5d | d18002dd |
+| 793d4f1a | Dedicated example (default suite) | `ENGRAM_TRANSCRIPT_DIR` names the records before `CLAUDE_CONFIG_DIR` | Done | n/a | 9ca57f87 | 8fa41f48 |
+| 793d4f1b | Dedicated example (default suite) | `CLAUDE_CONFIG_DIR/projects` names them when `ENGRAM_TRANSCRIPT_DIR` does not, and the home's `.claude/projects` is then not read; the place was checked with a real headless session | Done | 9ca57f87 | a2616081 | 8fa41f48 |
+| 793d4f1c | Dedicated example (default suite) | the home's `.claude/projects` when neither variable is set, which no test had run | Done | n/a | 9ca57f87 | 8fa41f48 |
+| 793d4f1d | Dedicated example (default suite) | with no home directory the records directory is empty and the delivery read `<session>.jsonl` from the working directory | Done | b4358c93 | 9755ff6d | b7451101 |
 
 #### 793e6a5 A prompt that matches no note arrives with nothing
 
@@ -305,7 +305,7 @@ Rows are added when step 3 reaches a node, and worked top to bottom, one node at
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
 | 793a2a1e | Dedicated example, product acceptance (`network`) | after the [vault](../../GLOSSARY.md#vault) is removed a [prompt](./793a_product-spec.md#793a1a-terms) is answered and the vault is still not there | Done | d4336a43 | e924dc61 | 151f36ea |
-| 793a2a1e (the command ran) | Dedicated example, product acceptance (`network`) | review fix: the test asserts the mod ran its command, so a mod that never loads no longer passes; passed when written; mutation: a mod that does not load | Done | n/a | 49bfdb06 | f9e6cd3f |
+| 793a2a1e (the command ran) | Dedicated example, product acceptance (`network`) | the test asserts the mod ran its command, so a mod that never loads no longer passes; passed when written; mutation: a mod that does not load | Done | n/a | 49bfdb06 | f9e6cd3f |
 | 793d4e1a | Dedicated example (default suite) | the first-use step is in the target's wiring, not in the command, so only a dispatch through `cli.Targets` shows whether it runs | Done | c0aa0717 | e924dc61 | 81f8f93b |
 
 #### 793e6a8 Pi gets no automatic memory
@@ -340,7 +340,7 @@ Not a scenario of the specs: the rows are named by test.
 | `TestScenarioIDs_ListsEachScenarioOnceInOrder` | Dedicated example (dev suite, `targ` tag) | the pure reading of a spec: which scenario IDs it holds, a restated scenario counted once, prose that merely names an ID left out | Done | e9831720 | 0a7a2596 | 4754603f |
 | `TestScenariosWithoutTest_NamesThoseNoTestSourceDeclares` | Dedicated example (dev suite, `targ` tag) | the pure comparison: an ID has a test only when a function is named `Test<ID>_` | Done | 75a83363 | 11bfaf7d | a8841eeb |
 | `TestConformance_EveryScenarioOfTheSpecsHasATest` | Dedicated example (dev integration suite, `targ` and `integration` tags) | the real specs against the real test files, `network`-tagged files included | Done | n/a | ad2af52f | 1588e189 |
-| `TestScenariosWithoutTest_OnlyADeclaredFunctionIsATest` | Dedicated example (dev suite, `targ` tag) | review fix: a test is a function the Go parser finds declared; a string literal, a method, a function literal and a file that does not parse declare none (the first version counted text) | Done | 213ee02c | 14c04a9e | 434d6369 |
+| `TestScenariosWithoutTest_OnlyADeclaredFunctionIsATest` | Dedicated example (dev suite, `targ` tag) | a test is a function the Go parser finds declared; a string literal, a method, a function literal and a file that does not parse declare none (the first version counted text) | Done | 213ee02c | 14c04a9e | 434d6369 |
 
 #### 793e6a12 The gate that parses the mod's JavaScript
 
@@ -348,9 +348,9 @@ Not a scenario of the specs: the rows are named by test.
 
 | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| `TestModuleSyntax_FailsWhenNodeIsNotFound` | Injected and impure interaction (`imptest`, dev suite, `targ` tag) | review fix: a check that cannot run does not pass; a missing node is an error naming node | Done | 44d04314 | 7cd56a6f | 3af177ac |
-| `TestModuleSyntax_NamesEachFileThatDoesNotParse` | Injected and impure interaction (`imptest`, dev suite, `targ` tag) | review fix: each file is parsed by node on standard input; files that do not parse are named with what node said | Done | 44d04314 | 7cd56a6f | 3af177ac |
-| `TestMods_EveryJavaScriptModuleParses` | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | review fix: the real mods parse under the real node and a broken module is rejected by it, which the stand-in cannot show | Done | 44d04314 | 7cd56a6f | 3af177ac |
+| `TestModuleSyntax_FailsWhenNodeIsNotFound` | Injected and impure interaction (`imptest`, dev suite, `targ` tag) | a check that cannot run does not pass; a missing node is an error naming node | Done | 44d04314 | 7cd56a6f | 3af177ac |
+| `TestModuleSyntax_NamesEachFileThatDoesNotParse` | Injected and impure interaction (`imptest`, dev suite, `targ` tag) | each file is parsed by node on standard input; files that do not parse are named with what node said | Done | 44d04314 | 7cd56a6f | 3af177ac |
+| `TestMods_EveryJavaScriptModuleParses` | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the real mods parse under the real node and a broken module is rejected by it, which the stand-in cannot show | Done | 44d04314 | 7cd56a6f | 3af177ac |
 
 ### 793e6b Lessons are written without the agent
 
@@ -396,11 +396,11 @@ Builds the pipeline the other nodes of the group extend: the mod's capture of a 
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1e | Dedicated example, product acceptance (`network`) | the [agent](./793a_product-spec.md#793a1a-terms) is unsure of an approach, tries it, and the [turn](./793a_product-spec.md#793a1a-terms) shows the check passed; the staging names the one command to run (the agent had added an echo the permission denied). The first node's instructions passed 17 of 20 runs (the judgement gave a lesson in 11 of 20 probes); once they said that an approach the agent was unsure of, tried and saw succeed is a lesson, 20 of 20 probes and 10 of 10 runs | 10 of 10 | Done | 4a70996b | 6e918969 | 9cdc03f4 |
+| 793a2c1e | Dedicated example, product acceptance (`network`) | the [agent](./793a_product-spec.md#793a1a-terms) is unsure of an approach, tries it, and the [turn](./793a_product-spec.md#793a1a-terms) shows the check passed (the staging names the one command to run: the agent had added an echo the permission denied); the first node's instructions passed 17 of 20 runs (11 of 20 probes gave a lesson), and 10 of 10 runs (20 of 20 probes) once they said an approach the agent was unsure of, tried and saw succeed is a lesson | 10 of 10 | Done | 4a70996b | 6e918969 | 9cdc03f4 |
 
 #### 793e6b6 Guesses, plans and chatter produce no note
 
-Adds the record of what became of a reply, which a test of an absence waits for, and the report of a failed step to it. The message of commit `37b0e9a9` (the green of 793d4k1a) says the records directory is "by default /engram/auto": the shell expanded `$XDG_DATA_HOME` to nothing. It is `$XDG_DATA_HOME/engram/auto`, the default of `--records` of `engram auto write`; the commit is not amended.
+Adds the record of what became of a reply, which a test of an absence waits for, and the report of a failed step to it. The message of commit `37b0e9a9` (the green of `793d4k1a`) says the records directory is "by default /engram/auto": the shell expanded `$XDG_DATA_HOME` to nothing. It is `$XDG_DATA_HOME/engram/auto`, the default of `--records` of `engram auto write`; the commit is not amended.
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
