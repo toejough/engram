@@ -54,9 +54,11 @@ const (
 	// acceptancePackage holds the tests that drive real Claude Code sessions in isolated homes (793b9); they carry
 	// the network build tag, so no default target runs them.
 	acceptancePackage = "./dev/acceptance"
-	acceptanceTags    = "network"
-	evalOutDirPerm    = 0o750
-	targSourcePackage = "github.com/toejough/targ/dev"
+	// acceptanceParallel is how many of those tests run at once: more than 6 make the timed ones fail (793b49).
+	acceptanceParallel = "4"
+	acceptanceTags     = "network"
+	evalOutDirPerm     = 0o750
+	targSourcePackage  = "github.com/toejough/targ/dev"
 )
 
 // unexported variables.
@@ -155,7 +157,9 @@ type evalArgs struct {
 
 // acceptanceTestArgs is the go test command line of targ acceptance.
 func acceptanceTestArgs(args acceptanceArgs) []string {
-	argv := []string{"test", "-count=1", "-timeout=30m", "-v", "-tags=" + acceptanceTags}
+	argv := []string{
+		"test", "-count=1", "-timeout=30m", "-v", "-parallel=" + acceptanceParallel, "-tags=" + acceptanceTags,
+	}
 	if args.Run != "" {
 		argv = append(argv, "-run", args.Run)
 	}
