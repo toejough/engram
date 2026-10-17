@@ -32,6 +32,20 @@ type AutoDeliverDeps struct {
 	ReadFile func(path string) ([]byte, error)
 }
 
+// AutoJudgeArgs holds parsed flags for `engram auto judge`.
+type AutoJudgeArgs struct {
+	SessionsDir string `targ:"flag,name=sessions,desc=directory of recorded sessions (default ENGRAM_TRANSCRIPT_DIR then CLAUDE_CONFIG_DIR/projects then ~/.claude/projects)"` //nolint:lll // single unbreakable struct-tag string
+}
+
+// AutoJudgeDeps holds injected dependencies for RunAutoJudge.
+type AutoJudgeDeps struct {
+	// Stdin carries the turn that ended: one JSON object with the session's ID and the turn's final text.
+	Stdin io.Reader
+	// ReadDir and ReadFile read the session-log directory, where Claude Code keeps the record of each session.
+	ReadDir  func(path string) ([]fs.DirEntry, error)
+	ReadFile func(path string) ([]byte, error)
+}
+
 // QueryRun runs the lookup of `engram query` for the arguments it is given and prints its payload.
 type QueryRun func(ctx context.Context, args QueryArgs, stdout io.Writer) error
 
@@ -63,14 +77,44 @@ func RunAutoDeliver(ctx context.Context, args AutoDeliverArgs, deps AutoDeliverD
 	return nil
 }
 
+// RunAutoJudge reads a turn that ended from standard input and prints the request for the model that judges it, or
+// nothing when the session's record holds no prompt (793d4g).
+func RunAutoJudge(_ context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, stdout io.Writer) error {
+	var turn auto.TurnEnd
+
+	decodeErr := json.NewDecoder(deps.Stdin).Decode(&turn)
+	if decodeErr != nil {
+		return fmt.Errorf("auto judge: reading the turn: %w", decodeErr)
+	}
+
+	request, found := auto.Judge(recordOf(deps.ReadDir, deps.ReadFile, args.SessionsDir, turn.Session), turn.Answer)
+	if !found {
+		return nil
+	}
+
+	encoded, marshalErr := json.Marshal(request)
+	if marshalErr != nil {
+		return fmt.Errorf("auto judge: encoding the request: %w", marshalErr)
+	}
+
+	_, writeErr := fmt.Fprintln(stdout, string(encoded))
+	if writeErr != nil {
+		return fmt.Errorf("auto judge: writing the request: %w", writeErr)
+	}
+
+	return nil
+}
+
 // findRecord reads the record of a session, which Claude Code keeps as <ID>.jsonl in a directory of the session-log
 // directory for the project, or in the session-log directory itself.
-func findRecord(deps AutoDeliverDeps, dir, session string) []byte {
+func findRecord(
+	readDir func(path string) ([]fs.DirEntry, error), readFile func(path string) ([]byte, error), dir, session string,
+) []byte {
 	name := session + ".jsonl"
 	candidates := []string{filepath.Join(dir, name)}
 
 	// a directory that cannot be listed has no project directories to search
-	entries, _ := deps.ReadDir(dir)
+	entries, _ := readDir(dir)
 
 	for _, entry := range entries {
 		if entry.IsDir() {
@@ -79,7 +123,7 @@ func findRecord(deps AutoDeliverDeps, dir, session string) []byte {
 	}
 
 	for _, candidate := range candidates {
-		record, err := deps.ReadFile(candidate)
+		record, err := readFile(candidate)
 		if err == nil {
 			return record
 		}
@@ -88,16 +132,10 @@ func findRecord(deps AutoDeliverDeps, dir, session string) []byte {
 	return nil
 }
 
-// heldText returns the text of what a session's agent holds of the vault (793d4d). A session whose ID is not a plain
-// file name holds nothing: its ID would otherwise name a file outside the directory. Nor does a session when there is
-// no directory of records (793d4f): the file name alone would name a file of the working directory. A record that
-// cannot be read holds nothing either, so a prompt is delivered a note it may already hold rather than none.
+// heldText returns the text of what a session's agent holds of the vault (793d4d). A record that cannot be read holds
+// nothing, so a prompt is delivered a note it may already hold rather than none.
 func heldText(deps AutoDeliverDeps, dir, session string) string {
-	if dir == "" || session == "" || session != filepath.Base(session) || session == ".." {
-		return ""
-	}
-
-	return auto.HeldText(findRecord(deps, dir, session))
+	return auto.HeldText(recordOf(deps.ReadDir, deps.ReadFile, dir, session))
 }
 
 // lookUpNotes runs the lookup of `engram query` for a text, as its message and its only phrase, and reads the notes
@@ -129,6 +167,11 @@ func newAutoDeliverDeps(d Deps) AutoDeliverDeps {
 	}
 }
 
+// newAutoJudgeDeps wires RunAutoJudge from the injected CLI capabilities — pure composition (#700).
+func newAutoJudgeDeps(d Deps) AutoJudgeDeps {
+	return AutoJudgeDeps{Stdin: d.Stdin, ReadDir: d.FS.ReadDir, ReadFile: d.FS.ReadFile}
+}
+
 // notesOf reads the notes out of an `engram query` payload.
 func notesOf(payload []byte) ([]auto.Note, error) {
 	var parsed queryPayload
@@ -157,6 +200,19 @@ func notesOf(payload []byte) ([]auto.Note, error) {
 	}
 
 	return notes, nil
+}
+
+// recordOf returns the record of a session, or nothing. A session whose ID is not a plain file name has none: its ID
+// would otherwise name a file outside the directory (793d4d). Nor does a session when there is no directory of records
+// (793d4f): the file name alone would name a file of the working directory.
+func recordOf(
+	readDir func(path string) ([]fs.DirEntry, error), readFile func(path string) ([]byte, error), dir, session string,
+) []byte {
+	if dir == "" || session == "" || session != filepath.Base(session) || session == ".." {
+		return nil
+	}
+
+	return findRecord(readDir, readFile, dir, session)
 }
 
 // sessionsDirOf is where the records of sessions are read from when --sessions is not given (793d4f): the directory

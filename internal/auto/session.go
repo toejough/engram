@@ -36,6 +36,7 @@ type contentBlock struct {
 	Type      string          `json:"type"`
 	ID        string          `json:"id"`
 	Name      string          `json:"name"`
+	Text      string          `json:"text"`
 	Input     json.RawMessage `json:"input"`
 	ToolUseID string          `json:"tool_use_id"` //nolint:tagliatelle // Claude Code's record names it so
 	Content   json.RawMessage `json:"content"`
@@ -92,8 +93,9 @@ func (h *holdings) readResults(row recordRow) {
 
 // recordRow is one line of a session's record, with the fields that tell what the agent was given.
 type recordRow struct {
-	Type    string `json:"type"`
-	Message struct {
+	Type        string `json:"type"`
+	IsSidechain bool   `json:"isSidechain"`
+	Message     struct {
 		Content json.RawMessage `json:"content"`
 	} `json:"message"`
 	Attachment struct {

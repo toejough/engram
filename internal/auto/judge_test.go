@@ -33,7 +33,8 @@ func Test793d4g1a_Judge_TheRequestHoldsTheInstructionsTheContextAndTheTurn(t *te
 	g.Expect(request.Effort).To(Equal("low"))
 	g.Expect(request.MaxTokens).To(BeNumerically(">", 0))
 	g.Expect(request.TimeoutMs).To(BeNumerically(">", 0))
-	g.Expect(request.Prompt).To(ContainSubstring("You keep the long-term memory of an AI coding agent."), "the instructions")
+	g.Expect(request.Prompt).To(ContainSubstring("You keep the long-term memory of an AI coding agent."),
+		"the instructions")
 	g.Expect(windowOf(request.Prompt)).To(Equal([]string{
 		"User: How do I build the Zorblax project? Answer in one line.",
 		"Agent: Try make all.",
@@ -155,7 +156,8 @@ func assistantText(text string) string {
 	return `{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"` + text + `"}]}}`
 }
 
-// isLooseLine reports a rune a line may not hold: a control character, or a white space that is not a space or ends a line.
+// isLooseLine reports a rune a line may not hold: a control character, or a white space that is not a space or that
+// ends a line.
 func isLooseLine(r rune) bool {
 	return unicode.IsControl(r) || (unicode.IsSpace(r) && r != ' ')
 }
@@ -167,7 +169,7 @@ func jsonText(text string) string {
 		panic(err)
 	}
 
-	return strings.Trim(string(encoded), `"`)
+	return string(encoded[1 : len(encoded)-1])
 }
 
 // userPrompt is the record of a prompt the user typed.

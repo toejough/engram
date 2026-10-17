@@ -14,10 +14,6 @@ import (
 
 // unexported constants.
 const (
-	// captureBound is how long after a turn ends the vault must hold the notes of its lessons (793a2c).
-	captureBound = 2 * time.Minute
-	// capturePoll is how often the vault is looked at while a note is awaited.
-	capturePoll = 250 * time.Millisecond
 	// askStagingQuery makes the agent look the stagingReset note up itself, with a command that names no word of the
 	// note's situation.
 	askStagingQuery = "Run this shell command and tell me how many items it returned: " +
@@ -27,6 +23,10 @@ const (
 	askStagingReset = "When is the Zorblax staging database reset?"
 	// askStagingResetDay is another prompt that the stagingReset note answers.
 	askStagingResetDay = "What day of the week is the Zorblax staging database reset on?"
+	// captureBound is how long after a turn ends the vault must hold the notes of its lessons (793a2c).
+	captureBound = 2 * time.Minute
+	// capturePoll is how often the vault is looked at while a note is awaited.
+	capturePoll = 250 * time.Millisecond
 	// claudeSettings lets the agent run engram, which the scenarios where it looks a note up itself need.
 	claudeSettings = `{"permissions":{"allow":["Bash(engram:*)"]}}`
 	// earlierConversation is a conversation that answers askStagingReset.
@@ -311,6 +311,18 @@ func (m *machine) mustSucceed(out result, what string) {
 	}
 }
 
+// noteNamed returns the file name of the vault note with a slug.
+func (m *machine) noteNamed(slug string) string {
+	m.t.Helper()
+
+	matches, err := filepath.Glob(filepath.Join(m.vault, "*."+slug+".md"))
+	if err != nil || len(matches) != 1 {
+		m.t.Fatalf("expected one note with the slug %s in %s, found %v (%v)", slug, m.vault, matches, err)
+	}
+
+	return filepath.Base(matches[0])
+}
+
 // noteNames lists the file names of the notes of the machine's vault.
 func (m *machine) noteNames() []string {
 	notes := m.notes()
@@ -342,18 +354,6 @@ func (m *machine) notes() []vaultNote {
 	}
 
 	return notes
-}
-
-// noteNamed returns the file name of the vault note with a slug.
-func (m *machine) noteNamed(slug string) string {
-	m.t.Helper()
-
-	matches, err := filepath.Glob(filepath.Join(m.vault, "*."+slug+".md"))
-	if err != nil || len(matches) != 1 {
-		m.t.Fatalf("expected one note with the slug %s in %s, found %v (%v)", slug, m.vault, matches, err)
-	}
-
-	return filepath.Base(matches[0])
 }
 
 // standInCalled returns the arguments and the request, the JSON object on standard input, that the stand-in engram was
@@ -388,26 +388,6 @@ func (m *machine) vaultIsRemoved() {
 	}
 }
 
-// reportSection returns the lines that an update report lists under a harness ("Claude Code" or "Pi").
-func reportSection(report, harness string) []string {
-	var section []string
-
-	listing := false
-
-	for line := range strings.SplitSeq(report, "\n") {
-		switch {
-		case strings.HasPrefix(line, "  ") && strings.HasSuffix(line, "):") && !strings.HasPrefix(line, "   "):
-			listing = strings.HasPrefix(strings.TrimSpace(line), harness+" (")
-		case listing && strings.HasPrefix(line, "    "):
-			section = append(section, strings.TrimSpace(line))
-		default:
-			listing = false
-		}
-	}
-
-	return section
-}
-
 // vaultNote is a note of the vault as its file holds it.
 type vaultNote struct {
 	name    string
@@ -437,6 +417,26 @@ func (n vaultNote) states(words ...string) bool {
 	}
 
 	return true
+}
+
+// reportSection returns the lines that an update report lists under a harness ("Claude Code" or "Pi").
+func reportSection(report, harness string) []string {
+	var section []string
+
+	listing := false
+
+	for line := range strings.SplitSeq(report, "\n") {
+		switch {
+		case strings.HasPrefix(line, "  ") && strings.HasSuffix(line, "):") && !strings.HasPrefix(line, "   "):
+			listing = strings.HasPrefix(strings.TrimSpace(line), harness+" (")
+		case listing && strings.HasPrefix(line, "    "):
+			section = append(section, strings.TrimSpace(line))
+		default:
+			listing = false
+		}
+	}
+
+	return section
 }
 
 // step logs one line of the scenario a test mirrors, and runs it: the test's output reads as the Gherkin (793b9).
