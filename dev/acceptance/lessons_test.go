@@ -8,6 +8,37 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+func Test793a2a1f_ASecondUpdateStillWritesEachLessonAsOneNote(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var chat *conversation
+
+	step(t, "Given a machine on which the user has run engram update once", func() {
+		machine.hasRunUpdate()
+	})
+
+	step(t, "When the user runs engram update again, and corrects the agent in a prompt of a session", func() {
+		machine.mustSucceed(machine.update(), "engram update")
+
+		chat = machine.startSession("zorblax").converse()
+		answered := chat.say(askHowToBuild)
+		t.Logf("the agent replied %q", answered.reply)
+
+		corrected := chat.say(correctTheBuild)
+		t.Logf("the agent replied %q", corrected.reply)
+	})
+
+	step(t, "Then the vault holds one note for the correction", func() {
+		machine.awaitAutomaticNote(chat.turnEnds, "that states the correction", buildTarget)
+		machine.awaitSettled(chat.session.id, chat.turnEnds, 2)
+
+		g.Expect(machine.noteNames()).To(HaveLen(1), "the notes of the vault")
+	})
+}
+
 func Test793a2c1a_ACorrectionBecomesANote(t *testing.T) {
 	t.Parallel()
 

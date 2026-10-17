@@ -36,6 +36,9 @@ const (
 	learnSource = "acceptance test"
 	modName     = "engram-memory"
 	piDirectory = ".pi"
+	// settleTime is how long a test of an absence waits, after the records of a write exist, for a second write to
+	// show: the writes of one turn end within a second of each other.
+	settleTime = 5 * time.Second
 )
 
 // unexported variables.
@@ -174,6 +177,15 @@ func (m *machine) awaitRecords(session string, turnEnds time.Time, count int) []
 
 		time.Sleep(capturePoll)
 	}
+}
+
+// awaitSettled waits until automatic memory has made count records of the turns of a session and then for the settling
+// time, so that a second note written for the same turn would be in the vault when the test looks.
+func (m *machine) awaitSettled(session string, turnEnds time.Time, count int) {
+	m.t.Helper()
+
+	m.awaitRecords(session, turnEnds, count)
+	time.Sleep(settleTime)
 }
 
 // hasClaudeCode installs Claude Code's directory on the machine, with the one permission the scenarios need.
