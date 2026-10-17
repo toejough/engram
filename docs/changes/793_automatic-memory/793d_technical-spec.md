@@ -4,7 +4,7 @@ Filled depth first (`793f3`), so incomplete until the last node is through step 
 
 ## 793d1 Orientation
 
-Today the [agent](./793a_product-spec.md#793a1a-terms) reaches the [vault](../../GLOSSARY.md#vault) only through its own commands (`engram query`, `engram show`), when a [skill](../../GLOSSARY.md#skill) or its instructions tell it to. [`engram update`](../../GLOSSARY.md#engram-update) deploys the skills of `agent-instructions/skills/` into each [harness](../../GLOSSARY.md#harness) through an engram-owned root per harness that the harness's skills directory links into (harness-deploy-sync); `engram query` searches the [notes](../../GLOSSARY.md#permanent-note), and the chunk index when one is configured (query-engine). Nothing in a [session](../../GLOSSARY.md#session) acts at a [prompt](./793a_product-spec.md#793a1a-terms) without the agent's help, and `engram update` installs nothing but skills.
+The product problem, `793a1`: the [agent](./793a_product-spec.md#793a1a-terms) consults the [vault](../../GLOSSARY.md#vault) only when it remembers to, and the instruction to look first was refused in 6 of 6 headless trials. Today it reaches the vault only through its own commands (`engram query`, `engram show`), when a [skill](../../GLOSSARY.md#skill) or its instructions tell it to. [`engram update`](../../GLOSSARY.md#engram-update) deploys the skills of `agent-instructions/skills/` into each [harness](../../GLOSSARY.md#harness) through an engram-owned root per harness that the harness's skills directory links into (harness-deploy-sync); `engram query` searches the [notes](../../GLOSSARY.md#permanent-note), and the chunk index when one is configured (query-engine). Nothing in a [session](../../GLOSSARY.md#session) acts at a [prompt](./793a_product-spec.md#793a1a-terms) without the agent's help, and `engram update` installs nothing but skills.
 
 A **mod** is a folder Claude Code loads as a plugin of function hooks when it sits in `~/.claude/skills/<name>` (also as a link): its hooks module registers functions for session events, and `prompt.submit` runs for each prompt before it enters the session, where a function may add context that the model reads beside the prompt and the user does not see. The solution:
 
@@ -49,7 +49,7 @@ sequenceDiagram
 
 Requirement: 793d2a For each [prompt](./793a_product-spec.md#793a1a-terms) a Claude Code [session](../../GLOSSARY.md#session) raises, the `automatic-memory-mod` MUST run `engram auto deliver` with the prompt text, the session's ID and the prompt's origin (the kind Claude Code stamps on it: `composer`, `sdk`, `task-notification` and the rest) as one JSON object on standard input; MUST add the command's output to the prompt's context as one block when the command exited with 0 and the output begins with `[engram memory]`, and nothing otherwise; and MUST leave the prompt text as received. It MUST hold the prompt for its own work, the session-ID call and the wait for the command together, at most 7 seconds, so the prompt is held under the 8 seconds of `793a2d`, and when the work does not finish within them MUST end the command and let the prompt continue as it was, with nothing added.
 
-Owner: `automatic-memory-mod` (new; `automatic-memory-mod.md` at promotion). Serves: `793a2a1a`, `793a2b1b`, `793a2d1a`.
+Owner: `automatic-memory-mod` (new; `automatic-memory-mod.md` at promotion). Supports: `793a2a1a`, `793a2b1b`, `793a2d1a`.
 
 #### 793d2a1 Scenarios
 
@@ -122,9 +122,9 @@ sequenceDiagram
     Writing->>Record: 793d4k what became of the reply
 ```
 
-Requirement: 793d2b For each [turn](./793a_product-spec.md#793a1a-terms) a [session](../../GLOSSARY.md#session) completes, the `automatic-memory-mod` MUST give the event's result back at once and then, apart from the event, run `engram auto judge` with one JSON object on standard input: the session's ID, the turn's ID, the turn's final text, the text the turn began with and the origin of the [prompt](./793a_product-spec.md#793a1a-terms) it began with. It MUST do nothing for a turn that a [subagent](../../GLOSSARY.md#subagent) ran. When the command exits with 0 and prints a request, the mod MUST ask the model for it through the host's model call, exactly as printed, and when the model answers run `engram auto write` with the session's ID, the turn's ID and the reply; when it exits with 0 and prints nothing, nothing more. When a step fails (the command exits with other than 0 or prints what is not a request, a request that is not a JSON object being a failure of `engram auto judge`; the model does not answer; a call is ended or rejected) it MUST run `engram auto write` with the session's ID, the turn's ID and a `failure`, a sentence that names the step and how it failed, in place of the reply. It MUST bound each stage so that together they take under the 2 minutes of `793a2c`: the session-ID call 5 seconds (then it does nothing), `engram auto judge` 15, the model call the 60 of the request, `engram auto write` 20 and its failure report 15, 115 in all; a stage that overruns has failed. The mod keeps the text and origin of each prompt the session raises: a turn that starts with a text takes the oldest kept prompt with that text and drops the prompts kept before it, which began no turn; a turn whose text no kept prompt has takes the origin of the newest; a turn that starts with no text has no origin.
+Requirement: 793d2b For each [turn](./793a_product-spec.md#793a1a-terms) a [session](../../GLOSSARY.md#session) completes, the `automatic-memory-mod` MUST give the event's result back at once and then, apart from the event, run `engram auto judge` with one JSON object on standard input: the session's ID, the turn's ID, the turn's final text, the text the turn began with and the origin of the [prompt](./793a_product-spec.md#793a1a-terms) it began with. It MUST do nothing for a turn that a [subagent](../../GLOSSARY.md#subagent) ran, which the event's `agentId` says. When the command exits with 0 and prints a request, the mod MUST ask the model for it through the host's model call, exactly as printed, and when the model answers run `engram auto write` with the session's ID, the turn's ID and the reply; when it exits with 0 and prints nothing, nothing more. When a step fails (the command exits with other than 0 or prints what is not a request, a request that is not a JSON object being a failure of `engram auto judge`; the model does not answer; a call is ended or rejected) it MUST run `engram auto write` with the session's ID, the turn's ID and a `failure`, a sentence that names the step and how it failed, in place of the reply. It MUST bound each stage so that together they take under the 2 minutes of `793a2c`: the session-ID call 5 seconds (then it does nothing), `engram auto judge` 15, the model call the 60 of the request, `engram auto write` 20 and its failure report 15, 115 in all; a stage that overruns has failed. The mod keeps the text and origin of each prompt the session raises: a turn that starts with a text takes the oldest kept prompt with that text and drops the prompts kept before it, which began no turn; a turn whose text no kept prompt has takes the origin of the newest; a turn that starts with no text has no origin.
 
-Owner: `automatic-memory-mod`. Serves: `793a2c1a`, `793a2c1b`, `793a2c1c`, `793a2c1d`, `793a2c1e`, `793a2c1f`, `793a2c1g`, `793a2c1h`, `793a2c1i`, `793a3c1a`, `793a3c1b`, `793a3c1c`.
+Owner: `automatic-memory-mod`. Supports: `793a2c1a`, `793a2c1b`, `793a2c1c`, `793a2c1d`, `793a2c1e`, `793a2c1f`, `793a2c1g`, `793a2c1h`, `793a2c1i`, `793a3c1a`, `793a3c1b`, `793a3c1c`.
 
 #### 793d2b1 Scenarios
 
@@ -188,10 +188,10 @@ Scenario: 793d2b1k A request that is not JSON is a failure of the judgement
 ## 793d3 Recommended component diffs
 
 - **automatic-memory-mod** (added): the mod `engram-memory`, a hooks module in `agent-instructions/mods/engram-memory/` (informational). Owns the routing and the placement of the block (the lookup is the command's) and the routing of the judgement and of the write after a [turn](./793a_product-spec.md#793a1a-terms) (`793d2b`); tested in a real Claude Code [session](../../GLOSSARY.md#session) against an `engram` that prints a chosen block.
-- **prompt-delivery** (added): the command `engram auto deliver` (`internal/cli/auto.go`, `internal/auto`, informational). Turns a [prompt](./793a_product-spec.md#793a1a-terms) into the block of [notes](../../GLOSSARY.md#permanent-note) that bear on it; tested through standard input and output over an in-memory [vault](../../GLOSSARY.md#vault).
-- **session-context** (added): what a session's [agent](./793a_product-spec.md#793a1a-terms) already holds of the vault, read from the session's record (`internal/auto`, `internal/cli/auto.go`, informational); tested over records of a session.
-- **turn-judgement** (added): the command `engram auto judge` (`internal/cli/auto.go`, `internal/auto`, informational). Turns a turn into the request of the call that judges it, redacting credentials first (`793d4j`); tested through standard input and output over records of a session.
-- **lesson-writing** (added): the command `engram auto write` (`internal/cli/auto.go`, `internal/auto`, informational). Turns the model's reply into notes of the vault, the write itself being the learn path's, and keeps the record of what became of each reply (`793d4k`); tested through standard input and output over an in-memory vault.
+- **prompt-delivery** (added): the command `engram auto deliver` (`internal/cli/auto.go`, `internal/auto`, informational). Turns a [prompt](./793a_product-spec.md#793a1a-terms) into the block of [notes](../../GLOSSARY.md#permanent-note) that bear on it, owning the choice and rendering of the notes (the hook is the mod's); tested through standard input and output over an in-memory [vault](../../GLOSSARY.md#vault).
+- **session-context** (added): what a session's [agent](./793a_product-spec.md#793a1a-terms) already holds of the vault, read from the session's record (`internal/auto`, `internal/cli/auto.go`, informational), owning the record's format and the rule for what counts as held (which notes to deliver is the delivery's); tested over records of a session.
+- **turn-judgement** (added): the command `engram auto judge` (`internal/cli/auto.go`, `internal/auto`, informational). Turns a turn into the request of the call that judges it, redacting credentials first (`793d4j`), owning the choice of the turn's lines and the instructions (the call is the mod's); tested through standard input and output over records of a session.
+- **lesson-writing** (added): the command `engram auto write` (`internal/cli/auto.go`, `internal/auto`, informational). Turns the model's reply into notes of the vault, owning the reading of the reply and the mark of a note (the write itself is the learn path's), and keeps the record of what became of each reply (`793d4k`); tested through standard input and output over an in-memory vault.
 - **learn path** (retained): the write of a note, as [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand) does it (`RunLearn`).
 - **harness-deploy-sync** (updated): plans, links, reports and removes the mod as it does a [skill](../../GLOSSARY.md#skill) directory, and reports it as a mod (`793b47`).
 - **query-engine** (retained): the lookup of notes for text, used by the delivery and the judgement as `engram query` uses it.
@@ -201,9 +201,9 @@ Scenario: 793d2b1k A request that is not JSON is a failure of the judgement
 
 ### 793d4a Delivering the notes that bear on a prompt
 
-Requirement: 793d4a The `prompt-delivery` MUST read one JSON object (`text`, the `session`'s ID, `origin`) from standard input and print one block, or nothing when the origin is not one the user sends (`793d4m`). The block opens with a line beginning `[engram memory]` and has one line per [note](../../GLOSSARY.md#permanent-note) that bears on the text, in the lookup's order: a dash, the file name, the situation in parentheses, a colon and the body on one line. A note bears on the text when the lookup of 792b24c5 for the text, as its message and only phrase, returns it as an item that is not a chunk and was not picked by the explore half alone (792b24c16: an explore pick is sampled from the vocabulary, not matched to the text); the lookup's default limit (792b24c1) bounds the lines (`793b19`). It MUST leave out each note whose basename (file name without `.md`) appears in the text that `793d4d` returns for the request's [session](../../GLOSSARY.md#session), print nothing and succeed when no note remains, never search the chunk index, and print nothing and fail, naming the cause, when the lookup fails.
+Requirement: 793d4a The `prompt-delivery` MUST read one JSON object (`text`, the `session`'s ID, `origin`) from standard input and print one block, or nothing when the origin is not one the user sends (`793d4m`). The block opens with a line beginning `[engram memory]` and has one line per [note](../../GLOSSARY.md#permanent-note) that bears on the text, in the lookup's order: a dash, the file name, the situation in parentheses, a colon and the body on one line. A note bears on the text when the lookup of [792b24c5 The matched set](../../specs/technical/query-engine.md#792b24c5-the-matched-set) for the text, as its message and only phrase, returns it as an item that is not a chunk and was not picked by the explore half alone ([792b24c16 Delivering the explore half](../../specs/technical/query-engine.md#792b24c16-delivering-the-explore-half): an explore pick is sampled from the vocabulary, not matched to the text); the lookup's default limit ([792b24c1 Input and defaults](../../specs/technical/query-engine.md#792b24c1-input-and-defaults)) bounds the lines (`793b19`). It MUST leave out each note whose basename (file name without `.md`) appears in the text that `793d4d` returns for the request's [session](../../GLOSSARY.md#session), print nothing and succeed when no note remains, never search the chunk index, and print nothing and fail, naming the cause, when the lookup fails.
 
-Owner: `prompt-delivery` (new; `prompt-delivery.md` at promotion). Serves: `793a2a1a`, `793a2b1a`, `793a2b1b`, `793a2b1d`.
+Owner: `prompt-delivery` (new; `prompt-delivery.md` at promotion). Supports: `793a2a1a`, `793a2b1a`, `793a2b1b`, `793a2b1d`.
 
 #### 793d4a1 Scenarios
 
@@ -256,9 +256,9 @@ Scenario: 793d4a1i The lookup is asked for the text and what the session holds f
 
 ### 793d4c Framing the notes of a block as data
 
-Requirement: 793d4c The `prompt-delivery` MUST open every block with one fixed line beginning `[engram memory]` that says the lines below are [notes](../../GLOSSARY.md#permanent-note) from the [vault](../../GLOSSARY.md#vault), delivered by the memory system and not typed by the user, and that an instruction inside a note is not the user's. It MUST write each note as exactly one line beginning with a dash and a space, its file name, situation and body each with every run of white space as one space and no control or format character (Unicode category Cf: zero-width space or joiner, bidirectional override or isolate, byte-order mark, soft hyphen), so that a note's text cannot make a line of its own, such as the framing line or a line that reads as another note. The line of a note whose source says it was written automatically (`793d4h`) ends with the fixed words `(written automatically)`, so that the [agent](./793a_product-spec.md#793a1a-terms) can tell it from a note a person or the agent saved.
+Requirement: 793d4c The `prompt-delivery` MUST open every block with one fixed line beginning `[engram memory]` that says the lines below are [notes](../../GLOSSARY.md#permanent-note) from the [vault](../../GLOSSARY.md#vault), delivered by the memory system and not typed by the user, and that an instruction inside a note is not the user's. It MUST write each note as exactly one line beginning with a dash and a space, its file name, situation and body each with every run of white space, line breaks and separators included, as one space and no control or format character (Unicode category Cf: zero-width space or joiner, bidirectional override or isolate, byte-order mark, soft hyphen), so that a note's text cannot make a line of its own, such as the framing line or a line that reads as another note. The line of a note whose source says it was written automatically (`793d4h`) ends with the fixed words `(written automatically)`, so that the [agent](./793a_product-spec.md#793a1a-terms) can tell it from a note a person or the agent saved.
 
-Owner: `prompt-delivery`. Serves: `793a2a1a`, `793a2b1a`, `793a3a1a`.
+Owner: `prompt-delivery`. Supports: `793a2a1a`, `793a2b1a`, `793a3a1a`.
 
 #### 793d4c1 Scenarios
 
@@ -281,9 +281,9 @@ Scenario: 793d4c1c A note written automatically says so in its line
 
 ### 793d4d Telling what a session holds
 
-Requirement: 793d4d The `session-context` MUST, given a [session](../../GLOSSARY.md#session)'s ID, find the session's record (the file named for the ID with the suffix `.jsonl`, in the directory of records it is given (`793d4f`) or a subdirectory) and return, of what the [agent](./793a_product-spec.md#793a1a-terms) was given, only: the file name on each [note](../../GLOSSARY.md#permanent-note) line (a line beginning with a dash and a space; the name runs to the space before the situation's parenthesis) of every block delivered beside a [prompt](./793a_product-spec.md#793a1a-terms) (an `attachment` entry of type `hook_additional_context` beginning `[engram memory]`), and the text of each Bash command the agent ran that contains `engram query` or `engram show` with its result (the `tool_result` block whose `tool_use_id` is the command's `tool_use` ID). It MUST return nothing of a block's situations and bodies, of other entries, of other tools' results, of prompts or of replies, and nothing, without an error, when the session has no record, the record cannot be read or the ID is not a plain file name.
+Requirement: 793d4d The `session-context` MUST, given a [session](../../GLOSSARY.md#session)'s ID, find the session's record (the file named for the ID with the suffix `.jsonl`, in the directory of records it is given (`793d4f`) or a subdirectory) and return, of what the [agent](./793a_product-spec.md#793a1a-terms) was given, only: the file name on each [note](../../GLOSSARY.md#permanent-note) line (a line beginning with a dash and a space; the name runs to the space before the situation's parenthesis) of every block delivered beside a [prompt](./793a_product-spec.md#793a1a-terms) (an `attachment` entry of type `hook_additional_context` beginning `[engram memory]`), and the text of each Bash command the agent ran that contains `engram query` or `engram show` with its result (the `tool_result` block, of a `user` record, whose `tool_use_id` is the command's `tool_use` ID). It MUST return nothing of a block's situations and bodies, of other entries, of other tools' results, of prompts or of replies, and nothing, without an error, when the session has no record, the record cannot be read or the ID is not a plain file name.
 
-Owner: `session-context` (new; `session-context.md` at promotion). Serves: `793a2b1b`, `793a2b1c`.
+Owner: `session-context` (new; `session-context.md` at promotion). Supports: `793a2b1b`, `793a2b1c`.
 
 #### 793d4d1 Scenarios
 
@@ -323,9 +323,13 @@ Scenario: 793d4d1c A session with no record, or an ID that is not a file name, h
 
 Target: [792b2c3 First-use gating](../../specs/technical/command-line-surface.md#792b2c3-first-use-gating)
 
-Requirement: 792b2c3 For every [vault](../../GLOSSARY.md#vault)-resolving command other than the commands of the group `auto` (`auto deliver`, `auto judge` and `auto write`), the command-line-surface MUST ask the vault-identity-registry to ensure the vault at the resolved path before running the command, and MUST NOT run the command when that step fails. For a command of the group `auto` it MUST NOT ask: the command runs against the path as it is, and creates nothing when the path holds no vault.
+Requirement: 792b2c3 For every [vault](../../GLOSSARY.md#vault)-resolving command other than the commands of the group `auto` (`auto deliver`, `auto judge` and `auto write`), the command-line-surface MUST ask the [vault-identity-registry](../../specs/technical/vault-identity-registry.md) to ensure the vault at the resolved path before running the command, and MUST NOT run the command when that step fails. For a command of the group `auto` it MUST NOT ask: the command runs against the path as it is, and creates nothing when the path holds no vault.
 
-Owner: command-line-surface. Serves: `793a2a1e`, `793a2a1g`.
+Owner: [command-line-surface](../../specs/technical/command-line-surface.md)
+
+Supports: [792a2e1a A read command creates the vault](../../specs/product/vault-identity.md#792a2e1-uat-scenarios), [792a2e1b amend and activate fail only on their own merits](../../specs/product/vault-identity.md#792a2e1-uat-scenarios), [792a2e1c A child host gets its own vault](../../specs/product/vault-identity.md#792a2e1-uat-scenarios), [792a2e1d A second run creates nothing](../../specs/product/vault-identity.md#792a2e1-uat-scenarios), [792a2f1a An existing vault is untouched by read-only use](../../specs/product/vault-identity.md#792a2f1-uat-scenarios), [792a2g1a A half-created vault gets its ID](../../specs/product/vault-identity.md#792a2g1-uat-scenarios), [792a6t1a Stats on an empty vault](../../specs/product/controlled-vocabulary.md#792a6t1-uat-scenarios), `793a2a1e`, `793a2a1g`.
+
+Rationale: one shared first-use step in dispatch, rather than one per command, makes every command create a missing vault the same way; the commands of the group `auto` are run by the mod, not by the user, and a missing vault is the user's to create.
 
 #### 793d4e1 Scenarios
 
@@ -350,7 +354,7 @@ Scenario: 793d4e1c The writing command creates no vault and writes no note
 
 Requirement: 793d4b The `harness-deploy-sync` MUST plan one copy for every file under `agent-instructions/mods/` of the source for Claude Code, keeping the file's relative path and naming its top-level directory as the [skill](../../GLOSSARY.md#skill) directory it is deployed in, so that a mod is deployed, linked, reported and removed as a skill directory is; plan none for Pi, and none without an error when the directory does not exist; and report each mod directory it deploys, in the Claude Code section of the report of [`engram update`](../../GLOSSARY.md#engram-update), as a mod, with `agent-instructions/mods/<name>/` as its source (a skill has `agent-instructions/skills/<name>/`). A dry run MUST plan and report the mod and write none of its files; a second `engram update` MUST leave the deployed mod as the first left it (the same files and link, no second copy, listed once).
 
-Owner: `harness-deploy-sync`. Serves: `793a2a1a`, `793a2a1b`, `793a2a1c`, `793a2a1d`.
+Owner: `harness-deploy-sync`. Supports: `793a2a1a`, `793a2a1b`, `793a2a1c`, `793a2a1d`.
 
 #### 793d4b1 Scenarios
 
@@ -398,9 +402,9 @@ Scenario: 793d4b1h A second update leaves the mod as the first left it
 
 ### 793d4f Finding the records of sessions
 
-Requirement: 793d4f The `prompt-delivery` MUST read the records of [sessions](../../GLOSSARY.md#session) from the directory its `--sessions` flag names or, without the flag, from the directory `ENGRAM_TRANSCRIPT_DIR` names when set, else the `projects` directory of the directory `CLAUDE_CONFIG_DIR` names when set, else `<home>/.claude/projects`, and from no directory when the home directory cannot be found. It MUST NOT change the session-log directory of 792b17c6 that [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand) sweeps.
+Requirement: 793d4f The `prompt-delivery` MUST read the records of [sessions](../../GLOSSARY.md#session) from the directory its `--sessions` flag names or, without the flag, from the directory `ENGRAM_TRANSCRIPT_DIR` names when set, else the `projects` directory of the directory `CLAUDE_CONFIG_DIR` names when set, else `<home>/.claude/projects`, and from no directory when the home directory cannot be found. It MUST NOT change the session-log directory of [792b17c6 Session-log directory](../../specs/technical/ingestion-source-discovery.md#792b17c6-session-log-directory) that [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand) sweeps.
 
-Owner: `prompt-delivery`. Serves: `793a2b1b`, `793a2b1c`.
+Owner: `prompt-delivery`. Supports: `793a2b1b`, `793a2b1c`.
 
 #### 793d4f1 Scenarios
 
@@ -428,13 +432,13 @@ Scenario: 793d4f1d No record is read when no directory can be found
 
 ### 793d4g Judging a turn
 
-Requirement: 793d4g The `turn-judgement` MUST read one JSON object from standard input (the `session`'s ID, the final `answer`, the `text` the [turn](./793a_product-spec.md#793a1a-terms) began with, the `origin` of that [prompt](./793a_product-spec.md#793a1a-terms)), print nothing when the origin is not one the user sends (`793d4m`), find the [session](../../GLOSSARY.md#session)'s record as `793d4d` does in the directory of `793d4f`, and print the request for the model as one JSON object: `model` (`haiku`), `effort` (`low`), `system` (the instructions of the judgement, nothing of the record), `prompt`, `maxTokens` and `timeoutMs`. The prompt holds, between `<window>` and `</window>`, the context lines, the line `--- the turn ---` and the turn's lines, and, between `<notes>` and `</notes>`, the [notes](../../GLOSSARY.md#permanent-note) nearest to the turn (what the lookup of `793d4a` returns for the text of the turn's prompts, each as a block line, cut to 400 characters) or `(none)`.
+Requirement: 793d4g The `turn-judgement` MUST read one JSON object from standard input (the `session`'s ID, the final `answer`, the `text` the [turn](./793a_product-spec.md#793a1a-terms) began with, the `origin` of that [prompt](./793a_product-spec.md#793a1a-terms)), print nothing when the origin is not one the user sends (`793d4m`), find the [session](../../GLOSSARY.md#session)'s record as `793d4d` does in the directory of `793d4f`, and print the request for the model as one JSON object: `model` (`haiku`), `effort` (`low`), `system`, `prompt`, `maxTokens` and `timeoutMs`. The `system` MUST hold the instructions of the judgement and nothing of the record, and the `prompt` none of the instructions, so that the model reads them as instructions. The prompt holds, between `<window>` and `</window>`, the context lines, the line `--- the turn ---` and the turn's lines, and, between `<notes>` and `</notes>`, the [notes](../../GLOSSARY.md#permanent-note) nearest to the turn (what the lookup of `793d4a` returns for the text of the turn's prompts, each as a block line, cut to 400 characters) or `(none)`.
 
-A prompt is a row of the record that the user sent; a row the [harness](../../GLOSSARY.md#harness) wrote is none and makes no line: a row marked as meta (the body of a [skill](../../GLOSSARY.md#skill) the [agent](./793a_product-spec.md#793a1a-terms) invoked), a row stamped with an origin the user does not send (`793d4m`) and a row whose text begins as 792b15c3 harness noise (a system reminder, a skill's base directory, the caveat or output of a local command, a task notification); a block of a prompt that begins so is left out, and a slash command's prompt is its arguments, none when it has none. The turn begins at the last prompt with the input `text` (else the last prompt) and ends before the next prompt and after the last line of the agent, which is the final text, added as the last line when no line of the turn holds its first 80 characters; the conversation before it is the context. A line is one message (`User: `, `Agent: ` or `Agent used ` and the tool's name; a break written ` ⏎ `), redacted (`793d4j`) before it is cut or joined, then cut to its first 1,200 characters, then `<` written `&lt;`; the context is its last 6 lines; the window is cut to 8,000 characters, the oldest context first and then the turn's middle, replaced by the line `--- some of the turn is left out ---`. The record is read once: 1 MB within 2 seconds.
+A prompt is a row of the record that the user sent; a row the [harness](../../GLOSSARY.md#harness) wrote is none and makes no line: a row marked as meta (the body of a [skill](../../GLOSSARY.md#skill) the [agent](./793a_product-spec.md#793a1a-terms) invoked), a row stamped with an origin the user does not send (`793d4m`) and a row whose text begins as [792b15c3 Harness noise](../../specs/technical/transcript-reader.md#792b15c3-harness-noise) (harness noise) (a system reminder, a skill's base directory, the caveat or output of a local command, a task notification); a block of a prompt that begins so is left out, and a slash command's prompt is its arguments, none when it has none. The turn begins at the last prompt with the input `text` (else the last prompt) and ends before the next prompt and after the last line of the agent, which is the final text, added as the last line when no line of the turn holds its first 80 characters; the conversation before it is the context. A line is one message (`User: `, `Agent: ` or `Agent used ` and the tool's name; a break written ` ⏎ `), redacted (`793d4j`) before it is cut or joined, then cut to its first 1,200 characters; a `<` in a line of the window or of a note MUST be written `&lt;`, which the instructions say, so that no message or note can close the window or open a section; the context is its last 6 lines; the window is cut to 8,000 characters, the oldest context first and then the turn's middle, replaced by the line `--- some of the turn is left out ---`. The command MUST read the record once and redact only the lines of the window, so that its time does not grow with the session: 1 MB within 2 seconds.
 
 It MUST print nothing and succeed when the record holds no prompt, and print nothing and fail, naming the cause, when the input is not a JSON object, no [vault](../../GLOSSARY.md#vault) exists at the vault's path, the session has no record in the directory of records, or the lookup fails: the capture is then recorded once, with its reason, and the model is not asked.
 
-Owner: `turn-judgement` (new; `turn-judgement.md` at promotion). Serves: `793a2c1a`, `793a2c1b`, `793a2c1c`, `793a2c1d`, `793a2c1e`, `793a2c1f`, `793a2c1g`, `793a2c1h`, `793a2c1i`, `793a3c1a`, `793a3c1b`, `793a3c1c`.
+Owner: `turn-judgement` (new; `turn-judgement.md` at promotion). Supports: `793a2c1a`, `793a2c1b`, `793a2c1c`, `793a2c1d`, `793a2c1e`, `793a2c1f`, `793a2c1g`, `793a2c1h`, `793a2c1i`, `793a3c1a`, `793a3c1b`, `793a3c1c`.
 
 #### 793d4g1 Scenarios
 
@@ -564,7 +568,7 @@ Scenario: 793d4g1v A message or a note cannot close the window or open a section
 
 Requirement: 793d4h The `lesson-writing` MUST read one JSON object from standard input: the `session`'s ID, the `turn`'s ID, and the model's `reply` or, when it gave none, the `failure`. The reply is a JSON array of lessons, fenced or not; a lesson has a `kind` (`feedback` with `behavior`, `impact` and `action`, or `fact` with `subject`, `predicate` and `object`), a `slug` of lower-case letters, digits and dashes, and a `situation`, and may name as `covered` the file name of a [note](../../GLOSSARY.md#permanent-note) of the [vault](../../GLOSSARY.md#vault) that already states it. A lesson whose `covered` names a file of the vault MUST NOT be written but recorded as skipped with that name (a name that is not a file of the vault, or not a file name, covers nothing). Each other lesson MUST be written as a note of its kind through the learn path of [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand), at the top of the vault's order, with the source `written automatically (session <the session's ID>)`, and its path printed. Every field is written as one line (its line breaks and white space become single spaces and its control and format characters are dropped), so that a field cannot make a line of its own, such as one opening with `Supersedes:`, which the vault reads as a link. A reply that is not a list, and a lesson that lacks a field or has an unknown kind, write nothing and are recorded with the reason (`793d4k`); a reply cut before its list ends keeps the lessons that are whole, and the cut is recorded as skipped.
 
-Owner: `lesson-writing` (new; `lesson-writing.md` at promotion). Serves: `793a2c1a`, `793a2c1b`, `793a2c1c`, `793a2c1d`, `793a2c1e`, `793a2c1f`, `793a2c1g`, `793a2c1h`, `793a2c1i`, `793a3c1a`, `793a3c1b`, `793a3c1c`.
+Owner: `lesson-writing` (new; `lesson-writing.md` at promotion). Supports: `793a2c1a`, `793a2c1b`, `793a2c1c`, `793a2c1d`, `793a2c1e`, `793a2c1f`, `793a2c1g`, `793a2c1h`, `793a2c1i`, `793a3c1a`, `793a3c1b`, `793a3c1c`.
 
 #### 793d4h1 Scenarios
 
@@ -614,7 +618,7 @@ Scenario: 793d4h1h A reply that is cut keeps the lessons before the cut
 
 Requirement: 793d4j The `turn-judgement` MUST redact every text of the [turn](./793a_product-spec.md#793a1a-terms) shaped as a credential before cutting or joining it and before the model sees it, and the `lesson-writing` every field of a lesson before writing it, so that no [note](../../GLOSSARY.md#permanent-note) holds a credential that appeared in the turn. Each text is first written as one line (control and format characters dropped), then redacted, then cut, so that a credential split by characters that are not shown is whole when redacted. The shapes: a private key block; a JSON web token; a key or token that opens with its issuer's prefix (`sk-`, `pk-`, `rk-`, `ghp_`, `gho_`, `ghs_`, `ghu_`, `ghr_`, `github_pat_`, `npm_`, `glpat-`, `AKIA`, `ASIA`, `AIza`, `xoxa-`, `xoxb-`, `xoxp-`, `xoxr-`, `xoxs-`); a `Bearer` or `Basic` credential of 12 characters or more; the user and password of a URL; the value of an `Authorization` header; the value given by `=`, `:` or `is`, with up to six words of the sentence between, to a name holding `key`, `token`, `secret`, `password`, `passwd`, `pwd`, `credential` or `private-key` in any case with anything around the word (`accessKey`, `x-api-key`, `DB_PASSWORD`); a run of 32 or more letters, digits, `+`, `_` and `=` that holds both a letter and a digit and is not a commit's 40 hexadecimal digits. It becomes `[redacted]`, the name of an assignment kept. A secret of another shape (a password a sentence gives without `is` or `:`, a token split over two lines) is not redacted.
 
-Owner: `turn-judgement` and `lesson-writing`. Serves: `793a2c1g`.
+Owner: `turn-judgement` and `lesson-writing`. Supports: `793a2c1g`.
 
 #### 793d4j1 Scenarios
 
@@ -669,7 +673,7 @@ Scenario: 793d4j1i A credential that characters that are not shown split is not 
 
 Requirement: 793d4k The `lesson-writing` MUST record what became of each reply or failure it reads, where the display of `793a2e` can read it: per lesson written, kind `written` with the [note](../../GLOSSARY.md#permanent-note)'s file name; per lesson left out, `skipped` with its slug and the reason; per reply that is not a list, `skipped` with the reason; per reply with no lesson, `nothing`; per failure, `failed` with the failure. A lesson that cannot be written is recorded `failed` and the command then succeeds, so the mod does not report it a second time. A record is a JSON file of its own in a directory named for the [session](../../GLOSSARY.md#session)'s ID under `auto` in the engram data directory, its name opening with the time it was made; it holds the time, the session's ID, the [turn](./793a_product-spec.md#793a1a-terms)'s ID, the kind, the note, the slug and the reason. A record that cannot be written does not fail the command unless it records a failure, when the command fails with the reason.
 
-Owner: `lesson-writing`. Serves: `793a2c1f`, `793a2c1h`.
+Owner: `lesson-writing`. Supports: `793a2c1f`, `793a2c1h`.
 
 #### 793d4k1 Scenarios
 
@@ -719,7 +723,7 @@ Scenario: 793d4k1f A directory of records that cannot be made, and a record that
 
 Requirement: 793d4m The `prompt-delivery` and the `turn-judgement` MUST each read the `origin` of the JSON object they are given, the kind Claude Code stamps on a [prompt](./793a_product-spec.md#793a1a-terms), and act only for a prompt the user sends, one whose origin is `composer`, `bridge`, `slack-ping` or `sdk`; for any other origin, including none, each MUST print nothing, succeed and look nothing up. The `turn-judgement` MUST do the same for the origin `sdk`, the headless host's own [turn](./793a_product-spec.md#793a1a-terms) (`claude -p`, the SDK), unless the user switched on judging such turns with the flag `--capture-sdk` or the environment variable `ENGRAM_AUTO_CAPTURE_SDK` set to a true value (`1`), so that a script run with `claude -p` under the user's own home writes nothing by default. The definition is theirs: the mod passes the origin it received and decides nothing (`793b64`, `793b84`).
 
-Owner: `prompt-delivery` and `turn-judgement`. Serves: `793a2d1b`. No clause of a product requirement names an origin, so none of its scenarios does: all are raised by prompts the user sends, which this requirement lets through.
+Owner: `prompt-delivery` and `turn-judgement`. Supports: `793a2d1b`. No clause of a product requirement names an origin, so none of its scenarios does: all are raised by prompts the user sends, which this requirement lets through.
 
 #### 793d4m1 Scenarios
 
@@ -785,7 +789,7 @@ Realized by `793d4b` (one deployed mod, so one hook) and `793d4a`.
 
 ### 793d5j Mapping of 793a2c1a
 
-Realized by `793d2b`, `793d4g`, `793d4h` and `793d4f`.
+Realized by `793d2b`, `793d4g`, `793d4h` and `793d4f`; the [agent](./793a_product-spec.md#793a1a-terms) may not run `engram` commands, so the [note](../../GLOSSARY.md#permanent-note) is the writing's.
 
 ### 793d5k Mapping of 793a2c1b
 
@@ -793,15 +797,15 @@ Realized by the components of `793d5j`; the instructions of the judgement name a
 
 ### 793d5l Mapping of 793a2c1c
 
-Realized by `793d4g` with the components of `793d5j`; the instructions name an approach the user confirmed as a lesson.
+Realized by `793d4g` (the task is in the context of the request and the confirmation in the [turn](./793a_product-spec.md#793a1a-terms)) with the components of `793d5j`; the instructions name an approach the user confirmed as a lesson.
 
 ### 793d5m Mapping of 793a2c1d
 
-Realized by `793d4g` with the components of `793d5j`; the instructions name the [agent](./793a_product-spec.md#793a1a-terms)'s own correction as a lesson.
+Realized by `793d4g` (the lines of the [turn](./793a_product-spec.md#793a1a-terms) hold the guess and its correction, as the [agent](./793a_product-spec.md#793a1a-terms) states both in text) with the components of `793d5j`; the instructions name the agent's own correction as a lesson.
 
 ### 793d5n Mapping of 793a2c1e
 
-Realized by `793d4g` with the components of `793d5j`; the instructions name an approach that succeeded with evidence as a lesson.
+Realized by `793d4g` (the lines of the [turn](./793a_product-spec.md#793a1a-terms) hold what the [agent](./793a_product-spec.md#793a1a-terms) was unsure of and what it saw) with the components of `793d5j`; the instructions name an approach that succeeded with evidence as a lesson.
 
 ### 793d5o Mapping of 793a2c1f
 
@@ -817,7 +821,7 @@ Realized by `793d4g` (the request lists the earlier [note](../../GLOSSARY.md#per
 
 ### 793d5r Mapping of 793a3c1b
 
-Realized by the components of `793d5q` and nothing new.
+Realized by the components of `793d5q` and nothing new: the [note](../../GLOSSARY.md#permanent-note) the [agent](./793a_product-spec.md#793a1a-terms) saves with [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand) is in the [vault](../../GLOSSARY.md#vault) when the [turn](./793a_product-spec.md#793a1a-terms) ends, so the request lists it and `793d4h` writes nothing for the lesson it covers.
 
 ### 793d5s Mapping of 793a3e1a
 
@@ -845,7 +849,7 @@ Realized by the components of `793d5o`, with instructions that name chatter, a t
 
 ### 793d5y Mapping of 793a3c1c
 
-Realized by the components of `793d5q` the other way round: the model names the earlier [note](../../GLOSSARY.md#permanent-note) only for a lesson it states, so `793d4h` writes the lesson it does not name.
+Realized by the components of `793d5q` the other way round: the request lists the earlier [note](../../GLOSSARY.md#permanent-note) as it does for a lesson it states, and the model names it only for a lesson it states, so `793d4h` writes the lesson it does not name.
 
 ### 793d5z Mapping of 793a2c1i
 
