@@ -293,6 +293,32 @@ func Test793a2c1h_AThanksThatNamesNoApproachProducesNoNote(t *testing.T) {
 	})
 }
 
+func Test793a2c1i_ARequestToRememberIsWrittenWhenTheAgentSaysItDidNotSaveIt(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var chat *conversation
+
+	step(t, "Given the user has run engram update, and a session in which the agent may not run engram commands", func() {
+		machine.hasRunUpdate()
+
+		chat = machine.startSession("zorblax").converse()
+	})
+
+	step(t, "When the user asks the agent in a prompt to remember something and not to save it itself, "+
+		"the agent says that it did not save it, and the turn ends", func() {
+		replied := chat.tell(askToRememberAndNotSave)
+
+		g.Expect(replied.reply).To(ContainSubstring("did not save"), "what the agent said")
+	})
+
+	step(t, "Then within 2 minutes the vault holds a note that states it and says it was written automatically", func() {
+		machine.awaitAutomaticNote(chat.turnEnds, "that states what was asked to be remembered", "Sunday", "03:40")
+	})
+}
+
 func Test793a2d1b_AutomaticMemorysWorkStartsNoSessionOfItsOwn(t *testing.T) {
 	t.Parallel()
 
@@ -532,6 +558,9 @@ const (
 	// askToRemember asks for a fact to be remembered.
 	askToRemember = "Remember that the Zorblax staging database is reset every Sunday at 03:40 UTC. " +
 		"Reply with one short sentence."
+	// askToRememberAndNotSave asks to remember a fact without saving it, so that the agent says that it did not.
+	askToRememberAndNotSave = "Remember that the Zorblax staging database is reset every Sunday at 03:40 UTC, but do not " +
+		"save it anywhere yourself. Reply with exactly: I did not save it."
 	// askToRememberTheBackup asks to remember a second lesson about the database that stagingReset is about.
 	askToRememberTheBackup = "Remember that the Zorblax staging database is backed up every Monday at 05:00 UTC. " +
 		"Reply with one short sentence."
