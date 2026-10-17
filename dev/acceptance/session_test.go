@@ -33,8 +33,10 @@ const (
 	liveBudgetUSD     = "2"
 	liveModel         = "sonnet"
 	maxLineBytes      = 16 << 20
+	notificationKind  = "task-notification" // the origin of a background task's notification
 	offlineBaseURL    = "http://127.0.0.1:9"
 	offlineWait       = 60 * time.Second
+	ownTurnTimeout    = 90 * time.Second // how long a turn of the session's own is awaited
 	pollInterval      = 50 * time.Millisecond
 	recordFlushWait   = 10 * time.Second
 	resultsBuffered   = 16
@@ -64,6 +66,28 @@ type conversation struct {
 	results  chan string // the line of each result the process prints, one for each prompt it has answered
 	ended    sync.Once
 	turnEnds time.Time // when the process printed the result of the last prompt it answered: the turn ended
+}
+
+// awaitTurnOfItsOwn waits for the result of a turn that no prompt of the test began, such as the turn that the
+// notification of a background task starts, and returns the line of the result. The turn ended when it is returned.
+func (c *conversation) awaitTurnOfItsOwn() string {
+	t := c.session.machine.t
+	t.Helper()
+
+	select {
+	case result, open := <-c.results:
+		if !open {
+			t.Fatalf("claude ended before a turn of its own")
+		}
+
+		c.turnEnds = time.Now()
+
+		return result
+	case <-time.After(ownTurnTimeout):
+		t.Fatalf("no turn of its own ended within %s", ownTurnTimeout)
+
+		return ""
+	}
 }
 
 // end closes the process's input, which ends the session, and waits for the process; stderr is logged when it fails.
@@ -309,6 +333,19 @@ func (s *session) hasFile(name, content string) {
 	writeFile(s.machine.t, filepath.Join(s.project, name), content)
 }
 
+// notifications counts the rows of the session's record that a background task's notification wrote.
+func (s *session) notifications() int {
+	count := 0
+
+	for _, row := range s.rows() {
+		if row.Type == "user" && row.Origin.Kind == notificationKind {
+			count++
+		}
+	}
+
+	return count
+}
+
 // requests counts the requests to the model that the session's record holds.
 func (s *session) requests() int {
 	count := 0
@@ -459,7 +496,10 @@ func (s *session) turnOf(prompt, stdout string) *turn {
 type transcriptRow struct {
 	Type      string `json:"type"`
 	Timestamp string `json:"timestamp"`
-	Message   struct {
+	Origin    struct {
+		Kind string `json:"kind"`
+	} `json:"origin"`
+	Message struct {
 		Content json.RawMessage `json:"content"`
 	} `json:"message"`
 	Attachment struct {

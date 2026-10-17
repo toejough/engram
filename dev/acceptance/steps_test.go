@@ -35,7 +35,10 @@ const (
 		"Sunday at 03:40 UTC, and asked when the staging database is reset."
 	learnSource = "acceptance test"
 	modName     = "engram-memory"
-	piDirectory = ".pi"
+	// ownTurnSettle is how long the test of a turn of the session's own waits for a record of that turn that would
+	// come: three times the longest capture of the live runs (793b85).
+	ownTurnSettle = 20 * time.Second
+	piDirectory   = ".pi"
 	// settleTime is how long a test of an absence waits, after the records of a write exist, for a second write to
 	// show: the writes of one turn end within a second of each other.
 	settleTime = 5 * time.Second

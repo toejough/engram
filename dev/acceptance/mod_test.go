@@ -5,6 +5,7 @@ package acceptance_test
 import (
 	"strings"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 )
@@ -222,8 +223,45 @@ func Test793d2a1h_Mod_GivesTheCommandThePromptsOrigin(t *testing.T) {
 	})
 }
 
+func Test793d4m1d_ATurnThatABackgroundTasksNotificationStartsIsNotJudged(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var chat *conversation
+
+	step(t, "Given the user has run engram update, and a session in which the agent may run a sleep command "+
+		"but may not run engram commands", func() {
+		machine.hasRunUpdate("sleep")
+
+		chat = machine.startSession("zorblax").converse()
+	})
+
+	step(t, "When the agent starts a task in the background in a turn the user began, and the task's notification "+
+		"starts a turn of its own that the agent answers", func() {
+		chat.tell(askToRunInTheBackground)
+
+		chat.awaitTurnOfItsOwn()
+	})
+
+	step(t, "Then automatic memory has made one record, that of the user's turn, and the vault holds no note", func() {
+		g.Expect(chat.session.notifications()).To(Equal(1), "the notifications that the session's record holds")
+
+		machine.awaitSettled(chat.session.id, chat.turnEnds, 1)
+		time.Sleep(ownTurnSettle)
+
+		g.Expect(machine.recordKinds(chat.session.id)).To(Equal([]string{"nothing"}), "the records of the turns")
+		g.Expect(machine.noteNames()).To(BeEmpty(), "the notes of the vault")
+		g.Expect(machine.hookFailures()).To(BeEmpty(), "the mod's hook was skipped")
+	})
+}
+
 // unexported constants.
 const (
+	// askToRunInTheBackground makes the agent start a task in the background, whose notification starts a turn.
+	askToRunInTheBackground = "Run this exact Bash command with run_in_background set to true: sleep 6. " +
+		"Then reply with the single word started."
 	// promptHello is a prompt no note bears on; the stand-in engram answers whatever it is asked.
 	promptHello = "hello there"
 	// standInBlock is what the stand-in engram prints for any prompt.
