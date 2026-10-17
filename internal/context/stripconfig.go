@@ -136,7 +136,7 @@ func extractTextBlock(raw json.RawMessage, rolePrefix string) []string {
 		return make([]string, 0)
 	}
 
-	cleaned, drop := cleanText(block.Text)
+	cleaned, drop := CleanText(block.Text)
 	if drop {
 		return make([]string, 0)
 	}
@@ -183,7 +183,7 @@ func extractTextWithTools(line string, cfg StripConfig) []string {
 
 	strErr := json.Unmarshal(raw, &str)
 	if strErr == nil {
-		cleaned, drop := cleanText(str)
+		cleaned, drop := CleanText(str)
 		if drop {
 			return result
 		}

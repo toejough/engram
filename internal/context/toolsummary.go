@@ -54,7 +54,7 @@ func extractSummaryBlocks(line string, pending map[string]toolSummaryPair) []str
 			return make([]string, 0)
 		}
 
-		cleaned, drop := cleanText(str)
+		cleaned, drop := CleanText(str)
 		if drop {
 			return make([]string, 0)
 		}

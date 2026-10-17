@@ -94,10 +94,14 @@ func (h *holdings) readResults(row recordRow) {
 // recordRow is one line of a session's record, with the fields that tell what the agent was given.
 type recordRow struct {
 	Type        string `json:"type"`
+	IsMeta      bool   `json:"isMeta"`
 	IsSidechain bool   `json:"isSidechain"`
 	Message     struct {
 		Content json.RawMessage `json:"content"`
 	} `json:"message"`
+	Origin struct {
+		Kind string `json:"kind"`
+	} `json:"origin"`
 	Attachment struct {
 		Type    string          `json:"type"`
 		Content json.RawMessage `json:"content"`

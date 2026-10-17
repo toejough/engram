@@ -8,6 +8,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	sessionctx "github.com/toejough/engram/internal/context"
 )
 
 // Judgement is the request of the call of the model that judges a turn: the fields the host's model call takes
@@ -157,7 +159,8 @@ func isLineBreak(r rune) bool {
 
 // linesOf reads the prompts of the user and the texts and tool uses of the agent out of a session's record, in order,
 // as one line each, and returns the lines with the index of the line of the last prompt, or -1 when there is none. A
-// tool's result is not a prompt, and a message with no text of its own makes no line.
+// tool's result is not a prompt, nor is a row that the harness wrote (793d4g): one marked as meta, or stamped with an
+// origin the user does not send. A message with no text of its own makes no line.
 func linesOf(record []byte) ([]string, int) {
 	lines := make([]string, 0, bytes.Count(record, []byte("\n"))+1)
 	prompt := -1
@@ -171,6 +174,10 @@ func linesOf(record []byte) ([]string, int) {
 
 		switch row.Type {
 		case "user":
+			if row.IsMeta || (row.Origin.Kind != "" && !UserSent(row.Origin.Kind)) {
+				continue
+			}
+
 			if text := messageText(promptTextOf(row.Message.Content)); text != "" {
 				prompt = len(lines)
 				lines = append(lines, "User: "+text)
@@ -223,13 +230,13 @@ func oneLined(text string) string {
 	return oneLine(broken.String())
 }
 
-// promptTextOf reads the text of a prompt of the user: the content is a string, or text blocks. The content that holds
-// the result of a tool is no prompt.
+// promptTextOf reads the text of a prompt of the user: the content is a string, or text blocks, each cleaned of the
+// noise of the harness. The content that holds the result of a tool is no prompt.
 func promptTextOf(content json.RawMessage) string {
 	var text string
 
 	if json.Unmarshal(content, &text) == nil {
-		return text
+		return userText(text)
 	}
 
 	var parts []string
@@ -239,8 +246,12 @@ func promptTextOf(content json.RawMessage) string {
 			return ""
 		}
 
-		if block.Type == "text" {
-			parts = append(parts, block.Text)
+		if block.Type != "text" {
+			continue
+		}
+
+		if cleaned := userText(block.Text); cleaned != "" {
+			parts = append(parts, cleaned)
 		}
 	}
 
@@ -256,6 +267,17 @@ func sizeOf(lines []string) int {
 	}
 
 	return size
+}
+
+// userText is the text of a message of the user without the noise of the harness, as the transcript-reader reads it
+// (792b15c3), or nothing when none of it is the user's.
+func userText(text string) string {
+	cleaned, drop := sessionctx.CleanText(text)
+	if drop {
+		return ""
+	}
+
+	return cleaned
 }
 
 // withAnswer adds the final text as the last line of the turn unless a line of the turn already holds its beginning.

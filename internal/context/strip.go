@@ -11,6 +11,17 @@ const (
 	UserPrefix = "USER: "
 )
 
+// CleanText returns the text of a message of the user after applying the system-reminder and harness-injection filters
+// of the transcript-reader (792b15c3): a slash command is its arguments. Returns ("", true) if the text should be
+// dropped entirely.
+func CleanText(text string) (string, bool) {
+	if isSystemReminder(text) {
+		return "", true
+	}
+
+	return cleanHarnessInjection(text)
+}
+
 // Strip parses JSONL transcript lines and extracts clean conversation text.
 // It returns "USER: ..." and "ASSISTANT: ..." lines, dropping:
 //   - non-user/assistant entries (progress, system, etc.)
@@ -114,16 +125,6 @@ func cleanHarnessInjection(text string) (string, bool) {
 	return text, false
 }
 
-// cleanText returns the text after applying system-reminder and harness-injection
-// filters. Returns ("", true) if the text should be dropped entirely.
-func cleanText(text string) (string, bool) {
-	if isSystemReminder(text) {
-		return "", true
-	}
-
-	return cleanHarnessInjection(text)
-}
-
 // extractContentBlocks joins non-noise text blocks from a content block array.
 func extractContentBlocks(blocks []contentBlock) string {
 	texts := make([]string, 0, len(blocks))
@@ -133,7 +134,7 @@ func extractContentBlocks(blocks []contentBlock) string {
 			continue
 		}
 
-		cleaned, drop := cleanText(block.Text)
+		cleaned, drop := CleanText(block.Text)
 		if drop {
 			continue
 		}
@@ -158,7 +159,7 @@ func extractContentText(raw json.RawMessage) string {
 	var str string
 
 	if json.Unmarshal(raw, &str) == nil {
-		cleaned, drop := cleanText(str)
+		cleaned, drop := CleanText(str)
 		if drop {
 			return ""
 		}

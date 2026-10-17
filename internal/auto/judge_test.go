@@ -454,11 +454,8 @@ const (
 	rowSkillResult       = 3
 )
 
-// unexported variables.
-var (
-	//go:embed testdata/session_with_harness_rows.jsonl
-	recordedSession string
-)
+//go:embed testdata/session_with_harness_rows.jsonl
+var recordedSession string
 
 // assistantText is the record of a text of the agent.
 func assistantText(text string) string {
