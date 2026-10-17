@@ -423,6 +423,14 @@ Takes [793a3c1a A lesson an earlier note states is not written again](./793a_pro
 | 793d4h1e | Dedicated example (default suite) | the cover: no write and a record that names the note | Done | 54179dc0 | 8c7c58ae | fea2480a |
 | 793d4h1f | Dedicated example (default suite) | what is no cover: a file that is not in the [vault](../../GLOSSARY.md#vault), and a path outside it | Done | 54179dc0 | 8c7c58ae | fea2480a |
 
+#### 793e6b9 A lesson the agent saved itself is not written again
+
+Takes [793a3c1b A lesson the agent saved itself is not written again](./793a_product-spec.md#793a3c1-uat-scenarios). It adds no component: the [note](../../GLOSSARY.md#permanent-note) that the [agent](./793a_product-spec.md#793a1a-terms) saves with [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand) is one of the notes nearest to the [turn](./793a_product-spec.md#793a1a-terms) when the turn ends, and the cover of the eighth node applies to it.
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| 793a3c1b | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the user asks the agent to remember something and to save it with `engram learn`, the agent runs the command, and the [vault](../../GLOSSARY.md#vault) holds that one note, not marked as written automatically; the test waits for the record of the reply, so that the absence of a second note is the result of the judgement. The test passes when written, because the judgement of the eighth node already lists the notes nearest to the turn; the mutation that makes it fail is a judgement that is shown no notes | Red | | | |
+
 ### 793e6e The conversation becomes searchable memory
 
 Takes [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory).
