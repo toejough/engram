@@ -20,7 +20,7 @@ Anyone who works with an [agent](#793a1a-terms) in Claude Code and keeps a [vaul
 
 ### 793a2a On after `engram update`
 
-Requirement: 793a2a When the user runs [`engram update`](../../GLOSSARY.md#engram-update), other than with `--dry-run` (792a11f), on a machine that has Claude Code, [automatic memory](#793a1a-terms) MUST be on for every Claude Code [session](../../GLOSSARY.md#session) the user starts on that machine afterwards, in any project. Turning it on MUST NOT need a step other than `engram update`, and automatic memory MUST NOT use an account, key or [vault](../../GLOSSARY.md#vault) the user has not already configured. After a second `engram update`, each [prompt](#793a1a-terms) MUST still get its [notes](../../GLOSSARY.md#permanent-note) delivered once and each lesson MUST still become one note. `engram update` MUST NOT install anything into Pi.
+Requirement: 793a2a When the user runs [`engram update`](../../GLOSSARY.md#engram-update), other than with `--dry-run` ([792a11f Previewing an update](../../specs/product/install-and-update.md#792a11f-previewing-an-update)), on a machine that has Claude Code, [automatic memory](#793a1a-terms) MUST be on for every Claude Code [session](../../GLOSSARY.md#session) the user starts on that machine afterwards, in any project. Turning it on MUST NOT need a step other than `engram update`, and automatic memory MUST NOT use an account, key or [vault](../../GLOSSARY.md#vault) the user has not already configured. After a second `engram update`, each [prompt](#793a1a-terms) MUST still get its [notes](../../GLOSSARY.md#permanent-note) delivered once and each lesson MUST still become one note. `engram update` MUST NOT install anything into Pi.
 
 #### 793a2a1 UAT Scenarios
 
@@ -94,7 +94,7 @@ Scenario: 793a2b1d A prompt that matches no note arrives with nothing
 
 ### 793a2c Lessons are written without the agent
 
-Requirement: 793a2c When a [turn](#793a1a-terms) holds a confirmed lesson that the [vault](../../GLOSSARY.md#vault) does not already state (`793a3c`), a [note](../../GLOSSARY.md#permanent-note) stating it MUST be in the vault within 2 minutes after the turn ends, while the [session](../../GLOSSARY.md#session) stays open for those 2 minutes, written by [automatic memory](#793a1a-terms) and not by the [agent](#793a1a-terms), and marked as written automatically. A turn holds a confirmed lesson when the user corrected the agent, asked it to remember something (even if the agent says it did not save it) or confirmed that an approach worked, when the agent plainly corrected its own earlier claim, or when an uncertain approach succeeded with evidence in the turn. A turn that holds only guesses, plans or chatter MUST NOT produce a note; a thanks or "it worked" that names no approach is chatter. A note MUST NOT contain a credential that appeared in the turn in a recognised form: a private key block; a key or token that opens with the name of the service that issued it (GitHub, npm, GitLab, Slack, Google or AWS); a signed token of three parts joined by dots; a `Bearer` or `Basic` credential of 12 characters or more; the user and password of a web address; the value of an `Authorization` header; the value a name holding key, token, secret, password, credential or private key is given by `=`, `:` or `is`, with up to six words of the sentence between the name and `:` or `is`; or a run of 32 or more letters and digits. A credential in any other form, such as a password a sentence gives without `is` or `:`, or a token split over two lines, is not promised away.
+Requirement: 793a2c When a [turn](#793a1a-terms) holds a confirmed lesson that the [vault](../../GLOSSARY.md#vault) does not already state (`793a3c`), a [note](../../GLOSSARY.md#permanent-note) stating it MUST be in the vault within 2 minutes (`793c2`) after the turn ends, while the [session](../../GLOSSARY.md#session) stays open for those 2 minutes (`793c14`), written by [automatic memory](#793a1a-terms) and not by the [agent](#793a1a-terms), and marked as written automatically. A turn holds a confirmed lesson when the user corrected the agent, asked it to remember something (even if the agent says it did not save it) or confirmed that an approach worked, when the agent plainly corrected its own earlier claim, or when an uncertain approach succeeded with evidence in the turn. A turn that holds only guesses, plans or chatter MUST NOT produce a note; a thanks or "it worked" that names no approach is chatter. A note MUST NOT contain a credential, token, key or password that appeared in the turn in a recognised form (`793c49`): a private key block; a key or token that opens with the name of the service that issued it (GitHub, npm, GitLab, Slack, Google or AWS); a signed token of three parts joined by dots; a `Bearer` or `Basic` credential of 12 characters or more; the user and password of a web address; the value of an `Authorization` header; the value a name holding key, token, secret, password, credential or private key is given by `=`, `:` or `is`, with up to six words of the sentence between the name and `:` or `is`; or a run of 32 or more letters and digits. A credential in any other form, such as a password a sentence gives without `is` or `:`, or a token split over two lines, is not promised away.
 
 #### 793a2c1 UAT Scenarios
 
@@ -147,7 +147,7 @@ Scenario: 793a2c1i A request to remember is written when the agent says it did n
 
 ### 793a2f The conversation becomes searchable memory
 
-Requirement: 793a2f Within 2 minutes after a [turn](#793a1a-terms) ends, while the [session](../../GLOSSARY.md#session) stays open for those 2 minutes, [automatic memory](#793a1a-terms) MUST make the session's conversation so far findable by the [agent](#793a1a-terms)'s own memory lookup (`engram query`), without the user or the agent running [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand).
+Requirement: 793a2f Within 2 minutes (`793c2`) after a [turn](#793a1a-terms) ends, while the [session](../../GLOSSARY.md#session) stays open for those 2 minutes (`793c14`), [automatic memory](#793a1a-terms) MUST make the session's conversation so far findable by the [agent](#793a1a-terms)'s own memory lookup (`engram query`), without the user or the agent running [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand).
 
 #### 793a2f1 UAT Scenarios
 
@@ -155,7 +155,7 @@ Pending step 2 (`793f3`).
 
 ### 793a2d Never in the way
 
-Requirement: 793a2d [Automatic memory](#793a1a-terms) MUST NOT hold a [prompt](#793a1a-terms) for longer than 8 seconds, MUST NOT edit the user's prompt or the text of the [agent](#793a1a-terms)'s reply, MUST NOT break or stall a [session](../../GLOSSARY.md#session), and MUST NOT deliver to or write from its own sessions, the sessions it starts itself to do its work. When it cannot do its work, for any reason, including a delivery that does not finish within those 8 seconds and a write that fails, it MUST step aside, and the session MUST continue as if automatic memory were not installed.
+Requirement: 793a2d [Automatic memory](#793a1a-terms) MUST NOT hold a [prompt](#793a1a-terms) for longer than 8 seconds (`793c1`), MUST NOT edit the user's prompt or the text of the [agent](#793a1a-terms)'s reply, MUST NOT break or stall a [session](../../GLOSSARY.md#session), and MUST NOT deliver to or write from its own sessions, the sessions it starts itself to do its work. When it cannot do its work, for any reason, including a delivery that does not finish within those 8 seconds and a write that fails, it MUST step aside, and the session MUST continue as if automatic memory were not installed.
 
 #### 793a2d1 UAT Scenarios
 
@@ -175,7 +175,7 @@ The other clauses' scenarios are pending step 2 (`793e6c`).
 
 ### 793a2e The user can see what it did
 
-Requirement: 793a2e By the time the user sends the next [prompt](#793a1a-terms), the user MUST be able to see in the [session](../../GLOSSARY.md#session), without going to the [vault](../../GLOSSARY.md#vault), what [automatic memory](#793a1a-terms) delivered for the previous prompt, what it wrote from the previous [turn](#793a1a-terms), and each delivery or write it could not do, with the reason. A write that finishes after that prompt is sent MUST be shown when it finishes.
+Requirement: 793a2e When [automatic memory](#793a1a-terms) delivered a [note](../../GLOSSARY.md#permanent-note), wrote one or could not do a delivery or a write, the user MUST be able to see in the [session](../../GLOSSARY.md#session), by the time the user sends the next [prompt](#793a1a-terms), without going to the [vault](../../GLOSSARY.md#vault), what it delivered for the previous prompt, what it wrote from the previous [turn](#793a1a-terms), and each delivery or write it could not do, with the reason. A write that finishes after that prompt is sent MUST be shown when it finishes.
 
 #### 793a2e1 UAT Scenarios
 
@@ -238,6 +238,6 @@ Scenario: 793a3e1a The agent's own lookups and saves keep working
 
 Target: [792a2e First-use vault creation](../../specs/product/vault-identity.md#792a2e-first-use-vault-creation)
 
-Requirement: 792a2e Every command that resolves a vault path, other than the commands that [automatic memory](#793a1a-terms) runs on its own, MUST, when no [vault](../../GLOSSARY.md#vault) exists at that path, create one before the command runs, whether or not `ENGRAM_PARENT` is set, and print exactly one stderr line, `engram: created new vault at <path>`. The new vault contains `.obsidian/app.json`, a `.gitignore`, a starter `README.md`, a vault ID (792a2h) and the `.engram/` state directory (792a2k). A command that automatic memory runs on its own creates no vault (`793a2a`).
+Requirement: 792a2e Every command that resolves a vault path, other than the commands that [automatic memory](#793a1a-terms) runs on its own, MUST, when no [vault](../../GLOSSARY.md#vault) exists at that path, create one before the command runs, whether or not `ENGRAM_PARENT` is set, and print exactly one stderr line, `engram: created new vault at <path>`. The new vault contains `.obsidian/app.json`, a `.gitignore`, a starter `README.md`, a vault ID ([792a2h Stable vault ID](../../specs/product/vault-identity.md#792a2h-stable-vault-id)) and the `.engram/` state directory ([792a2k Exchange state outside tracked files](../../specs/product/vault-identity.md#792a2k-exchange-state-outside-tracked-files)). A command that automatic memory runs on its own creates no vault (`793a2a`).
 
-Rationale: a [prompt](#793a1a-terms) must not create a vault the user has not asked for (scenario `793a2a1e`).
+Rationale: a [prompt](#793a1a-terms) must not create a vault the user has not asked for, and a missing vault is the user's to create with a command they run (scenario `793a2a1e`).
