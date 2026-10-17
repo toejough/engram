@@ -263,6 +263,37 @@ func Test793a2c1g_ACredentialInTheTurnIsNotInTheNote(t *testing.T) {
 	})
 }
 
+func Test793a2d1b_AutomaticMemorysWorkStartsNoSessionOfItsOwn(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var chat *conversation
+
+	step(t, "Given the user has run engram update, and a session in which the agent may not run engram commands", func() {
+		machine.hasRunUpdate()
+
+		chat = machine.startSession("zorblax").converse()
+	})
+
+	step(t, "When the user corrects the agent in a prompt, and the turn ends", func() {
+		chat.tell(correctTheBuild)
+	})
+
+	step(t, "Then within 2 minutes the vault holds a note for the correction, and no session but the user's exists, "+
+		"so nothing was delivered to or written from another", func() {
+		written := machine.awaitAutomaticNote(chat.turnEnds, "that states the correction", buildTarget)
+
+		g.Expect(machine.noteText(written)).To(ContainSubstring("(session "+chat.session.id+")"),
+			"the session the note was written from")
+
+		machine.awaitSettled(chat.session.id, chat.turnEnds, 1)
+
+		g.Expect(machine.sessionsRecorded()).To(Equal([]string{chat.session.id}), "the sessions of the machine")
+	})
+}
+
 func Test793a3a1a_AWrittenNoteIsDeliveredWithLaterPrompts(t *testing.T) {
 	t.Parallel()
 

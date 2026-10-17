@@ -482,6 +482,29 @@ func (m *machine) recordKinds(session string) []string {
 	return kinds
 }
 
+// sessionsRecorded returns the IDs of the sessions that Claude Code holds a record of on the machine, sorted: the files
+// below the directory of the records are named for a session.
+func (m *machine) sessionsRecorded() []string {
+	m.t.Helper()
+
+	var ids []string
+
+	walkErr := filepath.WalkDir(m.transcripts, func(path string, entry os.DirEntry, err error) error {
+		if err == nil && !entry.IsDir() && strings.HasSuffix(path, ".jsonl") {
+			ids = append(ids, strings.TrimSuffix(filepath.Base(path), ".jsonl"))
+		}
+
+		return nil
+	})
+	if walkErr != nil {
+		m.t.Fatalf("listing the records of sessions in %s: %v", m.transcripts, walkErr)
+	}
+
+	slices.Sort(ids)
+
+	return ids
+}
+
 // standInCalled returns the arguments and the request, the JSON object on standard input, that the stand-in engram was
 // run with.
 func (m *machine) standInCalled() (string, map[string]string) {
