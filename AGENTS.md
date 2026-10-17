@@ -2,6 +2,8 @@
 
 Persistent memory for LLM agents, backed by an agent-memory zettelkasten vault. Six skills read from and write to the vault on demand: `recall`, `learn`, `please`, `route`, `curate`, and `write-memory`. Each skill ships in `agent-instructions/skills/` via `engram update`. Additionally, `engram update`/`engram register-skills` (`--accept`/`--decline`/`--dry-run`/`--adopt`) offer a companion vault runbook note for every skill, command and Pi prompt template in the default folders — not only engram's six: Claude user skills and commands (symlinks followed), claude.ai-synced skills, Pi user and agents skills, Pi-configured skill/prompt paths and packages, enabled plugin skills and commands, and project-local Claude sources plus Pi sources for trusted projects. Each note is identified by a source-qualified skill key (`claude:route`, `claude:cmd:audit`, `superpowers:brainstorming`, `commit:cmd:commit`, `project:github.com/toejough/engram:cmd:opsx:apply`), with a slug derived from the key and `skill_key`/`skill_source` recorded on the note; every key is source-qualified; engram's own skills are keyed by the folder they are found in (e.g. `claude:route`, `pi:route`), identical copies collapse, and every preamble names the note's `skill_source`. Removal offers are limited to sources that were read successfully. Declines are remembered by hash, keyed by skill key, in vault-root `skill-registrations.json`; nothing is written without a terminal, and offers are answered by key, key-prefix pattern, or `@scope`. New/refreshed notes are pending offers the `curate` skill reviews. `recall` and `learn` invoke `write-memory` natively as a skill at their write sites, not reached by basename/wikilink. `please` is one note (its former three sub-runbooks merged into the single note/skill body). The runbook concept itself (captured runbooks with triggers, the shim follow-frame) remains unchanged — only the "skills are replaced by runbooks" direction is reversed.
 
+Automatic memory, on [Claude Code](docs/GLOSSARY.md#harness) only, is a mod and not a skill: `engram update` deploys `agent-instructions/mods/engram-memory` beside the skills, and for each prompt it runs `engram auto deliver`, which puts the vault notes that bear on the prompt beside it. The agent is not asked to remember.
+
 ## Core Principles
 
 - **Verify, don't guess.** Always read source code and documentation before guessing at formats, paths, or API contracts. Never assume directory structures or payload fields — verify first.
@@ -13,6 +15,7 @@ Persistent memory for LLM agents, backed by an agent-memory zettelkasten vault. 
 engram/
 ├── cmd/engram/        # CLI binary entry point — single-statement main() + checker-thin per-group functions supplying raw I/O primitives (targ check-thin-api-enforced)
 ├── internal/          # Non-public implementation
+│   ├── auto/          # Logic of automatic memory behind `engram auto deliver`: the block of vault notes that bear on a prompt and that the session does not already hold (pure: every collaborator is injected)
 │   ├── chunk/         # Splits memory sources (stripped transcripts, markdown) into embedding-sized chunks for the auto-ingested vector space (pure string logic, no I/O)
 │   ├── cli/           # CLI command wiring (targ targets) + composition root: cli.NewDeps builds every production adapter from injected cli.Primitives
 │   ├── cluster/       # k-means clustering with silhouette-based auto-K, for recall clustering
@@ -25,8 +28,9 @@ engram/
 │   └── vaultgraph/    # Wikilink graph analysis of the vault
 ├── agent-instructions/
 │   ├── skills/        # Source for all six skills — recall, learn, please, route, curate, write-memory
+│   ├── mods/          # Source for the Claude Code mods `engram update` deploys beside the skills — `engram-memory`, which runs `engram auto deliver` for each prompt
 │   └── guidance/      # Source for the deployable ambient guidance docs — recall-firing (`recall.md`), delegation-firing (`delegate.md`), learn-firing (`learn.md`), and runbook-follow-frame (`shim.md`) — synced by `engram update --with-guidance` to canonical paths in `~/.claude/engram/guidance/` (Claude Code) and `~/.pi/agent/engram/guidance/` (Pi); compat symlinks at old flat paths keep existing `@import` lines in CLAUDE.md / AGENTS.md resolving (792a11m in docs/specs/product/install-and-update.md); activated via `@import`
-├── dev/               # Build tooling (targ definitions, linter configs)
+├── dev/               # Build tooling (targ definitions, linter configs); `dev/acceptance/` holds the tests that drive a real Claude Code session (`targ acceptance`)
 └── docs/              # Organized per docs/AGENTS.md: changes/, specs/, the authoring guides, GLOSSARY.md, ROADMAP.md, images/
 ```
 
@@ -36,6 +40,8 @@ engram/
 - `internal/cli/primitives.go` — Composition root (`cli.Primitives` + `cli.NewDeps`, which builds every production adapter from the injected primitives)
 - `internal/cli/targets.go` — Subcommand wiring
 - `agent-instructions/skills/{learn,recall,please,route,curate,write-memory}/SKILL.md` — Skill definitions for all six skills (each may also carry a companion `skill-claude-<name>` vault runbook note offered by `engram update`/`engram register-skills`)
+- `agent-instructions/mods/engram-memory/hooks/register.js` — the automatic-memory mod: on each prompt it runs `engram auto deliver` and puts what it prints beside the prompt
+- `internal/auto/auto.go` — `auto.Deliver`, the block of the notes that bear on a prompt
 - `dev/targs.go` — Build targets (targ definitions)
 - `docs/AGENTS.md` — documentation conventions and the index of authoring guides; start here for any `docs/` work
 - `docs/GLOSSARY.md`, `docs/ROADMAP.md` — project terms; planned, parked and shipped work
@@ -59,6 +65,7 @@ Authority: the technical specs (792b) and the rationale under their requirements
   - Lint + coverage: `targ check-full`
   - Install the binary: `go install ./cmd/engram` (there is no `targ build` target — targ covers test/lint/check, not binary install)
   - Don't reverse-engineer targ's behavior — treat it as a black box
+  - Tests that drive a real Claude Code session (`dev/acceptance`, build tag `network`) run with `targ acceptance [--run REGEXP]`; `targ check-full` does not run them, because they need a login token and cost money
 - Use `targ check-full` to get ALL errors at once — `targ check` stops early and you'll play whack-a-mole
 - If `check-nils-for-fail` or `check-coverage-for-fail` fail flakily (e.g. `signal: killed`, or coverage numbers that look corrupted/inconsistent across identical runs) in a long-lived sandbox, check `df -h /tmp` and `du -sh /tmp/engram-e2e-bin* 2>/dev/null` first — `/tmp` here is often a RAM-backed tmpfs, and a leaked `engram-e2e-bin*` dir from a prior `go test` run can fill it. `GOMEMLIMIT`/`GOGC` tuning is not the fix for this tmpfs-leak flakiness specifically (confirmed wrong; `internal/cli/testbinary_test.go`'s `TestMain` already cleans this up on a normal exit) — don't reach for it.
 - Minimal code that solves the problem — don't over-engineer

@@ -40,6 +40,8 @@ Requires Go 1.25+, `git` and `git-lfs` on `PATH`: `engram update` builds the bin
 
    `engram update` syncs engram artifacts to engram-owned roots per harness (`~/.claude/engram/`, `~/.pi/agent/engram/`) and materializes them as symlinks in each harness's discovery paths (`~/.claude/skills/`, `~/.pi/agent/skills/`, etc.). Removals from the source propagate on every update. First update performs a dark migration of pre-existing copies to symlinks. Run it again any time to upgrade — it also reinstalls the binary via `go install`, then re-execs the fresh binary so the sync itself runs with the new logic ([792a11e The rest of the update runs in the new binary](docs/specs/product/install-and-update.md#792a11e-the-rest-of-the-update-runs-in-the-new-binary)). `--with-guidance` additionally syncs guidance docs to the root's `guidance/` subtree (canonical paths) and materializes symlinks; compat symlinks at flat paths (`~/.claude/engram/*.md`) keep existing `@import` lines in CLAUDE.md and AGENTS.md resolving (Claude Code + Pi; opt-in). It's a **one-time opt-in per file** — once your CLAUDE.md (or AGENTS.md) imports a guidance file, plain `engram update` keeps it current. Until then, plain `engram update` prints a one-line hint. See [install-and-update](docs/specs/product/install-and-update.md) for the deployment-as-sync behavior.
 
+   On Claude Code, `engram update` also turns on automatic memory, the `engram-memory` mod: from the next session on, each prompt arrives with the vault notes that bear on it, with nothing else to run. `engram update --dry-run` lists it without installing it, and Pi is not given it.
+
 ## Skills
 
 | Skill | What it does |
@@ -102,6 +104,7 @@ engram vocab tag-definitions [--vault <dir>]  Idempotent backfill: adds the miss
 engram vocab propose --term <t> --description <d>  LLM-gated: create a new vocab definition note if no existing term covers it and projected attachment ≤ 20% of vault (~$0.05/proposal). Both flags required.
 engram vocab stats                     Per-term member counts, vault untagged-rate, hub terms (> 25% of vault), orphan terms (< 2 members), version staleness.
 engram vocab refit [--dry-run] [--names <file>]  Derivational: derives the vocabulary from the vault's note embeddings; matches clusters to existing terms, retires unmatched derived terms (proposed terms are never auto-retired), and emits naming requests for new clusters — answer via --names <file>. --dry-run previews the matched/new/retired diff. Rewrites member `tags:` entries in the `vocab/<term>` namespace; major version bump on the family definition note (no index to regenerate — the index is emergent). Triggered growth-only (≥40 new notes AND ≥14 days).
+engram auto deliver [--vault <dir>] [--sessions <dir>]   Reads one JSON request (`{"text": <prompt>, "session": <session id>}`) on standard input and prints the block of the vault notes that bear on the text and that the session's record does not already hold; prints nothing when none do. Creates no vault. The `engram-memory` mod runs it for each Claude Code prompt.
 engram update [--with-guidance]        Refresh binary, re-exec the fresh binary for the sync phase (792a11e in docs/specs/product/install-and-update.md); sync agents-instructions/{skills,guidance} to engram-owned roots and materialize as symlinks; removals propagate; dark migration on first sync ([--dry-run] previews, never installs/re-execs); --with-guidance includes guidance (canonical paths in guidance/, compat symlinks at flat paths) (Claude Code + Pi; opt-in; see 792a11 in docs/specs/product/install-and-update.md). Local-mode installs refuse a provable downgrade (installed binary's revision not an ancestor of the module root's HEAD); override with --allow-downgrade
 ```
 
@@ -144,6 +147,7 @@ Inputs longer than 1500 chars are truncated to MiniLM-L6's 512-token limit — a
 cmd/engram/          CLI entry point: wiring-only single-statement main() composing cli.Primitives from checker-thin per-capability-group functions of raw capability references (all adapter composition lives in internal/cli via cli.NewDeps; enforced by targ check-thin-api)
 internal/            Business logic (DI boundaries)
   chunk/             Splits transcripts/markdown into embedding-sized chunks for the chunk index (pure string logic, no I/O)
+  auto/              Automatic memory: the block of the notes that bear on a prompt (pure; collaborators injected)
   cli/               CLI command wiring (targ targets)
   cluster/           k-means clustering with silhouette-based auto-K, for recall clustering
   context/           Transcript processing
@@ -155,6 +159,7 @@ internal/            Business logic (DI boundaries)
   vaultgraph/        Vault traversal (wikilink graph, note scanning)
 agent-instructions/
   skills/            Source for all six skills — recall, learn, please, route, curate, write-memory
+  mods/              Source for the Claude Code mods engram update deploys beside the skills — engram-memory (automatic memory)
   guidance/          Source for the deployable ambient guidance docs — recall-firing (recall.md), delegation-firing (delegate.md), learn-firing (learn.md), and runbook-follow-frame (shim.md)
 ```
 
@@ -163,6 +168,7 @@ agent-instructions/
 - `go install ./cmd/engram` — install the binary (targ has no `build` target; it covers check/test/lint only)
 - `targ test` — run unit + integration tests
 - `targ check-full` — lint + coverage (use this to see ALL errors at once)
+- `targ acceptance [--run REGEXP]` — run the tests that drive a real Claude Code session in an isolated home (they need a login token and cost money, so `targ check-full` does not run them)
 - Never run `go test` / `go build` / `go vet` directly — use `targ`
 
 ## Design principles
