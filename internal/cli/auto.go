@@ -18,7 +18,7 @@ import (
 // AutoDeliverArgs holds parsed flags for `engram auto deliver`.
 type AutoDeliverArgs struct {
 	VaultPath   string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
-	SessionsDir string `targ:"flag,name=sessions,desc=directory of recorded sessions (default ENGRAM_TRANSCRIPT_DIR or ~/.claude/projects)"` //nolint:lll // single unbreakable struct-tag string
+	SessionsDir string `targ:"flag,name=sessions,desc=directory of recorded sessions (default ENGRAM_TRANSCRIPT_DIR then CLAUDE_CONFIG_DIR/projects then ~/.claude/projects)"` //nolint:lll // single unbreakable struct-tag string
 }
 
 // AutoDeliverDeps holds injected dependencies for RunAutoDeliver.
