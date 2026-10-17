@@ -174,9 +174,8 @@ func autoTargets(
 					a.SessionsDir = sessionDirFrom(deps.Getenv, deps.UserHomeDir)("")
 				}
 
-				errHandler(runInVault(deps, a.VaultPath, func() error {
-					return RunAutoDeliver(withLog(ctx), a, newAutoDeliverDeps(deps), deps.Stdout)
-				}))
+				// no first-use step: a prompt must not create the vault the user removed (793d4e)
+				errHandler(RunAutoDeliver(withLog(ctx), a, newAutoDeliverDeps(deps), deps.Stdout))
 			}).Name("deliver").Description(
 				"Print the block of the notes that bear on a prompt (the automatic-memory mod runs this for each prompt)"),
 		),
