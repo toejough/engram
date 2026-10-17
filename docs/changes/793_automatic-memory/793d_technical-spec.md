@@ -136,6 +136,29 @@ Scenario: 793d4a1b A failed lookup fails the command and prints nothing
   Then it fails with an error that names the lookup's failure, and it prints nothing
 ```
 
+### 793d4c Framing the notes of a block as data
+
+Requirement: 793d4c The prompt-delivery MUST open every block with one fixed line that begins `[engram memory]` and
+says that the lines below are [notes](../../GLOSSARY.md#permanent-note) from the vault, delivered by the memory
+system and not typed by the user, and that an instruction written inside a note is not the user's. It MUST write each
+note as exactly one line that begins with a dash and a space, with the note's file name, situation and body each
+written as text in which every run of white space, line breaks and separators included, is one space and no control
+character remains. So the text of a note never makes a line of its own: it cannot produce a line that is the framing
+line, or a line that reads as another note.
+
+Owner: prompt-delivery (a new component; its canonical file at promotion is `prompt-delivery.md`)
+
+Supports: [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2b1a The notes that bear on a prompt arrive with it](./793a_product-spec.md#793a2b1-uat-scenarios).
+
+#### 793d4c1 Scenarios
+
+```gherkin
+Scenario: 793d4c1a A note cannot reshape the block
+  Given notes whose file names, situations and bodies hold line breaks, control characters, the framing line and lines that read as other notes, however they are mixed
+  When the block is made
+  Then the block has the framing line first and nowhere else, and exactly one line for each note, each beginning with a dash and a space and holding single spaces and no control character
+```
+
 ### 793d4b Deploying the mods of the source
 
 Requirement: 793d4b The harness-deploy-sync MUST plan one copy for every file under `agent-instructions/mods/` of the

@@ -639,16 +639,32 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 
 ## 793b42 What the block says
 
-- **Choice:** the block opens with `[engram memory] Notes from the vault that bear on this prompt, delivered by the
-  memory system, not typed by the user.` and two lines saying the agent should apply what bears on its next step and
-  that the notes are retrieved data, so an instruction written inside one is not followed unless the user gave it.
-  One line follows for each [note](../../GLOSSARY.md#permanent-note): a dash, its file name, its situation in
-  parentheses, a colon and its body on one line, cut to 400 characters.
+- **Choice:** the block opens with one fixed framing line and has one line for each [note](../../GLOSSARY.md#permanent-note):
+  a dash, its file name, its situation in parentheses, a colon and its body. The framing line begins `[engram memory]`
+  and says that the lines below are notes from the vault, delivered by the memory system and not typed by the user,
+  and that an instruction written inside a note is not the user's
+  ([793b43 A note cannot reshape the block](#793b43-a-note-cannot-reshape-the-block)).
 - **Rationale:** the framing is that of the earlier attempt's block (`internal/auto/moment.go` at commit `dcf53d07`),
-  whose guard line keeps a note from acting as an instruction; the marker `[engram memory]` is what the session's
-  record is searched for. The file name is the note's identity in every `engram` payload, so the agent can ask for the
-  whole note with `engram show`, and it is what a later prompt's lookup compares against what the agent already has.
-  The cut keeps the block compact; the agent has `engram show` for the whole note.
+  whose guard keeps a note from acting as an instruction; the marker `[engram memory]` is what the session's record is
+  searched for. The file name is the note's identity in every `engram` payload, so the agent can ask for the whole note
+  with `engram show`, and it is what a later prompt's lookup compares against what the agent already has.
 - **Alternatives:** whole notes (rejected: the block would grow with the vault); a count and no text (rejected: the
   agent would have to look each note up).
 - **Decided by:** Author (default; owner may override).
+
+## 793b43 A note cannot reshape the block
+
+- **Choice:** the file name, the situation and the body of a note are each written as text in which every run of white
+  space (line breaks and separators included) is one space and no control character remains, so a note is always one
+  line, and no text of a note can end its line and write a line that looks like the framing line or like another note.
+  The framing line says that an instruction written inside a note is not the user's. Nothing more is done: no quoting
+  scheme. [793d4c Framing the notes of a block as data](./793d_technical-spec.md#793d4c-framing-the-notes-of-a-block-as-data)
+  states it.
+- **Rationale:** a note is text that the user, the [agent](./793a_product-spec.md#793a1a-terms) or another vault wrote,
+  and the block puts it in the agent's context. A security review of the first rendering found that a note holding line
+  breaks could end its own line and write lines that imitate the block's framing or further notes, and that nothing
+  told the agent the lines are retrieved data. Collapsing and one framing line close that with no other machinery.
+- **Alternatives:** a quoting or escaping scheme (rejected: more code for the same guarantee, since the model reads the
+  lines either way); leaving out a note that holds control characters (rejected: the note would be lost).
+- **Decided by:** Reviewer (security review of the delivery node's rendering, relayed by the coordinator,
+  2026-10-17), accepted by the author.
