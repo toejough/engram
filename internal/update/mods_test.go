@@ -38,6 +38,7 @@ func Test793d4b1a_PlanModCopies_PlansEveryFileOfAModForTheHarness(t *testing.T) 
 			Src:      "/src/agent-instructions/mods/engram-memory/" + file,
 			Dst:      "/home/joe/.claude/skills/engram-memory/" + file,
 			SkillDir: "engram-memory",
+			Mod:      true,
 		}
 	}
 
@@ -112,4 +113,33 @@ func Test793d4b1d_PlanModCopies_PiIsPlannedNoMod(t *testing.T) {
 	for _, op := range ops {
 		g.Expect(op.Harness).To(Equal(update.HarnessClaude), op.Dst)
 	}
+}
+
+func Test793d4b1e_Updater_Run_ReportsTheModAsAMod(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+	fileSystem.dirs["/home/joe/.claude"] = true
+	fileSystem.dirs["/repo"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("learn skill")
+	fileSystem.files["/repo/agent-instructions/mods/engram-memory/hooks/register.js"] = []byte("the mod")
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+
+	g.Expect(report.Harnesses[0].SkillDirs).To(ConsistOf(
+		update.SkillDirCount{Name: "learn", Files: 1},
+		update.SkillDirCount{Name: "engram-memory", Files: 1, Mod: true},
+	))
 }
