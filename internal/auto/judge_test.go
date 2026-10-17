@@ -489,7 +489,7 @@ func jsonText(text string) string {
 func judge(t fataler, record, answer string, notes []auto.Note) (auto.Judgement, bool) {
 	t.Helper()
 
-	request, found, err := auto.Judge(context.Background(), []byte(record), answer,
+	request, found, err := auto.Judge(context.Background(), []byte(record), auto.TurnEnd{Answer: answer},
 		func(context.Context, string) ([]auto.Note, error) { return notes, nil })
 	if err != nil {
 		t.Fatalf("judging the record: %v", err)

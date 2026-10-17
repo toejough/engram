@@ -24,34 +24,37 @@ type Judgement struct {
 	TimeoutMs int    `json:"timeoutMs"`
 }
 
-// TurnEnd is a turn that has ended, as the memory mod hands it over: the session it was in, its final text and the
-// origin of the prompt it began with (793d4g).
+// TurnEnd is a turn that has ended, as the memory mod hands it over: the session it was in, its final text, the text it
+// began with and the origin of the prompt it began with (793d4g).
 type TurnEnd struct {
 	Session string `json:"session"`
 	Answer  string `json:"answer"`
+	Text    string `json:"text"`
 	Origin  string `json:"origin"`
 }
 
-// Judge returns the request for the model that judges the turn a session's record ends with, and false when the record
-// holds no prompt (793d4g). It reads the record once, and redacts the lines of the window only. The turn is the last
-// prompt of the record and everything after it, the lines before it are the context, and the final text is the turn's
-// last line when no line of the turn holds its beginning. The notes are the ones nearest to the turn, which the lookup
-// finds for the text of the turn's prompts and the model may name as already stating a lesson.
-func Judge(ctx context.Context, record []byte, answer string, lookup Lookup) (Judgement, bool, error) {
-	messages, prompt := messagesOf(record)
-	if prompt < 0 {
+// Judge returns the request for the model that judges the turn a session's record holds, and false when the record
+// holds no prompt (793d4g). It reads the record once, and redacts the lines of the window only. The turn begins at the
+// last prompt that has the text the turn began with, or at the last prompt of the record when none has, and ends before
+// the next prompt and after its final text; the lines before it are the context, and the final text is the turn's last
+// line when no line of the turn holds its beginning. The notes are the ones nearest to the turn, which the lookup finds
+// for the text of the turn's prompts and the model may name as already stating a lesson.
+func Judge(ctx context.Context, record []byte, end TurnEnd, lookup Lookup) (Judgement, bool, error) {
+	messages, last := messagesOf(record)
+	if last < 0 {
 		return Judgement{}, false, nil
 	}
 
-	before := linesOf(messages[max(prompt-contextLines, 0):prompt])
-	turn := linesOf(messages[prompt:])
+	start := startOf(messages, last, end.Text)
+	before := linesOf(messages[max(start-contextLines, 0):start])
+	turn := linesOf(messages[start:endOf(messages, start)])
 
 	notes, err := lookup(ctx, promptsOf(turn))
 	if err != nil {
 		return Judgement{}, false, fmt.Errorf("looking up the notes: %w", err)
 	}
 
-	before, turn = fit(before, withAnswer(turn, answer))
+	before, turn = fit(before, withAnswer(turn, end.Answer))
 	window := slices.Concat(before, []string{divider}, turn)
 	text := strings.NewReplacer("{window}", strings.Join(window, "\n"), "{notes}", noteLines(notes)).Replace(instructions)
 
@@ -130,6 +133,16 @@ func clipped(text string, limit int) string {
 	}
 
 	return text
+}
+
+// endOf is the index of the message after the last of the turn that begins at start: the next prompt, or the end.
+func endOf(messages []message, start int) int {
+	next := slices.IndexFunc(messages[start+1:], func(one message) bool { return one.label == userLabel })
+	if next < 0 {
+		return len(messages)
+	}
+
+	return start + 1 + next
 }
 
 // fit cuts the window to windowLimit characters: the oldest lines of the context go first, and then the middle of the
@@ -310,6 +323,23 @@ func sizeOf(lines []string) int {
 	return size
 }
 
+// startOf is the index of the message the turn begins at: the last prompt that has the text, or the last prompt, which
+// last is the index of, when none has it or there is no text.
+func startOf(messages []message, last int, text string) int {
+	want := oneLined(text)
+	if want == "" {
+		return last
+	}
+
+	for index := last; index >= 0; index-- {
+		if messages[index].label == userLabel && oneLined(messages[index].text) == want {
+			return index
+		}
+	}
+
+	return last
+}
+
 // userText is the text of a message of the user without the noise of the harness, as the transcript-reader reads it
 // (792b15c3), or nothing when none of it is the user's.
 func userText(text string) string {
@@ -321,9 +351,17 @@ func userText(text string) string {
 	return cleaned
 }
 
-// withAnswer adds the final text as the last line of the turn unless a line of the turn already holds its beginning.
+// withAnswer ends the turn with the final text: the lines after the last line that is the text belong to another turn,
+// and the text is added as the last line unless a line of the turn already holds its beginning.
 func withAnswer(turn []string, answer string) []string {
 	line := agentLine(answer)
+
+	for index, existing := range slices.Backward(turn) {
+		if existing == line {
+			return turn[:index+1]
+		}
+	}
+
 	probe := clipped(strings.TrimPrefix(line, agentLabel), answerProbe)
 
 	if probe == "" || slices.ContainsFunc(turn, func(existing string) bool { return strings.Contains(existing, probe) }) {

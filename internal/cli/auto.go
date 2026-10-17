@@ -118,7 +118,7 @@ func RunAutoJudge(ctx context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, s
 
 	record := recordOf(deps.ReadDir, deps.ReadFile, args.SessionsDir, turn.Session)
 
-	request, found, judgeErr := auto.Judge(ctx, record, turn.Answer,
+	request, found, judgeErr := auto.Judge(ctx, record, turn,
 		func(ctx context.Context, text string) ([]auto.Note, error) {
 			return lookUpNotes(ctx, args.VaultPath, text, deps.Query)
 		})

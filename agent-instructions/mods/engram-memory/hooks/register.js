@@ -15,14 +15,22 @@ const FAILURE_MAX = 300
 // Every request the judgement prints opens with this (793d4g); anything else is not a request.
 const REQUEST = '{"model":'
 
-// The origin of the last prompt the session raised, and the origin of each turn the main loop has started and not
-// completed, by the turn's ID (793d2b): the prompt names its origin, the end of the turn names only the turn.
-let lastOrigin = ''
-const originsOfTurns = new Map()
+// The prompts the session raised that have started no turn, oldest first, each with its text and its origin; and the
+// text and the origin of each turn the main loop has started and not completed, by the turn's ID (793d2b): the prompt
+// names its origin, the start of the turn names its text, the end of the turn names only the turn.
+const raised = []
+const turns = new Map()
+
+// So many prompts are kept at most: one that is dropped, or delivered into a running turn, starts no turn.
+const RAISED_MAX = 20
 
 export function register(on) {
   on('prompt.submit', async ($, e, next) => {
-    lastOrigin = originOf(e)
+    raised.push({ text: e.text, origin: originOf(e) })
+
+    if (raised.length > RAISED_MAX) {
+      raised.shift()
+    }
 
     const block = await notesFor($, e)
 
@@ -31,7 +39,7 @@ export function register(on) {
 
   on('turn.start', async (_$, e, next) => {
     if (e.agentId === undefined) {
-      originsOfTurns.set(e.turnId, lastOrigin)
+      turns.set(e.turnId, { text: e.text, origin: originOfStart(e.text) })
     }
 
     return next(e)
@@ -39,14 +47,14 @@ export function register(on) {
 
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
-    const origin = originsOfTurns.get(e.turnId) ?? ''
+    const turn = turns.get(e.turnId) ?? { text: '', origin: '' }
 
-    originsOfTurns.delete(e.turnId)
+    turns.delete(e.turnId)
 
     // the lessons are captured apart from the turn: the event's result does not wait for them; the turn of a subagent
     // is left out
     if (e.agentId === undefined) {
-      void captureLessons($, e, origin)
+      void captureLessons($, e, turn)
     }
 
     return result
@@ -73,13 +81,19 @@ async function ask($, request) {
 // captureLessons judges a turn that ended, asks the model for the judgement and has the lessons written (793d2b). It
 // ends quietly when the judgement has nothing to judge, and has the writing record the failure of a step that fails:
 // the turn went on as if automatic memory were not installed.
-async function captureLessons($, e, origin) {
+async function captureLessons($, e, turn) {
   let session = ''
 
   try {
     session = await $.session.id()
 
-    const request = await run($, 'judge', { session, turn: e.turnId, answer: e.answer, origin })
+    const request = await run($, 'judge', {
+      session,
+      turn: e.turnId,
+      text: turn.text,
+      answer: e.answer,
+      origin: turn.origin,
+    })
 
     if (request === '') {
       return
@@ -129,6 +143,16 @@ async function notesFor($, e) {
 // originOf is the kind of origin that Claude Code stamped on a prompt, or nothing when it stamped none (793d2a).
 function originOf(e) {
   return e.origin?.kind ?? ''
+}
+
+// originOfStart is the origin of the prompt that a turn which starts with a text began with, and takes that prompt off
+// the ones kept, with the prompts before it, which began no turn of their own. The prompt is the oldest kept with the
+// text; when none has it, the newest one; a turn that starts with no text has no origin (793d2b).
+function originOfStart(text) {
+  const at = raised.findIndex((prompt) => prompt.text === text)
+  const taken = at >= 0 ? raised.splice(0, at + 1) : text === '' ? [] : raised.splice(0)
+
+  return taken.length > 0 ? taken[taken.length - 1].origin : ''
 }
 
 // report has the writing record the failure of a step of the capture, when the session is known (793d4k). A report that
