@@ -183,7 +183,7 @@ Takes [793a2b1c A note the agent looked up itself is not delivered](./793a_produ
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2b1c | Dedicated example, product acceptance (`network`) | the other route to a held note as the user sees it: the agent's own lookup, in a session that began before the update, then the update and a resumed session | Green-all | d94dcace | e7e823fd | |
+| 793a2b1c | Dedicated example, product acceptance (`network`) | the other route to a held note as the user sees it: the agent's own lookup, in a session that began before the update, then the update and a resumed session | Green-all | d94dcace | e7e823fd | e68f65f7 |
 | 793d4d1d | Dedicated example (default suite) | what a tool printed counts as held, in both shapes a result is recorded in (a string and text blocks), and what the agent wrote does not | Done | 84f83b15 | e7e823fd | 31744d5c |
 
 #### 793e6a5 A prompt that matches no note arrives with nothing
@@ -192,6 +192,8 @@ Takes [793a2b1d A prompt that matches no note arrives with nothing](./793a_produ
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
+| 793a2b1d | Dedicated example, product acceptance (`network`) | the scope of the delivery as the user sees it: a conversation the agent's own lookup finds is not delivered, and a prompt that matches no note is answered as it would be without automatic memory | Not started | | | |
+| 793d4a1f | Dedicated example (default suite) | the chunk index is never listed: the lookup reads notes only, over a chunk-index lister that fails the test when it is called | Not started | | | |
 
 #### 793e6a6 A slow lookup does not hold a prompt for more than 8 seconds
 

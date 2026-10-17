@@ -138,12 +138,13 @@ an explore pick is sampled from the vocabulary, not matched to the text. The loo
 lines, as it bounds the number of items the agent's own lookup returns
 ([793b19 Volume of delivered notes](./793b_decision-log.md#793b19-volume-of-delivered-notes)). It MUST leave out each
 note whose file name appears in the text that [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds)
-returns for the request's session. It MUST print nothing, and succeed, when no note remains. It MUST print nothing and
+returns for the request's session. It MUST print nothing, and succeed, when no note remains. It MUST NOT search the chunk
+index, so that only notes are delivered ([793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt)). It MUST print nothing and
 fail, naming the cause, when the lookup fails.
 
 Owner: prompt-delivery (a new component; its canonical file at promotion is `prompt-delivery.md`)
 
-Supports: [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2b1a The notes that bear on a prompt arrive with it](./793a_product-spec.md#793a2b1-uat-scenarios), [793a2b1b A note delivered earlier in the session is not delivered again](./793a_product-spec.md#793a2b1-uat-scenarios).
+Supports: [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2b1a The notes that bear on a prompt arrive with it](./793a_product-spec.md#793a2b1-uat-scenarios), [793a2b1b A note delivered earlier in the session is not delivered again](./793a_product-spec.md#793a2b1-uat-scenarios), [793a2b1d A prompt that matches no note arrives with nothing](./793a_product-spec.md#793a2b1-uat-scenarios).
 
 #### 793d4a1 Scenarios
 
@@ -172,6 +173,11 @@ Scenario: 793d4a1e No note to deliver prints nothing
   Given a lookup that returns a note the session holds, and a lookup that returns no note
   When the command is given a prompt for each
   Then it prints nothing and succeeds both times
+
+Scenario: 793d4a1f The chunk index is not searched
+  Given a vault with a note that bears on the prompt, and a chunk index
+  When the command is given the prompt
+  Then the chunk index is never listed, and the block names the note
 ```
 
 ### 793d4c Framing the notes of a block as data
@@ -307,6 +313,19 @@ Scenario: 793a2b1c A note the agent looked up itself is not delivered
 ```
 
 Realized by [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) (the result of the agent's own `engram query` is in the session's record, and names the note) with the flow and the delivery of [793d5b Mapping of 793a2b1b](#793d5b-mapping-of-793a2b1b).
+
+### 793d5d Mapping of 793a2b1d
+
+The product scenario [793a2b1d A prompt that matches no note arrives with nothing](./793a_product-spec.md#793a2b1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2b1d A prompt that matches no note arrives with nothing
+  Given the user has run engram update, a vault whose notes have nothing to do with the prompt, and a searchable conversation that does
+  When the user sends the prompt
+  Then the prompt arrives with nothing from the vault, and the agent answers it
+```
+
+Realized by [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) (the lookup finds no note, and does not search the chunk index, so the conversation is not delivered; the command prints nothing) and [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow) (the mod adds nothing when the command prints nothing).
 
 ## 793d6 Recommended impact
 
