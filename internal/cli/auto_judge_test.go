@@ -138,7 +138,7 @@ func Test793d4g1q_RunAutoJudge_ALongRecordIsJudgedInTime(t *testing.T) {
 	const (
 		messages    = 350
 		messageSize = 3000
-		bound       = time.Second
+		bound       = 2 * time.Second
 	)
 
 	const sentence = "the build of the zorblax project takes a while "

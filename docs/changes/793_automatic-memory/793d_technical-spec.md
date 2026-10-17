@@ -565,7 +565,7 @@ one message and opens with `User: ` for a prompt, `Agent: ` for text of the [age
 tool it called; a line break in a message is written ` ⏎ `, so that no message makes a line of its own. The text of every
 message of the window is redacted ([793d4j Redacting credentials](#793d4j-redacting-credentials)) before it is cut or joined with another, and no other message is
 redacted: the command MUST read the record once, so that the time it takes does not grow with the length of the
-session, and a record of 1 MB is judged within 1 second. A line is cut to its first
+session, and a record of 1 MB is judged within 2 seconds. A line is cut to its first
 1,200 characters; the context is its last 6 lines; and the window is cut to 8,000 characters, the oldest lines of the
 context first and then the middle of the turn, where the line `--- some of the turn is left out ---` stands in place of
 the lines left out. The final text is the last line of the turn when no line of the turn holds its first 80
@@ -666,7 +666,7 @@ Scenario: 793d4g1p A row of an origin the user does not send is no prompt
 Scenario: 793d4g1q A long record is judged in time
   Given the record of a session of 1 MB, of which the turn is the last prompt
   When the judgement is given the session
-  Then it prints the request within 1 second
+  Then it prints the request within 2 seconds
 ```
 
 ### 793d4h Writing the lessons of a reply

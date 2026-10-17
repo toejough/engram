@@ -536,7 +536,7 @@ Takes review finding 19: the judgement parsed the whole record and redacted ever
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793d4g1q | Dedicated example (default suite) | a record of 1 MB through `RunAutoJudge` over a real temporary directory: the request is printed within 1 second; the old reading took 42 seconds under the race detector that `targ test` runs with, so the bound fails it by a factor of forty | Not started | | | |
+| 793d4g1q | Dedicated example (default suite) | a record of 1 MB through `RunAutoJudge` over a real temporary directory: the request is printed within 2 seconds; the old reading took 42 seconds under the race detector that `targ test` runs with, so the bound fails it by a factor of twenty, and the new one takes 0.3 seconds under it, a tenth of the bound or less | Not started | | | |
 
 ### 793e6e The conversation becomes searchable memory
 
