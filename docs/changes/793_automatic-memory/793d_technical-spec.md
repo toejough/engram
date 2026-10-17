@@ -777,12 +777,15 @@ text or joins it with another and before the model sees any of it, and the lesso
 lesson before the lesson is written, so that no [note](../../GLOSSARY.md#permanent-note) holds a credential, token, key or password that appeared in the [turn](./793a_product-spec.md#793a1a-terms).
 A text is shaped as a credential when it is a private key block; a JSON web token; a key or token that opens with the
 name of its issuer (`sk-`, `pk-`, `rk-`, `ghp_`, `gho_`, `ghs_`, `ghu_`, `ghr_`, `github_pat_`, `npm_`, `glpat-`,
-`AKIA`, `ASIA`, `AIza`, `xoxa-`, `xoxb-`, `xoxp-`, `xoxr-`, `xoxs-`); a `Bearer` or `Basic` credential; the user and
-the password of a URL; the value of an `Authorization` header; the value that a name holding `key`, `token`, `secret`,
-`password`, `passwd`, `pwd`, `credential` or `private-key` is given by `=`, `:` or `is`; or a run of 32 characters or
-more of letters, digits, `+`, `_` and `=` that holds both a letter and a digit and is not the 40 hexadecimal digits of a
-commit. It is replaced by `[redacted]`, and the name of an assignment is kept. A secret of another shape, such as a
-password in a sentence or a token split over two lines, is not redacted.
+`AKIA`, `ASIA`, `AIza`, `xoxa-`, `xoxb-`, `xoxp-`, `xoxr-`, `xoxs-`); a `Bearer` or `Basic` credential of 12 characters
+or more; the user and the password of a URL; the value of an `Authorization` header; the value that a name holding
+`key`, `token`, `secret`, `password`, `passwd`, `pwd`, `credential` or `private-key`, in any case and with anything
+before and after the word in the name (`key`, `accessKey`, `x-api-key`, `DB_PASSWORD`), is given by `=`, `:` or `is`,
+with up to six words of the same sentence between the name and `:` or `is` (`the password for the staging deploy is
+...`); or a run of 32 characters or more of letters, digits, `+`, `_` and `=` that holds both a letter and a digit and
+is not the 40 hexadecimal digits of a commit. It is replaced by `[redacted]`, and the name of an assignment is kept. A
+secret of another shape, such as a password that a sentence gives without `is` or `:`, or a token split over two lines,
+is not redacted.
 
 Owner: turn-judgement and lesson-writing (the components of [793d4g Judging a turn](#793d4g-judging-a-turn) and [793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply))
 
@@ -810,6 +813,21 @@ Scenario: 793d4j1d A note holds no credential of the lesson
   Given a reply whose lessons hold credentials of every shape in every field
   When the lessons are written
   Then no note holds any of them
+
+Scenario: 793d4j1e The value of every name that holds a word of a secret is redacted, whatever the name looks like
+  Given names that hold key, token, secret, password, passwd, pwd, credential or private-key, with a word before it, a word after it, or none, in snake, kebab, camel and upper case, each given a value by =, : or is
+  When the text is redacted
+  Then each name is kept and its value is gone
+
+Scenario: 793d4j1f A sentence gives the value of a name to redact
+  Given a name that holds a word of a secret, up to six words of the same sentence, and a value given by is or :
+  When the text is redacted
+  Then the name and the words are kept and the value is gone, and a sentence with more than six words between is left as it was
+
+Scenario: 793d4j1g A Bearer credential is redacted from 12 characters
+  Given the word Bearer followed by 11 characters, and by 12
+  When the text is redacted
+  Then the first is as it was and the second is redacted
 ```
 
 ### 793d4k Recording what automatic memory did
@@ -1101,7 +1119,7 @@ The product scenario [793a2c1g A credential in the turn is not in the note](./79
 ```gherkin
 Scenario: 793a2c1g A credential in the turn is not in the note
   Given the user has run engram update, and a session in which the agent may not run engram commands
-  When the user asks the agent in a prompt to remember how to deploy, with the token and the password that the deploy needs, and the turn ends
+  When the user asks the agent in a prompt to remember how to deploy, with the token and the password that the deploy needs, each in a recognised form, and the turn ends
   Then within 2 minutes the vault holds a note that states how to deploy, and no note holds the token or the password
 ```
 

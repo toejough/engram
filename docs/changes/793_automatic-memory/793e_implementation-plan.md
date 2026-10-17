@@ -172,7 +172,9 @@ graph TD
     n793e6g2 --> n793e6g3
     n793e6g4["793e6g4 The instructions are the system of the request<br/>Complete"]
     n793e6g3 --> n793e6g4
-    n793e6g4 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
+    n793e6g5["793e6g5 Every name that holds a word of a secret is redacted<br/>Ready"]
+    n793e6g4 --> n793e6g5
+    n793e6g5 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
     n793e6d --> n793e6f["793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d"]
@@ -567,6 +569,17 @@ Takes review finding 5. The instructions and the conversation they are about wer
 | 793d4g1v | Property-based (`rapid`) with named examples (default suite) | the one guarantee a message or a note must not break: the sections of the prompt are its own, with the forged tags of probe B as the named example | for any messages of the record and any notes whose texts hold the tags that close and open the window and the section of notes, and other uses of `<`: no line of the window or of the notes holds `<`, and the prompt holds each of the four tags once | Done | c86783df | 38991e20 | 89430e60 |
 | 793d4g1j (amended) | Dedicated example (default suite) | a note with the closing tag of the section in its body: the tag is written `&lt;/notes>` | | Done | c86783df | 38991e20 | 89430e60 |
 | 793d2b1a (amended) | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the request the judgement prints has a `system`, and the model is asked the request whole. It passes when written, since the mod hands the request over as it is; the mutation that makes it fail is a mod that asks for the fields it knows by name, run on a scratch copy of the branch, where the system is left out and the test fails | | Done | n/a | 38991e20 | 89430e60 |
+
+#### 793e6g5 Every name that holds a word of a secret is redacted, and the promise names the forms
+
+Takes review findings 3, 4 and 25. The pattern for a name that holds `key` needed a `_` or a `-` before the word, so `key=...`, `accessKey: ...` and `signingKey=...` kept their values though [793d4j Redacting credentials](./793d_technical-spec.md#793d4j-redacting-credentials) says that a name holding `key` has its value redacted, and the sentence "the password for the staging deploy is ..." kept its value; the property drew its names from a fixed list and could not find either. The promise of [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) that no [note](../../GLOSSARY.md#permanent-note) holds a credential was absolute, and proven for the listed forms only: the scenario [793a2c1g A credential in the turn is not in the note](./793a_product-spec.md#793a2c1-uat-scenarios) passes without the redaction, because the model leaves the secrets out unprompted. The promise now names the forms it covers, in the user's terms, and the scenario says "each in a recognised form"; its test is the same ([793b78 The promise names the forms of credential that are redacted](./793b_decision-log.md#793b78-the-promise-names-the-forms-of-credential-that-are-redacted)). A `Bearer` credential is redacted from 12 characters, as a `Basic` one is.
+
+| Gherkin | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793d4j1e | Property-based (`rapid`) with named examples (default suite) | the names the old pattern missed, `key`, `accessKey`, `signingKey`, `x-api-key`, built from every word of the requirement with a word before it, after it, or none, in snake, kebab, camel and upper case | for any name built so and any value given by `=`, `: ` or ` is `: the value is not in the redacted text, and the name is | Not started | | | |
+| 793d4j1f | Property-based (`rapid`) with named examples (default suite) | the sentence form: up to six words between the name and `is` or `:`, and the sentence of seven words left as it was | for any name of the requirement and up to six words of the same sentence before `is` or `:`: the value is gone and the name and the words are kept; with seven words the text is as it was | Not started | | | |
+| 793d4j1g | Dedicated example (default suite) | `Bearer` and 11 characters is as it was, `Bearer` and 12 is redacted | | Not started | | | |
+| 793d4j1a (amended) | Property-based (`rapid`) with named examples (default suite) | the shapes of a `Bearer` credential are of 12 characters or more | the properties of 793d4j1a, with a `Bearer` credential of 12 to 30 characters | Not started | | | |
 
 ### 793e6e The conversation becomes searchable memory
 

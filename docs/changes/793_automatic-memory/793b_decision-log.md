@@ -1188,7 +1188,8 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 - **Alternatives:** a library of secret patterns (rejected: a dependency, and this change adds none); redacting the
   [note](../../GLOSSARY.md#permanent-note) after the model wrote it only (rejected: the credential would have reached the model and the call is logged).
 - **Decided by:** Author (default; owner may override); the residual risk is asked in
-  [793c41 Is the risk of a secret of another shape acceptable?](./793c_open-questions.md#793c41-is-the-risk-of-a-secret-of-another-shape-acceptable).
+  [793c41 Is the risk of a secret of another shape acceptable?](./793c_open-questions.md#793c41-is-the-risk-of-a-secret-of-another-shape-acceptable). Amended by
+  [793b78 The promise names the forms of credential that are redacted](#793b78-the-promise-names-the-forms-of-credential-that-are-redacted): the names, the sentence of up to six words and the `Bearer` credential.
 
 ## 793b70 The capture reports its own failures, and nothing times it as a whole
 
@@ -1321,3 +1322,24 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   the test of an unforgeable section needs the generator injected); dropping the lines that hold a tag (rejected: it loses
   text a lesson may need); the `system` without the escape (rejected: the sections are still forgeable).
 - **Decided by:** Author (default; owner may override).
+
+## 793b78 The promise names the forms of credential that are redacted
+
+- **Choice:** the promise of [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) is that no [note](../../GLOSSARY.md#permanent-note) holds a credential, token, key or password that appeared in the
+  [turn](./793a_product-spec.md#793a1a-terms) in a recognised form, and the product spec lists the forms in the user's terms. The redaction matches a name that holds a word of
+  a secret in any case, with anything before and after the word, and redacts its value when the name is given one by `=`,
+  `:` or `is`, with up to six words of the same sentence between the name and `:` or `is`; a `Bearer` credential is redacted
+  from 12 characters, as a `Basic` one is.
+- **Rationale:** review findings 3, 4 and 25. The pattern needed a `_` or a `-` before `key`, so `key=...`, `accessKey: ...` and
+  `signingKey=...` kept their values, and the property that proves the redaction drew its names from a fixed list and
+  could not find them; "the password for the staging deploy is ..." kept its value too. The absolute promise was proven for
+  the listed forms only: the live scenario [793a2c1g A credential in the turn is not in the note](./793a_product-spec.md#793a2c1-uat-scenarios) passed 4 of 4 runs before the redaction existed and 6 of 6 with
+  the sentence of the instructions removed ([793b69 Credentials are redacted by shape, and the rest is a known risk](#793b69-credentials-are-redacted-by-shape-and-the-rest-is-a-known-risk)), so no test could fail for a form the redaction misses, and
+  a promise that cannot be failed is not one the user can verify. A `Bearer` of one character redacted the word after it
+  in prose, which a `Basic` of fewer than 12 never did.
+- **Alternatives:** keep the promise absolute (rejected: nothing proves it, and the model's leaving a secret out is what the
+  live scenario measures); write no note from a turn in which the redaction found a credential (the option (c) of
+  [793c41 Is the risk of a secret of another shape acceptable?](./793c_open-questions.md#793c41-is-the-risk-of-a-secret-of-another-shape-acceptable), left to the owner); a model's check of each note before it is written (rejected: a second call,
+  and the promise would depend on the model).
+- **Decided by:** Author (default; owner may override); the promise is asked in
+  [793c49 Should the promise that a note holds no credential stay absolute?](./793c_open-questions.md#793c49-should-the-promise-that-a-note-holds-no-credential-stay-absolute).

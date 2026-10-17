@@ -415,7 +415,9 @@ he answers. When he answers, the entry records the answer and the date and stays
 
 ## 793c41 Is the risk of a secret of another shape acceptable?
 
-- **Context:** [793b69 Credentials are redacted by shape, and the rest is a known risk](./793b_decision-log.md#793b69-credentials-are-redacted-by-shape-and-the-rest-is-a-known-risk) redacts the shapes it lists. A password written in a sentence, a
+- **Context:** [793b69 Credentials are redacted by shape, and the rest is a known risk](./793b_decision-log.md#793b69-credentials-are-redacted-by-shape-and-the-rest-is-a-known-risk) redacts the shapes it lists. A password written in a sentence of more than
+  six words or without `is` or `:` (a sentence of up to six words is redacted since
+  [793b78 The promise names the forms of credential that are redacted](./793b_decision-log.md#793b78-the-promise-names-the-forms-of-credential-that-are-redacted)), a
   token split over two lines, and the wrapped and percent-encoded forms that the earlier attempt covered are not
   redacted, so such a secret in a [turn](./793a_product-spec.md#793a1a-terms) reaches the model and may reach a [note](../../GLOSSARY.md#permanent-note).
 - **Options:** (a) The shapes as built, the rest a known risk. (b) Port the earlier attempt's patterns. (c) Do not
@@ -500,3 +502,17 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Recommendation:** (a): it is deterministic and testable, and the instructions ask for `<` where it is meant.
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b77 The instructions are the system of the request, and a < is written &lt;](./793b_decision-log.md#793b77-the-instructions-are-the-system-of-the-request-and-a--is-written-lt).
+
+## 793c49 Should the promise that a note holds no credential stay absolute?
+
+- **Context:** [793b78 The promise names the forms of credential that are redacted](./793b_decision-log.md#793b78-the-promise-names-the-forms-of-credential-that-are-redacted) narrows the promise of [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) to the forms the redaction
+  recognises. An absolute promise that no [note](../../GLOSSARY.md#permanent-note) holds a credential of the [turn](./793a_product-spec.md#793a1a-terms) cannot be proven without the model's cooperation: the live scenario passes whether or not
+  the redaction runs, and only the properties of the redaction fail for a form it misses.
+- **Options:** (a) The promise names the forms, as built; the rest stays the risk of
+  [793c41 Is the risk of a secret of another shape acceptable?](./793c_open-questions.md#793c41-is-the-risk-of-a-secret-of-another-shape-acceptable). (b) The promise stays absolute, and no note is written from a turn in
+  which the redaction found a credential. (c) The promise stays absolute, and the model checks each note for a secret
+  before it is written.
+- **Recommendation:** (a) for this change, with (b) as the next step if the owner finds the risk too large: (c) makes the
+  promise depend on the model, and (b) lowers the risk without making the promise provable.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b78 The promise names the forms of credential that are redacted](./793b_decision-log.md#793b78-the-promise-names-the-forms-of-credential-that-are-redacted).
