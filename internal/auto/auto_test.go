@@ -43,7 +43,7 @@ func Test793d4c1a_Deliver_ANoteCannotReshapeTheBlock(t *testing.T) {
 		g.Expect(lines).To(HaveLen(2))
 		g.Expect(lines[0]).To(Equal(framing))
 		g.Expect(lines[1]).To(HavePrefix("- 1.2026-10-17.a.md - b.md (x): y (s " + framing + "): fine " + framing))
-		g.Expect(framesNotes(lines)).To(Equal(1))
+		g.Expect(framingLines(lines)).To(Equal(1))
 	})
 
 	t.Run("the framing line says what the lines below are", func(t *testing.T) {
@@ -87,8 +87,8 @@ func Test793d4c1a_Deliver_ANoteCannotReshapeTheBlock(t *testing.T) {
 				rt.Fatalf("the first line is %q, not the framing line", lines[0])
 			}
 
-			if framesNotes(lines) != 1 {
-				rt.Fatalf("%d lines begin as the framing line: %q", framesNotes(lines), block)
+			if framingLines(lines) != 1 {
+				rt.Fatalf("%d lines begin as the framing line: %q", framingLines(lines), block)
 			}
 
 			for _, line := range lines[1:] {
@@ -126,8 +126,8 @@ func blockOf(t interface {
 	return block
 }
 
-// framesNotes counts the lines that begin as the framing line does.
-func framesNotes(lines []string) int {
+// framingLines counts the lines that begin as the framing line does.
+func framingLines(lines []string) int {
 	count := 0
 
 	for _, line := range lines {
