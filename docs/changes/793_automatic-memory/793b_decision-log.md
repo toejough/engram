@@ -828,3 +828,21 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   a user with `CLAUDE_CONFIG_DIR` set, which the owner did not ask for; asked in
   [793c26 Does the delivery read the records where Claude Code writes them, and does the sweep follow?](./793c_open-questions.md#793c26-does-the-delivery-read-the-records-where-claude-code-writes-them-and-does-the-sweep-follow)).
 - **Decided by:** Author (default; owner may override), on the review's finding.
+
+## 793b52 The delivery runs its lookup through an injected function
+
+- **Choice:** `AutoDeliverDeps.Query` is a function that runs the lookup of `engram query` for the arguments it is
+  given and prints its payload, wired at the composition root over the query dependencies, where it was the query
+  dependencies themselves. The delivery builds the arguments, the prompt's text as the message and as the only phrase and
+  the vault it was given ([793d4a Delivering the notes that bear on a prompt](./793d_technical-spec.md#793d4a-delivering-the-notes-that-bear-on-a-prompt)),
+  and the tests that need the real lookup hand it a function over the in-memory vault.
+- **Rationale:** the completion gate of [793e7 Completion gates](./793e_implementation-plan.md#793e7-completion-gates)
+  asks `imptest` evidence of the call and arguments of every injected collaboration. The lookup's arguments could be seen
+  only through the effects of the real engine, and the message, which the engine matches literally against runbook
+  triggers, has no test that plants a runbook, so a delivery that left the message out passed every test. A function
+  is the smallest seam that shows the arguments. The review of the first group asked for the evidence or a waiver
+  (finding 16).
+- **Alternatives:** a waiver of the gate for the lookup (rejected: a change of the arguments survives every test); a
+  test that plants a runbook and reads the order of the payload (rejected: it tests the query engine, which has its
+  own tests, and not the arguments the delivery builds).
+- **Decided by:** Author (default; owner may override), on the review's finding.

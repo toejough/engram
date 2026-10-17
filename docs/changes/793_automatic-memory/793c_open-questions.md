@@ -193,3 +193,14 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Recommendation:** (a) for this change. (b) is a separate change to the sweep.
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b51 The delivery finds the records where Claude Code writes them](./793b_decision-log.md#793b51-the-delivery-finds-the-records-where-claude-code-writes-them).
+
+## 793c27 Does the delivery's lookup need imptest evidence of its arguments, or a waiver?
+
+- **Context:** [793e7 Completion gates](./793e_implementation-plan.md#793e7-completion-gates) asks `imptest` evidence of
+  the call and arguments of every injected collaboration. The delivery's lookup was the query dependencies, called
+  directly, so its arguments showed only through the real engine.
+- **Options:** (a) The delivery takes the lookup as a function, and `imptest` shows the arguments. (b) A waiver of the
+  gate for the lookup, with the arguments tested through the real engine.
+- **Recommendation:** (a): a delivery that left the message out passed every test.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b52 The delivery runs its lookup through an injected function](./793b_decision-log.md#793b52-the-delivery-runs-its-lookup-through-an-injected-function).

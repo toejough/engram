@@ -204,6 +204,16 @@ Scenario: 793d4a1g A note the agent fetched by its basename is left out
   Given a lookup that returns two notes, and a session whose record shows that the agent ran engram show with the basename of one of them
   When the command is given a prompt of that session
   Then the block names the other note only
+
+Scenario: 793d4a1h The lookup is asked for the prompt's text as its message and as its only phrase
+  Given a request whose text is a prompt, and a lookup that records the arguments it is run with
+  When the command is given the request
+  Then the lookup is run once, for the vault the command was given, with the prompt's text as its message and as its only phrase
+
+Scenario: 793d4a1i The lookup is asked for the text and what the session holds for the session
+  Given a request with a text and a session's ID, a lookup and a reading of what the session holds, both recording what they are given
+  When the block is made
+  Then the lookup is given the request's text and the reading is given the request's session ID
 ```
 
 ### 793d4c Framing the notes of a block as data
