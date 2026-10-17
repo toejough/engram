@@ -256,5 +256,48 @@
         "05:00"
       ]
     }
+  },
+  "credential-refused": {
+    "about": "793a2c1g: the agent says that it saved nothing, because it keeps no secrets (a reply the live runs gave)",
+    "notes": [],
+    "rows": [
+      {
+        "user": "Remember how to deploy to staging: run the staging deploy script with DEPLOY_TOKEN={{DEPLOY_TOKEN}} set, and its password is {{DEPLOY_PASSWORD}}. Reply with one short sentence."
+      },
+      {
+        "agent": "I haven't saved anything to memory, because I don't store tokens or passwords there. I can note the procedure (run the staging deploy script with `DEPLOY_TOKEN` set and enter its password) if you like."
+      }
+    ],
+    "turn": {
+      "text": "Remember how to deploy to staging: run the staging deploy script with DEPLOY_TOKEN={{DEPLOY_TOKEN}} set, and its password is {{DEPLOY_PASSWORD}}. Reply with one short sentence.",
+      "answer": "I haven't saved anything to memory, because I don't store tokens or passwords there. I can note the procedure (run the staging deploy script with `DEPLOY_TOKEN` set and enter its password) if you like."
+    },
+    "expect": {
+      "lesson": [
+        "deploy"
+      ]
+    }
+  },
+  "unsaved": {
+    "about": "793a2c1i: the user asks to remember something and not to save it, and the agent says that it did not save it",
+    "notes": [],
+    "rows": [
+      {
+        "user": "Remember that the Zorblax staging database is reset every Sunday at 03:40 UTC, but do not save it anywhere yourself. Reply with exactly: I did not save it."
+      },
+      {
+        "agent": "I did not save it."
+      }
+    ],
+    "turn": {
+      "text": "Remember that the Zorblax staging database is reset every Sunday at 03:40 UTC, but do not save it anywhere yourself. Reply with exactly: I did not save it.",
+      "answer": "I did not save it."
+    },
+    "expect": {
+      "lesson": [
+        "sunday",
+        "03:40"
+      ]
+    }
   }
 }

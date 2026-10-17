@@ -559,8 +559,8 @@ const (
 	askToRemember = "Remember that the Zorblax staging database is reset every Sunday at 03:40 UTC. " +
 		"Reply with one short sentence."
 	// askToRememberAndNotSave asks to remember a fact without saving it, so that the agent says that it did not.
-	askToRememberAndNotSave = "Remember that the Zorblax staging database is reset every Sunday at 03:40 UTC, but do not " +
-		"save it anywhere yourself. Reply with exactly: I did not save it."
+	askToRememberAndNotSave = "Remember that the Zorblax staging database is reset every Sunday at 03:40 UTC, " +
+		"but do not save it anywhere yourself. Reply with exactly: I did not save it."
 	// askToRememberTheBackup asks to remember a second lesson about the database that stagingReset is about.
 	askToRememberTheBackup = "Remember that the Zorblax staging database is backed up every Monday at 05:00 UTC. " +
 		"Reply with one short sentence."
