@@ -10,8 +10,8 @@ import (
 	"unicode"
 )
 
-// Held tells what a session's agent already holds of the vault: the text of the blocks delivered to it.
-type Held func(ctx context.Context, session string) string
+// Held tells what a session's agent already holds of the vault, as the text of the session-context returns it (793d4d).
+type Held func(session string) string
 
 // Lookup finds the notes that bear on a text, best first.
 type Lookup func(ctx context.Context, text string) ([]Note, error)
@@ -36,7 +36,7 @@ func Deliver(ctx context.Context, request Request, lookup Lookup, held Held) (st
 		return "", fmt.Errorf("looking up the notes: %w", err)
 	}
 
-	heldText := held(ctx, request.Session)
+	heldText := held(request.Session)
 
 	notes = slices.DeleteFunc(notes, func(note Note) bool { return namedIn(heldText, note) })
 

@@ -45,7 +45,7 @@ func RunAutoDeliver(ctx context.Context, args AutoDeliverArgs, deps AutoDeliverD
 		func(ctx context.Context, text string) ([]auto.Note, error) {
 			return lookUpNotes(ctx, args.VaultPath, text, deps.Query)
 		},
-		func(_ context.Context, session string) string {
+		func(session string) string {
 			return heldText(deps, args.SessionsDir, session)
 		})
 	if err != nil {

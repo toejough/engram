@@ -175,18 +175,12 @@ func noteNamesOf(entry string) string {
 	return names.String()
 }
 
-// textOf reads the text of a JSON value that is a string, or a list of strings, or a list of blocks that have a text.
+// textOf reads the text of the content of a tool's result: a string, or a list of blocks that have a text.
 func textOf(raw json.RawMessage) string {
 	var text string
 
 	if json.Unmarshal(raw, &text) == nil {
 		return text
-	}
-
-	var texts []string
-
-	if json.Unmarshal(raw, &texts) == nil {
-		return strings.Join(texts, "\n")
 	}
 
 	var blocks []struct {
