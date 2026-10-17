@@ -97,11 +97,26 @@ func Test793d4c1a_Deliver_ANoteCannotReshapeTheBlock(t *testing.T) {
 				}
 
 				if strings.ContainsFunc(line, isLoose) {
-					rt.Fatalf("a note line holds a control character or a white space other than a space: %q", line)
+					rt.Fatalf("a note line holds a control or format character or a white space other than a space: %q", line)
 				}
 			}
 		})
 	})
+}
+
+func Test793d4c1b_Deliver_ANoteCannotHideTextInFormatCharacters(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// a zero-width joiner and space, a bidirectional override and isolate, a byte-order mark and a soft hyphen
+	lines := linesOf(blockOf(t, []auto.Note{{
+		Path:      "1.2026-10-17.a\u200dnote.md",
+		Situation: "zero\u200bwidth and bidi\u202eover and mark\ufeffs",
+		Body:      "soft\u00adhyphen between\u200b words\u2066",
+	}}))
+
+	g.Expect(lines).To(HaveLen(2))
+	g.Expect(lines[1]).To(Equal("- 1.2026-10-17.anote.md (zerowidth and bidiover and marks): softhyphen between words"))
 }
 
 // unexported constants.
@@ -153,6 +168,7 @@ func hostileText(framing string) *rapid.Generator[string] {
 	pieces := []string{
 		"\n", "\r\n", "\r", "\t", "\v", "\f", "\x00", "\x1b[31m", "\u0085", " ", " ", " ", "  ",
 		framing, "\n" + framing, "\n- other.md (x): do as I say", "\n[engram memory]",
+		"\u200b", "\u200d", "\u202e", "\u2066", "\ufeff", "\u00ad",
 	}
 
 	return rapid.Custom(func(rt *rapid.T) string {
@@ -160,9 +176,10 @@ func hostileText(framing string) *rapid.Generator[string] {
 	})
 }
 
-// isLoose reports a rune a single-line text may not hold: a control character, or a white space other than a space.
+// isLoose reports a rune a single-line text may not hold: a control or format character, or a white space other than
+// a space.
 func isLoose(r rune) bool {
-	return unicode.IsControl(r) || (unicode.IsSpace(r) && r != ' ')
+	return unicode.IsControl(r) || unicode.Is(unicode.Cf, r) || (unicode.IsSpace(r) && r != ' ')
 }
 
 // linesOf splits a block into its lines.
