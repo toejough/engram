@@ -167,8 +167,11 @@ sequenceDiagram
 
 Requirement: 793d2b For each [turn](./793a_product-spec.md#793a1a-terms) a Claude Code [session](../../GLOSSARY.md#session) completes, the automatic-memory-mod MUST
 give the event's result back at once, and MUST then, apart from the event, run `engram auto judge` with the session's ID,
-the turn's ID, the turn's final text and the origin of the [prompt](./793a_product-spec.md#793a1a-terms) the turn began with, as one JSON object, on standard
-input; the origin of a turn is that of the last prompt the session raised before the turn started. It MUST leave out the
+the turn's ID, the turn's final text, the text the turn began with and the origin of the [prompt](./793a_product-spec.md#793a1a-terms) the turn began with, as one
+JSON object, on standard input. The mod keeps the text and the origin of each prompt the session raises. A turn that
+starts with a text takes the oldest prompt kept with that text, and drops the prompts kept before it, which began no turn
+of their own; a turn whose text no kept prompt has takes the origin of the newest one, and a turn that starts with no
+text has no origin. It MUST leave out the
 turns that a [subagent](../../GLOSSARY.md#subagent) ran, which the event says an [agent](./793a_product-spec.md#793a1a-terms) ran, and do nothing for them; when the command exited with 0 and
 printed a request, MUST ask the model for it through the host's model call, with the request exactly as printed; and
 when the model answered, MUST run `engram auto write` with the session's ID, the turn's ID and the model's reply, as one
@@ -213,6 +216,21 @@ Scenario: 793d2b1f A turn of a subagent is not captured
   Given the mod, and an engram whose auto judge prints a request
   When a turn that a subagent ran completes
   Then auto judge was never run, and the model was never asked
+
+Scenario: 793d2b1g The judgement receives the text the turn began with
+  Given the mod, and an engram whose auto judge prints a request
+  When a prompt is raised, the turn starts with its text, and it completes
+  Then auto judge received the text, beside the session's ID, the turn's ID, the final text and the origin
+
+Scenario: 793d2b1h A turn takes the origin and the text of its own prompt when others are waiting
+  Given the mod, and an engram whose auto judge prints a request
+  When a prompt of the user starts a turn, a second prompt of the user is raised while it runs, a task notification is raised after the second, the first turn completes, and the second prompt starts a turn that completes
+  Then auto judge received for the second turn the origin and the text of the second prompt, and not those of the notification
+
+Scenario: 793d2b1i A turn that starts with no text has no origin
+  Given the mod, and an engram whose auto judge prints a request
+  When a prompt of the user starts a turn that completes, and a turn then starts with no text and completes
+  Then auto judge received no origin for the second turn
 ```
 
 ## 793d3 Recommended component diffs
@@ -548,8 +566,8 @@ Scenario: 793d4f1d No record is read when no directory can be found
 
 ### 793d4g Judging a turn
 
-Requirement: 793d4g The [turn](./793a_product-spec.md#793a1a-terms)-judgement MUST read one JSON object with the `session`'s ID, the turn's final `answer` and the
-`origin` of the [prompt](./793a_product-spec.md#793a1a-terms) the turn began with from standard input, MUST print nothing when the origin is not one the user sends
+Requirement: 793d4g The [turn](./793a_product-spec.md#793a1a-terms)-judgement MUST read one JSON object with the `session`'s ID, the turn's final `answer`, the `text` the turn
+began with and the `origin` of the [prompt](./793a_product-spec.md#793a1a-terms) the turn began with from standard input, MUST print nothing when the origin is not one the user sends
 ([793d4m Telling the prompts the user sends](#793d4m-telling-the-prompts-the-user-sends)), and MUST find the [session](../../GLOSSARY.md#session)'s record as [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) does,
 in the directory of [793d4f Finding the records of sessions](#793d4f-finding-the-records-of-sessions). A [prompt](./793a_product-spec.md#793a1a-terms) is a
 row of the record that the user sent. A row that the [harness](../../GLOSSARY.md#harness) wrote is none, and makes no line: a row marked as meta
@@ -557,8 +575,10 @@ row of the record that the user sent. A row that the [harness](../../GLOSSARY.md
 such as a task notification or a message of a peer session delivered into the turn, and a row whose text begins as
 [792b15c3 Harness noise](../../specs/technical/transcript-reader.md#792b15c3-harness-noise) drops text: a system reminder, the base directory of a skill, the caveat or the output of a
 local command, a task notification. A block of a prompt that begins so is left out of it, and the prompt of a slash
-command is its arguments, and none when it has none. The turn is the last prompt of the record and
-everything after it, and the conversation before it is the context. It MUST print one JSON object, the request for the
+command is its arguments, and none when it has none. The turn begins at the last prompt of the record that has the
+`text` of the input, or at the last prompt of the record when the input gives no text or no prompt has it; it ends before
+the next prompt of the record, and after the last line of the [agent](./793a_product-spec.md#793a1a-terms) that is the final text; and the conversation before it is the
+context. It MUST print one JSON object, the request for the
 model: `model` (`haiku`), `effort` (`low`), `prompt`, `maxTokens` and `timeoutMs`. The prompt MUST hold the instructions
 of the judgement, then the lines of the context, then the line `--- the turn ---`, then the lines of the turn. A line is
 one message and opens with `User: ` for a prompt, `Agent: ` for text of the [agent](./793a_product-spec.md#793a1a-terms), and `Agent used ` and the tool's name for a
@@ -667,6 +687,21 @@ Scenario: 793d4g1q A long record is judged in time
   Given the record of a session of 1 MB, of which the turn is the last prompt
   When the judgement is given the session
   Then it prints the request within 2 seconds
+
+Scenario: 793d4g1r A prompt typed ahead does not begin the turn of the one before it
+  Given the record of a session whose first turn ended with the agent saying that its guess was wrong and what the file says, and whose second prompt, typed ahead, is already in the record
+  When the judgement is given the session, the text of the first prompt and the first turn's final text
+  Then the turn of the request is the first turn's lines, and the second prompt is no line of the request
+
+Scenario: 793d4g1s A turn that a notification started after it is not part of it
+  Given the record of a session whose turn began with a prompt of the user and ended with the agent's text, followed by a task notification and the lines of the turn it started
+  When the judgement is given the session, the text of the prompt and the final text
+  Then the turn of the request ends with the final text, and holds nothing of the turn the notification started
+
+Scenario: 793d4g1t A text that no prompt has begins the turn at the last prompt
+  Given the record of a session with two prompts, and a text that neither has
+  When the judgement is given the session and that text
+  Then the turn of the request begins at the last prompt
 ```
 
 ### 793d4h Writing the lessons of a reply

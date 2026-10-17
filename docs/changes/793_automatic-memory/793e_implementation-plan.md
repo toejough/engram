@@ -168,7 +168,9 @@ graph TD
     n793e6b14 --> n793e6g1
     n793e6g2["793e6g2 The record is read once, and only the window is redacted<br/>Complete"]
     n793e6g1 --> n793e6g2
-    n793e6g2 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
+    n793e6g3["793e6g3 A turn is found by the text it began with<br/>Ready"]
+    n793e6g2 --> n793e6g3
+    n793e6g3 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
     n793e6d --> n793e6f["793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d"]
@@ -537,6 +539,21 @@ Takes review finding 19: the judgement parsed the whole record and redacted ever
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
 | 793d4g1q | Dedicated example (default suite) | a record of 1 MB through `RunAutoJudge` over a real temporary directory: the request is printed within 2 seconds; the old reading took 42 seconds under the race detector that `targ test` runs with, so the bound fails it by a factor of twenty, and the new one takes 0.3 seconds under it, a tenth of the bound or less | Done | 959735b2, 333ae1d2 | 004adfb0 | 74cec1a1 |
+
+#### 793e6g3 A turn is found by the text it began with
+
+Takes review findings 2 and 8. The [turn](./793a_product-spec.md#793a1a-terms) that was judged was the last [prompt](./793a_product-spec.md#793a1a-terms) of the record and everything after it, so a prompt typed ahead, which the record already holds when the turn before it is judged, became the turn, and the correction of the turn that had ended was context ([793b76 A turn is found by the text it began with](./793b_decision-log.md#793b76-a-turn-is-found-by-the-text-it-began-with)). The mod kept one variable for the origin of the last prompt, never cleared, which a turn that started with no text inherited and which the next prompt submitted overwrote, whatever it was.
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| 793d4g1r | Dedicated example (default suite) | the prompt typed ahead of review probe C, through `RunAutoJudge` with the text of the first prompt in its input: the first turn is the turn, and the second prompt is no line | Not started | | | |
+| 793d4g1s | Dedicated example (default suite) | the rows of a real record in which a task notification started a turn after the one that is judged: the turn ends with the final text | Not started | | | |
+| 793d4g1t | Dedicated example (default suite) | a text that no prompt has, which a slash command has: the turn begins at the last prompt, as it did. It passes when written; the mutation that makes it fail is a judgement that finds no turn when no prompt has the text | Not started | | | |
+| 793d2b1g | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the text of the start of the turn reaches the judgement | Not started | | | |
+| 793d2b1h | Dedicated example, real dependency (`integration`, runs the mod under `node`) | two prompts of the user and a notification raised while a turn runs: the second turn has the second prompt's origin and text | Not started | | | |
+| 793d2b1i | Dedicated example, real dependency (`integration`, runs the mod under `node`) | a turn that starts with no text, after a prompt of the user: it has no origin | Not started | | | |
+| 793d2b1a (amended) | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the input of the judgement holds the text the turn began with | Not started | | | |
+| 793d2b1e (amended) | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the same input, for the origin task-notification | Not started | | | |
 
 ### 793e6e The conversation becomes searchable memory
 

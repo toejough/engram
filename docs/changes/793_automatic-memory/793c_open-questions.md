@@ -479,3 +479,14 @@ he answers. When he answers, the entry records the answer and the date and stays
   of that time parsing.
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b75 The record is read once, and the lines of the window are the only ones redacted](./793b_decision-log.md#793b75-the-record-is-read-once-and-the-lines-of-the-window-are-the-only-ones-redacted).
+
+## 793c47 Is the turn the one that began with the text the mod saw?
+
+- **Context:** [793b76 A turn is found by the text it began with](./793b_decision-log.md#793b76-a-turn-is-found-by-the-text-it-began-with) judges the [turn](./793a_product-spec.md#793a1a-terms) that began with the text its start carried, and not the last [prompt](./793a_product-spec.md#793a1a-terms) of the record.
+  A prompt that a user types ahead is no longer the turn of the one before it; a slash command, whose text is not the
+  text of its row, falls back to the last prompt.
+- **Options:** (a) The text the turn started with, the last prompt as the fallback. (b) The last prompt of the record, as
+  before. (c) The prompt ID of the record, if the event gives it later.
+- **Recommendation:** (a): (b) loses the correction of a turn when the user types ahead, which is the common way to work.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b76 A turn is found by the text it began with](./793b_decision-log.md#793b76-a-turn-is-found-by-the-text-it-began-with).

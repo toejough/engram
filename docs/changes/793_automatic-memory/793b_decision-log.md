@@ -1234,7 +1234,7 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 - **Alternatives:** the origin read from the session's record when the turn ends (rejected in
   [793b64 The prompts the user sends](#793b64-the-prompts-the-user-sends)); one variable for the origin of the running turn (rejected: a turn typed over would read the next
   turn's origin).
-- **Decided by:** Author (default; owner may override).
+- **Decided by:** Author (default; owner may override). Superseded in part by [793b76 A turn is found by the text it began with](#793b76-a-turn-is-found-by-the-text-it-began-with): the origin is kept with the text of each prompt and not in one variable.
 
 ## 793b73 The tests of an absence wait for the end of the write, and for a settling time
 
@@ -1282,4 +1282,25 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 - **Alternatives:** keep the two readings and make each cheaper (rejected: the parse is still done twice and the surface
   stays larger); keep the lines of the first reading for the second (rejected: state between two calls); read only the
   end of the record (rejected: the start of a long turn would be cut).
+- **Decided by:** Author (default; owner may override).
+
+## 793b76 A turn is found by the text it began with
+
+- **Choice:** the mod keeps the text and the origin of each [prompt](./793a_product-spec.md#793a1a-terms) a [session](../../GLOSSARY.md#session) raises. A [turn](./793a_product-spec.md#793a1a-terms) that starts with a text takes the oldest prompt kept
+  with that text, and drops the prompts kept before it, which began no turn of their own; a turn whose text no kept prompt
+  has takes the origin of the newest one, as before; a turn that starts with no text takes none. The mod gives the judgement
+  the text the turn started with, and the judgement begins the turn at the last prompt of the record that has that text,
+  or at the last prompt when none has it, ends it before the next prompt of the record, and ends it after the last line of
+  the [agent](./793a_product-spec.md#793a1a-terms) that is the final text when the record holds one.
+- **Rationale:** review findings 2 and 8. A prompt typed while a turn runs starts a turn of its own when the first turn
+  ends, so its row is in the record before the first turn is judged; the last prompt of the record was then the new one, the
+  correction of the turn that had ended was context, and the instructions of the judgement ask for a lesson confirmed in
+  the turn itself. The one variable of [793b72 The origin of a turn](#793b72-the-origin-of-a-turn) was never cleared: a turn that started with no text (a continuation) inherited the origin of the
+  last prompt, and a notification raised while a prompt of the user waited gave that prompt the origin of the
+  notification. The final text ends the turn because a notification can start a turn right after the first ends, and the
+  lines of that turn are not the first turn's.
+- **Alternatives:** the prompt's ID in the record (rejected: the event does not carry it); matching in order only
+  (rejected: a prompt delivered into a running turn never starts a turn, and the order slips); the `turnOrigin` field of
+  the record (rejected: older records lack it). Two prompts typed with the same text in the same window are not told
+  apart: the judgement takes the later in the record, and the mod takes the earlier prompt kept; a rare case, accepted.
 - **Decided by:** Author (default; owner may override).
