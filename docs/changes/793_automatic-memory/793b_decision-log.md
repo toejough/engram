@@ -748,3 +748,20 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   directory is missing (rejected: it passes with nothing checked); both directions (rejected: other changes' tests carry
   other IDs).
 - **Decided by:** Author (default; owner may override).
+
+## 793b49 The acceptance run is capped at four tests at once
+
+- **Choice:** `targ acceptance` runs at most 4 of its tests at the same time (`go test -parallel=4`). The tests stay
+  parallel, each on a machine of its own; the default is the number of cores, 10 on the computer this was built on.
+- **Rationale:** the tests start real processes (Claude Code sessions, a build of the binary, copies of it), and two kinds
+  of them are bounded by time: the mod ends its command at 7 seconds, and a prompt may be held for 8
+  ([793b46 The command is ended at 7 seconds](#793b46-the-command-is-ended-at-7-seconds)). Measured on the full set of 14
+  tests, 10 at once: two tests failed in each of two runs (the stand-in `engram` that the mod started did nothing for the
+  7 seconds, so the command it was given was never recorded); 8 at once: one test failed in each of two runs; 6 at once:
+  none in two runs; 4 at once: none in three runs; 3 at once: none in one. The failures were different tests in
+  different runs and every test passes alone and in small groups, so the cause is the load of the others; the exact
+  step that stalls is not established. A cap of 4 leaves a margin below 6 and costs about 40 seconds for the full set.
+- **Alternatives:** one test at a time (rejected: about four minutes for no gain over 4); no `t.Parallel()` on the timed
+  tests (rejected: the tests share no state, so the cause is not shared state); a longer bound in the mod (rejected: the
+  7 seconds are the product's, [793b46](#793b46-the-command-is-ended-at-7-seconds)).
+- **Decided by:** Author (default; owner may override).

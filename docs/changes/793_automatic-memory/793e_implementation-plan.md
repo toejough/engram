@@ -141,7 +141,7 @@ Takes [793a2a1a The next session has memory after one engram update](./793a_prod
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
-| `targ acceptance`, which runs the tests of `dev/acceptance` with the `network` build tag, and `lint-dev` over that package | Non-test action | the scenario tests start real Claude Code sessions, which no default target may run, and the lint gate must still see them | Done |
+| `targ acceptance`, which runs the tests of `dev/acceptance` with the `network` build tag, at most 4 at once ([793b49](./793b_decision-log.md#793b49-the-acceptance-run-is-capped-at-four-tests-at-once)), and `lint-dev` over that package | Non-test action | the scenario tests start real Claude Code sessions, which no default target may run, and the lint gate must still see them; the timed ones fail when 8 or more run at once | Done |
 | The acceptance harness: an isolated machine (home, vault, GOBIN, a binary built from a git-less copy of the module), a driver for `claude -p` sessions and a reader of the session's record | Non-test action | every scenario test is written over it, and its isolation is the rule of [793f7 Test isolation](./793f_algorithm.md#793f7-test-isolation) | Done |
 
 | Gherkin | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
