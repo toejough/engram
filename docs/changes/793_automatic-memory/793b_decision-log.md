@@ -476,7 +476,7 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   1. [Subagents](../../GLOSSARY.md#subagent): capture inside subagent [sessions](../../GLOSSARY.md#session) (`old 793c6`, 2026-10-11), and delivery at a [subagent](../../GLOSSARY.md#subagent)'s start
      with capture at its stop (`old 793c63` (a), 2026-10-11). Here: the user's own sessions only ([793b22 The scope is top-level sessions and notes only](./793b_decision-log.md#793b22-the-scope-is-top-level-sessions-and-notes-only)).
   2. [Prompt](./793a_product-spec.md#793a1a-terms) sources: memory for every prompt regardless of source (`old 793c5`, 2026-10-11). Here: prompts
-     the user sends.
+     the user sends; until [793e6b Lessons are written without the agent](./793e_implementation-plan.md#793e6b-lessons-are-written-without-the-agent) the mod delivers for every origin ([793b58 The first group delivers for every origin of a prompt](#793b58-the-first-group-delivers-for-every-origin-of-a-prompt)).
   3. Route results: tier evidence before the orchestrator routes a unit (`old 793c39` (b) and `old 793c64` (a),
      2026-10-11). Here: none.
   4. Mid-task moments: delivery at the moments where recall should fire (`old 793b187`, 2026-10-11, and
@@ -598,19 +598,19 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 
 - **Choice:** step 2 for the first group ([793e6a On after update, and memory arrives with the prompt](./793e_implementation-plan.md#793e6a-on-after-update-and-memory-arrives-with-the-prompt))
   writes ten scenarios, one per mandatory branch and no more: five under [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update)
-  (the next session has memory in any project; a second update still delivers once; a dry run turns nothing on; Pi gets
-  nothing; a vault that does not exist is not created), four under [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt)
-  (the notes that bear on a prompt arrive with it; a note delivered earlier is not delivered again; a note the agent
+  (the next [session](../../GLOSSARY.md#session) has memory in any project; a second update still delivers once; a dry run [turns](./793a_product-spec.md#793a1a-terms) nothing on; Pi gets
+  nothing; a [vault](../../GLOSSARY.md#vault) that does not exist is not created), four under [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt)
+  (the [notes](../../GLOSSARY.md#permanent-note) that bear on a [prompt](./793a_product-spec.md#793a1a-terms) arrive with it; a note delivered earlier is not delivered again; a note the [agent](./793a_product-spec.md#793a1a-terms)
   looked up itself is not delivered; a prompt that matches no note, even when the conversation matches, arrives with
   nothing) and one under [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) (a slow lookup does not hold a prompt for more
-  than 8 seconds). The clause of 793a2a about lessons is proved by a scenario written with [793e6b Lessons are written without the agent](./793e_implementation-plan.md#793e6b-lessons-are-written-without-the-agent).
+  than 8 seconds). The clause of [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update) about lessons is proved by a scenario written with [793e6b Lessons are written without the agent](./793e_implementation-plan.md#793e6b-lessons-are-written-without-the-agent).
   The scenario for the hold is in this group because [793e4 Depth-first order and dependency tree](./793e_implementation-plan.md#793e4-depth-first-order-and-dependency-tree) gives the first group the
-  8-second hold, and the other scenarios of 793a2d wait for the group that finishes it.
+  8-second hold, and the other scenarios of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) wait for the group that finishes it.
 - **Rationale:** the owner's step 2 asks for the minimum scenarios that prove the requirement, and the product guide
   asks for end-user-verifiable coverage of every mandatory branch. Two shapes are the author's: "the agent looked the
   note up itself" is staged before the update and the session is resumed after it, because a prompt of that session
   would otherwise deliver the note too and the two routes could not be told apart; and the missing vault is a vault
-  that was removed after the update, because `engram update` itself creates a missing vault, so a machine that never
+  that was removed after the update, because [`engram update`](../../GLOSSARY.md#engram-update) itself creates a missing vault, so a machine that never
   ran it is not a machine on which the mod is installed.
 - **Alternatives:** fewer scenarios, folding the dry run and Pi into the first (rejected: their outcomes differ and
   each needs its own report); a scenario for each of the delivered-note routes inside one (rejected: the plan guide
@@ -621,7 +621,7 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 
 - **Choice:** the automatic behavior inside a Claude Code [session](../../GLOSSARY.md#session) is one mod,
   `engram-memory`, kept in `agent-instructions/mods/` and deployed by [`engram update`](../../GLOSSARY.md#engram-update)
-  through the machinery that deploys the skills, so that it lands in `~/.claude/skills/engram-memory` like a skill. For
+  through the machinery that deploys the [skills](../../GLOSSARY.md#skill), so that it lands in `~/.claude/skills/engram-memory` like a skill. For
   each [prompt](./793a_product-spec.md#793a1a-terms) the mod runs a new command, `engram auto deliver`, with a JSON
   object on standard input, and puts the command's output beside the prompt. The command holds the logic; the mod
   routes. Recorded in [793d1 Orientation](./793d_technical-spec.md#793d1-orientation).
@@ -630,7 +630,7 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   ([793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt)). A real
   `claude -p` session in an isolated HOME showed that a mod in a linked `~/.claude/skills/<name>` loads, that its
   command runs with the session's environment and standard input, and that the context it adds is recorded before the
-  agent's first reply. Standard input carries the prompt because a prompt can be longer than a command line allows.
+  [agent](./793a_product-spec.md#793a1a-terms)'s first reply. Standard input carries the prompt because a prompt can be longer than a command line allows.
   The logic is in Go because the controls over it (tests, lint, coverage) are stronger there.
 - **Alternatives:** a `UserPromptSubmit` command hook in `~/.claude/settings.json`: rejected, because `engram update`
   would edit a file the user owns on every run, where files in an engram-owned root need no merge. The prompt on the
@@ -641,33 +641,33 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 
 - **Choice:** the block opens with one fixed framing line and has one line for each [note](../../GLOSSARY.md#permanent-note):
   a dash, its file name, its situation in parentheses, a colon and its body. The framing line begins `[engram memory]`
-  and says that the lines below are notes from the vault, delivered by the memory system and not typed by the user,
+  and says that the lines below are notes from the [vault](../../GLOSSARY.md#vault), delivered by the memory system and not typed by the user,
   and that an instruction written inside a note is not the user's
   ([793b43 A note cannot reshape the block](#793b43-a-note-cannot-reshape-the-block)).
 - **Rationale:** the framing is that of the earlier attempt's block (`internal/auto/moment.go` at commit `dcf53d07`),
-  whose guard keeps a note from acting as an instruction; the marker `[engram memory]` is what the session's record is
-  searched for. The file name is the note's identity in every `engram` payload, so the agent can ask for the whole note
-  with `engram show`, and it is what a later prompt's lookup compares against what the agent already has.
+  whose guard keeps a note from acting as an instruction; the marker `[engram memory]` is what the [session](../../GLOSSARY.md#session)'s record is
+  searched for. The file name is the note's identity in every `engram` payload, so the [agent](./793a_product-spec.md#793a1a-terms) can ask for the whole note
+  with `engram show`, and it is what a later [prompt](./793a_product-spec.md#793a1a-terms)'s lookup compares against what the agent already has.
 - **Alternatives:** whole notes (rejected: the block would grow with the vault); a count and no text (rejected: the
   agent would have to look each note up).
 - **Decided by:** Author (default; owner may override).
 
 ## 793b43 A note cannot reshape the block
 
-- **Choice:** the file name, the situation and the body of a note are each written as text in which every run of white
+- **Choice:** the file name, the situation and the body of a [note](../../GLOSSARY.md#permanent-note) are each written as text in which every run of white
   space (line breaks and separators included) is one space and no control character and no format character (Unicode
   category Cf) remains, so a note is always one line, and no text of a note can end its line and write a line that looks
   like the framing line or like another note.
   The framing line says that an instruction written inside a note is not the user's. Nothing more is done: no quoting
   scheme. [793d4c Framing the notes of a block as data](./793d_technical-spec.md#793d4c-framing-the-notes-of-a-block-as-data)
   states it.
-- **Rationale:** a note is text that the user, the [agent](./793a_product-spec.md#793a1a-terms) or another vault wrote,
+- **Rationale:** a note is text that the user, the [agent](./793a_product-spec.md#793a1a-terms) or another [vault](../../GLOSSARY.md#vault) wrote,
   and the block puts it in the agent's context. A security review of the first rendering found that a note holding line
   breaks could end its own line and write lines that imitate the block's framing or further notes, and that nothing
   told the agent the lines are retrieved data. Collapsing and one framing line close that with no other machinery. The
   review of the first group added the format characters: a zero-width space or joiner, a bidirectional override and a
   byte-order mark are not control characters, yet they are invisible or reorder the text, so a note could carry an
-  instruction that a person reading the session does not see; they are dropped, as control characters are, and the words
+  instruction that a person reading the [session](../../GLOSSARY.md#session) does not see; they are dropped, as control characters are, and the words
   around them are joined.
 - **Alternatives:** a quoting or escaping scheme (rejected: more code for the same guarantee, since the model reads the
   lines either way); leaving out a note that holds control characters (rejected: the note would be lost).
@@ -680,10 +680,10 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 - **Choice:** a [note](../../GLOSSARY.md#permanent-note) is delivered when the lookup returns it as a matched item (not a
   chunk, and not picked by the explore half alone), and its body is delivered whole, on one line. There is no cut of
   the body: the lookup's own limit bounds the number of notes
-  ([793b19 Volume of delivered notes](#793b19-volume-of-delivered-notes)), as it bounds what the agent's own lookup
+  ([793b19 Volume of delivered notes](#793b19-volume-of-delivered-notes)), as it bounds what the [agent](./793a_product-spec.md#793a1a-terms)'s own lookup
   returns, and the agent's own lookup prints whole notes.
 - **Rationale:** an explore pick is a note sampled from the vocabulary to widen what the agent reads, not one that
-  bears on the prompt; delivering it with every prompt would put an unrelated note in the agent's context each time,
+  bears on the [prompt](./793a_product-spec.md#793a1a-terms); delivering it with every prompt would put an unrelated note in the agent's context each time,
   which [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) does not
   ask for. A cut of the body would hide the later steps of a runbook, and the scenarios do not need one.
 - **Alternatives:** deliver every non-chunk item of the payload (rejected: it delivers explore picks); cut each body
@@ -693,12 +693,12 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 
 ## 793b45 What a session holds
 
-- **Choice:** the agent holds a [note](../../GLOSSARY.md#permanent-note) when the note's basename, its file name without
-  the suffix `.md`, appears in what the session's record shows the agent was given about notes. Two things count: the
-  file names on the note lines of the blocks delivered beside prompts, and the command and the result of each lookup the
+- **Choice:** the [agent](./793a_product-spec.md#793a1a-terms) holds a [note](../../GLOSSARY.md#permanent-note) when the note's basename, its file name without
+  the suffix `.md`, appears in what the [session](../../GLOSSARY.md#session)'s record shows the agent was given about notes. Two things count: the
+  file names on the note lines of the blocks delivered beside [prompts](./793a_product-spec.md#793a1a-terms), and the command and the result of each lookup the
   agent ran itself, a Bash command whose text contains `engram query` or `engram show`, its result paired with it by the
   tool's ID. Nothing else of the record counts: not the other context that a hook put beside a prompt, not the situations
-  and bodies of a block, not the result of any other tool, such as an `ls` of the vault or a `cat` of a note file. The
+  and bodies of a block, not the result of any other tool, such as an `ls` of the [vault](../../GLOSSARY.md#vault) or a `cat` of a note file. The
   whole record counts, whatever a compaction removed ([793b27 "Already has" is per session](#793b27-already-has-is-per-session)).
   The record is found by the session's ID, in the directory of records of sessions
   ([793b51 The delivery finds the records where Claude Code writes them](#793b51-the-delivery-finds-the-records-where-claude-code-writes-them)),
@@ -723,11 +723,11 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 ## 793b46 The command is ended at 7 seconds
 
 - **Choice:** the mod waits for `engram auto deliver` for 7 seconds at most, by the time limit of the process call, which
-  ends the command at that time, and a prompt whose command did not finish goes on with nothing added, with no sign of
-  a failure in the session. The 8 seconds of [793b17 A prompt is held for at most 8 seconds](#793b17-a-prompt-is-held-for-at-most-8-seconds)
+  ends the command at that time, and a [prompt](./793a_product-spec.md#793a1a-terms) whose command did not finish goes on with nothing added, with no sign of
+  a failure in the [session](../../GLOSSARY.md#session). The 8 seconds of [793b17 A prompt is held for at most 8 seconds](#793b17-a-prompt-is-held-for-at-most-8-seconds)
   are the hold of the prompt: the 7 seconds are the command, and the second left is for starting the process, the call
   and the prompt's hooks to run: a prompt whose command takes 20 seconds waited 7.07 seconds before the model was asked
-  (the scenario 793d2a1d, `targ acceptance --run Test793d2a1d`).
+  (the scenario [793d2a1d A slow command is ended and the prompt continues](./793d_technical-spec.md#793d2a1-scenarios), `targ acceptance --run Test793d2a1d`).
 - **Rationale:** the platform's own limit on a hook counts only the hook's own code, not a call it makes, so nothing
   in the platform bounds a slow command; the bound is the mod's. A failure that the platform logs as a skipped hook is
   shown to the user in the session, so the slow command is caught in the mod and not left to fail it.
@@ -738,10 +738,10 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 ## 793b47 A dry run reports the mod as a mod
 
 - **Choice:** the report of [`engram update`](../../GLOSSARY.md#engram-update), with or without `--dry-run`, lists a mod
-  in the section of Claude Code with `agent-instructions/mods/<name>/` as its source, where a skill is listed with
+  in the section of Claude Code with `agent-instructions/mods/<name>/` as its source, where a [skill](../../GLOSSARY.md#skill) is listed with
   `agent-instructions/skills/<name>/`. The dry run plans and reports the mod as it does the skills, and writes none of
   it. The plan marks the files of a mod, and the report data marks each directory it counts, as a skill or a mod.
-- **Rationale:** a preview exists to tell the user what an update would turn on
+- **Rationale:** a preview exists to tell the user what an update would [turn](./793a_product-spec.md#793a1a-terms) on
   ([793a2a1c A dry run turns nothing on](./793a_product-spec.md#793a2a1-uat-scenarios)). A mod listed under the source of
   a skill names a directory it does not come from: the first run of that scenario showed the row
   `agent-instructions/skills/engram-memory/`. The mark costs one field on the plan and one on the report data.
@@ -778,22 +778,26 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 
 - **Choice:** `targ acceptance` runs at most 4 of its tests at the same time (`go test -parallel=4`). The tests stay
   parallel, each on a machine of its own; the default is the number of cores, 10 on the computer this was built on.
-- **Rationale:** the tests start real processes (Claude Code sessions, a build of the binary, copies of it), and two kinds
-  of them are bounded by time: the mod ends its command at 7 seconds, and a prompt may be held for 8
+- **Rationale:** the tests start real processes (Claude Code [sessions](../../GLOSSARY.md#session), a build of the binary, copies of it), and two kinds
+  of them are bounded by time: the mod ends its command at 7 seconds, and a [prompt](./793a_product-spec.md#793a1a-terms) may be held for 8
   ([793b46 The command is ended at 7 seconds](#793b46-the-command-is-ended-at-7-seconds)). Measured on the full set of 14
   tests, 10 at once: two tests failed in each of two runs (the stand-in `engram` that the mod started did nothing for the
   7 seconds, so the command it was given was never recorded); 8 at once: one test failed in each of two runs; 6 at once:
   none in two runs; 4 at once: none in three runs; 3 at once: none in one. The failures were different tests in
   different runs and every test passes alone and in small groups, so the cause is the load of the others; the exact
   step that stalls is not established. A cap of 4 leaves a margin below 6 and costs about 40 seconds for the full set.
+  The review of the first group read the failing runs again and found more than test load: `$.process.run` logged the
+  spawn at once, and then `prompt.submit settled in 7060.0ms` with no output from the child, so the stall is between the
+  spawn and the child's first instruction, and a user on a loaded machine would have the prompt held about 7 seconds with
+  nothing delivered or shown. That is an open risk, not an artifact of the tests: [793c32 Is the stall between the spawn of the command and its first instruction a risk to the product?](./793c_open-questions.md#793c32-is-the-stall-between-the-spawn-of-the-command-and-its-first-instruction-a-risk-to-the-product).
 - **Alternatives:** one test at a time (rejected: about four minutes for no gain over 4); no `t.Parallel()` on the timed
   tests (rejected: the tests share no state, so the cause is not shared state); a longer bound in the mod (rejected: the
-  7 seconds are the product's, [793b46](#793b46-the-command-is-ended-at-7-seconds)).
+  7 seconds are the product's, [793b46 The command is ended at 7 seconds](#793b46-the-command-is-ended-at-7-seconds)).
 - **Decided by:** Author (default; owner may override).
 
 ## 793b50 The mod uses what the command printed only when it succeeded and printed a block
 
-- **Choice:** the mod adds the output of `engram auto deliver` beside the prompt only when the command exited with 0 and
+- **Choice:** the mod adds the output of `engram auto deliver` beside the [prompt](./793a_product-spec.md#793a1a-terms) only when the command exited with 0 and
   the output begins with `[engram memory]`, the line that opens every block
   ([793d4c Framing the notes of a block as data](./793d_technical-spec.md#793d4c-framing-the-notes-of-a-block-as-data)).
   In every other case the prompt goes on as it was, with nothing added
@@ -801,7 +805,7 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 - **Rationale:** the review of the first group reproduced that the first version added the standard output whatever the
   exit code. The `engram` of main, which has no `auto` command, prints `Unknown command: auto` and 2,117 bytes of usage to
   standard output and exits 1, and this branch's binary prints `Error: flag provided but not defined: --bogus` to standard
-  output; both reached the agent's context as if they were notes. `$.process.run` returns the exit code and the output
+  output; both reached the [agent](./793a_product-spec.md#793a1a-terms)'s context as if they were [notes](../../GLOSSARY.md#permanent-note). `$.process.run` returns the exit code and the output
   without throwing on a non-zero exit, so the mod reads the exit code itself. The marker keeps out text that a command
   prints on exit 0 and that is not a block.
 - **Alternatives:** the exit code alone (rejected: an `engram` that exits 0 with other text would still reach the
@@ -811,17 +815,17 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 
 ## 793b51 The delivery finds the records where Claude Code writes them
 
-- **Choice:** `engram auto deliver` reads the records of sessions from the directory its `--sessions` flag names, else
+- **Choice:** `engram auto deliver` reads the records of [sessions](../../GLOSSARY.md#session) from the directory its `--sessions` flag names, else
   from `ENGRAM_TRANSCRIPT_DIR`, else from `$CLAUDE_CONFIG_DIR/projects`, else from `<home>/.claude/projects`
   ([793d4f Finding the records of sessions](./793d_technical-spec.md#793d4f-finding-the-records-of-sessions)).
-  `engram ingest` is not changed: it keeps `ENGRAM_TRANSCRIPT_DIR`, else `<home>/.claude/projects`
+  [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand) is not changed: it keeps `ENGRAM_TRANSCRIPT_DIR`, else `<home>/.claude/projects`
   ([792b17c6 Session-log directory](../../specs/technical/ingestion-source-discovery.md#792b17c6-session-log-directory)).
 - **Rationale:** a session started with `CLAUDE_CONFIG_DIR` set writes its record under `$CLAUDE_CONFIG_DIR/projects`, and
   not under `<home>/.claude/projects`: a headless `claude -p` session of Claude Code 2.1.302 in an isolated home, with
   `CLAUDE_CONFIG_DIR` set to a directory other than `<home>/.claude` and no `ENGRAM_TRANSCRIPT_DIR`, left its record at
   `$CLAUDE_CONFIG_DIR/projects/<project>/<session ID>.jsonl` and nowhere under the home. The first version read only
-  `<home>/.claude/projects`, so for such a user, whose skills directory links to the one `engram update` fills, no record
-  was ever found and every held note was delivered again with each prompt (review finding 13). `ENGRAM_TRANSCRIPT_DIR`
+  `<home>/.claude/projects`, so for such a user, whose [skills](../../GLOSSARY.md#skill) directory links to the one [`engram update`](../../GLOSSARY.md#engram-update) fills, no record
+  was ever found and every held [note](../../GLOSSARY.md#permanent-note) was delivered again with each [prompt](./793a_product-spec.md#793a1a-terms) (review finding 13). `ENGRAM_TRANSCRIPT_DIR`
   stays first because it is engram's own override and what every isolated run sets. The sweep is left as it is because
   its order is a canonical requirement of `engram ingest`, and the standing rule is to default to today's behaviour.
 - **Alternatives:** change the one function that both commands use (rejected: it changes what `engram ingest` sweeps for
@@ -833,8 +837,8 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 
 - **Choice:** `AutoDeliverDeps.Query` is a function that runs the lookup of `engram query` for the arguments it is
   given and prints its payload, wired at the composition root over the query dependencies, where it was the query
-  dependencies themselves. The delivery builds the arguments, the prompt's text as the message and as the only phrase and
-  the vault it was given ([793d4a Delivering the notes that bear on a prompt](./793d_technical-spec.md#793d4a-delivering-the-notes-that-bear-on-a-prompt)),
+  dependencies themselves. The delivery builds the arguments, the [prompt](./793a_product-spec.md#793a1a-terms)'s text as the message and as the only phrase and
+  the [vault](../../GLOSSARY.md#vault) it was given ([793d4a Delivering the notes that bear on a prompt](./793d_technical-spec.md#793d4a-delivering-the-notes-that-bear-on-a-prompt)),
   and the tests that need the real lookup hand it a function over the in-memory vault.
 - **Rationale:** the completion gate of [793e7 Completion gates](./793e_implementation-plan.md#793e7-completion-gates)
   asks `imptest` evidence of the call and arguments of every injected collaboration. The lookup's arguments could be seen
@@ -865,21 +869,21 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 ## 793b54 Two acceptance scenarios prove more than that nothing arrived
 
 - **Choice:** [793a2b1c A note the agent looked up itself is not delivered](./793a_product-spec.md#793a2b1-uat-scenarios)
-  has the vault gain a second note about the staging database after the agent's lookup, so the lookup could not have
-  printed it, and its outcome is that the prompt arrives with that note and not the staging note. The test of
+  has the [vault](../../GLOSSARY.md#vault) gain a second [note](../../GLOSSARY.md#permanent-note) about the staging database after the [agent](./793a_product-spec.md#793a1a-terms)'s lookup, so the lookup could not have
+  printed it, and its outcome is that the [prompt](./793a_product-spec.md#793a1a-terms) arrives with that note and not the staging note. The test of
   [793a2a1e A vault that does not exist is not created](./793a_product-spec.md#793a2a1-uat-scenarios) asserts that the mod
-  ran its command for the prompt, with the marker that the test of 793a2d1a already uses; the scenario's text does not
+  ran its command for the prompt, with the marker that the test of [793a2d1a A slow lookup does not hold a prompt for more than 8 seconds](./793a_product-spec.md#793a2d1-uat-scenarios) already uses; the scenario's text does not
   change.
 - **Rationale:** the review of the first group found that both tests asserted only that nothing arrived, so both also pass
   when the mod never loads. With one note, "nothing arrives" is the outcome of the right delivery and also of a mod that
   never ran; with a second note that bears on the prompt, the right outcome is the second note alone, which only a mod
-  that runs, and leaves out what the session holds, produces. The second note comes after the agent's lookup because a
+  that runs, and leaves out what the [session](../../GLOSSARY.md#session) holds, produces. The second note comes after the agent's lookup because a
   note that existed then is named in the lookup's payload even when the limit cuts it from the items: the clusters of the
   payload list every note of the matched set, so a vault of two related notes cannot hold one the lookup left out. The requirement
   ([793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt)) already says
   the notes delivered are those the lookup returns, less those the agent has, so the product promise does not change.
 - **Alternatives:** leave the scenarios and add a separate scenario for a second note (rejected: the plan guide has one test
-  per scenario ID and the held rule is what 793a2b1c is for); a marker in the product scenario's text for 793a2a1e
+  per scenario ID and the held rule is what [793a2b1c A note the agent looked up itself is not delivered](./793a_product-spec.md#793a2b1-uat-scenarios) is for); a marker in the product scenario's text for [793a2a1e A vault that does not exist is not created](./793a_product-spec.md#793a2a1-uat-scenarios)
   (rejected: that the mod ran is not something the user checks).
 - **Decided by:** Author (default; owner may override), on the review's finding.
 
@@ -890,7 +894,7 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   the conformance check runs ([793b48 The conformance check reads this change's specs and fails when they are gone](#793b48-the-conformance-check-reads-this-changes-specs-and-fails-when-they-are-gone)).
   The test fails, naming node, when node is not found; it does not skip.
 - **Rationale:** the review of the first group found that no default gate parsed `register.js`, so a syntax error in the mod
-  would pass `targ check-full` and be found by the first live session, where Claude Code skips a hook that does not load. A
+  would pass `targ check-full` and be found by the first live [session](../../GLOSSARY.md#session), where Claude Code skips a hook that does not load. A
   test of the suite that already runs adds no target to the aggregates that `Test794b4a1c` keeps equal to Targ's. A check
   that cannot run must not pass ([793b53 A missing login or Claude Code fails an acceptance test](#793b53-a-missing-login-or-claude-code-fails-an-acceptance-test)),
   so a machine without node fails the gate: node is the runtime the mod is written for, and a machine that builds and
@@ -903,7 +907,7 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 
 ## 793b56 The 7 seconds bound the whole hook, not the command alone
 
-- **Choice:** the mod races everything it does for a prompt, the call for the session's ID and the command, against one
+- **Choice:** the mod races everything it does for a [prompt](./793a_product-spec.md#793a1a-terms), the call for the [session](../../GLOSSARY.md#session)'s ID and the command, against one
   timer of 7 seconds, and the prompt goes on with nothing added when the timer wins
   ([793d2a Prompt delivery flow](./793d_technical-spec.md#793d2a-prompt-delivery-flow)). The command is still ended at 7
   seconds by the time limit of the process call ([793b46 The command is ended at 7 seconds](#793b46-the-command-is-ended-at-7-seconds)).
@@ -913,3 +917,61 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 - **Alternatives:** keep the bound on the command (rejected: reproduced by a host that never gives the ID); a second timer
   for the ID (rejected: the two would add up to more than the 7 seconds).
 - **Decided by:** Author (default; owner may override), on the review's finding.
+
+## 793b57 The delivery looks up the local vault only, until a later node
+
+- **Choice:** the delivery of the first group looks up the local [vault](../../GLOSSARY.md#vault) only, with
+  `RunQuery`, where `engram query` also merges the parent vault (`ENGRAM_PARENT`). The merge is not built here. It is a
+  named node of the plan, [793e6f The delivery merges the parent vault](./793e_implementation-plan.md#793e6f-the-delivery-merges-the-parent-vault),
+  after the nodes that exist, and the owner is asked in
+  [793c34 Does the delivery merge the parent vault, as `engram query` does?](./793c_open-questions.md#793c34-does-the-delivery-merge-the-parent-vault-as-engram-query-does).
+- **Rationale:** the review of the first group (finding 4) found that `lookUpNotes` runs the lookup on the local vault
+  while `engram query` merges the parent's [notes](../../GLOSSARY.md#permanent-note), so [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt),
+  which delivers the notes `engram query` returns, is met in part for a vault that has a parent. The review asked that the
+  deferral be recorded and the merge not be built.
+- **Alternatives:** build the merge now (rejected: the review asked not to); leave it unrecorded (rejected: a requirement
+  that the delivery under-meets would have no node that meets it).
+- **Decided by:** Author (default; owner may override), on the review's finding.
+
+## 793b58 The first group delivers for every origin of a prompt
+
+- **Choice:** until [793e6b Lessons are written without the agent](./793e_implementation-plan.md#793e6b-lessons-are-written-without-the-agent),
+  the mod delivers for every [prompt](./793a_product-spec.md#793a1a-terms) that a [session](../../GLOSSARY.md#session) raises, whatever its origin. [793e6b Lessons are written without the agent](./793e_implementation-plan.md#793e6b-lessons-are-written-without-the-agent) takes the clause of
+  [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) that [automatic memory](./793a_product-spec.md#793a1a-terms) MUST NOT deliver to or
+  write from its own sessions, with its scenario and the filter by the origin of a prompt, because it is the first group
+  that starts sessions of its own; [793e6c Never in the way](./793e_implementation-plan.md#793e6c-never-in-the-way) no
+  longer takes it.
+- **Rationale:** the review of the first group (findings 5 and 6) found that row 2 of
+  [793b36 Earlier owner answers this minimal set reverses](./793b_decision-log.md#793b36-earlier-owner-answers-this-minimal-set-reverses)
+  says "prompts the user sends" while the mod delivers on every `prompt.submit`, and that the own-session clause was
+  planned in [793e6c Never in the way](./793e_implementation-plan.md#793e6c-never-in-the-way), after [793e6b Lessons are written without the agent](./793e_implementation-plan.md#793e6b-lessons-are-written-without-the-agent) starts automatic memory's own sessions, which would deliver to themselves for a node.
+  Before [793e6b Lessons are written without the agent](./793e_implementation-plan.md#793e6b-lessons-are-written-without-the-agent) there are no sessions of its own, so a mod that delivers for every origin delivers to the user's.
+- **Alternatives:** filter by origin now (rejected: there is no prompt of another origin to tell apart yet); leave the
+  clause in [793e6c Never in the way](./793e_implementation-plan.md#793e6c-never-in-the-way) (rejected: [793e6b Lessons are written without the agent](./793e_implementation-plan.md#793e6b-lessons-are-written-without-the-agent) would start the sessions first).
+- **Decided by:** Author (default; owner may override), on the review's finding.
+
+## 793b59 The builder ran the tests once with the real home
+
+- **Choice:** the gate of [793e7 Completion gates](./793e_implementation-plan.md#793e7-completion-gates) that no test,
+  check or run touched the owner's real `~/.claude`, `~/.local/share/engram`, `~/.pi` or GOBIN is qualified by this
+  record, and not dropped. The builder ran `targ test-for-fail` once with the real home, in the build window 2026-10-17
+  00:10:49 to 03:41:40 EDT. The review compared modification times and found that nothing under `~/.claude`, `~/.pi`, the
+  GOBIN or the top level of the [vault](../../GLOSSARY.md#vault) changed in the window; the only vault files in the window are [notes](../../GLOSSARY.md#permanent-note) 1205 to 1208
+  and their sidecars, which the parent [session](../../GLOSSARY.md#session) wrote; and the chunks in the window all map to the owner's own [transcripts](../../GLOSSARY.md#transcript).
+- **Rationale:** a gate stated without qualification must not stand over a run that is known to have broken it, whatever
+  the run left behind ([793f7 Test isolation](./793f_algorithm.md#793f7-test-isolation)).
+- **Alternatives:** leave the gate as it was (rejected: it was not true of the build).
+- **Decided by:** Reviewer (the review's check of modification times), recorded by the author.
+
+## 793b60 The restated sentences of 792a2e are kept as they are
+
+- **Choice:** [793a5a 792a2e First-use vault creation](./793a_product-spec.md#793a5a-modified-792a2e-first-use-vault-creation)
+  restates the canonical requirement with one clause added. Its sentence about the files of a new [vault](../../GLOSSARY.md#vault), which names
+  `.obsidian/app.json`, a `.gitignore`, a starter `README.md` and the `.engram/` state directory, is the canonical
+  requirement's own text, kept verbatim; only the clause about the commands that [automatic memory](./793a_product-spec.md#793a1a-terms) runs on its own is new.
+- **Rationale:** the product spec guide keeps file names out of a product specification, and the docs check flags them
+  by pattern, but these words are not new: rewording a restatement would change the canonical requirement under a Modified
+  operation, which the lifecycle guide keeps for the change a requirement is meant to get.
+- **Alternatives:** reword the sentence without file names (rejected: it changes what a new vault contains, which is not
+  this change's to change).
+- **Decided by:** Author (default; owner may override), on the docs check.

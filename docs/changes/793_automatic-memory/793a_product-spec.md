@@ -23,6 +23,10 @@ retrieval."
 - **Prompt:** a message the user sends to the [agent](#793a1a-terms).
 - **Turn:** one [prompt](#793a1a-terms) and everything the agent does in answer to it, until it hands control
   back to the user.
+- **Bears on a prompt:** a [note](../../GLOSSARY.md#permanent-note) bears on a [prompt](#793a1a-terms) when the command
+  `engram query`, run with the prompt's text as its message and as its only phrase, returns it as a match for that text:
+  not as a fragment of a conversation, and not as one of the extra notes the command samples to widen what it returns.
+  The user can run that command and read the notes it returns.
 - **Automatic memory:** what this change adds, done without the user or the agent asking: it puts the
   [notes](../../GLOSSARY.md#permanent-note) that bear on a prompt in the agent's context
   ([793a2b Memory arrives with the prompt](#793a2b-memory-arrives-with-the-prompt)), writes notes for
@@ -82,7 +86,7 @@ The clause of [793a2a On after `engram update`](#793a2a-on-after-engram-update) 
 
 Requirement: 793a2b When the user sends a [prompt](#793a1a-terms), [automatic memory](#793a1a-terms) MUST put in
 the [agent](#793a1a-terms)'s context, before the agent acts on the prompt, the
-[notes](../../GLOSSARY.md#permanent-note) the agent's own memory lookup for that prompt would return, less those
+[notes](../../GLOSSARY.md#permanent-note) that [bear on it](#793a1a-terms), less those
 it already has, without the user or the agent asking for them. The agent already has a note when automatic
 memory delivered it earlier in the same [session](../../GLOSSARY.md#session), or the agent looked it up in that
 session; automatic memory MUST NOT put such a note in the agent's context again. Only notes are delivered: the
@@ -162,7 +166,7 @@ Scenario: 793a2d1a A slow lookup does not hold a prompt for more than 8 seconds
   Then the prompt reaches the agent within 8 seconds, as the user typed it and with nothing from the vault, and the agent answers it
 ```
 
-The other scenarios of [793a2d Never in the way](#793a2d-never-in-the-way) are written with [793e6c Never in the way](./793e_implementation-plan.md#793e6c-never-in-the-way) ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
+The scenario of the clause of [793a2d Never in the way](#793a2d-never-in-the-way) about its own [sessions](../../GLOSSARY.md#session) is written with [793e6b Lessons are written without the agent](./793e_implementation-plan.md#793e6b-lessons-are-written-without-the-agent), the first group that starts such sessions, and the other scenarios of [793a2d Never in the way](#793a2d-never-in-the-way) are written with [793e6c Never in the way](./793e_implementation-plan.md#793e6c-never-in-the-way) ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
 
 ### 793a2e The user can see what it did
 
@@ -227,7 +231,7 @@ create one before the command runs, whether or not `ENGRAM_PARENT` is set, and p
 ([792a2k Exchange state outside tracked files](../../specs/product/vault-identity.md#792a2k-exchange-state-outside-tracked-files)). A command that automatic memory runs on its own creates no vault
 ([793a2a On after `engram update`](#793a2a-on-after-engram-update)).
 
-Rationale: a prompt must not create a vault the user has not asked for, and a missing vault is the user's to create
+Rationale: a [prompt](#793a1a-terms) must not create a vault the user has not asked for, and a missing vault is the user's to create
 with a command they run.
 
 The scenario of this operation is [793a2a1e A vault that does not exist is not created](#793a2a1-uat-scenarios).

@@ -20,7 +20,7 @@ and the instruction to look first was refused in 6 of 6 headless trials.
 [skill](../../GLOSSARY.md#skill) or its instructions tell it to. [`engram update`](../../GLOSSARY.md#engram-update)
 deploys the skills of `agent-instructions/skills/` into each [harness](../../GLOSSARY.md#harness) it finds, through an
 engram-owned root per harness that the harness's skills directory links into
-([harness-deploy-sync](../../specs/technical/harness-deploy-sync.md)). `engram query` searches the notes, and the
+([harness-deploy-sync](../../specs/technical/harness-deploy-sync.md)). `engram query` searches the [notes](../../GLOSSARY.md#permanent-note), and the
 chunk index when one is configured, for the phrases it is given
 ([query-engine](../../specs/technical/query-engine.md)).
 
@@ -123,15 +123,15 @@ Scenario: 793d2a1g A session that does not give its ID in time does not hold the
 ## 793d3 Recommended component diffs
 
 - **automatic-memory-mod** (added): the mod `engram-memory`, a hooks module in `agent-instructions/mods/engram-memory/`
-  (realization, informational). Qualification: responsibility, bringing the notes that bear on a prompt to the agent
+  (realization, informational). Qualification: responsibility, bringing the [notes](../../GLOSSARY.md#permanent-note) that bear on a [prompt](./793a_product-spec.md#793a1a-terms) to the [agent](./793a_product-spec.md#793a1a-terms)
   at the prompt is stated without naming a function; ownership, the routing and the placement of the block are its
-  own, the lookup is the command's; independent verification, it is tested in a real Claude Code session against an
+  own, the lookup is the command's; independent verification, it is tested in a real Claude Code [session](../../GLOSSARY.md#session) against an
   `engram` that prints a chosen block; stability, it survives any change to how the command finds notes; necessity,
   without it nothing runs at a prompt.
 - **prompt-delivery** (added): the command `engram auto deliver` (`internal/cli/auto.go`, `internal/auto`,
   informational). Qualification: responsibility, turning a prompt into the block of notes that bear on it is stated
   without naming a function; ownership, the choice and rendering of notes are its own, the hook is the mod's;
-  independent verification, it is tested through its standard input and output over an in-memory vault; stability,
+  independent verification, it is tested through its standard input and output over an in-memory [vault](../../GLOSSARY.md#vault); stability,
   it survives any change to the mod; necessity, the mod holds no logic.
 - **session-context** (added): what a session's agent already holds of the vault, read from the session's record
   (`internal/auto`, `internal/cli/auto.go`, informational). Qualification: responsibility, telling what the agent holds
@@ -139,7 +139,7 @@ Scenario: 793d2a1g A session that does not give its ID in time does not hold the
   own, the choice of notes to deliver is the delivery's; independent verification, it is tested over records of a
   session; stability, it survives any change to how the delivery uses it; necessity, a note the agent holds must not be
   delivered again ([793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt)).
-- **harness-deploy-sync** (updated): plans, links, reports and removes the mod as it does a skill directory, and
+- **harness-deploy-sync** (updated): plans, links, reports and removes the mod as it does a [skill](../../GLOSSARY.md#skill) directory, and
   reports it as a mod ([793b47 A dry run reports the mod as a mod](./793b_decision-log.md#793b47-a-dry-run-reports-the-mod-as-a-mod)).
 - **query-engine** (retained): the lookup of notes for text, used as `engram query` uses it.
 - **Claude Code's mod runtime** (an external boundary, retained): loads a mod from `~/.claude/skills/<name>`, runs its
@@ -150,7 +150,7 @@ Scenario: 793d2a1g A session that does not give its ID in time does not hold the
 
 ### 793d4a Delivering the notes that bear on a prompt
 
-Requirement: 793d4a The prompt-delivery MUST read one JSON object with the prompt's `text` from standard input and
+Requirement: 793d4a The [prompt](./793a_product-spec.md#793a1a-terms)-delivery MUST read one JSON object with the prompt's `text` from standard input and
 MUST print one block on standard output. The block opens with a line that begins `[engram memory]` and holds one
 line for each [note](../../GLOSSARY.md#permanent-note) that bears on the text, in the order the lookup gave them: a
 dash, the note's file name, its situation in parentheses, a colon, and the note's body on one line. A note bears on
@@ -160,10 +160,10 @@ returns it as an item that is not a chunk and was not picked by the explore half
 ([792b24c16 Delivering the explore half](../../specs/technical/query-engine.md#792b24c16-delivering-the-explore-half)):
 an explore pick is sampled from the vocabulary, not matched to the text. The lookup's own default limit of
 [792b24c1 Input and defaults](../../specs/technical/query-engine.md#792b24c1-input-and-defaults) bounds the number of
-lines, as it bounds the number of items the agent's own lookup returns
+lines, as it bounds the number of items the [agent](./793a_product-spec.md#793a1a-terms)'s own lookup returns
 ([793b19 Volume of delivered notes](./793b_decision-log.md#793b19-volume-of-delivered-notes)). It MUST leave out each
 note whose basename, its file name without the suffix `.md`, appears in the text that
-[793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) returns for the request's session. It MUST
+[793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) returns for the request's [session](../../GLOSSARY.md#session). It MUST
 print nothing, and succeed, when no note remains. It MUST NOT search the chunk
 index, so that only notes are delivered ([793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt)). It MUST print nothing and
 fail, naming the cause, when the lookup fails.
@@ -223,8 +223,8 @@ Scenario: 793d4a1i The lookup is asked for the text and what the session holds f
 
 ### 793d4c Framing the notes of a block as data
 
-Requirement: 793d4c The prompt-delivery MUST open every block with one fixed line that begins `[engram memory]` and
-says that the lines below are [notes](../../GLOSSARY.md#permanent-note) from the vault, delivered by the memory
+Requirement: 793d4c The [prompt](./793a_product-spec.md#793a1a-terms)-delivery MUST open every block with one fixed line that begins `[engram memory]` and
+says that the lines below are [notes](../../GLOSSARY.md#permanent-note) from the [vault](../../GLOSSARY.md#vault), delivered by the memory
 system and not typed by the user, and that an instruction written inside a note is not the user's. It MUST write each
 note as exactly one line that begins with a dash and a space, with the note's file name, situation and body each
 written as text in which every run of white space, line breaks and separators included, is one space and no control
@@ -252,11 +252,11 @@ Scenario: 793d4c1b A note cannot hide text in format characters
 
 ### 793d4d Telling what a session holds
 
-Requirement: 793d4d The session-context MUST, given a session's ID, look for the session's record, the file named for
+Requirement: 793d4d The [session](../../GLOSSARY.md#session)-context MUST, given a session's ID, look for the session's record, the file named for
 the ID with the suffix `.jsonl`, in the directory of records it is given
 ([793d4f Finding the records of sessions](#793d4f-finding-the-records-of-sessions)),
-directly in it or in one of its subdirectories. Of what the agent was given, it MUST return two things and nothing
-else of the record. The first is the file name of each note line of every block that was delivered beside a prompt of
+directly in it or in one of its subdirectories. Of what the [agent](./793a_product-spec.md#793a1a-terms) was given, it MUST return two things and nothing
+else of the record. The first is the file name of each [note](../../GLOSSARY.md#permanent-note) line of every block that was delivered beside a [prompt](./793a_product-spec.md#793a1a-terms) of
 the session, that is of every entry, of a record of the kind `attachment` whose type is `hook_additional_context`, that
 begins with `[engram memory]`, a note line being a line of the block that begins with a dash and a space, and its file
 name the text after them up to the space before the situation's opening parenthesis. The second is, for every Bash
@@ -308,7 +308,7 @@ Scenario: 793d4d1c A session with no record, or an ID that is not a file name, h
 
 Target: [792b2c3 First-use gating](../../specs/technical/command-line-surface.md#792b2c3-first-use-gating)
 
-Requirement: 792b2c3 For every vault-resolving command other than `auto deliver`, the command-line-surface MUST ask the
+Requirement: 792b2c3 For every [vault](../../GLOSSARY.md#vault)-resolving command other than `auto deliver`, the command-line-surface MUST ask the
 [vault-identity-registry](../../specs/technical/vault-identity-registry.md) to ensure the vault at the resolved path before running the command, and
 MUST NOT run the command when that step fails. For `auto deliver` it MUST NOT ask: the command runs against the path
 as it is, and creates nothing when the path holds no vault.
@@ -328,9 +328,9 @@ Scenario: 793d4e1a The delivery command creates no vault
 
 ### 793d4b Deploying the mods of the source
 
-Requirement: 793d4b The harness-deploy-sync MUST plan one copy for every file under `agent-instructions/mods/` of the
+Requirement: 793d4b The [harness](../../GLOSSARY.md#harness)-deploy-sync MUST plan one copy for every file under `agent-instructions/mods/` of the
 source for Claude Code, keeping the file's path relative to that directory and naming the file's top-level directory
-as the skill directory it is deployed in, so that a mod is deployed, linked, reported and removed as a skill directory
+as the [skill](../../GLOSSARY.md#skill) directory it is deployed in, so that a mod is deployed, linked, reported and removed as a skill directory
 is. It MUST plan none for [Pi](../../GLOSSARY.md#harness), and none, without an error, when that directory does not
 exist. It MUST report each mod directory it deploys, in the section of Claude Code in the report of
 [`engram update`](../../GLOSSARY.md#engram-update), as a mod, with `agent-instructions/mods/<name>/` as its source,
@@ -388,12 +388,12 @@ Scenario: 793d4b1h A second update leaves the mod as the first left it
 
 ### 793d4f Finding the records of sessions
 
-Requirement: 793d4f The prompt-delivery MUST read the records of sessions from the directory that its `--sessions` flag
+Requirement: 793d4f The [prompt](./793a_product-spec.md#793a1a-terms)-delivery MUST read the records of [sessions](../../GLOSSARY.md#session) from the directory that its `--sessions` flag
 names, or, when the flag is not given, from the directory that `ENGRAM_TRANSCRIPT_DIR` names when it is set, else from
 the `projects` directory of the directory that `CLAUDE_CONFIG_DIR` names when it is set, else from `<home>/.claude/projects`,
 and from no directory when the home directory cannot be found. It MUST NOT change the session-log directory of
 [792b17c6 Session-log directory](../../specs/technical/ingestion-source-discovery.md#792b17c6-session-log-directory),
-which `engram ingest` sweeps.
+which [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand) sweeps.
 
 Owner: prompt-delivery (a new component; its canonical file at promotion is `prompt-delivery.md`)
 
@@ -432,7 +432,7 @@ Scenario: 793a2a1a The next session has memory after one engram update
   Then the note is in the agent's context before the agent answers
 ```
 
-Realized by [793d4b Deploying the mods of the source](#793d4b-deploying-the-mods-of-the-source) (the update puts the mod where Claude Code loads it), [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow) (the mod runs the command for the prompt and puts its output beside the prompt) and [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) (the command finds the note and prints it).
+Realized by [793d4b Deploying the mods of the source](#793d4b-deploying-the-mods-of-the-source) (the update puts the mod where Claude Code loads it), [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow) (the mod runs the command for the [prompt](./793a_product-spec.md#793a1a-terms) and puts its output beside the prompt) and [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) (the command finds the [note](../../GLOSSARY.md#permanent-note) and prints it).
 
 ### 793d5b Mapping of 793a2b1b
 
@@ -445,7 +445,7 @@ Scenario: 793a2b1b A note delivered earlier in the session is not delivered agai
   Then the second prompt arrives with nothing from the vault, and the staging note is in the agent's context once
 ```
 
-Realized by [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow) (the mod gives the command the session's ID), [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) (the session's record shows the block delivered with the first prompt) and [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) (the command leaves that note out). The second prompt arrives with nothing from the vault because the command prints nothing when the only note that bears on the prompt is held ([793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt)), and the mod then adds nothing ([793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow)).
+Realized by [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow) (the mod gives the command the [session](../../GLOSSARY.md#session)'s ID), [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) (the session's record shows the block delivered with the first [prompt](./793a_product-spec.md#793a1a-terms)) and [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) (the command leaves that [note](../../GLOSSARY.md#permanent-note) out). The second prompt arrives with nothing from the [vault](../../GLOSSARY.md#vault) because the command prints nothing when the only note that bears on the prompt is held ([793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt)), and the mod then adds nothing ([793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow)).
 
 ### 793d5c Mapping of 793a2b1c
 
@@ -458,7 +458,7 @@ Scenario: 793a2b1c A note the agent looked up itself is not delivered
   Then the prompt arrives with the other note and not the staging note
 ```
 
-Realized by [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) (the result of the agent's own `engram query` is in the session's record, and names the note) with the flow and the delivery of [793d5b Mapping of 793a2b1b](#793d5b-mapping-of-793a2b1b).
+Realized by [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) (the result of the [agent](./793a_product-spec.md#793a1a-terms)'s own `engram query` is in the [session](../../GLOSSARY.md#session)'s record, and names the [note](../../GLOSSARY.md#permanent-note)) with the flow and the delivery of [793d5b Mapping of 793a2b1b](#793d5b-mapping-of-793a2b1b).
 
 ### 793d5d Mapping of 793a2b1d
 
@@ -471,7 +471,7 @@ Scenario: 793a2b1d A prompt that matches no note arrives with nothing
   Then the prompt arrives with nothing from the vault, and the agent answers it
 ```
 
-Realized by [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) (the lookup finds no note, and does not search the chunk index, so the conversation is not delivered; the command prints nothing) and [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow) (the mod adds nothing when the command prints nothing).
+Realized by [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) (the lookup finds no [note](../../GLOSSARY.md#permanent-note), and does not search the chunk index, so the conversation is not delivered; the command prints nothing) and [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow) (the mod adds nothing when the command prints nothing).
 
 ### 793d5e Mapping of 793a2d1a
 
@@ -484,7 +484,7 @@ Scenario: 793a2d1a A slow lookup does not hold a prompt for more than 8 seconds
   Then the prompt reaches the agent within 8 seconds, as the user typed it and with nothing from the vault, and the agent answers it
 ```
 
-Realized by [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow): the mod ends the command at 7 seconds and lets the prompt continue unchanged.
+Realized by [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow): the mod ends the command at 7 seconds and lets the [prompt](./793a_product-spec.md#793a1a-terms) continue unchanged.
 
 ### 793d5f Mapping of 793a2a1e
 
@@ -497,7 +497,7 @@ Scenario: 793a2a1e A vault that does not exist is not created
   Then the agent answers the prompt, and the vault still does not exist
 ```
 
-Realized by [793d4e Modified: First-use gating](#793d4e-modified-first-use-gating) (the command runs without the first-use step, so it creates nothing) with [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) (the lookup of a missing vault fails and the command prints nothing) and [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow) (the mod adds nothing, and the prompt goes on).
+Realized by [793d4e First-use gating](#793d4e-modified-first-use-gating) (the command runs without the first-use step, so it creates nothing) with [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) (a [vault](../../GLOSSARY.md#vault) that is not there holds no [note](../../GLOSSARY.md#permanent-note), so the lookup finds none and the command prints nothing and succeeds) and [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow) (the mod adds nothing, and the [prompt](./793a_product-spec.md#793a1a-terms) goes on).
 
 ### 793d5g Mapping of 793a2a1d
 
@@ -510,7 +510,7 @@ Scenario: 793a2a1d Pi gets no automatic memory
   Then the report lists the automatic memory under Claude Code and not under Pi, and nothing of it is installed under ~/.pi
 ```
 
-Realized by [793d4b Deploying the mods of the source](#793d4b-deploying-the-mods-of-the-source): the mods are planned for Claude Code only, so the report of Pi lists the skills alone and Pi's directories hold none of the mod.
+Realized by [793d4b Deploying the mods of the source](#793d4b-deploying-the-mods-of-the-source): the mods are planned for Claude Code only, so the report of Pi lists the [skills](../../GLOSSARY.md#skill) alone and Pi's directories hold none of the mod.
 
 ### 793d5h Mapping of 793a2a1c
 
@@ -524,7 +524,7 @@ Scenario: 793a2a1c A dry run turns nothing on
   Then the report lists the automatic memory as planned, and the agent's context holds no note
 ```
 
-Realized by [793d4b Deploying the mods of the source](#793d4b-deploying-the-mods-of-the-source): the dry run plans the mod, reports it as the mod it is, and writes none of it, so the session that follows loads no mod and the prompt arrives with no note.
+Realized by [793d4b Deploying the mods of the source](#793d4b-deploying-the-mods-of-the-source): the dry run plans the mod, reports it as the mod it is, and writes none of it, so the [session](../../GLOSSARY.md#session) that follows loads no mod and the [prompt](./793a_product-spec.md#793a1a-terms) arrives with no [note](../../GLOSSARY.md#permanent-note).
 
 ### 793d5i Mapping of 793a2a1b
 
@@ -538,17 +538,23 @@ Scenario: 793a2a1b A second update still delivers each note once
   Then the note is in the agent's context once
 ```
 
-Realized by [793d4b Deploying the mods of the source](#793d4b-deploying-the-mods-of-the-source): the second update leaves one deployed mod, so the session loads one hook and the prompt runs the command once; with [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt), which prints the block of the note once.
+Realized by [793d4b Deploying the mods of the source](#793d4b-deploying-the-mods-of-the-source): the second update leaves one deployed mod, so the [session](../../GLOSSARY.md#session) loads one hook and the [prompt](./793a_product-spec.md#793a1a-terms) runs the command once; with [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt), which prints the block of the [note](../../GLOSSARY.md#permanent-note) once.
 
 ## 793d6 Recommended impact
 
 - **Repository:** a new directory `agent-instructions/mods/`; a new package `internal/auto` and a new command group
   `engram auto` with the command `deliver`; the update's deploy set gains the mods.
 - **Dependencies:** none new in Go. A Claude Code release that loads mods: 2.1.302 is the build this was verified
-  with, and the earlier attempt found 2.1.287 the first.
-- **Toolchain:** a `targ acceptance` target runs the tests that drive a real Claude Code session; they carry the
-  `network` or `integration` build tag, so `targ test` does not run them.
-- **Operational:** one process start and one lookup for each prompt, held for at most the bound of
-  [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) once the hold is built.
-- **Risk and complexity:** every prompt of every Claude Code session runs the command; a failure of the command must
-  not reach the session ([793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way)), which later nodes build.
+  with, and the earlier attempt found 2.1.287 the first. `node`, which `targ check-full` needs to parse the mod's
+  JavaScript and to run its tests ([793b55 The mod's JavaScript is parsed by a test of the dev integration suite](./793b_decision-log.md#793b55-the-mods-javascript-is-parsed-by-a-test-of-the-dev-integration-suite)).
+- **Toolchain:** a `targ acceptance` target runs the tests that drive a real Claude Code [session](../../GLOSSARY.md#session); they carry the
+  `network` build tag, so `targ test` does not run them.
+- **Operational:** one process start and one lookup for each [prompt](./793a_product-spec.md#793a1a-terms), held for at most the bound of
+  [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way): the mod's one timer of 7 seconds
+  ([793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow)).
+- **Risk and complexity:** every prompt of every Claude Code session runs the command. A failure of the command does not
+  reach the session: the mod adds nothing for a command that fails, that prints what is not a block, or that does not
+  finish in 7 seconds ([793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow)). An open risk, recorded in
+  [793c32 Is the stall between the spawn of the command and its first instruction a risk to the product?](./793c_open-questions.md#793c32-is-the-stall-between-the-spawn-of-the-command-and-its-first-instruction-a-risk-to-the-product):
+  on a loaded machine the time between the spawn of the command and the child's first instruction has reached the whole
+  bound, so the prompt is held about 7 seconds and nothing is delivered or shown; this change does not optimise it.

@@ -123,7 +123,7 @@ he answers. When he answers, the entry records the answer and the date and stays
 | # | What | Earlier owner answer | This change |
 | --- | --- | --- | --- |
 | 1 | [Subagents](../../GLOSSARY.md#subagent) | capture inside subagent [sessions](../../GLOSSARY.md#session): yes (`old 793c6`, 2026-10-11); delivery at a [subagent](../../GLOSSARY.md#subagent)'s start and capture at its stop (`old 793c63` (a), 2026-10-11) | the user's own sessions only |
-| 2 | [Prompt](./793a_product-spec.md#793a1a-terms) sources | memory for every prompt regardless of source (`old 793c5`, 2026-10-11) | prompts the user sends |
+| 2 | [Prompt](./793a_product-spec.md#793a1a-terms) sources | memory for every prompt regardless of source (`old 793c5`, 2026-10-11) | prompts the user sends; until [793e6b Lessons are written without the agent](./793e_implementation-plan.md#793e6b-lessons-are-written-without-the-agent) the mod delivers for every origin ([793c35 Does the mod tell a prompt the user sent from a prompt of another origin?](#793c35-does-the-mod-tell-a-prompt-the-user-sent-from-a-prompt-of-another-origin)) |
 | 3 | Route results | tier evidence delivered before the orchestrator routes a unit (`old 793c39` (b) and `old 793c64` (a), 2026-10-11) | none |
 | 4 | Mid-task moments | delivery at the moments where recall should fire (`old 793b187`, 2026-10-11, and `old 793b240`, 2026-10-12; `old 793c49` (b) and `old 793c55` (a), 2026-10-11) | the prompt only |
 | 5 | Chunk stubs | conversation fragments delivered beside the [notes](../../GLOSSARY.md#permanent-note) as stubs (`old 793c15` (b), 2026-10-11), kept by a background pass when the full lookup proved too slow (`old 793c87` (a), 2026-10-14) | none delivered; the [agent](./793a_product-spec.md#793a1a-terms) finds fragments when it asks ([793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory)) |
@@ -169,22 +169,86 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Status:** parked (Joe, 2026-10-16, in the earlier attempt: `old 793c93`): "Nah, leave it for now." Revisit
   after the behavior of [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec) has landed.
 
+## 793c16 Are the ten scenarios of the first group the minimum?
+
+- **Context:** step 2 for the first group wrote ten scenarios, one per mandatory branch of [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update), [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) and the hold of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way).
+- **Options:** (a) The ten as written. (b) Fewer: the dry run and Pi folded into the first scenario of the update.
+- **Recommendation:** (a): the outcomes differ and each needs its own report.
+- **Blocks:** nothing; the scenarios are written and worked.
+- **Status:** open. Default (a) taken: [793b40 The scenarios of the first group](./793b_decision-log.md#793b40-the-scenarios-of-the-first-group).
+## 793c17 Is the automatic behavior inside a session one mod deployed with the skills?
+
+- **Context:** automatic behavior inside a [session](../../GLOSSARY.md#session) needs a plugin of function hooks, a mod, that [`engram update`](../../GLOSSARY.md#engram-update) can deploy without editing a file the user owns.
+- **Options:** (a) One mod, `engram-memory`, kept in `agent-instructions/mods/`, deployed to the [skills](../../GLOSSARY.md#skill) directory with the skills, running a new command for each [prompt](./793a_product-spec.md#793a1a-terms). (b) A `UserPromptSubmit` command hook in the user's `settings.json`.
+- **Recommendation:** (a): (b) makes `engram update` edit a file the user owns on every run.
+- **Blocks:** [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update).
+- **Status:** open. Default (a) taken: [793b41 The mod, its place and its command](./793b_decision-log.md#793b41-the-mod-its-place-and-its-command).
+## 793c18 What does a delivered block say?
+
+- **Context:** the block puts [notes](../../GLOSSARY.md#permanent-note) in the [agent](./793a_product-spec.md#793a1a-terms)'s context, and the earlier attempt's guard keeps a note from acting as an instruction.
+- **Options:** (a) A framing line that says the lines below are notes delivered by the memory system, and one line for each note: its file name, its situation and its body. (b) Whole notes. (c) A count and no text.
+- **Recommendation:** (a): (b) grows with the [vault](../../GLOSSARY.md#vault), and (c) makes the agent look each note up.
+- **Blocks:** [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt).
+- **Status:** open. Default (a) taken: [793b42 What the block says](./793b_decision-log.md#793b42-what-the-block-says).
+## 793c19 Is the body of a note delivered whole, and on one line?
+
+- **Context:** the body of a delivered [note](../../GLOSSARY.md#permanent-note) is not cut and is written on one line, so a note of several steps, a runbook, loses the line structure that its steps had. A non-blocking question from the review of the first group.
+- **Options:** (a) Whole, and on one line. (b) Cut to a length, as the earlier attempt cut at 400 characters. (c) Whole, with its lines kept, which needs a way to keep a line of a body from imitating the framing line or another note ([793b43 A note cannot reshape the block](./793b_decision-log.md#793b43-a-note-cannot-reshape-the-block)).
+- **Recommendation:** (a) for the minimal set; (c) if the loss of structure matters to the owner.
+- **Blocks:** nothing in the minimal set.
+- **Status:** open. Default (a) taken: [793b44 Only the notes that match are delivered, whole](./793b_decision-log.md#793b44-only-the-notes-that-match-are-delivered-whole).
+## 793c20 What does a session hold, so that a note is not delivered twice?
+
+- **Context:** [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) does not deliver a [note](../../GLOSSARY.md#permanent-note) the [agent](./793a_product-spec.md#793a1a-terms) already has in the [session](../../GLOSSARY.md#session); something has to say what it has.
+- **Options:** (a) The file names on the note lines of the blocks delivered, and the command and the result of each `engram query` and `engram show` the agent ran, read from the session's record. (b) Every tool result, the first version. (c) A ledger kept by the mod.
+- **Recommendation:** (a): (b) counted an `ls` listing and missed an `engram show`, and (c) is lost with the process.
+- **Blocks:** the scenarios of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) that test what the agent already has.
+- **Status:** open. Default (a) taken: [793b45 What a session holds](./793b_decision-log.md#793b45-what-a-session-holds).
+## 793c21 How long may the mod's command run, short of the hold?
+
+- **Context:** [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) holds a [prompt](./793a_product-spec.md#793a1a-terms) for 8 seconds at most, and the mod needs time to start the command and run the prompt's hooks.
+- **Options:** (a) 7 seconds for the command, one second left. (b) 8 seconds for the command. (c) A limit inside the command.
+- **Recommendation:** (a): the platform's own limit does not count the call, and a command that hangs cannot end itself.
+- **Blocks:** the scenarios of the hold.
+- **Status:** open. Default (a) taken: [793b46 The command is ended at 7 seconds](./793b_decision-log.md#793b46-the-command-is-ended-at-7-seconds).
+## 793c22 Does a dry run report the mod as a mod?
+
+- **Context:** a preview exists to tell the user what an update would [turn](./793a_product-spec.md#793a1a-terms) on, and the report listed the mod under the source of a [skill](../../GLOSSARY.md#skill).
+- **Options:** (a) The mod is listed in the section of Claude Code with `agent-instructions/mods/<name>/` as its source. (b) As before, under the skills. (c) A section of the report for mods.
+- **Recommendation:** (a): (b) names a directory the mod does not come from, and (c) changes the report for every reader.
+- **Blocks:** [793a2a1c A dry run turns nothing on](./793a_product-spec.md#793a2a1-uat-scenarios).
+- **Status:** open. Default (a) taken: [793b47 A dry run reports the mod as a mod](./793b_decision-log.md#793b47-a-dry-run-reports-the-mod-as-a-mod).
+## 793c23 Does the conformance check read this change's specs, and fail when they are gone?
+
+- **Context:** the owner's rule asks a check that every scenario ID of the specs has a test, and the specs are deleted at promotion.
+- **Options:** (a) A test of the dev integration suite, which fails, naming the cause, when the specs are not there. (b) A target of its own. (c) A skip when the specs are missing.
+- **Recommendation:** (a): (b) could be forgotten and (c) passes with nothing checked.
+- **Blocks:** nothing; the check is written.
+- **Status:** open. Default (a) taken: [793b48 The conformance check reads this change's specs and fails when they are gone](./793b_decision-log.md#793b48-the-conformance-check-reads-this-changes-specs-and-fails-when-they-are-gone).
+## 793c24 How many acceptance tests run at once?
+
+- **Context:** the tests start real processes, and two kinds are bounded by time; ten at once made two of them fail in each of two runs.
+- **Options:** (a) At most four at once. (b) The number of cores. (c) One at a time.
+- **Recommendation:** (a): it left a margin below six, where nothing failed, and costs about 40 seconds for the full set.
+- **Blocks:** nothing; the cap is set.
+- **Status:** open. Default (a) taken: [793b49 The acceptance run is capped at four tests at once](./793b_decision-log.md#793b49-the-acceptance-run-is-capped-at-four-tests-at-once).
+
 ## 793c25 Does the mod use what a failed or unrecognised command printed?
 
 - **Context:** [793d2a Prompt delivery flow](./793d_technical-spec.md#793d2a-prompt-delivery-flow) has the mod put the
-  output of `engram auto deliver` beside the prompt. A command that fails, such as an older `engram` that does not know
+  output of `engram auto deliver` beside the [prompt](./793a_product-spec.md#793a1a-terms). A command that fails, such as an older `engram` that does not know
   `auto` (it prints its usage and exits 1), prints text that is not a block.
 - **Options:** (a) The output is used only when the command exited with 0 and the output begins with `[engram memory]`.
   (b) Any non-empty output is used, as the first version did.
-- **Recommendation:** (a): (b) puts an error message or a usage text in the agent's context as if it were a note.
+- **Recommendation:** (a): (b) puts an error message or a usage text in the [agent](./793a_product-spec.md#793a1a-terms)'s context as if it were a [note](../../GLOSSARY.md#permanent-note).
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b50 The mod uses what the command printed only when it succeeded and printed a block](./793b_decision-log.md#793b50-the-mod-uses-what-the-command-printed-only-when-it-succeeded-and-printed-a-block).
 
 ## 793c26 Does the delivery read the records where Claude Code writes them, and does the sweep follow?
 
-- **Context:** Claude Code writes the record of a session under `$CLAUDE_CONFIG_DIR/projects` when `CLAUDE_CONFIG_DIR`
-  is set. `engram update` installs the mod under `<home>/.claude`, so the delivery matters for a user whose configuration
-  directory links to it. `engram ingest` reads `ENGRAM_TRANSCRIPT_DIR`, else `<home>/.claude/projects`
+- **Context:** Claude Code writes the record of a [session](../../GLOSSARY.md#session) under `$CLAUDE_CONFIG_DIR/projects` when `CLAUDE_CONFIG_DIR`
+  is set. [`engram update`](../../GLOSSARY.md#engram-update) installs the mod under `<home>/.claude`, so the delivery matters for a user whose configuration
+  directory links to it. [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand) reads `ENGRAM_TRANSCRIPT_DIR`, else `<home>/.claude/projects`
   ([792b17c6 Session-log directory](../../specs/technical/ingestion-source-discovery.md#792b17c6-session-log-directory)),
   which ignores `CLAUDE_CONFIG_DIR`.
 - **Options:** (a) The delivery reads `ENGRAM_TRANSCRIPT_DIR`, else `$CLAUDE_CONFIG_DIR/projects`, else
@@ -207,7 +271,7 @@ he answers. When he answers, the entry records the answer and the date and stays
 
 ## 793c28 Does an acceptance test skip or fail when Claude Code or a login is missing?
 
-- **Context:** the tests that drive a real session need `claude` and a login. With neither, they skipped, and
+- **Context:** the tests that drive a real [session](../../GLOSSARY.md#session) need `claude` and a login. With neither, they skipped, and
   `targ acceptance` exited 0 having run nothing.
 - **Options:** (a) They fail, naming the cause. (b) They skip, and the target fails on any skip.
 - **Recommendation:** (a): the tests run only when somebody asks for them.
@@ -217,8 +281,8 @@ he answers. When he answers, the entry records the answer and the date and stays
 ## 793c29 Does the scenario of a note the agent looked up itself hold a second note?
 
 - **Context:** [793a2b1c A note the agent looked up itself is not delivered](./793a_product-spec.md#793a2b1-uat-scenarios)
-  ended with "nothing from the vault", which is also the outcome when the mod never loads.
-- **Options:** (a) The vault gains a second note that bears on the prompt after the agent's lookup, and the prompt arrives
+  ended with "nothing from the [vault](../../GLOSSARY.md#vault)", which is also the outcome when the mod never loads.
+- **Options:** (a) The vault gains a second [note](../../GLOSSARY.md#permanent-note) that bears on the [prompt](./793a_product-spec.md#793a1a-terms) after the [agent](./793a_product-spec.md#793a1a-terms)'s lookup, and the prompt arrives
   with it and not with the note the agent looked up. (b) The scenario stays as it was.
 - **Recommendation:** (a): it tells a delivery that leaves out the held note from one that delivers nothing.
 - **Blocks:** nothing.
@@ -236,8 +300,68 @@ he answers. When he answers, the entry records the answer and the date and stays
 ## 793c31 Do the 7 seconds bound the whole hook or the command?
 
 - **Context:** [793d2a Prompt delivery flow](./793d_technical-spec.md#793d2a-prompt-delivery-flow) ended the command at 7
-  seconds, but the call for the session's ID ran before it, with no bound.
-- **Options:** (a) One timer of 7 seconds for everything the mod does for a prompt. (b) The command alone.
+  seconds, but the call for the [session](../../GLOSSARY.md#session)'s ID ran before it, with no bound.
+- **Options:** (a) One timer of 7 seconds for everything the mod does for a [prompt](./793a_product-spec.md#793a1a-terms). (b) The command alone.
 - **Recommendation:** (a): the 8 seconds of the product promise hold for any reason.
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b56 The 7 seconds bound the whole hook, not the command alone](./793b_decision-log.md#793b56-the-7-seconds-bound-the-whole-hook-not-the-command-alone).
+
+## 793c32 Is the stall between the spawn of the command and its first instruction a risk to the product?
+
+- **Context:** when the acceptance tests ran many at once, a timed test failed because the stand-in `engram` that the mod
+  started did nothing for the 7 seconds ([793b49 The acceptance run is capped at four tests at once](./793b_decision-log.md#793b49-the-acceptance-run-is-capped-at-four-tests-at-once)
+  took it for the load of the other tests). The review of the first group read the failing runs again: Claude Code's
+  debug log showed `$.process.run` logging the spawn at once and then `prompt.submit settled in 7060.0ms`, with no output
+  from the child, so the stall is between the spawn and the child's first instruction. The effect for a user on a loaded
+  machine is that the [prompt](./793a_product-spec.md#793a1a-terms) is held about 7 seconds and nothing is delivered or shown. The cause is not established.
+- **Options:** (a) Record it as an open risk, measure the cost of one delivery on an idle machine so that the groups that
+  add work to the path know what they add to, and optimise nothing. (b) Find and remove the stall in this change. (c) Accept
+  the risk without recording it.
+- **Recommendation:** (a).
+- **Blocks:** the sizing of the work that [793e6b Lessons are written without the agent](./793e_implementation-plan.md#793e6b-lessons-are-written-without-the-agent) and the later groups add to the per-prompt path.
+- **Status:** open. Default (a) taken: [793b49 The acceptance run is capped at four tests at once](./793b_decision-log.md#793b49-the-acceptance-run-is-capped-at-four-tests-at-once).
+
+## 793c33 Does the promise of automatic memory name a minimum version of Claude Code?
+
+- **Context:** [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update) and the README
+  promise [automatic memory](./793a_product-spec.md#793a1a-terms) for every [session](../../GLOSSARY.md#session) the user starts after [`engram update`](../../GLOSSARY.md#engram-update), without condition, while only a Claude
+  Code that loads mods delivers anything (2.1.302 is the build this was verified with, and the earlier attempt found
+  2.1.287 the first). Nothing checks the version, so a session of an older release delivers nothing and says nothing
+  ([793b36 Earlier owner answers this minimal set reverses](./793b_decision-log.md#793b36-earlier-owner-answers-this-minimal-set-reverses), row 13).
+  A non-blocking question from the review of the first group.
+- **Options:** (a) The promise stays unconditional; a session that cannot load the mod steps aside. (b) The README and the
+  report of `engram update` name the minimum version. (c) `engram update` checks the version and says when it is older.
+- **Recommendation:** (a) for this change, as row 13 of [793b36 Earlier owner answers this minimal set reverses](./793b_decision-log.md#793b36-earlier-owner-answers-this-minimal-set-reverses) decided; (b) is cheap if the owner wants it.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b36 Earlier owner answers this minimal set reverses](./793b_decision-log.md#793b36-earlier-owner-answers-this-minimal-set-reverses).
+
+## 793c34 Does the delivery merge the parent vault, as `engram query` does?
+
+- **Context:** `engram query` merges the [notes](../../GLOSSARY.md#permanent-note) of the parent [vault](../../GLOSSARY.md#vault) (`ENGRAM_PARENT`) into its
+  result ([parent-sync](../../specs/product/parent-sync.md)), and the delivery of the first group looks up the local vault
+  only. [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) delivers the
+  notes `engram query` returns, so a vault that has a parent is delivered less than it asks for.
+- **Options:** (a) Local vault only for now, and a named node, [793e6f The delivery merges the parent vault](./793e_implementation-plan.md#793e6f-the-delivery-merges-the-parent-vault), builds the merge later. (b) Build it in the first group.
+- **Recommendation:** (a): the review asked that it be recorded and not built.
+- **Blocks:** nothing in the first group.
+- **Status:** open. Default (a) taken: [793b57 The delivery looks up the local vault only, until a later node](./793b_decision-log.md#793b57-the-delivery-looks-up-the-local-vault-only-until-a-later-node).
+
+## 793c35 Does the mod tell a prompt the user sent from a prompt of another origin?
+
+- **Context:** the mod delivers for every `prompt.submit` of a [session](../../GLOSSARY.md#session), while [793b36 Earlier owner answers this minimal set reverses](./793b_decision-log.md#793b36-earlier-owner-answers-this-minimal-set-reverses) says
+  [prompts](./793a_product-spec.md#793a1a-terms) the user sends. Until the first group that starts sessions of its own, there is no prompt of another origin to
+  tell apart.
+- **Options:** (a) Every origin until [793e6b Lessons are written without the agent](./793e_implementation-plan.md#793e6b-lessons-are-written-without-the-agent), which takes the clause about its own sessions and the filter. (b) Filter now.
+- **Recommendation:** (a).
+- **Blocks:** nothing in the first group.
+- **Status:** open. Default (a) taken: [793b58 The first group delivers for every origin of a prompt](./793b_decision-log.md#793b58-the-first-group-delivers-for-every-origin-of-a-prompt).
+
+## 793c36 Are the restated sentences of 792a2e kept as they are?
+
+- **Context:** [793a5a 792a2e First-use vault creation](./793a_product-spec.md#793a5a-modified-792a2e-first-use-vault-creation)
+  restates the canonical requirement with one clause added, and its sentence about the files of a new [vault](../../GLOSSARY.md#vault) names file
+  names, which a product specification keeps out.
+- **Options:** (a) Keep the sentence verbatim: it is the canonical requirement's text. (b) Reword it.
+- **Recommendation:** (a): a reworded restatement changes the canonical requirement under a Modified operation.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b60 The restated sentences of 792a2e are kept as they are](./793b_decision-log.md#793b60-the-restated-sentences-of-792a2e-are-kept-as-they-are).
