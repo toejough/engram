@@ -221,7 +221,8 @@ Scenario: 793d2b1d A model that does not answer is reported to the writing
   Qualification: responsibility, turning a turn into the request of the call that judges it is stated without naming a
   function; ownership, the choice of the lines of a turn and the instructions of the judgement are its own, the call is
   the mod's; independent verification, it is tested through its standard input and output over records of a session;
-  stability, it survives any change to the call; necessity, the mod holds no logic.
+  stability, it survives any change to the call; necessity, the mod holds no logic. It redacts what looks like a
+  credential before the model sees it ([793d4j Redacting credentials](#793d4j-redacting-credentials)).
 - **lesson-writing** (added): the command `engram auto write` (`internal/cli/auto.go`, `internal/auto`, informational).
   Qualification: responsibility, turning the model's reply into the [notes](../../GLOSSARY.md#permanent-note) of the [vault](../../GLOSSARY.md#vault) is stated without naming a
   function; ownership, the reading of the reply and the mark of a note are its own, the write of a note is the learn
@@ -524,8 +525,12 @@ everything after it, and the conversation before it is the context. It MUST prin
 model: `model` (`haiku`), `effort` (`low`), `prompt`, `maxTokens` and `timeoutMs`. The prompt MUST hold the instructions
 of the judgement, then the lines of the context, then the line `--- the turn ---`, then the lines of the turn. A line is
 one message and opens with `User: ` for a prompt, `Agent: ` for text of the [agent](./793a_product-spec.md#793a1a-terms), and `Agent used ` and the tool's name for a
-tool it called; a line break in a message is written ` ⏎ `, so that no message makes a line of its own. The final text is
-the last line of the turn when no line of the turn holds its first 80 characters. It MUST print nothing, and succeed,
+tool it called; a line break in a message is written ` ⏎ `, so that no message makes a line of its own. The text of every
+message is redacted ([793d4j Redacting credentials](#793d4j-redacting-credentials)) before it is cut or joined with another. A line is cut to its first
+1,200 characters; the context is its last 6 lines; and the window is cut to 8,000 characters, the oldest lines of the
+context first and then the middle of the turn, where the line `--- some of the turn is left out ---` stands in place of
+the lines left out. The final text is the last line of the turn when no line of the turn holds its first 80
+characters. It MUST print nothing, and succeed,
 when the record holds no prompt or there is no record, and print nothing and fail, naming the cause, when its input is
 not a JSON object.
 
@@ -555,6 +560,21 @@ Scenario: 793d4g1d An input that is not a JSON object fails the command
   Given an input that is not a JSON object
   When the judgement is given it
   Then it prints nothing and fails with an error that names the input
+
+Scenario: 793d4g1e A message cannot make a line of its own
+  Given messages whose text holds line breaks of every kind, control characters and text that reads as a label
+  When the lines of the turn are made
+  Then there is exactly one line for each message, and each opens with its label
+
+Scenario: 793d4g1f A line is cut after its credentials are redacted
+  Given a message whose text is longer than a line may be, with a token that the cut falls in
+  When the lines of the turn are made
+  Then no part of the token is in the request
+
+Scenario: 793d4g1g A long conversation is cut to the bound
+  Given a record with more context than the window holds, and a turn with more lines than it holds
+  When the judgement is given the session
+  Then the context is its last 6 lines or fewer, the window is no longer than 8,000 characters, the first line of the turn and its last lines are kept, and the line that says that some of the turn is left out stands where they were
 ```
 
 ### 793d4h Writing the lessons of a reply
@@ -595,6 +615,48 @@ Scenario: 793d4h1d The code fence around the list is not part of it
   Given a reply that holds one lesson inside a code fence
   When the lessons are written
   Then the vault holds the lesson's note
+```
+
+### 793d4j Redacting credentials
+
+Requirement: 793d4j The [turn](./793a_product-spec.md#793a1a-terms)-judgement MUST redact every text of the [turn](./793a_product-spec.md#793a1a-terms) that is shaped as a credential before it cuts the
+text or joins it with another and before the model sees any of it, and the lesson-writing MUST redact every field of a
+lesson before the lesson is written, so that no [note](../../GLOSSARY.md#permanent-note) holds a credential, token, key or password that appeared in the [turn](./793a_product-spec.md#793a1a-terms).
+A text is shaped as a credential when it is a private key block; a JSON web token; a key or token that opens with the
+name of its issuer (`sk-`, `pk-`, `rk-`, `ghp_`, `gho_`, `ghs_`, `ghu_`, `ghr_`, `github_pat_`, `npm_`, `glpat-`,
+`AKIA`, `ASIA`, `AIza`, `xoxa-`, `xoxb-`, `xoxp-`, `xoxr-`, `xoxs-`); a `Bearer` or `Basic` credential; the user and
+the password of a URL; the value of an `Authorization` header; the value that a name holding `key`, `token`, `secret`,
+`password`, `passwd`, `pwd`, `credential` or `private-key` is given by `=`, `:` or `is`; or a run of 32 characters or
+more of letters, digits, `+`, `_` and `=` that holds both a letter and a digit and is not the 40 hexadecimal digits of a
+commit. It is replaced by `[redacted]`, and the name of an assignment is kept. A secret of another shape, such as a
+password in a sentence or a token split over two lines, is not redacted.
+
+Owner: turn-judgement and lesson-writing (the components of [793d4g Judging a turn](#793d4g-judging-a-turn) and [793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply))
+
+Supports: [793a2c1g A credential in the turn is not in the note](./793a_product-spec.md#793a2c1-uat-scenarios).
+
+#### 793d4j1 Scenarios
+
+```gherkin
+Scenario: 793d4j1a No text shaped as a credential survives
+  Given any text with a credential of each of the shapes, among any other text
+  When the text is redacted
+  Then the credential is not in the text, and the text around it is as it was
+
+Scenario: 793d4j1b The name of an assignment is kept, and a text that is not a credential is not touched
+  Given the names password, api_key and secret_token given values, a commit ID of 40 hexadecimal digits, a long word of letters only, and a sentence
+  When the text is redacted
+  Then each name is kept and its value is redacted, and the commit ID, the word and the sentence are as they were
+
+Scenario: 793d4j1c The request holds no credential of the turn
+  Given a record whose prompts and replies hold credentials of every shape
+  When the judgement is given the session
+  Then the prompt of the request holds none of them
+
+Scenario: 793d4j1d A note holds no credential of the lesson
+  Given a reply whose lessons hold credentials of every shape in every field
+  When the lessons are written
+  Then no note holds any of them
 ```
 
 ### 793d4k Recording what automatic memory did
@@ -847,6 +909,20 @@ Scenario: 793a2c1f Guesses, plans and chatter produce no note
 Realized by the components of [793d5j Mapping of 793a2c1a](#793d5j-mapping-of-793a2c1a), whose instructions of the judgement name a guess, a plan and chatter as no lesson, and by
 [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did): the record of a reply that holds no lesson is what shows that the [turn](./793a_product-spec.md#793a1a-terms) was judged, so that a [vault](../../GLOSSARY.md#vault) that holds no
 [note](../../GLOSSARY.md#permanent-note) is the result of the judgement and not of a judgement that did not finish.
+
+### 793d5p Mapping of 793a2c1g
+
+The product scenario [793a2c1g A credential in the turn is not in the note](./793a_product-spec.md#793a2c1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2c1g A credential in the turn is not in the note
+  Given the user has run engram update, and a session in which the agent may not run engram commands
+  When the user corrects the agent in a prompt that also holds a token and a password, and the turn ends
+  Then within 2 minutes the vault holds a note that states the correction, and no note holds the token or the password
+```
+
+Realized by [793d4j Redacting credentials](#793d4j-redacting-credentials) (the judgement redacts the [turn](./793a_product-spec.md#793a1a-terms) before the model sees it, and the writing redacts the lesson before the [note](../../GLOSSARY.md#permanent-note) is written), [793d4g Judging a turn](#793d4g-judging-a-turn) (the redaction comes before the cut) and
+[793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply) (the [note](../../GLOSSARY.md#permanent-note) of the correction is written), with the components of [793d5j Mapping of 793a2c1a](#793d5j-mapping-of-793a2c1a).
 
 ## 793d6 Recommended impact
 

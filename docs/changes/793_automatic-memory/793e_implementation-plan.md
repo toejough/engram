@@ -396,6 +396,20 @@ Takes [793a2c1f Guesses, plans and chatter produce no note](./793a_product-spec.
 | 793d2b1c | Dedicated example, real dependency (`integration`, runs the mod under `node`) | a step that fails is reported to the writing, as a failure that names the judgement: a command that exits with 1, one that prints what is not a request, and one that is ended | | Done | 1cbaa962 | 87b703a7 | 807da19e |
 | 793d2b1d | Dedicated example, real dependency (`integration`, runs the mod under `node`) | a model that does not answer is reported to the writing, as a failure that names the model call: an API error, no text, a call that rejects | | Done | 1cbaa962 | 87b703a7 | 807da19e |
 
+#### 793e6b7 A credential in the turn is not in the note
+
+Takes [793a2c1g A credential in the turn is not in the note](./793a_product-spec.md#793a2c1-uat-scenarios). It adds the redaction, and the cut of the window that the redaction comes before.
+
+| Gherkin | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793a2c1g | Dedicated example, product acceptance (`network`) | the prohibition as the user sees it: a correction that holds a token and a password becomes a [note](../../GLOSSARY.md#permanent-note) that holds neither; the note is awaited, so that the absence of the credentials is not the absence of the note. The model is asked not to write a credential, so the test can pass without the redaction of the writing: the properties below are the proof | | Not started | | | |
+| 793d4j1a | Property-based (`rapid`) with named examples (default suite) | the one guarantee the whole promise rests on: no text of the shapes survives | for any filler text and any credential of the shapes of the requirement, placed anywhere in the text: the redacted text does not hold the credential, or the value of the assignment, and holds the filler as it was | Not started | | | |
+| 793d4j1b | Dedicated example (default suite) | what redaction leaves alone: the name of an assignment, a commit ID, a word, a sentence | | Not started | | | |
+| 793d4j1c | Property-based (`rapid`) with named examples (default suite) | the redaction comes before the model: whatever the messages of a record hold | for any messages that hold a credential of the shapes, among any text: the [prompt](./793a_product-spec.md#793a1a-terms) of the request holds none of the credentials | Not started | | | |
+| 793d4j1d | Property-based (`rapid`) with named examples (default suite) | the redaction of the writing: whatever the lessons of a reply hold | for any lessons whose fields hold a credential of the shapes: no [note](../../GLOSSARY.md#permanent-note) written holds one | Not started | | | |
+| 793d4g1f | Dedicated example (default suite) | the order of redaction and cut, on a token that the cut falls in | | Not started | | | |
+| 793d4g1g | Dedicated example (default suite) | the bounds of the window: the context, the whole, and the line that says some of the [turn](./793a_product-spec.md#793a1a-terms) is left out | | Not started | | | |
+
 ### 793e6e The conversation becomes searchable memory
 
 Takes [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory).
