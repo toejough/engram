@@ -90,8 +90,9 @@ func Test793d4h1c_RunAutoWrite_AReplyThatWritesNothingCallsNoLearn(t *testing.T)
 	for name, reply := range map[string]string{
 		"not JSON":      `"I think there is one lesson here."`,
 		"an empty list": `"[]"`,
-		// the reading of the list stops at its end: the text after it makes the reply no list
-		"a list followed by text": `"[] I hope that helps."`,
+		// the reading of the list stops at its end: the text after it makes the reply no list, whole lessons or not
+		"a list followed by text": `"[{\"kind\":\"fact\",\"slug\":\"staging-reset\",\"situation\":\"s\",\"subject\":\"x\",` +
+			`\"predicate\":\"y\",\"object\":\"z\"}] I hope that helps."`,
 		"a lesson that is not whole": `"[{\"kind\":\"fact\",\"slug\":\"\",\"situation\":\"s\",\"subject\":\"x\",` +
 			`\"predicate\":\"y\",\"object\":\"z\"}]"`,
 	} {
@@ -113,6 +114,68 @@ func Test793d4h1c_RunAutoWrite_AReplyThatWritesNothingCallsNoLearn(t *testing.T)
 
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(written).To(BeEmpty())
+		})
+	}
+}
+
+func Test793d4h1e_RunAutoWrite_ALessonThatANoteOfTheVaultCoversIsNotWritten(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	written := map[string]string{}
+	records := &recordedFiles{}
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", RecordsDir: "/data/auto"},
+		cli.AutoWriteDeps{
+			Stdin:       replyInput(coveredLessonReply(zorblaxNote)),
+			Learn:       learnInto(written),
+			Now:         func() time.Time { return recordedAt },
+			WriteRecord: records.write,
+			NoteExists:  func(path string) bool { return path == "/vault/"+zorblaxNote },
+		}, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(written).To(BeEmpty())
+	g.Expect(records.kinds()).To(Equal([]string{"skipped"}))
+
+	for _, record := range records.all() {
+		g.Expect(record["reason"]).To(ContainSubstring(zorblaxNote))
+	}
+}
+
+func Test793d4h1f_RunAutoWrite_ACoverThatIsNotInTheVaultCoversNothing(t *testing.T) {
+	t.Parallel()
+
+	for name, cover := range map[string]struct {
+		covered string
+		exists  bool
+	}{
+		"a file that is not in the vault": {covered: "no-such-note.md"},
+		"a path outside the vault":        {covered: "../outside.md", exists: true},
+		"a path inside the vault":         {covered: "folder/note.md", exists: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			written := map[string]string{}
+
+			var out bytes.Buffer
+
+			err := cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", RecordsDir: "/data/auto"},
+				cli.AutoWriteDeps{
+					Stdin:       replyInput(coveredLessonReply(cover.covered)),
+					Learn:       learnInto(written),
+					Now:         func() time.Time { return recordedAt },
+					WriteRecord: (&recordedFiles{}).write,
+					// a path that exists, as far as the writing is told: only a plain file name of the vault may cover
+					NoteExists: func(path string) bool { return cover.exists && path == "/vault/"+cover.covered },
+				}, &out)
+
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(written).To(HaveLen(1))
 		})
 	}
 }
@@ -189,68 +252,6 @@ func Test793d4h1h_RunAutoWrite_AReplyThatIsCutKeepsTheLessonsBeforeTheCut(t *tes
 					g.Expect(record["reason"]).To(ContainSubstring("cut"))
 				}
 			}
-		})
-	}
-}
-
-func Test793d4h1e_RunAutoWrite_ALessonThatANoteOfTheVaultCoversIsNotWritten(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	written := map[string]string{}
-	records := &recordedFiles{}
-
-	var out bytes.Buffer
-
-	err := cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", RecordsDir: "/data/auto"},
-		cli.AutoWriteDeps{
-			Stdin:       replyInput(coveredLessonReply(zorblaxNote)),
-			Learn:       learnInto(written),
-			Now:         func() time.Time { return recordedAt },
-			WriteRecord: records.write,
-			NoteExists:  func(path string) bool { return path == "/vault/"+zorblaxNote },
-		}, &out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	g.Expect(written).To(BeEmpty())
-	g.Expect(records.kinds()).To(Equal([]string{"skipped"}))
-
-	for _, record := range records.all() {
-		g.Expect(record["reason"]).To(ContainSubstring(zorblaxNote))
-	}
-}
-
-func Test793d4h1f_RunAutoWrite_ACoverThatIsNotInTheVaultCoversNothing(t *testing.T) {
-	t.Parallel()
-
-	for name, cover := range map[string]struct {
-		covered string
-		exists  bool
-	}{
-		"a file that is not in the vault": {covered: "no-such-note.md"},
-		"a path outside the vault":        {covered: "../outside.md", exists: true},
-		"a path inside the vault":         {covered: "folder/note.md", exists: true},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			written := map[string]string{}
-
-			var out bytes.Buffer
-
-			err := cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", RecordsDir: "/data/auto"},
-				cli.AutoWriteDeps{
-					Stdin:       replyInput(coveredLessonReply(cover.covered)),
-					Learn:       learnInto(written),
-					Now:         func() time.Time { return recordedAt },
-					WriteRecord: (&recordedFiles{}).write,
-					// a path that exists, as far as the writing is told: only a plain file name of the vault may cover
-					NoteExists: func(path string) bool { return cover.exists && path == "/vault/"+cover.covered },
-				}, &out)
-
-			g.Expect(err).NotTo(HaveOccurred())
-			g.Expect(written).To(HaveLen(1))
 		})
 	}
 }

@@ -2,7 +2,9 @@ package auto
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"regexp"
 	"slices"
 	"strings"
@@ -60,13 +62,14 @@ func (l Lesson) defect() string {
 	return ""
 }
 
-// redacted is the lesson with each text of it redacted (793d4j): a secret cannot be a slug, because the redaction makes
-// the slug something that is not one.
+// redacted is the lesson with each text of it redacted (793d4j) and written as one line (793d4h): a secret cannot be a
+// slug, because the redaction makes the slug something that is not one, and a field cannot make a line of the note of
+// its own.
 func (l Lesson) redacted() Lesson {
 	return Lesson{
-		Kind: l.Kind, Slug: Redact(l.Slug), Situation: Redact(l.Situation), Covered: Redact(l.Covered),
-		Behavior: Redact(l.Behavior), Impact: Redact(l.Impact), Action: Redact(l.Action), Subject: Redact(l.Subject),
-		Predicate: Redact(l.Predicate), Object: Redact(l.Object),
+		Kind: l.Kind, Slug: oneRedacted(l.Slug), Situation: oneRedacted(l.Situation), Covered: oneRedacted(l.Covered),
+		Behavior: oneRedacted(l.Behavior), Impact: oneRedacted(l.Impact), Action: oneRedacted(l.Action),
+		Subject: oneRedacted(l.Subject), Predicate: oneRedacted(l.Predicate), Object: oneRedacted(l.Object),
 	}
 }
 
@@ -100,18 +103,21 @@ type Skipped struct {
 }
 
 // ParseLessons reads the lessons a reply of the model holds: a JSON list, with or without a code fence around it. A
-// lesson that is not whole is left out, and a reply that is not a list holds none, each with the reason (793d4h).
+// lesson that is not whole is left out, and a reply that is not a list holds none, each with the reason. A reply that
+// ends before its list does keeps the lessons before the cut, and the cut is a reason of its own (793d4h).
 func ParseLessons(reply string) ([]Lesson, []Skipped) {
-	var lessons []Lesson
-
-	decodeErr := json.Unmarshal([]byte(unfenced(reply)), &lessons)
-	if decodeErr != nil {
+	lessons, ended, isList := readList(unfenced(reply))
+	if !isList {
 		return nil, []Skipped{{Reason: "the reply is not a list of lessons"}}
 	}
 
 	whole := make([]Lesson, 0, len(lessons))
 
 	var skipped []Skipped
+
+	if !ended {
+		skipped = append(skipped, Skipped{Reason: "the reply was cut before the end of its list"})
+	}
 
 	for _, found := range lessons {
 		lesson := found.redacted()
@@ -145,9 +151,54 @@ var (
 	slugPattern = regexp.MustCompile(`^[a-z0-9-]+$`)
 )
 
+// endsTooSoon reports whether a failure to read a text of the given length is the text ending before its value does,
+// and not a text that is wrong.
+func endsTooSoon(err error, length int) bool {
+	var syntaxErr *json.SyntaxError
+
+	return errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) ||
+		(errors.As(err, &syntaxErr) && syntaxErr.Offset >= int64(length))
+}
+
 // isBlank reports whether the text is empty once its white space is gone.
 func isBlank(text string) bool {
 	return strings.TrimSpace(text) == ""
+}
+
+// oneRedacted is the text redacted and written as one line.
+func oneRedacted(text string) string {
+	return oneLine(Redact(text))
+}
+
+// readList reads the lessons of a JSON list one by one, so that the lessons before a cut are kept. ended is false when
+// the text stops before its list does, and isList is false when the text is no list of lessons, or has more after it.
+func readList(text string) (lessons []Lesson, ended, isList bool) {
+	decoder := json.NewDecoder(strings.NewReader(text))
+
+	open, openErr := decoder.Token()
+	if openErr != nil || open != json.Delim('[') {
+		return nil, false, false
+	}
+
+	for decoder.More() {
+		var lesson Lesson
+
+		decodeErr := decoder.Decode(&lesson)
+		if decodeErr != nil {
+			return lessons, false, endsTooSoon(decodeErr, len(text))
+		}
+
+		lessons = append(lessons, lesson)
+	}
+
+	_, closeErr := decoder.Token()
+	if closeErr != nil {
+		return lessons, false, endsTooSoon(closeErr, len(text))
+	}
+
+	_, afterErr := decoder.Token()
+
+	return lessons, true, errors.Is(afterErr, io.EOF)
 }
 
 // unfenced returns the reply without the white space around it and the code fence a model may put around a list.
