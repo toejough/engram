@@ -1,6 +1,6 @@
 # Automatic Memory - Implementation Plan
 
-Filled depth first ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)): a node's catalog is written when its requirements reach step 4 and is worked
+Filled depth first ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)): a node's catalog rows are written when step 3 reaches the node, and the node is worked
 through step 5 before the next node starts. Nothing below is final until the last node is. The sections follow
 the [implementation plan guide](../../IMPLEMENTATION-PLAN-GUIDE.md#default-structure). Implementation shape is
 added with the first node's step 3. The guide's parallel worktree method is omitted because the nodes are
@@ -8,7 +8,7 @@ worked in sequence on branch `feat/automatic-memory`.
 
 ## 793e1 Purpose
 
-Source specifications: [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec) and [793d Automatic Memory - Technical Spec](./793d_technical-spec.md#automatic-memory---technical-spec). Scope: the six product requirements and six
+Source specifications: [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec) and [793d Automatic Memory - Technical Spec](./793d_technical-spec.md#automatic-memory---technical-spec). Scope: the six product requirements and three
 interactions of the first, taken through the owner's steps 2 to 5 ([793f5 How this change applies it](./793f_algorithm.md#793f5-how-this-change-applies-it)) in the order of
 [793e4 Depth-first order and dependency tree](#793e4-depth-first-order-and-dependency-tree).
 
@@ -51,9 +51,11 @@ filled in by the next commit.
 
 ## 793e4 Depth-first order and dependency tree
 
-The nodes in order, with the interactions each takes ([793b28 Depth-first order](./793b_decision-log.md#793b28-depth-first-order), [793b29 Interactions join the first node that has every capability they name](./793b_decision-log.md#793b29-interactions-join-the-first-node-that-has-every-capability-they-name)):
+A node is one product scenario, or a tightly coupled pair, taken through steps 3 to 5 before the next node starts
+([793b38 Depth first: two readings, and the one this change takes](./793b_decision-log.md#793b38-depth-first-two-readings-and-the-one-this-change-takes)). The rows below are the groups of nodes in order, with the interactions each takes ([793b28 Depth-first order](./793b_decision-log.md#793b28-depth-first-order)): step 2 writes
+a group's scenarios when the group is reached, and each scenario is a node of its group.
 
-| Node | Requirements | Interactions |
+| Group | Requirements | Interactions |
 | --- | --- | --- |
 | [793e6a On after update, and memory arrives with the prompt](#793e6a-on-after-update-and-memory-arrives-with-the-prompt) | [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update), [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) and the 8-second hold of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) | none |
 | [793e6b Lessons are written without the agent](#793e6b-lessons-are-written-without-the-agent) | [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) | [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later), [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again), [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working) |
@@ -61,11 +63,11 @@ The nodes in order, with the interactions each takes ([793b28 Depth-first order]
 | [793e6c Never in the way](#793e6c-never-in-the-way) | the rest of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) | none |
 | [793e6d The user can see what it did](#793e6d-the-user-can-see-what-it-did) | [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) | none |
 
-The first node takes the install requirement and the delivery requirement together because the install is
-only visible to the user when delivery works in a new [session](../../GLOSSARY.md#session). It also takes the
-8-second hold, because a delivery must not hold a [prompt](./793a_product-spec.md#793a1a-terms) longer than that
-from the first one on. Each later node needs the previous node's committed result, because an
-interaction joins a capability to the ones before it.
+The first node is the first scenario of [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update), which needs the first delivery of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) to be visible: the
+install is only visible to the user when delivery works in a new [session](../../GLOSSARY.md#session). The first
+group also takes the 8-second hold, because a delivery must not hold a [prompt](./793a_product-spec.md#793a1a-terms) longer than that from the
+first one on. Each later node needs the previous node's committed result, because an interaction joins a
+capability to the ones before it.
 
 ```mermaid
 graph TD
@@ -75,6 +77,9 @@ graph TD
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
 ```
 
+The graph shows the groups. When step 2 writes a group's scenarios, the group's node is replaced, in the same
+place and with the same prerequisites, by one node per scenario, each with a catalog section under its group's.
+
 ## 793e5 Node status
 
 As in the [plan guide](../../IMPLEMENTATION-PLAN-GUIDE.md#node-status): `Blocked by`, `Ready`,
@@ -83,7 +88,7 @@ As in the [plan guide](../../IMPLEMENTATION-PLAN-GUIDE.md#node-status): `Blocked
 
 ## 793e6 Test catalog
 
-Rows are added to a node when its scenarios exist, and are worked top to bottom.
+Rows are added when step 3 reaches a node, and are worked top to bottom, one node at a time.
 
 ### 793e6a On after update, and memory arrives with the prompt
 

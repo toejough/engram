@@ -25,9 +25,10 @@ Recorded as [793b3 The algorithm and the working rules](./793b_decision-log.md#7
 
 > Work depth first through the above algorithm.
 
-Step 1 is done for the whole set first. Then each requirement goes through steps 2 to 5, one requirement at a
-time, in the order of
-[793e Automatic Memory - Implementation Plan](./793e_implementation-plan.md#automatic-memory---implementation-plan).
+Step 1 is done for the whole set first. Then step 2 runs for one requirement at a time, in the order of
+[793e Automatic Memory - Implementation Plan](./793e_implementation-plan.md#automatic-memory---implementation-plan). Each scenario it writes is a node, and
+a tightly coupled pair of scenarios is one node. Steps 3 to 5 run for one node at a time, and the next node
+starts only when the previous one is done ([793b38 Depth first: two readings, and the one this change takes](./793b_decision-log.md#793b38-depth-first-two-readings-and-the-one-this-change-takes)).
 He also said "Commit early and often." Every document change and every red, green and refactor phase is its
 own commit.
 
@@ -39,7 +40,7 @@ Reading ([793b5 Reading of the delegation rule](./793b_decision-log.md#793b5-rea
 the orchestrating [session](../../GLOSSARY.md#session) does no object-level work itself. Search and lookups go
 to haiku, all writing and building go to sonnet, and every review goes to opus, one review round per phase (the
 owner's rule, [793b33 One agent review round per phase](./793b_decision-log.md#793b33-one-agent-review-round-per-phase)). A
-phase is one step applied to one unit: step 1 for the whole set, or step 2, 3, 4 or 5 for one requirement.
+phase is one step applied to one unit: step 1 for the whole set, step 2 for one requirement, or step 3, 4 or 5 for one node.
 
 ## 793f5 How this change applies it
 
@@ -69,7 +70,7 @@ every scenario ID in either spec has a test.
 Two are the owner's: depth first and the North Star line. The others are the author's readings of his words, and
 he may override them.
 
-- **Depth first** (the owner): the documents are partial until the last requirement is done; the guides expect
+- **Depth first** (the owner): the documents are partial until the last node is done; the guides expect
   each complete first ([793b10 Departure: depth-first fill](./793b_decision-log.md#793b10-departure-depth-first-fill)).
 - **A North Star line** (the owner): the product spec opens with it, beyond the product guide's three sections
   ([793b2 North Star](./793b_decision-log.md#793b2-north-star)).

@@ -54,7 +54,7 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 - **Choice:** the orchestrating [session](../../GLOSSARY.md#session) does no object-level work itself; search and
   lookups go to haiku, all writing and building go to sonnet, and every review goes to opus. A phase, the unit of
   one review round ([793b33 One agent review round per phase](#793b33-one-agent-review-round-per-phase)), is one
-  step applied to one unit: step 1 for the whole set, or step 2, 3, 4 or 5 for one requirement.
+  step applied to one unit: step 1 for the whole set, step 2 for one requirement, or step 3, 4 or 5 for one node ([793b38 Depth first: two readings, and the one this change takes](./793b_decision-log.md#793b38-depth-first-two-readings-and-the-one-this-change-takes)).
 - **Rationale:** the plain reading of "orchestrate", "search", "work" and "review".
 - **Alternatives:** none stated by the owner.
 - **Decided by:** Author (reading of the owner's rule; owner may override).
@@ -151,13 +151,15 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 
 ## 793b10 Departure: depth-first fill
 
-- **Choice:** [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec), [793d Automatic Memory - Technical Spec](./793d_technical-spec.md#automatic-memory---technical-spec) and [793e Automatic Memory - Implementation Plan](./793e_implementation-plan.md#automatic-memory---implementation-plan) stay partial until the last requirement has been
-  through step 5, and code for a requirement is written before the later requirements have scenarios,
-  technical requirements or plan nodes.
+- **Choice:** [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec), [793d Automatic Memory - Technical Spec](./793d_technical-spec.md#automatic-memory---technical-spec) and [793e Automatic Memory - Implementation Plan](./793e_implementation-plan.md#automatic-memory---implementation-plan) stay partial until the last node has been through step 5. The partial state shows as "Pending"
+  placeholders: "Pending step 2" under every requirement of the product spec, "Pending." in every section of the
+  technical spec, and empty catalog tables in the implementation plan. Code for a node is written before the later nodes have technical requirements or plan
+  rows, and before the later requirements have scenarios.
 - **Departs from:** the Required Implementation Workflow in [docs/AGENTS.md](../../AGENTS.md#required-implementation-workflow)
-  (identify the requirements, scenarios and plan nodes before editing implementation files) and the technical
-  and plan guides' rule to start from approved specifications.
-- **Rationale:** the owner: "Work depth first through the above algorithm."
+  (identify the requirements, scenarios and plan nodes before editing implementation files), the technical and
+  plan guides' rule to start from approved specifications, their rule not to add empty placeholders, and the
+  shared checklist's "No placeholders".
+- **Rationale:** the owner: "Work depth first through the above algorithm." How deep one unit of work is: [793b38 Depth first: two readings, and the one this change takes](./793b_decision-log.md#793b38-depth-first-two-readings-and-the-one-this-change-takes).
 - **Alternatives:** breadth first, as the guides expect.
 - **Decided by:** Owner (Joe, 2026-10-16).
 
@@ -362,27 +364,25 @@ Folded into [793b25 What is shown after a turn, and when](./793b_decision-log.md
 
 ## 793b28 Depth-first order
 
-- **Choice:** [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update) and [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) go first and together, with the 8-second hold of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way); then [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), then [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory),
-  then the rest of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), then [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did).
+- **Choice:** the groups in order: [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update) and [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) together, with the 8-second hold of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way); then [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent); then
+  [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory); then the rest of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way); then [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did). The first node is the first scenario of [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update), which needs the first
+  delivery of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) to be visible. An interaction is worked with the first group whose requirements include
+  every capability it names: [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later), [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again) and [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working) with the second, because each names the writing of [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent).
+  The other interactions of the first version were folded or removed in review round 1 ([793b7 The interactions are product requirements too](./793b_decision-log.md#793b7-the-interactions-are-product-requirements-too)).
 - **Rationale:** the only user-visible proof that the first is on is the second working in a new
   [session](../../GLOSSARY.md#session). The hold belongs with the first delivery, because a delivery must not
-  hold a [prompt](./793a_product-spec.md#793a1a-terms) longer than [793b17 A prompt is held for at most 8 seconds](./793b_decision-log.md#793b17-a-prompt-is-held-for-at-most-8-seconds) allows from the start. The lessons come next, as the learning half of the North
-  Star, and the sweep follows them as the rest of what the main [agent](./793a_product-spec.md#793a1a-terms)'s
-  learn did ([793b34 The goal: what the main agent was already doing, just async](./793b_decision-log.md#793b34-the-goal-what-the-main-agent-was-already-doing-just-async)). The rest of the bounds and the display come last because they bound and report what the
-  others do.
+  hold a [prompt](./793a_product-spec.md#793a1a-terms) longer than [793b17 A prompt is held for at most 8 seconds](./793b_decision-log.md#793b17-a-prompt-is-held-for-at-most-8-seconds) allows from the start. The lessons come next, as the learning half of
+  the North Star, and the sweep follows them as the rest of what the main [agent](./793a_product-spec.md#793a1a-terms)'s learn did ([793b34 The goal: what the main agent was already doing, just async](./793b_decision-log.md#793b34-the-goal-what-the-main-agent-was-already-doing-just-async)). The
+  rest of the bounds and the display come last because they bound and report what the others do. An interaction
+  cannot be exercised before everything it joins exists, and delaying it further would leave its rule unchecked.
 - **Alternatives:** the order of the requirements as listed, with the install alone first. Rejected: its
-  scenarios could not be run before delivery exists.
+  scenarios could not be run before delivery exists. All interactions in a final node (rules unchecked for
+  long), or each with its own earliest capability (it cannot be exercised there).
 - **Decided by:** Author.
 
 ## 793b29 Interactions join the first node that has every capability they name
 
-- **Choice:** in [793e Automatic Memory - Implementation Plan](./793e_implementation-plan.md#automatic-memory---implementation-plan), an interaction is worked with the first node whose requirements include every
-  capability it names: [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later), [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again) and [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working) with the second.
-- **Rationale:** an interaction cannot be exercised before everything it joins exists, and delaying it further
-  would leave its rule unchecked.
-- **Alternatives:** all interactions in a final node (rules unchecked for long), or each with its own earliest
-  capability (it cannot be exercised there).
-- **Decided by:** Author.
+Merged into [793b28 Depth-first order](./793b_decision-log.md#793b28-depth-first-order) in review round 1. The ID is kept so that links do not dangle.
 
 ## 793b30 Commit hashes are recorded by the next commit
 
@@ -515,3 +515,19 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 - **Alternatives:** covered, by letting the work finish after the session ends or by finishing it in the next
   session ([793c14 Is a turn that is followed by the end of the session covered?](./793c_open-questions.md#793c14-is-a-turn-that-is-followed-by-the-end-of-the-session-covered)).
 - **Decided by:** Author (default; owner may override).
+
+## 793b38 Depth first: two readings, and the one this change takes
+
+- **Choice:** the owner's "Work depth first through the above algorithm." has two readings. (1) Per requirement:
+  each requirement goes through steps 2 to 5 before the next one starts, as the first version of
+  [793f3 Depth first](./793f_algorithm.md#793f3-depth-first) read it. (2) Per scenario: step 2 runs for one
+  requirement, and then each product scenario, or a tightly coupled pair, is a node that goes through steps 3 to
+  5 before the next node starts. This change takes (2). The first node is the first scenario of [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update), which
+  needs the first delivery of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) to be visible. [793f3 Depth first](./793f_algorithm.md#793f3-depth-first),
+  [793f4 Delegation](./793f_algorithm.md#793f4-delegation) and
+  [793e4 Depth-first order and dependency tree](./793e_implementation-plan.md#793e4-depth-first-order-and-dependency-tree) say so.
+- **Rationale:** the owner's step 3 reads "for each acceptance test", and an acceptance test is a product
+  scenario, so steps 3 to 5 go one scenario at a time; his step 2 reads "for each product requirement", so
+  step 2 stays per requirement.
+- **Alternatives:** reading (1), the first version. Rejected for the reason above.
+- **Decided by:** Author (reading of the owner's step 3; owner may override), on review round 1's finding.
