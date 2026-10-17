@@ -33,7 +33,7 @@ func Test793d4h1c_ParseLessons_AReplyThatIsNotAListOfLessonsWritesNothing(t *tes
 			t.Parallel()
 			g := NewWithT(t)
 
-			lessons, _ := auto.ParseLessons(reply)
+			lessons := auto.ParseLessons(reply)
 
 			g.Expect(lessons).To(BeEmpty())
 		})
@@ -43,11 +43,10 @@ func Test793d4h1c_ParseLessons_AReplyThatIsNotAListOfLessonsWritesNothing(t *tes
 		t.Parallel()
 		g := NewWithT(t)
 
-		lessons, err := auto.ParseLessons(`[{"kind":"fact","slug":"","situation":"s","subject":"x",` +
+		lessons := auto.ParseLessons(`[{"kind":"fact","slug":"","situation":"s","subject":"x",` +
 			`"predicate":"y","object":"z"},` +
 			`{"kind":"fact","slug":"a-b","situation":"s","subject":"x","predicate":"y","object":"z"}]`)
 
-		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(lessons).To(HaveLen(1))
 		g.Expect(lessons[0].Slug).To(Equal("a-b"))
 	})
@@ -68,9 +67,8 @@ func Test793d4h1d_ParseLessons_TheCodeFenceAroundTheListIsNotPartOfIt(t *testing
 			t.Parallel()
 			g := NewWithT(t)
 
-			lessons, err := auto.ParseLessons(reply)
+			lessons := auto.ParseLessons(reply)
 
-			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(lessons).To(HaveLen(1))
 			g.Expect(lessons[0].Kind).To(Equal("fact"))
 			g.Expect(lessons[0].Object).To(Equal("Sunday night"))

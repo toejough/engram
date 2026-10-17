@@ -2,16 +2,9 @@ package auto
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"regexp"
 	"slices"
 	"strings"
-)
-
-// Exported variables.
-var (
-	ErrNotALessonList = errors.New("the reply is not a list of lessons")
 )
 
 // Lesson is one lesson a reply of the model holds (793d4h): a feedback lesson has a behavior, an impact and an action,
@@ -52,14 +45,12 @@ type Reply struct {
 }
 
 // ParseLessons reads the lessons a reply of the model holds: a JSON list, with or without a code fence around it. A
-// lesson that is not whole is left out (793d4h).
-func ParseLessons(reply string) ([]Lesson, error) {
+// lesson that is not whole is left out, and a reply that is not a list holds none (793d4h).
+func ParseLessons(reply string) []Lesson {
 	var lessons []Lesson
 
-	decodeErr := json.Unmarshal([]byte(unfenced(reply)), &lessons)
-	if decodeErr != nil {
-		return nil, fmt.Errorf("%w: %w", ErrNotALessonList, decodeErr)
-	}
+	// a reply that is not a list leaves the lessons empty
+	_ = json.Unmarshal([]byte(unfenced(reply)), &lessons)
 
 	whole := make([]Lesson, 0, len(lessons))
 
@@ -69,7 +60,7 @@ func ParseLessons(reply string) ([]Lesson, error) {
 		}
 	}
 
-	return whole, nil
+	return whole
 }
 
 // SourceFor is the source of a note written from a turn of a session: it says the note was written automatically

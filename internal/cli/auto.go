@@ -134,12 +134,9 @@ func RunAutoWrite(ctx context.Context, args AutoWriteArgs, deps AutoWriteDeps, s
 		return fmt.Errorf("auto write: reading the reply: %w", decodeErr)
 	}
 
-	// a reply that is not a list of lessons holds none
-	lessons, _ := auto.ParseLessons(reply.Text)
-
 	var failures []error
 
-	for _, lesson := range lessons {
+	for _, lesson := range auto.ParseLessons(reply.Text) {
 		path, learnErr := deps.Learn(ctx, learnArgsOfLesson(lesson, args, reply.Session))
 		if learnErr != nil {
 			failures = append(failures, fmt.Errorf("writing %s: %w", lesson.Slug, learnErr))

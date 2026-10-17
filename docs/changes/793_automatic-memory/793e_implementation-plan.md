@@ -340,10 +340,10 @@ Takes [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-
 | 793d4g1c | Dedicated example (default suite) | the boundary cases: no record, and a record with no [prompt](./793a_product-spec.md#793a1a-terms) | | Done | 6dde6226 | 507d4c77 | |
 | 793d4g1d | Dedicated example (default suite) | the failure branch of the command: an input that is not a JSON object, through `RunAutoJudge` | | Done | 6dde6226 | 507d4c77 | |
 | 793d4g1e | Property-based (`rapid`) with named examples (default suite) | the one guarantee a message must not break: a message is one line | for any messages whose text holds line breaks of every kind, control and format characters and text that reads as a label: the lines of the turn are one for each message, each opens with its label, and no line holds a line break | Done | 6dde6226 | 507d4c77 | |
-| 793d4h1a | Dedicated example (default suite) | a feedback lesson becomes a feedback note with the mark, through `RunAutoWrite` over an in-memory vault | | Green-all | 14576dd7 | | |
-| 793d4h1b | Dedicated example (default suite) | a fact lesson becomes a fact note with the mark | | Green-all | 14576dd7 | | |
-| 793d4h1c | Dedicated example (default suite) | the replies and lessons that write nothing | | Green-all | 14576dd7 | | |
-| 793d4h1d | Dedicated example (default suite) | the code fence a model may put around the list | | Green-all | 14576dd7 | | |
+| 793d4h1a | Dedicated example (default suite) | a feedback lesson becomes a feedback note with the mark, through `RunAutoWrite` over an in-memory vault | | Done | 14576dd7 | c9b440cf | |
+| 793d4h1b | Dedicated example (default suite) | a fact lesson becomes a fact note with the mark | | Done | 14576dd7 | c9b440cf | |
+| 793d4h1c | Dedicated example (default suite) | the replies and lessons that write nothing | | Done | 14576dd7 | c9b440cf | |
+| 793d4h1d | Dedicated example (default suite) | the code fence a model may put around the list | | Done | 14576dd7 | c9b440cf | |
 | 793d2b1a | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the mod's routing of a turn against a stand-in host: the order of the three steps and what each is given; a live session cannot show what a stand-in records | | Not started | | | |
 
 ### 793e6e The conversation becomes searchable memory
