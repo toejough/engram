@@ -982,6 +982,19 @@ Scenario: 793a3c1b A lesson the agent saved itself is not written again
 
 Realized by the components of [793d5q Mapping of 793a3c1a](#793d5q-mapping-of-793a3c1a) and nothing new: the [note](../../GLOSSARY.md#permanent-note) that the [agent](./793a_product-spec.md#793a1a-terms) saves with [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand) is in the [vault](../../GLOSSARY.md#vault) when the [turn](./793a_product-spec.md#793a1a-terms) ends, so the request of [793d4g Judging a turn](#793d4g-judging-a-turn) lists it among the notes nearest to the turn, and [793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply) writes nothing for the lesson that it covers. The agent's note is not touched.
 
+### 793d5s Mapping of 793a3e1a
+
+The product scenario [793a3e1a The agent's own lookups and saves keep working](./793a_product-spec.md#793a3e1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a3e1a The agent's own lookups and saves keep working
+  Given the user has run engram update, a vault holding a note that says when the staging database is reset, and a session in which the agent may run engram commands
+  When the user asks the agent in a prompt to look the staging note up with engram query and to save another note with engram learn
+  Then the agent's lookup shows the staging note, and the vault holds the note the agent saved, as the agent wrote it
+```
+
+Realized by no component of its own. The [agent](./793a_product-spec.md#793a1a-terms)'s commands are the commands of the binary, which [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow) and [793d2b Turn capture flow](#793d2b-turn-capture-flow) neither wrap nor replace, and the commands of [automatic memory](./793a_product-spec.md#793a1a-terms) read the [vault](../../GLOSSARY.md#vault) and write to it only through [793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply), as new [notes](../../GLOSSARY.md#permanent-note) of the learn path of [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand): the writing has no way to change a note it did not write, because its only capability that writes to the vault is the learn path.
+
 ## 793d6 Recommended impact
 
 - **Repository:** a new directory `agent-instructions/mods/`; a new package `internal/auto` and a new command group
