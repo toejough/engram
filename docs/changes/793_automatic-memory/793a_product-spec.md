@@ -212,3 +212,23 @@ and the [learn skill](../../GLOSSARY.md#learn-skill), MUST keep working unchange
 #### 793a3e1 UAT Scenarios
 
 Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
+
+## 793a5 Modified: First-use vault creation
+
+### 793a5a Modified: 792a2e First-use vault creation
+
+Target: [792a2e First-use vault creation](../../specs/product/vault-identity.md#792a2e-first-use-vault-creation)
+
+Requirement: 792a2e Every command that resolves a vault path, other than the commands that
+[automatic memory](#793a1a-terms) runs on its own, MUST, when no [vault](../../GLOSSARY.md#vault) exists at that path,
+create one before the command runs, whether or not `ENGRAM_PARENT` is set, and print exactly one stderr line,
+`engram: created new vault at <path>`. The new vault contains `.obsidian/app.json`, a `.gitignore`, a starter
+`README.md`, a vault ID ([792a2h Stable vault ID](../../specs/product/vault-identity.md#792a2h-stable-vault-id)) and the `.engram/` state directory
+([792a2k Exchange state outside tracked files](../../specs/product/vault-identity.md#792a2k-exchange-state-outside-tracked-files)). A command that automatic memory runs on its own creates no vault
+([793a2a On after `engram update`](#793a2a-on-after-engram-update)).
+
+Rationale: a prompt must not create a vault the user has not asked for, and a missing vault is the user's to create
+with a command they run.
+
+The scenario of this operation is [793a2a1e A vault that does not exist is not created](#793a2a1-uat-scenarios).
+

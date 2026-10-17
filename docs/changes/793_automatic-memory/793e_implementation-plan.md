@@ -201,15 +201,17 @@ Takes [793a2d1a A slow lookup does not hold a prompt for more than 8 seconds](./
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2d1a | Dedicated example, product acceptance (`network`) | the bound as the user sees it: a real session whose lookup takes 20 seconds is held for under 8 and answered | Green-all | b87d5da6 | 17bcbc48 | |
+| 793a2d1a | Dedicated example, product acceptance (`network`) | the bound as the user sees it: a real session whose lookup takes 20 seconds is held for under 8 and answered | Green-all | b87d5da6 | 17bcbc48 | 03de5169 |
 | 793d2a1d | Dedicated example, real dependency (`network`) | the mod's bound and its quiet step aside, in a real Claude Code session against a stand-in engram that takes 20 seconds, read from the session's record and debug log | Done | ea20a874 | 17bcbc48 | 2e1e28d2 |
 
 #### 793e6a7 A vault that does not exist is not created
 
-Takes [793a2a1e A vault that does not exist is not created](./793a_product-spec.md#793a2a1-uat-scenarios).
+Takes [793a2a1e A vault that does not exist is not created](./793a_product-spec.md#793a2a1-uat-scenarios), and the Modified operation [793a5a Modified: 792a2e First-use vault creation](./793a_product-spec.md#793a5a-modified-792a2e-first-use-vault-creation).
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
+| 793a2a1e | Dedicated example, product acceptance (`network`) | the promise as the user sees it: after the vault is removed a prompt is answered and the vault is still not there | Not started | | | |
+| 793d4e1a | Dedicated example (default suite) | the dispatch of the command through `cli.Targets` over a real temporary path: the first-use step is in the target's wiring, not in the command, so only a dispatch can show whether it runs | Not started | | | |
 
 #### 793e6a8 Pi gets no automatic memory
 

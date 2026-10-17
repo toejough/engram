@@ -250,6 +250,28 @@ Scenario: 793d4d1c A session with no record, or an ID that is not a file name, h
   Then it is empty and there is no error
 ```
 
+### 793d4e Modified: First-use gating
+
+Target: [792b2c3 First-use gating](../../specs/technical/command-line-surface.md#792b2c3-first-use-gating)
+
+Requirement: 792b2c3 For every vault-resolving command other than `auto deliver`, the command-line-surface MUST ask the
+[vault-identity-registry](../../specs/technical/vault-identity-registry.md) to ensure the vault at the resolved path before running the command, and
+MUST NOT run the command when that step fails. For `auto deliver` it MUST NOT ask: the command runs against the path
+as it is, and creates nothing when the path holds no vault.
+
+Owner: [command-line-surface](../../specs/technical/command-line-surface.md)
+
+Supports: [793a2a1e A vault that does not exist is not created](./793a_product-spec.md#793a2a1-uat-scenarios).
+
+#### 793d4e1 Scenarios
+
+```gherkin
+Scenario: 793d4e1a The delivery command creates no vault
+  Given no vault exists at the resolved path
+  When engram auto deliver is dispatched
+  Then no vault exists at the path afterwards, nothing is printed to standard output and no creation line is printed
+```
+
 ### 793d4b Deploying the mods of the source
 
 Requirement: 793d4b The harness-deploy-sync MUST plan one copy for every file under `agent-instructions/mods/` of the
@@ -347,6 +369,19 @@ Scenario: 793a2d1a A slow lookup does not hold a prompt for more than 8 seconds
 ```
 
 Realized by [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow): the mod ends the command at 7 seconds and lets the prompt continue unchanged.
+
+### 793d5f Mapping of 793a2a1e
+
+The product scenario [793a2a1e A vault that does not exist is not created](./793a_product-spec.md#793a2a1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2a1e A vault that does not exist is not created
+  Given a machine with Claude Code on which the user has run engram update, and whose configured vault no longer exists
+  When the user starts a session and sends a prompt
+  Then the agent answers the prompt, and the vault still does not exist
+```
+
+Realized by [793d4e Modified: First-use gating](#793d4e-modified-first-use-gating) (the command runs without the first-use step, so it creates nothing) with [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) (the lookup of a missing vault fails and the command prints nothing) and [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow) (the mod adds nothing, and the prompt goes on).
 
 ## 793d6 Recommended impact
 
