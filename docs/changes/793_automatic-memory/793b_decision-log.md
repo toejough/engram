@@ -1518,3 +1518,36 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   sentence about `covered` (rejected: the runs above).
 - **Decided by:** Author (default; owner may override); the owner is asked in
   [793c56 Is the bar of the learn skill the bar for a note written automatically?](./793c_open-questions.md#793c56-is-the-bar-of-the-learn-skill-the-bar-for-a-note-written-automatically).
+
+## 793b88 The judgement is measured by a probe of its own
+
+- **Choice:** the instructions of the judgement are changed with a probe at hand, `dev/eval/auto-judge/probe.py`. It
+  builds the request with the real `engram auto judge` over fixture records of the [turns](./793a_product-spec.md#793a1a-terms) of the live scenarios
+  (`fixtures.json`), asks the model as the mod does (haiku, low effort, the `system` and the `prompt` of the request) a
+  number of times for each variant of the instructions, and counts what the replies hold. A sentence of the instructions
+  stays when the variant with it beats the variant without it on the fixture it aims at, and no fixture of another
+  scenario falls by more than the noise. A variant is asked 60 times or more: 20 runs did not tell the variants of
+  [793e6g14 A thanks that names no approach produces no note, and the instructions carry the bar of the learn skill](./793e_implementation-plan.md#793e6g14-a-thanks-that-names-no-approach-produces-no-note-and-the-instructions-carry-the-bar-of-the-learn-skill) apart (they listed the covered lesson in 12 to 19 of 20 runs
+  where the rates were 80% and 98%), and 60 to 80 did. The probe is no part of any check: it costs a login and takes
+  minutes.
+- **Rationale:** review finding 7. The probe behind the sentence about an approach the [agent](./793a_product-spec.md#793a1a-terms) was unsure of
+  ([793b65 What the judgement reads, and what it is asked](#793b65-what-the-judgement-reads-and-what-it-is-asked): a lesson in 11 of 20 runs without it and 20 of 20 with it) was not kept, so the claim could not be
+  run again. Run again over the turn of [793a2c1e An approach that succeeded with evidence becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios) with the probe, the judgement alone gave the lesson in 19 of 60 runs
+  without the sentence and in 60 of 60 with it. The numbers behind the other sentences, 60 runs for each fixture, with
+  the instructions as they were before the change of the node above and as they are now, are these:
+
+  | Fixture | Expects | Before | Now |
+  | --- | --- | --- | --- |
+  | correction, remember, confirmed, own-correction, unsure-approach, different-lesson | a lesson with the words | 60 of 60 each | 60 of 60 each |
+  | guesses-plans-chatter | no lesson | 60 of 60 | 60 of 60 |
+  | thanks | no lesson | 43 of 60 | 60 of 60 |
+  | covered | a lesson with the file name of the [note](../../GLOSSARY.md#permanent-note) that covers it | 51 of 60 | 59 of 60 |
+  | credential | a lesson about the deploy | 54 of 60 | 54 of 60 |
+
+  The row of the credential misses in about 1 run in 10 whatever the instructions say: the model sometimes gives no
+  lesson, or a rule against keeping secrets, for a request to remember a deploy whose secrets it was given redacted.
+- **Alternatives:** the live rows alone (rejected: each costs a [session](../../GLOSSARY.md#session) of about 45 seconds, and a tally of 10 runs
+  passes a variant whose true rate is 80% in 38 tallies of 100); a probe that asks the API directly (rejected: the login at hand is that of Claude Code); leaving the
+  earlier probe as a claim of the log (rejected: the finding).
+- **Decided by:** Author (default; owner may override); the owner is asked in
+  [793c58 Is the probe of the judgement the right way to change its instructions?](./793c_open-questions.md#793c58-is-the-probe-of-the-judgement-the-right-way-to-change-its-instructions).

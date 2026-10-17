@@ -600,3 +600,14 @@ he answers. When he answers, the entry records the answer and the date and stays
   guard that a feedback needs; the scenario of the agent's own correction asks for a [note](../../GLOSSARY.md#permanent-note) that states what the file says.
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b65 What the judgement reads, and what it is asked](./793b_decision-log.md#793b65-what-the-judgement-reads-and-what-it-is-asked).
+
+## 793c58 Is the probe of the judgement the right way to change its instructions?
+
+- **Context:** [793b88 The judgement is measured by a probe of its own](./793b_decision-log.md#793b88-the-judgement-is-measured-by-a-probe-of-its-own) keeps a probe that asks the model about fixture [turns](./793a_product-spec.md#793a1a-terms) 60 times
+  for each variant of the instructions. It asks through `claude -p`, as the mod asks through the host's model call, so
+  the two can differ in what they return: the numbers of the probe and of the live rows were close but not equal.
+- **Options:** (a) The probe, with the live rows as the check. (b) The live rows alone. (c) A probe that calls the host's
+  model call, in a mod of its own.
+- **Recommendation:** (a): the probe is cheap enough to run 60 times, and the live rows still decide.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b88 The judgement is measured by a probe of its own](./793b_decision-log.md#793b88-the-judgement-is-measured-by-a-probe-of-its-own).
