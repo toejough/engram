@@ -5,6 +5,7 @@ package dev
 import (
 	"regexp"
 	"slices"
+	"strings"
 )
 
 // unexported variables.
@@ -25,4 +26,20 @@ func scenarioIDs(spec string) []string {
 	}
 
 	return ids
+}
+
+// scenariosWithoutTest returns the IDs, in their order, that no test source declares a test for: a function named
+// `Test<ID>_`, as the tests of a scenario are named (793e2).
+func scenariosWithoutTest(ids, testSources []string) []string {
+	var missing []string
+
+	for _, id := range ids {
+		declaration := "func Test" + id + "_"
+
+		if !slices.ContainsFunc(testSources, func(source string) bool { return strings.Contains(source, declaration) }) {
+			missing = append(missing, id)
+		}
+	}
+
+	return missing
 }
