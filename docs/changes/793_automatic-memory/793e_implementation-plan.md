@@ -144,7 +144,7 @@ Takes [793a2a1a The next session has memory after one engram update](./793a_prod
 
 | Gherkin | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2a1a | Dedicated example, product acceptance (`network`) | the promise as the user sees it: a real session, started after a real `engram update`, holds the note before it acts | | Done | d598e57f | 4079d1d3 | |
+| 793a2a1a | Dedicated example, product acceptance (`network`) | the promise as the user sees it: a real session, started after a real `engram update`, holds the note before it acts | | Done | d598e57f | 4079d1d3 | c26a7d1c |
 | 793d4a1a | Dedicated example (default suite) | the command's contract through its standard input and output over an in-memory vault and a stub embedder: the lookup of notes for the text, and the shape of the block | | Done | a81ad4bb | 1e0a3a11 | 99e1ea5a |
 | 793d4a1b | Dedicated example (default suite) | the failure branch the mod relies on to step aside: the command fails and prints nothing when it cannot look the notes up. Written after the code: the error branch is required by errcheck and was written with the green of 793d4a1a, so the test passed when written | | Done | n/a | 04dbc127 | |
 | 793d4c1a | Property-based (`rapid`) with named examples (default suite) | the one guarantee an adversarial note must not break: the shape of the block, for any text a note can hold | for any notes whose fields hold arbitrary text, line breaks, control characters, the framing line and lines that read as notes: the block ends with one line feed and has one line more than notes; its first line is the same fixed framing line for every input and begins `[engram memory]`; every other line begins with a dash and a space, never with `[engram memory]`, and holds no control character and no white space but spaces | Done | 93d584e5 | | fa641f64 |
@@ -159,6 +159,8 @@ Takes [793a2b1a The notes that bear on a prompt arrive with it](./793a_product-s
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
+| 793a2b1a | Dedicated example, product acceptance (`network`) | the delivery as the user sees it, with a note that does not bear on the prompt beside one that does: the session holds only the one, before it acts, and the prompt as typed | Not started | | | |
+| 793d4a1c | Dedicated example (default suite) | the lookup's payload over a crafted payload: a note only the explore half picked is in the payload of any vault with a vocabulary, and a small test vault has none | Not started | | | |
 
 #### 793e6a3 A note delivered earlier in the session is not delivered again
 

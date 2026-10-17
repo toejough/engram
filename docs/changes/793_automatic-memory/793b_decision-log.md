@@ -668,3 +668,19 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   lines either way); leaving out a note that holds control characters (rejected: the note would be lost).
 - **Decided by:** Reviewer (security review of the delivery node's rendering, relayed by the coordinator,
   2026-10-17), accepted by the author.
+
+## 793b44 Only the notes that match are delivered, whole
+
+- **Choice:** a [note](../../GLOSSARY.md#permanent-note) is delivered when the lookup returns it as a matched item (not a
+  chunk, and not picked by the explore half alone), and its body is delivered whole, on one line. There is no cut of
+  the body: the lookup's own limit bounds the number of notes
+  ([793b19 Volume of delivered notes](#793b19-volume-of-delivered-notes)), as it bounds what the agent's own lookup
+  returns, and the agent's own lookup prints whole notes.
+- **Rationale:** an explore pick is a note sampled from the vocabulary to widen what the agent reads, not one that
+  bears on the prompt; delivering it with every prompt would put an unrelated note in the agent's context each time,
+  which [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) does not
+  ask for. A cut of the body would hide the later steps of a runbook, and the scenarios do not need one.
+- **Alternatives:** deliver every non-chunk item of the payload (rejected: it delivers explore picks); cut each body
+  to 400 characters, as the earlier attempt did (rejected: no scenario needs it, and a cut loses what the agent would
+  have read from its own lookup).
+- **Decided by:** Author (default; owner may override).

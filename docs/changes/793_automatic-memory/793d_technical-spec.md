@@ -112,7 +112,9 @@ line for each [note](../../GLOSSARY.md#permanent-note) that bears on the text, i
 dash, the note's file name, its situation in parentheses, a colon, and the note's body on one line. A note bears on
 the text when the lookup of
 [792b24c5 The matched set](../../specs/technical/query-engine.md#792b24c5-the-matched-set) for the text, as its message and as its only phrase,
-returns it as an item that is not a chunk. The lookup's own default limit of
+returns it as an item that is not a chunk and was not picked by the explore half alone
+([792b24c16 Delivering the explore half](../../specs/technical/query-engine.md#792b24c16-delivering-the-explore-half)):
+an explore pick is sampled from the vocabulary, not matched to the text. The lookup's own default limit of
 [792b24c1 Input and defaults](../../specs/technical/query-engine.md#792b24c1-input-and-defaults) bounds the number of
 lines, as it bounds the number of items the agent's own lookup returns
 ([793b19 Volume of delivered notes](./793b_decision-log.md#793b19-volume-of-delivered-notes)). It MUST print nothing
@@ -120,7 +122,7 @@ and fail, naming the cause, when the lookup fails.
 
 Owner: prompt-delivery (a new component; its canonical file at promotion is `prompt-delivery.md`)
 
-Supports: [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios).
+Supports: [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2b1a The notes that bear on a prompt arrive with it](./793a_product-spec.md#793a2b1-uat-scenarios).
 
 #### 793d4a1 Scenarios
 
@@ -134,6 +136,11 @@ Scenario: 793d4a1b A failed lookup fails the command and prints nothing
   Given a lookup that fails
   When the command is given a prompt
   Then it fails with an error that names the lookup's failure, and it prints nothing
+
+Scenario: 793d4a1c A note that only the explore half picked does not bear on the prompt
+  Given a lookup whose payload holds a matched note and a note picked by the explore half alone
+  When the command is given a prompt
+  Then the block names the matched note and not the explore pick
 ```
 
 ### 793d4c Framing the notes of a block as data
