@@ -399,6 +399,18 @@ func (m *machine) noteNames() []string {
 	return names
 }
 
+// noteText returns the text of the note of the machine's vault with a file name.
+func (m *machine) noteText(name string) string {
+	m.t.Helper()
+
+	data, err := os.ReadFile(filepath.Join(m.vault, name))
+	if err != nil {
+		m.t.Fatalf("reading the note %s: %v", name, err)
+	}
+
+	return string(data)
+}
+
 // notes reads the notes of the machine's vault: the files named for a Luhmann ID, which the vault's own README is not.
 func (m *machine) notes() []vaultNote {
 	matches, err := filepath.Glob(filepath.Join(m.vault, "[0-9]*.md"))

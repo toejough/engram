@@ -283,6 +283,51 @@ func Test793a3c1b_ALessonTheAgentSavedItselfIsNotWrittenAgain(t *testing.T) {
 	})
 }
 
+func Test793a3e1a_TheAgentsOwnLookupsAndSavesKeepWorking(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var (
+		staging string
+		chat    *conversation
+	)
+
+	step(t, "Given the user has run engram update, a vault holding a note that says when the staging database is "+
+		"reset, and a session in which the agent may run engram commands", func() {
+		machine.hasRunUpdate("engram")
+
+		staging = machine.learnsFact(stagingReset)
+		chat = machine.startSession("zorblax").converse()
+	})
+
+	var (
+		asked                 *turn
+		saved, whenTheTurnEnd string
+	)
+
+	step(t, "When the user asks the agent in a prompt to look the staging note up with engram query and to save "+
+		"another note with engram learn", func() {
+		asked = chat.say(askToLookUpAndSave)
+		t.Logf("the agent replied %q", asked.reply)
+
+		saved = machine.noteNamed(stagingBackup.slug)
+		whenTheTurnEnd = machine.noteText(saved)
+	})
+
+	step(t, "Then the agent's lookup shows the staging note, and the vault holds the note the agent saved, as the "+
+		"agent wrote it", func() {
+		g.Expect(asked.toolResultsNaming(staging)).To(BeTrue(), "the agent's lookup printed the staging note")
+		g.Expect(whenTheTurnEnd).To(And(ContainSubstring("Monday at 05:00 UTC"), ContainSubstring("source: agent")),
+			"the note the agent saved")
+
+		machine.awaitRecord(chat.session.id, chat.turnEnds)
+
+		g.Expect(machine.noteText(saved)).To(Equal(whenTheTurnEnd), "the note the agent saved, after the judgement")
+	})
+}
+
 // unexported constants.
 const (
 	// askForAGuessAndAPlan makes the agent answer with a guess, a plan and chatter, none of which is a lesson.
@@ -295,6 +340,15 @@ const (
 	askToGuessAndRead = "Before you read anything, say in one sentence which port the Zorblax service listens on, " +
 		"guessing from its name. Then read zorblax.conf with the Read tool. Then say in one sentence which port it " +
 		"really listens on, and say that your first guess was wrong."
+	// askToLookUpAndSave makes the agent look the stagingReset note up with engram query and save the stagingBackup note
+	// with engram learn, as two plain commands: a command with a pipe or a second command in it would be refused.
+	askToLookUpAndSave = "Run these two shell commands, one after the other, each as one plain command with nothing " +
+		"added to it:\n" +
+		"engram query --phrase 'staging database reset schedule' --limit 5\n" +
+		"engram learn fact --slug zorblax-staging-backup --position top --source agent --situation 'testing " +
+		"against the Zorblax staging database' --subject 'the Zorblax staging database' --predicate " +
+		"'is backed up every' --object 'Monday at 05:00 UTC'\n" +
+		"Then reply with one short sentence."
 	// askToRemember asks for a fact to be remembered.
 	askToRemember = "Remember that the Zorblax staging database is reset every Sunday at 03:40 UTC. " +
 		"Reply with one short sentence."
