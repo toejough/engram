@@ -129,6 +129,31 @@ func (m *machine) awaitAutomaticNote(turnEnds time.Time, what string, words ...s
 	return note.name
 }
 
+// awaitChunk waits until engram query, asked as the user asks it, returns a chunk of the conversation that holds every
+// word given, and returns how long after the turn ended it did. It fails the test when no such chunk comes within the
+// bound of the turn's end.
+func (m *machine) awaitChunk(turnEnds time.Time, phrase string, words ...string) time.Duration {
+	m.t.Helper()
+
+	deadline := turnEnds.Add(captureBound)
+
+	for {
+		out := m.engram("query", "--text", phrase, "--phrase", phrase)
+		m.mustSucceed(out, "engram query")
+
+		if chunkHolding(out.stdout, words...) {
+			return max(time.Since(turnEnds), 0)
+		}
+
+		if time.Now().After(deadline) {
+			m.t.Fatalf("engram query returned no chunk holding %v within %s of the turn's end\n%s",
+				words, captureBound, out.stdout)
+		}
+
+		time.Sleep(capturePoll)
+	}
+}
+
 // awaitNote waits until a note of the vault satisfies match, or the bound passes, and returns the note with how long
 // after the turn ended it was written. It fails the test when no note satisfies match in time.
 func (m *machine) awaitNote(turnEnds time.Time, what string, match func(vaultNote) bool) (vaultNote, time.Duration) {
@@ -569,6 +594,22 @@ func (n vaultNote) states(words ...string) bool {
 	}
 
 	return true
+}
+
+// chunkHolding reports whether a payload of engram query has an item of the kind chunk that holds every word, whatever
+// their case: the payload lists one item at each line that begins "  - path: ".
+func chunkHolding(payload string, words ...string) bool {
+	for item := range strings.SplitSeq(payload, "\n  - path: ") {
+		lower := strings.ToLower(item)
+
+		if strings.Contains(item, "kind: chunk") && !slices.ContainsFunc(words, func(word string) bool {
+			return !strings.Contains(lower, strings.ToLower(word))
+		}) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // reportSection returns the lines that an update report lists under a harness ("Claude Code" or "Pi").

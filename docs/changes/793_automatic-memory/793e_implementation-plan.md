@@ -620,7 +620,7 @@ One node for the scenario of [793a2f The conversation becomes searchable memory]
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2f1a | Dedicated example, product acceptance (`network`) | the [agent](./793a_product-spec.md#793a1a-terms) may not run `engram` commands, so the indexing is [automatic memory](./793a_product-spec.md#793a1a-terms)'s; the test asks `engram query` as the user does, and measures the time from the end of the [turn](./793a_product-spec.md#793a1a-terms) to the chunk | | Not started | | | |
+| 793a2f1a | Dedicated example, product acceptance (`network`) | the [agent](./793a_product-spec.md#793a1a-terms) may not run `engram` commands, so the indexing is [automatic memory](./793a_product-spec.md#793a1a-terms)'s; the test asks `engram query` as the user does, and measures the time from the end of the [turn](./793a_product-spec.md#793a1a-terms) to the chunk | | Red | | | |
 | 793d4n1a | Injected and impure interaction (`imptest`) | the index is an injected function: the record's path alone, as an explicit [transcript](../../GLOSSARY.md#transcript), is the evidence | | Not started | | | |
 | 793d4n1b | Dedicated example | a [session](../../GLOSSARY.md#session) with no record, and none at all, fail naming the session and the directory | | Not started | | | |
 | 793d4n1c | Dedicated example | the origins that are swept nothing, and the headless one with and without the flag | | Not started | | | |
