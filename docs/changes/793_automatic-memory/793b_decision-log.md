@@ -397,7 +397,7 @@ Withdrawn: the owner said to follow the guides ([793b91 The documents follow the
 
 ## 793b95 An open question has the guide's elements
 
-Withdrawn: the owner said to follow the guides ([793b91 The documents follow the guides and are held to the minimum sufficient](#793b91-the-documents-follow-the-guides-and-are-held-to-the-minimum-sufficient)), so a question has its context, lettered options, recommendation, blocks and status; a question that blocks nothing is an author choice and is not asked, but is withdrawn to its entry here (`docs/AGENTS.md`).
+Withdrawn: the owner said to follow the guides ([793b91 The documents follow the guides and are held to the minimum sufficient](#793b91-the-documents-follow-the-guides-and-are-held-to-the-minimum-sufficient)), so a question has its context, lettered options, recommendation, blocks and status.
 
 ## 793b96 The order of the groups is a table
 
