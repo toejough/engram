@@ -563,7 +563,8 @@ func (t *turn) toolResultsNaming(note string) bool {
 }
 
 // claudeToken returns the login the live tests use, from the environment or the owner's credential file, and
-// skips the test when there is none. It is handed to the child's environment only, never to a command line or a log.
+// fails the test when there is none (793b53). It is handed to the child's environment only, never to a command line or a
+// log.
 func claudeToken(t *testing.T) string {
 	t.Helper()
 
@@ -584,7 +585,7 @@ func claudeToken(t *testing.T) string {
 		}
 	}
 
-	t.Skipf("%v: set %s, or put it in ~/%s", errNoToken, tokenVariable, credentialFile)
+	t.Fatalf("%v: set %s, or put it in ~/%s", errNoToken, tokenVariable, credentialFile)
 
 	return ""
 }
@@ -615,13 +616,13 @@ func redact(text, secret string) string {
 	return strings.ReplaceAll(text, secret, "[redacted]")
 }
 
-// requireClaude skips the test when Claude Code is not installed.
+// requireClaude fails the test when Claude Code is not installed (793b53).
 func requireClaude(t *testing.T) {
 	t.Helper()
 
 	_, err := exec.LookPath("claude")
 	if err != nil {
-		t.Skip("claude is not on PATH")
+		t.Fatal("claude is not on PATH")
 	}
 }
 
