@@ -576,8 +576,9 @@ func TestTargets_IngestAndQueryChunksEmpty(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	chunks := t.TempDir()
+	vault := t.TempDir()
 
-	stderr := executeForTest(t, []string{"engram", "ingest", "--chunks-dir", chunks})
+	stderr := executeForTest(t, []string{"engram", "ingest", "--chunks-dir", chunks, "--vault", vault})
 	g.Expect(stderr).To(gomega.BeEmpty())
 
 	stderr = executeForTest(t, []string{
