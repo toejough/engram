@@ -430,8 +430,9 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Context:** [793b70 The capture reports its own failures, and nothing times it as a whole](./793b_decision-log.md#793b70-the-capture-reports-its-own-failures-and-nothing-times-it-as-a-whole) measured 147 [notes](../../GLOSSARY.md#permanent-note) of the live runs, written 0.9 to 3.9 seconds after the [turn](./793a_product-spec.md#793a1a-terms)
   ended, and enforces no bound over the chain.
 - **Options:** (a) Keep the 2 minutes of [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent). (b) Say 30 seconds. (c) Say 10 seconds.
-- **Recommendation:** (a): the number is the promise under load, when the model's call may take its 60 seconds and the
-  commands wait for a busy machine; (b) and (c) would be broken by the first slow call and nothing enforces them.
+- **Recommendation:** (a): the number is the promise under load, when the model's call may take its 60 seconds and each
+  command its 30, which together are the 2 minutes; (b) and (c) would be broken by the first slow call and nothing
+  enforces them.
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b70 The capture reports its own failures, and nothing times it as a whole](./793b_decision-log.md#793b70-the-capture-reports-its-own-failures-and-nothing-times-it-as-a-whole).
 

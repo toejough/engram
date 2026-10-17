@@ -1196,8 +1196,9 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   from the event: the judgement, the model's call and the writing. A step that fails, because a command exits with other
   than 0 or prints what is not a request, or a call is ended or rejected, or the model gives no text, is reported to
   the writing as a `failure` of up to 300 characters that names the step, and the writing records it as failed. The model's
-  call is bounded by the 60 seconds of the request, the commands by the host's own limit, and no timer bounds the
-  chain as a whole.
+  call is bounded by the 60 seconds of the request and each command by the 30 seconds that the host gives a process
+  call unless it is told otherwise, so the longest the chain can take, 30 + 60 + 30 seconds, is the 2 minutes of the
+  product; no timer bounds the chain as a whole.
 - **Rationale:** [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) is kept by stepping aside, and a record of the failure is what lets the user see
   that a write did not happen. In 147 [notes](../../GLOSSARY.md#permanent-note) written by the live runs of this change, the note was in the [vault](../../GLOSSARY.md#vault) between
   0.9 and 3.9 seconds after the turn ended (median 1.9, 90th percentile 2.8), so the 2 minutes of
