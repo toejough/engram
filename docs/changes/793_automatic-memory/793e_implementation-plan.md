@@ -2,8 +2,8 @@
 
 Filled depth first ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)): a node's catalog rows are written when step 3 reaches the node, and the node is worked
 through step 5 before the next node starts. Nothing below is final until the last node is. The sections follow
-the [implementation plan guide](../../IMPLEMENTATION-PLAN-GUIDE.md#default-structure). Implementation shape is
-added with the first node's step 3. The guide's parallel worktree method is omitted because the nodes are
+the [implementation plan guide](../../IMPLEMENTATION-PLAN-GUIDE.md#default-structure). Implementation shape
+([793e8 Implementation shape](#793e8-implementation-shape)) was added with the first node's step 3. The guide's parallel worktree method is omitted because the nodes are
 worked in sequence on branch `feat/automatic-memory`.
 
 ## 793e1 Purpose
@@ -11,6 +11,20 @@ worked in sequence on branch `feat/automatic-memory`.
 Source specifications: [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec) and [793d Automatic Memory - Technical Spec](./793d_technical-spec.md#automatic-memory---technical-spec). Scope: the six product requirements and three
 interactions of the first, taken through the owner's steps 2 to 5 ([793f5 How this change applies it](./793f_algorithm.md#793f5-how-this-change-applies-it)) in the order of
 [793e4 Depth-first order and dependency tree](#793e4-depth-first-order-and-dependency-tree).
+
+## 793e8 Implementation shape
+
+The shape the first node's step 3 added, which later nodes extend:
+
+- `agent-instructions/mods/engram-memory/`: the mod, three files, deployed by `engram update` to Claude Code's skills
+  directory ([793d1 Orientation](./793d_technical-spec.md#793d1-orientation)).
+- `internal/auto/`: a new package, the logic of automatic memory (the block of the notes that bear on a prompt). Pure:
+  every collaborator is injected.
+- `internal/cli/auto.go`: the command group `engram auto` and its command `deliver`, and the adapters from the
+  collaborators of `internal/auto` to the query engine and the file system.
+- `internal/update/update.go`: the plan of the mods of the source, appended to the plan of the skills.
+- `dev/acceptance/`: the tests that drive a real Claude Code session, under the `network` build tag; `dev/targs.go`:
+  the `acceptance` target. No new Go dependency.
 
 ## 793e2 Test methods
 
@@ -41,6 +55,12 @@ with a clear reason when its isolated run has no credential to log in with.
 
 Every test or check that runs `engram` or `claude`, whatever its classification, follows
 [793f7 Test isolation](./793f_algorithm.md#793f7-test-isolation).
+
+The first row of a node is its product scenario. Its red commit comes first, before the code of the node exists; the
+technical rows below it are then worked in order, each through its own red, green and refactor; and its green and
+refactor commits come last, when the technical rows are `Done` and the scenario passes. The tests that drive a real
+Claude Code session live in `dev/acceptance` under the `network` build tag, run with `targ acceptance` (optionally
+`--run <regular expression>`), and skip with a clear reason when `claude` or a login is missing.
 
 ## 793e3 Test status
 
@@ -116,6 +136,11 @@ Takes [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-e
 #### 793e6a1 The next session has memory after one engram update
 
 Takes [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios).
+
+| Work | Classification | Why | Status |
+| --- | --- | --- | --- |
+| `targ acceptance`, which runs the tests of `dev/acceptance` with the `network` build tag, and `lint-dev` over that package | Non-test action | the scenario tests start real Claude Code sessions, which no default target may run, and the lint gate must still see them | Done |
+| The acceptance harness: an isolated machine (home, vault, GOBIN, a binary built from a git-less copy of the module), a driver for `claude -p` sessions and a reader of the session's record | Non-test action | every scenario test is written over it, and its isolation is the rule of [793f7 Test isolation](./793f_algorithm.md#793f7-test-isolation) | Done |
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |

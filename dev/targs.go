@@ -45,16 +45,24 @@ func init() {
 	targ.Register(targ.Targ(runEval).
 		Name("eval").
 		Description("Run the memory eval harness for one arm (nothing|skills-only|current-state)"))
+
+	targ.Register(acceptanceTarget)
 }
 
 // unexported constants.
 const (
+	// acceptancePackage holds the tests that drive real Claude Code sessions in isolated homes (793b9); they carry
+	// the network build tag, so no default target runs them.
+	acceptancePackage = "./dev/acceptance"
+	acceptanceTags    = "network"
 	evalOutDirPerm    = 0o750
 	targSourcePackage = "github.com/toejough/targ/dev"
 )
 
 // unexported variables.
 var (
+	acceptanceTarget = targ.Targ(runAcceptance).Name("acceptance").
+				Description("Run the tests that drive real Claude Code sessions in isolated homes (they cost money)")
 	// The aggregates below mirror Targ's dependencies, order and mode with Engram's nil targets in place of Targ's
 	// (794b4a); Test794b4a1c fails when Targ's aggregates change. The dev package's tests carry build tags the
 	// shared test targets do not pass, so check-for-fail and check-full also run them here.
@@ -134,10 +142,25 @@ var (
 	watchTarget = targ.Targ(watch).Name("watch").Description(targdev.Watch.GetDescription())
 )
 
+// acceptanceArgs holds the optional test filter of targ acceptance.
+type acceptanceArgs struct {
+	Run string `targ:"flag,name=run,desc=run only the tests whose names match this regular expression"`
+}
+
 // evalArgs holds the positional arm name and optional trials count for targ eval.
 type evalArgs struct {
 	Arm    string `targ:"positional,placeholder=ARM,desc=arm name: nothing|skills-only|current-state"`
 	Trials int    `targ:"positional,default=1,placeholder=TRIALS,desc=number of trials per scenario (default 1)"`
+}
+
+// acceptanceTestArgs is the go test command line of targ acceptance.
+func acceptanceTestArgs(args acceptanceArgs) []string {
+	argv := []string{"test", "-count=1", "-timeout=30m", "-v", "-tags=" + acceptanceTags}
+	if args.Run != "" {
+		argv = append(argv, "-run", args.Run)
+	}
+
+	return append(argv, acceptancePackage+"/...")
 }
 
 // hasRelevantChanges mirrors Targ's filter (dev/targets.go hasRelevantChanges): generated files and coverage output
@@ -153,17 +176,17 @@ func hasRelevantChanges(changes targ.ChangeSet) bool {
 // lintDev lints the dev package with the build tags its files need. Targ's lint targets use no tags, so they skip
 // every file in this package; this is the same lint configuration with the tags added.
 func lintDev(ctx context.Context) error {
-	targ.Print(ctx, "Linting the dev package (tags=targ,integration)...\n")
+	targ.Print(ctx, "Linting the dev package and the acceptance tests (tags=targ,integration,network)...\n")
 
 	err := targ.RunContext(ctx,
 		"golangci-lint", "run",
 		"-c", "dev/golangci-lint.toml",
-		"--build-tags", "targ,integration",
+		"--build-tags", "targ,integration,"+acceptanceTags,
 		"--fix=false",
 		"--max-issues-per-linter=0",
 		"--max-same-issues=0",
 		"--allow-parallel-runners",
-		"./dev",
+		"./dev", acceptancePackage,
 	)
 	if err != nil {
 		return fmt.Errorf("linting the dev package: %w", err)
@@ -184,6 +207,17 @@ func registerTargets(deregister func(string) error, register func(...any)) error
 	register(checkNilsFixTarget, checkNilsForFailTarget, checkNilsTarget,
 		checkTarget, checkForFailTarget, checkFullTarget, mutateTarget, watchTarget, lintDevTarget)
 	register(sharedTargetList()...)
+
+	return nil
+}
+
+// runAcceptance runs the product-scenario tests and the technical tests that start a real Claude Code process. They
+// are not part of any check: they cost money, need the network and a login, and start many processes.
+func runAcceptance(ctx context.Context, args acceptanceArgs) error {
+	err := targ.RunContext(ctx, "go", acceptanceTestArgs(args)...)
+	if err != nil {
+		return fmt.Errorf("running the acceptance tests: %w", err)
+	}
 
 	return nil
 }
