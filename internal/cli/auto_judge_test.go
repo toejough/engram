@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 
@@ -126,6 +128,57 @@ func Test793d4g1h_RunAutoJudge_TheNearestNotesAreInTheRequest(t *testing.T) {
 		"(testing against the Zorblax staging database): " +
 		"Information learned: when in testing against the Zorblax staging database, " +
 		"the Zorblax staging database is reset every Sunday at 03:40 UTC.\n</notes>"))
+}
+
+func Test793d4g1q_RunAutoJudge_ALongRecordIsJudgedInTime(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// 350 messages of about 3,000 characters: a record of 1 MB
+	const (
+		messages    = 350
+		messageSize = 3000
+		bound       = time.Second
+	)
+
+	const sentence = "the build of the zorblax project takes a while "
+
+	filler := strings.Repeat(sentence, messageSize/len(sentence))
+	rows := make([]string, 0, messages+1)
+
+	for index := range messages {
+		text := strconv.Itoa(index) + " " + filler
+
+		if index%2 == 0 {
+			rows = append(rows, `{"type":"user","message":{"role":"user","content":"prompt `+text+`"}}`)
+		} else {
+			rows = append(rows, `{"type":"assistant","message":{"role":"assistant",`+
+				`"content":[{"type":"text","text":"answer `+text+`"}]}}`)
+		}
+	}
+
+	rows = append(rows, `{"type":"user","message":{"role":"user","content":"No - build with make zorblax-build."}}`)
+
+	sessions := t.TempDir()
+	record := strings.Join(rows, "\n") + "\n"
+	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
+	g.Expect(len(record)).To(BeNumerically(">", 1_000_000), "a record of 1 MB")
+
+	var out bytes.Buffer
+
+	started := time.Now()
+	err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: sessions},
+		cli.AutoJudgeDeps{
+			Stdin:    strings.NewReader(`{"origin":"composer","session":"` + sessionID + `","answer":"Understood."}`),
+			Query:    queryOver(newQueryDeps(newInMemoryFS())),
+			ReadDir:  os.ReadDir,
+			ReadFile: os.ReadFile,
+		}, &out)
+	elapsed := time.Since(started)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(out.String()).To(ContainSubstring("User: No - build with make zorblax-build."))
+	g.Expect(elapsed).To(BeNumerically("<", bound), "the request of a record of 1 MB")
 }
 
 func Test793d4g1i_RunAutoJudge_AFailedLookupFailsTheCommandAndPrintsNothing(t *testing.T) {
