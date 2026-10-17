@@ -1200,8 +1200,8 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   call unless it is told otherwise, so the longest the chain can take, 30 + 60 + 30 seconds, is the 2 minutes of the
   product; no timer bounds the chain as a whole.
 - **Rationale:** [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) is kept by stepping aside, and a record of the failure is what lets the user see
-  that a write did not happen. In 147 [notes](../../GLOSSARY.md#permanent-note) written by the live runs of this change, the note was in the [vault](../../GLOSSARY.md#vault) between
-  0.9 and 3.9 seconds after the turn ended (median 1.9, 90th percentile 2.8), so the 2 minutes of
+  that a write did not happen. In 246 [notes](../../GLOSSARY.md#permanent-note) written by the live runs of this change, four [sessions](../../GLOSSARY.md#session) at a time at most, the note was in the [vault](../../GLOSSARY.md#vault)
+  between 0.9 and 6.0 seconds after the turn ended (median 1.8, 90th percentile 2.9), so the 2 minutes of
   [793b18 Writing finishes within 2 minutes of a turn](#793b18-writing-finishes-within-2-minutes-of-a-turn) is a bound under load and not the usual time.
 - **Alternatives:** a timer of 2 minutes over the chain (rejected: it would end a write that is about to finish, and
   nothing in the [session](../../GLOSSARY.md#session) waits for it); a retry of a failed step (rejected: a second model call, and the next turn
