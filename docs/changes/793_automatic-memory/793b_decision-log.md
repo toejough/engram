@@ -1578,13 +1578,14 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 - **Rationale:** the tally of the last runs of [793a2c1g A credential in the turn is not in the note](./793a_product-spec.md#793a2c1-uat-scenarios) was 8 of 10, below the bar
   of [793b86 The acceptance run takes a count](#793b86-the-acceptance-run-takes-a-count), and both misses wrote a rule against keeping credentials, from the agent's remark that it left
   the token and the password out, and no [note](../../GLOSSARY.md#permanent-note) of the deploy. The probe of [793b88 The judgement is measured by a probe of its own](#793b88-the-judgement-is-measured-by-a-probe-of-its-own) showed it over the [turn](./793a_product-spec.md#793a1a-terms) of that row: the judgement
-  alone gave the lesson of the deploy in 48 of 60 runs, and, when the agent said that it had saved nothing because it
-  keeps no secret, in 4 of 60. A request that the agent says it did not save, as in the new
-  [793a2c1i A request to remember is written when the agent says it did not save it](./793a_product-spec.md#793a2c1-uat-scenarios), gave a lesson in 7 of 60 runs: the instructions took the word of the agent as the
-  end of the matter, where [automatic memory](./793a_product-spec.md#793a1a-terms) exists for what the agent does not save. With the two phrases the same
-  runs gave the lesson in 60 of 60 (the turn of the row), 60 of 60 (a request that the agent did not save) and 50 of 60
-  (the agent's refusal), and the other fixtures did not move: the covered lesson 60 of 60, the thanks and the chatter
-  none in 60 of 60.
+  alone gave the lesson of the deploy in 52 of 60 runs, and, when the agent said that it had saved nothing because it
+  keeps no secret, in 2 of 60. A request that the agent says it did not save, as in the new
+  [793a2c1i A request to remember is written when the agent says it did not save it](./793a_product-spec.md#793a2c1-uat-scenarios), gave a lesson in 14 of 60 runs and the row passed 0 of 10 runs: the
+  instructions took the word of the agent as the end of the matter, where [automatic memory](./793a_product-spec.md#793a1a-terms) exists for what the agent
+  does not save. With the two phrases the same runs gave the lesson in 60 of 60 (the turn of the row), 60 of 60 (a
+  request that the agent did not save) and 45 of 60 (the agent's refusal, 5 more with a lesson of other words), the
+  rows passed 10 of 10 and 10 of 10 runs, and the other fixtures did not move: the covered lesson 60 of 60 (56 before), the
+  thanks and the chatter none in 60 of 60.
 - **Alternatives:** a sentence about the secret placed elsewhere (rejected: before the last line of the instructions, or
   as a clause of the first paragraph, it lowered the covered lesson to 52 and 56 of 60); a sentence that what the agent
   says about what it saves is no lesson (rejected: the credential row fell to 45 of 60); the phrase about the secret

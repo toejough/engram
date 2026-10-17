@@ -200,7 +200,7 @@ graph TD
     n793e6g16 --> n793e6g17
     n793e6g18["793e6g18 The documents say what the group does<br/>Complete"]
     n793e6g17 --> n793e6g18
-    n793e6g19["793e6g19 A request to remember is written whatever the agent says<br/>Ready"]
+    n793e6g19["793e6g19 A request to remember is written whatever the agent says<br/>Complete"]
     n793e6g18 --> n793e6g19
     n793e6g19 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
@@ -802,7 +802,7 @@ Takes what the last tally of the live rows found, which is not a finding of the 
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1i | Dedicated example, product acceptance (`network`) | the promise as the user sees it: a real [session](../../GLOSSARY.md#session) in which the agent is asked to remember a fact and not to save it, says that it did not, and a note of the fact is in the [vault](../../GLOSSARY.md#vault) within the bound, marked as written automatically | | Not started | | | |
+| 793a2c1i | Dedicated example, product acceptance (`network`) | the promise as the user sees it: a real [session](../../GLOSSARY.md#session) in which the agent is asked to remember a fact and not to save it, says that it did not, and a note of the fact is in the [vault](../../GLOSSARY.md#vault) within the bound, marked as written automatically | | Done | 22f3ac26 | f010be6f | 15b9b340 |
 
 ### 793e6e The conversation becomes searchable memory
 
