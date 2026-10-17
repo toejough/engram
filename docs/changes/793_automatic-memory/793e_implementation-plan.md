@@ -210,7 +210,7 @@ Takes [793a2a1e A vault that does not exist is not created](./793a_product-spec.
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2a1e | Dedicated example, product acceptance (`network`) | the promise as the user sees it: after the vault is removed a prompt is answered and the vault is still not there | Green-all | d4336a43 | e924dc61 | |
+| 793a2a1e | Dedicated example, product acceptance (`network`) | the promise as the user sees it: after the vault is removed a prompt is answered and the vault is still not there | Green-all | d4336a43 | e924dc61 | 151f36ea |
 | 793d4e1a | Dedicated example (default suite) | the dispatch of the command through `cli.Targets` over a real temporary path: the first-use step is in the target's wiring, not in the command, so only a dispatch can show whether it runs | Done | c0aa0717 | e924dc61 | 81f8f93b |
 
 #### 793e6a8 Pi gets no automatic memory
@@ -219,6 +219,8 @@ Takes [793a2a1d Pi gets no automatic memory](./793a_product-spec.md#793a2a1-uat-
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
+| 793a2a1d | Dedicated example, product acceptance (`network`) | the install as the user sees it on a machine with both harnesses: the report and the directories of Pi hold none of the mod (a real `engram update`, no model call) | Not started | | | |
+| 793d4b1d | Dedicated example (default suite) | the gate between the harnesses over the plan: finite and exact | Not started | | | |
 
 #### 793e6a9 A dry run turns nothing on
 

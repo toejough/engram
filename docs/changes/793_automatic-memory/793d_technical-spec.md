@@ -275,21 +275,22 @@ Scenario: 793d4e1a The delivery command creates no vault
 ### 793d4b Deploying the mods of the source
 
 Requirement: 793d4b The harness-deploy-sync MUST plan one copy for every file under `agent-instructions/mods/` of the
-source for every harness it updates, keeping the file's path relative to that directory and naming the file's
-top-level directory as the skill directory it is deployed in, so that a mod is deployed, linked, reported and removed
-as a skill directory is. It MUST plan none, without an error, when that directory does not exist.
+source for Claude Code, keeping the file's path relative to that directory and naming the file's top-level directory
+as the skill directory it is deployed in, so that a mod is deployed, linked, reported and removed as a skill directory
+is. It MUST plan none for [Pi](../../GLOSSARY.md#harness), and none, without an error, when that directory does not
+exist.
 
 Owner: [harness-deploy-sync](../../specs/technical/harness-deploy-sync.md)
 
-Supports: [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios).
+Supports: [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2a1d Pi gets no automatic memory](./793a_product-spec.md#793a2a1-uat-scenarios).
 
 #### 793d4b1 Scenarios
 
 ```gherkin
-Scenario: 793d4b1a Every file of a mod is planned for the harness
+Scenario: 793d4b1a Every file of a mod is planned for Claude Code
   Given a source whose agent-instructions/mods holds the mod engram-memory with three files
-  When the mod copies are planned for a harness
-  Then each file is planned once under the harness's skills directory, in the engram-memory directory
+  When the mod copies are planned for Claude Code
+  Then each file is planned once under Claude Code's skills directory, in the engram-memory directory
 
 Scenario: 793d4b1b A source with no mods plans none
   Given a source with no agent-instructions/mods directory
@@ -300,6 +301,11 @@ Scenario: 793d4b1c An update deploys and links the mod
   Given a checkout whose agent-instructions/mods holds the mod engram-memory, and a machine with Claude Code
   When engram update runs
   Then the engram-owned root holds the mod's files, and Claude Code's skills directory links engram-memory to them
+
+Scenario: 793d4b1d Pi is planned no mod
+  Given a source whose agent-instructions/mods holds the mod engram-memory, and the harnesses Claude Code and Pi
+  When the mod copies are planned
+  Then they are planned for Claude Code only
 ```
 
 ## 793d5 Product-scenario mapping
@@ -382,6 +388,19 @@ Scenario: 793a2a1e A vault that does not exist is not created
 ```
 
 Realized by [793d4e Modified: First-use gating](#793d4e-modified-first-use-gating) (the command runs without the first-use step, so it creates nothing) with [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) (the lookup of a missing vault fails and the command prints nothing) and [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow) (the mod adds nothing, and the prompt goes on).
+
+### 793d5g Mapping of 793a2a1d
+
+The product scenario [793a2a1d Pi gets no automatic memory](./793a_product-spec.md#793a2a1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2a1d Pi gets no automatic memory
+  Given a machine with both Claude Code and Pi
+  When the user runs engram update
+  Then the report lists the automatic memory under Claude Code and not under Pi, and nothing of it is installed under ~/.pi
+```
+
+Realized by [793d4b Deploying the mods of the source](#793d4b-deploying-the-mods-of-the-source): the mods are planned for Claude Code only, so the report of Pi lists the skills alone and Pi's directories hold none of the mod.
 
 ## 793d6 Recommended impact
 
