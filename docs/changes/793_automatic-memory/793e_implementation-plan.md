@@ -39,14 +39,14 @@ The first row of a node is its product scenario. Its red commit comes first, bef
 
 `Not started` → `Red` → `Green-all` → `Done` (`793b13`). Each phase's commit sets the row's Status; the Red, Green and Refactor columns hold those commits' hashes, each filled in by the next commit.
 
-## 793e4 Depth-first order and dependency tree
+## 793e4 Depth-first order
 
-A node is one product scenario, or a tightly coupled pair, taken through steps 3 to 5 before the next node starts (`793b38`). The groups, in the order of the catalog (`793b28`): step 2 writes a group's scenarios when the group is reached, and each scenario is a node of its group, replacing the group's node in the same place with the same prerequisites. The first node is the first scenario of `793a2a`, which needs the first delivery of `793a2b` to be visible, and the first group also takes the 8-second hold; each later node needs the previous node's committed result, because an interaction joins a capability to the ones before it.
+A node is one product scenario, or a tightly coupled pair, taken through steps 3 to 5 before the next node starts (`793b38`). The groups, in the order of the catalog (`793b28`): step 2 writes a group's scenarios when the group is reached, and each scenario is a node of its group, replacing the group's node in the same place with the same prerequisites. The first node is the first scenario of `793a2a`, which needs the first delivery of `793a2b` to be visible: the install is only visible to the user when delivery works in a new [session](../../GLOSSARY.md#session). The first group also takes the 8-second hold, because a delivery must not hold a [prompt](./793a_product-spec.md#793a1a-terms) longer than that from the first one on (`793b28` has the reasons for the rest of the order and the orders rejected). Each later node needs the previous node's committed result, because an interaction joins a capability to the ones before it.
 
 | Group | Requirements | Interactions | Status |
 | --- | --- | --- | --- |
 | `793e6a` | `793a2a`, `793a2b` and the 8-second hold of `793a2d` | none | Complete |
-| `793e6b` | `793a2c`, and the clause of `793a2d` about its own [sessions](../../GLOSSARY.md#session) (`793b58`) | `793a3a`, `793a3c`, `793a3e` | Complete |
+| `793e6b` | `793a2c`, and the clause of `793a2d` about its own sessions (`793b58`) | `793a3a`, `793a3c`, `793a3e` | Complete |
 | `793e6g` | the defects the second group's one review round found in `793a2c`, its interactions and its technical requirements | none | Complete |
 | `793e6e` | `793a2f` | none | Ready |
 | `793e6c` | the rest of `793a2d`, without the clause about its own sessions | none | Blocked by: `793e6e` |
@@ -55,67 +55,65 @@ A node is one product scenario, or a tightly coupled pair, taken through steps 3
 
 ## 793e9 Dependency graph
 
-The graph is derived from the catalog of `793e6` and the components of `793d`, not from the order of `793e4`: an arrow from A to B means that B reuses what A built (a component, a scenario, the acceptance [harness](../../GLOSSARY.md#harness) or a record format), so B could not be written without A; an arrow that follows from two others is left out.
+The graph is derived from the catalog of `793e6` and the components of `793d`: an arrow from A to B means that B reuses what A built (a component, a scenario, the acceptance [harness](../../GLOSSARY.md#harness) or a record format), so B could not be written without A; an arrow that follows from two others is left out. The label of a node ends with its status, as in `793e5`.
 
 ```mermaid
 flowchart TD
-    a1[793e6a1 Memory after one update] --> a2[793e6a2 Notes arrive with the prompt]
-    a2 --> a3[793e6a3 A delivered note is not repeated]
-    a3 --> a4[793e6a4 A note looked up is not delivered]
-    a4 --> a5[793e6a5 A prompt that matches no note]
-    a1 --> a6[793e6a6 A slow lookup holds 8 seconds at most] & a7[793e6a7 A missing vault is not created] & a8[793e6a8 Pi gets no automatic memory] & a9[793e6a9 A dry run turns nothing on] & a10[793e6a10 A second update delivers once] & a11[793e6a11 Conformance check] & a12[793e6a12 JavaScript parse gate]
-    a4 --> b1[793e6b1 A correction becomes a note]
-    b1 --> b2[793e6b2 A request to remember] & b3[793e6b3 A confirmed approach] & b4[793e6b4 A self correction] & b5[793e6b5 An approach that succeeded] & b6[793e6b6 Guesses and chatter write nothing] & b7[793e6b7 A credential is not in the note] & b10[793e6b10 Agent commands keep working] & b11[793e6b11 A written note is delivered later] & b12[793e6b12 A second update writes once] & b13[793e6b13 No write to a missing vault] & b14[793e6b14 No session of its own]
+    a1[793e6a1 Memory after one update<br/>Complete] --> a2[793e6a2 Notes arrive with the prompt<br/>Complete]
+    a2 --> a3[793e6a3 A delivered note is not repeated<br/>Complete]
+    a3 --> a4[793e6a4 A note looked up is not delivered<br/>Complete]
+    a4 --> a5[793e6a5 A prompt that matches no note<br/>Complete]
+    a1 --> a6[793e6a6 A slow lookup holds 8 seconds at most<br/>Complete] & a7[793e6a7 A missing vault is not created<br/>Complete] & a8[793e6a8 Pi gets no automatic memory<br/>Complete] & a9[793e6a9 A dry run turns nothing on<br/>Complete] & a10[793e6a10 A second update delivers once<br/>Complete] & a11[793e6a11 Conformance check<br/>Complete] & a12[793e6a12 JavaScript parse gate<br/>Complete]
+    a4 --> b1[793e6b1 A correction becomes a note<br/>Complete]
+    b1 --> b2[793e6b2 A request to remember<br/>Complete] & b3[793e6b3 A confirmed approach<br/>Complete] & b4[793e6b4 A self correction<br/>Complete] & b5[793e6b5 An approach that succeeded<br/>Complete] & b6[793e6b6 Guesses and chatter write nothing<br/>Complete] & b7[793e6b7 A credential is not in the note<br/>Complete] & b10[793e6b10 Agent commands keep working<br/>Complete] & b11[793e6b11 A written note is delivered later<br/>Complete] & b12[793e6b12 A second update writes once<br/>Complete] & b13[793e6b13 No write to a missing vault<br/>Complete] & b14[793e6b14 No session of its own<br/>Complete]
     a10 --> b12
     a7 --> b13
-    b6 --> b8[793e6b8 A covered lesson is not rewritten] --> b9[793e6b9 A saved lesson is not rewritten]
-    b14 --> b15[793e6b15 Branches found by coverage]
+    b6 --> b8[793e6b8 A covered lesson is not rewritten<br/>Complete] --> b9[793e6b9 A saved lesson is not rewritten<br/>Complete]
+    b14 --> b15[793e6b15 Branches found by coverage<br/>Complete]
     b6 --> b15
-    b15 --> g1[793e6g1 Harness rows are no prompt]
+    b15 --> g1[793e6g1 Harness rows are no prompt<br/>Complete]
     b14 --> g1
-    g1 --> g2[793e6g2 Record read once] --> g3[793e6g3 A turn found by its text]
+    g1 --> g2[793e6g2 Record read once<br/>Complete] --> g3[793e6g3 A turn found by its text<br/>Complete]
     b7 --> g2
-    g2 --> g4[793e6g4 Instructions are the system]
+    g2 --> g4[793e6g4 Instructions are the system<br/>Complete]
     b8 --> g4
-    b7 --> g5[793e6g5 Redaction names and promise] --> g6[793e6g6 Lesson fields are one line]
-    b1 --> g7[793e6g7 Automatic mark in the line]
-    g6 --> g8[793e6g8 Redact whole after normalizing]
+    b7 --> g5[793e6g5 Redaction names and promise<br/>Complete] --> g6[793e6g6 Lesson fields are one line<br/>Complete]
+    b1 --> g7[793e6g7 Automatic mark in the line<br/>Complete]
+    g6 --> g8[793e6g8 Redact whole after normalizing<br/>Complete]
     g2 --> g8
-    b13 --> g9[793e6g9 No vault or record fails]
-    b6 --> g10[793e6g10 A failure is recorded once]
-    b14 --> g11[793e6g11 Headless prompts are opt in]
-    b1 --> g12[793e6g12 Bounds for each stage]
-    a1 --> g13[793e6g13 Acceptance run takes a count]
-    b6 --> g14[793e6g14 A thanks writes nothing]
+    b13 --> g9[793e6g9 No vault or record fails<br/>Complete]
+    b6 --> g10[793e6g10 A failure is recorded once<br/>Complete]
+    b14 --> g11[793e6g11 Headless prompts are opt in<br/>Complete]
+    b1 --> g12[793e6g12 Bounds for each stage<br/>Complete]
+    a1 --> g13[793e6g13 Acceptance run takes a count<br/>Complete]
+    b6 --> g14[793e6g14 A thanks writes nothing<br/>Complete]
     g13 --> g14
-    b8 --> g15[793e6g15 A different lesson is written]
+    b8 --> g15[793e6g15 A different lesson is written<br/>Complete]
     g13 --> g15
-    g11 --> g16[793e6g16 A notification turn is not judged]
+    g11 --> g16[793e6g16 A notification turn is not judged<br/>Complete]
     g13 --> g16
-    g13 --> g17[793e6g17 Tally of runs and probe]
+    g13 --> g17[793e6g17 Tally of runs and probe<br/>Complete]
     g14 --> g17
-    g11 --> g18[793e6g18 Documents and decisions]
+    g11 --> g18[793e6g18 Documents and decisions<br/>Complete]
     b6 --> g18
-    b2 --> g19[793e6g19 A request to remember is always written]
+    b2 --> g19[793e6g19 A request to remember is always written<br/>Complete]
     g14 --> g19
     g17 --> g19
-    g12 --> e6[793e6e Searchable conversation]
-    a6 --> c6[793e6c Never in the way]
+    g12 --> e6[793e6e Searchable conversation<br/>Ready]
+    a6 --> c6[793e6c Never in the way<br/>Blocked by: 793e6e]
     g12 --> c6
-    g10 --> d6[793e6d The user sees what it did]
-    a2 --> f6[793e6f Delivery merges the parent vault]
-    classDef done fill:#d8f0dc,stroke:#2e7d32,color:#000
+    g10 --> d6[793e6d The user sees what it did<br/>Blocked by: 793e6c]
+    a2 --> f6[793e6f Delivery merges the parent vault<br/>Blocked by: 793e6d]
+    classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
-    classDef planned fill:#dde3f7,stroke:#3949ab,color:#000
-    classDef deferred fill:#eeeeee,stroke:#757575,color:#000,stroke-dasharray:5 5
-    class a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12 done
-    class b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,b15 done
-    class g1,g2,g3,g4,g5,g6,g7,g8,g9,g10,g11,g12,g13,g14,g15,g16,g17,g18,g19 done
-    class e6,c6,d6 planned
-    class f6 deferred
+    classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
+    classDef blocked fill:#eeeeee,stroke:#757575,color:#000,stroke-dasharray:5 5
+    class a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,b15,g1,g2,g3,g4,g5,g6,g7,g8,g9,g10,g11,g12,g13,g14,g15,g16,g17,g18,g19 complete
+    class e6 ready
+    class c6,d6,f6 blocked
 ```
 
-Green is done, with its three commits recorded; blue is planned, with no rows yet; dashed grey is deferred (`793e6f`); yellow, in progress, is not in use now. The order of `793e4` stays authoritative.
+Colour follows the status: green `Complete`, blue `Ready`, dashed grey `Blocked by`, yellow `In progress` (none now). A group is `Blocked by` the previous group of the order of `793e4`, which adds no arrow: the order is the rule that a later group needs the previous group's committed result.
 
 ## 793e5 Node status
 
@@ -131,7 +129,7 @@ Rows are added when step 3 reaches a node, and worked top to bottom, one node at
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
-| `targ acceptance`: runs `dev/acceptance` with the `network` tag, at most 4 at once (`793b49`), and `lint-dev` over that package | Non-test action | real Claude Code [sessions](../../GLOSSARY.md#session) are no default target's to run; the timed ones fail when 8 or more run at once | Done |
+| `targ acceptance`: runs `dev/acceptance` with the `network` tag, at most 4 at once (`793b49`), and `lint-dev` over that package | Non-test action | real Claude Code [sessions](../../GLOSSARY.md#session) are no default target's to run, and the lint gate must still see them; the timed ones fail when 8 or more run at once | Done |
 | The acceptance [harness](../../GLOSSARY.md#harness): an isolated machine (home, [vault](../../GLOSSARY.md#vault), GOBIN, a binary built from a git-less copy of the module), a driver for `claude -p` sessions and a reader of the session's record | Non-test action | every scenario test is written over it; its isolation is `793f7` | Done |
 
 | Gherkin | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
@@ -168,9 +166,9 @@ Rows are added when step 3 reaches a node, and worked top to bottom, one node at
 | 793d2a1f | Dedicated example, real dependency (`network`) | output that is not a block adds nothing even on exit 0 | Done | 95dc389d | 5a4bb9dc | 3f1a1ffd |
 | 793d2a1g | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the 7 seconds bound the whole hook; node runs the mod against a stand-in host whose ID call never answers (a live session cannot stall there), and the event passes unchanged after one 7-second timer without running the command | Done | 9d0f9d36 | e86e4625 | efeaa801 |
 | 793d4d1a | Dedicated example (default suite) | what counts as held: the blocks delivered beside prompts and nothing else, over records of the real format | Done | 0d78b09e | 9bdc5e9e | a03c7312 |
-| 793d4d1b | Dedicated example (default suite) | the record is found in a project's subdirectory of the session-log directory | Done | b9fb12de | 02318295 | 0bfe1688 |
+| 793d4d1b | Dedicated example (default suite) | the record is found in a project's subdirectory of the session-log directory, over a real temporary directory | Done | b9fb12de | 02318295 | 0bfe1688 |
 | 793d4d1c | Dedicated example (default suite) | boundaries: no record, an ID that would leave the directory | Done | fce4516a | a460368a | 0bfe1688 |
-| 793d4a1d | Dedicated example (default suite) | the delivery leaves out a held note | Done | cf03701a | b9ec02b7 | 0bfe1688 |
+| 793d4a1d | Dedicated example (default suite) | the delivery leaves out a held note, over an in-memory vault and a real temporary session-log directory | Done | cf03701a | b9ec02b7 | 0bfe1688 |
 | 793d4d1a (amended) | Dedicated example (default suite) | only the note lines of delivered blocks hold a note, by file name; situations, bodies and other hooks' entries hold none | Done | d183d346 | 642adbd6 | 642a4c9a |
 
 #### 793e6a4 A note the agent looked up itself is not delivered
@@ -183,10 +181,10 @@ Rows are added when step 3 reaches a node, and worked top to bottom, one node at
 | 793d4d1d (amended) | Dedicated example (default suite) | only the agent's own `engram query` and `engram show` commands count, paired with their results by tool ID | Done | d183d346 | 642adbd6 | 642a4c9a |
 | 793d4d1e | Dedicated example (default suite) | a listing of the vault is not a lookup | Done | d183d346 | 642adbd6 | 642a4c9a |
 | 793d4d1f | Dedicated example (default suite) | `engram show` prints a note without its file name, so the command's text holds it | Done | d183d346 | 642adbd6 | 642a4c9a |
-| 793d4a1g | Dedicated example (default suite) | a note the agent fetched by its basename without `.md` is left out | Done | d183d346 | 642adbd6 | 642a4c9a |
+| 793d4a1g | Dedicated example (default suite) | a note the agent fetched by its basename without `.md` is left out, over an in-memory vault and a real temporary session-log directory | Done | d183d346 | 642adbd6 | 642a4c9a |
 | 793d4a1h | Injected and impure interaction (`imptest`, default suite) | the lookup runs once, for the vault given, with the prompt's text as message and only phrase (a left-out message passes every test over the real engine); the seam, the lookup as a function, was made first by refactor 8f30df47 | Done | n/a | dcaadbc0 | d18002dd |
 | 793d4a1i | Injected and impure interaction (`imptest`, default suite) | `Deliver` gives the lookup the request's text and the session reading the request's session ID; mutation: a `Deliver` that gives either an empty string | Done | n/a | d909ac5d | d18002dd |
-| 793d4f1a | Dedicated example (default suite) | `ENGRAM_TRANSCRIPT_DIR` names the records before `CLAUDE_CONFIG_DIR` | Done | n/a | 9ca57f87 | 8fa41f48 |
+| 793d4f1a | Dedicated example (default suite) | `ENGRAM_TRANSCRIPT_DIR` names the records before `CLAUDE_CONFIG_DIR`, through the dispatch of `engram auto deliver` over real temporary directories with the environment stubbed | Done | n/a | 9ca57f87 | 8fa41f48 |
 | 793d4f1b | Dedicated example (default suite) | `CLAUDE_CONFIG_DIR/projects` names them when `ENGRAM_TRANSCRIPT_DIR` does not, and the home's `.claude/projects` is then not read; the place was checked with a real headless session | Done | 9ca57f87 | a2616081 | 8fa41f48 |
 | 793d4f1c | Dedicated example (default suite) | the home's `.claude/projects` when neither variable is set, which no test had run | Done | n/a | 9ca57f87 | 8fa41f48 |
 | 793d4f1d | Dedicated example (default suite) | with no home directory the records directory is empty and the delivery read `<session>.jsonl` from the working directory | Done | b4358c93 | 9755ff6d | b7451101 |
@@ -207,11 +205,13 @@ Rows are added when step 3 reaches a node, and worked top to bottom, one node at
 
 #### 793e6a7 A vault that does not exist is not created
 
+Takes `793a2a1e` and the Modified operation `793a5a`.
+
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
 | 793a2a1e | Dedicated example, product acceptance (`network`) | after the [vault](../../GLOSSARY.md#vault) is removed a [prompt](./793a_product-spec.md#793a1a-terms) is answered and the vault is still not there | Done | d4336a43 | e924dc61 | 151f36ea |
 | 793a2a1e (the command ran) | Dedicated example, product acceptance (`network`) | the test asserts the mod ran its command, so a mod that never loads no longer passes; passed when written; mutation: a mod that does not load | Done | n/a | 49bfdb06 | f9e6cd3f |
-| 793d4e1a | Dedicated example (default suite) | the first-use step is in the target's wiring, not in the command, so only a dispatch through `cli.Targets` shows whether it runs | Done | c0aa0717 | e924dc61 | 81f8f93b |
+| 793d4e1a | Dedicated example (default suite) | over a real temporary path: the first-use step is in the target's wiring, not in the command, so only a dispatch through `cli.Targets` shows whether it runs | Done | c0aa0717 | e924dc61 | 81f8f93b |
 
 #### 793e6a8 Pi gets no automatic memory
 
@@ -238,28 +238,28 @@ Rows are added when step 3 reaches a node, and worked top to bottom, one node at
 
 #### 793e6a11 The conformance check of the first group
 
-Not a scenario of the specs: the rows are named by test.
+Not a scenario of the specs: the rows are named by test. The check reads the specs of this change directory, which is deleted at promotion: it then moves to read the promoted specs or is deleted with the change (`793b48`), and until then it fails when the specs are missing.
 
 | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
 | `TestScenarioIDs_ListsEachScenarioOnceInOrder` | Dedicated example (dev suite, `targ` tag) | the pure reading of a spec: which scenario IDs it holds, a restated scenario counted once, prose that merely names an ID left out | Done | e9831720 | 0a7a2596 | 4754603f |
-| `TestScenariosWithoutTest_NamesThoseNoTestSourceDeclares` | Dedicated example (dev suite, `targ` tag) | the pure comparison: an ID has a test only when a function is named `Test<ID>_` | Done | 75a83363 | 11bfaf7d | a8841eeb |
+| `TestScenariosWithoutTest_NamesThoseNoTestSourceDeclares` | Dedicated example (dev suite, `targ` tag) | the pure comparison: an ID has a test only when a function is named `Test<ID>_`, not when a comment or the longer name of another test mentions it | Done | 75a83363 | 11bfaf7d | a8841eeb |
 | `TestConformance_EveryScenarioOfTheSpecsHasATest` | Dedicated example (dev integration suite, `targ` and `integration` tags) | the real specs against the real test files, `network`-tagged files included | Done | n/a | ad2af52f | 1588e189 |
-| `TestScenariosWithoutTest_OnlyADeclaredFunctionIsATest` | Dedicated example (dev suite, `targ` tag) | a test is a function the Go parser finds declared; a string literal, a method, a function literal and a file that does not parse declare none (the first version counted text) | Done | 213ee02c | 14c04a9e | 434d6369 |
+| `TestScenariosWithoutTest_OnlyADeclaredFunctionIsATest` | Dedicated example (dev suite, `targ` tag) | a test is a function the Go parser finds declared; a string literal, a method, a function literal and a file that does not parse declare none (the first version counted text and stayed green when the real tests were renamed) | Done | 213ee02c | 14c04a9e | 434d6369 |
 
 #### 793e6a12 The gate that parses the mod's JavaScript
 
-Not a scenario of the specs: the rows are named by test.
+Takes review finding 14 (`793b55`): no default gate parsed the mod's JavaScript. Not a scenario of the specs: the rows are named by test.
 
 | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| `TestModuleSyntax_FailsWhenNodeIsNotFound` | Injected and impure interaction (`imptest`, dev suite, `targ` tag) | a check that cannot run does not pass; a missing node is an error naming node | Done | 44d04314 | 7cd56a6f | 3af177ac |
-| `TestModuleSyntax_NamesEachFileThatDoesNotParse` | Injected and impure interaction (`imptest`, dev suite, `targ` tag) | each file is parsed by node on standard input; files that do not parse are named with what node said | Done | 44d04314 | 7cd56a6f | 3af177ac |
+| `TestModuleSyntax_FailsWhenNodeIsNotFound` | Injected and impure interaction (`imptest`, dev suite, `targ` tag) | a check that cannot run does not pass; a missing node is an error naming node, and the lookup of node is injected | Done | 44d04314 | 7cd56a6f | 3af177ac |
+| `TestModuleSyntax_NamesEachFileThatDoesNotParse` | Injected and impure interaction (`imptest`, dev suite, `targ` tag) | each file is parsed by node on standard input; files that do not parse are named with what node said, the others not | Done | 44d04314 | 7cd56a6f | 3af177ac |
 | `TestMods_EveryJavaScriptModuleParses` | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the real mods parse under the real node and a broken module is rejected by it, which the stand-in cannot show | Done | 44d04314 | 7cd56a6f | 3af177ac |
 
 ### 793e6b Lessons are written without the agent
 
-One node for each of the fourteen scenarios of `793b62`, in the order of the graph; this group also takes the own-[sessions](../../GLOSSARY.md#session) clause of `793a2d` with its scenario and the origin filter (`793b58`).
+One node for each of the fourteen scenarios of `793b62`, in the order below; this group also takes the own-[sessions](../../GLOSSARY.md#session) clause of `793a2d` with its scenario and the origin filter (`793b58`).
 
 #### 793e6b1 A correction becomes a note
 
@@ -327,7 +327,7 @@ Adds the redaction, and the cut of the window that the redaction precedes.
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2c1g | Dedicated example, product acceptance (`network`) | a request to remember how to deploy, with the token and password the deploy needs, becomes a [note](../../GLOSSARY.md#permanent-note) that holds neither, the note awaited so that the credentials' absence is not the note's. The model leaves a credential out unprompted (4 of 4 runs before the redaction existed, 6 of 6 with that instruction sentence removed), so no mutation of the live run fails it and the properties are the proof |  | 10 of 10; 8 of 10 before the last change of the instructions, where both misses wrote a rule against keeping credentials and no note of the deploy | Done | n/a | d19d7f1d | f8487c99 |
+| 793a2c1g | Dedicated example, product acceptance (`network`) | a request to remember how to deploy, with the token and password the deploy needs, becomes a [note](../../GLOSSARY.md#permanent-note) that holds neither, the note awaited, so that the absence of the credentials is not the absence of the note. The model leaves a credential out unprompted (4 of 4 runs before the redaction existed, 6 of 6 with the sentence of the instructions that asks for it removed), so no mutation of the live run fails it and the properties are the proof |  | 10 of 10; 8 of 10 before the last change of the instructions, where both misses wrote a rule against keeping credentials and no note of the deploy | Done | n/a | d19d7f1d | f8487c99 |
 | 793d4j1a | Property-based (`rapid`) with named examples (default suite) | the guarantee the whole promise rests on: no text of the shapes survives | for any filler text and any credential of the requirement's shapes, placed anywhere: the redacted text holds neither the credential nor the assignment's value, and holds the filler as it was |  | Done | 39a32553 | 18f731af | f8487c99 |
 | 793d4j1b | Dedicated example (default suite) | what redaction leaves alone: an assignment's name, a commit ID, a word, a sentence |  |  | Done | 39a32553 | 18f731af | f8487c99 |
 | 793d4j1c | Property-based (`rapid`) with named examples (default suite) | the redaction comes before the model, whatever the messages hold | for any messages holding a credential of the shapes, among any text: the request's [prompt](./793a_product-spec.md#793a1a-terms) holds none |  | Done | 39a32553 | 18f731af | f8487c99 |
@@ -436,7 +436,7 @@ Review finding 19 (`793b75`).
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793d4g1q | Dedicated example (default suite) | a record of 1 MB: the request within 2 seconds; the old reading took 42 seconds under the race detector `targ test` runs with, the new 0.3 | Done | 959735b2, 333ae1d2 | 004adfb0 | 74cec1a1 |
+| 793d4g1q | Dedicated example (default suite) | a record of 1 MB over a real temporary directory: the request within 2 seconds; the old reading took 42 seconds under the race detector `targ test` runs with, the new 0.3 | Done | 959735b2, 333ae1d2 | 004adfb0 | 74cec1a1 |
 
 #### 793e6g3 A turn is found by the text it began with
 
@@ -509,7 +509,7 @@ Review findings 9 and 13 (`793b82`).
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793d4g1w | Dedicated example (default suite) | a [session](../../GLOSSARY.md#session) no record holds, and no session at all: the command fails naming the session and the directory | Done | 4f85c7b3 | f0fdbe00 | ccb03b61 |
+| 793d4g1w | Dedicated example (default suite) | a [session](../../GLOSSARY.md#session) no record holds, and no session at all, over a real temporary directory: the command fails naming the session and the directory | Done | 4f85c7b3 | f0fdbe00 | ccb03b61 |
 | 793d4g1x | Dedicated example (default suite) | a path with no [vault](../../GLOSSARY.md#vault): the command fails naming the path, prints nothing and never runs the lookup (its stand-in fails the test if called) | Done | 4f85c7b3 | f0fdbe00 | ccb03b61 |
 | 793d4g1c (amended) | Dedicated example (default suite) | only a record with no [prompt](./793a_product-spec.md#793a1a-terms) is judged nothing now; passed when written, as the cases it keeps already succeeded; mutation (scratch copy): a judgement that fails when the record holds no prompt | Done | n/a | f0fdbe00 | ccb03b61 |
 | 793d4e1b (amended) | Dedicated example (default suite) | the judgement over a path with no vault creates none, as before, and now fails and prints no request | Done | 4f85c7b3 | f0fdbe00 | ccb03b61 |
@@ -567,7 +567,7 @@ Review finding 18: only one side of `793a3c` was run live. A judgement row, run 
 
 #### 793e6g16 A turn that a background task's notification starts is not judged
 
-Review finding 21: of the origins `793d4m` tells apart, the live rows observed only `sdk`. The row first shows that the [session](../../GLOSSARY.md#session)'s record holds the notification, so that an absence is not a [turn](./793a_product-spec.md#793a1a-terms) that never happened.
+Review finding 21: of the origins `793d4m` tells apart, the live rows observed only `sdk`. The row first shows that the [session](../../GLOSSARY.md#session)'s record holds the notification and an answer to it, so that an absence is not a [turn](./793a_product-spec.md#793a1a-terms) that never happened, and then waits 20 seconds, three times the longest live capture of 6.0 seconds (`793b85`), for a record that would come.
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -641,5 +641,5 @@ Deferred, not built (`793b57`, `793c34`): `engram query` merges the parent [vaul
 - Every `Done` row has its red, green and refactor commits recorded.
 - `targ test` and `targ check-full` pass on the final commit of the branch.
 - Every refactor commit message names the code it removed or merged, or states that nothing could be removed.
-- The product and technical deltas are promoted to the canonical specifications without changing stable IDs, and this change directory is deleted, in the same merge as the implementation.
+- The product and technical deltas are promoted to the canonical specifications without changing stable IDs, and this change directory is deleted, in the same merge as the implementation; the conformance check moves to the promoted specs or is deleted with the directory (`793e6a11`).
 - Every node is `Merged`.
