@@ -60,6 +60,51 @@ func Test793d4a1b_RunAutoDeliver_AFailedLookupFailsTheCommandAndPrintsNothing(t 
 	g.Expect(out.String()).To(BeEmpty())
 }
 
+func Test793d4a1e_RunAutoDeliver_NoNoteToDeliverPrintsNothing(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no note bears on the prompt", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		var out bytes.Buffer
+
+		err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: t.TempDir()},
+			cli.AutoDeliverDeps{
+				Stdin: strings.NewReader(`{"text":"anything","session":"` + sessionID + `"}`),
+				Query: newQueryDeps(newInMemoryFS()), ReadDir: os.ReadDir, ReadFile: os.ReadFile,
+			}, &out)
+
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(out.String()).To(BeEmpty())
+	})
+
+	t.Run("the only note that bears on it is held", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		vault := t.TempDir()
+		memFS := newInMemoryFS()
+		plantNoteWithSidecar(t, memFS, vault, "1.2026-10-17.zorblax-staging-reset.md", zorblaxResetNote)
+
+		sessions := t.TempDir()
+		record := `{"type":"attachment","attachment":{"type":"hook_additional_context","hookName":"prompt.submit",` +
+			`"content":["[engram memory] The lines below are notes.\n- 1.2026-10-17.zorblax-staging-reset.md (s): b"]}}` + "\n"
+		g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
+
+		var out bytes.Buffer
+
+		err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault, SessionsDir: sessions},
+			cli.AutoDeliverDeps{
+				Stdin: strings.NewReader(`{"text":"When is the Zorblax staging database reset?","session":"` + sessionID + `"}`),
+				Query: newQueryDeps(memFS), ReadDir: os.ReadDir, ReadFile: os.ReadFile,
+			}, &out)
+
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(out.String()).To(BeEmpty())
+	})
+}
+
 func Test793d4a1d_RunAutoDeliver_ANoteTheSessionHoldsIsLeftOut(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

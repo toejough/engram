@@ -70,14 +70,6 @@ func Test793d2a1b_Mod_GivesTheCommandTheSessionsID(t *testing.T) {
 	})
 }
 
-// unexported constants.
-const (
-	// promptHello is a prompt no note bears on; the stand-in engram answers whatever it is asked.
-	promptHello = "hello there"
-	// standInBlock is what the stand-in engram prints for any prompt.
-	standInBlock = "[engram memory] A block from a stand-in engram.\n- a.md (s): b\n"
-)
-
 func Test793d2a1c_Mod_AnEmptyOutputAddsNothing(t *testing.T) {
 	t.Parallel()
 
@@ -106,3 +98,11 @@ func Test793d2a1c_Mod_AnEmptyOutputAddsNothing(t *testing.T) {
 		g.Expect(sent.agentActsAt()).To(BeNumerically(">", 0), "the model was asked")
 	})
 }
+
+// unexported constants.
+const (
+	// promptHello is a prompt no note bears on; the stand-in engram answers whatever it is asked.
+	promptHello = "hello there"
+	// standInBlock is what the stand-in engram prints for any prompt.
+	standInBlock = "[engram memory] A block from a stand-in engram.\n- a.md (s): b\n"
+)
