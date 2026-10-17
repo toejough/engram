@@ -255,21 +255,6 @@ func Test793d4g1s_RunAutoJudge_ATurnThatANotificationStartedAfterItIsNotPartOfIt
 	}))
 }
 
-func Test793d4g1u_RunAutoJudge_TheInstructionsAreTheSystemOfTheRequest(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	record := `{"type":"user","message":{"role":"user","content":"No - build with make zorblax-build."}}` + "\n"
-
-	request := judged(t, record, `{"origin":"composer","session":"`+sessionID+`","answer":"Understood."}`)
-
-	g.Expect(request.System).To(HavePrefix("You keep the long-term memory of an AI coding agent."))
-	g.Expect(request.System).NotTo(ContainSubstring("make zorblax-build"), "nothing of the record")
-	g.Expect(request.Prompt).To(HavePrefix("<window>\n"))
-	g.Expect(request.Prompt).To(HaveSuffix("\n</notes>"))
-	g.Expect(request.Prompt).NotTo(ContainSubstring("You keep the long-term memory"), "none of the instructions")
-}
-
 func Test793d4g1t_RunAutoJudge_ATextThatNoPromptHasBeginsTheTurnAtTheLastPrompt(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -290,6 +275,21 @@ func Test793d4g1t_RunAutoJudge_ATextThatNoPromptHasBeginsTheTurnAtTheLastPrompt(
 		"User: No - build with make zorblax-build.",
 		"Agent: Understood.",
 	}))
+}
+
+func Test793d4g1u_RunAutoJudge_TheInstructionsAreTheSystemOfTheRequest(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	record := `{"type":"user","message":{"role":"user","content":"No - build with make zorblax-build."}}` + "\n"
+
+	request := judged(t, record, `{"origin":"composer","session":"`+sessionID+`","answer":"Understood."}`)
+
+	g.Expect(request.System).To(HavePrefix("You keep the long-term memory of an AI coding agent."))
+	g.Expect(request.System).NotTo(ContainSubstring("make zorblax-build"), "nothing of the record")
+	g.Expect(request.Prompt).To(HavePrefix("<window>\n"))
+	g.Expect(request.Prompt).To(HaveSuffix("\n</notes>"))
+	g.Expect(request.Prompt).NotTo(ContainSubstring("You keep the long-term memory"), "none of the instructions")
 }
 
 // judgedRequest is the request that the judgement prints: the fields of it that the tests read.

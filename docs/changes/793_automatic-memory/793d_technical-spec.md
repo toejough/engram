@@ -582,20 +582,20 @@ context. It MUST print one JSON object, the request for the
 model: `model` (`haiku`), `effort` (`low`), `system`, `prompt`, `maxTokens` and `timeoutMs`. The `system` MUST hold the
 instructions of the judgement and nothing of the record, so that the model reads them as instructions. The prompt MUST
 hold, between the tags `<window>` and `</window>`, the lines of the context, then the line `--- the turn ---`, then the
-lines of the turn. A `<` in a message or in a [note](../../GLOSSARY.md#permanent-note) is written `&lt;`, which the instructions say, so that no message or
-note can close the window or the section of notes, or open another. A line is
+lines of the turn. A line is
 one message and opens with `User: ` for a prompt, `Agent: ` for text of the [agent](./793a_product-spec.md#793a1a-terms), and `Agent used ` and the tool's name for a
 tool it called; a line break in a message is written ` ⏎ `, so that no message makes a line of its own. The text of every
 message of the window is redacted ([793d4j Redacting credentials](#793d4j-redacting-credentials)) before it is cut or joined with another, and no other message is
 redacted: the command MUST read the record once, so that the time it takes does not grow with the length of the
 session, and a record of 1 MB is judged within 2 seconds. A line is cut to its first
-1,200 characters; the context is its last 6 lines; and the window is cut to 8,000 characters, the oldest lines of the
+1,200 characters, and a `<` in it is then written `&lt;`, which the instructions say, so that no message can close the
+window or open a section of [notes](../../GLOSSARY.md#permanent-note); the context is its last 6 lines; and the window is cut to 8,000 characters, the oldest lines of the
 context first and then the middle of the turn, where the line `--- some of the turn is left out ---` stands in place of
 the lines left out. The final text is the last line of the turn when no line of the turn holds its first 80
 characters. The prompt MUST also hold, as lines of the section of [notes](../../GLOSSARY.md#permanent-note) between the tags `<notes>` and `</notes>`, the notes nearest to the turn: the notes
 that the lookup of [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) returns for the text of the prompts of the turn, each in the form of a line of a
 block (a dash, the file name, the situation in parentheses, a colon and the body), with its text redacted, written as
-one line and cut to 400 characters, or the word `(none)` when there are none. It MUST print nothing, and succeed,
+one line, cut to 400 characters and then escaped in the same way, so that no note can close the section of notes, or the word `(none)` when there are none. It MUST print nothing, and succeed,
 when the record holds no prompt or there is no record, and print nothing and fail, naming the cause, when its input is
 not a JSON object or the lookup fails.
 

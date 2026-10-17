@@ -15,10 +15,11 @@ import (
 )
 
 // Judgement is the request of the call of the model that judges a turn: the fields the host's model call takes
-// (793d4g).
+// (793d4g). The system is the instructions, and the prompt is the window and the notes.
 type Judgement struct {
 	Model     string `json:"model"`
 	Effort    string `json:"effort"`
+	System    string `json:"system"`
 	Prompt    string `json:"prompt"`
 	MaxTokens int    `json:"maxTokens"`
 	TimeoutMs int    `json:"timeoutMs"`
@@ -46,20 +47,22 @@ func Judge(ctx context.Context, record []byte, end TurnEnd, lookup Lookup) (Judg
 	}
 
 	start := startOf(messages, last, end.Text)
+	finish := endOf(messages, start)
 	before := linesOf(messages[max(start-contextLines, 0):start])
-	turn := linesOf(messages[start:endOf(messages, start)])
+	turn := linesOf(messages[start:finish])
 
-	notes, err := lookup(ctx, promptsOf(turn))
+	notes, err := lookup(ctx, promptsOf(messages[start:finish]))
 	if err != nil {
 		return Judgement{}, false, fmt.Errorf("looking up the notes: %w", err)
 	}
 
 	before, turn = fit(before, withAnswer(turn, end.Answer))
 	window := slices.Concat(before, []string{divider}, turn)
-	text := strings.NewReplacer("{window}", strings.Join(window, "\n"), "{notes}", noteLines(notes)).Replace(instructions)
 
 	return Judgement{
-		Model: judgeModel, Effort: judgeEffort, Prompt: text, MaxTokens: judgeMaxTokens, TimeoutMs: judgeTimeoutMs,
+		Model: judgeModel, Effort: judgeEffort, System: instructions,
+		Prompt:    fmt.Sprintf(promptShape, strings.Join(window, "\n"), noteLines(notes)),
+		MaxTokens: judgeMaxTokens, TimeoutMs: judgeTimeoutMs,
 	}, true, nil
 }
 
@@ -87,8 +90,10 @@ const (
 	noNotes     = "(none)"
 	// noteLimit is how many characters of the body of a note a line holds at most.
 	noteLimit = 400
-	toolLabel = "Agent used "
-	userLabel = "User: "
+	// promptShape is the prompt of the request: the window and the section of notes, each between its tags.
+	promptShape = "<window>\n%s\n</window>\n<notes>\n%s\n</notes>"
+	toolLabel   = "Agent used "
+	userLabel   = "User: "
 	// windowLimit is how many characters the window holds at most.
 	windowLimit = 8000
 )
@@ -106,7 +111,7 @@ type message struct {
 
 // agentLine is the line of a text of the agent.
 func agentLine(text string) string {
-	return agentLabel + messageText(text)
+	return escaped(agentLabel + messageText(text))
 }
 
 // agentMessagesOf reads the texts and the tool uses of one message of the agent.
@@ -145,6 +150,12 @@ func endOf(messages []message, start int) int {
 	return start + 1 + next
 }
 
+// escaped writes the character that opens a tag of a line as `&lt;`, once the line is cut, so that no line can close
+// the window or the section of notes, or open another (793d4g).
+func escaped(line string) string {
+	return strings.ReplaceAll(line, "<", "&lt;")
+}
+
 // fit cuts the window to windowLimit characters: the oldest lines of the context go first, and then the middle of the
 // turn, where leftOut stands in place of the lines left out.
 func fit(context, turn []string) ([]string, []string) {
@@ -181,15 +192,15 @@ func isLineBreak(r rune) bool {
 		unicode.Is(unicode.Zl, r) || unicode.Is(unicode.Zp, r)
 }
 
-// linesOf writes messages as one line each, redacted, written as one line and cut to the limit of a line.
+// linesOf writes messages as one line each, redacted, written as one line, cut to the limit of a line and escaped.
 func linesOf(messages []message) []string {
 	lines := make([]string, 0, len(messages))
 
 	for _, one := range messages {
 		if one.plain {
-			lines = append(lines, one.label+one.text)
+			lines = append(lines, escaped(one.label+one.text))
 		} else {
-			lines = append(lines, one.label+messageText(one.text))
+			lines = append(lines, escaped(one.label+messageText(one.text)))
 		}
 	}
 
@@ -247,8 +258,8 @@ func noteLines(notes []Note) string {
 	lines := make([]string, 0, len(notes))
 
 	for _, note := range notes {
-		lines = append(lines, "- "+oneLine(Redact(note.Path))+" ("+oneLine(Redact(note.Situation))+"): "+
-			clipped(oneLine(Redact(note.Body)), noteLimit))
+		lines = append(lines, escaped("- "+oneLine(Redact(note.Path))+" ("+oneLine(Redact(note.Situation))+"): "+
+			clipped(oneLine(Redact(note.Body)), noteLimit)))
 	}
 
 	return strings.Join(lines, "\n")
@@ -298,14 +309,14 @@ func promptTextOf(content json.RawMessage) string {
 	return strings.Join(parts, "\n")
 }
 
-// promptsOf is the text of the prompts among the lines of a turn, which the notes nearest to the turn are looked up for
-// (793d4g).
-func promptsOf(turn []string) string {
+// promptsOf is the text of the prompts among the messages of a turn, as a line holds it, which the notes nearest to the
+// turn are looked up for (793d4g).
+func promptsOf(turn []message) string {
 	var texts []string
 
-	for _, line := range turn {
-		if text, isPrompt := strings.CutPrefix(line, userLabel); isPrompt {
-			texts = append(texts, text)
+	for _, one := range turn {
+		if one.label == userLabel {
+			texts = append(texts, messageText(one.text))
 		}
 	}
 
