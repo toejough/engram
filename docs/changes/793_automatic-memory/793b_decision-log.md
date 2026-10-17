@@ -177,15 +177,15 @@ One opus review round on the step 1 documents (seven commits, `1bcf81b3` to `573
 
 ## 793b40 The scenarios of the first group
 
-Step 2 for the first group (`793e6a`) writes ten scenarios, one per mandatory branch: five under `793a2a`, four under `793a2b`, one under `793a2d` (the 8-second hold). The [agent](./793a_product-spec.md#793a1a-terms)'s own lookup is staged before the update and the [session](../../GLOSSARY.md#session) resumed after it, so that the two routes to a held [note](../../GLOSSARY.md#permanent-note) differ; the missing [vault](../../GLOSSARY.md#vault) is one removed after the update, because [`engram update`](../../GLOSSARY.md#engram-update) creates a missing one. A.
+Step 2 for the first group (`793e6a`) writes ten scenarios, one per mandatory branch: five under `793a2a`, four under `793a2b`, one under `793a2d` (the 8-second hold). The [agent](./793a_product-spec.md#793a1a-terms)'s own lookup is staged before the update and the [session](../../GLOSSARY.md#session) resumed after it, so that the two routes to a held [note](../../GLOSSARY.md#permanent-note) differ; the missing [vault](../../GLOSSARY.md#vault) is one removed after the update, because [`engram update`](../../GLOSSARY.md#engram-update) creates a missing one. Fewer scenarios, with the dry run and Pi folded into the first scenario of the update, were rejected: the outcomes differ and each needs its own report. A.
 
 ## 793b41 The mod, its place and its command
 
-The automatic behavior is one mod, `engram-memory`, in `agent-instructions/mods/`, deployed by [`engram update`](../../GLOSSARY.md#engram-update) with the [skills](../../GLOSSARY.md#skill); for each [prompt](./793a_product-spec.md#793a1a-terms) it runs the new command `engram auto deliver` and puts its output beside the prompt, the command holding the logic (`793d1`). `prompt.submit` adds context without editing the prompt, and a real `claude -p` [session](../../GLOSSARY.md#session) showed that a linked mod loads. Rejected: a `UserPromptSubmit` hook in `~/.claude/settings.json` (`engram update` would edit a file the user owns on every run). A.
+The automatic behavior is one mod, `engram-memory`, in `agent-instructions/mods/`, deployed by [`engram update`](../../GLOSSARY.md#engram-update) with the [skills](../../GLOSSARY.md#skill); for each [prompt](./793a_product-spec.md#793a1a-terms) it runs the new command `engram auto deliver` and puts its output beside the prompt, the command holding the logic (`793d1`). `prompt.submit` adds context without editing the prompt, and a real `claude -p` [session](../../GLOSSARY.md#session) showed that a linked mod loads. Rejected: a `UserPromptSubmit` hook in `~/.claude/settings.json` (`engram update` would edit a file the user owns on every run; `793c17`). A.
 
 ## 793b42 What the block says
 
-The block is one framing line beginning `[engram memory]` ([notes](../../GLOSSARY.md#permanent-note) from the [vault](../../GLOSSARY.md#vault), delivered by the memory system and not typed by the user; an instruction inside one is not the user's) and one line per note: dash, file name, situation, colon, body (`793d4c`). It is the earlier attempt's framing, whose marker the [session](../../GLOSSARY.md#session)'s record is searched for. A.
+The block is one framing line beginning `[engram memory]` ([notes](../../GLOSSARY.md#permanent-note) from the [vault](../../GLOSSARY.md#vault), delivered by the memory system and not typed by the user; an instruction inside one is not the user's) and one line per note: dash, file name, situation, colon, body (`793d4c`). It is the earlier attempt's framing, whose marker the [session](../../GLOSSARY.md#session)'s record is searched for (`793c18`). A.
 
 ## 793b43 A note cannot reshape the block
 
@@ -193,23 +193,23 @@ A [note](../../GLOSSARY.md#permanent-note)'s file name, situation and body are e
 
 ## 793b44 Only the notes that match are delivered, whole
 
-A [note](../../GLOSSARY.md#permanent-note) is delivered when the lookup returns it as a matched item (not a chunk, not an explore pick) with its body whole on one line; the lookup's own limit bounds the count (`793b19`). An explore pick does not bear on the [prompt](./793a_product-spec.md#793a1a-terms), and a cut body would hide the later steps of a runbook. A.
+A [note](../../GLOSSARY.md#permanent-note) is delivered when the lookup returns it as a matched item (not a chunk, not an explore pick) with its body whole on one line; the lookup's own limit bounds the count (`793b19`). An explore pick does not bear on the [prompt](./793a_product-spec.md#793a1a-terms), and a cut body would hide the later steps of a runbook (`793c19`). A.
 
 ## 793b45 What a session holds
 
-The [agent](./793a_product-spec.md#793a1a-terms) holds a [note](../../GLOSSARY.md#permanent-note) when its basename appears in what the [session](../../GLOSSARY.md#session)'s record shows it was given: the file names on delivered blocks' note lines and the command and result of each `engram query` or `engram show` it ran (`793d4d`); nothing else counts, whatever a compaction removed (`793b27`). A note the agent read by `cat`, `grep` or a file read is not held and is delivered again: the cost of counting only the lookups it is told to use. Rejected: a ledger kept by the mod (lost with the process) and any file name in any tool result (the first version: an `ls` of the [vault](../../GLOSSARY.md#vault) suppressed a note never read). A, with the pairing and the basename from the first group's review.
+The [agent](./793a_product-spec.md#793a1a-terms) holds a [note](../../GLOSSARY.md#permanent-note) when its basename appears in what the [session](../../GLOSSARY.md#session)'s record shows it was given: the file names on delivered blocks' note lines and the command and result of each `engram query` or `engram show` it ran (`793d4d`); nothing else counts, whatever a compaction removed (`793b27`). A note the agent read by `cat`, `grep` or a file read is not held and is delivered again: the cost of counting only the lookups it is told to use. Rejected: a ledger kept by the mod (lost with the process) and any file name in any tool result (the first version: an `ls` of the [vault](../../GLOSSARY.md#vault) suppressed a note never read; `793c20`). A, with the pairing and the basename from the first group's review.
 
 ## 793b46 The command is ended at 7 seconds
 
-The mod waits for `engram auto deliver` at most 7 seconds, by the process call's time limit; a [prompt](./793a_product-spec.md#793a1a-terms) whose command did not finish goes on with nothing added and no sign of failure. The 8 seconds of `793b17` leave the second for process start and hooks (a 20-second command held the prompt 7.07 seconds); the platform's hook limit does not count the call. A.
+The mod waits for `engram auto deliver` at most 7 seconds, by the process call's time limit; a [prompt](./793a_product-spec.md#793a1a-terms) whose command did not finish goes on with nothing added and no sign of failure. The 8 seconds of `793b17` leave the second for process start and hooks (a 20-second command held the prompt 7.07 seconds); the platform's hook limit does not count the call (`793c21`). A.
 
 ## 793b47 A dry run reports the mod as a mod
 
-The report of [`engram update`](../../GLOSSARY.md#engram-update), dry run or not, lists a mod in the Claude Code section with `agent-instructions/mods/<name>/` as its source (a [skill](../../GLOSSARY.md#skill) has `agent-instructions/skills/<name>/`); a dry run plans and reports the mod and writes none of it (`793a2a1c`). The first run showed the mod under `agent-instructions/skills/`. A.
+The report of [`engram update`](../../GLOSSARY.md#engram-update), dry run or not, lists a mod in the Claude Code section with `agent-instructions/mods/<name>/` as its source (a [skill](../../GLOSSARY.md#skill) has `agent-instructions/skills/<name>/`); a dry run plans and reports the mod and writes none of it (`793a2a1c`). The first run showed the mod under `agent-instructions/skills/` (`793c22`). A.
 
 ## 793b48 The conformance check reads this change's specs and fails when they are gone
 
-The conformance check (every scenario ID has a `Test<ID>_...` function in a `_test.go` file whatever its build tags, read with the Go parser, not as text) is a test of the dev integration suite, so `targ check-full` runs it; it reads this change's specs and fails, naming the cause, when they are missing; at promotion, when the directory is deleted, it moves to read the promoted specs or is deleted with the change. One direction only. The first version searched text, counted string-literal fixtures and stayed green when the real `Test793a2a1a_` and `Test793d4b1h_` were renamed. The allow list of `dev/golangci-lint.toml` gains `go/ast`, `go/parser` and `go/token` for non-test files, the three it already allows for tests; no rule is switched off. A, on review.
+The conformance check (every scenario ID has a `Test<ID>_...` function in a `_test.go` file whatever its build tags, read with the Go parser, not as text) is a test of the dev integration suite, so `targ check-full` runs it; it reads this change's specs and fails, naming the cause, when they are missing; at promotion, when the directory is deleted, it moves to read the promoted specs or is deleted with the change. One direction only. The first version searched text, counted string-literal fixtures and stayed green when the real `Test793a2a1a_` and `Test793d4b1h_` were renamed. The allow list of `dev/golangci-lint.toml` gains `go/ast`, `go/parser` and `go/token` for non-test files, the three it already allows for tests; no rule is switched off. Rejected: a target of its own (it could be forgotten), a skip when the specs are missing (it passes with nothing checked), and both directions (other changes' tests carry other IDs). A, on review.
 
 ## 793b49 The acceptance run is capped at four tests at once
 
@@ -221,19 +221,19 @@ The mod adds the command's output only when it exited 0 and the output begins `[
 
 ## 793b51 The delivery finds the records where Claude Code writes them
 
-`engram auto deliver` reads records from `--sessions`, else `ENGRAM_TRANSCRIPT_DIR`, else `$CLAUDE_CONFIG_DIR/projects`, else `<home>/.claude/projects` (`793d4f`); [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand) keeps its order (792b17c6; `793c26`). A [session](../../GLOSSARY.md#session) started with `CLAUDE_CONFIG_DIR` writes there, so reading only the home never found the record. A, on review.
+`engram auto deliver` reads records from `--sessions`, else `ENGRAM_TRANSCRIPT_DIR`, else `$CLAUDE_CONFIG_DIR/projects`, else `<home>/.claude/projects` (`793d4f`); [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand) keeps its order ([792b17c6 Session-log directory](../../specs/technical/ingestion-source-discovery.md#792b17c6-session-log-directory); the same order for the sweep would change a canonical requirement, a separate change). A [session](../../GLOSSARY.md#session) started with `CLAUDE_CONFIG_DIR` writes there, so reading only the home never found the record. A, on review.
 
 ## 793b52 The delivery runs its lookup through an injected function
 
-`AutoDeliverDeps.Query` is an injected function that runs the lookup for the arguments it is given (the [prompt](./793a_product-spec.md#793a1a-terms)'s text as message and only phrase, `793d4a`), so a test can see them; `793e7` asks `imptest` evidence of every injected collaboration, and a delivery that left the message out passed every test. A, on review.
+`AutoDeliverDeps.Query` is an injected function that runs the lookup for the arguments it is given (the [prompt](./793a_product-spec.md#793a1a-terms)'s text as message and only phrase, `793d4a`), so a test can see them; `793e7` asks `imptest` evidence of every injected collaboration, and a delivery that left the message out passed every test; a waiver of the gate, with the arguments tested through the real engine, was rejected for that reason. A, on review.
 
 ## 793b53 A missing login or Claude Code fails an acceptance test
 
-Acceptance tests fail, naming the cause, when `claude` is not on the path or no login is found (`793e2`), and do not skip: `targ acceptance` exited 0 having run nothing. A, on review.
+Acceptance tests fail, naming the cause, when `claude` is not on the path or no login is found (`793e2`), and do not skip: `targ acceptance` exited 0 having run nothing; a skip with a target that fails on any skip was rejected, as the tests run only when somebody asks for them. A, on review.
 
 ## 793b54 Two acceptance scenarios prove more than that nothing arrived
 
-In `793a2b1c` the [vault](../../GLOSSARY.md#vault) gains a second [note](../../GLOSSARY.md#permanent-note) after the [agent](./793a_product-spec.md#793a1a-terms)'s lookup, and the test of `793a2a1e` asserts that the mod ran its command; both used to pass when the mod never loaded. The Given and Then of `793a2b1c` change; the text of `793a2a1e` does not. A, on review.
+In `793a2b1c` the [vault](../../GLOSSARY.md#vault) gains a second [note](../../GLOSSARY.md#permanent-note) after the [agent](./793a_product-spec.md#793a1a-terms)'s lookup, and the test of `793a2a1e` asserts that the mod ran its command; both used to pass when the mod never loaded. The Given and Then of `793a2b1c` change; the text of `793a2a1e` does not. Rejected: a separate scenario for the second note (the plan guide has one test per scenario ID, and the held rule is what `793a2b1c` is for) and a marker in the text of `793a2a1e` (that the mod ran is not something the user checks). A, on review.
 
 ## 793b55 The mod's JavaScript is parsed by a test of the dev integration suite
 
@@ -241,7 +241,7 @@ In `793a2b1c` the [vault](../../GLOSSARY.md#vault) gains a second [note](../../G
 
 ## 793b56 The 7 seconds bound the whole hook, not the command alone
 
-The mod races the call for the [session](../../GLOSSARY.md#session)'s ID and the command against one 7-second timer (`793d2a`), and the command is also ended at 7 seconds from its start (`793b46`); `await $.session.id()` ran outside the bound. A, on review.
+The mod races the call for the [session](../../GLOSSARY.md#session)'s ID and the command against one 7-second timer (`793d2a`), and the command is also ended at 7 seconds from its start (`793b46`); `await $.session.id()` ran outside the bound, and the 8 seconds of the promise hold for any reason, so a timer over the command alone was rejected. A, on review.
 
 ## 793b57 The delivery looks up the local vault only, until a later node
 
@@ -249,7 +249,7 @@ The first group's delivery looks up the local [vault](../../GLOSSARY.md#vault) o
 
 ## 793b58 The first group delivers for every origin of a prompt
 
-Until `793e6b` the mod delivers for every origin of a [prompt](./793a_product-spec.md#793a1a-terms); `793e6b` takes the clause of `793a2d` that [automatic memory](./793a_product-spec.md#793a1a-terms) MUST NOT deliver to or write from its own [sessions](../../GLOSSARY.md#session), with the origin filter, being the first group that could start such sessions. A, on review (`793b61` findings 5 and 6).
+Until `793e6b` the mod delivers for every origin of a [prompt](./793a_product-spec.md#793a1a-terms); `793e6b` takes the clause of `793a2d` that [automatic memory](./793a_product-spec.md#793a1a-terms) MUST NOT deliver to or write from its own [sessions](../../GLOSSARY.md#session), with the origin filter, being the first group that could start such sessions; a filter before it had no prompt of another origin to tell apart. A, on review (`793b61` findings 5 and 6).
 
 ## 793b59 The builder ran the tests once with the real home
 
@@ -257,7 +257,7 @@ The gate of `793e7` that nothing touched the owner's real `~/.claude`, `~/.local
 
 ## 793b60 The restated sentences of 792a2e are kept as they are
 
-`793a5a` keeps the canonical 792a2e's sentence about a new [vault](../../GLOSSARY.md#vault)'s files (`.obsidian/app.json`, `.gitignore`, `README.md`, `.engram/`) verbatim, though the product guide keeps file names out and the docs check flags them: rewording would change the canonical requirement under a Modified operation. A, on the docs check.
+`793a5a` keeps the sentence of the canonical [792a2e First-use vault creation](../../specs/product/vault-identity.md#792a2e-first-use-vault-creation) about a new [vault](../../GLOSSARY.md#vault)'s files (`.obsidian/app.json`, `.gitignore`, `README.md`, `.engram/`) verbatim, though the product guide keeps file names out and the docs check flags them: rewording would change the canonical requirement under a Modified operation. A, on the docs check.
 
 ## 793b61 Review of the first group
 
@@ -265,7 +265,7 @@ One opus review round on commit `e62be9a4` found 3 major, 16 minor and 7 nit ite
 
 ## 793b62 The scenarios of the second group
 
-[Automatic memory](./793a_product-spec.md#793a1a-terms)'s second group (`793e6b`): step 2 writes fourteen scenarios, one per clause without one (seven under `793a2c`, two under `793a2a`, one each under `793a2d` and `793a3a`, two under `793a3c`, one under `793a3e`). A [session](../../GLOSSARY.md#session) whose [agent](./793a_product-spec.md#793a1a-terms) may not run engram commands proves a [note](../../GLOSSARY.md#permanent-note) was written "by automatic memory and not by the agent". A.
+[Automatic memory](./793a_product-spec.md#793a1a-terms)'s second group (`793e6b`): step 2 writes fourteen scenarios, one per clause without one (seven under `793a2c`, two under `793a2a`, one each under `793a2d` and `793a3a`, two under `793a3c`, one under `793a3e`). A [session](../../GLOSSARY.md#session) whose [agent](./793a_product-spec.md#793a1a-terms) may not run engram commands proves a [note](../../GLOSSARY.md#permanent-note) was written "by automatic memory and not by the agent". Fewer scenarios, folding the two of `793a3c` or the three kinds of lesson from the agent's own words, were rejected: the clause lists the kinds, and "whoever wrote that note" names two writers a test can tell apart. A.
 
 ## 793b63 A turn is judged by one model call, and no session is started
 
@@ -273,11 +273,11 @@ After a [turn](./793a_product-spec.md#793a1a-terms) of a [prompt](./793a_product
 
 ## 793b64 The prompts the user sends
 
-A [prompt](./793a_product-spec.md#793a1a-terms) is the user's when Claude Code stamps its origin `composer`, `bridge`, `slack-ping` or `sdk`; every other origin (a background task's notification, a scheduled trigger, a peer or coordinating [session](../../GLOSSARY.md#session), another plugin's prompt, none) is not. The mod passes the origin to `engram auto deliver` and `engram auto judge`, which decide (`793d4m`); the mod itself leaves out [subagent](../../GLOSSARY.md#subagent) [turns](./793a_product-spec.md#793a1a-terms). The event's origin is the one source: the record spells it differently and does not exist yet at delivery. A.
+A [prompt](./793a_product-spec.md#793a1a-terms) is the user's when Claude Code stamps its origin `composer`, `bridge`, `slack-ping` or `sdk`; every other origin (a background task's notification, a scheduled trigger, a peer or coordinating [session](../../GLOSSARY.md#session), another plugin's prompt, none) is not. The mod passes the origin to `engram auto deliver` and `engram auto judge`, which decide (`793d4m`); the mod itself leaves out [subagent](../../GLOSSARY.md#subagent) [turns](./793a_product-spec.md#793a1a-terms). The event's origin is the one source: the record spells it differently and does not exist yet at delivery (`793c39`). A.
 
 ## 793b65 What the judgement reads, and what it is asked
 
-The model request holds the instructions and a window of the [turn](./793a_product-spec.md#793a1a-terms) with up to 6 lines before it (`793d4g`), no tool inputs or results (they hold credentials and bulk), every text redacted before the cut (`793b69`). The instructions are the earlier attempt's, plus a sentence that an approach the [agent](./793a_product-spec.md#793a1a-terms) was unsure of, tried and saw succeed is a lesson (a probe: 11 of 20 runs without it, 20 of 20 with it), plus the learn [skill](../../GLOSSARY.md#skill)'s bar (`793b87`); a reversal of the agent's own claim is a `fact`, since the window of one turn holds the conclusion and what overturned it, not the cost or the guard that a feedback needs (`793c57`); a request to remember is a lesson even when it holds a secret or the agent says it did not save it (`793b90`). A (`793c40`).
+The model request holds the instructions and a window of the [turn](./793a_product-spec.md#793a1a-terms) with up to 6 lines before it (`793d4g`), no tool inputs or results (they hold credentials and bulk; the whole turn with tool results and a smaller window, the turn alone, were rejected), every text redacted before the cut (`793b69`). The instructions are the earlier attempt's, plus a sentence that an approach the [agent](./793a_product-spec.md#793a1a-terms) was unsure of, tried and saw succeed is a lesson (a probe: 11 of 20 runs without it, 20 of 20 with it), plus the learn [skill](../../GLOSSARY.md#skill)'s bar (`793b87`); a reversal of the agent's own claim is a `fact`, since the window of one turn holds the conclusion and what overturned it, not the cost or the guard that a feedback needs (`793c57`); a request to remember is a lesson even when it holds a secret or the agent says it did not save it (`793b90`). A.
 
 ## 793b66 What a lesson becomes
 
@@ -297,7 +297,7 @@ Redaction by shape, before the cut, in the judgement and the writing (the shapes
 
 ## 793b70 The capture reports its own failures, and nothing times it as a whole
 
-After a [turn](./793a_product-spec.md#793a1a-terms) the mod gives the event's result back at once and runs the judgement, the model call and the writing apart from it; a failed step is reported to the writing as a `failure` of up to 300 characters naming the step, and recorded. Each stage has its own bound (`793b85`), 115 seconds together; no timer bounds the chain (it would end a write about to finish, and nothing waits for it), and a failed step is not retried (a second model call, and the next turn captures its own lessons). In 246 live [notes](../../GLOSSARY.md#permanent-note) the note was in the [vault](../../GLOSSARY.md#vault) 0.9 to 6.0 seconds after the turn (median 1.8), so 2 minutes is a bound under load (`793c42`). A.
+After a [turn](./793a_product-spec.md#793a1a-terms) the mod gives the event's result back at once and runs the judgement, the model call and the writing apart from it; a failed step is reported to the writing as a `failure` of up to 300 characters naming the step, and recorded. Each stage has its own bound (`793b85`), 115 seconds together; no timer bounds the chain (it would end a write about to finish, and nothing waits for it), and a failed step is not retried (a second model call, and the next turn captures its own lessons). In 246 live [notes](../../GLOSSARY.md#permanent-note) the note was in the [vault](../../GLOSSARY.md#vault) 0.9 to 6.0 seconds after the turn (median 1.8), so 2 minutes is a bound under load and not the usual time (`793c2`). A.
 
 ## 793b71 The commands of the group auto take no first-use step
 
@@ -313,19 +313,19 @@ A test that a [note](../../GLOSSARY.md#permanent-note) was not written waits for
 
 ## 793b74 A row the harness wrote is no prompt
 
-A record row is a user's [prompt](./793a_product-spec.md#793a1a-terms) only if it is not marked meta, has no origin the user does not send (`793b64`), and keeps text after the cleaning of 792b15c3, which the judgement reuses; otherwise a [skill](../../GLOSSARY.md#skill)'s body, a task notification and a local command's caveat, name or output were each a `User:` line and could begin the [turn](./793a_product-spec.md#793a1a-terms). A, on review (`793e6g` finding 1).
+A record row is a user's [prompt](./793a_product-spec.md#793a1a-terms) only if it is not marked meta, has no origin the user does not send (`793b64`), and keeps text after the cleaning of [792b15c3 Harness noise](../../specs/technical/transcript-reader.md#792b15c3-harness-noise), which the judgement reuses; otherwise a [skill](../../GLOSSARY.md#skill)'s body, a task notification and a local command's caveat, name or output were each a `User:` line and could begin the [turn](./793a_product-spec.md#793a1a-terms). Rejected: the origin and the flag alone (it leaves the command rows) and a list of marks of its own (it copies a rule that has an owner). A, on review (`793e6g` finding 1).
 
 ## 793b75 The record is read once, and the lines of the window are the only ones redacted
 
-The judgement reads the record once and redacts, writes as one line and cuts only the context and [turn](./793a_product-spec.md#793a1a-terms) lines; older messages are read for kind and text. Redacting every message cost 2.2 seconds for 2 MB and 8.4 for 11 MB per reading, and there were two readings. A, on review (`793e6g` finding 19).
+The judgement reads the record once and redacts, writes as one line and cuts only the context and [turn](./793a_product-spec.md#793a1a-terms) lines; older messages are read for kind and text. Redacting every message cost 2.2 seconds for 2 MB and 8.4 for 11 MB per reading, and there were two readings; the 2-second bound for 1 MB is a regression guard with room for a loaded machine, as the command now spends most of that time parsing. A, on review (`793e6g` finding 19).
 
 ## 793b76 A turn is found by the text it began with
 
-The mod keeps each [prompt](./793a_product-spec.md#793a1a-terms)'s text and origin, and the judgement begins the [turn](./793a_product-spec.md#793a1a-terms) at the last record prompt with the text the turn started with (else the last prompt) and ends it after the final text (`793d2b`, `793d4g`): a prompt typed during a turn starts a turn of its own, so the last prompt is not always the turn's. Two prompts with the same text in one window are not told apart: rare, accepted. A, on review (`793e6g` findings 2 and 8).
+The mod keeps each [prompt](./793a_product-spec.md#793a1a-terms)'s text and origin, and the judgement begins the [turn](./793a_product-spec.md#793a1a-terms) at the last record prompt with the text the turn started with (else the last prompt) and ends it after the final text (`793d2b`, `793d4g`): a prompt typed during a turn starts a turn of its own, so the last prompt is not always the turn's. Two prompts with the same text in one window are not told apart: rare, accepted. Rejected: the last prompt of the record, as before (it loses the correction of a turn when the user types ahead, the common way to work), and the record's prompt ID, if the event gives it later. A, on review (`793e6g` findings 2 and 8).
 
 ## 793b77 The instructions are the system of the request, and a < is written &lt;
 
-The request has a `system` (the instructions, nothing of the record) and a `prompt` (the window and [notes](../../GLOSSARY.md#permanent-note) between their tags); a `<` in the window or notes is written `&lt;`, which the instructions explain, so no message or note can close a section or forge a tag (review probe B). A, on review (`793e6g` finding 5).
+The request has a `system` (the instructions, nothing of the record) and a `prompt` (the window and [notes](../../GLOSSARY.md#permanent-note) between their tags); a `<` in the window or notes is written `&lt;`, which the instructions explain, so no message or note can close a section or forge a tag (review probe B); a random delimiter in each request was rejected, as the escape is deterministic and testable. A, on review (`793e6g` finding 5).
 
 ## 793b78 The promise names the forms of credential that are redacted
 
@@ -333,23 +333,23 @@ The promise of `793a2c` is that no [note](../../GLOSSARY.md#permanent-note) hold
 
 ## 793b79 A field of a lesson is one line, and a reply that is cut keeps its whole lessons
 
-Every lesson field is redacted and written as one line before writing (a `Supersedes:` line in a field is read by the [vault](../../GLOSSARY.md#vault) as a link), and lessons are read from the reply one by one, so a reply cut by the 1,500-token cap keeps its whole lessons, the cut recorded as skipped. A, on review (`793e6g` findings 11 and 26).
+Every lesson field is redacted and written as one line before writing (a `Supersedes:` line in a field is read by the [vault](../../GLOSSARY.md#vault) as a link), and lessons are read from the reply one by one, so a reply cut by the 1,500-token cap keeps its whole lessons, the cut recorded as skipped. Rejected: writing nothing from a cut reply, as before (a lesson is whole or it is not, whatever follows it), and a higher cap (it does not remove the cut). A, on review (`793e6g` findings 11 and 26).
 
 ## 793b80 The delivered line shows the mark of a note written automatically
 
-The line of a [note](../../GLOSSARY.md#permanent-note) whose source opens with `written automatically` ends with the fixed words `(written automatically)`, appended so that the line's form (`793d4c`) and the reading of the file name (`793d4d`) do not change; the [agent](./793a_product-spec.md#793a1a-terms) should weigh such a note differently. A, on review (`793e6g` finding 15).
+The line of a [note](../../GLOSSARY.md#permanent-note) whose source opens with `written automatically` ends with the fixed words `(written automatically)`, appended so that the line's form (`793d4c`) and the reading of the file name (`793d4d`) do not change; the [agent](./793a_product-spec.md#793a1a-terms) should weigh such a note differently. Rejected: no mark, as before, and the mark in the framing line as a count; the mark costs 22 characters for a note and tells the agent what the [vault](../../GLOSSARY.md#vault) already tells a reader. A, on review (`793e6g` finding 15).
 
 ## 793b81 A text is written as one line before it is redacted, and cut last
 
-Every text is written as one line first (control and format characters dropped, white space collapsed), then redacted, then cut, then escaped in the window; `⏎` counts as white space and an `Authorization` header ends at it. Redacting first missed a credential split by hidden characters that the one-line writing then joined. A, on the security review relayed by the coordinator.
+Every text is written as one line first (control and format characters dropped, white space collapsed), then redacted, then cut, then escaped in the window; `⏎` counts as white space and an `Authorization` header ends at it. Redacting first missed a credential split by hidden characters that the one-line writing then joined; redacting before and after was rejected, as the first pass is the one that cannot see a split credential. A, on the security review relayed by the coordinator.
 
 ## 793b82 A judgement without a vault or a record fails, and the model is not asked
 
-`engram auto judge` fails, printing nothing and naming the cause, when no [vault](../../GLOSSARY.md#vault) exists at its path or no record of the [session](../../GLOSSARY.md#session) is found; the mod reports it, the writing records it once and the model is not asked. A record with no [prompt](./793a_product-spec.md#793a1a-terms) is judged nothing. Before, a missing vault cost a model call and two records per [turn](./793a_product-spec.md#793a1a-terms), and a wrong records directory lost captures silently. A, on review (`793e6g` findings 9 and 13); it amends `793c43`.
+`engram auto judge` fails, printing nothing and naming the cause, when no [vault](../../GLOSSARY.md#vault) exists at its path or no record of the [session](../../GLOSSARY.md#session) is found; the mod reports it, the writing records it once and the model is not asked. A record with no [prompt](./793a_product-spec.md#793a1a-terms) is judged nothing. Before, a missing vault cost a model call and two records per [turn](./793a_product-spec.md#793a1a-terms), and a wrong records directory lost captures silently. Rejected: a recorded skip with the reason while the judgement still runs, a `skipped` record (it needs a second report from the mod) and success with no trace, as before. A, on review (`793e6g` findings 9 and 13); it amends `793b71`.
 
 ## 793b83 A failure that is recorded does not fail the command
 
-When a lesson cannot be written, `engram auto write` records `failed` and succeeds; it fails only when it could not record the failure, so one failure is neither recorded twice nor lost. A, on review (`793e6g` finding 10).
+When a lesson cannot be written, `engram auto write` records `failed` and succeeds; it fails only when it could not record the failure, so one failure is neither recorded twice nor lost; the record is the display of what happened and the mod runs the command, so failing with the mod not reporting the writing's failure, and failing with the writing not recording it, were rejected. A, on review (`793e6g` finding 10).
 
 ## 793b84 A headless prompt is judged only when the user asks
 
@@ -357,11 +357,11 @@ The delivery acts for the four origins of `793b64`; the judgement acts for `comp
 
 ## 793b85 Each stage of the capture has a bound of its own
 
-Stage bounds: the [session](../../GLOSSARY.md#session)-ID call 5 seconds (raced by a timer; no ID, no capture), `engram auto judge` 15, the model call 60, `engram auto write` 20, the failure report 15: 115 seconds, under 2 minutes; a stage that overruns has failed, and a non-JSON request is a failure of the judgement. The host's default of 30 seconds per call and an unbounded ID call left no margin; a timer over the chain is rejected as in `793b70`, and shorter bounds because a loaded machine took 7 seconds to start a command (`793c32`). A, on review (`793e6g` findings 12 and 24; `793c42`).
+Stage bounds: the [session](../../GLOSSARY.md#session)-ID call 5 seconds (raced by a timer; no ID, no capture), `engram auto judge` 15, the model call 60, `engram auto write` 20, the failure report 15: 115 seconds, under 2 minutes; a stage that overruns has failed, and a non-JSON request is a failure of the judgement. The host's default of 30 seconds per call and an unbounded ID call left no margin; a timer over the chain is rejected as in `793b70`, and shorter bounds because a loaded machine took 7 seconds to start a command (`793c32`). A, on review (`793e6g` findings 12 and 24; `793c2`).
 
 ## 793b86 The acceptance run takes a count
 
-`targ acceptance` takes `--count` (default 1) and a 30-minute limit per repetition of the whole set; a model-dependent scenario's tally is its passes in 10 runs, each red attributed to its cause, and the bar is 9 in 10. Six of the second group's 14 rows had no tally. A, on review (`793e6g` finding 7).
+`targ acceptance` takes `--count` (default 1) and a 30-minute limit per repetition of the whole set; a model-dependent scenario's tally is its passes in 10 runs, each red attributed to its cause, and the bar is 9 in 10. Six of the second group's 14 rows had no tally. Rejected: 10 in 10 (one unlucky run of a model's judgement would be a red) and a bar for each scenario by the cost of a miss. A, on review (`793e6g` finding 7).
 
 ## 793b87 The instructions carry the bar of the learn skill
 
@@ -369,7 +369,7 @@ The instructions carry the learn [skill](../../GLOSSARY.md#skill)'s bar: a lesso
 
 ## 793b88 The judgement is measured by a probe of its own
 
-Instructions are changed with `dev/eval/auto-judge/probe.py` at hand: it builds the request with the real `engram auto judge` over fixtures of the live scenarios' [turns](./793a_product-spec.md#793a1a-terms), asks the model as the mod does 60 times or more per variant (20 did not separate 80% from 98%), and keeps a sentence only when its variant beats the one without on its fixture and no other falls by more than noise. The probe is part of no check. Rerun: unsure-approach 19 of 60 without the sentence, 60 with; thanks, no lesson, 43 then 60; covered 51 then 59; credential 54 throughout. A, on review (`793e6g` finding 7; `793c58`).
+Instructions are changed with `dev/eval/auto-judge/probe.py` at hand: it builds the request with the real `engram auto judge` over fixtures of the live scenarios' [turns](./793a_product-spec.md#793a1a-terms), asks the model as the mod does 60 times or more per variant (20 did not separate 80% from 98%), and keeps a sentence only when its variant beats the one without on its fixture and no other falls by more than noise. The probe is part of no check. Rerun: unsure-approach 19 of 60 without the sentence, 60 with; thanks, no lesson, 43 then 60; covered 51 then 59; credential 54 throughout. The probe asks through `claude -p` where the mod uses the host's model call, so its numbers and the live rows' are close but not equal, and the live rows decide; the live rows alone and a probe through the host's model call in a mod of its own were rejected (the probe is cheap enough to run 60 times). A, on review (`793e6g` finding 7).
 
 ## 793b89 Each automatic note is offered to the parent vault, and the duplicate check stays local
 
