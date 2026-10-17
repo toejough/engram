@@ -230,8 +230,8 @@ Takes [793a2a1c A dry run turns nothing on](./793a_product-spec.md#793a2a1-uat-s
 | --- | --- | --- | --- | --- | --- | --- |
 | 793a2a1c | Dedicated example, product acceptance (`network`) | the preview as the user sees it: a dry run reports the mod and installs nothing, and the next session has no memory | Red | c8342310 | | |
 | 793d4b1e | Dedicated example (default suite) | the report data: a mod directory is told from a skill directory, through `Updater.Run` over an in-memory file system | Done | e47a17b1 | 3123a3c3 | 49fd7aa0 |
-| 793d4b1f | Dedicated example (default suite) | the report's rows: the source printed for a mod, through the report writer over a constructed report | Done | 318651db | 6628b251 | |
-| 793d4b1g | Dedicated example (default suite) | the dry run's promise for the new input: the mod is planned and reported and none of it is written, through `Updater.Run` over an in-memory file system | Not started | | | |
+| 793d4b1f | Dedicated example (default suite) | the report's rows: the source printed for a mod, through the report writer over a constructed report | Done | 318651db | 6628b251 | a758cadc |
+| 793d4b1g | Dedicated example (default suite) | the dry run's promise for the new input: the mod is planned and reported and none of it is written, through `Updater.Run` over an in-memory file system | Green-all | n/a | - | |
 
 #### 793e6a10 A second update still delivers each note once
 

@@ -120,6 +120,28 @@ func Test793d4b1e_Updater_Run_ReportsTheModAsAMod(t *testing.T) {
 	))
 }
 
+func Test793d4b1g_Updater_Run_ADryRunReportsTheModAndWritesNoneOfIt(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	updater, fileSystem := updaterOverCheckoutWithMod()
+
+	report, err := updater.Run(context.Background(), update.Options{DryRun: true})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+	g.Expect(report.Harnesses[0].Err).NotTo(HaveOccurred())
+
+	g.Expect(report.Harnesses[0].SkillDirs).To(
+		ContainElement(update.SkillDirCount{Name: "engram-memory", Files: 1, Mod: true}))
+
+	// Not one byte was written anywhere: no file of the mod, no root, no link.
+	g.Expect(fileSystem.written).To(BeEmpty())
+	g.Expect(fileSystem.symlinks).To(BeEmpty())
+	g.Expect(fileSystem.dirs["/home/joe/.claude/engram"]).To(BeFalse())
+	g.Expect(fileSystem.dirs["/home/joe/.claude/skills"]).To(BeFalse())
+}
+
 // updaterOverCheckoutWithMod returns an updater over an in-memory machine with Claude Code and a checkout that holds
 // the skill learn and the mod engram-memory, and the file system it works on.
 func updaterOverCheckoutWithMod() (*update.Updater, *memFS) {
