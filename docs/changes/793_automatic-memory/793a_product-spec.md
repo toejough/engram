@@ -78,9 +78,17 @@ Scenario: 793a2a1e A vault that does not exist is not created
   Given a machine with Claude Code on which the user has run engram update, and whose configured vault no longer exists
   When the user starts a session and sends a prompt
   Then the agent answers the prompt, and the vault still does not exist
-```
 
-The clause of [793a2a On after `engram update`](#793a2a-on-after-engram-update) about lessons is proved by a scenario written with [793e6b Lessons are written without the agent](./793e_implementation-plan.md#793e6b-lessons-are-written-without-the-agent) ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
+Scenario: 793a2a1f A second update still writes each lesson as one note
+  Given a machine on which the user has run engram update once
+  When the user runs engram update again, and corrects the agent in a prompt of a session
+  Then the vault holds one note for the correction
+
+Scenario: 793a2a1g A lesson is not written to a vault that does not exist
+  Given a machine with Claude Code on which the user has run engram update, and whose configured vault no longer exists
+  When the user corrects the agent in a prompt of a session, and the turn ends
+  Then the vault still does not exist 2 minutes after the turn ends
+```
 
 ### 793a2b Memory arrives with the prompt
 
@@ -134,7 +142,42 @@ NOT produce a note. A note MUST NOT contain a credential, token, key or password
 
 #### 793a2c1 UAT Scenarios
 
-Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
+```gherkin
+Scenario: 793a2c1a A correction becomes a note
+  Given the user has run engram update, and a session in which the agent may not run engram commands and has answered a question about how to build a project
+  When the user corrects the agent's answer in a prompt, and the turn ends
+  Then within 2 minutes the vault holds a note that states the correction and says it was written automatically, and the agent wrote nothing to the vault
+
+Scenario: 793a2c1b A request to remember becomes a note
+  Given the user has run engram update, and a session in which the agent may not run engram commands
+  When the user asks the agent in a prompt to remember something, and the turn ends
+  Then within 2 minutes the vault holds a note that states it and says it was written automatically, and the agent wrote nothing to the vault
+
+Scenario: 793a2c1c An approach the user confirmed becomes a note
+  Given the user has run engram update, and a session in which the agent may not run engram commands and has done a task one way
+  When the user tells the agent in a prompt that the way worked and to keep doing it, and the turn ends
+  Then within 2 minutes the vault holds a note that states the approach and says it was written automatically
+
+Scenario: 793a2c1d The agent's own correction becomes a note
+  Given the user has run engram update, and a session in which the agent may read files but may not run engram commands
+  When the user asks the agent in a prompt to guess what a file says and then to read it, and the agent says its guess was wrong and states what the file says, and the turn ends
+  Then within 2 minutes the vault holds a note that states what the file says and says it was written automatically
+
+Scenario: 793a2c1e An approach that succeeded with evidence becomes a note
+  Given the user has run engram update, and a session in which the agent may run a check script but may not run engram commands
+  When the agent, unsure whether an approach will make the check pass, tries it in a turn and the turn shows that the check passed
+  Then within 2 minutes the vault holds a note that states the approach and says it was written automatically
+
+Scenario: 793a2c1f Guesses, plans and chatter produce no note
+  Given the user has run engram update, and a session in which the agent may not run engram commands
+  When the user sends a prompt that the agent answers with a guess, a plan and chatter, and the turn ends
+  Then 2 minutes after the turn ends the vault holds no note
+
+Scenario: 793a2c1g A credential in the turn is not in the note
+  Given the user has run engram update, and a session in which the agent may not run engram commands
+  When the user corrects the agent in a prompt that also holds a token and a password, and the turn ends
+  Then within 2 minutes the vault holds a note that states the correction, and no note holds the token or the password
+```
 
 ### 793a2f The conversation becomes searchable memory
 
@@ -164,9 +207,14 @@ Scenario: 793a2d1a A slow lookup does not hold a prompt for more than 8 seconds
   Given the user has run engram update, and a lookup that takes 20 seconds
   When the user sends a prompt
   Then the prompt reaches the agent within 8 seconds, as the user typed it and with nothing from the vault, and the agent answers it
+
+Scenario: 793a2d1b Automatic memory's work starts no session of its own
+  Given the user has run engram update, and a session in which the agent may not run engram commands
+  When the user corrects the agent in a prompt, and the turn ends
+  Then within 2 minutes the vault holds a note for the correction, and no session but the user's exists, so nothing was delivered to or written from another
 ```
 
-The scenario of the clause of [793a2d Never in the way](#793a2d-never-in-the-way) about its own [sessions](../../GLOSSARY.md#session) is written with [793e6b Lessons are written without the agent](./793e_implementation-plan.md#793e6b-lessons-are-written-without-the-agent), the first group that starts such sessions, and the other scenarios of [793a2d Never in the way](#793a2d-never-in-the-way) are written with [793e6c Never in the way](./793e_implementation-plan.md#793e6c-never-in-the-way) ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
+The scenario of the clause of [793a2d Never in the way](#793a2d-never-in-the-way) about its own [sessions](../../GLOSSARY.md#session) is written with [793e6b Lessons are written without the agent](./793e_implementation-plan.md#793e6b-lessons-are-written-without-the-agent), the first group that does work after a [turn](#793a1a-terms), and the other scenarios of [793a2d Never in the way](#793a2d-never-in-the-way) are written with [793e6c Never in the way](./793e_implementation-plan.md#793e6c-never-in-the-way) ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
 
 ### 793a2e The user can see what it did
 
@@ -194,7 +242,12 @@ later sessions, whenever it bears on them.
 
 #### 793a3a1 UAT Scenarios
 
-Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
+```gherkin
+Scenario: 793a3a1a A written note is delivered with later prompts
+  Given the user has run engram update, and a session in which the user corrected the agent and the correction became a note
+  When the user sends a prompt that the note bears on, in that session and then in a new session
+  Then each of the two prompts arrives with the note
+```
 
 ### 793a3c Nothing the vault already says is written again
 
@@ -204,7 +257,17 @@ whenever it was written.
 
 #### 793a3c1 UAT Scenarios
 
-Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
+```gherkin
+Scenario: 793a3c1a A lesson an earlier note states is not written again
+  Given the user has run engram update, a vault holding a note that the user saved earlier and that states a lesson, and a session in which the agent may not run engram commands
+  When the user states the same lesson to the agent in a prompt, and the turn ends
+  Then 2 minutes after the turn ends the vault holds the earlier note only
+
+Scenario: 793a3c1b A lesson the agent saved itself is not written again
+  Given the user has run engram update, and a session in which the agent may run engram commands
+  When the user asks the agent in a prompt to remember something and to save it with engram learn, and the turn ends
+  Then 2 minutes after the turn ends the vault holds one note for it, the one the agent saved
+```
 
 ### 793a3e Explicit memory use keeps working
 
@@ -215,7 +278,12 @@ and the [learn skill](../../GLOSSARY.md#learn-skill), MUST keep working unchange
 
 #### 793a3e1 UAT Scenarios
 
-Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
+```gherkin
+Scenario: 793a3e1a The agent's own lookups and saves keep working
+  Given the user has run engram update, a vault holding a note that says when the staging database is reset, and a session in which the agent may run engram commands
+  When the user asks the agent in a prompt to look the staging note up with engram query and to save another note with engram learn
+  Then the agent's lookup shows the staging note, and the vault holds the note the agent saved, as the agent wrote it
+```
 
 ## 793a5 Modified: First-use vault creation
 

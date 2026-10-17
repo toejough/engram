@@ -1030,3 +1030,79 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   to the restated sentences, each with its entry in the open questions.
 - **Alternatives:** decline a finding. One was declined (25).
 - **Decided by:** Reviewer (opus review of the first group), accepted by the author, except 25, declined by the author.
+
+## 793b62 The scenarios of the second group
+
+- **Choice:** step 2 for the second group ([793e6b Lessons are written without the agent](./793e_implementation-plan.md#793e6b-lessons-are-written-without-the-agent))
+  writes fourteen scenarios, one for each clause that has none and no more: seven under
+  [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent)
+  (the five kinds of confirmed [lesson](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) each become a [note](../../GLOSSARY.md#permanent-note):
+  a correction, a request to remember, an approach the user confirmed, the [agent](./793a_product-spec.md#793a1a-terms)'s own correction and an
+  approach that succeeded with evidence; a [turn](./793a_product-spec.md#793a1a-terms) of only guesses, plans and chatter produces no note; a credential
+  of the turn is not in the note), two under [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update) (a second update still
+  writes each lesson as one note; no [vault](../../GLOSSARY.md#vault) is created by a write, the clause that [793a5a 792a2e First-use vault creation](./793a_product-spec.md#793a5a-modified-792a2e-first-use-vault-creation)
+  added), one under [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) (the clause about its own [sessions](../../GLOSSARY.md#session)), one under
+  [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later) (the note arrives with later [prompts](./793a_product-spec.md#793a1a-terms) of the same
+  [session](../../GLOSSARY.md#session) and of a new one), two under [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again) (a note saved earlier by
+  someone else, and a note the agent saved itself in the turn) and one under
+  [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working).
+- **Rationale:** the owner's step 2 asks for the minimum scenarios that prove the requirement, and each MUST and
+  MUST NOT clause needs one that fails when the clause is broken. The five kinds are the clause's own list, so each is
+  a scenario; the two clauses that forbid (guesses, a credential) are each a scenario because a forbidding clause is
+  proved by a turn that tempts the breach and a note that is still written beside it. The two scenarios of
+  [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again) are the two writers a note can come from ("whoever wrote that note"): a note that was
+  there before the [turn](./793a_product-spec.md#793a1a-terms), and one the agent writes during it. The steps that stage a lesson are the test's: a session in which
+  the agent may not run engram commands is how a test proves that a note was written "by [automatic memory](./793a_product-spec.md#793a1a-terms) and not by
+  the agent", since the agent's own learn [skill](../../GLOSSARY.md#skill) would otherwise be free to write the note first.
+- **Alternatives:** one scenario with an outline of the five kinds (rejected: the plan guide has one test per scenario ID,
+  and each kind needs its own staging of a turn); a scenario for each origin of a prompt (rejected: no clause of a
+  requirement names origins, see [793b64 The prompts the user sends](#793b64-the-prompts-the-user-sends)).
+- **Decided by:** Author (default; owner may override).
+
+## 793b63 A turn is judged by one model call, and no session is started
+
+- **Choice:** after a [turn](./793a_product-spec.md#793a1a-terms) of a [prompt](./793a_product-spec.md#793a1a-terms) the user sent, the memory mod runs `engram auto judge`, which prints the
+  request of one model call, makes that call through the mod's model API (`$.model.complete`: one prompt string, the
+  model `haiku`, effort `low`, so the user's own login pays and no key or account is configured), and runs
+  `engram auto write` with the reply, which parses the verdict, redacts credentials, leaves out a lesson the
+  [vault](../../GLOSSARY.md#vault) already states and writes the rest through the learn path, marked as written automatically. The three steps run
+  after the turn, one turn after another, each bounded in time, and none holds the next [prompt](./793a_product-spec.md#793a1a-terms) or the reply.
+  [Automatic memory](./793a_product-spec.md#793a1a-terms) starts no [session](../../GLOSSARY.md#session) of its own: the call raises neither a prompt nor a turn, so there is
+  nothing to deliver to and nothing to write from, and the clause of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) about its own sessions holds by
+  construction. [793a2d1b Automatic memory's work starts no session of its own](./793a_product-spec.md#793a2d1-uat-scenarios) observes it, and no marker or guard for a session of
+  its own is built, because nothing would start such a session.
+- **Rationale:** verified with Claude Code 2.1.302 in a headless session in an isolated home: the `turn.complete` event
+  carries the final text of the turn (`answer`), the turn's ID and the reason it ended, and the session's record already
+  holds the turn's last row when the event fires; `$.model.complete` answers `{isAnswered, text}` in about half a second to
+  two seconds for `haiku`, from the hook that called it or from work left running after the hook returned; no
+  prompt or turn is raised by it. [793b58 The first group delivers for every origin of a prompt](#793b58-the-first-group-delivers-for-every-origin-of-a-prompt)
+  and the plan expected this group to start sessions of its own, on the assumption that the judgement runs in one; the
+  model API shows it need not. The prompt is that of the earlier attempt, which the owner's earlier work tuned, with the
+  turn marked off from the context before it and the nearest [notes](../../GLOSSARY.md#permanent-note) named by file name.
+- **Alternatives:** a headless `claude -p` session of its own started with `$.process.run`, with an environment marker
+  that makes the mod step aside in it (rejected: a second process that loads the user's whole configuration for each
+  turn, and the clause becomes breakable); `$.model.fork` over the user's own [transcript](../../GLOSSARY.md#transcript) (rejected: it needs the main
+  thread's cache and sends the whole conversation, where the judgement needs the turn).
+- **Decided by:** Author (default; owner may override). It departs from the plan's expectation recorded in
+  [793b58 The first group delivers for every origin of a prompt](#793b58-the-first-group-delivers-for-every-origin-of-a-prompt); the owner is asked in
+  [793c38 Does automatic memory start sessions of its own?](./793c_open-questions.md#793c38-does-automatic-memory-start-sessions-of-its-own).
+
+## 793b64 The prompts the user sends
+
+- **Choice:** a [prompt](./793a_product-spec.md#793a1a-terms) is the user's when its origin, as Claude Code stamps it on the `prompt.submit` event, is `composer` (typed
+  at the terminal), `bridge` (the phone or web client), `slack-ping` (the owner pinging from Slack) or `sdk` (the
+  headless host, where `claude -p` is how the user sends a prompt). Every other origin is not: a background task's
+  notification, a scheduled trigger, a peer or coordinating [session](../../GLOSSARY.md#session), another plugin's prompt, a prompt of no origin the engine
+  can name. The mod gives the origin to `engram auto deliver` and `engram auto judge`, and the commands decide, so the
+  definition is in Go: `deliver` prints nothing for a prompt that is not the user's, and `judge` prints nothing for its
+  [turn](./793a_product-spec.md#793a1a-terms). The mod leaves out the turns of a [subagent](../../GLOSSARY.md#subagent) itself (the event names the [agent](./793a_product-spec.md#793a1a-terms)), as [793b8 Exclusions](#793b8-exclusions) decided.
+- **Rationale:** [793b22 The scope is top-level sessions and notes only](#793b22-the-scope-is-top-level-sessions-and-notes-only) and row 2 of
+  [793b36 Earlier owner answers this minimal set reverses](#793b36-earlier-owner-answers-this-minimal-set-reverses) say prompts the user sends, and
+  [793b58 The first group delivers for every origin of a prompt](#793b58-the-first-group-delivers-for-every-origin-of-a-prompt) moved the filter here. The event's origin is the one source:
+  the session's record spells the origin of a task notification with an underscore where the event uses a hyphen, and
+  the record of a prompt does not exist yet when the prompt is delivered. `sdk` counts because a headless session's
+  prompts are sent by the user's own script, and every acceptance test drives one. No clause of a requirement names
+  origins, so no product scenario does; the technical spec proves the filter.
+- **Alternatives:** the origin read from the record at capture time (rejected: another vocabulary, and no record
+  at delivery); `composer` alone (rejected: it would leave out the user's own headless and phone prompts).
+- **Decided by:** Author (default; owner may override).

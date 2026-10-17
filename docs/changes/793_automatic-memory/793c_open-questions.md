@@ -371,3 +371,34 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Recommendation:** (a): a reworded restatement changes the canonical requirement under a Modified operation.
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b60 The restated sentences of 792a2e are kept as they are](./793b_decision-log.md#793b60-the-restated-sentences-of-792a2e-are-kept-as-they-are).
+
+## 793c37 Are the fourteen scenarios of the second group the minimum?
+
+- **Context:** step 2 for the second group wrote fourteen scenarios, one for each clause of
+  [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), of the three interactions the group takes and of the two clauses of
+  [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update) and [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) that it proves.
+- **Options:** (a) The fourteen as written. (b) Fewer: the two scenarios of [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again) folded into one, or the
+  three kinds of lesson that come from the [agent](./793a_product-spec.md#793a1a-terms)'s own words folded into one.
+- **Recommendation:** (a): the clause lists the kinds, and "whoever wrote that [note](../../GLOSSARY.md#permanent-note)" names two writers a test can tell apart.
+- **Blocks:** nothing; the scenarios are written and worked.
+- **Status:** open. Default (a) taken: [793b62 The scenarios of the second group](./793b_decision-log.md#793b62-the-scenarios-of-the-second-group).
+
+## 793c38 Does automatic memory start sessions of its own?
+
+- **Context:** [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) forbids delivering to or writing from the [sessions](../../GLOSSARY.md#session) that [automatic memory](./793a_product-spec.md#793a1a-terms) starts itself, and the plan
+  placed the guard against them in [793e6b Lessons are written without the agent](./793e_implementation-plan.md#793e6b-lessons-are-written-without-the-agent), the first group that does work after a [turn](./793a_product-spec.md#793a1a-terms).
+- **Options:** (a) None: the judgement is one call of the mod's model API, which raises no [prompt](./793a_product-spec.md#793a1a-terms) and no turn, so the clause holds by
+  construction and its scenario observes that no other session exists. (b) A headless session of its own for the
+  judgement, with a marker in its environment that makes the mod step aside in it.
+- **Recommendation:** (a): (b) starts a second process that loads the user's whole configuration for each turn.
+- **Blocks:** the scenario of the clause, [793a2d1b Automatic memory's work starts no session of its own](./793a_product-spec.md#793a2d1-uat-scenarios).
+- **Status:** open. Default (a) taken: [793b63 A turn is judged by one model call, and no session is started](./793b_decision-log.md#793b63-a-turn-is-judged-by-one-model-call-and-no-session-is-started).
+
+## 793c39 Which origins count as the prompts the user sends?
+
+- **Context:** the mod delivered for every origin of a [prompt](./793a_product-spec.md#793a1a-terms) in the first group ([793c35 Does the mod tell a prompt the user sent from a prompt of another origin?](./793c_open-questions.md#793c35-does-the-mod-tell-a-prompt-the-user-sent-from-a-prompt-of-another-origin)), and this group
+  adds the filter. A headless [session](../../GLOSSARY.md#session)'s prompt has the origin `sdk`, the same as a prompt another program sends with the SDK.
+- **Options:** (a) `composer`, `bridge`, `slack-ping` and `sdk`. (b) `composer`, `bridge` and `slack-ping`, so a headless session gets nothing.
+- **Recommendation:** (a): (b) would leave out the user's own `claude -p` runs, and the tests drive one.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b64 The prompts the user sends](./793b_decision-log.md#793b64-the-prompts-the-user-sends).
