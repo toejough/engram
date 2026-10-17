@@ -47,6 +47,26 @@ type AutoJudgeArgs struct {
 // turn that ended, one JSON object with the session's ID and the turn's final text.
 type AutoJudgeDeps = AutoDeliverDeps
 
+// AutoSweepArgs holds parsed flags for `engram auto sweep`: where the records of sessions and the chunk index are, and
+// the switch for the turns of headless prompts that the judgement has too.
+type AutoSweepArgs struct {
+	SessionsDir string `targ:"flag,name=sessions,desc=directory of recorded sessions (default ENGRAM_TRANSCRIPT_DIR then CLAUDE_CONFIG_DIR/projects then ~/.claude/projects)"`                             //nolint:lll // single unbreakable struct-tag string
+	ChunksDir   string `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`                                                                                           //nolint:lll // single unbreakable struct-tag string
+	CaptureSDK  bool   `targ:"flag,name=capture-sdk,env=ENGRAM_AUTO_CAPTURE_SDK,desc=sweep the turns of headless prompts (origin sdk) too; off by default so a script run with claude -p indexes nothing"` //nolint:lll // single unbreakable struct-tag string
+}
+
+// AutoSweepDeps holds injected dependencies for RunAutoSweep.
+type AutoSweepDeps struct {
+	// Stdin carries the turn that ended: one JSON object with the session's ID and the origin of its prompt.
+	Stdin io.Reader
+	// Ingest indexes sources in the chunk index, as `engram ingest` does.
+	Ingest IngestRun
+	// ReadDir lists the session-log directory, where Claude Code keeps the record of each session, and Exists reports
+	// whether a file is in it.
+	ReadDir func(path string) ([]fs.DirEntry, error)
+	Exists  func(path string) bool
+}
+
 // AutoWriteArgs holds parsed flags for `engram auto write`.
 type AutoWriteArgs struct {
 	VaultPath  string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
@@ -67,6 +87,9 @@ type AutoWriteDeps struct {
 	// NoteExists reports whether a file is in the vault.
 	NoteExists func(path string) bool
 }
+
+// IngestRun indexes sources in the chunk index, as `engram ingest` does, and prints what it indexed.
+type IngestRun func(ctx context.Context, args IngestArgs, stdout io.Writer) error
 
 // LearnRun writes a note through the learn path, as `engram learn` does, and returns the path it prints for the note.
 type LearnRun func(ctx context.Context, args LearnArgs) (string, error)
@@ -128,7 +151,7 @@ func RunAutoJudge(ctx context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, s
 
 	record := recordOf(deps.ReadDir, deps.ReadFile, args.SessionsDir, turn.Session)
 	if record == nil {
-		return fmt.Errorf("%w %s under %s", errNoRecord, turn.Session, args.SessionsDir)
+		return fmt.Errorf("auto judge: %w %s under %s", errNoRecord, turn.Session, args.SessionsDir)
 	}
 
 	request, found, judgeErr := auto.Judge(ctx, record, turn,
@@ -151,6 +174,35 @@ func RunAutoJudge(ctx context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, s
 	_, writeErr := fmt.Fprintln(stdout, string(encoded))
 	if writeErr != nil {
 		return fmt.Errorf("auto judge: writing the request: %w", writeErr)
+	}
+
+	return nil
+}
+
+// RunAutoSweep reads a turn that ended from standard input and indexes the record of its session in the chunk index, as
+// the explicit source of an ingest, so that `engram query` finds the conversation (793d4n). It prints nothing and
+// indexes nothing for a prompt the judgement does not act for, and fails, naming the cause, when the input is not a
+// JSON object, the session has no record or the index fails.
+func RunAutoSweep(ctx context.Context, args AutoSweepArgs, deps AutoSweepDeps) error {
+	var turn auto.TurnEnd
+
+	decodeErr := json.NewDecoder(deps.Stdin).Decode(&turn)
+	if decodeErr != nil {
+		return fmt.Errorf("auto sweep: reading the turn: %w", decodeErr)
+	}
+
+	if !auto.Judged(turn.Origin, args.CaptureSDK) {
+		return nil
+	}
+
+	record := recordPathOf(deps.ReadDir, deps.Exists, args.SessionsDir, turn.Session)
+	if record == "" {
+		return fmt.Errorf("auto sweep: %w %s under %s", errNoRecord, turn.Session, args.SessionsDir)
+	}
+
+	ingestErr := deps.Ingest(ctx, IngestArgs{Transcripts: []string{record}, ChunksDir: args.ChunksDir}, io.Discard)
+	if ingestErr != nil {
+		return fmt.Errorf("auto sweep: indexing %s: %w", record, ingestErr)
 	}
 
 	return nil
@@ -187,8 +239,8 @@ const (
 
 // unexported variables.
 var (
-	// errNoRecord begins the failure of a judgement that finds no record of its session.
-	errNoRecord = errors.New("auto judge: no record of session")
+	// errNoRecord begins the failure of a judgement or a sweep that finds no record of its session.
+	errNoRecord = errors.New("no record of session")
 )
 
 // outcomes is what became of a reply so far, as the records that tell it: base holds what they share.
@@ -221,24 +273,21 @@ func coveringNote(covered, vault string, exists func(path string) bool) string {
 	return ""
 }
 
+// fileExistsFrom returns a check that a file is there, through the injected file system.
+func fileExistsFrom(d Deps) func(path string) bool {
+	return func(path string) bool {
+		_, err := d.FS.Stat(path)
+
+		return err == nil
+	}
+}
+
 // findRecord reads the record of a session, which Claude Code keeps as <ID>.jsonl in a directory of the session-log
 // directory for the project, or in the session-log directory itself.
 func findRecord(
 	readDir func(path string) ([]fs.DirEntry, error), readFile func(path string) ([]byte, error), dir, session string,
 ) []byte {
-	name := session + ".jsonl"
-	candidates := []string{filepath.Join(dir, name)}
-
-	// a directory that cannot be listed has no project directories to search
-	entries, _ := readDir(dir)
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			candidates = append(candidates, filepath.Join(dir, entry.Name(), name))
-		}
-	}
-
-	for _, candidate := range candidates {
+	for _, candidate := range recordCandidates(readDir, dir, session) {
 		record, err := readFile(candidate)
 		if err == nil {
 			return record
@@ -310,6 +359,20 @@ func newAutoDeliverDeps(d Deps) AutoDeliverDeps {
 	}
 }
 
+// newAutoSweepDeps wires RunAutoSweep from the injected CLI capabilities - pure composition (#700).
+func newAutoSweepDeps(d Deps) AutoSweepDeps {
+	ingestDeps := newIngestDeps(d)
+
+	return AutoSweepDeps{
+		Stdin: d.Stdin,
+		Ingest: func(ctx context.Context, args IngestArgs, stdout io.Writer) error {
+			return RunIngest(ctx, args, ingestDeps, stdout)
+		},
+		ReadDir: d.FS.ReadDir,
+		Exists:  fileExistsFrom(d),
+	}
+}
+
 // newAutoWriteDeps wires RunAutoWrite from the injected CLI capabilities — pure composition (#700).
 func newAutoWriteDeps(d Deps) AutoWriteDeps {
 	learnDeps := newLearnDeps(d)
@@ -323,12 +386,8 @@ func newAutoWriteDeps(d Deps) AutoWriteDeps {
 
 			return strings.TrimSpace(printed.String()), err
 		},
-		Now: d.Now,
-		NoteExists: func(path string) bool {
-			_, err := d.FS.Stat(path)
-
-			return err == nil
-		},
+		Now:        d.Now,
+		NoteExists: fileExistsFrom(d),
 		WriteRecord: func(path string, data []byte) error {
 			mkdirErr := d.FS.MkdirAll(filepath.Dir(path), recordDirPerm)
 			if mkdirErr != nil {
@@ -375,6 +434,24 @@ func notesOf(payload []byte) ([]auto.Note, error) {
 	return notes, nil
 }
 
+// recordCandidates lists the files that may hold the record of a session: <ID>.jsonl in the session-log directory
+// itself, and in each directory of it.
+func recordCandidates(readDir func(path string) ([]fs.DirEntry, error), dir, session string) []string {
+	name := session + ".jsonl"
+	candidates := []string{filepath.Join(dir, name)}
+
+	// a directory that cannot be listed has no project directories to search
+	entries, _ := readDir(dir)
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			candidates = append(candidates, filepath.Join(dir, entry.Name(), name))
+		}
+	}
+
+	return candidates
+}
+
 // recordOf returns the record of a session, or nothing. A session whose ID is not a plain file name has none: its ID
 // would otherwise name a file outside the directory (793d4d). Nor does a session when there is no directory of records
 // (793d4f): the file name alone would name a file of the working directory.
@@ -386,6 +463,23 @@ func recordOf(
 	}
 
 	return findRecord(readDir, readFile, dir, session)
+}
+
+// recordPathOf returns the path of the record of a session, or nothing, as recordOf finds it.
+func recordPathOf(
+	readDir func(path string) ([]fs.DirEntry, error), exists func(path string) bool, dir, session string,
+) string {
+	if dir == "" || !isPlainName(session) {
+		return ""
+	}
+
+	for _, candidate := range recordCandidates(readDir, dir, session) {
+		if exists(candidate) {
+			return candidate
+		}
+	}
+
+	return ""
 }
 
 // sessionsDirOf is where the records of sessions are read from when --sessions is not given (793d4f): the directory

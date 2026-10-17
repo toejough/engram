@@ -189,6 +189,16 @@ func autoTargets(
 				errHandler(RunAutoJudge(withLog(ctx), a, newAutoDeliverDeps(deps), deps.Stdout))
 			}).Name("judge").Description(
 				"Print the request for the model that judges a turn (the automatic-memory mod runs this after each turn)"),
+			targ.Targ(func(ctx context.Context, a AutoSweepArgs) {
+				if a.SessionsDir == "" {
+					a.SessionsDir = sessionsDirOf(deps.Getenv, deps.UserHomeDir)
+				}
+
+				a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
+
+				errHandler(RunAutoSweep(withLog(ctx), a, newAutoSweepDeps(deps)))
+			}).Name("sweep").Description(
+				"Index the record of a session in the chunk index (the automatic-memory mod runs this after each turn)"),
 			targ.Targ(func(ctx context.Context, a AutoWriteArgs) {
 				a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
 				a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)

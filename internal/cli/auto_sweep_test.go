@@ -25,7 +25,7 @@ func Test793d4e1d_Targets_AutoSweepCreatesNoVault(t *testing.T) {
 
 	vault := filepath.Join(t.TempDir(), "no-such-vault")
 	sessions, chunks, home := t.TempDir(), t.TempDir(), t.TempDir()
-	plantSessionRecord(t, sessions, "a-project", `{"type":"user","message":{"role":"user","content":"hello"}}`)
+	plantSessionRecord(t, sessions, "a-project")
 
 	var stdout bytes.Buffer
 
@@ -57,8 +57,7 @@ func Test793d4n1a_RunAutoSweep_TheRecordOfTheSessionIsIndexedAsTheOneExplicitSou
 	g := NewWithT(t)
 
 	sessions := t.TempDir()
-	record := plantSessionRecord(t, sessions, "-home-joe-zorblax",
-		`{"type":"user","message":{"role":"user","content":"hello"}}`)
+	record := plantSessionRecord(t, sessions, "-home-joe-zorblax")
 
 	ingest, ingestCalls := MockIngestRun(t)
 	done := make(chan error, 1)
@@ -93,7 +92,7 @@ func Test793d4n1b_RunAutoSweep_ASessionWithNoRecordFailsTheCommand(t *testing.T)
 	t.Parallel()
 
 	sessions := t.TempDir()
-	plantSessionRecord(t, sessions, "a-project", `{"type":"user","message":{"role":"user","content":"hello"}}`)
+	plantSessionRecord(t, sessions, "a-project")
 
 	for name, session := range map[string]string{
 		"a session that no record holds": "1f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11",
@@ -120,7 +119,7 @@ func Test793d4n1c_RunAutoSweep_APromptOfAnOriginThatIsNotSweptIsSweptNothing(t *
 	t.Parallel()
 
 	sessions := t.TempDir()
-	plantSessionRecord(t, sessions, "a-project", `{"type":"user","message":{"role":"user","content":"hello"}}`)
+	plantSessionRecord(t, sessions, "a-project")
 
 	for name, origin := range map[string]string{
 		"a notification of a task":   "task-notification",
@@ -172,7 +171,7 @@ func Test793d4n1d_RunAutoSweep_AFailedIndexAndAnInputThatIsNotAJSONObjectFailThe
 	g := NewWithT(t)
 
 	sessions := t.TempDir()
-	plantSessionRecord(t, sessions, "a-project", `{"type":"user","message":{"role":"user","content":"hello"}}`)
+	plantSessionRecord(t, sessions, "a-project")
 
 	errDisk := errors.New("the disk is full")
 
@@ -215,8 +214,9 @@ func indexNothing(t *testing.T) cli.IngestRun {
 	}
 }
 
-// plantSessionRecord writes the record of the session of the tests in a directory of the project, and returns its path.
-func plantSessionRecord(t *testing.T, sessions, project, rows string) string {
+// plantSessionRecord writes the record of the session of the tests, one prompt, in a directory of the project, and
+// returns its path.
+func plantSessionRecord(t *testing.T, sessions, project string) string {
 	t.Helper()
 
 	dir := filepath.Join(sessions, project)
@@ -228,7 +228,7 @@ func plantSessionRecord(t *testing.T, sessions, project, rows string) string {
 
 	path := filepath.Join(dir, sessionID+".jsonl")
 
-	writeErr := os.WriteFile(path, []byte(rows+"\n"), 0o600)
+	writeErr := os.WriteFile(path, []byte(`{"type":"user","message":{"role":"user","content":"hello"}}`+"\n"), 0o600)
 	if writeErr != nil {
 		t.Fatalf("writing the record: %v", writeErr)
 	}
