@@ -210,8 +210,6 @@ func TestMods_EveryJavaScriptModuleParses(t *testing.T) {
 
 // unexported constants.
 const (
-	// requestPrinted is what a judgement prints for a turn: the request for the model, as one JSON object.
-	requestPrinted = `{"model":"haiku","effort":"low","prompt":"THE PROMPT","maxTokens":1500,"timeoutMs":60000}` + "\n"
 	// captureDriver runs the turn.complete hook of the module named by MOD against a host that behaves as SCENARIO says:
 	// its judgement answers once the driver lets it (hold), exits with a code and prints a text, or rejects, and its
 	// model answers with a result or rejects. It records the order and the input of what the module asks of it, and
@@ -293,13 +291,9 @@ let passed = null
 await handlers['prompt.submit'](host, { text: 'hello', context: [] }, async (event) => { passed = event })
 console.log(JSON.stringify({ passed, delays, ran: ran.length }))
 `
+	// requestPrinted is what a judgement prints for a turn: the request for the model, as one JSON object.
+	requestPrinted = `{"model":"haiku","effort":"low","prompt":"THE PROMPT","maxTokens":1500,"timeoutMs":60000}` + "\n"
 )
-
-// captureScenario is how the stand-in host of captureDriver behaves: its judgement and its model.
-type captureScenario struct {
-	Judge map[string]any `json:"judge"`
-	Model map[string]any `json:"model"`
-}
 
 // captureOutcome is what captureDriver printed.
 type captureOutcome struct {
@@ -312,6 +306,12 @@ type captureOutcome struct {
 		Input map[string]any `json:"input"`
 		Asked map[string]any `json:"asked"`
 	} `json:"calls"`
+}
+
+// captureScenario is how the stand-in host of captureDriver behaves: its judgement and its model.
+type captureScenario struct {
+	Judge map[string]any `json:"judge"`
+	Model map[string]any `json:"model"`
 }
 
 // modulesOf reads every JavaScript file below a directory, by its path relative to the directory.

@@ -185,47 +185,6 @@ func Test793a2c1f_GuessesPlansAndChatterProduceNoNote(t *testing.T) {
 	})
 }
 
-// unexported constants.
-const (
-	// askToRememberTheDeploy asks to remember a deploy whose token and password must not reach the vault.
-	askToRememberTheDeploy = "Remember how to deploy to staging: run the staging deploy script with DEPLOY_TOKEN=" +
-		deployToken + " set, and its password is " + deployPassword + ". Reply with one short sentence."
-	// deployPassword and deployToken are secrets built here and never written whole in this file: a scanner of the
-	// repository would take a literal for a credential.
-	deployPassword = "hunter" + "2hunter2"
-	deployToken    = "gh" + "p_" + "aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3"
-	// askForAGuessAndAPlan makes the agent answer with a guess, a plan and chatter, none of which is a lesson.
-	askForAGuessAndAPlan = "What do you think is making the Zorblax service start slowly? " +
-		"Answer with a guess, then a plan, then a friendly remark. Do not read or run anything."
-	// askHowToBuild is a question the agent cannot answer from anything but a guess: the project is made up.
-	askHowToBuild = "How do I build the Zorblax project? Answer in one line."
-	// askToGuessAndRead makes the agent state a guess, read a file whose content it cannot guess, and say that the guess
-	// was wrong.
-	askToGuessAndRead = "Before you read anything, say in one sentence which port the Zorblax service listens on, " +
-		"guessing from its name. Then read zorblax.conf with the Read tool. Then say in one sentence which port it " +
-		"really listens on, and say that your first guess was wrong."
-	// askToRemember asks for a fact to be remembered.
-	askToRemember = "Remember that the Zorblax staging database is reset every Sunday at 03:40 UTC. " +
-		"Reply with one short sentence."
-	// askToSort is a task the agent does one way.
-	askToSort = "Print the lines of zorblax.txt in sorted order with the sort command. Reply with one short sentence."
-	// askToTryTheFlag makes the agent say what it does not know, try it, and say what it saw.
-	askToTryTheFlag = "You do not know whether passing --zorblax-safe makes check.sh pass: say so in one sentence. " +
-		"Then run exactly this one command, with nothing added to it: sh check.sh --zorblax-safe. " +
-		"Then say in one sentence whether the check passed."
-	// buildTarget is the word of the correction that no other text of the conversation holds.
-	buildTarget = "zorblax-build"
-	// checkScript passes only when it is given the flag.
-	checkScript = "#!/bin/sh\nif [ \"$1\" = \"--zorblax-safe\" ]; then echo \"CHECK PASSED\"; exit 0; fi\n" +
-		"echo \"CHECK FAILED: the flag is missing\"\nexit 1\n"
-	// confirmTheSort confirms the way the agent did askToSort.
-	confirmTheSort = "That worked - sorting zorblax.txt with the sort command was exactly the right way. " +
-		"Keep sorting Zorblax lists with the sort command. Reply with one short sentence."
-	// correctTheBuild corrects whatever the agent answered to askHowToBuild.
-	correctTheBuild = "No - in the Zorblax project you build with make " + buildTarget + ", never with make all. " +
-		"Reply with one short sentence."
-)
-
 func Test793a2c1g_ACredentialInTheTurnIsNotInTheNote(t *testing.T) {
 	t.Parallel()
 
@@ -254,5 +213,76 @@ func Test793a2c1g_ACredentialInTheTurnIsNotInTheNote(t *testing.T) {
 			g.Expect(note.text).NotTo(ContainSubstring(deployToken), note.name)
 			g.Expect(note.text).NotTo(ContainSubstring(deployPassword), note.name)
 		}
+	})
+}
+
+// unexported constants.
+const (
+	// askForAGuessAndAPlan makes the agent answer with a guess, a plan and chatter, none of which is a lesson.
+	askForAGuessAndAPlan = "What do you think is making the Zorblax service start slowly? " +
+		"Answer with a guess, then a plan, then a friendly remark. Do not read or run anything."
+	// askHowToBuild is a question the agent cannot answer from anything but a guess: the project is made up.
+	askHowToBuild = "How do I build the Zorblax project? Answer in one line."
+	// askToGuessAndRead makes the agent state a guess, read a file whose content it cannot guess, and say that the guess
+	// was wrong.
+	askToGuessAndRead = "Before you read anything, say in one sentence which port the Zorblax service listens on, " +
+		"guessing from its name. Then read zorblax.conf with the Read tool. Then say in one sentence which port it " +
+		"really listens on, and say that your first guess was wrong."
+	// askToRemember asks for a fact to be remembered.
+	askToRemember = "Remember that the Zorblax staging database is reset every Sunday at 03:40 UTC. " +
+		"Reply with one short sentence."
+	// askToRememberTheDeploy asks to remember a deploy whose token and password must not reach the vault.
+	askToRememberTheDeploy = "Remember how to deploy to staging: run the staging deploy script with DEPLOY_TOKEN=" +
+		deployToken + " set, and its password is " + deployPassword + ". Reply with one short sentence."
+	// askToSort is a task the agent does one way.
+	askToSort = "Print the lines of zorblax.txt in sorted order with the sort command. Reply with one short sentence."
+	// askToTryTheFlag makes the agent say what it does not know, try it, and say what it saw.
+	askToTryTheFlag = "You do not know whether passing --zorblax-safe makes check.sh pass: say so in one sentence. " +
+		"Then run exactly this one command, with nothing added to it: sh check.sh --zorblax-safe. " +
+		"Then say in one sentence whether the check passed."
+	// buildTarget is the word of the correction that no other text of the conversation holds.
+	buildTarget = "zorblax-build"
+	// checkScript passes only when it is given the flag.
+	checkScript = "#!/bin/sh\nif [ \"$1\" = \"--zorblax-safe\" ]; then echo \"CHECK PASSED\"; exit 0; fi\n" +
+		"echo \"CHECK FAILED: the flag is missing\"\nexit 1\n"
+	// confirmTheSort confirms the way the agent did askToSort.
+	confirmTheSort = "That worked - sorting zorblax.txt with the sort command was exactly the right way. " +
+		"Keep sorting Zorblax lists with the sort command. Reply with one short sentence."
+	// correctTheBuild corrects whatever the agent answered to askHowToBuild.
+	correctTheBuild = "No - in the Zorblax project you build with make " + buildTarget + ", never with make all. " +
+		"Reply with one short sentence."
+	// deployPassword and deployToken are secrets built here and never written whole in this file: a scanner of the
+	// repository would take a literal for a credential.
+	deployPassword = "hunter" + "2hunter2"
+	deployToken    = "gh" + "p_" + "aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3"
+)
+
+func Test793a3c1a_ALessonAnEarlierNoteStatesIsNotWrittenAgain(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var (
+		earlier string
+		chat    *conversation
+	)
+
+	step(t, "Given the user has run engram update, a vault holding a note that the user saved earlier and that states "+
+		"a lesson, and a session in which the agent may not run engram commands", func() {
+		machine.hasRunUpdate()
+
+		earlier = machine.learnsFact(stagingReset)
+		chat = machine.startSession("zorblax").converse()
+	})
+
+	step(t, "When the user states the same lesson to the agent in a prompt, and the turn ends", func() {
+		stated := chat.say(askToRemember)
+		t.Logf("the agent replied %q", stated.reply)
+	})
+
+	step(t, "Then 2 minutes after the turn ends the vault holds the earlier note only", func() {
+		g.Expect(machine.awaitRecord(chat.session.id, chat.turnEnds)).To(Equal("skipped"), "what became of the turn")
+		g.Expect(machine.noteNames()).To(Equal([]string{earlier}), "the notes of the vault")
 	})
 }

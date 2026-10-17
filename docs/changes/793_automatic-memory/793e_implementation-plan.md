@@ -416,7 +416,7 @@ Takes [793a3c1a A lesson an earlier note states is not written again](./793a_pro
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a3c1a | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the user saves a lesson, states it again in a [session](../../GLOSSARY.md#session), and the [vault](../../GLOSSARY.md#vault) holds the earlier [note](../../GLOSSARY.md#permanent-note) only; the test waits for the record of the reply, so that the absence of a second note is the result of the judgement | Not started | | | |
+| 793a3c1a | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the user saves a lesson, states it again in a [session](../../GLOSSARY.md#session), and the [vault](../../GLOSSARY.md#vault) holds the earlier [note](../../GLOSSARY.md#permanent-note) only; the test waits for the record of the reply, so that the absence of a second note is the result of the judgement | Red | | | |
 | 793d4g1h | Dedicated example (default suite) | the nearest notes in the request, through `RunAutoJudge` over an in-memory [vault](../../GLOSSARY.md#vault) | Not started | | | |
 | 793d4g1i | Dedicated example (default suite) | the failure branch of the lookup, as the delivery has it | Not started | | | |
 | 793d4g1j | Dedicated example (default suite) | what a note may not do to the window: a line break, a credential, a body of any length | Not started | | | |
