@@ -3,6 +3,8 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -397,6 +399,32 @@ func Test793d4f1c_Targets_TheHomesClaudeProjectsHoldTheRecordsByDefault(t *testi
 	g.Expect(out).NotTo(ContainSubstring(resetNoteName))
 }
 
+func Test793d4f1d_Targets_NoRecordIsReadWhenNoDirectoryCanBeFound(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := plantTwoNotes(t)
+
+	var (
+		stdout bytes.Buffer
+		reads  []string
+	)
+
+	stderr := executeForTestWithDeps(t, []string{"engram", "auto", "deliver", "--vault", vault}, func(d *cli.Deps) {
+		d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
+		d.Getenv = func(string) string { return "" }
+		d.UserHomeDir = func() (string, error) { return "", errNoHome }
+		d.Stdin = strings.NewReader(`{"text":"When is the Zorblax staging database reset?","session":"` + sessionID + `"}`)
+		d.Stdout = &stdout
+		d.FS = recordsReadFS{EdgeFS: d.FS, reads: &reads}
+	})
+
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(reads).To(BeEmpty(), "records read")
+	g.Expect(stdout.String()).To(ContainSubstring(resetNoteName))
+	g.Expect(stdout.String()).To(ContainSubstring(backupNoteName))
+}
+
 // TestTargets_AutoDeliver reaches the command the way the mod does, as `engram auto deliver` with the prompt on
 // standard input, so the wiring of the group, the flag and the dependencies is run.
 func TestTargets_AutoDeliverPrintsTheNotesThatBearOnThePromptOnStandardInput(t *testing.T) {
@@ -438,6 +466,31 @@ const (
 		"Information learned: when in testing against the Zorblax staging database, " +
 		"the Zorblax staging database is reset every Sunday at 03:40 UTC.\n"
 )
+
+// unexported variables.
+var (
+	errNoHome = errors.New("no home directory")
+)
+
+// recordsReadFS reads through the file system it wraps and notes the reads of records of sessions.
+type recordsReadFS struct {
+	cli.EdgeFS
+
+	reads *[]string
+}
+
+func (r recordsReadFS) ReadFile(path string) ([]byte, error) {
+	if strings.HasSuffix(path, ".jsonl") {
+		*r.reads = append(*r.reads, path)
+	}
+
+	data, err := r.EdgeFS.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading %s: %w", path, err)
+	}
+
+	return data, nil
+}
 
 // deliverBy dispatches `engram auto deliver` for a prompt of the session, without --sessions, with the environment and
 // the home that are given and nothing else of the machine's, and returns what it prints.
