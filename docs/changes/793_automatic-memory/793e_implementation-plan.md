@@ -90,8 +90,8 @@ capability to the ones before it.
 
 ```mermaid
 graph TD
-    n793e6a1["793e6a1 The next session has memory after one engram update<br/>Ready"]
-    n793e6a2["793e6a2 The notes that bear on a prompt arrive with it<br/>Blocked by: 793e6a1"]
+    n793e6a1["793e6a1 The next session has memory after one engram update<br/>Complete"]
+    n793e6a2["793e6a2 The notes that bear on a prompt arrive with it<br/>Ready"]
     n793e6a3["793e6a3 A note delivered earlier in the session is not delivered again<br/>Blocked by: 793e6a2"]
     n793e6a4["793e6a4 A note the agent looked up itself is not delivered<br/>Blocked by: 793e6a3"]
     n793e6a5["793e6a5 A prompt that matches no note arrives with nothing<br/>Blocked by: 793e6a4"]
@@ -144,14 +144,14 @@ Takes [793a2a1a The next session has memory after one engram update](./793a_prod
 
 | Gherkin | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2a1a | Dedicated example, product acceptance (`network`) | the promise as the user sees it: a real session, started after a real `engram update`, holds the note before it acts | | Green-all | d598e57f | 4079d1d3 | |
+| 793a2a1a | Dedicated example, product acceptance (`network`) | the promise as the user sees it: a real session, started after a real `engram update`, holds the note before it acts | | Done | d598e57f | 4079d1d3 | |
 | 793d4a1a | Dedicated example (default suite) | the command's contract through its standard input and output over an in-memory vault and a stub embedder: the lookup of notes for the text, and the shape of the block | | Done | a81ad4bb | 1e0a3a11 | 99e1ea5a |
 | 793d4a1b | Dedicated example (default suite) | the failure branch the mod relies on to step aside: the command fails and prints nothing when it cannot look the notes up. Written after the code: the error branch is required by errcheck and was written with the green of 793d4a1a, so the test passed when written | | Done | n/a | 04dbc127 | |
 | 793d4c1a | Property-based (`rapid`) with named examples (default suite) | the one guarantee an adversarial note must not break: the shape of the block, for any text a note can hold | for any notes whose fields hold arbitrary text, line breaks, control characters, the framing line and lines that read as notes: the block ends with one line feed and has one line more than notes; its first line is the same fixed framing line for every input and begins `[engram memory]`; every other line begins with a dash and a space, never with `[engram memory]`, and holds no control character and no white space but spaces | Done | 93d584e5 | | fa641f64 |
 | 793d4b1a | Dedicated example (default suite) | the plan of the mod copies over an in-memory file system: finite and exact | | Done | 7f1b9628 | 90db8458 | 30c80c31 |
 | 793d4b1b | Dedicated example (default suite) | a source without mods plans none and fails nowhere: the existing sources and tests have no mods directory | | Done | 5b38f353 | 5dec69a1 | cecf5759 |
 | 793d4b1c | Dedicated example (default suite) | the wiring of the plan into the update, run through `Updater.Run` over an in-memory file system: the mod reaches the engram-owned root and is linked from the skills directory | | Done | a05fbcdd | 067f61ad | 647dfe7c |
-| 793d2a1a | Dedicated example, real dependency (`network`) | the mod's routing and placement in a real Claude Code session against an `engram` that prints a chosen block; the session is never answered | | Done | 1d4ce5c7 | 4079d1d3 | |
+| 793d2a1a | Dedicated example, real dependency (`network`) | the mod's routing and placement in a real Claude Code session against an `engram` that prints a chosen block; the session is never answered | | Done | 1d4ce5c7 | 4079d1d3 | dc501762 |
 
 #### 793e6a2 The notes that bear on a prompt arrive with it
 
