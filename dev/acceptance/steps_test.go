@@ -114,8 +114,8 @@ func (m *machine) hasMod() {
 }
 
 // hasStandInEngram puts a stand-in for engram first on the machine's PATH: it records its arguments and standard
-// input, and prints the block it is given, whatever it is asked.
-func (m *machine) hasStandInEngram(block string) {
+// input, waits as long as it is told to, and prints the block it is given, whatever it is asked.
+func (m *machine) hasStandInEngram(block string, wait time.Duration) {
 	m.t.Helper()
 
 	dir := filepath.Join(m.root, "stand-in")
@@ -123,7 +123,8 @@ func (m *machine) hasStandInEngram(block string) {
 	writeFile(m.t, filepath.Join(dir, "block"), block)
 
 	script := "#!/bin/sh\nprintf '%s\\n' \"$*\" > '" + filepath.Join(dir, "args") + "'\ncat > '" +
-		filepath.Join(dir, "stdin") + "'\ncat '" + filepath.Join(dir, "block") + "'\n"
+		filepath.Join(dir, "stdin") + "'\nsleep " + strconv.Itoa(int(wait.Seconds())) + "\ncat '" +
+		filepath.Join(dir, "block") + "'\n"
 	path := filepath.Join(m.gobin, engramBinaryName)
 
 	mkdirAll(m.t, m.gobin)

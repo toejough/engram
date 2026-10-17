@@ -128,8 +128,7 @@ func (m *machine) engram(args ...string) result {
 // env is the whole environment of every command run on the machine.
 func (m *machine) env(extra ...string) []string {
 	env := []string{
-		"PATH=" + strings.Join(slices.DeleteFunc(
-			[]string{m.pathFront, m.gobin, filepath.Dir(lookPath("go")), systemPath}, func(dir string) bool { return dir == "" }), ":"),
+		"PATH=" + m.path(),
 		"HOME=" + m.home,
 		"TMPDIR=" + m.tmp,
 		"LANG=en_US.UTF-8",
@@ -159,6 +158,17 @@ func (m *machine) hasEngram() {
 	if err != nil {
 		m.t.Fatalf("installing engram on the machine: %v", err)
 	}
+}
+
+// path is the PATH of every command run on the machine: its own directories first, then the Go toolchain's and the
+// system's.
+func (m *machine) path() string {
+	dirs := []string{m.gobin, filepath.Dir(lookPath("go")), systemPath}
+	if m.pathFront != "" {
+		dirs = slices.Insert(dirs, 0, m.pathFront)
+	}
+
+	return strings.Join(dirs, ":")
 }
 
 // run runs one command with the machine's environment and returns what it printed and how it ended.

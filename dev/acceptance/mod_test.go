@@ -18,7 +18,7 @@ func Test793d2a1a_Mod_AddsTheBlockBesideThePrompt(t *testing.T) {
 	step(t, "Given a session with the mod installed, and an engram whose auto deliver prints a block", func() {
 		machine.hasClaudeCode()
 		machine.hasMod()
-		machine.hasStandInEngram(standInBlock)
+		machine.hasStandInEngram(standInBlock, 0)
 	})
 
 	var sent *turn
@@ -55,7 +55,7 @@ func Test793d2a1b_Mod_GivesTheCommandTheSessionsID(t *testing.T) {
 	step(t, "Given a session with the mod installed, and an engram whose auto deliver prints a block", func() {
 		machine.hasClaudeCode()
 		machine.hasMod()
-		machine.hasStandInEngram(standInBlock)
+		machine.hasStandInEngram(standInBlock, 0)
 		inSession = machine.startSession("a-project")
 	})
 
@@ -79,7 +79,7 @@ func Test793d2a1c_Mod_AnEmptyOutputAddsNothing(t *testing.T) {
 	step(t, "Given a session with the mod installed, and an engram whose auto deliver prints nothing", func() {
 		machine.hasClaudeCode()
 		machine.hasMod()
-		machine.hasStandInEngram("")
+		machine.hasStandInEngram("", 0)
 	})
 
 	var sent *turn
@@ -96,6 +96,37 @@ func Test793d2a1c_Mod_AnEmptyOutputAddsNothing(t *testing.T) {
 		g.Expect(sent.contexts()).To(BeEmpty(), "context beside the prompt")
 		g.Expect(machine.hookFailures()).To(BeEmpty(), "the mod's hook was skipped")
 		g.Expect(sent.agentActsAt()).To(BeNumerically(">", 0), "the model was asked")
+	})
+}
+
+func Test793d2a1d_Mod_ASlowCommandIsEndedAndThePromptContinues(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	step(t, "Given a session with the mod installed, and an engram whose auto deliver takes 20 seconds", func() {
+		machine.hasClaudeCode()
+		machine.hasMod()
+		machine.hasStandInEngram(standInBlock, slowLookup)
+	})
+
+	var sent *turn
+
+	step(t, "When a prompt is sent", func() {
+		sent = machine.startSession("a-project").sendOffline(promptHello)
+	})
+
+	step(t, "Then the model is asked within 8 seconds of the prompt, with the prompt exactly as sent and no context "+
+		"beside it, and the mod's hook did not fail", func() {
+		g.Expect(sent.hold()).To(BeNumerically("<", holdLimit), "how long the prompt waited")
+
+		text, isPrompt := sent.rows[0].promptText()
+		g.Expect(isPrompt).To(BeTrue())
+		g.Expect(text).To(Equal(promptHello))
+
+		g.Expect(sent.contexts()).To(BeEmpty(), "context beside the prompt")
+		g.Expect(machine.hookFailures()).To(BeEmpty(), "the mod's hook was skipped")
 	})
 }
 

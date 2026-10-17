@@ -201,8 +201,8 @@ Takes [793a2d1a A slow lookup does not hold a prompt for more than 8 seconds](./
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2d1a | Dedicated example, product acceptance (`network`) | the bound as the user sees it: a real session whose lookup takes 20 seconds is held for under 8 and answered | Red | | | |
-| 793d2a1d | Dedicated example, real dependency (`network`) | the mod's bound and its quiet step aside, in a real Claude Code session against a stand-in engram that takes 20 seconds, read from the session's record and debug log | Not started | | | |
+| 793a2d1a | Dedicated example, product acceptance (`network`) | the bound as the user sees it: a real session whose lookup takes 20 seconds is held for under 8 and answered | Red | b87d5da6 | | |
+| 793d2a1d | Dedicated example, real dependency (`network`) | the mod's bound and its quiet step aside, in a real Claude Code session against a stand-in engram that takes 20 seconds, read from the session's record and debug log | Red | | | |
 
 #### 793e6a7 A vault that does not exist is not created
 
