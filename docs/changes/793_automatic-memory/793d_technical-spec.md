@@ -182,6 +182,11 @@ Scenario: 793d4b1b A source with no mods plans none
   Given a source with no agent-instructions/mods directory
   When the mod copies are planned
   Then none is planned and there is no error
+
+Scenario: 793d4b1c An update deploys and links the mod
+  Given a checkout whose agent-instructions/mods holds the mod engram-memory, and a machine with Claude Code
+  When engram update runs
+  Then the engram-owned root holds the mod's files, and Claude Code's skills directory links engram-memory to them
 ```
 
 ## 793d5 Product-scenario mapping
