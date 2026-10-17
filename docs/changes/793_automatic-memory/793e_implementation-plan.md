@@ -182,7 +182,9 @@ graph TD
     n793e6g7 --> n793e6g8
     n793e6g9["793e6g9 A judgement without a vault or a record fails<br/>Complete"]
     n793e6g8 --> n793e6g9
-    n793e6g9 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
+    n793e6g10["793e6g10 A failure that is recorded is recorded once<br/>Ready"]
+    n793e6g9 --> n793e6g10
+    n793e6g10 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
     n793e6d --> n793e6f["793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d"]
@@ -627,6 +629,15 @@ Takes review findings 9 and 13. With no [vault](../../GLOSSARY.md#vault) at the 
 | 793d4g1x | Dedicated example (default suite) | a path that holds no vault: the command fails naming the path, prints nothing, and the lookup is never run (the stand-in of the lookup fails the test when it is called) | Done | 4f85c7b3 | f0fdbe00 | ccb03b61 |
 | 793d4g1c (amended) | Dedicated example (default suite) | only the record of a session with no [prompt](./793a_product-spec.md#793a1a-terms) is judged nothing now. It passes when written, since the cases it keeps are those that already succeeded; the mutation that makes it fail is a judgement that fails when the record holds no prompt, run on a scratch copy of the branch | Done | n/a | f0fdbe00 | ccb03b61 |
 | 793d4e1b (amended) | Dedicated example (default suite) | the judgement dispatched through the targets over a path that holds no vault creates none, as before, and now fails and prints no request | Done | 4f85c7b3 | f0fdbe00 | ccb03b61 |
+
+#### 793e6g10 A failure that is recorded is recorded once
+
+Takes review finding 10. A lesson that the learn path could not write was recorded as `failed` by the writing, and the writing then failed the command, so that the mod reported the failure of its step to the writing, which recorded it again: two records of one failure ([793b83 A failure that is recorded does not fail the command](./793b_decision-log.md#793b83-a-failure-that-is-recorded-does-not-fail-the-command)).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| 793d4k1g | Dedicated example (default suite) | a learn path that fails, through `RunAutoWrite`: one record of the kind `failed` with the reason, and the command succeeds | Not started | | | |
+| 793d4k1h | Dedicated example (default suite) | the same failure with a place for the records that cannot be written: the command fails with the reason, so that the failure is not lost | Not started | | | |
 
 ### 793e6e The conversation becomes searchable memory
 

@@ -883,10 +883,13 @@ Requirement: 793d4k The lesson-writing MUST record what became of each reply or 
 what [automatic memory](./793a_product-spec.md#793a1a-terms) did can read ([793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did)): one record for each lesson it wrote, of the kind `written`, with the file
 name of the [note](../../GLOSSARY.md#permanent-note); one for each lesson it left out, of the kind `skipped`, with the lesson's slug and the reason; one for a
 reply that is not a list of lessons, of the kind `skipped`, with the reason; one for a reply that holds no lesson, of the
-kind `nothing`; and one for a failure, of the kind `failed`, with the failure. A record is a JSON file of its own, in the
+kind `nothing`; and one for a failure, of the kind `failed`, with the failure. A lesson that cannot be written is a
+failure, recorded as `failed` with its reason, and the command then succeeds, so that the mod does not report the failure
+a second time. A record is a JSON file of its own, in the
 directory `auto` of the engram data directory and in the directory named for the ID of the [session](../../GLOSSARY.md#session); its name opens with the
 time it was made, and it holds the time, the session's ID, the [turn](./793a_product-spec.md#793a1a-terms)'s ID, the kind, the note, the slug and the reason. A record
-that cannot be written does not fail the command.
+that cannot be written does not fail the command, unless it is the record of a failure: the command then fails with the
+reason, so that the failure is not lost.
 
 Owner: lesson-writing (a new component; its canonical file at promotion is `lesson-writing.md`)
 
@@ -919,6 +922,16 @@ Scenario: 793d4k1e A record that cannot be written does not fail the command
   Given a reply that holds one lesson, and a place for the records that cannot be written
   When the lessons are written
   Then the note is written and the command succeeds
+
+Scenario: 793d4k1g A lesson that cannot be written is recorded once and does not fail the command
+  Given a reply that holds one lesson, and a learn path that fails
+  When the lessons are written
+  Then one record, of the kind failed, holds the reason, no note is written, and the command succeeds
+
+Scenario: 793d4k1h A failure that cannot be recorded fails the command
+  Given a reply that holds one lesson, a learn path that fails, and a place for the records that cannot be written
+  When the lessons are written
+  Then the command fails with the reason of the learn path
 
 Scenario: 793d4k1f A directory of records that cannot be made, and a record that cannot be created, do not fail the command
   Given a vault, a reply that holds one lesson, and a file system that refuses to make the directory of the records, and then one that makes it and refuses to create the record

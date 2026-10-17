@@ -1411,3 +1411,18 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   session, which says so); a skipped record for a missing record of the session (rejected: the mod reports every failed
   step to the writing as a failure, and a second kind of report would need a second path).
 - **Decided by:** Author (default; owner may override). It amends the default of 793c43.
+
+## 793b83 A failure that is recorded does not fail the command
+
+- **Choice:** when a lesson cannot be written, `engram auto write` records the failure as `failed`, with the reason, and
+  succeeds; it fails with the reason only when it could not record the failure, so that a failure is reported once and
+  never lost.
+- **Rationale:** review finding 10. The writing recorded the failure of a lesson and then failed the command with the same
+  reason; the mod took the failed command for a failed step of its capture and reported it to the writing, which recorded
+  it again, so that one failure left two records ("failed" and "failed"). The mod cannot tell a command that failed after
+  it recorded from one that failed before, so the command is what says: it fails only when nothing recorded the failure.
+- **Alternatives:** the mod does not report a failure of the writing (rejected: a writing that fails before it records, on
+  an input that is not JSON or at a timeout, would then be lost, and the mod cannot tell which it is); the writing does not
+  record what it also fails with (rejected: the display of what [automatic memory](./793a_product-spec.md#793a1a-terms) did reads the records, and a
+  failure of the learn path is the one the user most needs to see).
+- **Decided by:** Author (default; owner may override).

@@ -555,3 +555,13 @@ he answers. When he answers, the entry records the answer and the date and stays
   show the reason either way.
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b82 A judgement without a vault or a record fails, and the model is not asked](./793b_decision-log.md#793b82-a-judgement-without-a-vault-or-a-record-fails-and-the-model-is-not-asked).
+
+## 793c54 Should a failure that the writing recorded still fail the command?
+
+- **Context:** [793b83 A failure that is recorded does not fail the command](./793b_decision-log.md#793b83-a-failure-that-is-recorded-does-not-fail-the-command) makes `engram auto write` succeed when it has recorded the failure of a lesson, so that
+  the mod reports nothing more. A user who runs the command by hand sees no non-zero exit for a lesson that was not written.
+- **Options:** (a) Succeed once the failure is recorded. (b) Fail, and the mod does not report a failure of the writing.
+  (c) Fail, and the writing does not record it.
+- **Recommendation:** (a): the record is the display of what happened, and the command is run by the mod.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b83 A failure that is recorded does not fail the command](./793b_decision-log.md#793b83-a-failure-that-is-recorded-does-not-fail-the-command).
