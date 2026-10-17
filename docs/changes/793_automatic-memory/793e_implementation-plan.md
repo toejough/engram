@@ -166,7 +166,7 @@ graph TD
     n793e6b13 --> n793e6b14
     n793e6g1["793e6g1 The rows the harness wrote are no prompt<br/>Complete"]
     n793e6b14 --> n793e6g1
-    n793e6g2["793e6g2 The record is read once, and only the window is redacted<br/>Ready"]
+    n793e6g2["793e6g2 The record is read once, and only the window is redacted<br/>Complete"]
     n793e6g1 --> n793e6g2
     n793e6g2 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
@@ -536,7 +536,7 @@ Takes review finding 19: the judgement parsed the whole record and redacted ever
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793d4g1q | Dedicated example (default suite) | a record of 1 MB through `RunAutoJudge` over a real temporary directory: the request is printed within 2 seconds; the old reading took 42 seconds under the race detector that `targ test` runs with, so the bound fails it by a factor of twenty, and the new one takes 0.3 seconds under it, a tenth of the bound or less | Not started | | | |
+| 793d4g1q | Dedicated example (default suite) | a record of 1 MB through `RunAutoJudge` over a real temporary directory: the request is printed within 2 seconds; the old reading took 42 seconds under the race detector that `targ test` runs with, so the bound fails it by a factor of twenty, and the new one takes 0.3 seconds under it, a tenth of the bound or less | Done | 959735b2, 333ae1d2 | 004adfb0 | 74cec1a1 |
 
 ### 793e6e The conversation becomes searchable memory
 
