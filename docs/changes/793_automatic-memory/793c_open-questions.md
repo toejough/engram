@@ -134,6 +134,8 @@ he answers. When he answers, the entry records the answer and the date and stays
 | 10 | Stopping it | turned off by uninstalling, with uninstall extended to remove it (`old 793c18` (a) and `old 793c22` (b), 2026-10-11) | no requirement covers how ([793b20 No modes and no off switch](./793b_decision-log.md#793b20-no-modes-and-no-off-switch)) |
 | 11 | "Already has" | a note already in the receiving agent's context is never re-injected; a truncated note is not present (`old 793c7` item 5, 2026-10-11) | per session, even after a compaction |
 | 12 | The prompt hold | no longer than the agent's own lookup on the same vault and input (`old 793c7` item 4 and `old 793c11` (b), 2026-10-11) | 8 seconds |
+| 13 | Sessions covered | the promise covers the sessions in which the earlier attempt's mod runs, and [`engram update`](../../GLOSSARY.md#engram-update) reports when mods cannot load (`old 793c66` (a), 2026-10-11) | every Claude Code session the user starts after the update ([793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update)); where it cannot run, [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) has it step aside, and no check is required |
+| 14 | Activity for the agent | the activity lines may reach the agent (`old 793c90` (b), 2026-10-15), and the previous turn's sentences ride the next prompt (`old 793c92` (b), 2026-10-16) | the user sees the activity in the session ([793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did)); nothing carries it to the agent |
 
 - **Options:** (a) Accept every reversal for the minimal set; any row can come back as a separate change.
   (b) Keep named rows in the minimal set; the owner names them by number.

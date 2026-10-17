@@ -499,10 +499,17 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
       note is not present (`old 793c7` item 5, 2026-10-11). Here: per session, even after a compaction ([793b27 "Already has" is per session](./793b_decision-log.md#793b27-already-has-is-per-session)).
   12. The prompt hold: no longer than the agent's own lookup on the same vault and input (`old 793c7` item 4 and
       `old 793c11` (b), 2026-10-11). Here: 8 seconds ([793c1 How long may a prompt be held?](./793c_open-questions.md#793c1-how-long-may-a-prompt-be-held)).
+  13. Sessions covered: the promise covers the sessions in which the earlier attempt's mod runs, and
+      [`engram update`](../../GLOSSARY.md#engram-update) reports when mods cannot load (`old 793c66` (a), 2026-10-11). Here: every Claude Code
+      session the user starts after the update ([793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update)); where it cannot run, [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) has it step aside, and no
+      check is required.
+  14. Activity for the agent: the activity lines may reach the agent (`old 793c90` (b), 2026-10-15), and the
+      previous turn's sentences ride the next prompt (`old 793c92` (b), 2026-10-16). Here: the user sees the
+      activity in the session ([793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did)); nothing carries it to the agent.
 - **Rationale:** the owner asked for the minimal set (step 1 of his algorithm) and a restart from before the mod
   existed ([793b1 Start over](#793b1-start-over)). Each reversed capability needs a measurement, a second model
   judgement or machinery that the set leaves out, and a separate change can bring any of them back.
-- **Alternatives:** keep any of the twelve in the minimal set ([793c13 Which earlier owner answers may the minimal set reverse?](./793c_open-questions.md#793c13-which-earlier-owner-answers-may-the-minimal-set-reverse)).
+- **Alternatives:** keep any of the fourteen in the minimal set ([793c13 Which earlier owner answers may the minimal set reverse?](./793c_open-questions.md#793c13-which-earlier-owner-answers-may-the-minimal-set-reverse)).
 - **Decided by:** Author (default; owner may override).
 
 ## 793b37 A turn followed by the end of the session is not covered
