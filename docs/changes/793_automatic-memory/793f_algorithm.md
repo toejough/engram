@@ -16,7 +16,7 @@ Everything in this change serves it (`793b2`).
 > 4: for each technical requirement, what are the minimal gherkin tests that will prove the req has been met?
 > 5: for each test, write it, make it pass, then refactor to minimize the code introduced by the branch without obfuscating its function and purpose.
 
-Documentation is held to the same minimum-sufficient bar as code (owner, 2026-10-17).
+Documentation is held to the same minimum-sufficient bar as code (owner, 2026-10-17, `793b91`).
 
 ## 793f3 Depth first
 
@@ -42,13 +42,18 @@ Each scenario is run by one Go test named with its ID. A product scenario's test
 
 ## 793f6 Departures from the guides
 
-Depth first and the North Star line are the owner's; the others are the author's readings of his words, which he may override.
+Depth first and the North Star line are the owner's; the others are the author's readings of his words or defaults, which he may override.
 
 - Depth first: the documents are partial until the last node is done (`793b10`).
 - A North Star line opens the product spec, beyond the product guide's three sections (`793b2`).
 - No interview or approval gates, from "work autonomously": the owner reviews at the end (`793b11`).
 - No option analysis, from step 3: it takes the minimal components a scenario needs (`793b12`).
-- One refactor pass per test replaces the plan guide's four checkpoints, and the catalog gains three commit columns (`793b13`).
+- One refactor pass per test replaces the plan guide's four checkpoints, and the catalog gains three commit columns (`793b13`, `793b97`).
+- References are code-spanned IDs, not `ID title` links (`793b93`).
+- `793d5` maps a product scenario by its ID and does not restate it (`793b94`).
+- An open question is one line, not context, options and recommendation (`793b95`).
+- The order of the groups is a table, and `793e9` is the one graph (`793b96`).
+- A requirement with two owning components stays whole (`793b98`), and default-suite tests that cross the filesystem keep their tag (`793b99`).
 
 ## 793f7 Test isolation
 

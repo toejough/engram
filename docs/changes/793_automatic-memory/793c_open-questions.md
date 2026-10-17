@@ -229,3 +229,31 @@ Default: offer upward, check locally and let the parent's curation fold duplicat
 ## 793c60 Should a request to remember be written when the agent says that it did not save it?
 
 Default: write it (`793b90`). Alternatives: leave it to the [agent](./793a_product-spec.md#793a1a-terms)'s word; write it and say in the [note](../../GLOSSARY.md#permanent-note) that the agent refused. Open.
+
+## 793c61 Are references the IDs of nodes, or links with their titles?
+
+Default (a): the ID in a code span, because the titles in the labels would add about 5,600 words (`793b93`); a reference into `docs/specs` stays a link. Alternatives: (b) the "ID title" link that `docs/AGENTS.md` asks for, restored by a mechanical rewrite. Blocks: the reference check at promotion.
+
+## 793c62 Does 793d5 restate the product scenarios?
+
+Default (a): no, each mapping cites the scenario's ID, because the text is `793a`'s and a copy must follow every change to it (`793b94`). Alternatives: (b) restate each at its first mapping, as `docs/TECHNICAL-SPEC-GUIDE.md` asks (1,859 words). Blocks: the traceability check at promotion.
+
+## 793c63 Is an open question one line, or context, options and recommendation?
+
+Default (a): one line (`793b95`). Alternatives: (b) the sections `docs/AGENTS.md` lists. Blocks: the check of this file against `docs/AGENTS.md` at promotion.
+
+## 793c64 Is the order of the groups a table or a graph?
+
+Default (a): the table of `793e4`, with `793e9` the one graph (`793b96`). Alternatives: (b) a chain graph in `793e4` as well, as the plan guide has the graph carry the order. Blocks: the plan guide's rules for the graph at promotion.
+
+## 793c65 Do the catalog rows keep their three commit columns?
+
+Default (a): yes, as the record of step 5 (`793b97`). Alternatives: (b) drop them and leave the commits to git history. Blocks: the gate of `793e7` that every `Done` row has its three commits.
+
+## 793c66 Does a requirement with two owning components stay whole?
+
+Default (a): `793d4j` and `793d4m` stay one requirement each, because the shapes of a credential and the origins of a [prompt](./793a_product-spec.md#793a1a-terms) are stated once (`793b98`). Alternatives: (b) one requirement for each owner, as `docs/TECHNICAL-SPEC-GUIDE.md` asks. Blocks: the canonical component files at promotion.
+
+## 793c67 Do the default-suite tests that cross the real filesystem keep their tag?
+
+Default (a): deferred, not changed in this change (`793b99`). Alternatives: (b) tag them `integration`; (c) inject the filesystem so that they are pure. Blocks: the guide's rule that the default suite holds only pure tests, at promotion.

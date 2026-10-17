@@ -1,6 +1,6 @@
 # Automatic Memory - Decision Log
 
-Decisions made while producing #793, for the owner to validate. Decided by: O = owner (Joe, dated), A = author (a derivation or default; the owner may override), R = reviewer (a finding the author accepted). Joe was unavailable, so each question the author would have asked has a default here, listed in `793c`. `old 793bN` and `old 793cN` name entries of the earlier attempt (`793_parallel-memory-agent`, as of commit `dcf53d07`).
+Decisions made while producing #793, for the owner to validate. Decided by: O = owner (Joe, dated); A = author, a derivation or default the owner may override ("A, on review" answers a finding of a review round, numbered by that round: `793b61` is the first group's, `793e6g` the second's; "A, on the docs check" answers the docs check; "A (`793cN`)" is the default of that question); R = reviewer, a review round's own outcome, accepted by the author. Joe was unavailable, so each question the author would have asked has a default here, listed in `793c`. `old 793bN` and `old 793cN` name entries of the earlier attempt (`793_parallel-memory-agent`, as of commit `dcf53d07`).
 
 ## 793b1 Start over
 
@@ -378,3 +378,39 @@ Instructions are changed with `dev/eval/auto-judge/probe.py` at hand: it builds 
 ## 793b90 A request to remember is a lesson whatever the agent says about saving it
 
 The instructions say a request by the user to remember something is a lesson even when it holds a secret (the lesson names it as redacted) and even when the [agent](./793a_product-spec.md#793a1a-terms) says it did not save it. `793a2c1g` tallied 8 of 10 (both misses wrote a rule against keeping credentials from the agent's remark) and `793a2c1i` passed 0 of 10; with both phrases 10 of 10 each, the other fixtures unmoved. The phrases placed elsewhere or worded differently lowered the covered lesson or the credential row. A (`793c60`).
+
+## 793b91 The documents are held to the minimum sufficient
+
+The documents of this change, and the lines it adds to `README.md` and `AGENTS.md`, are held to the bar of the code (step 5, `793f2`): "even the documents are wordy. I'd like you to try to reduce the documentation to the absolute minimum sufficient, similar to the rule about the code". O 2026-10-17.
+
+## 793b92 Review of the documentation reduction
+
+The reduction of these documents (13 commits, `408e5d16` to `8f07087b`, about 73,000 words to 36,000) had one opus review round. It found the cut below sufficient where it removed what a reader needs to act or verify (decision reasons and rejected alternatives, accepted review findings, a measured baseline, clauses of requirements) and found departures from the guides that nobody had recorded. Applied in new commits: the reasons restored, the departures decided in `793b93` to `793b97`, the two older non-conformances asked in `793c66` and `793c67`, and the questions that block nothing withdrawn from `793c` to their entries here. R (opus, 2026-10-17), accepted by the author.
+
+## 793b93 References are code-spanned IDs
+
+A reference to a node of this change is its ID in a code span, not the "ID title" link that `docs/AGENTS.md` asks for: the titles in the labels would add about 5,600 words (`793b91`). A reference into `docs/specs` or another change stays a link. A mechanical rewrite restores the links if the owner asks (`793c61`). A, on the review of the reduction (`793b92`).
+
+## 793b94 The mapping cites the product scenario
+
+Each mapping of `793d5` cites the ID of the product scenario and does not restate its text, as `docs/TECHNICAL-SPEC-GUIDE.md` asks at the first mapping: the 26 restatements were 1,859 words, a second copy of `793a` that had to follow every change to it (the Given and Then of `793a2b1c` changed in review). All 27 scenarios of `793a` are mapped (`793c62`). A, on the review of the reduction (`793b92`).
+
+## 793b95 An open question is one line
+
+An entry of `793c` is one line: the question, the default with its reason, the lettered alternatives, what it blocks and, when it is not open, its status. `docs/AGENTS.md` asks a context, lettered options, a recommendation and what it blocks; the context and the recommendation repeated the entry here (`793c` was 9,164 words, 2,477 after the reduction). A question that blocks nothing is an author choice and is not asked: its entry is a stub that points here (`793c63`). A, on the review of the reduction (`793b92`).
+
+## 793b96 The order of the groups is a table
+
+`793e4` gives the order of the groups and their state in a table, with no chain graph (the first version's 90 lines listed the same order); `793e9`, with the status of each node in its label, is the one dependency graph. The plan guide has the graph carry the order; here the table does, because the nodes are worked one at a time on one branch (`793c64`). A, on the review of the reduction (`793b92`).
+
+## 793b97 The commit columns stay
+
+The catalog keeps its Red, Green and Refactor commit columns (`793b13`) although the reduction rule would cut them as hashes: they are the record of the owner's step 5 (`793f2`), and the gate of `793e7` asks every `Done` row for its three commits (`793c65`). A, on the review of the reduction (`793b92`).
+
+## 793b98 Two requirements name two owners
+
+`793d4j` (redaction) is owned by the `turn-judgement` and the `lesson-writing`, and `793d4m` (origins) by the `prompt-delivery` and the `turn-judgement`; `docs/TECHNICAL-SPEC-GUIDE.md` has one requirement for each owning component. Each stays whole in this change: the shapes of a credential and the origins of a [prompt](./793a_product-spec.md#793a1a-terms) are stated once, and two copies would drift (`793c66`). A, on the review of the reduction (`793b92`).
+
+## 793b99 Default-suite tests that cross the filesystem
+
+Seven rows of `793e6a` and `793e6g` (`793d4d1b`, `793d4a1d`, `793d4a1g`, `793d4f1a`, `793d4e1a`, `793d4g1q`, `793d4g1w`) are in the default suite and run over a real temporary directory, which `docs/TECHNICAL-SPEC-GUIDE.md` reserves for the `integration` tag (the tests of `internal/cli` for `engram auto` carry no tag and use `t.TempDir`). They pass in `targ test` and are not changed in this pass (`793c67`). A, on the review of the reduction (`793b92`).
