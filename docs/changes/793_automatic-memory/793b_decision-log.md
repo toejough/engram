@@ -94,7 +94,7 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
   status line; the Pi [harness](../../GLOSSARY.md#harness).
 - **Rationale:** none is needed to deliver the North Star, and the owner asked for the "minimal set". The
   earlier attempt measured a lookup that included the chunk index at about 12 seconds on the owner's
-  [vault](../../GLOSSARY.md#vault), beyond the [wait bound](./793a_product-spec.md#793a1a-terms), against about 1.4 seconds for notes alone. The section
+  [vault](../../GLOSSARY.md#vault), beyond the 8 seconds of [793b17 A prompt is held for at most 8 seconds](#793b17-a-prompt-is-held-for-at-most-8-seconds), against about 1.4 seconds for notes alone. The section
   goes beyond the product guide's three sections so that the exclusions stay visible and each can be a separate
   change.
 - **Alternatives:** leave them unlisted. Rejected: a later reader could not tell a left-out capability from a
@@ -212,21 +212,32 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 - **Alternatives:** "the memory system". Rejected for that reason.
 - **Decided by:** Author.
 
-## 793b17 Wait bound is 8 seconds
+## 793b17 A prompt is held for at most 8 seconds
 
-- **Choice:** the [wait bound](./793a_product-spec.md#793a1a-terms) is 8 seconds, stated once in [793a1a Terms](./793a_product-spec.md#793a1a-terms) so one edit changes it.
-- **Rationale:** 8 seconds is the ceiling the owner approved for holding a [prompt](./793a_product-spec.md#793a1a-terms) in the earlier attempt,
-  where a lookup of [notes](../../GLOSSARY.md#permanent-note) alone took about 1.4 seconds with six at once.
-- **Alternatives:** a shorter bound such as 3 seconds, or a longer one ([793c1 How long may a prompt be held?](./793c_open-questions.md#793c1-how-long-may-a-prompt-be-held)).
+- **Choice:** [automatic memory](./793a_product-spec.md#793a1a-terms) may hold a
+  [prompt](./793a_product-spec.md#793a1a-terms) for at most 8 seconds, written in
+  [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way).
+- **Rationale:** the earlier attempt's author set 8 seconds, 5 for the lookup and 3 for a relevance judgement
+  (`old 793b317`). The owner did not set it. When a lookup that included the chunk index took 12 seconds against
+  1.0 to 1.4 seconds for [notes](../../GLOSSARY.md#permanent-note) alone (`old 793b408`, 2026-10-14), he was
+  offered a longer hold, did not raise it, and had the lookup split instead (`old 793c87`, 2026-10-14). His own
+  rule was relative: no longer than the [agent](./793a_product-spec.md#793a1a-terms)'s own lookup on the same
+  [vault](../../GLOSSARY.md#vault) and input (`old 793c7` item 4 and `old 793c11` (b), 2026-10-11), which
+  measured 10.6 to 11.0 seconds on his vault (`old 793c2`).
+- **Alternatives:** a shorter bound such as 3 seconds; a longer one; the owner's relative rule
+  ([793c1 How long may a prompt be held?](./793c_open-questions.md#793c1-how-long-may-a-prompt-be-held)).
 - **Decided by:** Author (default; owner may override).
 
-## 793b18 Capture delay is 2 minutes
+## 793b18 Writing finishes within 2 minutes of a turn
 
-- **Choice:** the [capture delay](./793a_product-spec.md#793a1a-terms) is 2 minutes, stated once in [793a1a Terms](./793a_product-spec.md#793a1a-terms).
-- **Rationale:** [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) needs a number to be testable. The earlier attempt set no bound for the normal
-  path and this attempt has not measured a capture yet, so 2 minutes is a guess with headroom, to be checked
-  when the requirement is built.
-- **Alternatives:** 1 minute or 5 minutes ([793c2 How soon after a turn must a lesson be in the vault?](./793c_open-questions.md#793c2-how-soon-after-a-turn-must-a-lesson-be-in-the-vault)).
+- **Choice:** a [note](../../GLOSSARY.md#permanent-note) for a lesson is in the [vault](../../GLOSSARY.md#vault)
+  within 2 minutes after the [turn](./793a_product-spec.md#793a1a-terms) that held it ends, written in
+  [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent).
+- **Rationale:** [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent)
+  needs a number to be testable. The earlier attempt set no bound for the normal path and this attempt has not
+  measured a capture yet, so 2 minutes is a guess with headroom, to be replaced by the measurement when the
+  requirement is built.
+- **Alternatives:** 1 minute or 5 minutes ([793c2 How soon after a turn must automatic memory have finished writing?](./793c_open-questions.md#793c2-how-soon-after-a-turn-must-automatic-memory-have-finished-writing)).
 - **Decided by:** Author (default; owner may override).
 
 ## 793b19 Volume of delivered notes
@@ -261,7 +272,7 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 
 - **Choice:** [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) and [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) apply to the [prompts](./793a_product-spec.md#793a1a-terms) and [turns](./793a_product-spec.md#793a1a-terms) of the user's own [sessions](../../GLOSSARY.md#session), not to
   [subagents](../../GLOSSARY.md#subagent), and delivery looks up [notes](../../GLOSSARY.md#permanent-note) only, not the chunk index.
-- **Rationale:** both follow from "minimal" and from the [wait bound](./793a_product-spec.md#793a1a-terms): a lookup that included the chunk index
+- **Rationale:** both follow from "minimal" and from the hold of 8 seconds ([793b17 A prompt is held for at most 8 seconds](#793b17-a-prompt-is-held-for-at-most-8-seconds)): a lookup that included the chunk index
   took about 12 seconds on the owner's [vault](../../GLOSSARY.md#vault) in the earlier attempt.
 - **Alternatives:** the owner's answers on 2026-10-11 in the earlier attempt: capture inside subagent sessions,
   and memory for every prompt regardless of source. This entry reverses them for the minimal set
@@ -301,7 +312,7 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 - **Choice:** the line of [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) appears once [automatic memory](./793a_product-spec.md#793a1a-terms) has finished its work for the [turn](./793a_product-spec.md#793a1a-terms), with
   no number of its own.
 - **Rationale:** a write that completes after the turn ends can only be reported when it is done; the latest
-  that can be is the [capture delay](./793a_product-spec.md#793a1a-terms) plus the time to show it.
+  that can be is 2 minutes ([793b18 Writing finishes within 2 minutes of a turn](#793b18-writing-finishes-within-2-minutes-of-a-turn)) plus the time to show it.
 - **Alternatives:** show the line at the end of the turn and report the write in a second line. Rejected:
   [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) promises one line.
 - **Decided by:** Author.
@@ -344,11 +355,8 @@ kept so that links do not dangle.
 
 ## 793b31 Glossary terms stay in the Terms list until promotion
 
-- **Choice:** the terms [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec) uses that the glossary lacks stay in [793a1a Terms](./793a_product-spec.md#793a1a-terms) until the change is
-  promoted ([793c11 Glossary gaps](./793c_open-questions.md#793c11-glossary-gaps)).
-- **Rationale:** the glossary describes shipped behavior, and these terms are not shipped yet.
-- **Alternatives:** add them to the glossary now.
-- **Decided by:** Author (default; owner may override).
+Withdrawn in review round 1: not a decision. A term the glossary lacks is defined in the Terms list of the
+product spec, where the guides put it, and nothing was decided. The ID is kept so that links do not dangle.
 
 ## 793b32 Test isolation
 

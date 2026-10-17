@@ -34,13 +34,6 @@ written depth first, so each requirement's scenario section stays pending until 
   [notes](../../GLOSSARY.md#permanent-note) that bear on a prompt in the agent's context
   ([793a2b Memory arrives with the prompt](#793a2b-memory-arrives-with-the-prompt)) and writes notes for
   lessons ([793a2c Lessons are written without the agent](#793a2c-lessons-are-written-without-the-agent)).
-- **Provenance:** the record on a note of where it came from
-  ([`--source`](../../GLOSSARY.md#--source)).
-- **Wait bound:** the longest [automatic memory](#793a1a-terms) may hold a prompt: 8 seconds. A default
-  ([793c1 How long may a prompt be held?](./793c_open-questions.md#793c1-how-long-may-a-prompt-be-held)).
-- **Capture delay:** the longest a lesson may take to reach the [vault](../../GLOSSARY.md#vault) after the
-  [turn](#793a1a-terms) that held it ends: 2 minutes. A default
-  ([793c2 How soon after a turn must a lesson be in the vault?](./793c_open-questions.md#793c2-how-soon-after-a-turn-must-a-lesson-be-in-the-vault)).
 
 ## 793a2 Added: Automatic memory
 
@@ -76,9 +69,10 @@ Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
 Requirement: 793a2c When a [turn](#793a1a-terms) holds a confirmed lesson that the
 [vault](../../GLOSSARY.md#vault) does not already state
 ([793a3c Nothing the vault already says is written again](#793a3c-nothing-the-vault-already-says-is-written-again)),
-a [note](../../GLOSSARY.md#permanent-note) stating it MUST be in the vault within the
-[capture delay](#793a1a-terms) after the turn ends, written by [automatic memory](#793a1a-terms) and not by
-the [agent](#793a1a-terms), with its [provenance](#793a1a-terms) marked as automatic. A turn holds a confirmed
+a [note](../../GLOSSARY.md#permanent-note) stating it MUST be in the vault within 2 minutes
+([793c2 How soon after a turn must automatic memory have finished writing?](./793c_open-questions.md#793c2-how-soon-after-a-turn-must-automatic-memory-have-finished-writing)) after the turn ends, written by
+[automatic memory](#793a1a-terms) and not by the [agent](#793a1a-terms), and marked as written automatically.
+A turn holds a confirmed
 lesson when the user corrected the agent, asked it to remember something, or confirmed that an approach
 worked, or when the agent plainly corrected its own earlier claim. A turn that holds only guesses, plans or
 chatter MUST NOT produce a note.
@@ -90,7 +84,7 @@ Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
 ### 793a2d Never in the way
 
 Requirement: 793a2d [Automatic memory](#793a1a-terms) MUST NOT hold a [prompt](#793a1a-terms) for longer than
-the [wait bound](#793a1a-terms), MUST NOT change what the user typed or what the [agent](#793a1a-terms)
+8 seconds ([793c1 How long may a prompt be held?](./793c_open-questions.md#793c1-how-long-may-a-prompt-be-held)), MUST NOT change what the user typed or what the [agent](#793a1a-terms)
 answered, and MUST NOT break or stall a [session](../../GLOSSARY.md#session). When it cannot do its work, for
 any reason, it MUST step aside, and the session MUST continue as if automatic memory were not installed.
 
@@ -151,7 +145,7 @@ Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
 
 Requirement: 793a3d A delivery under
 [793a2b Memory arrives with the prompt](#793a2b-memory-arrives-with-the-prompt) that does not finish within
-the [wait bound](#793a1a-terms), and any other failure of that delivery or of the writing under
+8 seconds ([793c1 How long may a prompt be held?](./793c_open-questions.md#793c1-how-long-may-a-prompt-be-held)), and any other failure of that delivery or of the writing under
 [793a2c Lessons are written without the agent](#793a2c-lessons-are-written-without-the-agent), MUST be treated
 under [793a2d Never in the way](#793a2d-never-in-the-way) as [automatic memory](#793a1a-terms) being unable to
 do its work, and MUST be shown as a skipped step in the line of
