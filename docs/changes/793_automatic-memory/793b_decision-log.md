@@ -1276,8 +1276,8 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 - **Rationale:** review finding 19. Measured on a scratch copy of the branch before the change: 2.2 seconds for a record of
   2 MB (1,000 messages of 3,000 characters) and 8.4 seconds for one of 11 MB, for each of the two readings the command made
   (the text of the turn, and the request), before the model was asked. The redaction of every message was the cost: the
-  parse of the same record is about a hundredth of it. The bound of the scenario, 2 seconds for 4 MB, fails the old
-  reading by a factor of four and passes the new one by a factor of twenty or more.
+  parse of the same record is about a hundredth of it. The bound of the scenario, 1 second for 1 MB, fails the old
+  reading, which took 42 seconds under the race detector that `targ test` runs with, by a factor of forty.
 - **Alternatives:** keep the two readings and make each cheaper (rejected: the parse is still done twice and the surface
   stays larger); keep the lines of the first reading for the second (rejected: state between two calls); read only the
   end of the record (rejected: the start of a long turn would be cut).

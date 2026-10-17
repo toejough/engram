@@ -470,11 +470,11 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b74 A row the harness wrote is no prompt](./793b_decision-log.md#793b74-a-row-the-harness-wrote-is-no-prompt).
 
-## 793c46 Is 2 seconds for a record of 4 MB the right bound for the judgement?
+## 793c46 Is 1 second for a record of 1 MB the right bound for the judgement?
 
 - **Context:** [793b75 The record is read once, and the lines of the window are the only ones redacted](./793b_decision-log.md#793b75-the-record-is-read-once-and-the-lines-of-the-window-are-the-only-ones-redacted) measured 2.2 seconds for each reading of a record of 2 MB before the change, and the
   capture has a bound of 2 minutes ([793b70 The capture reports its own failures, and nothing times it as a whole](./793b_decision-log.md#793b70-the-capture-reports-its-own-failures-and-nothing-times-it-as-a-whole)).
-- **Options:** (a) 2 seconds for 4 MB. (b) A tighter bound. (c) No bound in the spec.
+- **Options:** (a) 1 second for 1 MB. (b) A tighter bound. (c) No bound in the spec.
 - **Recommendation:** (a): the bound is a regression guard with room for a loaded machine, and the command now spends most
   of that time parsing.
 - **Blocks:** nothing.

@@ -532,11 +532,11 @@ Takes review finding 1, the blocker: every row of the record that had text of th
 
 #### 793e6g2 The record is read once, and only the window is redacted
 
-Takes review finding 19: the judgement parsed the whole record and redacted every message of it twice for each [turn](./793a_product-spec.md#793a1a-terms), once to find the text that the [notes](../../GLOSSARY.md#permanent-note) are looked up for and once to build the request. Measured on a scratch copy of the branch before this node, a record of 2 MB (1,000 messages of 3,000 characters) took 2.2 seconds for each of the two readings and a record of 11 MB 8.4 seconds, before the model was asked; the redaction is the cost, the parse about a hundredth of it ([793b75 The record is read once, and the lines of the window are the only ones redacted](./793b_decision-log.md#793b75-the-record-is-read-once-and-the-lines-of-the-window-are-the-only-ones-redacted)).
+Takes review finding 19: the judgement parsed the whole record and redacted every message of it twice for each [turn](./793a_product-spec.md#793a1a-terms), once to find the text that the [notes](../../GLOSSARY.md#permanent-note) are looked up for and once to build the request. Measured on a scratch copy of the branch before this node, a record of 2 MB (1,000 messages of 3,000 characters) took 2.2 seconds for each of the two readings and a record of 11 MB 8.4 seconds, before the model was asked, and a record of 1 MB 42 seconds under the race detector that `targ test` runs with; the redaction is the cost, the parse about a hundredth of it ([793b75 The record is read once, and the lines of the window are the only ones redacted](./793b_decision-log.md#793b75-the-record-is-read-once-and-the-lines-of-the-window-are-the-only-ones-redacted)).
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793d4g1q | Dedicated example (default suite) | a record of 4 MB through `RunAutoJudge` over a real temporary directory: the request is printed within 2 seconds; the old reading took 8 seconds, so the bound fails it by a factor of four and the new one passes it by a factor of twenty or more | Not started | | | |
+| 793d4g1q | Dedicated example (default suite) | a record of 1 MB through `RunAutoJudge` over a real temporary directory: the request is printed within 1 second; the old reading took 42 seconds under the race detector that `targ test` runs with, so the bound fails it by a factor of forty | Not started | | | |
 
 ### 793e6e The conversation becomes searchable memory
 
