@@ -70,8 +70,9 @@ sequenceDiagram
 
 Requirement: 793d2a For each [prompt](./793a_product-spec.md#793a1a-terms) a Claude Code
 [session](../../GLOSSARY.md#session) raises, the automatic-memory-mod MUST run `engram auto deliver` with the prompt
-text and the session's ID, as one JSON object, on standard input, MUST add the command's output to the context of the prompt as one block when it is not
-empty, and nothing when it is, and MUST leave the prompt text as it received it. It MUST wait for the command no longer
+text and the session's ID, as one JSON object, on standard input, MUST add the command's output to the context of the prompt as one block when the command
+exited with 0 and the output begins with `[engram memory]`, and nothing otherwise, and MUST leave the prompt text as it
+received it. It MUST wait for the command no longer
 than 7 seconds, so that the prompt is held for less than the 8 seconds of
 [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), and MUST, when the command does not finish
 within them, end it and let the prompt continue as it was, with nothing added.
@@ -102,6 +103,16 @@ Scenario: 793d2a1d A slow command is ended and the prompt continues
   Given a session with the mod installed, and an engram whose auto deliver takes 20 seconds
   When a prompt is sent
   Then the model is asked within 8 seconds of the prompt, with the prompt exactly as sent and no context beside it, and the mod's hook did not fail
+
+Scenario: 793d2a1e A failed command adds nothing
+  Given a session with the mod installed, and an engram whose auto deliver prints a block and exits with 1
+  When a prompt is sent
+  Then the session holds the prompt exactly as sent and no context beside it, and the mod's hook did not fail
+
+Scenario: 793d2a1f Output that is not a block adds nothing
+  Given a session with the mod installed, and an engram whose auto deliver prints text that does not begin with [engram memory] and exits with 0
+  When a prompt is sent
+  Then the session holds the prompt exactly as sent and no context beside it, and the mod's hook did not fail
 ```
 
 ## 793d3 Recommended component diffs

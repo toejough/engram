@@ -748,7 +748,9 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   the tests of other changes carry no scenario ID of this one. The first version searched the text of the files for
   `func Test<ID>_`. The review of the first group reproduced that it counted the declarations that the check's own
   fixtures hold in string literals, and stayed green when the real `Test793a2a1a_` and `Test793d4b1h_` were renamed;
-  reading the declarations closes that.
+  reading the declarations closes that. The allow list of the dev lint configuration (`dev/golangci-lint.toml`) gains
+  `go/ast`, `go/parser` and `go/token` for non-test files, the three packages it already allowed for tests, because the
+  check's code is not a test file; no rule is switched off.
 - **Alternatives:** a target of its own outside `targ check-full` (rejected: it could be forgotten); skipping when the
   directory is missing (rejected: it passes with nothing checked); both directions (rejected: other changes' tests carry
   other IDs); the text search of the first version (rejected: it counts text that declares nothing).
@@ -771,3 +773,21 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   tests (rejected: the tests share no state, so the cause is not shared state); a longer bound in the mod (rejected: the
   7 seconds are the product's, [793b46](#793b46-the-command-is-ended-at-7-seconds)).
 - **Decided by:** Author (default; owner may override).
+
+## 793b50 The mod uses what the command printed only when it succeeded and printed a block
+
+- **Choice:** the mod adds the output of `engram auto deliver` beside the prompt only when the command exited with 0 and
+  the output begins with `[engram memory]`, the line that opens every block
+  ([793d4c Framing the notes of a block as data](./793d_technical-spec.md#793d4c-framing-the-notes-of-a-block-as-data)).
+  In every other case the prompt goes on as it was, with nothing added
+  ([793d2a Prompt delivery flow](./793d_technical-spec.md#793d2a-prompt-delivery-flow)).
+- **Rationale:** the review of the first group reproduced that the first version added the standard output whatever the
+  exit code. The `engram` of main, which has no `auto` command, prints `Unknown command: auto` and 2,117 bytes of usage to
+  standard output and exits 1, and this branch's binary prints `Error: flag provided but not defined: --bogus` to standard
+  output; both reached the agent's context as if they were notes. `$.process.run` returns the exit code and the output
+  without throwing on a non-zero exit, so the mod reads the exit code itself. The marker keeps out text that a command
+  prints on exit 0 and that is not a block.
+- **Alternatives:** the exit code alone (rejected: an `engram` that exits 0 with other text would still reach the
+  context); the marker alone (rejected: a failing command that happens to print a block would still be used); any
+  non-empty output, the first version (rejected: reproduced).
+- **Decided by:** Author (default; owner may override), on the review's finding.

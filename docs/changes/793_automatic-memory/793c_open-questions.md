@@ -168,3 +168,14 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Blocks:** nothing.
 - **Status:** parked (Joe, 2026-10-16, in the earlier attempt: `old 793c93`): "Nah, leave it for now." Revisit
   after the behavior of [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec) has landed.
+
+## 793c25 Does the mod use what a failed or unrecognised command printed?
+
+- **Context:** [793d2a Prompt delivery flow](./793d_technical-spec.md#793d2a-prompt-delivery-flow) has the mod put the
+  output of `engram auto deliver` beside the prompt. A command that fails, such as an older `engram` that does not know
+  `auto` (it prints its usage and exits 1), prints text that is not a block.
+- **Options:** (a) The output is used only when the command exited with 0 and the output begins with `[engram memory]`.
+  (b) Any non-empty output is used, as the first version did.
+- **Recommendation:** (a): (b) puts an error message or a usage text in the agent's context as if it were a note.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b50 The mod uses what the command printed only when it succeeded and printed a block](./793b_decision-log.md#793b50-the-mod-uses-what-the-command-printed-only-when-it-succeeded-and-printed-a-block).
