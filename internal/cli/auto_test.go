@@ -60,6 +60,56 @@ func Test793d4a1b_RunAutoDeliver_AFailedLookupFailsTheCommandAndPrintsNothing(t 
 	g.Expect(out.String()).To(BeEmpty())
 }
 
+func Test793d4a1c_NotesOf_ANoteOnlyTheExploreHalfPickedDoesNotBearOnThePrompt(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	notes, err := cli.ExportNotesOf([]byte(`version: 1
+phrases:
+  - When is the Zorblax staging database reset?
+items:
+  - path: 1.2026-10-17.zorblax-staging-reset.md
+    kind: fact
+    score: 0.92
+    provenances:
+      - direct
+    content: |
+      ---
+      type: fact
+      situation: testing against the Zorblax staging database
+      ---
+
+      The Zorblax staging database is reset every Sunday at 03:40 UTC.
+  - path: 2.2026-10-17.format-python-before-commit.md
+    kind: feedback
+    score: 0.41
+    provenances:
+      - explore
+    source_term: formatting
+    content: |
+      ---
+      type: feedback
+      situation: committing a Python file
+      ---
+
+      Run black on the file before committing.
+clusters: []
+budget: {}
+model_id: m@4
+`))
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(notes).To(HaveLen(1))
+
+	if len(notes) == 1 {
+		g.Expect(notes[0].Path).To(Equal("1.2026-10-17.zorblax-staging-reset.md"))
+	}
+}
+
 // TestTargets_AutoDeliver reaches the command the way the mod does, as `engram auto deliver` with the prompt on
 // standard input, so the wiring of the group, the flag and the dependencies is run.
 func TestTargets_AutoDeliverPrintsTheNotesThatBearOnThePromptOnStandardInput(t *testing.T) {

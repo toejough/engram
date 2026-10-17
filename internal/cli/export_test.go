@@ -151,6 +151,7 @@ var (
 	ExportNamedClustersToSeedTerms         = namedClustersToSeedTerms
 	ExportNewActivateDeps                  = newActivateDeps
 	ExportNewAmendDeps                     = newAmendDeps
+	ExportNotesOf                          = notesOf
 	ExportNewErrHandler                    = newErrHandler
 	ExportNewExchangeState                 = newExchangeState
 	ExportNewIdentityDeps                  = newIdentityDeps
