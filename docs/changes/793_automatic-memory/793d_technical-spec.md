@@ -416,6 +416,11 @@ Scenario: 793d4f1c The home's .claude/projects holds them by default
   Given neither variable is set, and a record of the session in the home's .claude/projects showing one note delivered
   When engram auto deliver is dispatched for a prompt of the session, without --sessions
   Then the block names the other note only
+
+Scenario: 793d4f1d No record is read when no directory can be found
+  Given neither variable is set, and a home directory that cannot be found
+  When engram auto deliver is dispatched for a prompt of a session, without --sessions
+  Then no record is read, and the block names the notes that bear on the prompt
 ```
 
 ## 793d5 Product-scenario mapping

@@ -910,7 +910,9 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 - **Choice:** the mod races everything it does for a [prompt](./793a_product-spec.md#793a1a-terms), the call for the [session](../../GLOSSARY.md#session)'s ID and the command, against one
   timer of 7 seconds, and the prompt goes on with nothing added when the timer wins
   ([793d2a Prompt delivery flow](./793d_technical-spec.md#793d2a-prompt-delivery-flow)). The command is still ended at 7
-  seconds by the time limit of the process call ([793b46 The command is ended at 7 seconds](#793b46-the-command-is-ended-at-7-seconds)).
+  seconds by the time limit of the process call ([793b46 The command is ended at 7 seconds](#793b46-the-command-is-ended-at-7-seconds)),
+  counted from its start: a call for the ID that took part of the bound leaves a command that outlives the prompt's wait by
+  that part, and the prompt does not wait for it.
 - **Rationale:** the review of the first group found that `await $.session.id()` ran outside the bound, so a call to the
   host that did not answer would hold the prompt for as long as the host took, and the 8 seconds of
   [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) promise no longer than that for any reason.
