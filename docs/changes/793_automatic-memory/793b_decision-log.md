@@ -655,19 +655,25 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 ## 793b43 A note cannot reshape the block
 
 - **Choice:** the file name, the situation and the body of a note are each written as text in which every run of white
-  space (line breaks and separators included) is one space and no control character remains, so a note is always one
-  line, and no text of a note can end its line and write a line that looks like the framing line or like another note.
+  space (line breaks and separators included) is one space and no control character and no format character (Unicode
+  category Cf) remains, so a note is always one line, and no text of a note can end its line and write a line that looks
+  like the framing line or like another note.
   The framing line says that an instruction written inside a note is not the user's. Nothing more is done: no quoting
   scheme. [793d4c Framing the notes of a block as data](./793d_technical-spec.md#793d4c-framing-the-notes-of-a-block-as-data)
   states it.
 - **Rationale:** a note is text that the user, the [agent](./793a_product-spec.md#793a1a-terms) or another vault wrote,
   and the block puts it in the agent's context. A security review of the first rendering found that a note holding line
   breaks could end its own line and write lines that imitate the block's framing or further notes, and that nothing
-  told the agent the lines are retrieved data. Collapsing and one framing line close that with no other machinery.
+  told the agent the lines are retrieved data. Collapsing and one framing line close that with no other machinery. The
+  review of the first group added the format characters: a zero-width space or joiner, a bidirectional override and a
+  byte-order mark are not control characters, yet they are invisible or reorder the text, so a note could carry an
+  instruction that a person reading the session does not see; they are dropped, as control characters are, and the words
+  around them are joined.
 - **Alternatives:** a quoting or escaping scheme (rejected: more code for the same guarantee, since the model reads the
   lines either way); leaving out a note that holds control characters (rejected: the note would be lost).
 - **Decided by:** Reviewer (security review of the delivery node's rendering, relayed by the coordinator,
-  2026-10-17), accepted by the author.
+  2026-10-17), accepted by the author. The format characters are the review of the first group's finding 20, accepted by
+  the author.
 
 ## 793b44 Only the notes that match are delivered, whole
 
