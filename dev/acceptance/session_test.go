@@ -3,17 +3,21 @@
 package acceptance_test
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -28,9 +32,12 @@ const (
 	fakeAPIKey        = "sk-ant-acceptance-not-a-real-key"
 	liveBudgetUSD     = "2"
 	liveModel         = "sonnet"
+	maxLineBytes      = 16 << 20
 	offlineBaseURL    = "http://127.0.0.1:9"
 	offlineWait       = 60 * time.Second
 	pollInterval      = 50 * time.Millisecond
+	recordFlushWait   = 10 * time.Second
+	resultsBuffered   = 16
 	sessionTimeout    = 5 * time.Minute
 	stopGrace         = 10 * time.Second
 	tokenVariable     = "CLAUDE_CODE_OAUTH_TOKEN"
@@ -47,6 +54,80 @@ var (
 	errNoToken   = errors.New("no credentials")
 	tokenPattern = regexp.MustCompile(`^\s*(?:export\s+)?` + tokenVariable + `=(.*?)\s*$`)
 )
+
+// conversation is one running `claude` process that takes its prompts on standard input as stream-json messages.
+type conversation struct {
+	session *session
+	command *exec.Cmd
+	stdin   io.WriteCloser
+	cancel  context.CancelFunc
+	results chan string // the line of each result the process prints, one for each prompt it has answered
+	ended   sync.Once
+}
+
+// end closes the process's input, which ends the session, and waits for the process; stderr is logged when it fails.
+func (c *conversation) end(stderr string) {
+	c.ended.Do(func() {
+		_ = c.stdin.Close()
+
+		waitErr := c.command.Wait()
+		c.cancel()
+
+		if waitErr != nil {
+			c.session.machine.t.Logf("claude ended with %v\n%s", waitErr, stderr)
+		}
+	})
+}
+
+// readResults sends the line of each result event that the process prints to the results channel.
+func (c *conversation) readResults(stdout io.Reader) {
+	scanner := bufio.NewScanner(stdout)
+	scanner.Buffer(nil, maxLineBytes)
+
+	for scanner.Scan() {
+		var event struct {
+			Type string `json:"type"`
+		}
+
+		if json.Unmarshal(scanner.Bytes(), &event) == nil && event.Type == "result" {
+			c.results <- scanner.Text()
+		}
+	}
+
+	close(c.results)
+}
+
+// say sends one prompt to the running session and returns what the session's record holds of it once the model has
+// answered: the record is read while the process runs, as the next prompt's hooks read it.
+func (c *conversation) say(prompt string) *turn {
+	t := c.session.machine.t
+	t.Helper()
+
+	message, marshalErr := json.Marshal(map[string]any{
+		"type": "user", "message": map[string]string{"role": "user", "content": prompt},
+	})
+	if marshalErr != nil {
+		t.Fatalf("encoding the prompt: %v", marshalErr)
+	}
+
+	_, writeErr := c.stdin.Write(append(message, '\n'))
+	if writeErr != nil {
+		t.Fatalf("sending the prompt: %v", writeErr)
+	}
+
+	select {
+	case result, open := <-c.results:
+		if !open {
+			t.Fatalf("claude ended before it answered %q", prompt)
+		}
+
+		return c.session.answeredTurn(prompt, result)
+	case <-time.After(sessionTimeout):
+		t.Fatalf("claude did not answer %q within %s", prompt, sessionTimeout)
+
+		return nil
+	}
+}
 
 // startSession starts a session in a project directory of its own, outside any repository.
 func (m *machine) startSession(project string) *session {
@@ -67,6 +148,41 @@ type session struct {
 	prompts int
 }
 
+// answered reports whether the session's record holds an answer of the agent after the last occurrence of a prompt.
+func (s *session) answered(prompt string) bool {
+	rows := s.rows()
+	start := -1
+
+	for index, row := range rows {
+		if text, isPrompt := row.promptText(); isPrompt && text == prompt {
+			start = index
+		}
+	}
+
+	if start < 0 {
+		return false
+	}
+
+	return slices.ContainsFunc(rows[start+1:], func(row transcriptRow) bool { return row.Type == "assistant" })
+}
+
+// answeredTurn waits until the session's record shows the model's answer to a prompt, then cuts the turn out of it.
+func (s *session) answeredTurn(prompt, result string) *turn {
+	s.machine.t.Helper()
+
+	deadline := time.Now().Add(recordFlushWait)
+
+	for !s.answered(prompt) {
+		if time.Now().After(deadline) {
+			s.machine.t.Fatalf("the session's record shows no answer to %q within %s", prompt, recordFlushWait)
+		}
+
+		time.Sleep(pollInterval)
+	}
+
+	return s.turnOf(prompt, result)
+}
+
 // blocksNaming counts the blocks automatic memory delivered in the whole session that name a note.
 func (s *session) blocksNaming(note string) int {
 	count := 0
@@ -80,6 +196,58 @@ func (s *session) blocksNaming(note string) int {
 	}
 
 	return count
+}
+
+// converse starts one `claude` process that takes its prompts as they are sent, on standard input: the session stays
+// open between the prompts, as a user's does, and its record is written while the process runs.
+func (s *session) converse() *conversation {
+	s.machine.t.Helper()
+
+	requireClaude(s.machine.t)
+
+	token := claudeToken(s.machine.t)
+	args := []string{
+		"-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--model", liveModel,
+		"--max-budget-usd", liveBudgetUSD, "--permission-mode", "default", "--permission-prompts", "none",
+		"--debug-file", filepath.Join(s.machine.root, fmt.Sprintf("claude-debug-%d.log", s.prompts)),
+		"--session-id", s.id,
+	}
+
+	s.prompts++
+
+	env := s.machine.env(tokenVariable + "=" + token)
+	s.machine.assertIsolated(s.project, env)
+
+	ctx, cancel := context.WithTimeout(context.Background(), sessionTimeout)
+	command := exec.CommandContext(ctx, lookPath("claude"), args...)
+	command.Dir = s.project
+	command.Env = env
+
+	stdin, stdinErr := command.StdinPipe()
+	stdout, stdoutErr := command.StdoutPipe()
+
+	if stdinErr != nil || stdoutErr != nil {
+		s.machine.t.Fatalf("connecting to claude: %v %v", stdinErr, stdoutErr)
+	}
+
+	var stderr bytes.Buffer
+
+	command.Stderr = &stderr
+
+	startErr := command.Start()
+	if startErr != nil {
+		s.machine.t.Fatalf("starting claude: %v", startErr)
+	}
+
+	chat := &conversation{
+		session: s, command: command, stdin: stdin, cancel: cancel, results: make(chan string, resultsBuffered),
+	}
+
+	go chat.readResults(stdout)
+
+	s.machine.t.Cleanup(func() { chat.end(redact(stderr.String(), token)) })
+
+	return chat
 }
 
 // endOnceAsked waits until the session's record shows one more request to the model than before, then ends the run.

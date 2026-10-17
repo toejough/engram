@@ -237,6 +237,7 @@ func Test793a2b1b_ANoteDeliveredEarlierInTheSessionIsNotDeliveredAgain(t *testin
 	var (
 		stagingNote string
 		inSession   *session
+		chat        *conversation
 	)
 
 	step(t, "Given a session in which a prompt asking when the staging database is reset "+
@@ -246,8 +247,11 @@ func Test793a2b1b_ANoteDeliveredEarlierInTheSessionIsNotDeliveredAgain(t *testin
 		stagingNote = machine.learnsFact(stagingReset)
 		machine.mustSucceed(machine.update(), "engram update")
 
+		// both prompts go through one running process, so that the second prompt's delivery reads a record that the
+		// session wrote while it was open, as a user's next prompt does
 		inSession = machine.startSession("a-project")
-		first := inSession.send(askStagingReset)
+		chat = inSession.converse()
+		first := chat.say(askStagingReset)
 
 		g.Expect(first.blocks()).To(HaveLen(1), "blocks automatic memory delivered with the first prompt")
 		g.Expect(first.blocks()[0]).To(ContainSubstring(stagingNote))
@@ -256,7 +260,7 @@ func Test793a2b1b_ANoteDeliveredEarlierInTheSessionIsNotDeliveredAgain(t *testin
 	var second *turn
 
 	step(t, "When the user sends another prompt about the staging database reset", func() {
-		second = inSession.send(askStagingResetDay)
+		second = chat.say(askStagingResetDay)
 		t.Logf("the agent replied %q (cost $%.4f)", second.reply, second.cost)
 	})
 
