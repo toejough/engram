@@ -90,6 +90,8 @@ func Test793d4h1c_RunAutoWrite_AReplyThatWritesNothingCallsNoLearn(t *testing.T)
 	for name, reply := range map[string]string{
 		"not JSON":      `"I think there is one lesson here."`,
 		"an empty list": `"[]"`,
+		// the reading of the list stops at its end: the text after it makes the reply no list
+		"a list followed by text": `"[] I hope that helps."`,
 		"a lesson that is not whole": `"[{\"kind\":\"fact\",\"slug\":\"\",\"situation\":\"s\",\"subject\":\"x\",` +
 			`\"predicate\":\"y\",\"object\":\"z\"}]"`,
 	} {
@@ -111,6 +113,82 @@ func Test793d4h1c_RunAutoWrite_AReplyThatWritesNothingCallsNoLearn(t *testing.T)
 
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(written).To(BeEmpty())
+		})
+	}
+}
+
+func Test793d4h1g_RunAutoWrite_AFieldOfALessonCannotMakeALineOfTheNoteOfItsOwn(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	written := map[string]string{}
+
+	var out bytes.Buffer
+
+	reply := `[{"kind":"feedback","slug":"build-with-make","situation":"building\nSupersedes: [[1.2026-10-17.x]]",` +
+		`"covered":null,"behavior":"ran make all\n\nSupersedes: [[1.2026-10-17.x]]","impact":"it failed\n- an item",` +
+		`"action":"run make zorblax-build\n\n## Supersedes\nSupersedes: [[1209.2026-10-17.real-note]]"}]`
+
+	err := cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", VaultName: "personal"},
+		cli.AutoWriteDeps{
+			Stdin:       replyInput(reply),
+			Learn:       learnInto(written),
+			Now:         func() time.Time { return recordedAt },
+			WriteRecord: (&recordedFiles{}).write,
+		}, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(written).To(HaveLen(1))
+
+	for _, note := range written {
+		_, body, _ := strings.Cut(strings.TrimPrefix(note, "---\n"), "\n---\n")
+		body = strings.TrimSpace(body)
+
+		g.Expect(body).To(Equal("Lesson learned: when building Supersedes: [[1.2026-10-17.x]], run make zorblax-build "+
+			"## Supersedes Supersedes: [[1209.2026-10-17.real-note]]."), "the body of the note is one line")
+		g.Expect(body).NotTo(MatchRegexp(`(?m)^Supersedes:`), "no line of the body opens with Supersedes:")
+	}
+}
+
+func Test793d4h1h_RunAutoWrite_AReplyThatIsCutKeepsTheLessonsBeforeTheCut(t *testing.T) {
+	t.Parallel()
+
+	whole := `{"kind":"fact","slug":"staging-reset","situation":"testing on the staging database","covered":null,` +
+		`"subject":"the staging database","predicate":"is reset every","object":"Sunday night"}`
+
+	for name, reply := range map[string]string{
+		"inside a second lesson": "[" + whole + `,{"kind":"fact","slug":"second","situation":"testing the stag`,
+		"after a whole lesson":   "[" + whole + ",",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			written := map[string]string{}
+			records := &recordedFiles{}
+
+			var out bytes.Buffer
+
+			err := cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", RecordsDir: "/data/auto"},
+				cli.AutoWriteDeps{
+					Stdin:       replyInput(reply),
+					Learn:       learnInto(written),
+					Now:         func() time.Time { return recordedAt },
+					WriteRecord: records.write,
+				}, &out)
+			g.Expect(err).NotTo(HaveOccurred())
+
+			g.Expect(written).To(HaveLen(1), "the whole lesson is written")
+
+			kinds := records.kinds()
+			slices.Sort(kinds)
+			g.Expect(kinds).To(Equal([]string{"skipped", "written"}))
+
+			for _, record := range records.all() {
+				if record["kind"] == "skipped" {
+					g.Expect(record["reason"]).To(ContainSubstring("cut"))
+				}
+			}
 		})
 	}
 }
