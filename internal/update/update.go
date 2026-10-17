@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -2445,7 +2446,10 @@ func planModCopies(
 		return nil, nil
 	}
 
-	return planSkillCopies(srcMods, home, harnesses, fileSystem)
+	// a mod is a Claude Code concept: no other harness is planned one (793d4b)
+	claude := slices.DeleteFunc(slices.Clone(harnesses), func(spec HarnessSpec) bool { return spec.Name != HarnessClaude })
+
+	return planSkillCopies(srcMods, home, claude, fileSystem)
 }
 
 // planSkillCopies enumerates every file under srcSkills and produces one
