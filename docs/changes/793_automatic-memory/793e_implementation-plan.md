@@ -445,7 +445,7 @@ Takes [793a3a1a A written note is delivered with later prompts](./793a_product-s
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a3a1a | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the user corrects the [agent](./793a_product-spec.md#793a1a-terms), the correction becomes a note, and a later [prompt](./793a_product-spec.md#793a1a-terms) that the note bears on arrives with it, both in the session of the correction and in a new one; the blocks the test reads are the ones delivered beside each prompt. The test passes when written, because the delivery finds every note of the vault; the mutation that makes it fail is a delivery that leaves out the notes written automatically | Red | | | |
+| 793a3a1a | Dedicated example, product acceptance (`network`) | the interaction as the user sees it: the user corrects the [agent](./793a_product-spec.md#793a1a-terms), the correction becomes a note, and a later [prompt](./793a_product-spec.md#793a1a-terms) that the note bears on arrives with it, both in the session of the correction and in a new one; the blocks the test reads are the ones delivered beside each prompt. The test passes when written, because the delivery finds every note of the vault; the mutation that makes it fail is a delivery that leaves out the notes written automatically | Done | n/a | 5d63aa30 | 5b695a5a |
 
 ### 793e6e The conversation becomes searchable memory
 
