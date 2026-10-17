@@ -21,11 +21,27 @@ The shared cycle applies once to every test row (the owner's step 5, [793f2 The 
 3. Green: make it pass with the minimum change, keep the whole suite passing, and commit.
 4. Refactor: minimize the code the branch introduces without obscuring its function and purpose, and commit.
 
-Classifications are acceptance (a product scenario executed literally against a real Claude Code
-[session](../../GLOSSARY.md#session)), example, property (`rapid`), interaction (`imptest`) and integration, as the guide defines
-them. A test name begins with its scenario ID ([793b9 Test execution](./793b_decision-log.md#793b9-test-execution)). A Go test that drives a real session needs a live
-model, so it carries the `network` build tag and skips with a clear reason when no login is present
-([technical spec guide](../../TECHNICAL-SPEC-GUIDE.md#test-suite-classification)).
+Classifications are the [plan guide's](../../IMPLEMENTATION-PLAN-GUIDE.md#test-classification): dedicated examples
+(the guide lists product acceptance scenarios and real dependency behavior tied to a pinned version among them),
+property-based tests
+(`rapid`), and injected and impure interaction tests (`imptest`). Suites are the
+[technical spec guide's](../../TECHNICAL-SPEC-GUIDE.md#test-suite-classification): the default suite is pure and
+deterministic, a test that crosses a local impure boundary carries the `integration` build tag, and a test that
+needs a live remote service carries the `network` build tag.
+
+Each scenario in [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec) is
+executed by one Go test, named with the scenario ID, that drives a real Claude Code
+[session](../../GLOSSARY.md#session) in an isolated HOME
+([793f7 Test isolation](./793f_algorithm.md#793f7-test-isolation)) and whose steps mirror the scenario's Given,
+When and Then lines one to one; its run output is the record
+([793b9 Test execution](./793b_decision-log.md#793b9-test-execution)). Each scenario in
+[793d Automatic Memory - Technical Spec](./793d_technical-spec.md#automatic-memory---technical-spec) is executed by
+one Go test whose name carries the scenario ID. A conformance check asserts that every scenario ID in either spec
+has a test. A test that drives a real session needs a live model, so it carries the `network` build tag and skips
+with a clear reason when no login is present.
+
+Every test or check that runs `engram` or `claude`, whatever its classification, follows
+[793f7 Test isolation](./793f_algorithm.md#793f7-test-isolation).
 
 ## 793e3 Test status
 
@@ -95,8 +111,17 @@ Takes [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-us
 ## 793e7 Completion gates
 
 - Every scenario in [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec) and [793d Automatic Memory - Technical Spec](./793d_technical-spec.md#automatic-memory---technical-spec) has a row, and every row is `Done`.
-- Every product scenario has a recorded literal run against a real Claude Code [session](../../GLOSSARY.md#session) that passed, and every
-  technical scenario has a passing Go test named with its ID.
+- Every product scenario has a Go test named with its ID that drove a real Claude Code
+  [session](../../GLOSSARY.md#session) in an isolated HOME ([793f7 Test isolation](./793f_algorithm.md#793f7-test-isolation))
+  and passed, with its run output recorded; every technical scenario has a passing Go test named with its ID; and
+  the conformance check, which asserts that every scenario ID in either spec has a test, passes.
+- No test, check or run touched the owner's real `~/.claude`, `~/.local/share/engram`, `~/.pi` or GOBIN
+  ([793f7 Test isolation](./793f_algorithm.md#793f7-test-isolation)).
+- Every `rapid` test has a Properties entry in its catalog table that enumerates the guarantees it checks.
+- Every injected or impure collaboration has the call, argument, ordering and side-effect evidence from `imptest`
+  that its contract needs.
+- The required valid-path behavior, and the required invalid-path gating and preservation behavior, are covered by
+  passing tests.
 - Every `Done` row has its red, green and refactor commits recorded.
 - [targ](../../GLOSSARY.md#targ) passes, with `targ test` and `targ check-full`, on the final commit of the branch.
 - Every refactor commit message names the code it removed or merged, or states that nothing could be removed.

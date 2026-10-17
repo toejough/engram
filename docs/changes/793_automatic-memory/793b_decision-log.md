@@ -107,12 +107,18 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 
 ## 793b9 Test execution
 
-- **Choice:** each scenario in the product spec is executed literally against a real Claude Code
-  [session](../../GLOSSARY.md#session), so the Gherkin in the spec is the test source; each scenario in the technical spec is
-  executed by one Go test whose name carries the scenario ID.
+- **Choice:** each scenario in [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec)
+  is executed by one Go test, named with the scenario ID, that drives a real Claude Code
+  [session](../../GLOSSARY.md#session) in an isolated HOME
+  ([793b32 Test isolation](#793b32-test-isolation)) and whose steps mirror the scenario's Given, When and Then
+  lines one to one; its run output is the record. Each scenario in
+  [793d Automatic Memory - Technical Spec](./793d_technical-spec.md#automatic-memory---technical-spec) is executed
+  by one Go test whose name carries the scenario ID. A conformance check asserts that every scenario ID in either
+  spec has a test.
 - **Rationale:** product scenarios are "user exercisable" (the owner's step 2), so a real session is the only
   test that proves what the user sees; the plan guide already requires a test name to begin with its scenario
-  ID.
+  ID; mirroring the Given, When and Then lines one to one keeps the Gherkin the source of the test, and the
+  conformance check keeps a scenario from losing its test.
 - **Alternatives:** Go tests that stand in for the session. Rejected: they would not prove the promise.
 - **Decided by:** Author.
 
@@ -340,3 +346,27 @@ listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#auto
 - **Rationale:** the glossary describes shipped behavior, and these terms are not shipped yet.
 - **Alternatives:** add them to the glossary now.
 - **Decided by:** Author (default; owner may override).
+
+## 793b32 Test isolation
+
+- **Choice:** every literal run of a product scenario, and every test or check that runs `engram` or `claude`,
+  uses its own HOME, CLAUDE_CONFIG_DIR, GOBIN, ENGRAM_VAULT_PATH, ENGRAM_CHUNKS_DIR and ENGRAM_TRANSCRIPT_DIR,
+  with a working directory outside any `.claude` or `.git` ancestor. `dev/eval/isolation.py` builds the engram
+  and Claude variables and checks the working directory this way; HOME and GOBIN are what this rule adds.
+  "The user runs [`engram update`](../../GLOSSARY.md#engram-update)" in a scenario means this branch's binary,
+  built into the run's own GOBIN and run with that run's HOME. The owner's real `~/.claude`,
+  `~/.local/share/engram`, `~/.pi` and GOBIN are never touched by the orchestrating
+  [agent](./793a_product-spec.md#793a1a-terms), a [subagent](../../GLOSSARY.md#subagent) or a test. The rule is written into
+  [793f7 Test isolation](./793f_algorithm.md#793f7-test-isolation),
+  [793e2 Test methods](./793e_implementation-plan.md#793e2-test-methods) and
+  [793e7 Completion gates](./793e_implementation-plan.md#793e7-completion-gates).
+- **Rationale:** the owner's isolation rule from the earlier attempt, set between 2026-10-11 and 2026-10-16 and
+  relayed to the author: "temp HOMEs only; every engram/claude command from agents needs explicit env HOME".
+  `old 793b245` records its first half: "the owner's isolation rule (temporary HOMEs only)". Review round 1 of
+  step 1 found the rule missing from this change's plan and algorithm. Without it, a literal run of "the user
+  runs `engram update`" installs into the owner's real `~/.claude`, and an
+  [`engram ingest --auto`](../../GLOSSARY.md#engram-ingest-subcommand) run from a directory under a `.claude` or
+  `.git` ancestor sweeps the owner's own sources into the run's index, so the rule is restated here.
+- **Alternatives:** none: it is the owner's rule.
+- **Decided by:** Owner (Joe, in the earlier attempt, 2026-10-11 to 2026-10-16), restated here after review
+  round 1.

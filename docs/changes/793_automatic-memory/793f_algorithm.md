@@ -49,9 +49,11 @@ phase is one step applied to one unit: step 1 for the whole set, or step 2, 3, 4
 | 5 | [793e Automatic Memory - Implementation Plan](./793e_implementation-plan.md#automatic-memory---implementation-plan) | The red, green and refactor record, one row per test: red commit, green commit, refactor commit. |
 
 Test execution ([793b9 Test execution](./793b_decision-log.md#793b9-test-execution)): each scenario in the
-product spec is executed literally against a real Claude Code [session](../../GLOSSARY.md#session), so the
-Gherkin in the spec is the test source. Each scenario in the technical spec is executed by one Go test whose
-name carries the scenario ID.
+product spec is executed by one Go test, named with the scenario ID, that drives a real Claude Code
+[session](../../GLOSSARY.md#session) in an isolated HOME ([793f7 Test isolation](#793f7-test-isolation)) and whose
+steps mirror the scenario's Given, When and Then lines one to one; its run output is the record. Each scenario in
+the technical spec is executed by one Go test whose name carries the scenario ID. A conformance check asserts that
+every scenario ID in either spec has a test.
 
 ## 793f6 Departures from the guides
 
@@ -67,3 +69,19 @@ Each follows from the owner's algorithm and is his decision.
   ([793b13 Departure: one refactor pass](./793b_decision-log.md#793b13-departure-one-refactor-pass)).
 - **A North Star line:** the product spec opens with it, beyond the product guide's three sections
   ([793b14 Departure: the North Star line](./793b_decision-log.md#793b14-departure-the-north-star-line)).
+
+## 793f7 Test isolation
+
+Every literal run of a product scenario, and every test or check that runs `engram` or `claude`, uses its own
+HOME, CLAUDE_CONFIG_DIR, GOBIN, ENGRAM_VAULT_PATH, ENGRAM_CHUNKS_DIR and ENGRAM_TRANSCRIPT_DIR, with a working
+directory outside any `.claude` or `.git` ancestor. `dev/eval/isolation.py` builds the engram and Claude
+variables and checks the working directory this way; HOME and GOBIN are what this rule adds. Every `engram` or
+`claude` command that the orchestrating [session](../../GLOSSARY.md#session) or a
+[subagent](../../GLOSSARY.md#subagent) runs sets these variables explicitly on its own command line.
+
+"The user runs [`engram update`](../../GLOSSARY.md#engram-update)" in a scenario means this branch's binary, built
+into the run's own GOBIN and run with that run's HOME. The owner's real `~/.claude`, `~/.local/share/engram`,
+`~/.pi` and GOBIN are never touched by the orchestrating session, a subagent or a test.
+
+The owner's rule from the earlier attempt, restated after review round 1 of step 1
+([793b32 Test isolation](./793b_decision-log.md#793b32-test-isolation)).
