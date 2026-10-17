@@ -38,7 +38,7 @@ The orchestrator does no object-level work: haiku searches, sonnet writes and bu
 | 3, 4 | [793d](./793d_technical-spec.md) | technical requirements (a component behavior or an interaction sequence, each tracing to the product scenarios it serves) and Gherkin scenarios |
 | 5 | [793e](./793e_implementation-plan.md) | the red, green and refactor commits, one row per test |
 
-Each scenario is run by one Go test named with its ID. A product scenario's test drives a real Claude Code [session](../../GLOSSARY.md#session) in an isolated HOME (`793f7`), its steps mirroring the Given, When and Then lines one to one (`793b9`). A conformance check asserts that every scenario ID has a test.
+Each scenario is run by one Go test named with its ID, a product scenario's in a real Claude Code [session](../../GLOSSARY.md#session) in an isolated HOME (`793f7`, `793b9`, `793e2`).
 
 Step 2 also finds each existing canonical node a requirement changes and records it as a Modified or Removed operation with that requirement's scenarios.
 

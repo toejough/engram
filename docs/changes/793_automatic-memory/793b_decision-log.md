@@ -36,7 +36,7 @@ Left out of the minimal set, each a possible later change: [subagent](../../GLOS
 
 ## 793b9 Test execution
 
-Each product scenario is run by one Go test named with its ID, driving a real Claude Code [session](../../GLOSSARY.md#session) in an isolated HOME (`793b32`), its steps mirroring the Given, When and Then lines and its run output the record; each technical scenario by one test named with its ID; a conformance check asserts that every scenario ID has a test. Only a real session proves what the user sees. A.
+The test method is `793e2`'s: a product scenario is run by one test that drives a real Claude Code [session](../../GLOSSARY.md#session) in an isolated HOME (`793b32`), a technical scenario by one test, and a conformance check asserts that every scenario ID has a test. Only a real session proves what the user sees. A.
 
 ## 793b10 Departure: depth-first fill
 
