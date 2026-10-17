@@ -1,0 +1,8 @@
+{
+  "name": "engram-memory",
+  "version": "0.1.0",
+  "description": "Automatic memory for Claude Code: puts the notes of the vault that bear on a prompt in the agent's context",
+  "author": {
+    "name": "engram"
+  }
+}

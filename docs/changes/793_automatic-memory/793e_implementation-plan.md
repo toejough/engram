@@ -151,7 +151,7 @@ Takes [793a2a1a The next session has memory after one engram update](./793a_prod
 | 793d4b1a | Dedicated example (default suite) | the plan of the mod copies over an in-memory file system: finite and exact | | Done | 7f1b9628 | 90db8458 | 30c80c31 |
 | 793d4b1b | Dedicated example (default suite) | a source without mods plans none and fails nowhere: the existing sources and tests have no mods directory | | Done | 5b38f353 | 5dec69a1 | cecf5759 |
 | 793d4b1c | Dedicated example (default suite) | the wiring of the plan into the update, run through `Updater.Run` over an in-memory file system: the mod reaches the engram-owned root and is linked from the skills directory | | Done | a05fbcdd | 067f61ad | 647dfe7c |
-| 793d2a1a | Dedicated example, real dependency (`network`) | the mod's routing and placement in a real Claude Code session against an `engram` that prints a chosen block; the session is never answered | | Red | | | |
+| 793d2a1a | Dedicated example, real dependency (`network`) | the mod's routing and placement in a real Claude Code session against an `engram` that prints a chosen block; the session is never answered | | Green-all | 1d4ce5c7 | | |
 
 #### 793e6a2 The notes that bear on a prompt arrive with it
 
