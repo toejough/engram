@@ -41,6 +41,22 @@ func Test793d4a1a_RunAutoDeliver_PrintsTheNotesThatBearOnThePromptAsOneBlock(t *
 		"the Zorblax staging database is reset every Sunday at 03:40 UTC."))
 }
 
+func Test793d4a1b_RunAutoDeliver_AFailedLookupFailsTheCommandAndPrintsNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	query := newQueryDeps(newInMemoryFS())
+	query.Embedder = errorEmbedder{}
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: t.TempDir()},
+		cli.AutoDeliverDeps{Stdin: strings.NewReader(`{"text":"anything"}`), Query: query}, &out)
+
+	g.Expect(err).To(MatchError(ContainSubstring("embedder down")))
+	g.Expect(out.String()).To(BeEmpty())
+}
+
 // zorblaxResetNote is the note `engram learn fact` writes for the staging database's reset schedule.
 const zorblaxResetNote = "---\ntype: fact\ntier: L2\nsituation: testing against the Zorblax staging database\n" +
 	"subject: the Zorblax staging database\npredicate: is reset every\nobject: Sunday at 03:40 UTC\n" +

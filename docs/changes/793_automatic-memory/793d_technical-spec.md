@@ -109,13 +109,14 @@ Scenario: 793d2a1a A block is added beside the prompt
 Requirement: 793d4a The prompt-delivery MUST read one JSON object with the prompt's `text` from standard input and
 MUST print one block on standard output. The block opens with a line that begins `[engram memory]` and holds one
 line for each [note](../../GLOSSARY.md#permanent-note) that bears on the text, in the order the lookup gave them: a
-dash, the note's file name, its situation in parentheses, a colon, and the note's body on one line, cut to 400
-characters. A note bears on the text when the lookup of
+dash, the note's file name, its situation in parentheses, a colon, and the note's body on one line. A note bears on
+the text when the lookup of
 [792b24c5 The matched set](../../specs/technical/query-engine.md#792b24c5-the-matched-set) for the text, as its message and as its only phrase,
 returns it as an item that is not a chunk. The lookup's own default limit of
 [792b24c1 Input and defaults](../../specs/technical/query-engine.md#792b24c1-input-and-defaults) bounds the number of
 lines, as it bounds the number of items the agent's own lookup returns
-([793b19 Volume of delivered notes](./793b_decision-log.md#793b19-volume-of-delivered-notes)).
+([793b19 Volume of delivered notes](./793b_decision-log.md#793b19-volume-of-delivered-notes)). It MUST print nothing
+and fail, naming the cause, when the lookup fails.
 
 Owner: prompt-delivery (a new component; its canonical file at promotion is `prompt-delivery.md`)
 
@@ -128,6 +129,11 @@ Scenario: 793d4a1a The notes that bear on the text come back as one block
   Given a vault holding a note that says when the staging database is reset
   When the command is given a prompt asking when the staging database is reset
   Then it prints a block that opens with a line beginning [engram memory] and has one line naming the note, its situation and its body
+
+Scenario: 793d4a1b A failed lookup fails the command and prints nothing
+  Given a lookup that fails
+  When the command is given a prompt
+  Then it fails with an error that names the lookup's failure, and it prints nothing
 ```
 
 ### 793d4b Deploying the mods of the source
