@@ -93,7 +93,7 @@ func Test793d2b1a_Mod_JudgesATurnAndGivesTheReplyToTheWriting(t *testing.T) {
 
 	g.Expect(outcome.Calls[0].Step).To(Equal("engram auto judge"))
 	g.Expect(outcome.Calls[0].Input).To(Equal(map[string]any{
-		"session": "a-session", "turn": "a-turn", "answer": "Understood.", "origin": "composer",
+		"session": "a-session", "turn": "a-turn", "text": "hello", "answer": "Understood.", "origin": "composer",
 	}))
 	g.Expect(outcome.Calls[1].Step).To(Equal("model"))
 	g.Expect(outcome.Calls[1].Asked).To(Equal(map[string]any{
@@ -197,7 +197,7 @@ func Test793d2b1e_Mod_TheJudgementReceivesTheOriginOfThePromptTheTurnBeganWith(t
 	if len(outcome.Calls) > 0 {
 		g.Expect(outcome.Calls[0].Step).To(Equal("engram auto judge"))
 		g.Expect(outcome.Calls[0].Input).To(Equal(map[string]any{
-			"session": "a-session", "turn": "a-turn", "answer": "Understood.", "origin": "task-notification",
+			"session": "a-session", "turn": "a-turn", "text": "hello", "answer": "Understood.", "origin": "task-notification",
 		}))
 	}
 }
@@ -215,6 +215,83 @@ func Test793d2b1f_Mod_ATurnOfASubagentIsNotCaptured(t *testing.T) {
 
 	g.Expect(outcome.Returned.Text).To(Equal("Understood."), "the event's result is given back")
 	g.Expect(outcome.Calls).To(BeEmpty(), "neither the judgement, the model nor the writing was asked")
+}
+
+func Test793d2b1g_Mod_TheJudgementReceivesTheTextTheTurnBeganWith(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runCaptureDriver(t, captureScenario{
+		Judge: map[string]any{"exitCode": 0, "stdout": requestPrinted},
+		Model: map[string]any{"isAnswered": true, "text": "THE REPLY"},
+		Text:  "fix the zorblax build",
+	})
+
+	g.Expect(outcome.Calls).NotTo(BeEmpty(), "the judgement was run")
+
+	if len(outcome.Calls) > 0 {
+		g.Expect(outcome.Calls[0].Step).To(Equal("engram auto judge"))
+		g.Expect(outcome.Calls[0].Input).To(Equal(map[string]any{
+			"session": "a-session", "turn": "a-turn", "text": "fix the zorblax build", "answer": "Understood.",
+			"origin": "composer",
+		}))
+	}
+}
+
+func Test793d2b1h_Mod_ATurnTakesTheOriginAndTheTextOfItsOwnPromptWhenOthersAreWaiting(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runCaptureDriver(t, captureScenario{
+		Judge: map[string]any{"exitCode": 0, "stdout": requestPrinted},
+		Model: map[string]any{"isAnswered": true, "text": "THE REPLY"},
+		Script: []map[string]any{
+			{"submit": map[string]any{"text": "first", "origin": "composer"}},
+			{"start": map[string]any{"text": "first", "turnId": "t1"}},
+			{"submit": map[string]any{"text": "second", "origin": "composer"}},
+			{"submit": map[string]any{"text": "<task-notification>done</task-notification>", "origin": "task-notification"}},
+			{"complete": map[string]any{"turnId": "t1", "answer": "done one"}},
+			{"start": map[string]any{"text": "second", "turnId": "t2"}},
+			{"complete": map[string]any{"turnId": "t2", "answer": "done two"}},
+		},
+	})
+
+	judgements := outcome.inputsOf("engram auto judge")
+
+	g.Expect(judgements).To(Equal([]map[string]any{
+		{"session": "a-session", "turn": "t1", "text": "first", "answer": "done one", "origin": "composer"},
+		{"session": "a-session", "turn": "t2", "text": "second", "answer": "done two", "origin": "composer"},
+	}))
+}
+
+func Test793d2b1i_Mod_ATurnThatStartsWithNoTextHasNoOrigin(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runCaptureDriver(t, captureScenario{
+		Judge: map[string]any{"exitCode": 0, "stdout": requestPrinted},
+		Model: map[string]any{"isAnswered": true, "text": "THE REPLY"},
+		Script: []map[string]any{
+			{"submit": map[string]any{"text": "first", "origin": "composer"}},
+			{"start": map[string]any{"text": "first", "turnId": "t1"}},
+			{"complete": map[string]any{"turnId": "t1", "answer": "done one"}},
+			{"start": map[string]any{"text": "", "turnId": "t2"}},
+			{"complete": map[string]any{"turnId": "t2", "answer": "continued"}},
+		},
+	})
+
+	judgements := outcome.inputsOf("engram auto judge")
+
+	g.Expect(judgements).To(HaveLen(2))
+
+	if len(judgements) == 2 {
+		g.Expect(judgements[1]).To(Equal(map[string]any{
+			"session": "a-session", "turn": "t2", "text": "", "answer": "continued", "origin": "",
+		}))
+	}
 }
 
 // TestMods_EveryJavaScriptModuleParses: the real mods parse under the real node, and the real node rejects a broken
@@ -247,7 +324,8 @@ func TestMods_EveryJavaScriptModuleParses(t *testing.T) {
 // unexported constants.
 const (
 	// captureDriver runs the hooks of a turn of the module named by MOD against a host that behaves as SCENARIO says: a
-	// prompt of an origin is raised and the turn starts (unless a subagent ran the turn), and the turn completes. Its
+	// prompt of an origin is raised and the turn starts (unless a subagent ran the turn), and the turn completes, or the
+	// steps of its script are done in order. Its
 	// judgement answers once the driver lets it (hold), exits with a code and prints a text, or rejects, and its model
 	// answers with a result or rejects. It records the order and the input of what the module asks of it, except the
 	// delivery, and prints what the hook of the end of the turn returned, whether that hook was still waiting when the
@@ -263,6 +341,15 @@ const scenario = JSON.parse(process.env.SCENARIO)
 const calls = []
 let letJudgementAnswer
 const judgement = new Promise((resolve) => { letJudgementAnswer = resolve })
+
+// the capture is over when the calls have not changed for 50 ms
+async function settled() {
+  for (let last = -1, stable = 0, tick = 0; tick < 300 && stable < 5; tick++) {
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    stable = calls.length === last ? stable + 1 : 0
+    last = calls.length
+  }
+}
 
 const host = {
   session: { id: async () => 'a-session' },
@@ -285,13 +372,34 @@ const host = {
   ui: { log: () => {} },
 }
 
+if (scenario.script) {
+  for (const step of scenario.script) {
+    if (step.submit) {
+      const raised = { text: step.submit.text, context: [], origin: { kind: step.submit.origin }, wait: false }
+      await handlers['prompt.submit'](host, raised, async (event) => event)
+    }
+    if (step.start) {
+      await handlers['turn.start'](host, step.start, async (event) => ({ turnId: event.turnId }))
+    }
+    if (step.complete) {
+      const completed = { reason: 'answer', ...step.complete }
+      await handlers['turn.complete'](host, completed, async (event) => ({ text: event.answer }))
+    }
+  }
+  letJudgementAnswer({ exitCode: scenario.judge.exitCode, stdout: scenario.judge.stdout })
+  await settled()
+  console.log(JSON.stringify({ returned: {}, held: false, calls }))
+  process.exit(0)
+}
+
 const agent = scenario.agent ? { agentId: scenario.agent } : {}
 const origin = { kind: scenario.origin || 'composer' }
+const text = scenario.text || 'hello'
 if (!scenario.agent) {
-  await handlers['prompt.submit'](host, { text: 'hello', context: [], origin, wait: false }, async (event) => event)
+  await handlers['prompt.submit'](host, { text, context: [], origin, wait: false }, async (event) => event)
 }
 if (handlers['turn.start']) {
-  const started = { text: 'hello', turnId: 'a-turn', ...agent }
+  const started = { text, turnId: 'a-turn', ...agent }
   await handlers['turn.start'](host, started, async (event) => ({ turnId: event.turnId }))
 }
 
@@ -306,12 +414,7 @@ const held = returned === waited
 
 letJudgementAnswer({ exitCode: scenario.judge.exitCode, stdout: scenario.judge.stdout })
 
-// the capture is over when the calls have not changed for 50 ms
-for (let last = -1, stable = 0, tick = 0; tick < 300 && stable < 5; tick++) {
-  await new Promise((resolve) => setTimeout(resolve, 10))
-  stable = calls.length === last ? stable + 1 : 0
-  last = calls.length
-}
+await settled()
 
 console.log(JSON.stringify({ returned: held ? {} : returned, held, calls }))
 `
@@ -357,13 +460,30 @@ type captureOutcome struct {
 	} `json:"calls"`
 }
 
+// inputsOf returns the inputs of the calls that ran a step, in the order they were made.
+func (o captureOutcome) inputsOf(step string) []map[string]any {
+	var inputs []map[string]any
+
+	for _, call := range o.Calls {
+		if call.Step == step {
+			inputs = append(inputs, call.Input)
+		}
+	}
+
+	return inputs
+}
+
 // captureScenario is how the stand-in host of captureDriver behaves: its judgement and its model, the origin of the
-// prompt the turn begins with (composer when empty), and the subagent that ran the turn, if one did.
+// prompt the turn begins with (composer when empty), the text of the prompt (hello when empty), the subagent that ran
+// the turn, if one did, and a script of prompts raised, turns started and turns completed, in the order given, which
+// stands in place of the one prompt and the one turn.
 type captureScenario struct {
-	Judge  map[string]any `json:"judge"`
-	Model  map[string]any `json:"model"`
-	Origin string         `json:"origin,omitempty"`
-	Agent  string         `json:"agent,omitempty"`
+	Judge  map[string]any   `json:"judge"`
+	Model  map[string]any   `json:"model"`
+	Origin string           `json:"origin,omitempty"`
+	Agent  string           `json:"agent,omitempty"`
+	Text   string           `json:"text,omitempty"`
+	Script []map[string]any `json:"script,omitempty"`
 }
 
 // modulesOf reads every JavaScript file below a directory, by its path relative to the directory.

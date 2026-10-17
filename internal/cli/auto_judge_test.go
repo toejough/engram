@@ -155,6 +155,76 @@ func Test793d4g1i_RunAutoJudge_AFailedLookupFailsTheCommandAndPrintsNothing(t *t
 	g.Expect(out.String()).To(BeEmpty())
 }
 
+func Test793d4g1r_RunAutoJudge_APromptTypedAheadDoesNotBeginTheTurnOfTheOneBeforeIt(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// the second prompt was typed while the first turn ran: its row is in the record when the first turn is judged
+	record := strings.Join([]string{
+		`{"type":"user","message":{"role":"user",` +
+			`"content":"Which port does zorblax listen on? Guess, then read zorblax.conf."}}`,
+		`{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"I guessed 8080, but that was ` +
+			`wrong: zorblax.conf says it listens on 7731."}]}}`,
+		`{"type":"user","message":{"role":"user","content":"Thanks. Now list the files."}}`,
+	}, "\n") + "\n"
+
+	window := judgedWindow(t, record, `{"origin":"composer","session":"`+sessionID+`",`+
+		`"text":"Which port does zorblax listen on? Guess, then read zorblax.conf.",`+
+		`"answer":"I guessed 8080, but that was wrong: zorblax.conf says it listens on 7731."}`)
+
+	g.Expect(window).To(Equal([]string{
+		"--- the turn ---",
+		"User: Which port does zorblax listen on? Guess, then read zorblax.conf.",
+		"Agent: I guessed 8080, but that was wrong: zorblax.conf says it listens on 7731.",
+	}))
+}
+
+func Test793d4g1s_RunAutoJudge_ATurnThatANotificationStartedAfterItIsNotPartOfIt(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// the rows of a real record that Claude Code 2.1.302 wrote: the agent starts a command in the background and says so,
+	// the command ends, and its notification starts a turn of its own
+	fixture, readErr := os.ReadFile(filepath.Join("..", "auto", "testdata", "session_with_harness_rows.jsonl"))
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	rows := strings.Split(strings.TrimSpace(string(fixture)), "\n")
+	record := strings.Join(rows[5:11], "\n") + "\n"
+	asked := "Run this exact Bash command with run_in_background set to true: sleep 6; echo finished-zorblax. " +
+		"Then reply with the single word started."
+
+	window := judgedWindow(t, record, `{"origin":"sdk","session":"`+sessionID+`","text":"`+asked+`","answer":"started"}`)
+
+	g.Expect(window).To(Equal([]string{
+		"--- the turn ---",
+		"User: " + asked,
+		"Agent used Bash",
+		"Agent: started",
+	}))
+}
+
+func Test793d4g1t_RunAutoJudge_ATextThatNoPromptHasBeginsTheTurnAtTheLastPrompt(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	record := strings.Join([]string{
+		`{"type":"user","message":{"role":"user","content":"How do I build the Zorblax project?"}}`,
+		`{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Try make all."}]}}`,
+		`{"type":"user","message":{"role":"user","content":"No - build with make zorblax-build."}}`,
+	}, "\n") + "\n"
+
+	window := judgedWindow(t, record, `{"origin":"composer","session":"`+sessionID+`",`+
+		`"text":"/learn remember zorblax","answer":"Understood."}`)
+
+	g.Expect(window).To(Equal([]string{
+		"User: How do I build the Zorblax project?",
+		"Agent: Try make all.",
+		"--- the turn ---",
+		"User: No - build with make zorblax-build.",
+		"Agent: Understood.",
+	}))
+}
+
 func Test793d4g1q_RunAutoJudge_ALongRecordIsJudgedInTime(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -204,4 +274,36 @@ func Test793d4g1q_RunAutoJudge_ALongRecordIsJudgedInTime(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(out.String()).To(ContainSubstring("User: No - build with make zorblax-build."))
 	g.Expect(elapsed).To(BeNumerically("<", bound), "the request of a record of 1 MB")
+}
+
+// judgedWindow runs the judgement over the record of a session with the input the mod gives it, and returns the lines
+// of the window of the request.
+func judgedWindow(t *testing.T, record, input string) []string {
+	t.Helper()
+
+	g := NewWithT(t)
+	sessions := t.TempDir()
+	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: sessions},
+		cli.AutoJudgeDeps{
+			Stdin:    strings.NewReader(input),
+			Query:    queryOver(newQueryDeps(newInMemoryFS())),
+			ReadDir:  os.ReadDir,
+			ReadFile: os.ReadFile,
+		}, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var request struct {
+		Prompt string `json:"prompt"`
+	}
+
+	g.Expect(json.Unmarshal(out.Bytes(), &request)).To(Succeed(), "the output is one JSON object: %q", out.String())
+
+	_, rest, _ := strings.Cut(request.Prompt, "<window>\n")
+	window, _, _ := strings.Cut(rest, "\n</window>")
+
+	return strings.Split(window, "\n")
 }
