@@ -71,11 +71,14 @@ sequenceDiagram
 Requirement: 793d2a For each [prompt](./793a_product-spec.md#793a1a-terms) a Claude Code
 [session](../../GLOSSARY.md#session) raises, the automatic-memory-mod MUST run `engram auto deliver` with the prompt
 text and the session's ID, as one JSON object, on standard input, MUST add the command's output to the context of the prompt as one block when it is not
-empty, and nothing when it is, and MUST leave the prompt text as it received it.
+empty, and nothing when it is, and MUST leave the prompt text as it received it. It MUST wait for the command no longer
+than 7 seconds, so that the prompt is held for less than the 8 seconds of
+[793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), and MUST, when the command does not finish
+within them, end it and let the prompt continue as it was, with nothing added.
 
 Owner: automatic-memory-mod (a new component; its canonical file at promotion is `automatic-memory-mod.md`)
 
-Supports: [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2b1b A note delivered earlier in the session is not delivered again](./793a_product-spec.md#793a2b1-uat-scenarios).
+Supports: [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2b1b A note delivered earlier in the session is not delivered again](./793a_product-spec.md#793a2b1-uat-scenarios), [793a2d1a A slow lookup does not hold a prompt for more than 8 seconds](./793a_product-spec.md#793a2d1-uat-scenarios).
 
 #### 793d2a1 Scenarios
 
@@ -94,6 +97,11 @@ Scenario: 793d2a1c An empty output adds nothing
   Given a session with the mod installed, and an engram whose auto deliver prints nothing
   When a prompt is sent
   Then the session holds the prompt exactly as sent and no context beside it
+
+Scenario: 793d2a1d A slow command is ended and the prompt continues
+  Given a session with the mod installed, and an engram whose auto deliver takes 20 seconds
+  When a prompt is sent
+  Then the model is asked within 8 seconds of the prompt, with the prompt exactly as sent and no context beside it, and the mod's hook did not fail
 ```
 
 ## 793d3 Recommended component diffs
@@ -326,6 +334,19 @@ Scenario: 793a2b1d A prompt that matches no note arrives with nothing
 ```
 
 Realized by [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) (the lookup finds no note, and does not search the chunk index, so the conversation is not delivered; the command prints nothing) and [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow) (the mod adds nothing when the command prints nothing).
+
+### 793d5e Mapping of 793a2d1a
+
+The product scenario [793a2d1a A slow lookup does not hold a prompt for more than 8 seconds](./793a_product-spec.md#793a2d1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2d1a A slow lookup does not hold a prompt for more than 8 seconds
+  Given the user has run engram update, and a lookup that takes 20 seconds
+  When the user sends a prompt
+  Then the prompt reaches the agent within 8 seconds, as the user typed it and with nothing from the vault, and the agent answers it
+```
+
+Realized by [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow): the mod ends the command at 7 seconds and lets the prompt continue unchanged.
 
 ## 793d6 Recommended impact
 

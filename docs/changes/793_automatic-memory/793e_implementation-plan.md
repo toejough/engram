@@ -192,7 +192,7 @@ Takes [793a2b1d A prompt that matches no note arrives with nothing](./793a_produ
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2b1d | Dedicated example, product acceptance (`network`) | the scope of the delivery as the user sees it: a conversation the agent's own lookup finds is not delivered, and a prompt that matches no note is answered as it would be without automatic memory | Green-all | n/a | - | |
+| 793a2b1d | Dedicated example, product acceptance (`network`) | the scope of the delivery as the user sees it: a conversation the agent's own lookup finds is not delivered, and a prompt that matches no note is answered as it would be without automatic memory | Green-all | n/a | - | 2f90f045 |
 | 793d4a1f | Dedicated example (default suite) | the chunk index is never listed: the lookup reads notes only, over a chunk-index lister that fails the test when it is called | Done | n/a | be188b04 | 615f328c |
 
 #### 793e6a6 A slow lookup does not hold a prompt for more than 8 seconds
@@ -201,6 +201,8 @@ Takes [793a2d1a A slow lookup does not hold a prompt for more than 8 seconds](./
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
+| 793a2d1a | Dedicated example, product acceptance (`network`) | the bound as the user sees it: a real session whose lookup takes 20 seconds is held for under 8 and answered | Not started | | | |
+| 793d2a1d | Dedicated example, real dependency (`network`) | the mod's bound and its quiet step aside, in a real Claude Code session against a stand-in engram that takes 20 seconds, read from the session's record and debug log | Not started | | | |
 
 #### 793e6a7 A vault that does not exist is not created
 
