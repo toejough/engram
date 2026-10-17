@@ -80,8 +80,13 @@ func findRecord(deps AutoDeliverDeps, dir, session string) []byte {
 	return nil
 }
 
-// heldText returns the text of what a session's agent holds of the vault (793d4d).
+// heldText returns the text of what a session's agent holds of the vault (793d4d). A session whose ID is not a plain
+// file name holds nothing: its ID would otherwise name a file outside the directory.
 func heldText(deps AutoDeliverDeps, dir, session string) (string, error) {
+	if session == "" || session != filepath.Base(session) || session == ".." {
+		return "", nil
+	}
+
 	return auto.HeldText(findRecord(deps, dir, session)), nil
 }
 
