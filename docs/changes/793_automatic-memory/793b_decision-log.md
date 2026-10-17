@@ -882,3 +882,34 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   per scenario ID and the held rule is what 793a2b1c is for); a marker in the product scenario's text for 793a2a1e
   (rejected: that the mod ran is not something the user checks).
 - **Decided by:** Author (default; owner may override), on the review's finding.
+
+## 793b55 The mod's JavaScript is parsed by a test of the dev integration suite
+
+- **Choice:** `targ check-full` parses the JavaScript of every file under `agent-instructions/mods/` with `node`, which
+  reads the file on standard input as an ES module and checks its syntax, through a test of the dev integration suite, as
+  the conformance check runs ([793b48 The conformance check reads this change's specs and fails when they are gone](#793b48-the-conformance-check-reads-this-changes-specs-and-fails-when-they-are-gone)).
+  The test fails, naming node, when node is not found; it does not skip.
+- **Rationale:** the review of the first group found that no default gate parsed `register.js`, so a syntax error in the mod
+  would pass `targ check-full` and be found by the first live session, where Claude Code skips a hook that does not load. A
+  test of the suite that already runs adds no target to the aggregates that `Test794b4a1c` keeps equal to Targ's. A check
+  that cannot run must not pass ([793b53 A missing login or Claude Code fails an acceptance test](#793b53-a-missing-login-or-claude-code-fails-an-acceptance-test)),
+  so a machine without node fails the gate: node is the runtime the mod is written for, and a machine that builds and
+  checks the mod is one that has it. The file is read on standard input as a module so that the result does not depend
+  on how a node release detects the syntax of a `.js` file.
+- **Alternatives:** a new target in `check-full` (rejected: it changes the aggregates that 794b4a1c pins to Targ's); a
+  skip when node is not found (rejected: the gate would pass unchecked); a JavaScript parser in Go (rejected: a new
+  dependency for what node does).
+- **Decided by:** Author (default; owner may override), on the review's finding.
+
+## 793b56 The 7 seconds bound the whole hook, not the command alone
+
+- **Choice:** the mod races everything it does for a prompt, the call for the session's ID and the command, against one
+  timer of 7 seconds, and the prompt goes on with nothing added when the timer wins
+  ([793d2a Prompt delivery flow](./793d_technical-spec.md#793d2a-prompt-delivery-flow)). The command is still ended at 7
+  seconds by the time limit of the process call ([793b46 The command is ended at 7 seconds](#793b46-the-command-is-ended-at-7-seconds)).
+- **Rationale:** the review of the first group found that `await $.session.id()` ran outside the bound, so a call to the
+  host that did not answer would hold the prompt for as long as the host took, and the 8 seconds of
+  [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) promise no longer than that for any reason.
+- **Alternatives:** keep the bound on the command (rejected: reproduced by a host that never gives the ID); a second timer
+  for the ID (rejected: the two would add up to more than the 7 seconds).
+- **Decided by:** Author (default; owner may override), on the review's finding.

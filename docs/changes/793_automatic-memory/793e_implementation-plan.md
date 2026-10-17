@@ -182,6 +182,7 @@ Takes [793a2b1b A note delivered earlier in the session is not delivered again](
 | 793d2a1c | Dedicated example, real dependency (`network`) | an empty output adds nothing: a context entry may not be empty, and the session's record must show no context, in a real Claude Code session against a stand-in engram | Done | f867c44c | f395ec9e | a32ff6a4 |
 | 793d2a1e | Dedicated example, real dependency (`network`) | review fix: a command that fails adds nothing, even when it printed a block; the stand-in exits with 1, as the `engram` of main does for a command it does not know, and the session's record must show no context | Done | 95dc389d | 5a4bb9dc | 3f1a1ffd |
 | 793d2a1f | Dedicated example, real dependency (`network`) | review fix: output that is not a block adds nothing, even when the command succeeded; the stand-in exits with 0 and prints text that does not begin with the framing marker | Done | 95dc389d | 5a4bb9dc | 3f1a1ffd |
+| 793d2a1g | Dedicated example, real dependency (`integration`, runs the mod under `node`) | review fix: the 7 seconds bound the whole hook, so a host that never gives the session's ID does not hold the prompt: the mod is run by node against a stand-in host whose ID call never answers and whose timer fires at once, and must let the event through unchanged after asking for exactly one timer of 7 seconds, without running the command; a live session cannot be made to stall in that call | Not started | | | |
 | 793d4d1a | Dedicated example (default suite) | what counts as held: the blocks delivered beside prompts and nothing else of a record, over records of the real format | Done | 0d78b09e | 9bdc5e9e | a03c7312 |
 | 793d4d1b | Dedicated example (default suite) | the record is found in a project's subdirectory of the session-log directory, over a real temporary directory | Done | b9fb12de | 02318295 | 0bfe1688 |
 | 793d4d1c | Dedicated example (default suite) | the boundary cases: no record, and an ID that would leave the directory | Done | fce4516a | a460368a | 0bfe1688 |
@@ -264,7 +265,7 @@ Takes [793a2a1b A second update still delivers each note once](./793a_product-sp
 | 793a2a1b | Dedicated example, product acceptance (`network`) | the repeat as the user sees it: two real updates, then one real prompt, and the note arrives once | Done | n/a | - | d206b5c9 |
 | 793d4b1h | Dedicated example (default suite) | the idempotence for the new input: two runs of `Updater.Run` over an in-memory file system leave the same files and links, and the second report lists the mod once | Done | n/a | - | d206b5c9 |
 
-#### The conformance check of the first group
+#### 793e6a11 The conformance check of the first group
 
 Takes the rule of [793e2 Test methods](#793e2-test-methods) that a conformance check asserts that every scenario ID in
 either spec has a test. It is not a scenario of the specs, so its tests carry no scenario ID; the rows are named by
@@ -277,6 +278,16 @@ read the promoted specs, or deleted with the change, and until then it fails lou
 | `TestScenariosWithoutTest_NamesThoseNoTestSourceDeclares` | Dedicated example (dev suite, `targ` tag) | the pure comparison: an ID has a test only when a test function is named `Test<ID>_`, not when a comment or the longer name of another test mentions it | Done | 75a83363 | 11bfaf7d | a8841eeb |
 | `TestConformance_EveryScenarioOfTheSpecsHasATest` | Dedicated example (dev integration suite, `targ` and `integration` tags) | the real specs of this change against the real test files of the repository, `network`-tagged files included | Done | n/a | - | 1588e189 |
 | `TestScenariosWithoutTest_OnlyADeclaredFunctionIsATest` | Dedicated example (dev suite, `targ` tag) | review fix: a test is a function the Go parser finds declared, so the text of a declaration in a string literal, a method named like a test, a function literal and a file that does not parse declare none; the first version counted the text and stayed green when the real tests were renamed | Done | 213ee02c | 14c04a9e | 434d6369 |
+
+#### 793e6a12 The gate that parses the mod's JavaScript
+
+Takes review finding 14: no default gate parsed the mod's JavaScript ([793b55 The mod's JavaScript is parsed by a test of the dev integration suite](./793b_decision-log.md#793b55-the-mods-javascript-is-parsed-by-a-test-of-the-dev-integration-suite)). It is not a scenario of the specs, so its tests carry no scenario ID; the rows are named by test.
+
+| Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| `TestModuleSyntax_FailsWhenNodeIsNotFound` | Injected and impure interaction (`imptest`, dev suite, `targ` tag) | review fix: a check that cannot run does not pass, so the missing runtime is an error that names node; the lookup of node is injected | Not started | | | |
+| `TestModuleSyntax_NamesEachFileThatDoesNotParse` | Injected and impure interaction (`imptest`, dev suite, `targ` tag) | review fix: the parse of each file goes through node with the file read on standard input, and the files that do not parse are named with what node said, the others not; the process is injected | Not started | | | |
+| `TestMods_EveryJavaScriptModuleParses` | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | review fix: the real mods under `agent-instructions/mods/` parse under the real node, and a broken module is rejected by the real node, which the stand-in cannot show | Not started | | | |
 
 ### 793e6b Lessons are written without the agent
 

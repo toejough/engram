@@ -72,10 +72,10 @@ Requirement: 793d2a For each [prompt](./793a_product-spec.md#793a1a-terms) a Cla
 [session](../../GLOSSARY.md#session) raises, the automatic-memory-mod MUST run `engram auto deliver` with the prompt
 text and the session's ID, as one JSON object, on standard input, MUST add the command's output to the context of the prompt as one block when the command
 exited with 0 and the output begins with `[engram memory]`, and nothing otherwise, and MUST leave the prompt text as it
-received it. It MUST wait for the command no longer
-than 7 seconds, so that the prompt is held for less than the 8 seconds of
-[793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), and MUST, when the command does not finish
-within them, end it and let the prompt continue as it was, with nothing added.
+received it. It MUST hold the prompt for its own work, the call for the session's ID and the wait for the command
+together, no longer than 7 seconds, so that the prompt is held for less than the 8 seconds of
+[793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), and MUST, when its work does not finish
+within them, end the command and let the prompt continue as it was, with nothing added.
 
 Owner: automatic-memory-mod (a new component; its canonical file at promotion is `automatic-memory-mod.md`)
 
@@ -113,6 +113,11 @@ Scenario: 793d2a1f Output that is not a block adds nothing
   Given a session with the mod installed, and an engram whose auto deliver prints text that does not begin with [engram memory] and exits with 0
   When a prompt is sent
   Then the session holds the prompt exactly as sent and no context beside it, and the mod's hook did not fail
+
+Scenario: 793d2a1g A session that does not give its ID in time does not hold the prompt
+  Given the mod, and a session that never gives its ID
+  When a prompt is sent
+  Then the mod lets the prompt continue as it was after the 7 seconds, with nothing added, and the command was never run
 ```
 
 ## 793d3 Recommended component diffs

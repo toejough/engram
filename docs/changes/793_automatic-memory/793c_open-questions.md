@@ -223,3 +223,21 @@ he answers. When he answers, the entry records the answer and the date and stays
 - **Recommendation:** (a): it tells a delivery that leaves out the held note from one that delivers nothing.
 - **Blocks:** nothing.
 - **Status:** open. Default (a) taken: [793b54 Two acceptance scenarios prove more than that nothing arrived](./793b_decision-log.md#793b54-two-acceptance-scenarios-prove-more-than-that-nothing-arrived).
+
+## 793c30 Does a gate parse the mod's JavaScript, and what if node is missing?
+
+- **Context:** no default gate parsed `register.js`. `targ check-full` runs Go and Markdown checks only.
+- **Options:** (a) A test of the dev integration suite parses each file under `agent-instructions/mods/` with node, and
+  fails when node is not found. (b) The same, skipped without node. (c) No gate.
+- **Recommendation:** (a): a check that cannot run must not pass.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b55 The mod's JavaScript is parsed by a test of the dev integration suite](./793b_decision-log.md#793b55-the-mods-javascript-is-parsed-by-a-test-of-the-dev-integration-suite).
+
+## 793c31 Do the 7 seconds bound the whole hook or the command?
+
+- **Context:** [793d2a Prompt delivery flow](./793d_technical-spec.md#793d2a-prompt-delivery-flow) ended the command at 7
+  seconds, but the call for the session's ID ran before it, with no bound.
+- **Options:** (a) One timer of 7 seconds for everything the mod does for a prompt. (b) The command alone.
+- **Recommendation:** (a): the 8 seconds of the product promise hold for any reason.
+- **Blocks:** nothing.
+- **Status:** open. Default (a) taken: [793b56 The 7 seconds bound the whole hook, not the command alone](./793b_decision-log.md#793b56-the-7-seconds-bound-the-whole-hook-not-the-command-alone).
