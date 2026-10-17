@@ -60,81 +60,6 @@ func Test793d4a1b_RunAutoDeliver_AFailedLookupFailsTheCommandAndPrintsNothing(t 
 	g.Expect(out.String()).To(BeEmpty())
 }
 
-func Test793d4a1e_RunAutoDeliver_NoNoteToDeliverPrintsNothing(t *testing.T) {
-	t.Parallel()
-
-	t.Run("no note bears on the prompt", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		var out bytes.Buffer
-
-		err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: t.TempDir()},
-			cli.AutoDeliverDeps{
-				Stdin: strings.NewReader(`{"text":"anything","session":"` + sessionID + `"}`),
-				Query: newQueryDeps(newInMemoryFS()), ReadDir: os.ReadDir, ReadFile: os.ReadFile,
-			}, &out)
-
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(out.String()).To(BeEmpty())
-	})
-
-	t.Run("the only note that bears on it is held", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		vault := t.TempDir()
-		memFS := newInMemoryFS()
-		plantNoteWithSidecar(t, memFS, vault, "1.2026-10-17.zorblax-staging-reset.md", zorblaxResetNote)
-
-		sessions := t.TempDir()
-		record := `{"type":"attachment","attachment":{"type":"hook_additional_context","hookName":"prompt.submit",` +
-			`"content":["[engram memory] The lines below are notes.\n- 1.2026-10-17.zorblax-staging-reset.md (s): b"]}}` + "\n"
-		g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
-
-		var out bytes.Buffer
-
-		err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault, SessionsDir: sessions},
-			cli.AutoDeliverDeps{
-				Stdin: strings.NewReader(`{"text":"When is the Zorblax staging database reset?","session":"` + sessionID + `"}`),
-				Query: newQueryDeps(memFS), ReadDir: os.ReadDir, ReadFile: os.ReadFile,
-			}, &out)
-
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(out.String()).To(BeEmpty())
-	})
-}
-
-func Test793d4a1d_RunAutoDeliver_ANoteTheSessionHoldsIsLeftOut(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-	plantNoteWithSidecar(t, memFS, vault, "1.2026-10-17.zorblax-staging-reset.md", zorblaxResetNote)
-	plantNoteWithSidecar(t, memFS, vault, "2.2026-10-17.zorblax-backup-window.md",
-		strings.NewReplacer("reset", "backed up", "1.", "2.").Replace(zorblaxResetNote))
-
-	sessions := t.TempDir()
-	record := `{"type":"attachment","attachment":{"type":"hook_additional_context","hookName":"prompt.submit",` +
-		`"content":["[engram memory] The lines below are notes.\n- 1.2026-10-17.zorblax-staging-reset.md (s): b"]}}` + "\n"
-	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
-
-	var out bytes.Buffer
-
-	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault, SessionsDir: sessions},
-		cli.AutoDeliverDeps{
-			Stdin:    strings.NewReader(`{"text":"When is the Zorblax staging database reset?","session":"` + sessionID + `"}`),
-			Query:    newQueryDeps(memFS),
-			ReadDir:  os.ReadDir,
-			ReadFile: os.ReadFile,
-		}, &out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	g.Expect(out.String()).To(ContainSubstring("2.2026-10-17.zorblax-backup-window.md"))
-	g.Expect(out.String()).NotTo(ContainSubstring("1.2026-10-17.zorblax-staging-reset.md"))
-}
-
 func Test793d4a1c_NotesOf_ANoteOnlyTheExploreHalfPickedDoesNotBearOnThePrompt(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -185,6 +110,81 @@ model_id: m@4
 	}
 }
 
+func Test793d4a1d_RunAutoDeliver_ANoteTheSessionHoldsIsLeftOut(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	plantNoteWithSidecar(t, memFS, vault, "1.2026-10-17.zorblax-staging-reset.md", zorblaxResetNote)
+	plantNoteWithSidecar(t, memFS, vault, "2.2026-10-17.zorblax-backup-window.md",
+		strings.NewReplacer("reset", "backed up", "1.", "2.").Replace(zorblaxResetNote))
+
+	sessions := t.TempDir()
+	record := `{"type":"attachment","attachment":{"type":"hook_additional_context","hookName":"prompt.submit",` +
+		`"content":["[engram memory] The lines below are notes.\n- 1.2026-10-17.zorblax-staging-reset.md (s): b"]}}` + "\n"
+	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault, SessionsDir: sessions},
+		cli.AutoDeliverDeps{
+			Stdin:    strings.NewReader(`{"text":"When is the Zorblax staging database reset?","session":"` + sessionID + `"}`),
+			Query:    newQueryDeps(memFS),
+			ReadDir:  os.ReadDir,
+			ReadFile: os.ReadFile,
+		}, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(out.String()).To(ContainSubstring("2.2026-10-17.zorblax-backup-window.md"))
+	g.Expect(out.String()).NotTo(ContainSubstring("1.2026-10-17.zorblax-staging-reset.md"))
+}
+
+func Test793d4a1e_RunAutoDeliver_NoNoteToDeliverPrintsNothing(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no note bears on the prompt", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		var out bytes.Buffer
+
+		err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: t.TempDir()},
+			cli.AutoDeliverDeps{
+				Stdin: strings.NewReader(`{"text":"anything","session":"` + sessionID + `"}`),
+				Query: newQueryDeps(newInMemoryFS()), ReadDir: os.ReadDir, ReadFile: os.ReadFile,
+			}, &out)
+
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(out.String()).To(BeEmpty())
+	})
+
+	t.Run("the only note that bears on it is held", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		vault := t.TempDir()
+		memFS := newInMemoryFS()
+		plantNoteWithSidecar(t, memFS, vault, "1.2026-10-17.zorblax-staging-reset.md", zorblaxResetNote)
+
+		sessions := t.TempDir()
+		record := `{"type":"attachment","attachment":{"type":"hook_additional_context","hookName":"prompt.submit",` +
+			`"content":["[engram memory] The lines below are notes.\n- 1.2026-10-17.zorblax-staging-reset.md (s): b"]}}` + "\n"
+		g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
+
+		var out bytes.Buffer
+
+		err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault, SessionsDir: sessions},
+			cli.AutoDeliverDeps{
+				Stdin: strings.NewReader(`{"text":"When is the Zorblax staging database reset?","session":"` + sessionID + `"}`),
+				Query: newQueryDeps(memFS), ReadDir: os.ReadDir, ReadFile: os.ReadFile,
+			}, &out)
+
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(out.String()).To(BeEmpty())
+	})
+}
+
 func Test793d4d1b_HeldText_TheRecordIsFoundUnderItsProjectDirectory(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -199,8 +199,7 @@ func Test793d4d1b_HeldText_TheRecordIsFoundUnderItsProjectDirectory(t *testing.T
 	g.Expect(os.WriteFile(filepath.Join(project, "another-session.jsonl"),
 		[]byte(strings.ReplaceAll(record, "the block of a session", "the block of another")), 0o600)).To(Succeed())
 
-	held, err := cli.ExportHeldText(cli.AutoDeliverDeps{ReadDir: os.ReadDir, ReadFile: os.ReadFile}, sessions, sessionID)
-	g.Expect(err).NotTo(HaveOccurred())
+	held := cli.ExportHeldText(cli.AutoDeliverDeps{ReadDir: os.ReadDir, ReadFile: os.ReadFile}, sessions, sessionID)
 	g.Expect(held).To(ContainSubstring("the block of a session"))
 	g.Expect(held).NotTo(ContainSubstring("the block of another"))
 }
@@ -221,14 +220,10 @@ func Test793d4d1c_HeldText_ASessionWithNoRecordOrAnIDThatIsNotAFileNameHoldsNoth
 	deps := cli.AutoDeliverDeps{ReadDir: os.ReadDir, ReadFile: os.ReadFile}
 
 	for _, id := range []string{sessionID, "../outside", "nested/" + sessionID, "..", "."} {
-		held, err := cli.ExportHeldText(deps, sessions, id)
-		g.Expect(err).NotTo(HaveOccurred(), id)
-		g.Expect(held).To(BeEmpty(), id)
+		g.Expect(cli.ExportHeldText(deps, sessions, id)).To(BeEmpty(), id)
 	}
 
-	held, err := cli.ExportHeldText(deps, filepath.Join(parent, "no-such-directory"), sessionID)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(held).To(BeEmpty())
+	g.Expect(cli.ExportHeldText(deps, filepath.Join(parent, "no-such-directory"), sessionID)).To(BeEmpty())
 }
 
 // TestTargets_AutoDeliver reaches the command the way the mod does, as `engram auto deliver` with the prompt on

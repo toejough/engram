@@ -119,7 +119,7 @@ func blockOf(t interface {
 
 	block, err := auto.Deliver(context.Background(), auto.Request{Text: "anything"},
 		func(context.Context, string) ([]auto.Note, error) { return notes, nil },
-		func(context.Context, string) (string, error) { return "", nil })
+		func(context.Context, string) string { return "" })
 	if err != nil {
 		t.Fatalf("delivering: %v", err)
 	}

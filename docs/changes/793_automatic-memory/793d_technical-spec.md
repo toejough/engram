@@ -204,8 +204,8 @@ the ID with the suffix `.jsonl`, in the session-log directory of
 [792b17c6 Session-log directory](../../specs/technical/ingestion-source-discovery.md#792b17c6-session-log-directory),
 directly in it or in one of its subdirectories. It MUST return the text of every block that was delivered beside a
 prompt of the session, that is of every record of the kind `attachment` whose type is `hook_additional_context`, and
-nothing else of the record. It MUST return nothing, without an error, when the session has no record, and when the ID
-is not a plain file name.
+nothing else of the record. It MUST return nothing, without an error, when the session has no record, when the
+record cannot be read, and when the ID is not a plain file name.
 
 Owner: session-context (a new component; its canonical file at promotion is `session-context.md`)
 

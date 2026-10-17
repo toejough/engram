@@ -36,6 +36,7 @@ func HeldText(record []byte) string {
 
 // unexported constants.
 const (
-	// deliveredType is the type of the attachment that a session's record keeps for the context a hook put beside a prompt.
+	// deliveredType is the type of the attachment that a session's record keeps for the context a hook put beside a
+	// prompt.
 	deliveredType = "hook_additional_context"
 )

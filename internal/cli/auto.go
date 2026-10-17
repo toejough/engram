@@ -45,7 +45,7 @@ func RunAutoDeliver(ctx context.Context, args AutoDeliverArgs, deps AutoDeliverD
 		func(ctx context.Context, text string) ([]auto.Note, error) {
 			return lookUpNotes(ctx, args.VaultPath, text, deps.Query)
 		},
-		func(_ context.Context, session string) (string, error) {
+		func(_ context.Context, session string) string {
 			return heldText(deps, args.SessionsDir, session)
 		})
 	if err != nil {
@@ -86,13 +86,14 @@ func findRecord(deps AutoDeliverDeps, dir, session string) []byte {
 }
 
 // heldText returns the text of what a session's agent holds of the vault (793d4d). A session whose ID is not a plain
-// file name holds nothing: its ID would otherwise name a file outside the directory.
-func heldText(deps AutoDeliverDeps, dir, session string) (string, error) {
+// file name holds nothing: its ID would otherwise name a file outside the directory. A record that cannot be read
+// holds nothing either, so a prompt is delivered a note it may already hold rather than none.
+func heldText(deps AutoDeliverDeps, dir, session string) string {
 	if session == "" || session != filepath.Base(session) || session == ".." {
-		return "", nil
+		return ""
 	}
 
-	return auto.HeldText(findRecord(deps, dir, session)), nil
+	return auto.HeldText(findRecord(deps, dir, session))
 }
 
 // lookUpNotes runs the lookup of `engram query` for a text, as its message and its only phrase, and reads the notes
