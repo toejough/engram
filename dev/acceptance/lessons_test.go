@@ -246,6 +246,43 @@ func Test793a3c1a_ALessonAnEarlierNoteStatesIsNotWrittenAgain(t *testing.T) {
 	})
 }
 
+func Test793a3c1b_ALessonTheAgentSavedItselfIsNotWrittenAgain(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var chat *conversation
+
+	step(t, "Given the user has run engram update, and a session in which the agent may run engram commands", func() {
+		machine.hasRunUpdate("engram")
+
+		chat = machine.startSession("zorblax").converse()
+	})
+
+	step(t, "When the user asks the agent in a prompt to remember something and to save it with engram learn, "+
+		"and the turn ends", func() {
+		asked := chat.say(askToSaveItself)
+		t.Logf("the agent replied %q", asked.reply)
+
+		g.Expect(chat.session.agentRan("engram learn")).To(BeTrue(), "the agent saved the note itself")
+	})
+
+	step(t, "Then 2 minutes after the turn ends the vault holds one note for it, the one the agent saved", func() {
+		g.Expect(machine.awaitRecord(chat.session.id, chat.turnEnds)).To(BeElementOf("skipped", "nothing"),
+			"what became of the turn")
+
+		notes := machine.notes()
+
+		g.Expect(notes).To(HaveLen(1), "the notes of the vault")
+
+		if len(notes) == 1 {
+			g.Expect(notes[0].states("Sunday", "03:40")).To(BeTrue(), "the note states what was asked to be remembered")
+			g.Expect(notes[0].source()).NotTo(ContainSubstring("written automatically"), "the note is the agent's")
+		}
+	})
+}
+
 // unexported constants.
 const (
 	// askForAGuessAndAPlan makes the agent answer with a guess, a plan and chatter, none of which is a lesson.
@@ -264,6 +301,13 @@ const (
 	// askToRememberTheDeploy asks to remember a deploy whose token and password must not reach the vault.
 	askToRememberTheDeploy = "Remember how to deploy to staging: run the staging deploy script with DEPLOY_TOKEN=" +
 		deployToken + " set, and its password is " + deployPassword + ". Reply with one short sentence."
+	// askToSaveItself asks the agent to remember a fact and to save it with engram learn, with the one plain command to
+	// run: a command with a pipe or a second command in it would be refused.
+	askToSaveItself = "Remember that the Zorblax staging database is reset every Sunday at 03:40 UTC, and save it " +
+		"with engram learn. Run exactly this one command, with nothing added to it: engram learn fact --slug " +
+		"zorblax-staging-reset --position top --source agent --situation 'testing against the Zorblax staging " +
+		"database' --subject 'the Zorblax staging database' --predicate 'is reset every' --object " +
+		"'Sunday at 03:40 UTC'. Then reply with one short sentence."
 	// askToSort is a task the agent does one way.
 	askToSort = "Print the lines of zorblax.txt in sorted order with the sort command. Reply with one short sentence."
 	// askToTryTheFlag makes the agent say what it does not know, try it, and say what it saw.
