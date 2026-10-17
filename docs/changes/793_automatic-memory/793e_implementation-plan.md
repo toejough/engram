@@ -108,20 +108,20 @@ graph TD
     n793e6a8["793e6a8 Pi gets no automatic memory<br/>Complete"]
     n793e6a9["793e6a9 A dry run turns nothing on<br/>Complete"]
     n793e6a10["793e6a10 A second update still delivers each note once<br/>Complete"]
-    n793e6b1["793e6b1 A correction becomes a note<br/>Ready"]
-    n793e6b2["793e6b2 A request to remember becomes a note<br/>Blocked by: 793e6b1"]
-    n793e6b3["793e6b3 An approach the user confirmed becomes a note<br/>Blocked by: 793e6b2"]
-    n793e6b4["793e6b4 The agent's own correction becomes a note<br/>Blocked by: 793e6b3"]
-    n793e6b5["793e6b5 An approach that succeeded with evidence becomes a note<br/>Blocked by: 793e6b4"]
-    n793e6b6["793e6b6 Guesses, plans and chatter produce no note<br/>Blocked by: 793e6b5"]
-    n793e6b7["793e6b7 A credential in the turn is not in the note<br/>Blocked by: 793e6b6"]
-    n793e6b8["793e6b8 A lesson an earlier note states is not written again<br/>Blocked by: 793e6b7"]
-    n793e6b9["793e6b9 A lesson the agent saved itself is not written again<br/>Blocked by: 793e6b8"]
-    n793e6b10["793e6b10 The agent's own lookups and saves keep working<br/>Blocked by: 793e6b9"]
-    n793e6b11["793e6b11 A written note is delivered with later prompts<br/>Blocked by: 793e6b10"]
-    n793e6b12["793e6b12 A second update still writes each lesson as one note<br/>Blocked by: 793e6b11"]
-    n793e6b13["793e6b13 A lesson is not written to a vault that does not exist<br/>Blocked by: 793e6b12"]
-    n793e6b14["793e6b14 Automatic memory's work starts no session of its own<br/>Blocked by: 793e6b13"]
+    n793e6b1["793e6b1 A correction becomes a note<br/>Complete"]
+    n793e6b2["793e6b2 A request to remember becomes a note<br/>Complete"]
+    n793e6b3["793e6b3 An approach the user confirmed becomes a note<br/>Complete"]
+    n793e6b4["793e6b4 The agent's own correction becomes a note<br/>Complete"]
+    n793e6b5["793e6b5 An approach that succeeded with evidence becomes a note<br/>Complete"]
+    n793e6b6["793e6b6 Guesses, plans and chatter produce no note<br/>Complete"]
+    n793e6b7["793e6b7 A credential in the turn is not in the note<br/>Complete"]
+    n793e6b8["793e6b8 A lesson an earlier note states is not written again<br/>Complete"]
+    n793e6b9["793e6b9 A lesson the agent saved itself is not written again<br/>Complete"]
+    n793e6b10["793e6b10 The agent's own lookups and saves keep working<br/>Complete"]
+    n793e6b11["793e6b11 A written note is delivered with later prompts<br/>Complete"]
+    n793e6b12["793e6b12 A second update still writes each lesson as one note<br/>Complete"]
+    n793e6b13["793e6b13 A lesson is not written to a vault that does not exist<br/>Complete"]
+    n793e6b14["793e6b14 Automatic memory's work starts no session of its own<br/>Complete"]
     n793e6a1 --> n793e6a2
     n793e6a2 --> n793e6a3
     n793e6a3 --> n793e6a4
@@ -145,7 +145,7 @@ graph TD
     n793e6b11 --> n793e6b12
     n793e6b12 --> n793e6b13
     n793e6b13 --> n793e6b14
-    n793e6b14 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Blocked by: 793e6b14"]
+    n793e6b14 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
     n793e6d --> n793e6f["793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d"]
@@ -471,14 +471,14 @@ Takes [793a2d1b Automatic memory's work starts no session of its own](./793a_pro
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2d1b | Dedicated example, product acceptance (`network`) | the observation as the user could make it: after a correction the [vault](../../GLOSSARY.md#vault) holds a [note](../../GLOSSARY.md#permanent-note) written from the user's session, and the record of sessions holds that one session only. The test passes when written, because the judgement is one call of the host's model call, which raises no session; the mutation that makes it fail is a judgement run in a headless `claude -p` of its own | Red | | | |
-| 793d4m1a | Dedicated example (default suite) | each of the four origins the user sends, through `RunAutoDeliver` and `RunAutoJudge` over an in-memory vault and a record: the block and the request are printed. It passes when written, because the commands ignore the origin; the mutation that makes it fail is a filter that leaves out one of the four | Red | | | |
-| 793d4m1b | Property-based (`rapid`) with named examples (default suite) | the filter itself: for any origin that is not one of the four, and for the kinds of origin that Claude Code names besides them, nothing is printed, the command succeeds and the lookup is never asked | Green-all | c7dfbc01 | | |
-| 793d2a1h | Dedicated example, real dependency (`network`, a real Claude Code against a stand-in `engram`) | the origin a real host stamps on a headless prompt, `sdk`, reaches the command | Green-all | c7dfbc01 | | |
-| 793d2b1e | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the origin of the prompt a turn began with, as the mod learns it from the events of the prompt and of the start of the turn, reaches the judgement | Green-all | c7dfbc01 | | |
-| 793d2b1f | Dedicated example, real dependency (`integration`, runs the mod under `node`) | a turn that a subagent ran is not captured: no judgement, no model call | Green-all | c7dfbc01 | | |
-| 793d2b1a (amended) | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the stand-in host raises the prompt and starts the turn before it completes it, and the judgement receives the origin beside the rest | Green-all | c7dfbc01 | | |
-| 793d4a, 793d4e, 793d4f, 793d4g (amended) | Dedicated examples (default suite) | the earlier tests that dispatch the delivery or the judgement send the origin of a prompt the user sends, because a request with none is now answered with nothing | Red | | | |
+| 793a2d1b | Dedicated example, product acceptance (`network`) | the observation as the user could make it: after a correction the [vault](../../GLOSSARY.md#vault) holds a [note](../../GLOSSARY.md#permanent-note) written from the user's session, and the record of sessions holds that one session only. The test passes when written, because the judgement is one call of the host's model call, which raises no session; the mutation that makes it fail is a judgement run in a headless `claude -p` of its own | Done | n/a | cdbbad8f | ac6b3288 |
+| 793d4m1a | Dedicated example (default suite) | each of the four origins the user sends, through `RunAutoDeliver` and `RunAutoJudge` over an in-memory vault and a record: the block and the request are printed. It passes when written, because the commands ignore the origin; the mutation that makes it fail is a filter that leaves out one of the four | Done | n/a | c7dfbc01 | ac6b3288 |
+| 793d4m1b | Property-based (`rapid`) with named examples (default suite) | the filter itself: for any origin that is not one of the four, and for the kinds of origin that Claude Code names besides them, nothing is printed, the command succeeds and the lookup is never asked | Done | c7dfbc01 | dced50df | ac6b3288 |
+| 793d2a1h | Dedicated example, real dependency (`network`, a real Claude Code against a stand-in `engram`) | the origin a real host stamps on a headless prompt, `sdk`, reaches the command | Done | c7dfbc01 | dced50df | ac6b3288 |
+| 793d2b1e | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the origin of the prompt a turn began with, as the mod learns it from the events of the prompt and of the start of the turn, reaches the judgement | Done | c7dfbc01 | dced50df | ac6b3288 |
+| 793d2b1f | Dedicated example, real dependency (`integration`, runs the mod under `node`) | a turn that a subagent ran is not captured: no judgement, no model call | Done | c7dfbc01 | dced50df | ac6b3288 |
+| 793d2b1a (amended) | Dedicated example, real dependency (`integration`, runs the mod under `node`) | the stand-in host raises the prompt and starts the turn before it completes it, and the judgement receives the origin beside the rest | Done | c7dfbc01 | dced50df | ac6b3288 |
+| 793d4a, 793d4e, 793d4f, 793d4g (amended) | Dedicated examples (default suite) | the earlier tests that dispatch the delivery or the judgement send the origin of a prompt the user sends, because a request with none is now answered with nothing | Done | n/a | dced50df | ac6b3288 |
 
 ### 793e6e The conversation becomes searchable memory
 
