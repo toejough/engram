@@ -186,7 +186,7 @@ graph TD
     n793e6g9 --> n793e6g10
     n793e6g11["793e6g11 A headless prompt is judged only when asked<br/>Complete"]
     n793e6g10 --> n793e6g11
-    n793e6g12["793e6g12 Each stage of the capture has a bound of its own<br/>Ready"]
+    n793e6g12["793e6g12 Each stage of the capture has a bound of its own<br/>Complete"]
     n793e6g11 --> n793e6g12
     n793e6g12 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
@@ -658,8 +658,8 @@ Takes review findings 12 and 24. The capture of a [turn](./793a_product-spec.md#
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793d2b1j | Dedicated example, real dependency (`integration`, runs the mod under `node`) | a stand-in host in which each stage stalls in turn, with the timers of the mod fired at once: the limits the mod asks for are 5, 15, 60, 20 and 15 seconds, and each stalled stage is reported | Not started | | | |
-| 793d2b1k | Dedicated example, real dependency (`integration`, runs the mod under `node`) | a request that is not JSON is reported as a failure of the judgement | Not started | | | |
+| 793d2b1j | Dedicated example, real dependency (`integration`, runs the mod under `node`) | a stand-in host in which each stage stalls in turn, with the timers of the mod fired at once: the limits the mod asks for are 5, 15, 60, 20 and 15 seconds, and each stalled stage is reported | Done | 3349fc79 | dda4891f | 8b71e45e |
+| 793d2b1k | Dedicated example, real dependency (`integration`, runs the mod under `node`) | a request that is not JSON is reported as a failure of the judgement | Done | 3349fc79 | dda4891f | 8b71e45e |
 
 ### 793e6e The conversation becomes searchable memory
 
