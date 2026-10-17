@@ -2,9 +2,14 @@
 
 Decisions made while producing [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec) (#793) and the process around it, recorded for Joe to validate.
 "Decided by" follows [Decisions and Open Questions](../../AGENTS.md#decisions-and-open-questions): Owner for
-Joe's own words, Author for the author's derivations and defaults. Joe was unavailable, so every question the
-author would have asked has a default, recorded here as "Decided by: Author (default; owner may override)" and
-listed in [793c Automatic Memory - Open Questions](./793c_open-questions.md#automatic-memory---open-questions).
+Joe's own words, Author for the author's derivations and defaults, Reviewer for what a review found and
+the author accepted. Joe was unavailable, so every question the author would have asked has a default, recorded
+here as "Decided by: Author (default; owner may override)" and listed in
+[793c Automatic Memory - Open Questions](./793c_open-questions.md#automatic-memory---open-questions).
+
+An entry written in code as `old 793bNNN` or `old 793cNNN` is an entry of the earlier attempt (change directory
+`793_parallel-memory-agent` on branch `docs/parallel-memory-agent-requirements`, as of commit `dcf53d07`), not
+an entry of this change, though the numbers overlap.
 
 ## 793b1 Start over
 
@@ -409,7 +414,7 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
 - **Rationale:** the owner's isolation rule from the earlier attempt, set between 2026-10-11 and 2026-10-16 and
   relayed to the author: "temp HOMEs only; every engram/claude command from agents needs explicit env HOME".
   `old 793b245` records its first half: "the owner's isolation rule (temporary HOMEs only)". Review round 1 of
-  step 1 found the rule missing from this change's plan and algorithm. Without it, a literal run of "the user
+  step 1 ([793b39 Review round 1 of step 1](#793b39-review-round-1-of-step-1)) found the rule missing from this change's plan and algorithm. Without it, a literal run of "the user
   runs `engram update`" installs into the owner's real `~/.claude`, and an
   [`engram ingest --auto`](../../GLOSSARY.md#engram-ingest-subcommand) run from a directory under a `.claude` or
   `.git` ancestor sweeps the owner's own sources into the run's index, so the rule is restated here.
@@ -529,3 +534,55 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   step 2 stays per requirement.
 - **Alternatives:** reading (1), the first version. Rejected for the reason above.
 - **Decided by:** Author (reading of the owner's step 3; owner may override), on review round 1's finding.
+
+## 793b39 Review round 1 of step 1
+
+- **Choice:** the step 1 documents, as first written in seven commits (`1bcf81b3` to `57372f32`), had one review
+  round, run by opus, which returned approve with fixes. The author accepted every finding and declined none.
+  The findings, by severity, and where each is applied:
+  - **Critical:** nothing kept the literal runs of scenarios, or any test or command that runs `engram` or
+    `claude`, off the owner's real home, [vault](../../GLOSSARY.md#vault), `~/.pi` and GOBIN. Applied in [793b32 Test isolation](./793b_decision-log.md#793b32-test-isolation),
+    [793f7 Test isolation](./793f_algorithm.md#793f7-test-isolation), [793e2 Test methods](./793e_implementation-plan.md#793e2-test-methods) and [793e7 Completion gates](./793e_implementation-plan.md#793e7-completion-gates).
+  - **Major:** three departures were credited to the owner but are the author's readings of his words: [793b11 Departure: no interview or approval gates](./793b_decision-log.md#793b11-departure-no-interview-or-approval-gates),
+    [793b12 Departure: no option analysis](./793b_decision-log.md#793b12-departure-no-option-analysis) and [793b13 Departure: one refactor pass, and extra catalog columns](./793b_decision-log.md#793b13-departure-one-refactor-pass-and-extra-catalog-columns). [793f6 Departures from the guides](./793f_algorithm.md#793f6-departures-from-the-guides) now says which two are his.
+  - **Major:** the owner's statement of the goal was missing, and mid-task moments were not listed as left out:
+    [793b34 The goal: what the main agent was already doing, just async](./793b_decision-log.md#793b34-the-goal-what-the-main-agent-was-already-doing-just-async), [793b8 Exclusions](./793b_decision-log.md#793b8-exclusions) and [793c12 Is memory delivered at mid-task moments?](./793c_open-questions.md#793c12-is-memory-delivered-at-mid-task-moments).
+  - **Major:** the earlier owner answers that the set reverses were not listed, and [793b27 "Already has" is per session](./793b_decision-log.md#793b27-already-has-is-per-session) stated a reversal that
+    [793c10 Does "already has" survive a compaction?](./793c_open-questions.md#793c10-does-already-has-survive-a-compaction) did not: [793b36 Earlier owner answers this minimal set reverses](./793b_decision-log.md#793b36-earlier-owner-answers-this-minimal-set-reverses) and [793c13 Which earlier owner answers may the minimal set reverse?](./793c_open-questions.md#793c13-which-earlier-owner-answers-may-the-minimal-set-reverse).
+  - **Major:** [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) forbade changing "what the [agent](./793a_product-spec.md#793a1a-terms) answered"; it now forbids editing the user's
+    [prompt](./793a_product-spec.md#793a1a-terms) and the text of the reply.
+  - **Major:** three of the six interactions restated one requirement's rule: [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update), [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt), [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) and
+    [793b7 The interactions are product requirements too](./793b_decision-log.md#793b7-the-interactions-are-product-requirements-too).
+  - **Major:** what the user sees, and when, was vague: [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) and [793b25 What is shown after a turn, and when](./793b_decision-log.md#793b25-what-is-shown-after-a-turn-and-when).
+  - **Major:** the MUST NOT on secrets that the owner set was missing: [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), [793b24 A note holds no secret](./793b_decision-log.md#793b24-a-note-holds-no-secret) and [793c8 What about secrets in written notes?](./793c_open-questions.md#793c8-what-about-secrets-in-written-notes).
+  - **Minor:** the 8-second bound was called the owner's, and the 2-minute delay lacked a statement that a measurement
+    replaces it: [793b17 A prompt is held for at most 8 seconds](./793b_decision-log.md#793b17-a-prompt-is-held-for-at-most-8-seconds), [793b18 Writing finishes within 2 minutes of a turn](./793b_decision-log.md#793b18-writing-finishes-within-2-minutes-of-a-turn), [793c1 How long may a prompt be held?](./793c_open-questions.md#793c1-how-long-may-a-prompt-be-held) and [793c2 How soon after a turn must automatic memory have finished writing?](./793c_open-questions.md#793c2-how-soon-after-a-turn-must-automatic-memory-have-finished-writing).
+  - **Minor:** [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later) said "later prompts"; [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) did not say which [notes](../../GLOSSARY.md#permanent-note) bear
+    on a prompt; [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update)'s rerun, other [harness](../../GLOSSARY.md#harness) and dry-run clauses were untestable or
+    missing; [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) named three kinds of lesson, not the learn [skill](../../GLOSSARY.md#skill)'s four.
+  - **Minor:** defined words stood where the number or the plain phrase belonged (`wait bound`, `capture delay`,
+    `provenance`, skipped steps): [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) and [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did).
+  - **Minor:** the problem statement paraphrased the North Star, ended on "cannot tell when it was not" and held
+    a paragraph about the process: [793a1 Problem Statement](./793a_product-spec.md#793a1-problem-statement) and [793f5 How this change applies it](./793f_algorithm.md#793f5-how-this-change-applies-it).
+  - **Minor:** [automatic memory](./793a_product-spec.md#793a1a-terms) could act on its own [sessions](../../GLOSSARY.md#session), and a
+    [turn](./793a_product-spec.md#793a1a-terms) followed by the end of the session was not addressed: [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), [793b37 A turn followed by the end of the session is not covered](./793b_decision-log.md#793b37-a-turn-followed-by-the-end-of-the-session-is-not-covered) and [793c14 Is a turn that is followed by the end of the session covered?](./793c_open-questions.md#793c14-is-a-turn-that-is-followed-by-the-end-of-the-session-covered).
+  - **Minor:** the product spec held a section beyond the guide's three, now in [793b8 Exclusions](./793b_decision-log.md#793b8-exclusions); `793c4`, `793c7` and
+    `793c11` were not blocking questions, and the first two are now only in [793b20 No modes and no off switch](./793b_decision-log.md#793b20-no-modes-and-no-off-switch) and [793b23 No capture rate or precision targets](./793b_decision-log.md#793b23-no-capture-rate-or-precision-targets).
+  - **Minor:** the decision log held entries that were not decisions or repeated another, now stubs: [793b14 Departure: the North Star line](./793b_decision-log.md#793b14-departure-the-north-star-line),
+    [793b15 Artifact names](./793b_decision-log.md#793b15-artifact-names), [793b16 One subject term](./793b_decision-log.md#793b16-one-subject-term), [793b26 The line waits for the turn's work](./793b_decision-log.md#793b26-the-line-waits-for-the-turns-work), [793b29 Interactions join the first node that has every capability they name](./793b_decision-log.md#793b29-interactions-join-the-first-node-that-has-every-capability-they-name), [793b30 Commit hashes are recorded by the next commit](./793b_decision-log.md#793b30-commit-hashes-are-recorded-by-the-next-commit) and [793b31 Glossary terms stay in the Terms list until promotion](./793b_decision-log.md#793b31-glossary-terms-stay-in-the-terms-list-until-promotion).
+  - **Minor:** the commit columns were described as a record the owner asked for: [793b13 Departure: one refactor pass, and extra catalog columns](./793b_decision-log.md#793b13-departure-one-refactor-pass-and-extra-catalog-columns).
+  - **Minor:** the depth-first reading was not examined ([793b38 Depth first: two readings, and the one this change takes](./793b_decision-log.md#793b38-depth-first-two-readings-and-the-one-this-change-takes), [793f3 Depth first](./793f_algorithm.md#793f3-depth-first), [793f4 Delegation](./793f_algorithm.md#793f4-delegation), [793e4 Depth-first order and dependency tree](./793e_implementation-plan.md#793e4-depth-first-order-and-dependency-tree) and [793b10 Departure: depth-first fill](./793b_decision-log.md#793b10-departure-depth-first-fill)); [793b5 Reading of the delegation rule](./793b_decision-log.md#793b5-reading-of-the-delegation-rule) rested on the
+    owner's silence about reviews ([793b33 One agent review round per phase](./793b_decision-log.md#793b33-one-agent-review-round-per-phase)); product-scenario tests were described four ways ([793b9 Test execution](./793b_decision-log.md#793b9-test-execution), [793e2 Test methods](./793e_implementation-plan.md#793e2-test-methods), [793e7 Completion gates](./793e_implementation-plan.md#793e7-completion-gates) and
+    [793f5 How this change applies it](./793f_algorithm.md#793f5-how-this-change-applies-it)); the 8-second hold belongs in the first node ([793e4 Depth-first order and dependency tree](./793e_implementation-plan.md#793e4-depth-first-order-and-dependency-tree) and [793b28 Depth-first order](./793b_decision-log.md#793b28-depth-first-order)).
+  - **Nit:** [793b10 Departure: depth-first fill](./793b_decision-log.md#793b10-departure-depth-first-fill) did not name the placeholders as the departure; [793e2 Test methods](./793e_implementation-plan.md#793e2-test-methods) named categories the plan guide does not
+    define; [793e7 Completion gates](./793e_implementation-plan.md#793e7-completion-gates) lacked the guide's gates for `rapid` properties, `imptest` evidence and valid- and invalid-path
+    behavior; [793f4 Delegation](./793f_algorithm.md#793f4-delegation) defined a phase over requirements, not nodes.
+  - **Recommendation:** bring the [transcript](../../GLOSSARY.md#transcript) sweep into the minimal set ([793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory),
+    [793b35 The transcript sweep is in the minimal set](./793b_decision-log.md#793b35-the-transcript-sweep-is-in-the-minimal-set) and [793e4 Depth-first order and dependency tree](./793e_implementation-plan.md#793e4-depth-first-order-and-dependency-tree)); keep [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did), with its mobile view parked ([793c15 Should the activity be shown in the agent's reply, so that it reaches the claude.ai mobile and web view?](./793c_open-questions.md#793c15-should-the-activity-be-shown-in-the-agents-reply-so-that-it-reaches-the-claudeai-mobile-and-web-view)).
+
+  The IDs `793a3b`, `793a3d`, `793a3f`, `793a4`, `793c4`, `793c7` and `793c11` are retired and never reused.
+- **Rationale:** [Decisions and Open Questions](../../AGENTS.md#decisions-and-open-questions) has each review round
+  record its outcome in the decision log, and its questions in the open-questions file, before anything goes to
+  the owner.
+- **Alternatives:** decline a finding. None was declined.
+- **Decided by:** Reviewer (opus review round 1, 2026-10-17), accepted by the author.
