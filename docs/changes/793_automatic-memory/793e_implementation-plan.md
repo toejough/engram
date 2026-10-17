@@ -219,8 +219,8 @@ Takes [793a2a1d Pi gets no automatic memory](./793a_product-spec.md#793a2a1-uat-
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2a1d | Dedicated example, product acceptance (`network`) | the install as the user sees it on a machine with both harnesses: the report and the directories of Pi hold none of the mod (a real `engram update`, no model call) | Red | | | |
-| 793d4b1d | Dedicated example (default suite) | the gate between the harnesses over the plan: finite and exact | Not started | | | |
+| 793a2a1d | Dedicated example, product acceptance (`network`) | the install as the user sees it on a machine with both harnesses: the report and the directories of Pi hold none of the mod (a real `engram update`, no model call) | Red | 0616adb8 | | |
+| 793d4b1d | Dedicated example (default suite) | the gate between the harnesses over the plan: finite and exact | Red | | | |
 
 #### 793e6a9 A dry run turns nothing on
 

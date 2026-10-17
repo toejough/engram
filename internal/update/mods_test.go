@@ -87,3 +87,29 @@ func Test793d4b1c_Updater_Run_DeploysAndLinksTheMod(t *testing.T) {
 	g.Expect(fileSystem.symlinks["/home/joe/.claude/skills/engram-memory"]).
 		To(Equal("/home/joe/.claude/engram/skills/engram-memory"))
 }
+
+func Test793d4b1d_PlanModCopies_PiIsPlannedNoMod(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+	fileSystem.dirs["/src/agent-instructions/mods"] = true
+
+	for _, file := range []string{".claude-plugin/plugin.json", "hooks/hooks.json", "hooks/register.js"} {
+		fileSystem.files["/src/agent-instructions/mods/engram-memory/"+file] = []byte("x")
+	}
+
+	harnesses := []update.HarnessSpec{
+		{Name: update.HarnessClaude, ProbeRel: ".claude", SkillsTargetRel: ".claude/skills"},
+		{Name: update.HarnessPi, ProbeRel: ".pi", SkillsTargetRel: ".pi/agent/skills"},
+	}
+
+	ops, err := update.ExportPlanModCopies("/src/agent-instructions/mods", "/home/joe", harnesses, fileSystem)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(ops).To(HaveLen(3))
+
+	for _, op := range ops {
+		g.Expect(op.Harness).To(Equal(update.HarnessClaude), op.Dst)
+	}
+}
