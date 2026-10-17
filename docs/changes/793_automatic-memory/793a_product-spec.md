@@ -41,12 +41,15 @@ written depth first, so each requirement's scenario section stays pending until 
 
 ### 793a2a On after `engram update`
 
-Requirement: 793a2a When the user runs [`engram update`](../../GLOSSARY.md#engram-update) on a machine that has
-Claude Code, [automatic memory](#793a1a-terms) MUST be on for every Claude Code
+Requirement: 793a2a When the user runs [`engram update`](../../GLOSSARY.md#engram-update), other than with
+`--dry-run` ([792a11f Previewing an update](../../specs/product/install-and-update.md#792a11f-previewing-an-update)),
+on a machine that has Claude Code, [automatic memory](#793a1a-terms) MUST be on for every Claude Code
 [session](../../GLOSSARY.md#session) the user starts on that machine afterwards, in any project. Turning it on
-MUST NOT need any step other than running `engram update`: no new credential or configuration for the user to
-supply. Running `engram update` again MUST leave automatic memory exactly as the first run left it. A session
-in any other [harness](../../GLOSSARY.md#harness) MUST behave exactly as before.
+MUST NOT need any step other than running `engram update`, and automatic memory MUST use no account, key or
+[vault](../../GLOSSARY.md#vault) the user has not already configured. After a second `engram update`, each
+[prompt](#793a1a-terms) MUST still get its [notes](../../GLOSSARY.md#permanent-note) delivered once, and each
+lesson MUST still become one note. `engram update` MUST NOT install anything into
+[Pi](../../GLOSSARY.md#harness).
 
 #### 793a2a1 UAT Scenarios
 
@@ -177,14 +180,5 @@ and the [learn skill](../../GLOSSARY.md#learn-skill), MUST keep working unchange
 [automatic memory](#793a1a-terms).
 
 #### 793a3e1 UAT Scenarios
-
-Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
-
-### 793a3f Everything runs on the existing login and vault
-
-Requirement: 793a3f [Automatic memory](#793a1a-terms) MUST use the user's existing Claude Code login and the
-user's existing [vault](../../GLOSSARY.md#vault), and no other account, key or vault.
-
-#### 793a3f1 UAT Scenarios
 
 Pending step 2 ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)).
