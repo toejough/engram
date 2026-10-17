@@ -194,7 +194,9 @@ graph TD
     n793e6g13 --> n793e6g14
     n793e6g15["793e6g15 A lesson no earlier note states is written<br/>Complete"]
     n793e6g14 --> n793e6g15
-    n793e6g15 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
+    n793e6g16["793e6g16 A turn that a background task's notification starts is not judged<br/>Ready"]
+    n793e6g15 --> n793e6g16
+    n793e6g16 --> n793e6e["793e6e The conversation becomes searchable memory<br/>Ready"]
     n793e6e --> n793e6c["793e6c Never in the way<br/>Blocked by: 793e6e"]
     n793e6c --> n793e6d["793e6d The user can see what it did<br/>Blocked by: 793e6c"]
     n793e6d --> n793e6f["793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d"]
@@ -690,6 +692,14 @@ Takes review finding 18. Only one side of [793a3c Nothing the vault already says
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 793a3c1c | Dedicated example, product acceptance (`network`) | the other side of the cover as the user sees it: a real [session](../../GLOSSARY.md#session), a vault with the note of one lesson about a database, a request to remember another lesson about the same database, and a new note in the vault that says it was written automatically within the bound, with the earlier note unchanged. It passes when written; the mutation that makes it fail is an instruction that a nearest note about the same subject as the lesson covers it, run on a scratch copy of the branch: the row passed 1 of 6 runs | 10 of 10 runs | Done | n/a | 228d02b4 | f5f9a637 |
+
+#### 793e6g16 A turn that a background task's notification starts is not judged
+
+Takes review finding 21. Of the origins that [793d4m Telling the prompts the user sends](./793d_technical-spec.md#793d4m-telling-the-prompts-the-user-sends) tells apart, the live rows observed only `sdk` ([793d2a1h The command receives the prompt's origin](./793d_technical-spec.md#793d2a1-scenarios)); the others were run over rows of a record and the mod run under node. A background task's notification starts a [turn](./793a_product-spec.md#793a1a-terms) of its own, and its [prompt](./793a_product-spec.md#793a1a-terms) is a row of the record stamped `task-notification`. The row starts a task in the background in a real [session](../../GLOSSARY.md#session), lets the notification start the turn, and shows that [automatic memory](./793a_product-spec.md#793a1a-terms) made no record and wrote no [note](../../GLOSSARY.md#permanent-note) for it. An absence could also mean that the turn never happened, so the row first shows that the record of the session holds the notification and that the [agent](./793a_product-spec.md#793a1a-terms) answered it, and then waits 20 seconds, which is three times the longest capture of the live runs (6.0 seconds, [793b85 Each stage of the capture has a bound of its own](./793b_decision-log.md#793b85-each-stage-of-the-capture-has-a-bound-of-its-own)), for a record that would come.
+
+| Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793d4m1d | Dedicated example, real dependency (`network`) | the origins of a real session end to end: the agent starts a task with `sleep` in the background, the notification starts a turn that the agent answers, and automatic memory has made the one record of the user's turn and no more, and the [vault](../../GLOSSARY.md#vault) holds no note | | Not started | | | |
 
 ### 793e6e The conversation becomes searchable memory
 

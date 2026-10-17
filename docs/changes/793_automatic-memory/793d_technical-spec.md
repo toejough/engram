@@ -986,6 +986,11 @@ Scenario: 793d4m1c The turn of a headless prompt is judged only when the user as
   Given the record of a session whose turn began with a prompt of the origin sdk
   When the judgement is given the turn, without the flag --capture-sdk and with it
   Then without it the judgement prints nothing and succeeds, and with it the judgement prints its request
+
+Scenario: 793d4m1d A turn that a background task's notification starts is not judged
+  Given the user has run engram update, and a session in which the agent may run a sleep command but may not run engram commands
+  When the agent starts a task in the background in a turn the user began, and the task's notification starts a turn of its own that the agent answers
+  Then automatic memory has made one record, that of the user's turn, and the vault holds no note
 ```
 
 ## 793d5 Product-scenario mapping
