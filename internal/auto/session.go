@@ -77,8 +77,8 @@ func textOf(raw json.RawMessage) string {
 	return strings.Join(parts, "\n")
 }
 
-// toolResultsOf returns the text of the results of tools in the content of a user record, one to a line; a prompt, whose
-// content is a string, has none.
+// toolResultsOf returns the text of the results of tools in the content of a user record, one to a line; a prompt,
+// whose content is a string, has none.
 func toolResultsOf(content json.RawMessage) string {
 	var blocks []struct {
 		Type    string          `json:"type"`
