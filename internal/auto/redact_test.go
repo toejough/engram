@@ -1,6 +1,7 @@
 package auto_test
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -51,15 +52,117 @@ func Test793d4j1b_Redact_TheNameOfAnAssignmentIsKeptAndWhatIsNotACredentialIsNot
 	}
 }
 
+func Test793d4j1e_Redact_TheValueOfEveryNameThatHoldsAWordOfASecretIsRedactedWhateverTheNameLooksLike(t *testing.T) {
+	t.Parallel()
+
+	t.Run("the names that the pattern missed", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		// built here and never written whole in this file: a scanner of the repository would take a literal for a key
+		value := "wJalr" + "XUtnFEMI/K7MDENG"
+
+		g.Expect(auto.Redact("key=hunter2hunter2")).To(Equal("key=[redacted]"))
+		g.Expect(auto.Redact("accessKey: "+value)).To(Equal("accessKey: [redacted]"))
+		g.Expect(auto.Redact("signingKey=abcd1234efgh")).To(Equal("signingKey=[redacted]"))
+		g.Expect(auto.Redact("x-api-key: "+value)).To(Equal("x-api-key: [redacted]"))
+		g.Expect(auto.Redact("DB_PASSWORD is hunter2hunter2")).To(Equal("DB_PASSWORD is [redacted]"))
+	})
+
+	t.Run("any name of the words, in any case, with a word before and after", func(t *testing.T) {
+		t.Parallel()
+
+		rapid.Check(t, func(rt *rapid.T) {
+			name := secretName(rt)
+			separator := rapid.SampledFrom([]string{"=", ": ", " is "}).Draw(rt, "separator")
+			value := word(rt, "value", alnum+"!#%^*_+-", 6, 20)
+
+			redacted := auto.Redact(name + separator + value)
+
+			if strings.Contains(redacted, value) {
+				rt.Fatalf("the value %q survived in %q", value, redacted)
+			}
+
+			if !strings.HasPrefix(redacted, name+separator) {
+				rt.Fatalf("the name and the separator %q are not kept in %q", name+separator, redacted)
+			}
+		})
+	})
+}
+
+func Test793d4j1f_Redact_ASentenceGivesTheValueOfANameToRedact(t *testing.T) {
+	t.Parallel()
+
+	t.Run("the sentence of review finding 3", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		g.Expect(auto.Redact("the password for the staging deploy is hunter2hunter2")).
+			To(Equal("the password for the staging deploy is [redacted]"))
+	})
+
+	t.Run("up to six words, and the text as it was with seven", func(t *testing.T) {
+		t.Parallel()
+
+		rapid.Check(t, func(rt *rapid.T) {
+			name := secretName(rt)
+			words := rapid.SliceOfN(rapid.SampledFrom(fillerWords), 0, maxWordsBetween+1).Draw(rt, "words")
+			separator := rapid.SampledFrom([]string{" is ", ": "}).Draw(rt, "separator")
+			value := word(rt, "value", alnum+"!#%^*_+-", 6, 20)
+
+			before := "the " + name
+			if len(words) > 0 {
+				before += " " + strings.Join(words, " ")
+			}
+
+			text := before + separator + value
+			redacted := auto.Redact(text)
+
+			if len(words) > maxWordsBetween {
+				if redacted != text {
+					rt.Fatalf("a sentence of %d words between the name and the separator was changed: %q", len(words), redacted)
+				}
+
+				return
+			}
+
+			if strings.Contains(redacted, value) {
+				rt.Fatalf("the value %q survived in %q", value, redacted)
+			}
+
+			if !strings.HasPrefix(redacted, before+separator) {
+				rt.Fatalf("the name and the words %q are not kept in %q", before+separator, redacted)
+			}
+		})
+	})
+}
+
+func Test793d4j1g_Redact_ABearerCredentialIsRedactedFrom12Characters(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(auto.Redact("Bearer "+strings.Repeat("a", 11))).To(Equal("Bearer " + strings.Repeat("a", 11)))
+	g.Expect(auto.Redact("Bearer " + strings.Repeat("a", 12))).To(Equal("[redacted]"))
+	g.Expect(auto.Redact("Authentication is by Bearer token, Basic is for tools")).
+		To(Equal("Authentication is by Bearer token, Basic is for tools"))
+}
+
 // unexported constants.
 const (
 	alnum = "A-Za-z0-9"
+	// maxWordsBetween is how many words of a sentence may stand between a name and the is or colon that gives its value.
+	maxWordsBetween = 6
 	// the shapes credentialShape draws: tokens of an issuer up to lastToken, texts of a header up to lastHeader, and
 	// values of a name and long runs after them
 	lastHeader = 10
 	lastShape  = 13
 	lastToken  = 5
 )
+
+// fillerWords are words of a sentence that are no name of a secret and no separator.
+var fillerWords = []string{"for", "the", "staging", "deploy", "of", "my", "new", "old", "admin", "server", "main",
+	"account"}
 
 // credential is a text shaped as a credential, the secret in it, and the name of an assignment that is kept.
 type credential struct {
@@ -88,7 +191,7 @@ func credentialShape() *rapid.Generator[credential] {
 func headerCredential(rt *rapid.T, shape int) credential {
 	switch shape {
 	case 6:
-		body := word(rt, "body", alnum+"._~+/=-", 8, 30)
+		body := word(rt, "body", alnum+"._~+/=-", 12, 30)
 
 		return credential{text: "Bearer " + body, secret: body}
 	case 7:
@@ -150,12 +253,44 @@ func namedValue(rt *rapid.T, shape int) credential {
 		return credential{text: secret, secret: secret}
 	}
 
-	name := rapid.SampledFrom([]string{"password", "passwd", "pwd", "api_key", "secret", "token", "my_secret_token",
-		"client_credential", "private_key", "AWS_SECRET_ACCESS_KEY"}).Draw(rt, "name")
+	name := secretName(rt)
 	separator := rapid.SampledFrom([]string{"=", ": ", " is "}).Draw(rt, "separator")
 	value := word(rt, "value", alnum+"!#%^*_+-", 6, 20)
 
 	return credential{text: name + separator + value, secret: value, name: name}
+}
+
+// secretName draws a name that holds a word of a secret, with a word before it, after it, or neither, written in snake,
+// kebab, camel or upper case.
+func secretName(rt *rapid.T) string {
+	parts := slices.Clone(rapid.SampledFrom([][]string{{"key"}, {"token"}, {"secret"}, {"password"}, {"passwd"}, {"pwd"},
+		{"credential"}, {"private", "key"}}).Draw(rt, "word"))
+
+	if rapid.Bool().Draw(rt, "has a word before") {
+		before := rapid.SampledFrom([]string{"access", "signing", "client", "api", "db", "admin", "deploy", "github"})
+		parts = slices.Insert(parts, 0, before.Draw(rt, "before"))
+	}
+
+	if rapid.Bool().Draw(rt, "has a word after") {
+		parts = append(parts, rapid.SampledFrom([]string{"id", "value", "2", "prod"}).Draw(rt, "after"))
+	}
+
+	switch rapid.SampledFrom([]string{"snake", "kebab", "camel", "upper"}).Draw(rt, "case") {
+	case "snake":
+		return strings.Join(parts, "_")
+	case "kebab":
+		return strings.Join(parts, "-")
+	case "upper":
+		return strings.ToUpper(strings.Join(parts, "_"))
+	default:
+		camel := parts[0]
+
+		for _, part := range parts[1:] {
+			camel += strings.ToUpper(part[:1]) + part[1:]
+		}
+
+		return camel
+	}
 }
 
 // word draws a text of the characters of an alphabet, as long as a range says.
