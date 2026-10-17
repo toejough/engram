@@ -89,10 +89,11 @@ func findRecord(deps AutoDeliverDeps, dir, session string) []byte {
 }
 
 // heldText returns the text of what a session's agent holds of the vault (793d4d). A session whose ID is not a plain
-// file name holds nothing: its ID would otherwise name a file outside the directory. A record that cannot be read
-// holds nothing either, so a prompt is delivered a note it may already hold rather than none.
+// file name holds nothing: its ID would otherwise name a file outside the directory. Nor does a session when there is
+// no directory of records (793d4f): the file name alone would name a file of the working directory. A record that
+// cannot be read holds nothing either, so a prompt is delivered a note it may already hold rather than none.
 func heldText(deps AutoDeliverDeps, dir, session string) string {
-	if session == "" || session != filepath.Base(session) || session == ".." {
+	if dir == "" || session == "" || session != filepath.Base(session) || session == ".." {
 		return ""
 	}
 

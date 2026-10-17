@@ -212,7 +212,7 @@ Takes [793a2b1c A note the agent looked up itself is not delivered](./793a_produ
 | 793d4f1a | Dedicated example (default suite) | review fix: `ENGRAM_TRANSCRIPT_DIR` names the records of sessions before `CLAUDE_CONFIG_DIR` does, through the dispatch of `engram auto deliver` with the environment stubbed and real temporary directories | Done | n/a | 9ca57f87 | 8fa41f48 |
 | 793d4f1b | Dedicated example (default suite) | review fix: `CLAUDE_CONFIG_DIR/projects` names them when `ENGRAM_TRANSCRIPT_DIR` does not, and the home's `.claude/projects` is then not read; the record's place was checked with a real headless session | Done | 9ca57f87 | a2616081 | 8fa41f48 |
 | 793d4f1c | Dedicated example (default suite) | review fix: the home's `.claude/projects` holds them when neither variable is set, which no test of the delivery had run | Done | n/a | 9ca57f87 | 8fa41f48 |
-| 793d4f1d | Dedicated example (default suite) | review fix, found on the way: with no home directory the directory of records is empty, and the delivery read `<session>.jsonl` from the working directory; the dispatch is run with a home that cannot be found and the reads of `.jsonl` files recorded | Red | | | |
+| 793d4f1d | Dedicated example (default suite) | review fix, found on the way: with no home directory the directory of records is empty, and the delivery read `<session>.jsonl` from the working directory; the dispatch is run with a home that cannot be found and the reads of `.jsonl` files recorded | Green-all | b4358c93 | | |
 
 #### 793e6a5 A prompt that matches no note arrives with nothing
 
