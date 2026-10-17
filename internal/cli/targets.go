@@ -186,6 +186,13 @@ func autoTargets(
 				errHandler(RunAutoJudge(withLog(ctx), a, newAutoJudgeDeps(deps), deps.Stdout))
 			}).Name("judge").Description(
 				"Print the request for the model that judges a turn (the automatic-memory mod runs this after each turn)"),
+			targ.Targ(func(ctx context.Context, a AutoWriteArgs) {
+				a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
+				a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
+
+				errHandler(RunAutoWrite(withLog(ctx), a, newAutoWriteDeps(deps), deps.Stdout))
+			}).Name("write").Description(
+				"Write the lessons of the model's reply as notes (the automatic-memory mod runs this after each judgement)"),
 		),
 	}
 }

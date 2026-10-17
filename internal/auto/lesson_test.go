@@ -12,15 +12,17 @@ func Test793d4h1c_ParseLessons_AReplyThatIsNotAListOfLessonsWritesNothing(t *tes
 	t.Parallel()
 
 	for name, reply := range map[string]string{
-		"not JSON":                 "I think there is one lesson here.",
-		"a JSON object":            `{"kind":"fact"}`,
-		"an empty list":            `[]`,
-		"no reply":                 ``,
-		"a lesson of unknown kind": `[{"kind":"runbook","slug":"a-b","situation":"s","subject":"x","predicate":"y","object":"z"}]`,
-		"a lesson with no slug":    `[{"kind":"fact","slug":"","situation":"s","subject":"x","predicate":"y","object":"z"}]`,
+		"not JSON":      "I think there is one lesson here.",
+		"a JSON object": `{"kind":"fact"}`,
+		"an empty list": `[]`,
+		"no reply":      ``,
+		"a lesson of unknown kind": `[{"kind":"runbook","slug":"a-b","situation":"s","subject":"x",` +
+			`"predicate":"y","object":"z"}]`,
+		"a lesson with no slug": `[{"kind":"fact","slug":"","situation":"s","subject":"x","predicate":"y","object":"z"}]`,
 		"a lesson with a slug that is not kebab-case": `[{"kind":"fact","slug":"Not Kebab","situation":"s",` +
 			`"subject":"x","predicate":"y","object":"z"}]`,
-		"a lesson with no situation": `[{"kind":"fact","slug":"a-b","situation":" ","subject":"x","predicate":"y","object":"z"}]`,
+		"a lesson with no situation": `[{"kind":"fact","slug":"a-b","situation":" ","subject":"x",` +
+			`"predicate":"y","object":"z"}]`,
 		"a feedback lesson with an empty field": `[{"kind":"feedback","slug":"a-b","situation":"s","behavior":"x",` +
 			`"impact":"","action":"z"}]`,
 		"a fact lesson with a missing field": `[{"kind":"fact","slug":"a-b","situation":"s","subject":"x","predicate":"y"}]`,
@@ -41,7 +43,8 @@ func Test793d4h1c_ParseLessons_AReplyThatIsNotAListOfLessonsWritesNothing(t *tes
 		t.Parallel()
 		g := NewWithT(t)
 
-		lessons, err := auto.ParseLessons(`[{"kind":"fact","slug":"","situation":"s","subject":"x","predicate":"y","object":"z"},` +
+		lessons, err := auto.ParseLessons(`[{"kind":"fact","slug":"","situation":"s","subject":"x",` +
+			`"predicate":"y","object":"z"},` +
 			`{"kind":"fact","slug":"a-b","situation":"s","subject":"x","predicate":"y","object":"z"}]`)
 
 		g.Expect(err).NotTo(HaveOccurred())

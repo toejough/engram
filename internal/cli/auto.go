@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"go.yaml.in/yaml/v3"
 
@@ -45,6 +47,23 @@ type AutoJudgeDeps struct {
 	ReadDir  func(path string) ([]fs.DirEntry, error)
 	ReadFile func(path string) ([]byte, error)
 }
+
+// AutoWriteArgs holds parsed flags for `engram auto write`.
+type AutoWriteArgs struct {
+	VaultPath string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
+	VaultName string `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name stamped on the note's vault: field (default \"personal\")"` //nolint:lll // single unbreakable struct-tag string
+}
+
+// AutoWriteDeps holds injected dependencies for RunAutoWrite.
+type AutoWriteDeps struct {
+	// Stdin carries the reply of the model: one JSON object with the session's ID and the reply.
+	Stdin io.Reader
+	// Learn writes a note through the learn path.
+	Learn LearnRun
+}
+
+// LearnRun writes a note through the learn path, as `engram learn` does, and returns the path it prints for the note.
+type LearnRun func(ctx context.Context, args LearnArgs) (string, error)
 
 // QueryRun runs the lookup of `engram query` for the arguments it is given and prints its payload.
 type QueryRun func(ctx context.Context, args QueryArgs, stdout io.Writer) error
@@ -105,6 +124,35 @@ func RunAutoJudge(_ context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, std
 	return nil
 }
 
+// RunAutoWrite reads the reply of the model to the judgement of a turn from standard input and writes each lesson it
+// holds as a note, marked as written automatically, printing the path of each note (793d4h).
+func RunAutoWrite(ctx context.Context, args AutoWriteArgs, deps AutoWriteDeps, stdout io.Writer) error {
+	var reply auto.Reply
+
+	decodeErr := json.NewDecoder(deps.Stdin).Decode(&reply)
+	if decodeErr != nil {
+		return fmt.Errorf("auto write: reading the reply: %w", decodeErr)
+	}
+
+	// a reply that is not a list of lessons holds none
+	lessons, _ := auto.ParseLessons(reply.Text)
+
+	var failures []error
+
+	for _, lesson := range lessons {
+		path, learnErr := deps.Learn(ctx, learnArgsOfLesson(lesson, args, reply.Session))
+		if learnErr != nil {
+			failures = append(failures, fmt.Errorf("writing %s: %w", lesson.Slug, learnErr))
+
+			continue
+		}
+
+		_, _ = fmt.Fprintln(stdout, path)
+	}
+
+	return errors.Join(failures...)
+}
+
 // findRecord reads the record of a session, which Claude Code keeps as <ID>.jsonl in a directory of the session-log
 // directory for the project, or in the session-log directory itself.
 func findRecord(
@@ -136,6 +184,26 @@ func findRecord(
 // nothing, so a prompt is delivered a note it may already hold rather than none.
 func heldText(deps AutoDeliverDeps, dir, session string) string {
 	return auto.HeldText(recordOf(deps.ReadDir, deps.ReadFile, dir, session))
+}
+
+// learnArgsOfLesson is the write of a lesson through the learn path: a note of its kind at the top of the order, whose
+// source says it was written automatically.
+func learnArgsOfLesson(lesson auto.Lesson, args AutoWriteArgs, session string) LearnArgs {
+	return LearnArgs{
+		Type:      lesson.Kind,
+		Slug:      lesson.Slug,
+		Vault:     args.VaultPath,
+		VaultName: args.VaultName,
+		Position:  positionTop,
+		Source:    auto.SourceFor(session),
+		Situation: lesson.Situation,
+		Behavior:  lesson.Behavior,
+		Impact:    lesson.Impact,
+		Action:    lesson.Action,
+		Subject:   lesson.Subject,
+		Predicate: lesson.Predicate,
+		Object:    lesson.Object,
+	}
 }
 
 // lookUpNotes runs the lookup of `engram query` for a text, as its message and its only phrase, and reads the notes
@@ -170,6 +238,22 @@ func newAutoDeliverDeps(d Deps) AutoDeliverDeps {
 // newAutoJudgeDeps wires RunAutoJudge from the injected CLI capabilities — pure composition (#700).
 func newAutoJudgeDeps(d Deps) AutoJudgeDeps {
 	return AutoJudgeDeps{Stdin: d.Stdin, ReadDir: d.FS.ReadDir, ReadFile: d.FS.ReadFile}
+}
+
+// newAutoWriteDeps wires RunAutoWrite from the injected CLI capabilities — pure composition (#700).
+func newAutoWriteDeps(d Deps) AutoWriteDeps {
+	learnDeps := newLearnDeps(d)
+
+	return AutoWriteDeps{
+		Stdin: d.Stdin,
+		Learn: func(ctx context.Context, args LearnArgs) (string, error) {
+			var printed bytes.Buffer
+
+			err := RunLearn(ctx, args, learnDeps, &printed)
+
+			return strings.TrimSpace(printed.String()), err
+		},
+	}
 }
 
 // notesOf reads the notes out of an `engram query` payload.
