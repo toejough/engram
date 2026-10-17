@@ -130,6 +130,31 @@ func Test793d4g1h_RunAutoJudge_TheNearestNotesAreInTheRequest(t *testing.T) {
 		"the Zorblax staging database is reset every Sunday at 03:40 UTC.\n</notes>"))
 }
 
+func Test793d4g1i_RunAutoJudge_AFailedLookupFailsTheCommandAndPrintsNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	sessions := t.TempDir()
+	record := `{"type":"user","message":{"role":"user","content":"When is the Zorblax staging database reset?"}}` + "\n"
+	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
+
+	query := newQueryDeps(newInMemoryFS())
+	query.Embedder = errorEmbedder{}
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: sessions},
+		cli.AutoJudgeDeps{
+			Stdin:    strings.NewReader(`{"origin":"composer","session":"` + sessionID + `","answer":"On Sundays."}`),
+			Query:    queryOver(query),
+			ReadDir:  os.ReadDir,
+			ReadFile: os.ReadFile,
+		}, &out)
+
+	g.Expect(err).To(MatchError(ContainSubstring("embedder down")))
+	g.Expect(out.String()).To(BeEmpty())
+}
+
 func Test793d4g1q_RunAutoJudge_ALongRecordIsJudgedInTime(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -179,29 +204,4 @@ func Test793d4g1q_RunAutoJudge_ALongRecordIsJudgedInTime(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(out.String()).To(ContainSubstring("User: No - build with make zorblax-build."))
 	g.Expect(elapsed).To(BeNumerically("<", bound), "the request of a record of 1 MB")
-}
-
-func Test793d4g1i_RunAutoJudge_AFailedLookupFailsTheCommandAndPrintsNothing(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	sessions := t.TempDir()
-	record := `{"type":"user","message":{"role":"user","content":"When is the Zorblax staging database reset?"}}` + "\n"
-	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
-
-	query := newQueryDeps(newInMemoryFS())
-	query.Embedder = errorEmbedder{}
-
-	var out bytes.Buffer
-
-	err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: sessions},
-		cli.AutoJudgeDeps{
-			Stdin:    strings.NewReader(`{"origin":"composer","session":"` + sessionID + `","answer":"On Sundays."}`),
-			Query:    queryOver(query),
-			ReadDir:  os.ReadDir,
-			ReadFile: os.ReadFile,
-		}, &out)
-
-	g.Expect(err).To(MatchError(ContainSubstring("embedder down")))
-	g.Expect(out.String()).To(BeEmpty())
 }

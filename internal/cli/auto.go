@@ -118,18 +118,14 @@ func RunAutoJudge(ctx context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, s
 
 	record := recordOf(deps.ReadDir, deps.ReadFile, args.SessionsDir, turn.Session)
 
-	var notes []auto.Note
-
-	if text := auto.TurnText(record); text != "" {
-		var lookupErr error
-
-		notes, lookupErr = lookUpNotes(ctx, args.VaultPath, text, deps.Query)
-		if lookupErr != nil {
-			return fmt.Errorf("auto judge: %w", lookupErr)
-		}
+	request, found, judgeErr := auto.Judge(ctx, record, turn.Answer,
+		func(ctx context.Context, text string) ([]auto.Note, error) {
+			return lookUpNotes(ctx, args.VaultPath, text, deps.Query)
+		})
+	if judgeErr != nil {
+		return fmt.Errorf("auto judge: %w", judgeErr)
 	}
 
-	request, found := auto.Judge(record, turn.Answer, notes)
 	if !found {
 		return nil
 	}

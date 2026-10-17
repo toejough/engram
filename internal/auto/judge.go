@@ -2,8 +2,10 @@ package auto
 
 import (
 	"bytes"
+	"context"
 	_ "embed" // the instructions of the judgement are a text file of the package
 	"encoding/json"
+	"fmt"
 	"slices"
 	"strings"
 	"unicode"
@@ -31,45 +33,36 @@ type TurnEnd struct {
 }
 
 // Judge returns the request for the model that judges the turn a session's record ends with, and false when the record
-// holds no prompt (793d4g). The turn is the last prompt of the record and everything after it, the lines before it are
-// the context, and the final text is the turn's last line when no line of the turn holds its beginning. The notes are
-// the ones nearest to the turn, which the model may name as already stating a lesson.
-func Judge(record []byte, answer string, notes []Note) (Judgement, bool) {
-	lines, prompt := linesOf(record)
+// holds no prompt (793d4g). It reads the record once, and redacts the lines of the window only. The turn is the last
+// prompt of the record and everything after it, the lines before it are the context, and the final text is the turn's
+// last line when no line of the turn holds its beginning. The notes are the ones nearest to the turn, which the lookup
+// finds for the text of the turn's prompts and the model may name as already stating a lesson.
+func Judge(ctx context.Context, record []byte, answer string, lookup Lookup) (Judgement, bool, error) {
+	messages, prompt := messagesOf(record)
 	if prompt < 0 {
-		return Judgement{}, false
+		return Judgement{}, false, nil
 	}
 
-	context, turn := fit(lines[max(prompt-contextLines, 0):prompt], withAnswer(lines[prompt:], answer))
-	window := slices.Concat(context, []string{divider}, turn)
+	before := linesOf(messages[max(prompt-contextLines, 0):prompt])
+	turn := linesOf(messages[prompt:])
+
+	notes, err := lookup(ctx, promptsOf(turn))
+	if err != nil {
+		return Judgement{}, false, fmt.Errorf("looking up the notes: %w", err)
+	}
+
+	before, turn = fit(before, withAnswer(turn, answer))
+	window := slices.Concat(before, []string{divider}, turn)
 	text := strings.NewReplacer("{window}", strings.Join(window, "\n"), "{notes}", noteLines(notes)).Replace(instructions)
 
 	return Judgement{
 		Model: judgeModel, Effort: judgeEffort, Prompt: text, MaxTokens: judgeMaxTokens, TimeoutMs: judgeTimeoutMs,
-	}, true
-}
-
-// TurnText is the text of the prompts of the turn a session's record ends with, which the notes nearest to the turn are
-// looked up for (793d4g), or nothing when the record holds no prompt.
-func TurnText(record []byte) string {
-	lines, prompt := linesOf(record)
-	if prompt < 0 {
-		return ""
-	}
-
-	var texts []string
-
-	for _, line := range lines[prompt:] {
-		if text, isPrompt := strings.CutPrefix(line, "User: "); isPrompt {
-			texts = append(texts, text)
-		}
-	}
-
-	return clipped(strings.Join(texts, " "), lookupLimit)
+	}, true, nil
 }
 
 // unexported constants.
 const (
+	agentLabel = "Agent: "
 	// answerProbe is how many characters of the final text tell that a line of the turn already holds it.
 	answerProbe = 80
 	// contextLines is how many lines of the conversation before the turn the window holds at most.
@@ -91,6 +84,8 @@ const (
 	noNotes     = "(none)"
 	// noteLimit is how many characters of the body of a note a line holds at most.
 	noteLimit = 400
+	toolLabel = "Agent used "
+	userLabel = "User: "
 	// windowLimit is how many characters the window holds at most.
 	windowLimit = 8000
 )
@@ -98,26 +93,34 @@ const (
 //go:embed prompts/judge.txt
 var instructions string
 
-// agentLine is the line of a text of the agent.
-func agentLine(text string) string {
-	return "Agent: " + messageText(text)
+// message is a message of the conversation before it is a line of the window: the label that opens its line, and its
+// text. The text of a tool's name is written as it is, and the text of every other message is redacted.
+type message struct {
+	label string
+	text  string
+	plain bool
 }
 
-// agentLinesOf reads the lines of the texts and the tool uses of one message of the agent.
-func agentLinesOf(content json.RawMessage) []string {
+// agentLine is the line of a text of the agent.
+func agentLine(text string) string {
+	return agentLabel + messageText(text)
+}
+
+// agentMessagesOf reads the texts and the tool uses of one message of the agent.
+func agentMessagesOf(content json.RawMessage) []message {
 	blocks := blocksOf(content)
-	lines := make([]string, 0, len(blocks))
+	messages := make([]message, 0, len(blocks))
 
 	for _, block := range blocks {
 		switch {
-		case block.Type == "text" && messageText(block.Text) != "":
-			lines = append(lines, agentLine(block.Text))
+		case block.Type == "text" && holdsText(block.Text):
+			messages = append(messages, message{label: agentLabel, text: block.Text})
 		case block.Type == "tool_use":
-			lines = append(lines, "Agent used "+oneLined(block.Name))
+			messages = append(messages, message{label: toolLabel, text: oneLined(block.Name), plain: true})
 		}
 	}
 
-	return lines
+	return messages
 }
 
 // clipped is the first limit characters of the text.
@@ -151,18 +154,48 @@ func fit(context, turn []string) ([]string, []string) {
 	return context, slices.Concat([]string{turn[0], leftOut}, turn[last:])
 }
 
+// holdsText reports whether a message has a line of its own: its text is not empty once its white space, control and
+// format characters are gone, as oneLined writes it, or it holds a break of its own, which oneLined writes as a mark.
+func holdsText(text string) bool {
+	return strings.ContainsFunc(text, func(r rune) bool {
+		return isLineBreak(r) || (!unicode.IsSpace(r) && !unicode.IsControl(r) && !unicode.Is(unicode.Cf, r))
+	})
+}
+
 // isLineBreak reports a character that ends a line.
 func isLineBreak(r rune) bool {
 	return r == '\n' || r == '\r' || r == '\v' || r == '\f' || r == '\u0085' ||
 		unicode.Is(unicode.Zl, r) || unicode.Is(unicode.Zp, r)
 }
 
-// linesOf reads the prompts of the user and the texts and tool uses of the agent out of a session's record, in order,
-// as one line each, and returns the lines with the index of the line of the last prompt, or -1 when there is none. A
-// tool's result is not a prompt, nor is a row that the harness wrote (793d4g): one marked as meta, or stamped with an
-// origin the user does not send. A message with no text of its own makes no line.
-func linesOf(record []byte) ([]string, int) {
-	lines := make([]string, 0, bytes.Count(record, []byte("\n"))+1)
+// linesOf writes messages as one line each, redacted, written as one line and cut to the limit of a line.
+func linesOf(messages []message) []string {
+	lines := make([]string, 0, len(messages))
+
+	for _, one := range messages {
+		if one.plain {
+			lines = append(lines, one.label+one.text)
+		} else {
+			lines = append(lines, one.label+messageText(one.text))
+		}
+	}
+
+	return lines
+}
+
+// messageText is the text of a message as a line holds it: redacted before anything is cut, written as one line, and
+// cut to the limit of a line (793d4j, 793d4g).
+func messageText(text string) string {
+	return clipped(oneLined(Redact(text)), lineLimit)
+}
+
+// messagesOf reads the prompts of the user and the texts and tool uses of the agent out of a session's record, in
+// order, and returns the messages with the index of the last prompt, or -1 when there is none. A tool's result is not a
+// prompt, nor is a row that the harness wrote (793d4g): one marked as meta, or stamped with an origin the user does not
+// send. A message with no text of its own is none. Nothing is redacted: the lines of the window are the only ones that
+// are.
+func messagesOf(record []byte) ([]message, int) {
+	messages := make([]message, 0, bytes.Count(record, []byte("\n"))+1)
 	prompt := -1
 
 	for raw := range bytes.SplitSeq(record, []byte("\n")) {
@@ -178,22 +211,16 @@ func linesOf(record []byte) ([]string, int) {
 				continue
 			}
 
-			if text := messageText(promptTextOf(row.Message.Content)); text != "" {
-				prompt = len(lines)
-				lines = append(lines, "User: "+text)
+			if text := promptTextOf(row.Message.Content); holdsText(text) {
+				prompt = len(messages)
+				messages = append(messages, message{label: userLabel, text: text})
 			}
 		case "assistant":
-			lines = append(lines, agentLinesOf(row.Message.Content)...)
+			messages = append(messages, agentMessagesOf(row.Message.Content)...)
 		}
 	}
 
-	return lines, prompt
-}
-
-// messageText is the text of a message as a line holds it: redacted before anything is cut, written as one line, and
-// cut to the limit of a line (793d4j, 793d4g).
-func messageText(text string) string {
-	return clipped(oneLined(Redact(text)), lineLimit)
+	return messages, prompt
 }
 
 // noteLines writes the notes nearest to the turn, one line each, in the form of a line of a block: redacted and written
@@ -258,6 +285,20 @@ func promptTextOf(content json.RawMessage) string {
 	return strings.Join(parts, "\n")
 }
 
+// promptsOf is the text of the prompts among the lines of a turn, which the notes nearest to the turn are looked up for
+// (793d4g).
+func promptsOf(turn []string) string {
+	var texts []string
+
+	for _, line := range turn {
+		if text, isPrompt := strings.CutPrefix(line, userLabel); isPrompt {
+			texts = append(texts, text)
+		}
+	}
+
+	return clipped(strings.Join(texts, " "), lookupLimit)
+}
+
 // sizeOf is how many characters the lines take in the window, a line break after each.
 func sizeOf(lines []string) int {
 	size := 0
@@ -283,7 +324,7 @@ func userText(text string) string {
 // withAnswer adds the final text as the last line of the turn unless a line of the turn already holds its beginning.
 func withAnswer(turn []string, answer string) []string {
 	line := agentLine(answer)
-	probe := clipped(strings.TrimPrefix(line, "Agent: "), answerProbe)
+	probe := clipped(strings.TrimPrefix(line, agentLabel), answerProbe)
 
 	if probe == "" || slices.ContainsFunc(turn, func(existing string) bool { return strings.Contains(existing, probe) }) {
 		return turn
