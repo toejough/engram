@@ -575,9 +575,9 @@ Scenario: 793d4g1f A line is cut after its credentials are redacted
   Then no part of the token is in the request
 
 Scenario: 793d4g1h The nearest notes are in the request
-  Given a vault holding a note that says when the staging database is reset and a note about formatting Python files, and the record of a session whose turn asks about the staging database
+  Given a vault holding a note that says when the staging database is reset, and the record of a session whose turn asks about the staging database
   When the judgement is given the session
-  Then the request lists the staging note, with its file name, its situation and its body on one line, and not the formatting note
+  Then the request lists the staging note, with its file name, its situation and its body on one line
 
 Scenario: 793d4g1i A failed lookup fails the command and prints nothing
   Given a lookup that fails

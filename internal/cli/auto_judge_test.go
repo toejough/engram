@@ -31,9 +31,10 @@ func Test793d4g1a_RunAutoJudge_PrintsTheRequestForTheTurnTheRecordEndsWith(t *te
 
 	var out bytes.Buffer
 
-	err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{SessionsDir: sessions},
+	err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: sessions},
 		cli.AutoJudgeDeps{
 			Stdin:    strings.NewReader(`{"session":"` + sessionID + `","answer":"Understood."}`),
+			Query:    queryOver(newQueryDeps(newInMemoryFS())),
 			ReadDir:  os.ReadDir,
 			ReadFile: os.ReadFile,
 		}, &out)
@@ -63,9 +64,10 @@ func Test793d4g1c_RunAutoJudge_ASessionWithNoRecordIsJudgedNothing(t *testing.T)
 
 			var out bytes.Buffer
 
-			err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{SessionsDir: t.TempDir()},
+			err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: t.TempDir()},
 				cli.AutoJudgeDeps{
 					Stdin:    strings.NewReader(`{"session":"` + session + `","answer":"Understood."}`),
+					Query:    queryOver(newQueryDeps(newInMemoryFS())),
 					ReadDir:  os.ReadDir,
 					ReadFile: os.ReadFile,
 				}, &out)
@@ -82,9 +84,71 @@ func Test793d4g1d_RunAutoJudge_AnInputThatIsNotAJSONObjectFailsTheCommand(t *tes
 
 	var out bytes.Buffer
 
-	err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{SessionsDir: t.TempDir()},
-		cli.AutoJudgeDeps{Stdin: strings.NewReader("not a JSON object"), ReadDir: os.ReadDir, ReadFile: os.ReadFile}, &out)
+	err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: t.TempDir()},
+		cli.AutoJudgeDeps{
+			Stdin: strings.NewReader("not a JSON object"), Query: queryOver(newQueryDeps(newInMemoryFS())),
+			ReadDir: os.ReadDir, ReadFile: os.ReadFile,
+		}, &out)
 
 	g.Expect(err).To(MatchError(ContainSubstring("auto judge: reading the turn")))
+	g.Expect(out.String()).To(BeEmpty())
+}
+
+func Test793d4g1h_RunAutoJudge_TheNearestNotesAreInTheRequest(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	plantNoteWithSidecar(t, memFS, vault, "1.2026-10-17.zorblax-staging-reset.md", zorblaxResetNote)
+
+	sessions := t.TempDir()
+	record := `{"type":"user","message":{"role":"user","content":"When is the Zorblax staging database reset?"}}` + "\n"
+	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: vault, SessionsDir: sessions},
+		cli.AutoJudgeDeps{
+			Stdin:    strings.NewReader(`{"session":"` + sessionID + `","answer":"On Sundays."}`),
+			Query:    queryOver(newQueryDeps(memFS)),
+			ReadDir:  os.ReadDir,
+			ReadFile: os.ReadFile,
+		}, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var request struct {
+		Prompt string `json:"prompt"`
+	}
+
+	g.Expect(json.Unmarshal(out.Bytes(), &request)).To(Succeed())
+	g.Expect(request.Prompt).To(ContainSubstring("\n<notes>\n- 1.2026-10-17.zorblax-staging-reset.md " +
+		"(testing against the Zorblax staging database): " +
+		"Information learned: when in testing against the Zorblax staging database, " +
+		"the Zorblax staging database is reset every Sunday at 03:40 UTC.\n</notes>"))
+}
+
+func Test793d4g1i_RunAutoJudge_AFailedLookupFailsTheCommandAndPrintsNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	sessions := t.TempDir()
+	record := `{"type":"user","message":{"role":"user","content":"When is the Zorblax staging database reset?"}}` + "\n"
+	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
+
+	query := newQueryDeps(newInMemoryFS())
+	query.Embedder = errorEmbedder{}
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: sessions},
+		cli.AutoJudgeDeps{
+			Stdin:    strings.NewReader(`{"session":"` + sessionID + `","answer":"On Sundays."}`),
+			Query:    queryOver(query),
+			ReadDir:  os.ReadDir,
+			ReadFile: os.ReadFile,
+		}, &out)
+
+	g.Expect(err).To(MatchError(ContainSubstring("embedder down")))
 	g.Expect(out.String()).To(BeEmpty())
 }
