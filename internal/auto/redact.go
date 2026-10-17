@@ -3,6 +3,7 @@ package auto
 import (
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 // Redact replaces each text of the text that is shaped as a credential with `[redacted]` and keeps the name of an
@@ -28,8 +29,6 @@ func Redact(text string) string {
 
 // unexported constants.
 const (
-	digits   = "0123456789"
-	letters  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	redacted = "[redacted]"
 	// sensitiveName is a name that holds a word of a secret.
 	sensitiveName = `(?:[\w.-]*(?:token|secret|passw(?:or)?d|pwd|api[-_ ]?key|apikey|credential|private[-_ ]?key|` +
@@ -63,5 +62,5 @@ var (
 
 // holdsLetterAndDigit reports whether the text holds both a letter and a digit.
 func holdsLetterAndDigit(text string) bool {
-	return strings.ContainsAny(text, digits) && strings.ContainsAny(text, letters)
+	return strings.ContainsFunc(text, unicode.IsDigit) && strings.ContainsFunc(text, unicode.IsLetter)
 }
