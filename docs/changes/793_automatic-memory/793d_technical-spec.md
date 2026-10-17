@@ -39,7 +39,8 @@ the machinery that deploys the skills. (2) The mod runs a new command, `engram a
 command looks up the [notes](../../GLOSSARY.md#permanent-note) that bear on the prompt text, as `engram query` would,
 and prints them as one compact block, which the mod puts beside the prompt. The command, not the mod, holds the logic.
 
-**The lessons** are three more parts, on the same footing. (4) After a [turn](./793a_product-spec.md#793a1a-terms) of a prompt the user sent, the mod's
+**The lessons** are three more parts, on the same footing. (4) After a [turn](./793a_product-spec.md#793a1a-terms) of a prompt the user sent (the mod keeps the origin of each prompt and hands it to the
+commands, which act only for the prompts the user sends, [793b72 The origin of a turn](./793b_decision-log.md#793b72-the-origin-of-a-turn)), the mod's
 `turn.complete` function, apart from the end of the turn, runs a new command, `engram auto judge`, which reads the turn
 from the session's record and prints the request of one model call. (5) The mod makes that call through the host's
 model API, with the user's own login, and (6) runs a new command, `engram auto write`, with the reply; the command reads
