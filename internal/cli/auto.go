@@ -346,9 +346,9 @@ func notesOf(payload []byte) ([]auto.Note, error) {
 			body = item.Content
 		}
 
-		_, situation := frontmatterTypeAndSituation([]byte(frontmatter))
+		situation, source := situationAndSourceOf([]byte(frontmatter))
 
-		notes = append(notes, auto.Note{Path: item.Path, Situation: situation, Body: body})
+		notes = append(notes, auto.Note{Path: item.Path, Situation: situation, Body: body, Source: source})
 	}
 
 	return notes, nil
@@ -377,6 +377,21 @@ func sessionsDirOf(getenv func(string) string, userHomeDir func() (string, error
 	}
 
 	return sessionDirFrom(getenv, userHomeDir)("")
+}
+
+// situationAndSourceOf extracts the situation and the source from the front matter of a note, or nothing when the
+// block does not parse.
+func situationAndSourceOf(frontmatter []byte) (situation, source string) {
+	var probe struct {
+		Situation string `yaml:"situation"`
+		Source    string `yaml:"source"`
+	}
+
+	if yaml.Unmarshal(frontmatter, &probe) != nil {
+		return "", ""
+	}
+
+	return probe.Situation, probe.Source
 }
 
 // writeLessons writes the lessons of a reply through the learn path and adds what became of the reply, of each lesson

@@ -137,7 +137,7 @@ func ParseLessons(reply string) ([]Lesson, []Skipped) {
 // SourceFor is the source of a note written from a turn of a session: it says the note was written automatically
 // (793d4h).
 func SourceFor(session string) string {
-	return "written automatically (session " + session + ")"
+	return automaticSource + " (session " + session + ")"
 }
 
 // unexported constants.

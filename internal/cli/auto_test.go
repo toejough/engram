@@ -117,51 +117,6 @@ model_id: m@4
 	}
 }
 
-func Test793d4c1c_RunAutoDeliver_ALineSaysWhenItsNoteWasWrittenAutomatically(t *testing.T) {
-	t.Parallel()
-
-	for name, test := range map[string]struct {
-		source string
-		marked bool
-	}{
-		"a note written automatically": {source: "written automatically (session " + sessionID + ")", marked: true},
-		"a note the agent saved":       {source: "agent"},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			vault := t.TempDir()
-			memFS := newInMemoryFS()
-			plantNoteWithSidecar(t, memFS, vault, "1.2026-10-17.zorblax-staging-reset.md",
-				strings.Replace(zorblaxResetNote, "source: test", "source: "+test.source, 1))
-
-			var out bytes.Buffer
-
-			err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault},
-				cli.AutoDeliverDeps{
-					Stdin: userPrompt("When is the Zorblax staging database reset?", ""),
-					Query: queryOver(newQueryDeps(memFS)),
-				}, &out)
-			g.Expect(err).NotTo(HaveOccurred())
-
-			lines := strings.Split(strings.TrimSpace(out.String()), "\n")
-			g.Expect(lines).To(HaveLen(2), "the framing line and the line of the note")
-
-			if len(lines) != 2 {
-				return
-			}
-
-			if test.marked {
-				g.Expect(lines[1]).To(HaveSuffix("the Zorblax staging database is reset every Sunday at 03:40 UTC. " +
-					"(written automatically)"))
-			} else {
-				g.Expect(lines[1]).NotTo(ContainSubstring("written automatically"))
-			}
-		})
-	}
-}
-
 func Test793d4a1d_RunAutoDeliver_ANoteTheSessionHoldsIsLeftOut(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -327,6 +282,51 @@ func Test793d4a1h_RunAutoDeliver_AsksTheLookupForThePromptsTextAsItsMessageAndIt
 		g.Expect(err).NotTo(HaveOccurred())
 	case <-time.After(mockTimeout):
 		t.Fatal("the delivery did not finish: its lookup was not run once with the prompt's text as message and phrase")
+	}
+}
+
+func Test793d4c1c_RunAutoDeliver_ALineSaysWhenItsNoteWasWrittenAutomatically(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		source string
+		marked bool
+	}{
+		"a note written automatically": {source: "written automatically (session " + sessionID + ")", marked: true},
+		"a note the agent saved":       {source: "agent"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := t.TempDir()
+			memFS := newInMemoryFS()
+			plantNoteWithSidecar(t, memFS, vault, "1.2026-10-17.zorblax-staging-reset.md",
+				strings.Replace(zorblaxResetNote, "source: test", "source: "+test.source, 1))
+
+			var out bytes.Buffer
+
+			err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault},
+				cli.AutoDeliverDeps{
+					Stdin: userPrompt("When is the Zorblax staging database reset?", ""),
+					Query: queryOver(newQueryDeps(memFS)),
+				}, &out)
+			g.Expect(err).NotTo(HaveOccurred())
+
+			lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+			g.Expect(lines).To(HaveLen(2), "the framing line and the line of the note")
+
+			if len(lines) != 2 {
+				return
+			}
+
+			if test.marked {
+				g.Expect(lines[1]).To(HaveSuffix("the Zorblax staging database is reset every Sunday at 03:40 UTC. " +
+					"(written automatically)"))
+			} else {
+				g.Expect(lines[1]).NotTo(ContainSubstring("written automatically"))
+			}
+		})
 	}
 }
 

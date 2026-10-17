@@ -111,6 +111,7 @@ func Test793d4c1a_Deliver_ANoteCannotReshapeTheBlock(t *testing.T) {
 					Path:      hostileText(framing).Draw(rt, "path"),
 					Situation: hostileText(framing).Draw(rt, "situation"),
 					Body:      hostileText(framing).Draw(rt, "body"),
+					Source:    sourceText(framing).Draw(rt, "source"),
 				}
 			}), 1, maxNotes).Draw(rt, "notes")
 
@@ -133,13 +134,9 @@ func Test793d4c1a_Deliver_ANoteCannotReshapeTheBlock(t *testing.T) {
 				rt.Fatalf("%d lines begin as the framing line: %q", framingLines(lines), block)
 			}
 
-			for _, line := range lines[1:] {
-				if !strings.HasPrefix(line, "- ") {
-					rt.Fatalf("a note line does not begin with a dash and a space: %q", line)
-				}
-
-				if strings.ContainsFunc(line, isLoose) {
-					rt.Fatalf("a note line holds a control or format character or a white space other than a space: %q", line)
+			for index, line := range lines[1:] {
+				if problem := lineProblem(line, notes[index]); problem != "" {
+					rt.Fatalf("the line %q of a note %+v: %s", line, notes[index], problem)
 				}
 			}
 		})
@@ -165,6 +162,8 @@ func Test793d4c1b_Deliver_ANoteCannotHideTextInFormatCharacters(t *testing.T) {
 const (
 	maxNotes    = 6
 	mockTimeout = 5 * time.Second
+	// sourceMark is text that only a source holds in the tests of the block.
+	sourceMark = "SRC-MARK"
 )
 
 // blockOf makes the block of the notes a lookup found.
@@ -225,7 +224,39 @@ func isLoose(r rune) bool {
 	return unicode.IsControl(r) || unicode.Is(unicode.Cf, r) || (unicode.IsSpace(r) && r != ' ')
 }
 
+// lineProblem tells what is wrong with the line of a note, or nothing when it is right: it begins with a dash and a
+// space, holds no control or format character and no white space but a space, holds nothing of the source of its note,
+// and ends with the words that mark a note written automatically if and only if the source says so.
+func lineProblem(line string, note auto.Note) string {
+	switch marked := strings.HasSuffix(line, " (written automatically)"); {
+	case !strings.HasPrefix(line, "- "):
+		return "it does not begin with a dash and a space"
+	case strings.ContainsFunc(line, isLoose):
+		return "it holds a control or format character or a white space other than a space"
+	case strings.Contains(line, sourceMark):
+		return "it holds text of the source of its note"
+	case marked != strings.HasPrefix(note.Source, "written automatically"):
+		return "it is marked as written automatically, or is not, against the source"
+	default:
+		return ""
+	}
+}
+
 // linesOf splits a block into its lines.
 func linesOf(block string) []string {
 	return strings.Split(strings.TrimSuffix(block, "\n"), "\n")
+}
+
+// sourceText generates the source of a note: hostile text, or a source that says the note was written automatically,
+// followed by hostile text. It holds sourceMark, so that a line which holds it holds text of the source.
+func sourceText(framing string) *rapid.Generator[string] {
+	return rapid.Custom(func(rt *rapid.T) string {
+		source := hostileText(framing).Draw(rt, "source text") + sourceMark
+
+		if rapid.Bool().Draw(rt, "written automatically") {
+			return "written automatically (session " + source + ")"
+		}
+
+		return source
+	})
 }

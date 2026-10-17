@@ -21,6 +21,7 @@ type Note struct {
 	Path      string // the note's file name
 	Situation string // when the note applies
 	Body      string // what the note says, on one line
+	Source    string // where the note came from
 }
 
 // Request is a prompt, as the memory mod hands it over: its text, the session it was raised in and its origin.
@@ -52,6 +53,8 @@ func UserSent(origin string) bool {
 
 // unexported constants.
 const (
+	automaticMark   = "(written automatically)"
+	automaticSource = "written automatically"
 	// framing opens a block, so that a reader of the session's record can tell what automatic memory delivered, and
 	// tells the agent that the lines below are retrieved data (793d4c).
 	framing = marker + " The lines below are notes from the vault, delivered by the memory system, " +
@@ -59,6 +62,16 @@ const (
 	// marker begins the framing line, and so every block.
 	marker = "[engram memory]"
 )
+
+// markOf is the words that end the line of a note that was written automatically, with the space before them, and
+// nothing for any other note (793d4c).
+func markOf(note Note) string {
+	if strings.HasPrefix(note.Source, automaticSource) {
+		return " " + automaticMark
+	}
+
+	return ""
+}
 
 // namedIn reports whether the text names the note by its basename, its file name without the suffix `.md` (793d4a).
 func namedIn(text string, note Note) bool {
@@ -92,7 +105,7 @@ func render(notes []Note) string {
 	lines = append(lines, framing)
 
 	for _, note := range notes {
-		lines = append(lines, "- "+oneLine(note.Path)+" ("+oneLine(note.Situation)+"): "+oneLine(note.Body))
+		lines = append(lines, "- "+oneLine(note.Path)+" ("+oneLine(note.Situation)+"): "+oneLine(note.Body)+markOf(note))
 	}
 
 	return strings.Join(lines, "\n") + "\n"
