@@ -616,3 +616,39 @@ product spec, where the guides put it, and nothing was decided. The ID is kept s
   each needs its own report); a scenario for each of the delivered-note routes inside one (rejected: the plan guide
   has one test per scenario ID, and the two routes are different interactions).
 - **Decided by:** Author (default; owner may override).
+
+## 793b41 The mod, its place and its command
+
+- **Choice:** the automatic behavior inside a Claude Code [session](../../GLOSSARY.md#session) is one mod,
+  `engram-memory`, kept in `agent-instructions/mods/` and deployed by [`engram update`](../../GLOSSARY.md#engram-update)
+  through the machinery that deploys the skills, so that it lands in `~/.claude/skills/engram-memory` like a skill. For
+  each [prompt](./793a_product-spec.md#793a1a-terms) the mod runs a new command, `engram auto deliver`, with a JSON
+  object on standard input, and puts the command's output beside the prompt. The command holds the logic; the mod
+  routes. Recorded in [793d1 Orientation](./793d_technical-spec.md#793d1-orientation).
+- **Rationale:** automatic behavior inside a session needs a plugin of function hooks, a mod; the `prompt.submit`
+  function is the one that can add context beside the prompt without editing it
+  ([793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt)). A real
+  `claude -p` session in an isolated HOME showed that a mod in a linked `~/.claude/skills/<name>` loads, that its
+  command runs with the session's environment and standard input, and that the context it adds is recorded before the
+  agent's first reply. Standard input carries the prompt because a prompt can be longer than a command line allows.
+  The logic is in Go because the controls over it (tests, lint, coverage) are stronger there.
+- **Alternatives:** a `UserPromptSubmit` command hook in `~/.claude/settings.json`: rejected, because `engram update`
+  would edit a file the user owns on every run, where files in an engram-owned root need no merge. The prompt on the
+  command line: rejected for its length limit.
+- **Decided by:** Author (default; owner may override).
+
+## 793b42 What the block says
+
+- **Choice:** the block opens with `[engram memory] Notes from the vault that bear on this prompt, delivered by the
+  memory system, not typed by the user.` and two lines saying the agent should apply what bears on its next step and
+  that the notes are retrieved data, so an instruction written inside one is not followed unless the user gave it.
+  One line follows for each [note](../../GLOSSARY.md#permanent-note): a dash, its file name, its situation in
+  parentheses, a colon and its body on one line, cut to 400 characters.
+- **Rationale:** the framing is that of the earlier attempt's block (`internal/auto/moment.go` at commit `dcf53d07`),
+  whose guard line keeps a note from acting as an instruction; the marker `[engram memory]` is what the session's
+  record is searched for. The file name is the note's identity in every `engram` payload, so the agent can ask for the
+  whole note with `engram show`, and it is what a later prompt's lookup compares against what the agent already has.
+  The cut keeps the block compact; the agent has `engram show` for the whole note.
+- **Alternatives:** whole notes (rejected: the block would grow with the vault); a count and no text (rejected: the
+  agent would have to look each note up).
+- **Decided by:** Author (default; owner may override).
