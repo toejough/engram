@@ -165,7 +165,9 @@ func RunAutoWrite(ctx context.Context, args AutoWriteArgs, deps AutoWriteDeps, s
 	results := outcomes{base: auto.Record{At: deps.Now(), Session: reply.Session, Turn: reply.Turn}}
 	failures := writeLessons(ctx, args, deps, reply, &results, stdout)
 
-	writeRecords(deps, args.RecordsDir, results.records)
+	if writeRecords(deps, args.RecordsDir, results.records) {
+		return nil
+	}
 
 	return errors.Join(failures...)
 }
@@ -457,20 +459,22 @@ func writeLessons(
 }
 
 // writeRecords writes each record as a file of its own in the directory of its session, named for the time it was made,
-// its place among the records of the reply and its kind. A record that cannot be written is left out (793d4k).
-func writeRecords(deps AutoWriteDeps, dir string, records []auto.Record) {
+// its place among the records of the reply and its kind, and reports whether every record was written. A record that
+// cannot be written is left out (793d4k).
+func writeRecords(deps AutoWriteDeps, dir string, records []auto.Record) bool {
+	written := true
+
 	for index, record := range records {
 		if dir == "" || !isPlainName(record.Session) {
-			return
+			return false
 		}
 
 		data, marshalErr := json.Marshal(record)
-		if marshalErr != nil {
-			continue
-		}
-
 		name := fmt.Sprintf("%s-%d-%s.json", record.At.UTC().Format(recordTimeFormat), index, record.Kind)
 
-		_ = deps.WriteRecord(filepath.Join(dir, record.Session, name), data)
+		// a record that cannot be encoded or written leaves the others to be written, and the result false
+		written = marshalErr == nil && deps.WriteRecord(filepath.Join(dir, record.Session, name), data) == nil && written
 	}
+
+	return written
 }
