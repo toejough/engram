@@ -1,6 +1,7 @@
 This is a deep recall, which also grows the vault. Beyond the verdicts:
 - For each candidate note judged covered or near, list in its entry "chunks" the IDs of the passages among the
   candidates that evidence it, when there are any.
+- A note that a newer candidate reverses is near, with fields that state what the newer candidate says, and not covered.
 - For each candidate note judged near, give in its entry "fields" the fields to revise, so that the note states the
   claim it omits, each a short string: for a fact note any of subject, predicate and object, and for a feedback note any
   of behavior, impact and action. Revise from all the evidence, the later date winning a conflict. Never revise a note
