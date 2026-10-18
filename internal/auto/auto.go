@@ -178,8 +178,8 @@ func chosenOf(request Request, held Held) ([]Candidate, error) {
 	return slices.DeleteFunc(delivered, func(candidate Candidate) bool { return namedIn(heldText, candidate.ID) }), nil
 }
 
-// delivers reports whether the verdicts deliver a candidate: it has a verdict that is not unrelated, no candidate of the
-// carry reverses it, and the mod has not delivered it (855d4c). The request showed the ID redacted, as it shows every
+// delivers reports whether the verdicts deliver a candidate: it has a verdict that is not unrelated, no candidate of
+// the carry reverses it, and the mod has not delivered it (855d4c). The request showed the ID redacted, as it shows every
 // field (793d4j), and the model gives it back so.
 func delivers(request Request, verdicts []verdict, candidate Candidate) bool {
 	shown := oneRedacted(candidate.ID)
