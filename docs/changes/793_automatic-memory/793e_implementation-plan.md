@@ -646,7 +646,7 @@ The mod started the work after a [turn](./793a_product-spec.md#793a1a-terms) ins
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2d1c | Dedicated example, product acceptance (`network`) | an `engram` on the path records the start of each job after a turn and takes 60 seconds, and the second prompt is sent while they go on; the wait is measured from the moment the test sends the prompt, since the row of the prompt in the record is written when the host enters it | | Not started | | | |
+| 793a2d1c | Dedicated example, product acceptance (`network`) | an `engram` on the path records the start of each job after a turn and takes 60 seconds, and the second prompt is sent while they go on; the wait is measured from the moment the test sends the prompt, since the row of the prompt in the record is written when the host enters it | | Red | | | |
 | 793d2b1l | Dedicated example, real dependency (`integration`) | the stand-in host counts the calls in flight when the hook of an event settles, which a live [session](../../GLOSSARY.md#session) cannot show | | Not started | | | |
 
 #### 793e6c2 The prompt and the reply are as they were

@@ -135,6 +135,8 @@ func (c *conversation) say(prompt string) *turn {
 		t.Fatalf("encoding the prompt: %v", marshalErr)
 	}
 
+	sent := time.Now()
+
 	_, writeErr := c.stdin.Write(append(message, '\n'))
 	if writeErr != nil {
 		t.Fatalf("sending the prompt: %v", writeErr)
@@ -148,7 +150,10 @@ func (c *conversation) say(prompt string) *turn {
 
 		c.turnEnds = time.Now()
 
-		return c.session.answeredTurn(prompt, result)
+		answered := c.session.answeredTurn(prompt, result)
+		answered.sent = sent
+
+		return answered
 	case <-time.After(sessionTimeout):
 		t.Fatalf("claude did not answer %q within %s", prompt, sessionTimeout)
 
@@ -568,6 +573,7 @@ type turn struct {
 	rows  []transcriptRow // from the prompt's own row to the row before the next prompt's
 	reply string          // the agent's final text
 	cost  float64         // dollars
+	sent  time.Time       // when the test sent the prompt to the running session; zero for a prompt of its own run
 }
 
 // agentActsAt returns the index, in the turn's rows, of the first row that shows the agent acting (a reply or a
@@ -633,6 +639,19 @@ func (t *turn) hold() time.Duration {
 		asked, parseErr := time.Parse(time.RFC3339Nano, row.Timestamp)
 		if row.Type == "api-request" && parseErr == nil {
 			return asked.Sub(started)
+		}
+	}
+
+	return -1
+}
+
+// reached returns how long after the test sent the prompt the model was asked, or -1 when it was not: the row of the
+// prompt is written when the host enters it, so the time from that row misses a prompt that was held before it.
+func (t *turn) reached() time.Duration {
+	for _, row := range t.rows {
+		asked, err := time.Parse(time.RFC3339Nano, row.Timestamp)
+		if row.Type == "api-request" && err == nil {
+			return asked.Sub(t.sent)
 		}
 	}
 

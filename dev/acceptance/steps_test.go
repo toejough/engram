@@ -367,6 +367,37 @@ func (m *machine) installed(dir, name string) []string {
 	return found
 }
 
+// jobStarted reports whether a job of automatic memory after a turn (judge, write or sweep) was started: the slow
+// engram of jobsTake notes each one.
+func (m *machine) jobStarted(job string) bool {
+	_, err := os.Stat(filepath.Join(m.root, "jobs", "started-"+job))
+
+	return err == nil
+}
+
+// jobsTake makes the work after a turn take the given time: engram on the PATH notes that the judgement, the writing or
+// the sweep started and then waits, and runs the machine's own engram for anything else. The wait replaces the process,
+// so that ending the job ends all of it.
+func (m *machine) jobsTake(wait time.Duration) {
+	m.t.Helper()
+
+	dir := filepath.Join(m.root, "jobs")
+	mkdirAll(m.t, dir)
+
+	script := "#!/bin/sh\ncase \"$1 $2\" in\n\"auto judge\"|\"auto write\"|\"auto sweep\")\n: > '" + dir +
+		"/started-'\"$2\"\nexec sleep " + strconv.Itoa(int(wait.Seconds())) + "\n;;\nesac\nexec '" +
+		filepath.Join(m.gobin, engramBinaryName) + "' \"$@\"\n"
+	path := filepath.Join(dir, engramBinaryName)
+	writeFile(m.t, path, script)
+
+	err := os.Chmod(path, 0o700)
+	if err != nil {
+		m.t.Fatalf("making the slow engram executable: %v", err)
+	}
+
+	m.pathFront = dir
+}
+
 // learnsFact writes a fact into the vault and returns the file name of the note.
 func (m *machine) learnsFact(note fact) string {
 	m.t.Helper()
