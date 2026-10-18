@@ -179,6 +179,28 @@ func Test855d4b1d_Recall_TheNotesAndPassagesThatMatchedBecomeCandidatesTheExplor
 	}
 }
 
+func Test855d4b1e_Recall_AChunkOfTheSessionsOwnTranscriptIsNotACandidate(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	own := "/home/joe/.claude/projects/-home-joe-zorblax/" + sessionID + ".jsonl"
+	payload := payloadOf(chunkItem(own+"#turn-2", "direct"), chunkItem("/sessions/another.jsonl#turn-3", "direct"))
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoRecall(context.Background(), cli.AutoRecallArgs{VaultPath: "/a/vault"},
+		cli.AutoRecallDeps{
+			Stdin: recallInput("glance", "staging resets"), Query: payloadQuery(payload),
+			ReadChunks: chunksRead(
+				chunk.Record{Source: own, Anchor: "turn-2", Text: "USER: this very conversation."},
+				chunk.Record{Source: "/sessions/another.jsonl", Anchor: "turn-3", Text: "USER: another conversation."}),
+		}, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(candidateLines(t, out.Bytes())).To(Equal([]string{
+		"- /sessions/another.jsonl#turn-3 (passage): USER: another conversation.",
+	}))
+}
+
 // recallInput is the JSON object that the memory mod hands to the recall: the reply of the phrases judgement, a list of
 // phrases, and the carry of the step before, of a depth.
 func recallInput(depth string, phrases ...string) io.Reader {
