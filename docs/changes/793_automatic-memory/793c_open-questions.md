@@ -521,3 +521,11 @@ Withdrawn: answered by the owner's instruction to follow the guides, [793b91 The
 - **Recommendation:** (a): without it the promise of [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) fails without a sign, and a success is no news ([793b106 Two records the display needs](./793b_decision-log.md#793b106-two-records-the-display-needs)).
 - **Blocks:** [793a2e1e A sweep that failed is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios).
 - **Status:** open; default (a) taken in [793b104 The sweep is among what the user sees](./793b_decision-log.md#793b104-the-sweep-is-among-what-the-user-sees).
+
+## 793c84 Do the notes the earlier mod wrote carry the mark of a note written automatically?
+
+- **Context:** the line of a delivered [note](../../GLOSSARY.md#permanent-note) ends with `(written automatically)` when its source says so ([793d4c Framing the notes of a block as data](./793d_technical-spec.md#793d4c-framing-the-notes-of-a-block-as-data)); the notes the earlier mod wrote, already in the owner's [vault](../../GLOSSARY.md#vault), have a source such as `captured from the conversation; written automatically (session s1, turn 3)`, and the second group looked for the words at its start.
+- **Options:** (a) The words are looked for anywhere in the source. (b) At its start only, as built before: the earlier mod's notes show no mark.
+- **Recommendation:** (a): the mark tells the [agent](./793a_product-spec.md#793a1a-terms) which notes a person did not write, and (b) hides it for every note already written.
+- **Blocks:** [793d4c1c A note written automatically says so in its line](./793d_technical-spec.md#793d4c1-scenarios).
+- **Status:** open; default (a) taken in [793b111 The mark of a note written automatically is looked for anywhere in its source](./793b_decision-log.md#793b111-the-mark-of-a-note-written-automatically-is-looked-for-anywhere-in-its-source).

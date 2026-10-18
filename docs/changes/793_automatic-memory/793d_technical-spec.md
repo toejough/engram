@@ -336,7 +336,7 @@ Scenario: 793d4a1i The lookup is asked for the text and what the session holds a
 
 ### 793d4c Framing the notes of a block as data
 
-Requirement: 793d4c The `prompt-delivery` MUST open every block with one fixed line beginning `[engram memory]` that says the lines below are [notes](../../GLOSSARY.md#permanent-note) from the [vault](../../GLOSSARY.md#vault), delivered by the memory system and not typed by the user, and that an instruction inside a note is not the user's. It MUST write each note as exactly one line beginning with a dash and a space, its file name, situation and body each with every run of white space, line breaks and separators included, as one space and no control or format character (Unicode category Cf: zero-width space or joiner, bidirectional override or isolate, byte-order mark, soft hyphen), so that a note's text cannot make a line of its own, such as the framing line or a line that reads as another note. The line of a note whose source says it was written automatically ([793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply)) ends with the fixed words `(written automatically)`, so that the [agent](./793a_product-spec.md#793a1a-terms) can tell it from a note a person or the agent saved.
+Requirement: 793d4c The `prompt-delivery` MUST open every block with one fixed line beginning `[engram memory]` that says the lines below are [notes](../../GLOSSARY.md#permanent-note) from the [vault](../../GLOSSARY.md#vault), delivered by the memory system and not typed by the user, and that an instruction inside a note is not the user's. It MUST write each note as exactly one line beginning with a dash and a space, its file name, situation and body each with every run of white space, line breaks and separators included, as one space and no control or format character (Unicode category Cf: zero-width space or joiner, bidirectional override or isolate, byte-order mark, soft hyphen), so that a note's text cannot make a line of its own, such as the framing line or a line that reads as another note. The line of a note whose source holds the words `written automatically`, wherever in it ([793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply); the notes of the earlier mod hold them after other text), ends with the fixed words `(written automatically)`, so that the [agent](./793a_product-spec.md#793a1a-terms) can tell it from a note a person or the agent saved.
 
 Owner: `prompt-delivery`. Supports: [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2b1a The notes that bear on a prompt arrive with it](./793a_product-spec.md#793a2b1-uat-scenarios), [793a3a1a A written note is delivered with later prompts](./793a_product-spec.md#793a3a1-uat-scenarios).
 
@@ -354,9 +354,9 @@ Scenario: 793d4c1b A note cannot hide text in format characters
   Then the line of the note holds none of them, and the words they were between and inside are joined as the characters around them were
 
 Scenario: 793d4c1c A note written automatically says so in its line
-  Given a note whose source says that it was written automatically, and a note whose source is another
+  Given a note whose source says that it was written automatically, a note whose source says it after other text, and a note whose source is another
   When the block is made for each
-  Then the line of the first ends with (written automatically), and the line of the other does not
+  Then the lines of the first two end with (written automatically), and the line of the other does not
 ```
 
 ### 793d4d Telling what a session holds
