@@ -234,7 +234,9 @@ func oneLine(text string) string {
 }
 
 // render writes the block: the framing line and exactly one line for each note and then for each passage (793d4c,
-// 855d4d), or nothing when there is none.
+// 855d4d), or nothing when there is none. A note is written as it is, as `engram show` gives it to the agent; a
+// passage is redacted, since a chunk of an earlier conversation can hold a credential that was pasted into it
+// (855b55).
 func render(notes, passages []Candidate) string {
 	if len(notes)+len(passages) == 0 {
 		return ""
@@ -248,7 +250,7 @@ func render(notes, passages []Candidate) string {
 	}
 
 	for _, passage := range passages {
-		lines = append(lines, "- "+oneLine(passage.ID)+" (passage): "+clipped(oneLine(passage.Text), passageLimit))
+		lines = append(lines, "- "+oneLine(passage.ID)+" (passage): "+clipped(oneRedacted(passage.Text), passageLimit))
 	}
 
 	return strings.Join(lines, "\n") + "\n"
