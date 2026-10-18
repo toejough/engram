@@ -66,7 +66,7 @@ The groups, in the order of the catalog ([793b28 Depth-first order](./793b_decis
 | [793e6e The conversation becomes searchable memory](#793e6e-the-conversation-becomes-searchable-memory) | [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) | none | Complete |
 | [793e6c Never in the way](#793e6c-never-in-the-way) | the rest of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), without the clause about its own sessions | none | Complete |
 | [793e6d The user can see what it did](#793e6d-the-user-can-see-what-it-did) | [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) | none | Complete |
-| [793e6h The fixes of the review round of the third group](#793e6h-the-fixes-of-the-review-round-of-the-third-group) | the defects the third group's one review round found in [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) and [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), and in their technical requirements | none | In progress: 0/21 entries complete |
+| [793e6h The fixes of the review round of the third group](#793e6h-the-fixes-of-the-review-round-of-the-third-group) | the defects the third group's one review round found in [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) and [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), and in their technical requirements | none | Complete |
 | [793e6f The delivery merges the parent vault](#793e6f-the-delivery-merges-the-parent-vault) | the clause of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) that the [notes](../../GLOSSARY.md#permanent-note) are those `engram query` returns, for a [vault](../../GLOSSARY.md#vault) that has a parent ([793c34 Does the delivery merge the parent vault, as `engram query` does?](./793c_open-questions.md#793c34-does-the-delivery-merge-the-parent-vault-as-engram-query-does)) | none | Blocked by: [793c34 Does the delivery merge the parent vault, as `engram query` does?](./793c_open-questions.md#793c34-does-the-delivery-merge-the-parent-vault-as-engram-query-does) |
 
 ## 793e9 Dependency graph
@@ -130,14 +130,13 @@ flowchart TD
     n793e6e1 --> n793e6d5[793e6d5 A sweep that failed is shown with its reason<br/>Complete]
     n793e6d1 --> n793e6d6[793e6d6 A turn that is not captured is shown with the reason<br/>Complete]
     n793e6g11 --> n793e6d6
-    n793e6d1 --> n793e6h1[793e6h1 What the user is shown goes through the host's log, and is not put in the prompt's context<br/>In progress: 0/21 entries complete]
+    n793e6d1 --> n793e6h1[793e6h1 What the user is shown goes through the host's log, and is not put in the prompt's context<br/>Complete]
     n793e6a2 --> n793e6f[793e6f The delivery merges the parent vault<br/>Blocked by: 793c34]
     classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
     classDef blocked fill:#eeeeee,stroke:#757575,color:#000,stroke-dasharray:5 5
-    class n793e6a1,n793e6a2,n793e6a3,n793e6a4,n793e6a5,n793e6a6,n793e6a7,n793e6a8,n793e6a9,n793e6a10,n793e6a11,n793e6a12,n793e6b1,n793e6b2,n793e6b3,n793e6b4,n793e6b5,n793e6b6,n793e6b7,n793e6b8,n793e6b9,n793e6b10,n793e6b11,n793e6b12,n793e6b13,n793e6b14,n793e6b15,n793e6g1,n793e6g2,n793e6g3,n793e6g4,n793e6g5,n793e6g6,n793e6g7,n793e6g8,n793e6g9,n793e6g10,n793e6g11,n793e6g12,n793e6g13,n793e6g14,n793e6g15,n793e6g16,n793e6g17,n793e6g18,n793e6g19,n793e6e1,n793e6c1,n793e6c2,n793e6c3,n793e6d1,n793e6d2,n793e6d3,n793e6d4,n793e6d5,n793e6d6 complete
-    class n793e6h1 progress
+    class n793e6a1,n793e6a2,n793e6a3,n793e6a4,n793e6a5,n793e6a6,n793e6a7,n793e6a8,n793e6a9,n793e6a10,n793e6a11,n793e6a12,n793e6b1,n793e6b2,n793e6b3,n793e6b4,n793e6b5,n793e6b6,n793e6b7,n793e6b8,n793e6b9,n793e6b10,n793e6b11,n793e6b12,n793e6b13,n793e6b14,n793e6b15,n793e6g1,n793e6g2,n793e6g3,n793e6g4,n793e6g5,n793e6g6,n793e6g7,n793e6g8,n793e6g9,n793e6g10,n793e6g11,n793e6g12,n793e6g13,n793e6g14,n793e6g15,n793e6g16,n793e6g17,n793e6g18,n793e6g19,n793e6e1,n793e6c1,n793e6c2,n793e6c3,n793e6d1,n793e6d2,n793e6d3,n793e6d4,n793e6d5,n793e6d6,n793e6h1 complete
     class n793e6f blocked
 ```
 
@@ -757,16 +756,16 @@ Review finding G3-1, the blocker ([793b105 What is shown, and how](./793b_decisi
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2e1a | Dedicated example, product acceptance (`network`) | a judgement row, as the lesson is the model's; the earlier prompt asks and asks to remember in one; the line that names the staging [note](../../GLOSSARY.md#permanent-note) comes with the earlier prompt, the line that names the note written with the next, and no entry of the context holds a line | | | Green-all | 33850cbb | | |
-| 793a2e1b | Dedicated example, product acceptance (`network`) | a judgement row; an `engram` on the path waits 12 seconds before the write; the events of the second prompt hold no line about the write, those of the third the line that names the note | | | Green-all | 33850cbb | | |
-| 793a2e1c | Dedicated example, product acceptance (`network`) | an `engram` on the path takes 20 seconds for the delivery while a file is there; the events of the second prompt hold the line that says the delivery could not be done, and the context of the second prompt holds nothing | | | Green-all | 33850cbb | | |
-| 793a2e1d | Dedicated example, product acceptance (`network`) | a judgement row; the [vault](../../GLOSSARY.md#vault) is read-only, and the cause of the error is at the end of the line | | | Green-all | 33850cbb | | |
-| 793a2e1e | Dedicated example, product acceptance (`network`) | the directory of the chunk index is made read-only | | | Green-all | 33850cbb | | |
-| 793a2e1f | Dedicated example, product acceptance (`network`) | the machine does not set the variable that switches on the capture of headless prompts | | | Green-all | 33850cbb | | |
-| 793a2d1e (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the context of the second prompt holds nothing about the failed write, where it held the line of the failure | | | Green-all | 33850cbb | | |
-| 793d2a1k | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the stand-in host records the calls of the host's log, which a live session shows only as events: two lines, in order, and neither in the context | | | Green-all | d34fbe80 | | |
-| 793d2a1i (amended) | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a command that fails shows no line; passed when written; mutation (scratch copy): a mod that logs the text of a failure fails it, and the next row | | | Green-all | n/a | | |
-| 793d2a1j (amended) | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a delivery that does not finish within its bound shows no line | | | Green-all | n/a | | |
+| 793a2e1a | Dedicated example, product acceptance (`network`) | a judgement row, as the lesson is the model's; the earlier prompt asks and asks to remember in one; the line that names the staging [note](../../GLOSSARY.md#permanent-note) comes with the earlier prompt, the line that names the note written with the next, and no entry of the context holds a line | | | Done | 33850cbb | 030a2e78 | |
+| 793a2e1b | Dedicated example, product acceptance (`network`) | a judgement row; an `engram` on the path waits 12 seconds before the write; the events of the second prompt hold no line about the write, those of the third the line that names the note | | | Done | 33850cbb | 030a2e78 | |
+| 793a2e1c | Dedicated example, product acceptance (`network`) | an `engram` on the path takes 20 seconds for the delivery while a file is there; the events of the second prompt hold the line that says the delivery could not be done, and the context of the second prompt holds nothing | | | Done | 33850cbb | 030a2e78 | |
+| 793a2e1d | Dedicated example, product acceptance (`network`) | a judgement row; the [vault](../../GLOSSARY.md#vault) is read-only, and the cause of the error is at the end of the line | | | Done | 33850cbb | 030a2e78 | |
+| 793a2e1e | Dedicated example, product acceptance (`network`) | the directory of the chunk index is made read-only | | | Done | 33850cbb | 030a2e78 | |
+| 793a2e1f | Dedicated example, product acceptance (`network`) | the machine does not set the variable that switches on the capture of headless prompts | | | Done | 33850cbb | 030a2e78 | |
+| 793a2d1e (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the context of the second prompt holds nothing about the failed write, where it held the line of the failure | | | Done | 33850cbb | 030a2e78 | |
+| 793d2a1k | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the stand-in host records the calls of the host's log, which a live session shows only as events: two lines, in order, and neither in the context | | | Done | d34fbe80 | 030a2e78 | |
+| 793d2a1i (amended) | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a command that fails shows no line; passed when written; mutation (scratch copy): a mod that logs the text of a failure fails it, and the next row | | | Done | n/a | 030a2e78 | |
+| 793d2a1j (amended) | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a delivery that does not finish within its bound shows no line | | | Done | n/a | 030a2e78 | |
 | 793d4a1i (amended) | Injected and impure interaction (`imptest`) | the reading of what the session was not shown is given the request's session ID | | | Done | a2deed27 | d0f7f9f8 | |
 | 793d4c1a (amended) | Property-based (`rapid`) with named examples | the block holds the framing line and the notes only, and the framing line says nothing of an asterisk | the properties of [793d4c1a A note cannot reshape the block](./793d_technical-spec.md#793d4c1-scenarios), with no line told: the framing line first and nowhere else, and exactly one line for each note | | Done | a2deed27 | d0f7f9f8 | |
 | 793d4p1a (amended) | Dedicated example | the line of each kind of record, over records of the real form, printed on standard error | | | Done | a2deed27 | d0f7f9f8 | |
@@ -781,7 +780,7 @@ Review finding G3-1, the blocker ([793b105 What is shown, and how](./793b_decisi
 
 | Finding | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| G3-1, README and AGENTS | Documentation | `README.md` and `AGENTS.md` say that Claude Code shows the user the lines, and that the agent reads none | Done | n/a | | n/a |
+| G3-1 (the documents) | Documentation | `README.md` and `AGENTS.md` say that Claude Code shows the user the lines, and that the agent reads none | Done | n/a | 58946384 | n/a |
 
 ### 793e6f The delivery merges the parent vault
 
