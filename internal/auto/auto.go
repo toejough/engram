@@ -59,12 +59,6 @@ func Judged(origin string, headless bool) bool {
 	return UserSent(origin) && (headless || origin != originHeadless)
 }
 
-// SkippedHeadless reports whether the turn of a prompt of an origin is left out only because the user did not switch on
-// capturing the turns of headless prompts (793d4m): a turn the user sends that is not judged.
-func SkippedHeadless(origin string, headless bool) bool {
-	return UserSent(origin) && !Judged(origin, headless)
-}
-
 // UserSent reports whether a prompt of an origin is one the user sends (793d4m): typed at the terminal, sent from the
 // phone or web client, pinged from Slack, or sent by the headless host. Any other origin, and none, is not.
 func UserSent(origin string) bool {

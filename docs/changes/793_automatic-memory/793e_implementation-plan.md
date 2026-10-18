@@ -734,8 +734,8 @@ Adds no component: the mod reports a failed sweep to the writing, and cuts a lon
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2e1f | Dedicated example, product acceptance (`network`) | the machine does not set the variable that switches on the capture of headless [prompts](./793a_product-spec.md#793a1a-terms) | | Red | | | |
-| 793d4m1e | Dedicated example | the judgement records the headless [turn](./793a_product-spec.md#793a1a-terms) it leaves out, and no other, through an injected writer of records | | Red | | | |
+| 793a2e1f | Dedicated example, product acceptance (`network`) | the machine does not set the variable that switches on the capture of headless [prompts](./793a_product-spec.md#793a1a-terms) | | Done | 50474b95 | 6e3f2e04 | |
+| 793d4m1e | Dedicated example | the judgement records the headless [turn](./793a_product-spec.md#793a1a-terms) it leaves out, and no other, through an injected writer of records | | Done | 13d58b47 | 6e3f2e04 | |
 
 ### 793e6f The delivery merges the parent vault
 

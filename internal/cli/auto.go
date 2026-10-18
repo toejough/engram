@@ -163,7 +163,8 @@ func RunAutoJudge(ctx context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, s
 	}
 
 	if !auto.Judged(turn.Origin, args.CaptureSDK) {
-		if auto.SkippedHeadless(turn.Origin, args.CaptureSDK) {
+		// a turn of a prompt the user sends that is not judged is a headless one that the user did not ask to capture
+		if auto.UserSent(turn.Origin) {
 			recordLeftOut(deps, args.RecordsDir, turn)
 		}
 
