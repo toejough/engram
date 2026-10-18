@@ -30,7 +30,15 @@ func TestConformance_EveryScenarioOfTheSpecsHasATest(t *testing.T) {
 		specs = append(specs, string(text))
 	}
 
-	ids := scenarioIDs(strings.Join(specs, "\n"))
+	// 855 removes five scenarios of 793, and their tests are deleted (855b45)
+	technical, readErr := os.ReadFile(filepath.Join(repositoryRoot, judgedDirectory, "855d_technical-spec.md"))
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	ids := exceptIDs(scenarioIDs(strings.Join(specs, "\n")), removedScenarioIDs(string(technical)))
 	g.Expect(ids).NotTo(BeEmpty(), "the scenarios of the specs")
 
 	g.Expect(scenariosWithoutTest(ids, testSources(t))).To(BeEmpty(), "the scenarios no test is named for")
@@ -39,6 +47,7 @@ func TestConformance_EveryScenarioOfTheSpecsHasATest(t *testing.T) {
 // unexported constants.
 const (
 	changeDirectory = "docs/changes/793_automatic-memory"
+	judgedDirectory = "docs/changes/855_judged-automatic-memory"
 	repositoryRoot  = ".."
 )
 

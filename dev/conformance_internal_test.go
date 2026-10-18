@@ -180,7 +180,8 @@ func TestScenariosWithoutTest_ARemovedScenarioNeedsNoTest(t *testing.T) {
 		g := NewWithT(t)
 
 		g.Expect(removedScenarioIDs(spec)).To(Equal([]string{"793d4a1c"}))
-		g.Expect(scenariosWithoutTest(exceptIDs(ids, removedScenarioIDs(spec)), nil)).To(Equal([]string{"793d4a1a", "793d4a1b"}))
+		g.Expect(scenariosWithoutTest(exceptIDs(ids, removedScenarioIDs(spec)), nil)).
+			To(Equal([]string{"793d4a1a", "793d4a1b"}))
 	})
 
 	t.Run("a spec with no Removed heading exempts nothing", func(t *testing.T) {

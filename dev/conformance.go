@@ -13,6 +13,8 @@ import (
 
 // unexported variables.
 var (
+	// removedHeading matches the heading of a Removed operation: `### <ID> Removed: <ID of the scenario> <title>`.
+	removedHeading = regexp.MustCompile(`(?m)^#{2,4} [0-9a-z]+ Removed: (793[ad][0-9a-z]+) `)
 	// scenarioLine matches the first line of a Gherkin scenario of change 793: `Scenario: <ID> <title>`, the ID
 	// beginning with 793a for the product spec or 793d for the technical spec.
 	scenarioLine = regexp.MustCompile(`(?m)^[ \t]*Scenario: (793[ad][0-9a-z]+) `)
@@ -44,13 +46,19 @@ func declaredFunctions(sources []string) []string {
 
 // exceptIDs returns the IDs less those of the exempt ones, in their order.
 func exceptIDs(ids, exempt []string) []string {
-	return ids
+	return slices.DeleteFunc(slices.Clone(ids), func(id string) bool { return slices.Contains(exempt, id) })
 }
 
 // removedScenarioIDs returns the IDs of the scenarios of 793 that a Removed operation of a spec names, each in the
 // heading `### <ID of the operation> Removed: <ID of the scenario> <title>` (855b45).
-func removedScenarioIDs(_ string) []string {
-	return nil
+func removedScenarioIDs(spec string) []string {
+	var ids []string
+
+	for _, match := range removedHeading.FindAllStringSubmatch(spec, -1) {
+		ids = append(ids, match[1])
+	}
+
+	return ids
 }
 
 // scenarioIDs returns the IDs of the scenarios a spec holds, each once, in the order they first appear.
