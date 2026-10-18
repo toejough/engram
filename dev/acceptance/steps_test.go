@@ -328,9 +328,10 @@ func (m *machine) hasRunUpdate(agentMayRun ...string) {
 	m.mustSucceed(m.update(), "engram update")
 }
 
-// hasStandInEngram puts a stand-in for engram first on the machine's PATH: it records its arguments and standard
-// input, waits as long as it is told to, prints the text it is given, whatever it is asked, and exits with the status
-// it is given.
+// hasStandInEngram puts a stand-in for engram first on the machine's PATH: for the delivery it records its arguments
+// and standard input, waits as long as it is told to, prints the text it is given and exits with the status it is
+// given; for any other command it reads its input and exits with 0, so that what the mod reports or does after a turn
+// replaces nothing the delivery recorded.
 func (m *machine) hasStandInEngram(block string, wait time.Duration, status int) {
 	m.t.Helper()
 
@@ -338,9 +339,9 @@ func (m *machine) hasStandInEngram(block string, wait time.Duration, status int)
 	mkdirAll(m.t, dir)
 	writeFile(m.t, filepath.Join(dir, "block"), block)
 
-	script := "#!/bin/sh\nprintf '%s\\n' \"$*\" > '" + filepath.Join(dir, "args") + "'\ncat > '" +
-		filepath.Join(dir, "stdin") + "'\nsleep " + strconv.Itoa(int(wait.Seconds())) + "\ncat '" +
-		filepath.Join(dir, "block") + "'\nexit " + strconv.Itoa(status) + "\n"
+	script := "#!/bin/sh\ncase \"$1 $2\" in\n\"auto deliver\")\nprintf '%s\\n' \"$*\" > '" + filepath.Join(dir, "args") +
+		"'\ncat > '" + filepath.Join(dir, "stdin") + "'\nsleep " + strconv.Itoa(int(wait.Seconds())) + "\ncat '" +
+		filepath.Join(dir, "block") + "'\nexit " + strconv.Itoa(status) + "\n;;\nesac\ncat > /dev/null\nexit 0\n"
 	path := filepath.Join(m.gobin, engramBinaryName)
 
 	mkdirAll(m.t, m.gobin)

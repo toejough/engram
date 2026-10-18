@@ -143,7 +143,11 @@ func Test793a2e1c_ADeliveryThatCouldNotBeDoneIsShownWithItsReason(t *testing.T) 
 		g.Expect(second.blocks()).To(HaveLen(1), "the blocks of the second prompt")
 
 		if len(second.blocks()) == 1 {
-			g.Expect(linesToldBy(second.blocks()[0])).To(ConsistOf(And(ContainSubstring("failed:"),
+			told := linesToldBy(second.blocks()[0])
+
+			t.Logf("the lines that tell what automatic memory did, with the second prompt: %q", told)
+
+			g.Expect(told).To(ConsistOf(And(ContainSubstring("failed:"),
 				ContainSubstring("the delivery for a prompt could not be done"),
 				Or(ContainSubstring("within 7000 ms"), ContainSubstring("ended")))),
 				"the lines that tell what automatic memory did, with the second prompt")

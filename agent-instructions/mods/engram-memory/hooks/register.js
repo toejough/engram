@@ -152,29 +152,48 @@ function describe(error) {
 }
 
 // deliver is the block the command prints for the prompt, or nothing when it prints something that is not a block. The
-// command is ended at the bound by the time limit of the process call, and a command that fails fails the delivery.
-async function deliver($, e) {
-  const input = { text: e.text, session: await $.session.id(), origin: originOf(e) }
+// command is ended at the bound by the time limit of the process call, and a command that fails fails the delivery. The
+// session's ID is left in the delivery as soon as it is known, for the report of a failure.
+async function deliver($, e, delivery) {
+  delivery.session = await $.session.id()
+
+  const input = { text: e.text, session: delivery.session, origin: originOf(e) }
   const block = await run($, 'deliver', input, BOUND_MS)
 
   return block.startsWith(MARKER) ? block : ''
 }
 
 // notesFor is the block for the prompt, or nothing when the whole of deliver does not finish within the bound or fails:
-// the prompt goes on as if automatic memory were not installed.
+// the prompt goes on as if automatic memory were not installed, and the failure is reported (793d2a).
 async function notesFor($, e) {
+  const delivery = { session: '' }
   let timer
-  const late = new Promise((resolve) => {
-    timer = setTimeout(() => resolve(''), BOUND_MS)
+  const late = new Promise((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(`the delivery gave nothing within ${BOUND_MS} ms`)), BOUND_MS)
   })
 
   try {
-    return await Promise.race([deliver($, e), late])
-  } catch {
+    return await Promise.race([deliver($, e, delivery), late])
+  } catch (error) {
+    reportDelivery($, delivery.session, error)
+
     return ''
   } finally {
     clearTimeout(timer)
   }
+}
+
+// reportDelivery has the writing record that the delivery for a prompt could not be done, from a timer, so that the
+// prompt is held no longer and no call is left in flight when the hook settles (793d2a). A delivery whose session's ID
+// did not come is left alone, since the writing cannot record anything without it.
+function reportDelivery($, session, error) {
+  if (session === '') {
+    return
+  }
+
+  $.clock.after(0, () => {
+    void report($, session, '', new Error(`the delivery for a prompt could not be done: ${describe(error)}`))
+  })
 }
 
 // requestOf is the request for the model that the judgement printed, or a failure that names the judgement when what it
@@ -206,8 +225,8 @@ function originOfStart(text) {
   return taken.length > 0 ? taken[taken.length - 1].origin : ''
 }
 
-// report has the writing record the failure of a step of the capture, when the session is known (793d4k). A report that
-// fails is the end of it.
+// report has the writing record the failure of a step of the capture, or of a delivery, when the session is known
+// (793d4k). A report that fails is the end of it.
 async function report($, session, turn, error) {
   if (session === '') {
     return

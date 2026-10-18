@@ -710,8 +710,7 @@ Adds no component: the delivery reads the records at every [prompt](./793a_produ
 | 793a2e1c | Dedicated example, product acceptance (`network`) | an `engram` on the path that takes 20 seconds for the delivery while a file is there, and is quick again once the test removes it | | Red | | | |
 | 793d2a1i | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the stand-in host counts the calls in flight when the hook settles: a report started inside the hook would hold the next [prompt](./793a_product-spec.md#793a1a-terms), which a live [session](../../GLOSSARY.md#session) shows only as time | | Red | | | |
 | 793d2a1j | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the bound of the delivery, with the timer of the stand-in fired at once | | Red | | | |
-| 793d2a1d (amended) | Dedicated example, real dependency (`network`) | the stand-in `engram` records the calls of the delivery only, so that the report of the failed delivery, which it also receives, does not replace what it recorded | | Not started | | | |
-| 793d2a1e (amended) | Dedicated example, real dependency (`network`) | as the row above | | Not started | | | |
+| 793d2a1e (amended) | Dedicated example, real dependency (`network`) | the stand-in `engram` records the calls of the delivery only, so that the report of the failed delivery, which it also receives, does not replace what it recorded; red, attributed: run in a scratch state with the new mod and the old stand-in, it failed with `auto write` where `auto deliver` was expected, and the other rows of the mod passed | | Not started | | | |
 
 #### 793e6d4 A write that failed is shown with its reason
 
