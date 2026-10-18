@@ -39,7 +39,7 @@ The groups, in the order of the table: the gates, then the prerequisites of each
 
 | Group | Source | Status |
 | --- | --- | --- |
-| [855e6a The gates: what the host records of a block added within a turn](#855e6a-the-gates-what-the-host-records-of-a-block-added-within-a-turn) | [855d7a1f A block delivered within a turn is held](./855d_technical-spec.md#855d7a1-scenarios), [855d7a1h A context put at a tool call arrives with its result](./855d_technical-spec.md#855d7a1-scenarios) | Ready |
+| [855e6a The gates: what the host records of a block added within a turn](#855e6a-the-gates-what-the-host-records-of-a-block-added-within-a-turn) | [855d7a1f A block delivered within a turn is held](./855d_technical-spec.md#855d7a1-scenarios), [855d7a1h A context put at a tool call arrives with its result](./855d_technical-spec.md#855d7a1-scenarios) | Complete |
 | [855e6b The moment, the phrases and the candidates: three commands](#855e6b-the-moment-the-phrases-and-the-candidates-three-commands) | [855d4a Judging the moment](./855d_technical-spec.md#855d4a-added-judging-the-moment), [855d4v Phrasing the lookup](./855d_technical-spec.md#855d4v-added-phrasing-the-lookup), [855d4b Looking up the candidates for the phrases](./855d_technical-spec.md#855d4b-added-looking-up-the-candidates-for-the-phrases), [855d4f1a The moment, phrases, recall and placement commands create no vault](./855d_technical-spec.md#855d4f1-scenarios) | Ready |
 | [855e6c The candidates are judged and delivered with the prompt](#855e6c-the-candidates-are-judged-and-delivered-with-the-prompt) | [855a3b 793a2b Memory arrives with the prompt](./855a_product-spec.md#855a3b-modified-793a2b-memory-arrives-with-the-prompt), [855a3c 793a2d Never in the way](./855a_product-spec.md#855a3c-modified-793a2d-never-in-the-way), [855d4c 793d4a Delivering the notes that bear on a prompt](./855d_technical-spec.md#855d4c-modified-793d4a-delivering-the-notes-that-bear-on-a-prompt), [855d4e 793d4d Telling what a session holds](./855d_technical-spec.md#855d4e-modified-793d4d-telling-what-a-session-holds), [855d2a 793d2a Prompt delivery flow](./855d_technical-spec.md#855d2a-modified-793d2a-prompt-delivery-flow), and the Modified scenarios [855a3d 793a2d1a A slow lookup does not hold a prompt for more than 8 seconds](./855a_product-spec.md#855a3d-modified-793a2d1a-a-slow-lookup-does-not-hold-a-prompt-for-more-than-8-seconds), [855a3h 793a2e1g The notes delivered with a prompt are one line](./855a_product-spec.md#855a3h-modified-793a2e1g-the-notes-delivered-with-a-prompt-are-one-line) to [855a3q 793a2b1d A prompt that matches no note arrives with nothing](./855a_product-spec.md#855a3q-modified-793a2b1d-a-prompt-that-matches-no-note-arrives-with-nothing) | Ready |
 | [855e6d Lessons are judged, placed, tied and written](#855e6d-lessons-are-judged-placed-tied-and-written) | [855a2b Lessons are written as the learn skill writes them](./855a_product-spec.md#855a2b-lessons-are-written-as-the-learn-skill-writes-them), [855a2c Lessons are placed as the learn skill places them](./855a_product-spec.md#855a2c-lessons-are-placed-as-the-learn-skill-places-them), [855a2d Lessons that correct a note say so](./855a_product-spec.md#855a2d-lessons-that-correct-a-note-say-so), [855d4g 793d4g Judging a turn](./855d_technical-spec.md#855d4g-modified-793d4g-judging-a-turn), [855d4h Placing the lessons](./855d_technical-spec.md#855d4h-added-placing-the-lessons), [855d4i 793d4h Writing the lessons of a reply](./855d_technical-spec.md#855d4i-modified-793d4h-writing-the-lessons-of-a-reply), [855d2b 793d2b Turn capture flow](./855d_technical-spec.md#855d2b-modified-793d2b-turn-capture-flow) | Blocked by: [855e6b1 Judging the moment of a prompt](#855e6b1-judging-the-moment-of-a-prompt) |
@@ -53,10 +53,10 @@ An arrow from A to B means that B reuses what A built (a component, a scenario, 
 
 ```mermaid
 flowchart TD
-    n855e6a1["855e6a1 The probe and the recorder<br/>Ready"]
-    n855e6a2["855e6a2 A block delivered within a turn is held<br/>Blocked by: 855e6a1"]
-    n855e6a3["855e6a3 A context put at a tool call arrives with its result<br/>Blocked by: 855e6a1"]
-    n855e6a4["855e6a4 The ledger of what was delivered, if the transcript lacks it<br/>Blocked by: 855e6a2"]
+    n855e6a1["855e6a1 The probe and the recorder<br/>Complete"]
+    n855e6a2["855e6a2 A block delivered within a turn is held<br/>Complete"]
+    n855e6a3["855e6a3 A context put at a tool call arrives with its result<br/>Complete"]
+    n855e6a4["855e6a4 The ledger of what was delivered, if the transcript lacks it<br/>Complete"]
     n855e6b1["855e6b1 Judging the moment of a prompt<br/>Ready"]
     n855e6b2["855e6b2 Phrasing the lookup<br/>Blocked by: 855e6b1"]
     n855e6b3["855e6b3 Looking up the candidates for the phrases<br/>Blocked by: 855e6b2"]
@@ -77,8 +77,8 @@ flowchart TD
     n855e6e2["855e6e2 The mod's write after a deep block<br/>Blocked by: 855e6e1, 855e6c5"]
     n855e6e3["855e6e3 The scenarios of the depth<br/>Blocked by: 855e6e2, 855e6c6"]
     n855e6f1["855e6f1 The tool cues of the moment<br/>Blocked by: 855e6b1"]
-    n855e6f2["855e6f2 A block delivered within a turn is held<br/>Blocked by: 855e6c2, 855e6a2, 855e6a4"]
-    n855e6f3["855e6f3 The mid-turn flow of the mod<br/>Blocked by: 855e6f1, 855e6f2, 855e6c5, 855e6a3"]
+    n855e6f2["855e6f2 A block delivered within a turn is held<br/>Blocked by: 855e6c2"]
+    n855e6f3["855e6f3 The mid-turn flow of the mod<br/>Blocked by: 855e6f1, 855e6f2, 855e6c5"]
     n855e6f4["855e6f4 The scenarios of the turn<br/>Blocked by: 855e6f3, 855e6c6"]
     n855e6g1["855e6g1 A recall chain is timed<br/>Blocked by: 855e6c6"]
     n855e6g2["855e6g2 A capture is timed against its rows<br/>Blocked by: 855e6d6"]
@@ -175,11 +175,11 @@ Not scenarios of the specs: the rows are named by what they build. Both are fixt
 
 | Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1h | `Test855d7a1h_Gate_AContextPutAtAToolCallArrivesWithItsResult` | measurement | Measurement, real dependency (`network`) | the host's text says the context is read after the tool's result; the row records the order of the result, the block and the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s next message, and the time the block arrived. Refuted (the block precedes the result, or never arrives) ends the row as `Refuted` | Done | 370ef56a | f1ad2d8a |  |
+| 855d7a1h | `Test855d7a1h_Gate_AContextPutAtAToolCallArrivesWithItsResult` | measurement | Measurement, real dependency (`network`) | the host's text says the context is read after the tool's result; the row records the order of the result, the block and the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s next message, and the time the block arrived. Refuted (the block precedes the result, or never arrives) ends the row as `Refuted` | Done | 370ef56a | f1ad2d8a | 613d0dcf |
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
-| If refuted: record the order in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) and take [855c4 Does the before-tool cue promise the note before the call or before the next action?](./855c_open-questions.md#855c4-does-the-before-tool-cue-promise-the-note-before-the-call-or-before-the-next-action) to the owner with option (b); the before-tool rows of [855e6f3 The mid-turn flow of the mod](#855e6f3-the-mid-turn-flow-of-the-mod) and the scenario [855a2e1c A note arrives before the agent starts building a new approach](./855a_product-spec.md#855a2f-modified-855a2e1c-a-note-arrives-before-the-agent-starts-building-a-new-approach) wait for the answer | Non-test action | the promise of [855a2f 855a2e1c A note arrives before the agent starts building a new approach](./855a_product-spec.md#855a2f-modified-855a2e1c-a-note-arrives-before-the-agent-starts-building-a-new-approach) is the next action, and a refuted order cannot keep it | Not needed unless refuted |
+| If refuted: record the order in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) and take [855c4 Does the before-tool cue promise the note before the call or before the next action?](./855c_open-questions.md#855c4-does-the-before-tool-cue-promise-the-note-before-the-call-or-before-the-next-action) to the owner with option (b); the before-tool rows of [855e6f3 The mid-turn flow of the mod](#855e6f3-the-mid-turn-flow-of-the-mod) and the scenario [855a2e1c A note arrives before the agent starts building a new approach](./855a_product-spec.md#855a2f-modified-855a2e1c-a-note-arrives-before-the-agent-starts-building-a-new-approach) wait for the answer | Non-test action | the promise of [855a2f 855a2e1c A note arrives before the agent starts building a new approach](./855a_product-spec.md#855a2f-modified-855a2e1c-a-note-arrives-before-the-agent-starts-building-a-new-approach) is the next action, and a refuted order cannot keep it | Not needed |
 
 #### 855e6a4 The ledger of what was delivered, if the transcript lacks it
 
@@ -187,8 +187,8 @@ Built only when [855d7a1f A block delivered within a turn is held](./855d_techni
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
-| Add to [855d Judged Automatic Memory - Technical Spec](./855d_technical-spec.md#judged-automatic-memory---technical-spec) the scenarios of the ledger (`deliver` keeps for each [session](../../GLOSSARY.md#session) a record of what it delivered, never removed, and `session-context` reads it) through the specification lifecycle, show them to the owner, and give each a row here | Non-test action | a node without a scenario is untestable, and a scenario is an owner-visible change of the specification | Not needed unless refuted |
-| The rows of the ledger scenarios, each through the cycle | Non-test action | their tests do not exist until the scenarios do | Not needed unless refuted |
+| Add to [855d Judged Automatic Memory - Technical Spec](./855d_technical-spec.md#judged-automatic-memory---technical-spec) the scenarios of the ledger (`deliver` keeps for each [session](../../GLOSSARY.md#session) a record of what it delivered, never removed, and `session-context` reads it) through the specification lifecycle, show them to the owner, and give each a row here | Non-test action | a node without a scenario is untestable, and a scenario is an owner-visible change of the specification | Not needed |
+| The rows of the ledger scenarios, each through the cycle | Non-test action | their tests do not exist until the scenarios do | Not needed |
 
 ### 855e6b The moment, the phrases and the candidates: three commands
 
