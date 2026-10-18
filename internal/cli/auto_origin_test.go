@@ -31,7 +31,7 @@ func Test793d4m1a_Auto_APromptOfAnOriginTheUserSendsIsDeliveredForAndItsTurnIsJu
 			memFS := newInMemoryFS()
 			plantNoteWithSidecar(t, memFS, vault, "1.2026-10-17.zorblax-staging-reset.md", zorblaxResetNote)
 
-			var delivered, judged bytes.Buffer
+			var delivered bytes.Buffer
 
 			deliverErr := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault},
 				cli.AutoDeliverDeps{
@@ -41,16 +41,16 @@ func Test793d4m1a_Auto_APromptOfAnOriginTheUserSendsIsDeliveredForAndItsTurnIsJu
 			g.Expect(deliverErr).NotTo(HaveOccurred())
 			g.Expect(delivered.String()).To(HavePrefix("[engram memory]"), "the block of the note")
 
-			judgeErr := cli.RunAutoJudge(context.Background(),
-				cli.AutoJudgeArgs{VaultPath: vault, SessionsDir: recordOfAPrompt(t), CaptureSDK: true},
-				cli.AutoJudgeDeps{
-					Stdin:    originRequest(origin, "answer", "On Sundays."),
-					Query:    queryOver(newQueryDeps(memFS)),
-					ReadDir:  os.ReadDir,
-					ReadFile: os.ReadFile,
-				}, &judged)
-			g.Expect(judgeErr).NotTo(HaveOccurred())
-			g.Expect(judged.String()).To(HavePrefix(`{"model":`), "the request for the model")
+			// the turn of a headless prompt is judged here because the user asked for it (793d4m1c)
+			for _, cue := range []string{"prompt", "turn-end"} {
+				var judged bytes.Buffer
+
+				momentErr := cli.RunAutoMoment(context.Background(),
+					cli.AutoMomentArgs{SessionsDir: recordOfAPrompt(t), CaptureSDK: true},
+					cli.AutoMomentDeps{Stdin: momentOf(origin, cue), ReadRecord: readRecordFile}, &judged)
+				g.Expect(momentErr).NotTo(HaveOccurred(), cue)
+				g.Expect(judged.String()).To(HavePrefix(`{"request":`), "the request for the model, with the cue "+cue)
+			}
 		})
 	}
 }
@@ -60,16 +60,9 @@ func Test793d4m1b_Auto_APromptOfAnyOtherOriginIsDeliveredNothingAndItsTurnIsJudg
 
 	sessions := recordOfAPrompt(t)
 
-	// check dispatches the delivery and the judgement for an origin, and reports what became of them
+	// check dispatches the delivery and the moment for an origin, and reports what became of them
 	check := func(fail func(string, ...any), origin string) {
-		lookups := 0
-		lookup := func(context.Context, cli.QueryArgs, io.Writer) error {
-			lookups++
-
-			return nil
-		}
-
-		var delivered, judged bytes.Buffer
+		var delivered bytes.Buffer
 
 		reads := 0
 		deliverErr := cli.RunAutoDeliver(context.Background(),
@@ -88,24 +81,33 @@ func Test793d4m1b_Auto_APromptOfAnyOtherOriginIsDeliveredNothingAndItsTurnIsJudg
 					return os.ReadFile(path)
 				},
 			}, &delivered, io.Discard)
-		judgeErr := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: "/vault", SessionsDir: sessions},
-			cli.AutoJudgeDeps{
-				Stdin:    originRequest(origin, "answer", "On Sundays."),
-				Query:    lookup,
-				ReadDir:  os.ReadDir,
-				ReadFile: os.ReadFile,
-			}, &judged)
 
-		if deliverErr != nil || judgeErr != nil {
-			fail("the origin %q failed a command: delivery %v, judgement %v", origin, deliverErr, judgeErr)
+		if deliverErr != nil || delivered.Len() != 0 {
+			fail("the origin %q was delivered %d characters, failing with %v", origin, delivered.Len(), deliverErr)
 		}
 
-		if delivered.Len() != 0 || judged.Len() != 0 {
-			fail("the origin %q was delivered %d characters and judged %d characters", origin, delivered.Len(), judged.Len())
+		for _, cue := range []string{"prompt", "turn-end"} {
+			var judged bytes.Buffer
+
+			momentErr := cli.RunAutoMoment(context.Background(),
+				cli.AutoMomentArgs{SessionsDir: sessions, CaptureSDK: true},
+				cli.AutoMomentDeps{
+					Stdin: momentOf(origin, cue),
+					ReadRecord: func(dir, session string) []byte {
+						reads++
+
+						return readRecordFile(dir, session)
+					},
+				}, &judged)
+
+			if momentErr != nil || judged.Len() != 0 {
+				fail("the origin %q with the cue %s was judged %d characters, failing with %v", origin, cue, judged.Len(),
+					momentErr)
+			}
 		}
 
-		if lookups != 0 || reads != 0 {
-			fail("the origin %q made %d lookups and %d reads", origin, lookups, reads)
+		if reads != 0 {
+			fail("the origin %q made %d reads", origin, reads)
 		}
 	}
 
@@ -204,6 +206,15 @@ func lastUsed(tb testing.TB, vault, note string) string {
 	return sidecar.LastUsed
 }
 
+// momentOf is the JSON object that the memory mod hands to the moment for the turn of a prompt of an origin, at a cue,
+// over the sessions recordOfAPrompt writes.
+func momentOf(origin, cue string) io.Reader {
+	return requestJSON(map[string]any{
+		"session": sessionID, "cue": cue, "origin": origin, "turn": "a-turn", "answer": "On Sundays.",
+		"text": "When is the Zorblax staging database reset?",
+	})
+}
+
 // noActivation is an activation that marks nothing, for a test that does not look at the vault.
 func noActivation(context.Context, string, auto.Candidate) {}
 
@@ -211,6 +222,16 @@ func noActivation(context.Context, string, auto.Candidate) {}
 // recordOfAPrompt writes, and the origin.
 func originRequest(origin, field, value string) io.Reader {
 	return requestOf(map[string]string{field: value, "session": sessionID, "origin": origin})
+}
+
+// readRecordFile reads the record of a session from a directory of records, or nothing.
+func readRecordFile(dir, session string) []byte {
+	record, err := os.ReadFile(filepath.Join(dir, session+".jsonl"))
+	if err != nil {
+		return nil
+	}
+
+	return record
 }
 
 // recordOfAPrompt writes the record of a session whose last turn began with a prompt, and returns the directory of the

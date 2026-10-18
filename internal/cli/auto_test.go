@@ -293,7 +293,8 @@ func Test793d4e1b_Targets_AutoJudgeCreatesNoVault(t *testing.T) {
 			d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
 			d.Getenv = func(string) string { return "" }
 			d.UserHomeDir = func() (string, error) { return home, nil }
-			d.Stdin = strings.NewReader(`{"origin":"composer","session":"` + sessionID + `","answer":"Understood."}`)
+			d.Stdin = strings.NewReader(`{"origin":"composer","session":"` + sessionID +
+				`","reply":"{\"learn\":true}","answer":"Understood."}`)
 			d.Stdout = &stdout
 		})
 
@@ -424,28 +425,42 @@ func Test793d4m1c_Targets_TheTurnOfAHeadlessPromptIsJudgedOnlyWhenTheUserAsks(t 
 			t.Parallel()
 			g := NewWithT(t)
 
-			vault, home := t.TempDir(), t.TempDir()
+			home := t.TempDir()
 			sessions := recordOfAPrompt(t)
 
 			var stdout bytes.Buffer
 
 			stderr := executeForTestWithDeps(t,
-				slices.Concat([]string{"engram", "auto", "judge", "--vault", vault, "--sessions", sessions}, test.flags),
+				slices.Concat([]string{"engram", "auto", "moment", "--sessions", sessions}, test.flags),
 				func(d *cli.Deps) {
 					d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
 					d.Getenv = func(string) string { return "" }
 					d.UserHomeDir = func() (string, error) { return home, nil }
-					d.Stdin = originRequest("sdk", "answer", "On Sundays.")
+					d.Stdin = momentOf("sdk", "turn-end")
 					d.Stdout = &stdout
 				})
 
 			g.Expect(stderr).To(BeEmpty())
 
 			if test.judged {
-				g.Expect(stdout.String()).To(HavePrefix(`{"model":`), "the request for the model")
+				g.Expect(stdout.String()).To(HavePrefix(`{"request":`), "the request for the model")
 			} else {
 				g.Expect(stdout.String()).To(BeEmpty(), "the turn of a headless prompt is judged nothing")
 			}
+
+			// the headless prompt itself is judged with the cue prompt either way
+			var prompted bytes.Buffer
+
+			executeForTestWithDeps(t, slices.Concat([]string{"engram", "auto", "moment", "--sessions", sessions}, test.flags),
+				func(d *cli.Deps) {
+					d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
+					d.Getenv = func(string) string { return "" }
+					d.UserHomeDir = func() (string, error) { return home, nil }
+					d.Stdin = momentOf("sdk", "prompt")
+					d.Stdout = &prompted
+				})
+
+			g.Expect(prompted.String()).To(HavePrefix(`{"request":`), "the headless prompt is judged either way")
 		})
 	}
 }

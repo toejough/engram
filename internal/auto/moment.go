@@ -22,6 +22,9 @@ type MomentInput struct {
 	Cue     string `json:"cue"`
 	Origin  string `json:"origin"`
 	Text    string `json:"text"`
+	// Turn and Answer are the turn's ID and final text, for the cue turn-end.
+	Turn   string `json:"turn"`
+	Answer string `json:"answer"`
 }
 
 // Step is what a step prints for a judgement: the request, and the carry for the next step.

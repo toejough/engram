@@ -45,6 +45,44 @@ func Test855d4a1a_Moment_APromptBecomesARequestForTheCheapTier(t *testing.T) {
 	g.Expect(step.Carry.Window).To(Equal(strings.Join(windowOf(request.Prompt), "\n")))
 }
 
+func Test855d4a1b_Moment_ATurnThatEndedBecomesALearnMomentRequest(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	record := strings.Join([]string{
+		userPrompt("How do I build the Zorblax project?"),
+		assistantText("Try make all."),
+		userPrompt("No - build with make zorblax-build."),
+		assistantText("Understood."),
+	}, "\n")
+
+	step := auto.Moment([]byte(record), auto.MomentInput{
+		Session: "4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11", Cue: "turn-end", Origin: "composer", Turn: "a-turn",
+		Text: "No - build with make zorblax-build.", Answer: "Understood.",
+	})
+
+	request := step.Request
+	g.Expect(request.Model).To(Equal("haiku"))
+	g.Expect(request.Effort).To(Equal("low"))
+	g.Expect(request.TimeoutMs).To(Equal(10000), "the row of the learn-moment judgement")
+	g.Expect(request.MaxTokens).To(BeNumerically(">", 0))
+	g.Expect(request.System).To(ContainSubstring("explicit save requests"), "the description of the learn skill")
+	g.Expect(request.System).To(And(ContainSubstring(`{"learn":true}`), ContainSubstring(`{"learn":false}`)),
+		"the reply shape")
+	g.Expect(request.System).NotTo(ContainSubstring(`"depth"`), "no depth for a learn moment")
+	g.Expect(request.System).NotTo(ContainSubstring("Zorblax"), "the system holds nothing of the session")
+	g.Expect(windowOf(request.Prompt)).To(Equal([]string{
+		"User: How do I build the Zorblax project?",
+		"Agent: Try make all.",
+		"--- the turn ---",
+		"User: No - build with make zorblax-build.",
+		"Agent: Understood.",
+	}))
+	g.Expect(request.Prompt).NotTo(ContainSubstring("explicit save requests"), "none of the instructions")
+	g.Expect(step.Carry.Cue).To(Equal("turn-end"))
+	g.Expect(step.Carry.Window).To(Equal(strings.Join(windowOf(request.Prompt), "\n")))
+}
+
 func Test855d4a1d_Moment_APromptAMessageOrAnEventCannotCloseTheWindowOrHoldACredential(t *testing.T) {
 	t.Parallel()
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/toejough/engram/internal/auto"
 	"github.com/toejough/engram/internal/debuglog"
@@ -12,7 +13,9 @@ import (
 
 // AutoMomentArgs holds parsed flags for `engram auto moment`.
 type AutoMomentArgs struct {
-	SessionsDir string `targ:"flag,name=sessions,desc=directory of recorded sessions (default ENGRAM_TRANSCRIPT_DIR then CLAUDE_CONFIG_DIR/projects then ~/.claude/projects)"` //nolint:lll // single unbreakable struct-tag string
+	SessionsDir string `targ:"flag,name=sessions,desc=directory of recorded sessions (default ENGRAM_TRANSCRIPT_DIR then CLAUDE_CONFIG_DIR/projects then ~/.claude/projects)"`                            //nolint:lll // single unbreakable struct-tag string
+	CaptureSDK  bool   `targ:"flag,name=capture-sdk,env=ENGRAM_AUTO_CAPTURE_SDK,desc=judge the turns of headless prompts (origin sdk) too; off by default so a script run with claude -p writes no note"` //nolint:lll // single unbreakable struct-tag string
+	RecordsDir  string `targ:"flag,name=records,desc=directory of the records of what automatic memory did (default $XDG_DATA_HOME/engram/auto)"`                                                         //nolint:lll // single unbreakable struct-tag string
 }
 
 // AutoMomentDeps holds injected dependencies for RunAutoMoment.
@@ -21,6 +24,10 @@ type AutoMomentDeps struct {
 	Stdin io.Reader
 	// ReadRecord reads the record of a session in the session-log directory.
 	ReadRecord RecordRead
+	// Now is the time a record is made at.
+	Now func() time.Time
+	// WriteRecord writes one record, a file of its own, and makes its directory.
+	WriteRecord func(path string, data []byte) error
 }
 
 // RecordRead returns the record of a session, which Claude Code keeps in a directory of records, or nothing.

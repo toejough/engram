@@ -15,6 +15,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/toejough/engram/internal/cli"
+	"github.com/toejough/engram/internal/debuglog"
 )
 
 func Test793d4g1a_RunAutoJudge_PrintsTheRequestForTheTurnTheRecordEndsWith(t *testing.T) {
@@ -36,25 +37,31 @@ func Test793d4g1a_RunAutoJudge_PrintsTheRequestForTheTurnTheRecordEndsWith(t *te
 
 	err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: sessions},
 		cli.AutoJudgeDeps{
-			Stdin:    strings.NewReader(`{"origin":"composer","session":"` + sessionID + `","answer":"Understood."}`),
+			Stdin:    turnInput(sessionID, "Understood."),
 			Query:    queryOver(newQueryDeps(newInMemoryFS())),
 			ReadDir:  os.ReadDir,
 			ReadFile: os.ReadFile,
 		}, &out)
 	g.Expect(err).NotTo(HaveOccurred())
 
-	var request struct {
-		Model  string `json:"model"`
-		Effort string `json:"effort"`
-		Prompt string `json:"prompt"`
+	var step struct {
+		Request struct {
+			Model     string `json:"model"`
+			Effort    string `json:"effort"`
+			Prompt    string `json:"prompt"`
+			TimeoutMs int    `json:"timeoutMs"`
+		} `json:"request"`
+		Carry map[string]any `json:"carry"`
 	}
 
-	g.Expect(json.Unmarshal(out.Bytes(), &request)).To(Succeed(), "the output is one JSON object: %q", out.String())
-	g.Expect(request.Model).To(Equal("haiku"))
-	g.Expect(request.Effort).To(Equal("low"))
-	g.Expect(request.Prompt).To(ContainSubstring("User: How do I build the Zorblax project?\nAgent: Try make all.\n" +
+	g.Expect(json.Unmarshal(out.Bytes(), &step)).To(Succeed(), "the output is one JSON object: %q", out.String())
+	g.Expect(step.Request.Model).To(Equal("sonnet"))
+	g.Expect(step.Request.Effort).To(BeEmpty(), "the effort is the cheap tier's")
+	g.Expect(step.Request.TimeoutMs).To(Equal(30000), "the row of the lessons judgement")
+	g.Expect(step.Request.Prompt).To(ContainSubstring("User: How do I build the Zorblax project?\nAgent: Try make all.\n" +
 		"--- the turn ---\nUser: No - build with make zorblax-build.\nAgent: Understood."))
-	g.Expect(out.String()).To(HavePrefix(`{"model":`), "the mod knows a request by its first characters")
+	g.Expect(step.Carry).NotTo(BeNil(), "a carry")
+	g.Expect(out.String()).To(HavePrefix(`{"request":`), "the mod knows a request by its first characters")
 }
 
 func Test793d4g1c_RunAutoJudge_ASessionWithNoPromptInItsRecordIsJudgedNothing(t *testing.T) {
@@ -69,7 +76,7 @@ func Test793d4g1c_RunAutoJudge_ASessionWithNoPromptInItsRecordIsJudgedNothing(t 
 
 	err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: sessions},
 		cli.AutoJudgeDeps{
-			Stdin:    strings.NewReader(`{"origin":"composer","session":"` + sessionID + `","answer":"Understood."}`),
+			Stdin:    turnInput(sessionID, "Understood."),
 			Query:    queryOver(newQueryDeps(newInMemoryFS())),
 			ReadDir:  os.ReadDir,
 			ReadFile: os.ReadFile,
@@ -95,6 +102,39 @@ func Test793d4g1d_RunAutoJudge_AnInputThatIsNotAJSONObjectFailsTheCommand(t *tes
 	g.Expect(out.String()).To(BeEmpty())
 }
 
+func Test855d4g1d_Judge_AJudgementThatPrintsNothingLogsIt(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	sessions := t.TempDir()
+	record := `{"type":"user","message":{"role":"user","content":"Thanks, that settles it."}}` + "\n"
+	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
+
+	var logged, out bytes.Buffer
+
+	ctx := debuglog.WithLogger(context.Background(),
+		debuglog.New(&logged, "engram", func() time.Time { return recordedAt }))
+
+	err := cli.RunAutoJudge(ctx, cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: sessions},
+		cli.AutoJudgeDeps{
+			Stdin: strings.NewReader(`{"origin":"composer","session":"` + sessionID +
+				`","reply":"{\"learn\":false}","answer":"You are welcome."}`),
+			Query:    queryOver(newQueryDeps(newInMemoryFS())),
+			ReadDir:  os.ReadDir,
+			ReadFile: os.ReadFile,
+		}, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(out.String()).To(BeEmpty())
+
+	lines := strings.Split(strings.TrimSpace(logged.String()), "\n")
+
+	g.Expect(lines).To(HaveLen(1), "a line for the judgement")
+
+	if len(lines) == 1 {
+		g.Expect(lines[0]).To(HaveSuffix("[engram] auto.judge: session=" + sessionID + " nothing"))
+	}
+}
+
 func Test793d4g1h_RunAutoJudge_TheNearestNotesAreInTheRequest(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -111,19 +151,21 @@ func Test793d4g1h_RunAutoJudge_TheNearestNotesAreInTheRequest(t *testing.T) {
 
 	err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: vault, SessionsDir: sessions},
 		cli.AutoJudgeDeps{
-			Stdin:    strings.NewReader(`{"origin":"composer","session":"` + sessionID + `","answer":"On Sundays."}`),
+			Stdin:    turnInput(sessionID, "On Sundays."),
 			Query:    queryOver(newQueryDeps(memFS)),
 			ReadDir:  os.ReadDir,
 			ReadFile: os.ReadFile,
 		}, &out)
 	g.Expect(err).NotTo(HaveOccurred())
 
-	var request struct {
-		Prompt string `json:"prompt"`
+	var step struct {
+		Request struct {
+			Prompt string `json:"prompt"`
+		} `json:"request"`
 	}
 
-	g.Expect(json.Unmarshal(out.Bytes(), &request)).To(Succeed())
-	g.Expect(request.Prompt).To(ContainSubstring("\n<notes>\n- 1.2026-10-17.zorblax-staging-reset.md " +
+	g.Expect(json.Unmarshal(out.Bytes(), &step)).To(Succeed())
+	g.Expect(step.Request.Prompt).To(ContainSubstring("\n<notes>\n- 1.2026-10-17.zorblax-staging-reset.md " +
 		"(testing against the Zorblax staging database): " +
 		"Information learned: when in testing against the Zorblax staging database, " +
 		"the Zorblax staging database is reset every Sunday at 03:40 UTC.\n</notes>"))
@@ -145,7 +187,7 @@ func Test793d4g1i_RunAutoJudge_AFailedLookupFailsTheCommandAndPrintsNothing(t *t
 
 	err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: sessions},
 		cli.AutoJudgeDeps{
-			Stdin:    strings.NewReader(`{"origin":"composer","session":"` + sessionID + `","answer":"On Sundays."}`),
+			Stdin:    turnInput(sessionID, "On Sundays."),
 			Query:    queryOver(query),
 			ReadDir:  os.ReadDir,
 			ReadFile: os.ReadFile,
@@ -195,7 +237,7 @@ func Test793d4g1q_RunAutoJudge_ALongRecordIsJudgedInTime(t *testing.T) {
 	started := time.Now()
 	err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: sessions},
 		cli.AutoJudgeDeps{
-			Stdin:    strings.NewReader(`{"origin":"composer","session":"` + sessionID + `","answer":"Understood."}`),
+			Stdin:    turnInput(sessionID, "Understood."),
 			Query:    queryOver(newQueryDeps(newInMemoryFS())),
 			ReadDir:  os.ReadDir,
 			ReadFile: os.ReadFile,
@@ -222,7 +264,7 @@ func Test793d4g1r_RunAutoJudge_APromptTypedAheadDoesNotBeginTheTurnOfTheOneBefor
 
 	window := judged(t, record, `{"origin":"composer","session":"`+sessionID+`",`+
 		`"text":"Which port does zorblax listen on? Guess, then read zorblax.conf.",`+
-		`"answer":"I guessed 8080, but that was wrong: zorblax.conf says it listens on 7731."}`).window()
+		learnTrue+`"answer":"I guessed 8080, but that was wrong: zorblax.conf says it listens on 7731."}`).window()
 
 	g.Expect(window).To(Equal([]string{
 		"--- the turn ---",
@@ -246,7 +288,7 @@ func Test793d4g1s_RunAutoJudge_ATurnThatANotificationStartedAfterItIsNotPartOfIt
 		"Then reply with the single word started."
 
 	window := judged(t, record,
-		`{"origin":"composer","session":"`+sessionID+`","text":"`+asked+`","answer":"started"}`).window()
+		`{"origin":"composer","session":"`+sessionID+`","text":"`+asked+`",`+learnTrue+`"answer":"started"}`).window()
 
 	g.Expect(window).To(Equal([]string{
 		"--- the turn ---",
@@ -267,7 +309,7 @@ func Test793d4g1t_RunAutoJudge_ATextThatNoPromptHasBeginsTheTurnAtTheLastPrompt(
 	}, "\n") + "\n"
 
 	window := judged(t, record, `{"origin":"composer","session":"`+sessionID+`",`+
-		`"text":"/learn remember zorblax","answer":"Understood."}`).window()
+		`"text":"/learn remember zorblax",`+learnTrue+`"answer":"Understood."}`).window()
 
 	g.Expect(window).To(Equal([]string{
 		"User: How do I build the Zorblax project?",
@@ -284,7 +326,7 @@ func Test793d4g1u_RunAutoJudge_TheInstructionsAreTheSystemOfTheRequest(t *testin
 
 	record := `{"type":"user","message":{"role":"user","content":"No - build with make zorblax-build."}}` + "\n"
 
-	request := judged(t, record, `{"origin":"composer","session":"`+sessionID+`","answer":"Understood."}`)
+	request := judged(t, record, turnInputText(sessionID, "Understood."))
 
 	g.Expect(request.System).To(HavePrefix("You keep the long-term memory of an AI coding agent."))
 	g.Expect(request.System).NotTo(ContainSubstring("make zorblax-build"), "nothing of the record")
@@ -307,7 +349,7 @@ func Test793d4g1w_RunAutoJudge_ASessionWithNoRecordFailsTheCommand(t *testing.T)
 
 			err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: sessions},
 				cli.AutoJudgeDeps{
-					Stdin:    strings.NewReader(`{"origin":"composer","session":"` + session + `","answer":"Understood."}`),
+					Stdin:    turnInput(session, "Understood."),
 					Query:    queryOver(newQueryDeps(newInMemoryFS())),
 					ReadDir:  os.ReadDir,
 					ReadFile: os.ReadFile,
@@ -334,7 +376,7 @@ func Test793d4g1x_RunAutoJudge_AVaultThatDoesNotExistFailsTheCommand(t *testing.
 
 	err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: gone, SessionsDir: sessions},
 		cli.AutoJudgeDeps{
-			Stdin: strings.NewReader(`{"origin":"composer","session":"` + sessionID + `","answer":"Understood."}`),
+			Stdin: turnInput(sessionID, "Understood."),
 			Query: func(context.Context, cli.QueryArgs, io.Writer) error {
 				looked = true
 
@@ -382,9 +424,26 @@ func judged(t *testing.T, record, input string) judgedRequest {
 		}, &out)
 	g.Expect(err).NotTo(HaveOccurred())
 
-	var request judgedRequest
+	var step struct {
+		Request judgedRequest `json:"request"`
+	}
 
-	g.Expect(json.Unmarshal(out.Bytes(), &request)).To(Succeed(), "the output is one JSON object: %q", out.String())
+	g.Expect(json.Unmarshal(out.Bytes(), &step)).To(Succeed(), "the output is one JSON object: %q", out.String())
 
-	return request
+	return step.Request
+}
+
+// learnTrue is the field that carries the reply of the learn-moment judgement to the judgement of a turn: the turn is
+// a learn moment.
+const learnTrue = `"reply":"{\"learn\":true}",`
+
+// turnInput is the JSON object the memory mod hands to the judgement for a turn of a prompt of the composer that the
+// learn-moment judgement found to be a learn moment.
+func turnInput(session, answer string) *strings.Reader {
+	return strings.NewReader(turnInputText(session, answer))
+}
+
+// turnInputText is turnInput as text.
+func turnInputText(session, answer string) string {
+	return `{"origin":"composer","session":"` + session + `",` + learnTrue + `"answer":"` + answer + `"}`
 }

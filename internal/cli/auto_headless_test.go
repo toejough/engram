@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -22,26 +21,23 @@ func Test793d4m1e_RunAutoJudge_AHeadlessTurnThatIsNotJudgedIsRecordedAsSkippedWi
 	moment := time.Date(2026, time.October, 17, 20, 32, 25, 0, time.UTC)
 	records := "/data/engram/auto"
 
-	// judge gives the judgement a turn of an origin and returns what it printed, the records it wrote by the path of
-	// each, and how it ended
-	judge := func(t *testing.T, origin string, captureSDK bool, writeErr error) (string, map[string][]byte, error) {
+	// judge gives the moment a turn of an origin at a cue and returns what it printed, the records it wrote by the path
+	// of each, and how it ended
+	judge := func(t *testing.T, origin, cue string, captureSDK bool, writeErr error) (string, map[string][]byte, error) {
 		t.Helper()
 
 		written := map[string][]byte{}
 
 		var printed bytes.Buffer
 
-		err := cli.RunAutoJudge(context.Background(),
-			cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: recordOfAPrompt(t), RecordsDir: records,
-				CaptureSDK: captureSDK},
-			cli.AutoJudgeDeps{
+		err := cli.RunAutoMoment(context.Background(),
+			cli.AutoMomentArgs{SessionsDir: recordOfAPrompt(t), RecordsDir: records, CaptureSDK: captureSDK},
+			cli.AutoMomentDeps{
 				Stdin: requestOf(map[string]string{
-					"answer": "On Sundays.", "session": sessionID, "turn": "a-turn", "origin": origin,
+					"answer": "On Sundays.", "session": sessionID, "turn": "a-turn", "origin": origin, "cue": cue,
 				}),
-				Query:    queryOver(newQueryDeps(newInMemoryFS())),
-				ReadDir:  os.ReadDir,
-				ReadFile: os.ReadFile,
-				Now:      func() time.Time { return moment },
+				ReadRecord: readRecordFile,
+				Now:        func() time.Time { return moment },
 				WriteRecord: func(path string, data []byte) error {
 					written[path] = data
 
@@ -56,7 +52,7 @@ func Test793d4m1e_RunAutoJudge_AHeadlessTurnThatIsNotJudgedIsRecordedAsSkippedWi
 		t.Parallel()
 		g := NewWithT(t)
 
-		printed, written, err := judge(t, "sdk", false, nil)
+		printed, written, err := judge(t, "sdk", "turn-end", false, nil)
 
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(printed).To(BeEmpty(), "the request for the model")
@@ -82,10 +78,21 @@ func Test793d4m1e_RunAutoJudge_AHeadlessTurnThatIsNotJudgedIsRecordedAsSkippedWi
 		t.Parallel()
 		g := NewWithT(t)
 
-		printed, written, err := judge(t, "sdk", true, nil)
+		printed, written, err := judge(t, "sdk", "turn-end", true, nil)
 
 		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(printed).To(HavePrefix(`{"model":`), "the request for the model")
+		g.Expect(printed).To(HavePrefix(`{"request":`), "the request for the model")
+		g.Expect(written).To(BeEmpty(), "the records")
+	})
+
+	t.Run("the headless prompt itself, without the flag", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		printed, written, err := judge(t, "sdk", "prompt", false, nil)
+
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(printed).To(HavePrefix(`{"request":`), "the request for the model")
 		g.Expect(written).To(BeEmpty(), "the records")
 	})
 
@@ -94,7 +101,7 @@ func Test793d4m1e_RunAutoJudge_AHeadlessTurnThatIsNotJudgedIsRecordedAsSkippedWi
 		g := NewWithT(t)
 
 		for _, origin := range []string{"task-notification", "scheduled-trigger", ""} {
-			printed, written, err := judge(t, origin, false, nil)
+			printed, written, err := judge(t, origin, "turn-end", false, nil)
 
 			g.Expect(err).NotTo(HaveOccurred(), origin)
 			g.Expect(printed).To(BeEmpty(), origin)
@@ -106,7 +113,7 @@ func Test793d4m1e_RunAutoJudge_AHeadlessTurnThatIsNotJudgedIsRecordedAsSkippedWi
 		t.Parallel()
 		g := NewWithT(t)
 
-		printed, written, err := judge(t, "sdk", false, errNoWrite)
+		printed, written, err := judge(t, "sdk", "turn-end", false, errNoWrite)
 
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(printed).To(BeEmpty())
@@ -118,18 +125,18 @@ func Test793d4m1e_Targets_AHeadlessTurnThatIsNotJudgedIsRecordedUnderTheEngramDa
 	t.Parallel()
 	g := NewWithT(t)
 
-	vault, home := t.TempDir(), t.TempDir()
+	home := t.TempDir()
 	sessions := recordOfAPrompt(t)
 
 	var stdout bytes.Buffer
 
-	stderr := executeForTestWithDeps(t, []string{"engram", "auto", "judge", "--vault", vault, "--sessions", sessions},
+	stderr := executeForTestWithDeps(t, []string{"engram", "auto", "moment", "--sessions", sessions},
 		func(d *cli.Deps) {
 			d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
 			d.Getenv = func(string) string { return "" }
 			d.UserHomeDir = func() (string, error) { return home, nil }
 			d.Stdin = requestOf(map[string]string{
-				"answer": "On Sundays.", "session": sessionID, "turn": "a-turn", "origin": "sdk",
+				"answer": "On Sundays.", "session": sessionID, "turn": "a-turn", "origin": "sdk", "cue": "turn-end",
 			})
 			d.Stdout = &stdout
 		})

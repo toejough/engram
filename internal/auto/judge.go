@@ -5,6 +5,7 @@ import (
 	"context"
 	_ "embed" // the instructions of the judgement are a text file of the package
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -14,16 +15,11 @@ import (
 	sessionctx "github.com/toejough/engram/internal/context"
 )
 
-// Judgement is the request of the call of the model that judges a turn: the fields the host's model call takes
-// (793d4g). The system is the instructions, and the prompt is the window and the notes.
-type Judgement struct {
-	Model     string `json:"model"`
-	Effort    string `json:"effort"`
-	System    string `json:"system"`
-	Prompt    string `json:"prompt"`
-	MaxTokens int    `json:"maxTokens"`
-	TimeoutMs int    `json:"timeoutMs"`
-}
+// Exported variables.
+var (
+	// ErrLearnReply is the failure of a judgement given a reply that is not the learn-moment judgement's (855d4g).
+	ErrLearnReply = errors.New(`the reply of the learn-moment judgement is not {"learn": true or false}`)
+)
 
 // TurnEnd is a turn that has ended, as the memory mod hands it over: the session it was in, its final text, the text it
 // began with and the origin of the prompt it began with (793d4g).
@@ -33,6 +29,9 @@ type TurnEnd struct {
 	Answer  string `json:"answer"`
 	Text    string `json:"text"`
 	Origin  string `json:"origin"`
+	// Reply and Carry are the learn-moment judgement's reply and the carry of the moment (855d4g).
+	Reply string `json:"reply"`
+	Carry Carry  `json:"carry"`
 }
 
 // Judge returns the request for the model that judges the turn a session's record holds, and false when the record
@@ -41,10 +40,10 @@ type TurnEnd struct {
 // the next prompt and after its final text; the lines before it are the context, and the final text is the turn's last
 // line when no line of the turn holds its beginning. The notes are the ones nearest to the turn, which the lookup finds
 // for the text of the turn's prompts and the model may name as already stating a lesson.
-func Judge(ctx context.Context, record []byte, end TurnEnd, lookup Lookup) (Judgement, bool, error) {
+func Judge(ctx context.Context, record []byte, end TurnEnd, lookup Lookup) (Step, bool, error) {
 	messages, last := messagesOf(record)
 	if last < 0 {
-		return Judgement{}, false, nil
+		return Step{}, false, nil
 	}
 
 	start := startOf(messages, last, end.Text)
@@ -54,17 +53,17 @@ func Judge(ctx context.Context, record []byte, end TurnEnd, lookup Lookup) (Judg
 
 	notes, err := lookup(ctx, promptsOf(messages[start:finish]))
 	if err != nil {
-		return Judgement{}, false, fmt.Errorf("looking up the notes: %w", err)
+		return Step{}, false, fmt.Errorf("looking up the notes: %w", err)
 	}
 
 	before, turn = fit(before, withAnswer(turn, end.Answer))
 	window := slices.Concat(before, []string{divider}, turn)
 
-	return Judgement{
+	return Step{Request: ModelRequest{
 		Model: cheapTier, Effort: judgeEffort, System: instructions,
 		Prompt:    fmt.Sprintf(promptShape, strings.Join(window, "\n"), noteLines(notes)),
 		MaxTokens: judgeMaxTokens, TimeoutMs: judgeTimeoutMs,
-	}, true, nil
+	}}, true, nil
 }
 
 // unexported constants.

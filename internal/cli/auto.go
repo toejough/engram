@@ -222,7 +222,7 @@ func RunAutoJudge(ctx context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, s
 		return nil
 	}
 
-	encoded, marshalErr := json.Marshal(request)
+	encoded, marshalErr := json.Marshal(request.Request)
 	if marshalErr != nil {
 		return fmt.Errorf("auto judge: encoding the request: %w", marshalErr)
 	}
