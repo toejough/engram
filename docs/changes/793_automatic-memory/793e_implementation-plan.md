@@ -75,7 +75,7 @@ The groups, in the order of the catalog ([793b28 Depth-first order](./793b_decis
 | [793e6c Never in the way](#793e6c-never-in-the-way) | the rest of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), without the clause about its own sessions | none | Complete |
 | [793e6d The user can see what it did](#793e6d-the-user-can-see-what-it-did) | [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) | none | Complete |
 | [793e6h The fixes of the review round of the third group](#793e6h-the-fixes-of-the-review-round-of-the-third-group) | the defects the third group's one review round found in [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) and [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), and in their technical requirements | none | Complete |
-| [793e6i The fixes of the review of the whole branch](#793e6i-the-fixes-of-the-review-of-the-whole-branch) | the defects the one review round of the whole branch found in [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did), [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), their technical requirements and the documents | none | In progress: 3/7 nodes complete |
+| [793e6i The fixes of the review of the whole branch](#793e6i-the-fixes-of-the-review-of-the-whole-branch) | the defects the one review round of the whole branch found in [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did), [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), their technical requirements and the documents | none | In progress: 4/7 nodes complete |
 | [793e6f The delivery merges the parent vault](#793e6f-the-delivery-merges-the-parent-vault) | the clause of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) that the [notes](../../GLOSSARY.md#permanent-note) are those `engram query` returns, for a [vault](../../GLOSSARY.md#vault) that has a parent ([793c34 Does the delivery merge the parent vault, as `engram query` does?](./793c_open-questions.md#793c34-does-the-delivery-merge-the-parent-vault-as-engram-query-does)) | none | Blocked by: [793c34 Does the delivery merge the parent vault, as `engram query` does?](./793c_open-questions.md#793c34-does-the-delivery-merge-the-parent-vault-as-engram-query-does) |
 
 ## 793e9 Dependency graph
@@ -150,9 +150,8 @@ flowchart TD
     n793e6g7 --> n793e6i1[793e6i1 A note written by the earlier mod is marked as written automatically<br/>Complete]
     n793e6h1 --> n793e6i2[793e6i2 The warnings of the lookup go to the debug log, not to the user<br/>Complete]
     n793e6h1 --> n793e6i3[793e6i3 One line is shown for each of what was delivered, written, left out and failed<br/>Complete]
-    n793e6i3 --> n793e6i4[793e6i4 A turn with nothing to write leaves no record, and the records that were shown are removed<br/>In progress: 3/11 entries complete]
-    class n793e6i1,n793e6i2,n793e6i3 complete
-    class n793e6i4 progress
+    n793e6i3 --> n793e6i4[793e6i4 A turn with nothing to write leaves no record, and the records that were shown are removed<br/>Complete]
+    class n793e6i1,n793e6i2,n793e6i3,n793e6i4 complete
     classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
@@ -907,17 +906,17 @@ Review finding B-7 ([793b114 A turn with nothing to write leaves no record, and 
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793d4k1b (amended) | Dedicated example | an empty list makes no record and the command succeeds | | | Green-all | 75e74240 | | |
-| 793d4k1k | Dedicated example | the line of the debug log of a write that wrote a [note](../../GLOSSARY.md#permanent-note) and of one that wrote none, over an injected log | | | Green-all | 75e74240 | | |
+| 793d4k1b (amended) | Dedicated example | an empty list makes no record and the command succeeds | | | Done | 75e74240 | 59545ba3 | |
+| 793d4k1k | Dedicated example | the line of the debug log of a write that wrote a [note](../../GLOSSARY.md#permanent-note) and of one that wrote none, over an injected log | | | Done | 75e74240 | 59545ba3 | |
 | 793d4p1b (amended) | Dedicated example | a record of the kind `nothing`, as an earlier version made it, makes no line; passed when written, the code telling the kinds it knows; mutation (scratch copy): a list of kinds that holds `nothing` fails it | | | Done | n/a | 75e74240 | |
 | 793d4p1c (amended) | Dedicated example | the mark keeps a line from being shown again, with a place that cannot remove a record; passed when written, the marks being written before; mutation (scratch copy): a delivery that writes no marks fails it | | | Done | n/a | 75e74240 | |
 | 793d4p1e (amended) | Dedicated example | the marks of the records of the three lines, with a place that cannot remove a record; passed when written; mutation (scratch copy): a delivery that marks the first record of each line only fails it | | | Done | n/a | 75e74240 | |
-| 793d4p1m | Dedicated example | the records that were shown and their marks are removed, a file that is no record stays, and the next [prompt](./793a_product-spec.md#793a1a-terms) prints no line | | | Green-all | 75e74240 | | |
-| 793d4p1n | Dedicated example | a directory with nothing else in it is removed | | | Green-all | 75e74240 | | |
-| 793d4m1d (amended) | Dedicated example, product acceptance (`network`) | the writes of the [session](../../GLOSSARY.md#session) are counted in the debug log: one, that of the user's turn | | | Green-all | 75e74240 | | |
-| 793a2c1f (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the test waits for the write of the turn in the debug log and finds no record | | | Green-all | 75e74240 | | |
-| 793a2c1h (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the same for two turns | | | Green-all | 75e74240 | | |
-| 793a3c1b (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the turn leaves a record of the kind `skipped` or none | | | Green-all | 75e74240 | | |
+| 793d4p1m | Dedicated example | the records that were shown and their marks are removed, a file that is no record stays, and the next [prompt](./793a_product-spec.md#793a1a-terms) prints no line | | | Done | 75e74240 | 59545ba3 | |
+| 793d4p1n | Dedicated example | a directory with nothing else in it is removed | | | Done | 75e74240 | 59545ba3 | |
+| 793d4m1d (amended) | Dedicated example, product acceptance (`network`) | the writes of the [session](../../GLOSSARY.md#session) are counted in the debug log: one, that of the user's turn | | | Done | 75e74240 | 59545ba3 | |
+| 793a2c1f (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the test waits for the write of the turn in the debug log and finds no record | | | Done | 75e74240 | 59545ba3 | |
+| 793a2c1h (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the same for two turns | | | Done | 75e74240 | 59545ba3 | |
+| 793a3c1b (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the turn leaves a record of the kind `skipped` or none | | | Done | 75e74240 | 59545ba3 | |
 
 ### 793e6f The delivery merges the parent vault
 
