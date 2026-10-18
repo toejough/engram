@@ -233,6 +233,21 @@ func (m *machine) awaitSettled(session string, turnEnds time.Time, count int) {
 	time.Sleep(settleTime)
 }
 
+// chunksCannotBeWritten takes the right to create a file in the machine's chunk index directory away; reading it still
+// works.
+func (m *machine) chunksCannotBeWritten() {
+	m.t.Helper()
+
+	mkdirAll(m.t, m.chunks)
+
+	err := os.Chmod(m.chunks, 0o500)
+	if err != nil {
+		m.t.Fatalf("making the chunk index read-only: %v", err)
+	}
+
+	m.t.Cleanup(func() { _ = os.Chmod(m.chunks, dirPerm) })
+}
+
 // deliveryIsQuick takes away the file that keeps the delivery of deliveryTakes slow.
 func (m *machine) deliveryIsQuick() {
 	m.t.Helper()

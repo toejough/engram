@@ -196,6 +196,45 @@ func Test793a2e1d_AWriteThatFailedIsShownWithItsReason(t *testing.T) {
 	})
 }
 
+func Test793a2e1e_ASweepThatFailedIsShownWithItsReason(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var chat *conversation
+
+	step(t, "Given the user has run engram update, and a chunk index that cannot be written", func() {
+		machine.hasRunUpdate()
+		machine.chunksCannotBeWritten()
+
+		chat = machine.startSession("zorblax").converse()
+	})
+
+	var second *turn
+
+	step(t, "When the user says something in a prompt, the turn ends, and the user sends another prompt", func() {
+		chat.tell(askSomethingElse)
+
+		machine.awaitRecordOfKind(chat.session.id, chat.turnEnds, "failed")
+
+		second = chat.tell(askAnotherThing)
+	})
+
+	step(t, "Then the second prompt arrives with a line that says the sweep failed, with the reason", func() {
+		g.Expect(second.blocks()).To(HaveLen(1), "the blocks of the second prompt")
+
+		if len(second.blocks()) == 1 {
+			told := linesToldBy(second.blocks()[0])
+
+			t.Logf("the lines that tell what automatic memory did, with the second prompt: %q", told)
+
+			g.Expect(told).To(ConsistOf(And(ContainSubstring("failed: "), ContainSubstring("sweep"),
+				HaveSuffix("permission denied"))), "the lines that tell what automatic memory did, with the second prompt")
+		}
+	})
+}
+
 // unexported constants.
 const (
 	// askAnotherThing is a prompt that no note bears on, other than askSomethingElse.
