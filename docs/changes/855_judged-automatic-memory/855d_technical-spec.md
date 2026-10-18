@@ -6,28 +6,30 @@ Step 3 of [855f2 The algorithm](./855f_algorithm.md#855f2-the-algorithm), for th
 
 The product problem is [855a1 Problem Statement](855a_product-spec.md#855a1-problem-statement): [automatic memory](./855a_product-spec.md#855a3a-modified-793a1a-terms) delivers every match of a lookup on the raw text of a [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms), writes every lesson at the top of the [vault](../../GLOSSARY.md#vault), and acts only at prompts. Today ([793d1 Orientation](../793_automatic-memory/793d_technical-spec.md#793d1-orientation), [793d2a Prompt delivery flow](../793_automatic-memory/793d_technical-spec.md#793d2a-prompt-delivery-flow), [793d2b Turn capture flow](../793_automatic-memory/793d_technical-spec.md#793d2b-turn-capture-flow)) the mod runs one `engram auto deliver` for each prompt, which looks the prompt text up and prints every [note](../../GLOSSARY.md#permanent-note) that matches, and after each turn one `engram auto judge`, one request to the cheap tier, and `engram auto write`. That is insufficient: nothing asks whether a prompt is a recall moment, nothing judges whether a match applies, passages of earlier conversations are never delivered, there is one model call of one tier, every note is written at the top and ties no correction, a confirmed procedure cannot become a runbook, and nothing acts within a turn.
 
-The solution keeps the split of [793d2b Turn capture flow](../793_automatic-memory/793d_technical-spec.md#793d2b-turn-capture-flow). Every judgement is one `$.model.complete` call of the mod: its instructions in `system`, the untrusted text escaped in `prompt`, an explicit `timeoutMs`. Every mechanical step is an `engram auto <step>` command that reads one JSON object on standard input and prints a result with a known prefix, which the mod checks with the exit code. A step that needs a judgement prints one JSON object `{"request":{...},"carry":{...}}`; the mod asks the model for the request exactly as printed and gives the reply and the carry, unread, to the next step. The carry is how a step hands what it found to the next one; no file holds it. The tiers are a cheap one (`haiku`, effort `low`) for the moment judgement and a mid one (`sonnet`) for the content judgements; they are the current roster for a tier ([855b5 Two tiers of judgement](855b_decision-log.md#855b5-two-tiers-of-judgement)).
+The solution keeps the split of [793d2b Turn capture flow](../793_automatic-memory/793d_technical-spec.md#793d2b-turn-capture-flow). Every judgement is one `$.model.complete` call of the mod: its instructions in `system`, the untrusted text escaped in `prompt`, a bound: a `timeoutMs` in a capture, and in the flow of a prompt or a tool call the mod's own deadline of 2 minutes for each wait, which aborts a model call through the `signal` of `$.model.complete`. Every mechanical step is an `engram auto <step>` command that reads one JSON object on standard input and prints a result with a known prefix, which the mod checks with the exit code. A step that needs a judgement prints one JSON object `{"request":{...},"carry":{...}}`; the mod asks the model for the request exactly as printed and gives the reply and the carry, unread, to the next step. The carry is how a step hands what it found to the next one; no file holds it. The tiers are a cheap one (`haiku`, effort `low`) for the moment judgement and a mid one (`sonnet`) for the content judgements, the phrases among them; they are the current roster for a tier ([855b5 Two tiers of judgement](855b_decision-log.md#855b5-two-tiers-of-judgement), [855b26 The moment judgement gives the depth, a mid-tier call the phrases](855b_decision-log.md#855b26-the-moment-judgement-gives-the-depth-a-mid-tier-call-the-phrases)).
 
 The steps are those of the owner's table ([855b8 The starting step table](855b_decision-log.md#855b8-the-starting-step-table)) laid against the [skills](../../GLOSSARY.md#skill)' own steps:
 
 | Chain | Step (command) | Owner | What of the skill it carries |
 | --- | --- | --- | --- |
-| Recall | 1 `moment` prints the request of the moment judgement | `moment-judgement` | the rule of the recall skill's description and the cues of the recall guidance; the depth, glance (about 3 phrases) or deep (up to 10) |
-| | model, cheap tier | | depth and phrases (Step 1) |
-| | 2 `recall` runs the lookup for the phrases and prints the request of the candidate judgement | `recall-lookup` | Step 2: one unified lookup, notes and chunks |
+| Recall | 1 `moment` prints the request of the moment judgement | `moment-judgement` | the rule of the recall skill's description and the cues of the recall guidance |
+| | model, cheap tier | | the depth, none, glance or deep |
+| | 2 `phrases` prints the request of the phrases judgement | `phrase-judgement` | Step 1: the skill's ten angles, keyed to the task, about 3 phrases at glance and 10 at deep |
+| | model, mid tier | | the phrases |
+| | 3 `recall` runs the lookup for the phrases and prints the request of the candidate judgement | `recall-lookup` | Step 2: one unified lookup, notes and chunks |
 | | model, mid tier | | Step 2.5A and 2.5B: covered, near or unrelated, the newer of two that conflict; at deep Step 2.5C: the lessons the vault lacks and the revisions of near notes |
-| | 3 `deliver` activates the used notes, fetches the chosen bodies and passages, drops what the [session](../../GLOSSARY.md#session) holds and prints the block | `prompt-delivery` | Step 2.7 and the injection |
-| | 4 `write`, deep only, after the block | `lesson-writing` | Step 2.5C: amend and crystallize |
+| | 4 `deliver` activates the used notes, fetches the chosen bodies and passages, drops what the [session](../../GLOSSARY.md#session) holds and prints the block | `prompt-delivery` | Step 2.7 and the injection |
+| | 5 `write`, deep only, after the block | `lesson-writing` | Step 2.5C: amend and crystallize |
 | Learn | 1 `moment` prints the request of the learn-moment judgement | `moment-judgement` | the learn skill's description: is this turn a moment for learn |
 | | 2 `judge` prints the request of the lessons judgement | `turn-judgement` | Step 2: corrections, explicit save requests, reversals, confirmed approaches, a runbook for a procedure |
 | | 3 `place` prints the request of the placement judgement | `lesson-placement` | Step 2's disposition test and the supersedes details |
 | | 4 `write` redacts, drops what a note states, writes | `lesson-writing` | the write-memory handoff |
 
-What of the skills this channel does not carry, and why: the recall skill's printed plan (Step 0), re-entry (Step 3.5) and synthesis note (Step 4), which need the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s own plan and conclusion; the sweep before a recall or a learn (Step 0.5, Step 1), which [793d2c Conversation sweep flow](../793_automatic-memory/793d_technical-spec.md#793d2c-conversation-sweep-flow) does after every turn; the vocabulary check (Step 1.5), a maintenance step that writes no lesson; and the question-and-answer pairs ([855b15 Lessons are the three kinds that carry a note](855b_decision-log.md#855b15-lessons-are-the-three-kinds-that-carry-a-note)).
+The steps of the skills this channel does not run, and why, are those of [855b38 The skill's steps the channel does not run](855b_decision-log.md#855b38-the-skills-steps-the-channel-does-not-run); the question-and-answer pairs are not carried either ([855b15 Lessons are the three kinds that carry a note](855b_decision-log.md#855b15-lessons-are-the-three-kinds-that-carry-a-note)).
 
-Within a turn the host offers three events at which a mod can put context in front of the model ([855d1a Verified host facts](#855d1a-verified-host-facts)): before a tool runs, after a tool failed, and after a batch of tool calls resolved, before the next model request. The three cues of [855a2e Recall moments within a turn](855a_product-spec.md#855a2e-recall-moments-within-a-turn) ride them ([855b24 The three cues of a turn ride three tool events](855b_decision-log.md#855b24-the-three-cues-of-a-turn-ride-three-tool-events)). The `Stop` event does not: it runs after the agent's final reply.
+Within a turn the host offers three events at which a mod can put context in front of the model ([855d1a Verified host facts](#855d1a-verified-host-facts)): before a tool runs, after a tool failed, and after a batch of tool calls resolved, before the next model request. The three cues of [855a2e Recall moments within a turn](855a_product-spec.md#855a2e-recall-moments-within-a-turn) ride them ([855b24 The three cues of a turn ride three tool events](855b_decision-log.md#855b24-the-three-cues-of-a-turn-ride-three-tool-events)). The `Stop` event does not: it runs after the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s final reply.
 
-No wait is unbounded: each wait has a bound in a budget table, and a flow that has not answered 2 minutes after it began has stalled and steps aside ([855b14 A slow step is waited for, a stalled one is not](855b_decision-log.md#855b14-a-slow-step-is-waited-for-a-stalled-one-is-not)).
+No wait is unbounded: each wait of a prompt's or a tool call's flow has a bound of 2 minutes of its own, and a flow in which any one wait has passed it without an answer has stalled and steps aside ([855b14 A slow step is waited for, a stalled one is not](855b_decision-log.md#855b14-a-slow-step-is-waited-for-a-stalled-one-is-not), [855b27 Each wait has its own 2 minutes](855b_decision-log.md#855b27-each-wait-has-its-own-2-minutes)); the waits of a capture have rows.
 
 ### 855d1a Verified host facts
 
@@ -36,30 +38,36 @@ Read in `claude-code.d.ts` of Claude Code 2.1.301 (`/private/tmp/claude-501/bund
 | Fact | Line |
 | --- | --- |
 | `prompt.submit` takes `context` entries, "What the model reads beside the [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) and the user never sees", attached on the way down | 9473 |
-| A `classic.PreToolUse` answer carries `additionalContext`, "Extra context handed to the model with the call"; the event fires inside `tool.call` | 8155, 8145 |
-| Its input is the tool-call envelope, which has no [session](../../GLOSSARY.md#session) ID; `agentId` is present in a [subagent](../../GLOSSARY.md#subagent)'s loop only | 13293, 194 |
-| `classic.PostToolUseFailure` and `classic.PostToolBatch` answers carry `additionalContext`, "text handed to the model with the event"; their inputs carry `session_id` and `agent_id` (a subagent's only) | 1402, 1403, 1324, 854, 863 |
+| `tool.call`'s input is the tool-call envelope and `agentId`, present in a [subagent](../../GLOSSARY.md#subagent)'s loop only; it has no [session](../../GLOSSARY.md#session) ID | 13293-13304, 186-199 |
+| A `tool.call` hook answers with the tool's result and `context`, "What the model reads after the tool's result and the user never sees" | 13321-13372 |
+| The session's ID is `$.session.id()` | 7047, 7363 |
+| A `classic.PreToolUse` answer carries `additionalContext`, "Extra context handed to the model with the call"; the event fires inside `tool.call` and its input is the envelope alone, with neither `agentId` nor a session ID | 8155, 8145, 13285-13291 |
+| `classic.PostToolUseFailure` and `classic.PostToolBatch` answers carry `additionalContext`, "text handed to the model with the event"; their inputs carry `session_id` and `agent_id` (a subagent's only); a failure's input carries `is_interrupt`, and each call of a batch its `tool_use_id` | 1402, 1403, 1324, 854, 863, 8008-8013, 8021 |
 | `PostToolBatch` is "Fired once after every tool call in a batch has resolved, before the next model request"; `PostToolUse` "may run concurrently for parallel tool calls" | 8001 |
-| The context a tool call carries is "What the model reads after the tool's result and the user never sees" | 13367 |
 | `Stop` carries `additionalContext` and runs after the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s final message (`last_assistant_message`) | 1404, 12701 |
 | `turn.step` cannot add context: "a hook's own value changes what the hooks above it read, never what the engine streamed" | 14172 |
-| `$.model.complete` takes `model` (an alias), `prompt`, `system`, `maxTokens`, `effort`, `timeoutMs`; `timeoutMs` has "default none"; the result is `isAnswered` with `text`, or `reason` `api-error`, `empty-reply` or `aborted` | 6314, 6365, 6388 |
+| `$.model.complete` takes `model` (an alias), `prompt`, `system`, `maxTokens`, `effort`, `timeoutMs` ("default none") and, as an option, a `signal` that aborts the call; the result is `isAnswered` with `text`, or `reason` `api-error`, `empty-reply` or `aborted` | 6314, 6365, 6388, 6292-6308 |
 | `$.process.run(argv, { stdin, timeoutMs })` rejects when the command cannot start or is still running at the timeout: 30 seconds when absent, ten minutes at most; the result holds `exitCode`, `stdout`, `stderr` | 8163, 8179, 8190 |
 | A hook's budget is 10 seconds of its own time; "the clock stops while a `next(e)` call or any `$` call of the hook's is in flight" | 5234, 5250 |
 | A `classic.<Event>` function hook fires wherever the engine runs the classic hook, whether or not a settings hook is configured | 1266 |
 | `$.clock.after(ms, fn)` runs `fn` later | 3537, 13265 |
 | `$.ui.log(text)` appends one line the user sees and the model does not read | 2447 |
 
-Not in the type definitions, so a hypothesis measured by [855d7a Hypotheses and their measurements](#855d7a-added-hypotheses-and-their-measurements): how the [transcript](../../GLOSSARY.md#transcript) records the context a mid-[turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) event added.
+Not in the type definitions, so hypotheses measured by [855d7a Hypotheses and their measurements](#855d7a-added-hypotheses-and-their-measurements): how the [transcript](../../GLOSSARY.md#transcript) records the context a mid-[turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) event added ([855d7a1f A block delivered within a turn is held](#855d7a1-scenarios)), and that a context put at `tool.call` reaches the model only at its next request, after the tool's result ([855d7a1h A context put at a tool call arrives with its result](#855d7a1-scenarios)).
 
 ### 855d1b Terms
 
-- **Step:** an `engram auto <step>` command: `moment`, `recall`, `deliver`, `write`, `judge`, `place` or `sweep`.
-- **Request:** the object a step prints for a judgement: `model`, `effort` (cheap tier only), `system`, `prompt`, `maxTokens`, `timeoutMs`.
+- **Step:** an `engram auto <step>` command: `moment`, `phrases`, `recall`, `deliver`, `write`, `judge`, `place` or `sweep`.
+- **Request:** the object a step prints for a judgement: `model`, `effort` (cheap tier only), `system`, `prompt`, `maxTokens`, and, in a capture only, `timeoutMs`.
 - **Carry:** the object a step prints beside a request, which the mod gives back to the next step with the model's reply and reads no part of.
 - **Cue:** what raised a moment: `prompt`, `before-tool`, `failure`, `batch-done` or `turn-end`.
 - **Seen note:** a [note](../../GLOSSARY.md#permanent-note) written, delivered or looked up earlier in the same [session](../../GLOSSARY.md#session) ([855b16 Placement is the learn skill's ordered test](855b_decision-log.md#855b16-placement-is-the-learn-skills-ordered-test)).
 - **Row:** one line of a budget table: the bound of one wait, in seconds.
+- **Reply:** a reply that a step reads, a moment reply included (`{"depth":...}`, `{"learn":...}`), is a JSON value, fenced or not; one rule reads them all.
+- **Failed step:** a step that exits with other than 0 or cannot be run, or prints what is neither nothing nor a request (for `deliver`, nor a block), or a model call that gives no text or rejects, or a wait that passes its bound without an answer.
+- **Held:** the IDs of the notes and passages the mod delivered in the session within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) ([855d2c Mid-turn recall flow](#855d2c-added-mid-turn-recall-flow)).
+- **Date:** the day a candidate line carries: for a note the day it was written or last amended, for a chunk the day it was indexed ([855d4b Looking up the candidates for the phrases](#855d4b-added-looking-up-the-candidates-for-the-phrases)).
+- **Report of a failure:** when the session's ID is known, `engram auto write` with the session's ID, the turn's ID when there is one, and a `failure`, a sentence that names the step and how it failed, run from a timer (`$.clock.after`) so that no call of the host is in flight when the hook settles.
 
 ## 855d2 Recommended sequence diffs
 
@@ -75,6 +83,7 @@ sequenceDiagram
     participant Session as Claude Code session
     participant Mod as automatic-memory-mod
     participant Moment as moment-judgement
+    participant Phrases as phrase-judgement
     participant Model as the host's model call
     participant Recall as recall-lookup
     participant Engine as query-engine
@@ -89,7 +98,11 @@ sequenceDiagram
     Mod->>Moment: 793d2a, 855d4a engram auto moment, the text, the session's ID, the origin and the cue on standard input
     Moment-->>Mod: 855d4a the request of the moment judgement and its carry
     Mod->>Model: 793d2a the request, cheap tier
-    Model-->>Mod: 793d2a the depth and the phrases
+    Model-->>Mod: 793d2a the depth
+    Mod->>Phrases: 793d2a, 855d4v engram auto phrases, the reply and the carry
+    Phrases-->>Mod: 855d4v the request of the phrases judgement and its carry
+    Mod->>Model: 793d2a the request, mid tier
+    Model-->>Mod: 793d2a the phrases
     Mod->>Recall: 793d2a, 855d4b engram auto recall, the reply and the carry
     rect rgb(255, 225, 225)
         Delivery->>Engine: 792b24c1, 792b24c5, 792b24c20 the notes for the text
@@ -100,7 +113,7 @@ sequenceDiagram
     Recall-->>Mod: 855d4b the request of the candidate judgement and its carry
     Mod->>Model: 793d2a the request, mid tier
     Model-->>Mod: 793d2a the verdicts, and at deep the lessons
-    Mod->>Delivery: 793d2a, 855d4c engram auto deliver, the text, the cue, the reply and the carry
+    Mod->>Delivery: 793d2a, 855d4c engram auto deliver, the text, the cue, the held IDs, the reply and the carry
     Delivery->>Context: 793d4d the text the session holds
     Context-->>Delivery: 793d4d the text from the session's transcript
     rect rgb(235, 235, 235)
@@ -124,20 +137,17 @@ sequenceDiagram
     Session-->>User: the agent acts with the memory in its context
 ```
 
-Requirement: 793d2a For each [prompt](./855a_product-spec.md#855a3a-modified-793a1a-terms) a Claude Code [session](../../GLOSSARY.md#session) raises, the `automatic-memory-mod` MUST take the session's ID, and then run these steps in order, each as `engram auto <step>` with one JSON object on standard input that holds the session's ID and the prompt's origin (the kind Claude Code stamps on it: `composer`, `sdk`, `task-notification` and the rest). It MUST run `moment` with the prompt text and the cue `prompt`; when that exits with 0 and prints a request (output beginning `{"request":`), ask the model for the request exactly as printed, and run `recall` with the cue, the model's reply and the carry; when that exits with 0 and prints a request, ask the model for it, and run `deliver` with the prompt text, the cue, the model's reply and the carry. When `moment` or `recall` exits with 0 and prints nothing, it MUST run `deliver` with the prompt text and the cue alone, which prints the lines for the user and no block. It MUST add the standard output of `deliver` to the prompt's context as one block when it exited with 0 and the output begins `[engram memory]`, and nothing otherwise; MUST show the user each line `deliver` printed on standard error when it exited with 0, as one log line of the host each (`$.ui.log`), which the model does not read, and add none of them to the context; and MUST leave the prompt text as received. It MUST hold the prompt for nothing but this work, and wait for each step and each model call as long as it takes, up to the 2 minutes after the prompt was raised: each wait is given as its time limit what is left of the 2 minutes when it begins, and the call for the session's ID 5 seconds. When a step fails (it exits with other than 0 or cannot be run, or prints what is neither nothing nor a request, nor, for `deliver`, a block), the model does not answer (it gives no text or rejects the call), or the work has not finished 2 minutes after the prompt was raised, it MUST end what waits, let the prompt continue with nothing added, and, when the session's ID is known, run `engram auto write` with the session's ID, no [turn](./855a_product-spec.md#855a3a-modified-793a1a-terms) and a `failure`, a sentence that names the step and how it failed, from a timer (`$.clock.after`), so that the prompt is held no longer and no call of the host is in flight when the hook settles. When the output of `recall` that printed the request holds `"write":true`, which it does at deep depth, and the delivery finished, it MUST also run `engram auto write` with the session's ID, the cue, the model's reply to the candidate request and the carry, from a timer after the block is given, so that the writing holds neither the prompt nor the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms); a failure of that run is reported as the failure of a step is.
+Requirement: 793d2a For each [prompt](./855a_product-spec.md#855a3a-modified-793a1a-terms) a Claude Code [session](../../GLOSSARY.md#session) raises, the `automatic-memory-mod` MUST take the session's ID, and then run these steps in order, each as `engram auto <step>` with one JSON object on standard input that holds the session's ID, the prompt's origin, the cue `prompt` and the `held` IDs of [855d2c Mid-turn recall flow](#855d2c-added-mid-turn-recall-flow): `moment` with the prompt text; `phrases` and `recall` each with the reply to the request before it and its carry; and `deliver` with the prompt text, the last reply and its carry. When a step exits with 0 and prints a request (output beginning `{"request":`), it MUST ask the model for the request exactly as printed. When `moment`, `phrases` or `recall` exits with 0 and prints nothing, it MUST run `deliver` with the prompt text and the cue alone, which prints the lines for the user and no block. It MUST add the standard output of `deliver` to the prompt's context as one block when it exited with 0 and the output begins `[engram memory]`, and nothing otherwise; MUST show the user each line `deliver` printed on standard error when it exited with 0, as a log line of the host (`$.ui.log`), and add none of them to the context; and MUST leave the prompt text as received. It MUST hold the prompt for nothing but this work, and wait for each step and each model call as long as it takes, up to 2 minutes for each wait, the call for the session's ID 5 seconds: each step is given the time limit of 2 minutes, and a model call is aborted at 2 minutes through the `signal` of `$.model.complete`, its request holding no `timeoutMs`. When a step fails ([855d1b Terms](#855d1b-terms)) or any one wait passes 2 minutes without an answer, it MUST end what waits, let the prompt continue with nothing added and report the failure ([855d1b Terms](#855d1b-terms)). When the output of `recall` that printed the request holds `"write":true`, which it does at deep depth, it MUST also run `engram auto write` with the session's ID, the cue, the model's reply to the candidate request and the carry, from a timer after the block is given, so that the writing holds neither the prompt nor the [agent](./855a_product-spec.md#855a3a-modified-793a1a-terms); a failure of that run is reported.
 
 | Wait | Limit | Held |
 | --- | --- | --- |
 | the call for the session's ID | 5 seconds | the prompt |
-| `moment` | the time left of the 2 minutes | the prompt |
-| the model call of the moment judgement | the time left of the 2 minutes | the prompt |
-| `recall` | the time left of the 2 minutes | the prompt |
-| the model call of the candidate judgement | the time left of the 2 minutes | the prompt |
-| `deliver` | the time left of the 2 minutes | the prompt |
+| `moment`, `phrases`, `recall` and `deliver` | 2 minutes each | the prompt |
+| the model call of the moment, the phrases and the candidate judgement | 2 minutes each | the prompt |
 | the report of a failure to `write` | 15 seconds | nothing |
 | `write` at deep depth | 60 seconds | nothing |
 
-The 2 minutes are the liveness bound of [855a3c 793a2d Never in the way](855a_product-spec.md#855a3c-modified-793a2d-never-in-the-way) and not a latency target: a step that is only slow is waited for, as [855b27 A prompt's waits share the 2 minutes, a capture's waits have rows](855b_decision-log.md#855b27-a-prompts-waits-share-the-2-minutes-a-captures-waits-have-rows) says. The requests of the model calls carry the 2 minutes as their `timeoutMs`, and the mod ends a call still waiting when they pass ([855d7a Hypotheses and their measurements](#855d7a-added-hypotheses-and-their-measurements)).
+The 2 minutes are the liveness bound of [855a3c 793a2d Never in the way](855a_product-spec.md#855a3c-modified-793a2d-never-in-the-way) and not a latency target: a step that is only slow is waited for, and a chain of waits that are each only slow may take longer in all ([855b27 Each wait has its own 2 minutes](855b_decision-log.md#855b27-each-wait-has-its-own-2-minutes), [855c5 Is the 2 minutes a limit for each wait or for the whole flow?](855c_open-questions.md#855c5-is-the-2-minutes-a-limit-for-each-wait-or-for-the-whole-flow)). Whether the chains fit is measured ([855d7a Hypotheses and their measurements](#855d7a-added-hypotheses-and-their-measurements)).
 
 Owner: `automatic-memory-mod` (new; `automatic-memory-mod.md` at promotion). Supports: [793a2a1a The next session has memory after one engram update](../793_automatic-memory/793a_product-spec.md#793a2a1-uat-scenarios), [793a2b1a The notes that bear on a prompt arrive with it](../793_automatic-memory/793a_product-spec.md#793a2b1-uat-scenarios), [793a2b1b A note delivered earlier in the session is not delivered again](../793_automatic-memory/793a_product-spec.md#793a2b1-uat-scenarios), [793a2b1d A prompt that matches no note arrives with nothing](../793_automatic-memory/793a_product-spec.md#793a2b1-uat-scenarios), [793a2d1a A slow lookup does not hold a prompt for more than 8 seconds](../793_automatic-memory/793a_product-spec.md#793a2d1-uat-scenarios), [793a2d1d The prompt and the reply are as they were](../793_automatic-memory/793a_product-spec.md#793a2d1-uat-scenarios), [793a2d1e A write that fails does not break the session](../793_automatic-memory/793a_product-spec.md#793a2d1-uat-scenarios), [793a2e1a What was delivered and what was written for the previous turn is in the session by the next prompt](../793_automatic-memory/793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1b A write that finishes after the next prompt is shown by the prompt after it finishes](../793_automatic-memory/793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1c A delivery that could not be done is shown with its reason](../793_automatic-memory/793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1d A write that failed is shown with its reason](../793_automatic-memory/793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1e A sweep that failed is shown with its reason](../793_automatic-memory/793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1f A turn that is not captured is shown with the reason](../793_automatic-memory/793a_product-spec.md#793a2e1-uat-scenarios), [855a2a1a A glance leaves the vault's notes as they were](855a_product-spec.md#855a2a1-uat-scenarios), [855a2a1b A deep delivery writes the lesson the vault lacks](855a_product-spec.md#855a2a1-uat-scenarios), [855a3b1a A prompt that is not a recall moment arrives with nothing](855a_product-spec.md#855a3b1-uat-scenarios), [855a3b1b A note whose words match but that does not apply is not delivered](855a_product-spec.md#855a3b1-uat-scenarios), [855a3b1c Of two notes that conflict, only the newer is delivered](855a_product-spec.md#855a3b1-uat-scenarios), [855a3b1d The notes that arrive are the notes the recall skill draws on](855a_product-spec.md#855a3b1-uat-scenarios), [855a3b1e A passage of an earlier conversation arrives when it applies](855a_product-spec.md#855a3b1-uat-scenarios), [855a3c1a A judgement that never answers is stepped aside after 2 minutes](855a_product-spec.md#855a3c1-uat-scenarios).
 
@@ -147,9 +157,9 @@ The scenarios [793d2a1a](../793_automatic-memory/793d_technical-spec.md#793d2a1-
 
 ```gherkin
 Scenario: 793d2a1d A slow judgement is waited for
-  Given a session with the mod installed, an engram whose auto moment, auto recall and auto deliver print what delivers a block, and a model that takes 20 seconds to answer each request
+  Given a session with the mod installed, an engram whose auto moment, auto phrases, auto recall and auto deliver print what delivers a block, and a model that takes 20 seconds to answer each request
   When a prompt is sent
-  Then the session holds the prompt exactly as sent and then the block as context, after the 40 seconds, and the mod's hook did not fail
+  Then the session holds the prompt exactly as sent and then the block as context, after the 60 seconds, and the mod's hook did not fail
 
 Scenario: 793d2a1g A session that does not give its ID in time does not hold the prompt
   Given the mod, and a session that never gives its ID
@@ -157,34 +167,29 @@ Scenario: 793d2a1g A session that does not give its ID in time does not hold the
   Then the mod lets the prompt continue as it was after the 5 seconds of the row, with nothing added, and no step was run
 
 Scenario: 793d2a1j A flow the host never lets finish is stepped aside after 2 minutes
-  Given the mod, a session whose ID is known, an engram whose auto moment prints a request, and a host in which the model's call never settles, whatever time limit it is given
+  Given the mod, a session whose ID is known, an engram whose auto moment prints a request, and a host in which the model's call never settles unless its signal aborts it
   When a prompt is submitted
-  Then the prompt goes on as it was with nothing added after 2 minutes, and, when the timers run, auto write received the session's ID, no turn and a failure that names the delivery and the 2 minutes, and the user was shown no line
+  Then the signal aborted the call 2 minutes after it began, the prompt goes on as it was with nothing added, and, when the timers run, auto write received the session's ID, no turn and a failure that names the delivery and the 2 minutes, and the user was shown no line
 
 Scenario: 855d2a1a The steps run in order, each given the reply and the carry before it
-  Given the mod, a session whose ID is known, and an engram whose auto moment and auto recall print a request and a carry each and whose auto deliver prints a block, and a model that answers each request
+  Given the mod, a session whose ID is known, and an engram whose auto moment, auto phrases and auto recall print a request and a carry each and whose auto deliver prints a block, and a model that answers each request
   When a prompt is sent
-  Then auto moment received the prompt text, the session's ID, the origin and the cue prompt, the model was asked each request exactly as printed, auto recall received the cue, the first reply and the first carry, auto deliver received the prompt text, the cue, the second reply and the second carry, and the session holds the block as context
+  Then auto moment received the prompt text, the session's ID, the origin, the cue prompt and no held ID, the model was asked each request exactly as printed, with no time limit in the request, auto phrases received the first reply and the first carry, auto recall the second, auto deliver received the prompt text, the cue, the third reply and the third carry, each step was given a time limit of 2 minutes and the call for the ID 5 seconds, and the session holds the block as context
 
-Scenario: 855d2a1b A moment that prints nothing leaves the lines to the delivery
-  Given the mod, and an engram whose auto moment prints nothing and whose auto deliver prints a line on standard error and no block
+Scenario: 855d2a1b A step that prints nothing leaves the lines to the delivery
+  Given the mod, an engram whose auto deliver prints a line on standard error and no block, and, in turn, one whose auto moment prints nothing, one whose auto phrases prints nothing after a moment request, and one whose auto recall prints nothing after the two requests, and a model that answers
   When a prompt is sent
-  Then the model was never asked, auto recall was never run, auto deliver received the prompt text and the cue and no reply, the line was shown to the user, and the session holds no context beside the prompt
-
-Scenario: 855d2a1c A lookup that prints nothing leaves the lines to the delivery
-  Given the mod, an engram whose auto moment prints a request, whose auto recall prints nothing and whose auto deliver prints a line on standard error and no block, and a model that answers
-  When a prompt is sent
-  Then the model was asked once, auto deliver received no reply, the line was shown to the user, and the session holds no context beside the prompt
+  Then the model was asked once for each request printed and never for the steps after the one that printed nothing, auto deliver received the prompt text and the cue and no reply, the line was shown to the user, and the session holds no context beside the prompt
 
 Scenario: 855d2a1d Output that is not a request or a block fails the step
   Given the mod, a session whose ID is known, and, in turn, an engram whose auto moment prints text that does not begin with a request, and one whose auto deliver prints text that does not begin with [engram memory] and exits with 0
   When a prompt is submitted
   Then with the first the model was never asked, the prompt goes on with nothing added and, when the timers run, auto write received a failure that names auto moment; with the second the prompt goes on with nothing added and no failure was reported
 
-Scenario: 855d2a1e A model that does not answer is reported
-  Given the mod, a session whose ID is known, an engram whose auto moment and auto recall print requests, and, in turn, a model that gives no text, rejects the call, or is cut at its time limit, on its first call and on its second
-  When a prompt is submitted
-  Then each time the prompt goes on with nothing added, auto deliver was never run, and, when the timers run, auto write received a failure that names the model call
+Scenario: 855d2a1e A model that does not answer and a write that fails are reported
+  Given the mod, a session whose ID is known, an engram whose auto moment, auto phrases and auto recall print requests, and, in turn, a model that gives no text, rejects the call, or is aborted at 2 minutes, on its first, second and third call; and an engram whose auto recall prints a request with "write":true, whose auto deliver prints a block and whose auto write exits with 1 the first time
+  When a prompt is submitted and the timers run
+  Then with the model each time the prompt goes on with nothing added, auto deliver was never run, and auto write received a failure that names the model call; with the write the session holds the block as context and auto write was run a second time with a failure that names the write
 
 Scenario: 855d2a1f A deep delivery writes after the block, from a timer
   Given the mod, a session whose ID is known, an engram whose auto recall prints a request with "write":true and whose auto deliver prints a block, and a model that answers
@@ -195,16 +200,6 @@ Scenario: 855d2a1g A glance writes nothing
   Given the mod, an engram whose auto recall prints a request without "write":true and whose auto deliver prints a block, and a model that answers
   When a prompt is submitted and the timers run
   Then auto write was never run
-
-Scenario: 855d2a1h A write that fails after a deep delivery is reported
-  Given the mod, a session whose ID is known, an engram whose auto recall prints a request with "write":true, whose auto deliver prints a block and whose auto write exits with 1 the first time, and a model that answers
-  When a prompt is submitted and the timers run
-  Then the session holds the block as context, and auto write was run a second time with a failure that names the write
-
-Scenario: 855d2a1i Each wait is given the time left of the 2 minutes
-  Given the mod, a session whose ID is known, a clock the test drives, an engram whose auto moment takes 30 seconds and prints a request, a model that takes 50 seconds to answer it, and an engram whose auto recall prints nothing
-  When a prompt is sent
-  Then the call for the ID was given 5 seconds, auto moment 120 seconds, the model call 90 seconds, auto recall 40 seconds, and auto deliver the 2 minutes less the 80 seconds
 ```
 
 ### 855d2b Modified: 793d2b Turn capture flow
@@ -244,7 +239,7 @@ sequenceDiagram
     Writing->>Record: 793d4k what became of the reply
 ```
 
-Requirement: 793d2b For each [turn](./855a_product-spec.md#855a3a-modified-793a1a-terms) a [session](../../GLOSSARY.md#session) completes, the `automatic-memory-mod` MUST give the event's result back at once, with no call of the host in flight, and then, from a timer (`$.clock.after`), take the session's ID and run these steps in order, each as `engram auto <step>` with one JSON object on standard input. It MUST run `moment` with the session's ID, the turn's ID, the turn's final text, the text the turn began with, the origin of the [prompt](./855a_product-spec.md#855a3a-modified-793a1a-terms) it began with and the cue `turn-end`; when that exits with 0 and prints a request, ask the model for it exactly as printed, and run `judge` with the same fields, the reply and the carry; when that exits with 0 and prints a request, ask the model for it, and run `place` with the session's ID, the turn's ID, the reply and the carry; and then run `write` with the session's ID, the turn's ID, the model's reply to the lessons request, the carry of `place` and, when `place` printed a request and the model answered it, the reply to that. When `moment` or `judge` exits with 0 and prints nothing, nothing more is run; when `place` prints nothing, `write` is run without a placement. It MUST do nothing for a turn that a [subagent](../../GLOSSARY.md#subagent) ran, which the event's `agentId` says. When a step fails (it exits with other than 0 or cannot be run, or prints what is neither nothing nor a request, a request that is not a JSON object being a failure of the step that printed it), the model does not answer, or a wait overruns its row, it MUST run `engram auto write` with the session's ID, the turn's ID and a `failure`, a sentence that names the step and how it failed, in place of the replies, whole, for the writing cuts it ([793d4k Recording what automatic memory did](../793_automatic-memory/793d_technical-spec.md#793d4k-recording-what-automatic-memory-did)). It MUST bound each wait by its row so that together they take under the 2 minutes of [793a2c Lessons are written without the agent](../793_automatic-memory/793a_product-spec.md#793a2c-lessons-are-written-without-the-agent). The mod keeps the text and origin of each prompt the session raises: a turn that starts with a text takes the oldest kept prompt with that text and drops the prompts kept before it, which began no turn; a turn whose text no kept prompt has takes the origin of the newest; a turn that starts with no text has no origin.
+Requirement: 793d2b For each [turn](./855a_product-spec.md#855a3a-modified-793a1a-terms) a [session](../../GLOSSARY.md#session) completes, the `automatic-memory-mod` MUST give the event's result back at once, with no call of the host in flight, and then, from a timer (`$.clock.after`), take the session's ID and run these steps in order, each as `engram auto <step>` with one JSON object on standard input. It MUST run `moment` with the session's ID, the turn's ID, the turn's final text, the text the turn began with, the origin of the [prompt](./855a_product-spec.md#855a3a-modified-793a1a-terms) it began with and the cue `turn-end`; when that exits with 0 and prints a request, ask the model for it exactly as printed, and run `judge` with the same fields, the reply and the carry; when that exits with 0 and prints a request, ask the model for it, and run `place` with the session's ID, the turn's ID, the reply and the carry; and then run `write` with the session's ID, the turn's ID, the model's reply to the lessons request, the carry of `place` and, when `place` printed a request and the model answered it, the reply to that. When `moment` or `judge` exits with 0 and prints nothing, nothing more is run; when `place` prints nothing, `write` is run without a placement. It MUST do nothing for a turn that a [subagent](../../GLOSSARY.md#subagent) ran, which the event's `agentId` says. When a step fails (it exits with other than 0 or cannot be run, or prints what is neither nothing nor a request, or a request that is not a JSON object), the model does not answer, or a wait overruns its row, it MUST run `engram auto write` with the session's ID, the turn's ID and a `failure`, a sentence that names the step and how it failed, in place of the replies, whole, for the writing cuts it ([793d4k Recording what automatic memory did](../793_automatic-memory/793d_technical-spec.md#793d4k-recording-what-automatic-memory-did)). It MUST bound each wait by its row so that together they take under the 2 minutes of [793a2c Lessons are written without the agent](../793_automatic-memory/793a_product-spec.md#793a2c-lessons-are-written-without-the-agent). The mod keeps the text and origin of each prompt: a turn that starts with a text takes the oldest kept prompt with that text and drops those kept before it; a turn whose text no kept prompt has takes the origin of the newest; a turn that starts with no text has no origin.
 
 | Wait | Row (seconds) |
 | --- | --- |
@@ -330,45 +325,35 @@ Scenario: 855d2b1a A placement that prints nothing leaves the lessons to be writ
 sequenceDiagram
     participant Agent as the agent's turn
     participant Mod as automatic-memory-mod
-    participant Steps as moment, recall and deliver
+    participant Steps as moment, phrases, recall and deliver
     participant Model as the host's model call
     participant Writing as lesson-writing
 
-    Agent->>Mod: 855d2c classic.PreToolUse, classic.PostToolUseFailure or classic.PostToolBatch
+    Agent->>Mod: 855d2c tool.call, classic.PostToolUseFailure or classic.PostToolBatch
     Mod->>Steps: 855d2c, 793d2a the steps of the prompt delivery flow with the cue and the event
     Steps-->>Mod: 793d2a the requests, one at a time, and the block
     Mod->>Model: 793d2a the requests
     Model-->>Mod: 793d2a the replies
-    Mod-->>Agent: 855d2c the event's answer with the block as additional context
+    Mod-->>Agent: 855d2c the block as context of the tool's result, or as additional context of the event's answer
     opt the depth was deep
         Mod->>Writing: 855d2c, 855d4j engram auto write, from a timer
     end
 ```
 
-Requirement: 855d2c For each tool call the main loop is about to run (`classic.PreToolUse`, the cue `before-tool`), each tool call of it that failed (`classic.PostToolUseFailure`, the cue `failure`) and each batch of its tool calls that resolved, before the next model request (`classic.PostToolBatch`, the cue `batch-done`), the `automatic-memory-mod` MUST run the steps of [793d2a Prompt delivery flow](../793_automatic-memory/793d_technical-spec.md#793d2a-prompt-delivery-flow) for the cue, with `event` in place of the prompt text in the objects it gives them, and the text the [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) began with beside it: the event is the tool's name and input, and for a failure the error, and for a batch the name, input and response of each of its calls. It MUST take the [session](../../GLOSSARY.md#session)'s ID from the event (`session_id`) or, for `classic.PreToolUse`, whose envelope has none, from the call for it. It MUST answer the event with the result of `next(e)` and, when `deliver` exited with 0 and printed a block, the block as one more `additionalContext` entry; the user is shown the one line `deliver` printed on standard error. It MUST do nothing for an event of a [subagent](../../GLOSSARY.md#subagent)'s loop (`agentId`, `agent_id`), MUST serve the events of one session one at a time in the order they were raised, and MUST bound each wait by the same rows and the whole by the same 2 minutes, a stalled or failed step answering the event with the result of `next(e)` alone and being reported to `write` from a timer; and at deep depth it MUST run the write of [793d2a Prompt delivery flow](../793_automatic-memory/793d_technical-spec.md#793d2a-prompt-delivery-flow) from a timer after the answer.
+Requirement: 855d2c For each tool call the main loop is about to run (`tool.call`, the cue `before-tool`), each that failed (`classic.PostToolUseFailure`, the cue `failure`) and each batch of its tool calls that resolved, before the next model request (`classic.PostToolBatch`, the cue `batch-done`), the `automatic-memory-mod` MUST run the steps of [793d2a Prompt delivery flow](../793_automatic-memory/793d_technical-spec.md#793d2a-prompt-delivery-flow) for the cue, with `event` in place of the prompt text in the objects it gives them and the text the [turn](./855a_product-spec.md#855a3a-modified-793a1a-terms) began with beside it: the event is the tool's name and input, for a failure the error, and for a batch the name, input and response of each of its calls. It MUST take the [session](../../GLOSSARY.md#session)'s ID from the event (`session_id`) or, for `tool.call`, whose input has none, from `$.session.id()`. For `tool.call` it MUST run the chain, then `next(e)`, and answer with the result of `next(e)` and, when `deliver` exited with 0 and printed a block, the block as one more entry of the result's `context`; for the other two, with the result of `next(e)` and the block as one more `additionalContext` entry. The user is shown the one line `deliver` printed on standard error. It MUST do nothing for an event of a [subagent](../../GLOSSARY.md#subagent)'s loop (`agentId`, `agent_id`), for a failure that is a user's interrupt (`is_interrupt`), and for a batch whose calls were all judged already as failures (it keeps the `tool_use_id` of each failure it judged). It MUST NOT queue the chains of one session: they run at once, each bounded as [793d2a Prompt delivery flow](../793_automatic-memory/793d_technical-spec.md#793d2a-prompt-delivery-flow) bounds a prompt's, a stalled or failed step answering the event with the result of `next(e)` alone and being reported to `write` from a timer. It MUST keep for each session the set of the IDs it delivered (what runs from the dash and space of a block line to the next space), give it to `deliver` as `held`, and, as a block arrives, drop in one step each line whose ID the set holds and add the IDs of the lines left, so that a [note](../../GLOSSARY.md#permanent-note) or a passage is delivered once however many chains find it, and no block is added when no line is left. At deep depth it MUST run the write of [793d2a Prompt delivery flow](../793_automatic-memory/793d_technical-spec.md#793d2a-prompt-delivery-flow) from a timer after the answer.
 
-Owner: `automatic-memory-mod`. Supports: [855a2e1a A note arrives before the agent declares its work done](855a_product-spec.md#855a2e1-uat-scenarios), [855a2e1b A note arrives after a failure the agent cannot explain](855a_product-spec.md#855a2e1-uat-scenarios), [855a2e1c A note arrives before the agent starts building a new approach](855a_product-spec.md#855a2e1-uat-scenarios), [793a2d1e A write that fails does not break the session](../793_automatic-memory/793a_product-spec.md#793a2d1-uat-scenarios).
+Owner: `automatic-memory-mod`. Supports: [855a2e1a A note arrives before the agent declares its work done](855a_product-spec.md#855a2e1-uat-scenarios), [855a2e1b A note arrives after a failure the agent cannot explain](855a_product-spec.md#855a2e1-uat-scenarios), [855a2e1c A note arrives before the agent starts building a new approach](855a_product-spec.md#855a2f-modified-855a2e1c-a-note-arrives-before-the-agent-starts-building-a-new-approach), [793a2d1e A write that fails does not break the session](../793_automatic-memory/793a_product-spec.md#793a2d1-uat-scenarios).
 
 #### 855d2c1 Scenarios
 
 ```gherkin
-Scenario: 855d2c1a A note arrives with the call the agent is about to make
-  Given the mod, a session whose ID is known, an engram whose auto moment, auto recall and auto deliver print what delivers a block, and a model that answers
-  When a classic.PreToolUse event is raised for a Bash call of the main loop
-  Then auto moment received the cue before-tool, the tool's name and input, the text the turn began with and the session's ID, the event's answer holds the block as additional context, and the user was shown the line the delivery printed
-
-Scenario: 855d2c1b A note arrives after a failure
-  Given the same mod and engram
-  When a classic.PostToolUseFailure event is raised with an error
-  Then auto moment received the cue failure and the error, and the event's answer holds the block as additional context
-
-Scenario: 855d2c1c A note arrives after a batch resolved
-  Given the same mod and engram
-  When a classic.PostToolBatch event is raised for a batch of two calls
-  Then auto moment received the cue batch-done and the name, input and response of both calls, and the event's answer holds the block as additional context
+Scenario: 855d2c1a A note arrives with the call, after a failure and after a batch
+  Given the mod, a session whose ID is known, an engram whose auto moment, auto phrases, auto recall and auto deliver print what delivers a block, and a model that answers
+  When a tool.call event is raised for a Bash call of the main loop, then a classic.PostToolUseFailure event with an error, then a classic.PostToolBatch event for a batch of two calls
+  Then auto moment received in turn the cues before-tool, failure and batch-done, each with its event (the tool's name and input, the error, the name, input and response of both calls), the text the turn began with and the session's ID, the first answer holds the block as an entry of the result's context, the other two as additional context, and the user was shown the line the delivery printed each time
 
 Scenario: 855d2c1d The session's ID of a call about to run comes from the host
-  Given the mod, a host that gives the session's ID, and a classic.PreToolUse event that has none
+  Given the mod, a host that gives the session's ID, and a tool.call event that has none
   When the event is raised
   Then auto moment received the ID the host gave
 
@@ -382,32 +367,28 @@ Scenario: 855d2c1f A moment that is not one answers the event as it was
   When each of the three events is raised
   Then each answer is the result of next(e), with no additional context
 
-Scenario: 855d2c1g A failed step answers the event as it was and is reported
-  Given the mod, a session whose ID is known, and an engram whose auto moment exits with 1
-  When a classic.PostToolUseFailure event is raised
-  Then the answer is the result of next(e), and, when the timers run, auto write received the session's ID, no turn and a failure that names auto moment
+Scenario: 855d2c1g A failed or stalled step answers the event as it was and is reported
+  Given the mod, a session whose ID is known, and, in turn, an engram whose auto moment exits with 1, and a host in which the model's call never settles unless its signal aborts it
+  When a classic.PostToolUseFailure event is raised with each
+  Then the answer is the result of next(e), at once for the first and 2 minutes after the call began for the second, and, when the timers run, auto write received the session's ID, no turn and a failure that names auto moment and the model call
 
-Scenario: 855d2c1h Two events of a session are served one at a time
-  Given the mod, an engram whose auto moment does not answer until the test lets it, and two classic.PreToolUse events raised at once
-  When the test lets the first answer
-  Then auto moment was run for the second event only after the first event was answered
+Scenario: 855d2c1h Chains of one session run at once and a note is delivered once
+  Given the mod, an engram whose auto moment does not answer until the test lets it and whose auto deliver prints a block of one note, and two tool.call events raised at once
+  When the test lets both answer
+  Then auto moment was run for both events before either was let answer, and of the two answers one holds the block and the other holds none
 
-Scenario: 855d2c1i A deep delivery within a turn writes after the answer
-  Given the mod, an engram whose auto recall prints a request with "write":true, and a model that answers
-  When a classic.PreToolUse event is raised
-  Then the answer holds the block, and, when the timers run, auto write received the session's ID, the cue, the reply to the candidate request and the carry
-
-Scenario: 855d2c1j An event that is not answered in 2 minutes is answered as it was
-  Given the mod, and a host in which the model's call never settles
-  When a classic.PostToolBatch event is raised
-  Then after 2 minutes the answer is the result of next(e)
+Scenario: 855d2c1k A user's interrupt and a batch of failures judged already are left alone
+  Given the mod, a session whose ID is known, and an engram whose auto moment prints a request
+  When a classic.PostToolUseFailure event with is_interrupt is raised, then one without it for a call, then a classic.PostToolBatch event whose only call is that call
+  Then no step was run for the interrupt and for the batch, and the second failure was judged once
 ```
 
 ## 855d3 Recommended component diffs
 
-- **automatic-memory-mod** (updated): the mod `engram-memory`, a hooks module in `agent-instructions/mods/engram-memory/` (informational). Owns the routing of the three chains ([855d2a 793d2a Prompt delivery flow](#855d2a-modified-793d2a-prompt-delivery-flow), [855d2b 793d2b Turn capture flow](#855d2b-modified-793d2b-turn-capture-flow), [855d2c Mid-turn recall flow](#855d2c-added-mid-turn-recall-flow)), the model calls, the budget of every wait and the report of a failure; tested in a real Claude Code [session](../../GLOSSARY.md#session) against an `engram` that prints chosen results.
+- **automatic-memory-mod** (updated): the mod `engram-memory`, a hooks module in `agent-instructions/mods/engram-memory/` (informational). Owns the routing of the three chains ([855d2a 793d2a Prompt delivery flow](#855d2a-modified-793d2a-prompt-delivery-flow), [855d2b 793d2b Turn capture flow](#855d2b-modified-793d2b-turn-capture-flow), [855d2c Mid-turn recall flow](#855d2c-added-mid-turn-recall-flow)), the model calls, the bound of every wait, the set of delivered IDs and the report of a failure; tested in a real Claude Code [session](../../GLOSSARY.md#session) against an `engram` that prints chosen results.
 - **moment-judgement** (added): the command `engram auto moment` (`internal/cli/auto.go`, `internal/auto`, informational). [Turns](../793_automatic-memory/793a_product-spec.md#793a1a-terms) a cue into the request of the cheap-tier judgement of whether it is a recall moment and at what depth, or a learn moment ([855d4a Judging the moment](#855d4a-added-judging-the-moment)); tested through standard input and output over [transcripts](../../GLOSSARY.md#transcript) of a session.
-- **recall-lookup** (added): the command `engram auto recall`. Turns the depth and phrases of the moment judgement into the candidate [notes](../../GLOSSARY.md#permanent-note) and passages and the request of the mid-tier judgement of them ([855d4b Looking up the candidates for the phrases](#855d4b-added-looking-up-the-candidates-for-the-phrases)); tested through standard input and output over an injected lookup and chunk reader.
+- **phrase-judgement** (added): the command `engram auto phrases` ([855d4v Phrasing the lookup](#855d4v-added-phrasing-the-lookup)). Turns the depth of the moment judgement into the request of the mid-tier judgement of the situation phrases; tested through standard input and output.
+- **recall-lookup** (added): the command `engram auto recall`. Turns the phrases of the phrases judgement into the candidate [notes](../../GLOSSARY.md#permanent-note) and passages and the request of the mid-tier judgement of them ([855d4b Looking up the candidates for the phrases](#855d4b-added-looking-up-the-candidates-for-the-phrases)); tested through standard input and output over an injected lookup and chunk reader.
 - **prompt-delivery** (updated): the command `engram auto deliver` ([855d4c 793d4a Delivering the notes that bear on a prompt](#855d4c-modified-793d4a-delivering-the-notes-that-bear-on-a-prompt), [855d4d 793d4c Framing the notes of a block as data](#855d4d-modified-793d4c-framing-the-notes-of-a-block-as-data), [855d4p 793d4p Telling what automatic memory did](#855d4p-modified-793d4p-telling-what-automatic-memory-did)). Turns the candidate judgement into the block of notes and passages and the lines for the user, and activates what it delivers; no longer looks anything up.
 - **session-context** (updated): what a session's [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) holds of the [vault](../../GLOSSARY.md#vault) ([855d4e 793d4d Telling what a session holds](#855d4e-modified-793d4d-telling-what-a-session-holds)), now also passages and the notes the agent wrote.
 - **turn-judgement** (updated): the command `engram auto judge` ([855d4g 793d4g Judging a turn](#855d4g-modified-793d4g-judging-a-turn)). Turns a learn moment into the request of the mid-tier judgement of the lessons of four kinds.
@@ -417,15 +398,15 @@ Scenario: 855d2c1j An event that is not answered in 2 minutes is answered as it 
 - **chunk-index-store**, **learn path**, **query-engine**, **note-amendment** (retained): [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand), [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand) with its position, target and `--supersedes` flags, the lookup of [792b24c5 The matched set](../../specs/technical/query-engine.md#792b24c5-the-matched-set) for several phrases, and `engram amend` and `engram activate` ([note-amendment](../../specs/technical/note-amendment.md)).
 - **command-line-surface** (updated): first-use gating for the group `auto` ([855d4f 792b2c3 First-use gating](#855d4f-modified-792b2c3-first-use-gating)).
 - **harness-deploy-sync** (retained): deploys the changed files of the mod as it deployed them ([793d4b Deploying the mods of the source](../793_automatic-memory/793d_technical-spec.md#793d4b-deploying-the-mods-of-the-source)).
-- **Claude Code's mod runtime** (external boundary, updated): in addition to [793d3 Recommended component diffs](../793_automatic-memory/793d_technical-spec.md#793d3-recommended-component-diffs), runs `classic.PreToolUse`, `classic.PostToolUseFailure` and `classic.PostToolBatch` functions and carries the `additionalContext` they return to the model ([855d1a Verified host facts](#855d1a-verified-host-facts)). Relied on, not tested here.
+- **Claude Code's mod runtime** (external boundary, updated): in addition to [793d3 Recommended component diffs](../793_automatic-memory/793d_technical-spec.md#793d3-recommended-component-diffs), runs `tool.call`, `classic.PostToolUseFailure` and `classic.PostToolBatch` functions and carries the result's `context` and the `additionalContext` they return to the model ([855d1a Verified host facts](#855d1a-verified-host-facts)). Relied on, not tested here.
 
 ## 855d4 Recommended component-behavior diffs
 
 ### 855d4a Added: Judging the moment
 
-Requirement: 855d4a The `moment-judgement` MUST read one JSON object from standard input: the `session`'s ID, the `cue` (`prompt`, `before-tool`, `failure`, `batch-done` or `turn-end`), the `origin` of the [prompt](./855a_product-spec.md#855a3a-modified-793a1a-terms), the `text` the [turn](./855a_product-spec.md#855a3a-modified-793a1a-terms) began with, and the cue's own: the `event` (the tool's name and input, the error, or the calls with their responses) for a tool cue, the turn's ID and final `answer` for `turn-end`. It MUST print nothing and succeed, and look nothing up, when the origin is not one the user sends or is the headless host's own and its capture is not switched on ([793d4m Telling the prompts the user sends](../793_automatic-memory/793d_technical-spec.md#793d4m-telling-the-prompts-the-user-sends) as [855d4m 793d4m Telling the prompts the user sends](#855d4m-modified-793d4m-telling-the-prompts-the-user-sends) states it). Otherwise it MUST print one object `{"request":{...},"carry":{...}}`. The request has `model` of the cheap tier, `effort` `low`, `system`, `prompt`, `maxTokens` and `timeoutMs`, the last the 2 minutes of the flow for a recall cue ([855d2a 793d2a Prompt delivery flow](#855d2a-modified-793d2a-prompt-delivery-flow)) and the row of the model call of the capture for `turn-end` ([855d2b 793d2b Turn capture flow](#855d2b-modified-793d2b-turn-capture-flow)). The `system` MUST hold the instructions and nothing of the [session](../../GLOSSARY.md#session): for a recall cue, the rule of the [recall skill](../../GLOSSARY.md#recall-skill)'s description and the cues of the recall guidance, the choice of depth (none when the moment is not one, glance to read, deep when the decision is weighty or irreversible) and the reply shape `{"depth":...,"phrases":[...]}`, with at most 3 short phrases at glance and 10 at deep, each keyed to the task; for `turn-end`, the description of the [learn skill](../../GLOSSARY.md#learn-skill) and the reply shape `{"learn":true}` or `{"learn":false}`. The `prompt` MUST hold, between `<window>` and `</window>`, the conversation lines and the line of the cue, built as the window of [793d4g Judging a turn](../793_automatic-memory/793d_technical-spec.md#793d4g-judging-a-turn) is built (one line to a message, redacted ([855d4k 793d4j Redacting credentials](#855d4k-modified-793d4j-redacting-credentials)), cut to 1,200 characters, the context its last 6 lines, the whole cut to 8,000, `<` written `&lt;`), the cue's line being the prompt text, `Agent used <tool>` with its input, `Agent used <tool> failed:` with the error, or `Agent used <tool> returned:` with each response, and none of the instructions. A session with no [transcript](../../GLOSSARY.md#transcript) has no conversation lines and is not an error. The carry holds the cue and the window. It MUST fail, printing nothing and naming the cause, when the input is not a JSON object.
+Requirement: 855d4a The `moment-judgement` MUST read one JSON object from standard input: the `session`'s ID, the `cue` (`prompt`, `before-tool`, `failure`, `batch-done` or `turn-end`), the `origin` of the [prompt](./855a_product-spec.md#855a3a-modified-793a1a-terms), the `text` the [turn](./855a_product-spec.md#855a3a-modified-793a1a-terms) began with, and the cue's own: the `event` (the tool's name and input, the error, or the calls with their responses) for a tool cue, the turn's ID and final `answer` for `turn-end`. It MUST print nothing and succeed, and look nothing up, when the origin is not one the user sends or is the headless host's own and its capture is not switched on ([793d4m Telling the prompts the user sends](../793_automatic-memory/793d_technical-spec.md#793d4m-telling-the-prompts-the-user-sends) as [855d4m 793d4m Telling the prompts the user sends](#855d4m-modified-793d4m-telling-the-prompts-the-user-sends) states it). Otherwise it MUST print one object `{"request":{...},"carry":{...}}`. The request has `model` of the cheap tier, `effort` `low`, `system`, `prompt` and `maxTokens`, and, for `turn-end` only, the `timeoutMs` of the row of the model call of the capture ([855d2b 793d2b Turn capture flow](#855d2b-modified-793d2b-turn-capture-flow); a recall cue has none, [855d2a 793d2a Prompt delivery flow](#855d2a-modified-793d2a-prompt-delivery-flow)). The `system` MUST hold the instructions and nothing of the [session](../../GLOSSARY.md#session): for a recall cue, the rule of the [recall skill](../../GLOSSARY.md#recall-skill)'s description and the cues of the recall guidance, the choice of depth (none when the moment is not one, glance to read, deep when the decision is weighty or irreversible) and the reply shape `{"depth":...}`, with no phrase; for `turn-end`, the description of the [learn skill](../../GLOSSARY.md#learn-skill) and the reply shape `{"learn":true}` or `{"learn":false}`. The `prompt` MUST hold, between `<window>` and `</window>`, the conversation lines and the line of the cue, built as the window of [793d4g Judging a turn](../793_automatic-memory/793d_technical-spec.md#793d4g-judging-a-turn) is built (redacted, [855d4k 793d4j Redacting credentials](#855d4k-modified-793d4j-redacting-credentials); `<` written `&lt;`), the cue's line being the prompt text, `Agent used <tool>` with its input, `Agent used <tool> failed:` with the error, or `Agent used <tool> returned:` with each response, and none of the instructions. A session with no [transcript](../../GLOSSARY.md#transcript) has no conversation lines and is not an error. The carry holds the cue and the window. It MUST fail, printing nothing and naming the cause, when the input is not a JSON object.
 
-Owner: `moment-judgement` (new; `moment-judgement.md` at promotion). Supports: [855a3b1a A prompt that is not a recall moment arrives with nothing](855a_product-spec.md#855a3b1-uat-scenarios), [855a3b1b A note whose words match but that does not apply is not delivered](855a_product-spec.md#855a3b1-uat-scenarios), [855a2e1a A note arrives before the agent declares its work done](855a_product-spec.md#855a2e1-uat-scenarios), [855a2e1b A note arrives after a failure the agent cannot explain](855a_product-spec.md#855a2e1-uat-scenarios), [855a2e1c A note arrives before the agent starts building a new approach](855a_product-spec.md#855a2e1-uat-scenarios), [855a2b1a A note states the rule and not the story](855a_product-spec.md#855a2b1-uat-scenarios), [793a2c1f Guesses, plans and chatter produce no note](../793_automatic-memory/793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1h A thanks that names no approach produces no note](../793_automatic-memory/793a_product-spec.md#793a2c1-uat-scenarios).
+Owner: `moment-judgement` (new; `moment-judgement.md` at promotion). Supports: [855a3b1a A prompt that is not a recall moment arrives with nothing](855a_product-spec.md#855a3b1-uat-scenarios), [855a3b1b A note whose words match but that does not apply is not delivered](855a_product-spec.md#855a3b1-uat-scenarios), [855a2e1a A note arrives before the agent declares its work done](855a_product-spec.md#855a2e1-uat-scenarios), [855a2e1b A note arrives after a failure the agent cannot explain](855a_product-spec.md#855a2e1-uat-scenarios), [855a2e1c A note arrives before the agent starts building a new approach](855a_product-spec.md#855a2f-modified-855a2e1c-a-note-arrives-before-the-agent-starts-building-a-new-approach), [855a2b1a A note states the rule and not the story](855a_product-spec.md#855a2b1-uat-scenarios), [793a2c1f Guesses, plans and chatter produce no note](../793_automatic-memory/793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1h A thanks that names no approach produces no note](../793_automatic-memory/793a_product-spec.md#793a2c1-uat-scenarios).
 
 #### 855d4a1 Scenarios
 
@@ -433,7 +414,7 @@ Owner: `moment-judgement` (new; `moment-judgement.md` at promotion). Supports: [
 Scenario: 855d4a1a A prompt becomes a request for the cheap tier
   Given the transcript of a session with an earlier turn
   When the moment is asked for a prompt, with the cue prompt
-  Then it prints a request for the model haiku at effort low whose time limit is 2 minutes, whose system holds the rule of the recall skill, the three depths and the reply shape, and whose prompt holds the earlier lines, the prompt's line, and none of the instructions, and a carry that holds the cue and the window
+  Then it prints a request for the model haiku at effort low with no time limit, whose system holds the rule of the recall skill, the three depths and the reply shape with no phrase, and whose prompt holds the earlier lines, the prompt's line, and none of the instructions, and a carry that holds the cue and the window
 
 Scenario: 855d4a1b A turn that ended becomes a learn-moment request
   Given the transcript of a session whose turn ended
@@ -468,7 +449,7 @@ Scenario: 855d4a1g An input that is not a JSON object fails the command
 
 ### 855d4b Added: Looking up the candidates for the phrases
 
-Requirement: 855d4b The `recall-lookup` MUST read one JSON object from standard input: the `session`'s ID, the `cue`, the `reply` of the moment judgement and its `carry`. The reply is a JSON object, fenced or not, with a `depth` of `none`, `glance` or `deep` and the `phrases`; a reply that is not one, a depth that is none of the three, or a depth other than `none` with no phrase MUST fail the command, printing nothing and naming the judgement. A depth of `none` MUST print nothing, succeed and look nothing up. Otherwise it MUST run the lookup of [792b24c5 The matched set](../../specs/technical/query-engine.md#792b24c5-the-matched-set) once, for the [vault](../../GLOSSARY.md#vault), with the first 3 phrases at glance and the first 10 at deep, each as a phrase of its own and, for the cue `prompt`, the [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) text as the message; and MUST keep the [notes](../../GLOSSARY.md#permanent-note) and the chunks the matched set holds, not the notes picked by the explore half alone ([792b24c16 Delivering the explore half](../../specs/technical/query-engine.md#792b24c16-delivering-the-explore-half)) and not the newest chunks ([792b24c19 The newest chunks](../../specs/technical/query-engine.md#792b24c19-the-newest-chunks)), and not the chunks of the [session](../../GLOSSARY.md#session)'s own [transcript](../../GLOSSARY.md#transcript). When none remain it MUST print nothing and succeed. Otherwise it MUST read the text of each chunk it kept as [`engram show-chunk`](../../GLOSSARY.md#engram-show-chunk-subcommand) does, and print one object `{"request":{...},"carry":{...}}`. The request has `model` of the mid tier, `system`, `prompt`, `maxTokens` and `timeoutMs` of the 2 minutes of the flow ([855d2a 793d2a Prompt delivery flow](#855d2a-modified-793d2a-prompt-delivery-flow)). The `system` MUST hold the instructions and nothing of the session: for each candidate give a `verdict` of `covered` (a note that states what applies to the moment), `near` (a note that addresses the same situation and omits a substantive claim), `evidence` (a passage that applies) or `unrelated`, name as `newer` the candidate that reverses a candidate because it is newer, and the reply shape; and, at deep depth, also the `lessons` the evidence shows that no candidate states, in the shape of [855d4i 793d4h Writing the lessons of a reply](#855d4i-modified-793d4h-writing-the-lessons-of-a-reply), and for a near note the `fields` to revise. The `prompt` MUST hold the window of the carry between `<window>` and `</window>` and the candidates between `<candidates>` and `</candidates>`, one line each, `- <file name or chunk ID> (<situation, or passage>): <body or text>` written as one line, redacted ([855d4k 793d4j Redacting credentials](#855d4k-modified-793d4j-redacting-credentials)), cut to 400 characters and with `<` written `&lt;`. The carry holds the cue, the depth, the window and, for each candidate, its ID, kind, situation, full text and whether it came from the parent vault or is pending; its output holds `"write":true` at deep depth. It MUST print nothing and fail, naming the cause, when the lookup fails, the cause holding no text of the prompt ([793b107 A delivery that could not be done is reported without the prompt's text](../793_automatic-memory/793b_decision-log.md#793b107-a-delivery-that-could-not-be-done-is-reported-without-the-prompts-text)).
+Requirement: 855d4b The `recall-lookup` MUST read one JSON object from standard input: the `session`'s ID, the `cue`, the `reply` of the phrases judgement and its `carry`. The reply is a JSON object with `phrases`, a list of short strings; a reply that is not one, or holds no phrase, MUST fail the command, printing nothing and naming the judgement. It MUST run the lookup of [792b24c5 The matched set](../../specs/technical/query-engine.md#792b24c5-the-matched-set) once, for the [vault](../../GLOSSARY.md#vault), with the first 3 phrases at glance and the first 10 at deep, each as a phrase of its own and with no message ([855b39 The raw prompt is not the lookup's message](855b_decision-log.md#855b39-the-raw-prompt-is-not-the-lookups-message)), and MUST keep the [notes](../../GLOSSARY.md#permanent-note) and the chunks the matched set holds, not the notes picked by the explore half alone ([792b24c16 Delivering the explore half](../../specs/technical/query-engine.md#792b24c16-delivering-the-explore-half)) and not the newest chunks ([792b24c19 The newest chunks](../../specs/technical/query-engine.md#792b24c19-the-newest-chunks)), and not the chunks of the [session](../../GLOSSARY.md#session)'s own [transcript](../../GLOSSARY.md#transcript). When none remain it MUST print nothing and succeed. Otherwise it MUST read the text of each chunk it kept as [`engram show-chunk`](../../GLOSSARY.md#engram-show-chunk-subcommand) does, and print one object `{"request":{...},"carry":{...}}`. The request has `model` of the mid tier, `system`, `prompt` and `maxTokens`, and no `timeoutMs` ([855d2a 793d2a Prompt delivery flow](#855d2a-modified-793d2a-prompt-delivery-flow)). The `system` MUST hold the instructions and nothing of the session: for each candidate a `verdict` ([855d8b The candidates of the lookup](#855d8b-the-candidates-of-the-lookup)); as `newer` the candidate that reverses another because its date is later and it explicitly reverses it; and the reply shape; and, at deep depth, also the `lessons` the evidence shows that no candidate states, in the shape of [855d4i 793d4h Writing the lessons of a reply](#855d4i-modified-793d4h-writing-the-lessons-of-a-reply), and for a near note the `fields` to revise. The `prompt` MUST hold the window of the carry between `<window>` and `</window>` and the candidates between `<candidates>` and `</candidates>`, one line each, redacted ([855d4k 793d4j Redacting credentials](#855d4k-modified-793d4j-redacting-credentials)) and with `<` written `&lt;`, in the format and within the budget of [855d8b The candidates of the lookup](#855d8b-the-candidates-of-the-lookup). The carry holds the cue, the depth, the window and the candidates in full; its output holds `"write":true` at deep depth. It MUST print nothing and fail, naming the cause, when the lookup fails, the cause holding no text of the [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) ([793b107 A delivery that could not be done is reported without the prompt's text](../793_automatic-memory/793b_decision-log.md#793b107-a-delivery-that-could-not-be-done-is-reported-without-the-prompts-text)), and MUST write a warning of the lookup to the debug log and not to standard error.
 
 Owner: `recall-lookup` (new; `recall-lookup.md` at promotion). Supports: [855a3b1a A prompt that is not a recall moment arrives with nothing](855a_product-spec.md#855a3b1-uat-scenarios), [855a3b1b A note whose words match but that does not apply is not delivered](855a_product-spec.md#855a3b1-uat-scenarios), [855a3b1c Of two notes that conflict, only the newer is delivered](855a_product-spec.md#855a3b1-uat-scenarios), [855a3b1d The notes that arrive are the notes the recall skill draws on](855a_product-spec.md#855a3b1-uat-scenarios), [855a3b1e A passage of an earlier conversation arrives when it applies](855a_product-spec.md#855a3b1-uat-scenarios), [855a2a1a A glance leaves the vault's notes as they were](855a_product-spec.md#855a2a1-uat-scenarios), [855a2a1b A deep delivery writes the lesson the vault lacks](855a_product-spec.md#855a2a1-uat-scenarios), [793a2b1d A prompt that matches no note arrives with nothing](../793_automatic-memory/793a_product-spec.md#793a2b1-uat-scenarios).
 
@@ -476,19 +457,14 @@ Owner: `recall-lookup` (new; `recall-lookup.md` at promotion). Supports: [855a3b
 
 ```gherkin
 Scenario: 855d4b1a The phrases are looked up once, as phrases of their own
-  Given a reply of depth glance with four phrases, one of depth deep with twelve, and a lookup that records its arguments
-  When the lookup is asked for each, with the cue prompt
-  Then it is run once for each, with the first 3 and the first 10 phrases, each as a phrase of its own, and the prompt text as the message
-
-Scenario: 855d4b1b A depth of none looks nothing up
-  Given a reply of depth none
-  When the lookup is asked
-  Then it prints nothing, succeeds and runs no lookup
-
-Scenario: 855d4b1c A reply that is not a moment reply fails the command
-  Given replies that are not JSON, that hold a depth that is none of the three, and that hold the depth glance and no phrase
+  Given a reply of four phrases at glance, one of twelve at deep, and a lookup that records its arguments
   When the lookup is asked for each
-  Then it prints nothing and fails each time with an error that names the judgement and holds no text of the prompt
+  Then it is run once for each, with the first 3 and the first 10 phrases, each as a phrase of its own, and with no message
+
+Scenario: 855d4b1c A reply that is not a phrases reply fails the command
+  Given replies that are not JSON, that hold no phrases and that hold an empty list, and a fenced reply of one phrase
+  When the lookup is asked for each
+  Then the fenced one is looked up, and the others print nothing and fail with an error that names the judgement and holds no text of the prompt
 
 Scenario: 855d4b1d The notes and passages that matched become candidates, the explore picks and the newest chunks do not
   Given a lookup whose payload holds a matched note, a matched chunk, a note picked by the explore half alone and a newest chunk
@@ -501,14 +477,14 @@ Scenario: 855d4b1e A chunk of the session's own transcript is not a candidate
   Then the request lists the chunk of the other only
 
 Scenario: 855d4b1f Nothing matched prints nothing
-  Given a lookup that returns no note and no chunk, and one that returns only the chunk of the session's own transcript
-  When the lookup is asked for each
-  Then it prints nothing and succeeds both times
+  Given a lookup that returns no note and no chunk
+  When the lookup is asked
+  Then it prints nothing and succeeds
 
-Scenario: 855d4b1g The request is for the mid tier and holds the verdicts, the window and the candidates
-  Given a lookup that returns two notes and a chunk, and a carry with a window
+Scenario: 855d4b1g The request is for the mid tier and holds the verdicts, the window and the dated candidates
+  Given a lookup that returns two notes and a chunk with dates, and a carry with a window
   When the lookup is asked at glance
-  Then the request is for the model sonnet whose time limit is 2 minutes, whose system holds the four verdicts, the newer and the reply shape and none of the candidates, whose prompt holds the window and a line for each candidate, and whose carry holds the three candidates in full and no "write":true
+  Then the request is for the model sonnet with no time limit, whose system holds the four verdicts, the newer as the later date that reverses and the reply shape and none of the candidates, whose prompt holds the window and a line for each candidate with its date, and whose carry holds the three candidates in full with their dates and no "write":true
 
 Scenario: 855d4b1h A deep request also asks for the lessons and the revisions
   Given the same lookup
@@ -516,9 +492,9 @@ Scenario: 855d4b1h A deep request also asks for the lessons and the revisions
   Then the system also holds the lessons and the fields, and the output holds "write":true
 
 Scenario: 855d4b1i A candidate cannot reshape the request or hold a credential
-  Given notes and chunks whose texts hold line breaks, the tag that closes the candidates, a credential of every shape and more than 400 characters
+  Given notes and chunks whose texts hold line breaks, the tag that closes the candidates, a credential of every shape, a note of more than 400 characters and a chunk of more than 1,200
   When the lookup is asked
-  Then each candidate is one line of the section, the character that opens a tag is written &lt;, no credential is in the request, and each text is cut to 400 characters
+  Then each candidate is one line of the section, the character that opens a tag is written &lt;, no credential is in the request, the note is whole and the chunk is cut to 1,200 characters
 
 Scenario: 855d4b1j A failed lookup fails the command and prints nothing
   Given a lookup that fails
@@ -529,13 +505,18 @@ Scenario: 855d4b1k A warning of the lookup is no line for the user
   Given a vault holding a note whose embedding is of another model, and a debug log
   When the lookup is asked
   Then standard error holds nothing and the debug log holds the warning of the lookup
+
+Scenario: 855d4b1l The candidates are held to a count and a budget
+  Given a lookup that returns 40 notes whose bodies hold 3,000 characters each
+  When the lookup is asked
+  Then the request lists the first 20 of the matched set whole, and the candidates hold no more than 60,000 characters of text in all
 ```
 
 ### 855d4c Modified: 793d4a Delivering the notes that bear on a prompt
 
 Target: [793d4a Delivering the notes that bear on a prompt](../793_automatic-memory/793d_technical-spec.md#793d4a-delivering-the-notes-that-bear-on-a-prompt)
 
-Requirement: 793d4a The `prompt-delivery` MUST read one JSON object from standard input: the `session`'s ID, the `origin`, the `cue`, and, when a candidate request was answered, the model's `reply` and the `carry`. It MUST print on standard output one block, or nothing when the origin is not one the user sends ([793d4m Telling the prompts the user sends](../793_automatic-memory/793d_technical-spec.md#793d4m-telling-the-prompts-the-user-sends)), when there is no reply, or when no candidate is delivered. The reply is a JSON object, fenced or not, with `candidates`, each an object with an `id` the carry holds, a `verdict` of `covered`, `near`, `evidence` or `unrelated`, and optionally the `newer` candidate that reverses it; an entry whose ID the carry does not hold is ignored, and a reply that is not such an object fails the command, printing nothing and naming the judgement. A candidate is delivered when its verdict is not `unrelated` and its `newer` is not the ID of a candidate of the carry. The block opens with a line beginning `[engram memory]` and has one line for each delivered [note](../../GLOSSARY.md#permanent-note), in the order of the carry: a dash, the file name, the situation in parentheses, a colon and the body on one line; and one line for each delivered passage: a dash, the chunk ID, `(passage)`, a colon and the text of the chunk cut to 600 characters on one line. It MUST leave out each note whose basename (file name without `.md`) and each passage whose chunk ID appears in the text that [793d4d Telling what a session holds](../793_automatic-memory/793d_technical-spec.md#793d4d-telling-what-a-session-holds) returns for the request's [session](../../GLOSSARY.md#session), and print no block and succeed when none remains. It MUST mark each note it delivers as used and pull a delivered parent note down as a pending copy, as `engram activate` does, and MUST NOT write, amend or look up anything else, or search the chunk index.
+Requirement: 793d4a The `prompt-delivery` MUST read one JSON object from standard input: the `session`'s ID, the `origin`, the `cue`, the `held` IDs ([855d2c Mid-turn recall flow](#855d2c-added-mid-turn-recall-flow)), and, when a candidate request was answered, the model's `reply` and the `carry`. It MUST print on standard output one block, or nothing when the origin is not one the user sends ([793d4m Telling the prompts the user sends](../793_automatic-memory/793d_technical-spec.md#793d4m-telling-the-prompts-the-user-sends)), when there is no reply, or when no candidate is delivered. The reply is a JSON object, fenced or not, with `candidates`, each an object with an `id` the carry holds, a `verdict` of `covered`, `near`, `evidence` or `unrelated`, and optionally the `newer` candidate that reverses it; an entry whose ID the carry does not hold is ignored, and a reply that is not such an object fails the command, printing nothing and naming the judgement. A candidate is delivered when its verdict is not `unrelated` and its `newer` is not the ID of a candidate of the carry. The block opens with a line beginning `[engram memory]` and has one line for each delivered [note](../../GLOSSARY.md#permanent-note), in the order of the carry: a dash, the file name, the situation in parentheses, a colon and the body on one line; and one line for each delivered passage: a dash, the chunk ID, `(passage)`, a colon and the text of the chunk cut to 1,200 characters on one line ([855b33 The candidate judgement reads whole notes and long passages, within a budget](855b_decision-log.md#855b33-the-candidate-judgement-reads-whole-notes-and-long-passages-within-a-budget)). It MUST leave out each note or passage whose ID is among the `held` IDs, and each note whose basename (file name without `.md`) and each passage whose chunk ID appears in the text that [793d4d Telling what a session holds](../793_automatic-memory/793d_technical-spec.md#793d4d-telling-what-a-session-holds) returns for the request's [session](../../GLOSSARY.md#session), and print no block and succeed when none remains. It MUST mark each note it delivers as used and pull a delivered parent note down as a pending copy, as `engram activate` does, and MUST NOT write, amend or look up anything else, or search the chunk index.
 
 Owner: `prompt-delivery`. Supports: [793a2a1a The next session has memory after one engram update](../793_automatic-memory/793a_product-spec.md#793a2a1-uat-scenarios), [793a2b1a The notes that bear on a prompt arrive with it](../793_automatic-memory/793a_product-spec.md#793a2b1-uat-scenarios), [793a2b1b A note delivered earlier in the session is not delivered again](../793_automatic-memory/793a_product-spec.md#793a2b1-uat-scenarios), [793a2b1d A prompt that matches no note arrives with nothing](../793_automatic-memory/793a_product-spec.md#793a2b1-uat-scenarios), [793a2e1a What was delivered and what was written for the previous turn is in the session by the next prompt](../793_automatic-memory/793a_product-spec.md#793a2e1-uat-scenarios), [855a2a1a A glance leaves the vault's notes as they were](855a_product-spec.md#855a2a1-uat-scenarios), [855a3b1b A note whose words match but that does not apply is not delivered](855a_product-spec.md#855a3b1-uat-scenarios), [855a3b1c Of two notes that conflict, only the newer is delivered](855a_product-spec.md#855a3b1-uat-scenarios), [855a3b1d The notes that arrive are the notes the recall skill draws on](855a_product-spec.md#855a3b1-uat-scenarios), [855a3b1e A passage of an earlier conversation arrives when it applies](855a_product-spec.md#855a3b1-uat-scenarios).
 
@@ -594,10 +575,15 @@ Scenario: 855d4c1f The delivery looks nothing up
   When the command is given the reply
   Then neither the lookup nor the chunk index was asked for anything
 
-Scenario: 855d4c1e A passage is cut to 600 characters
+Scenario: 855d4c1e A passage is cut to 1,200 characters
   Given a carry whose passage holds 2,000 characters
   When the command is given a reply that delivers it
-  Then its line holds the first 600 characters of the text
+  Then its line holds the first 1,200 characters of the text
+
+Scenario: 855d4c1g A note or passage the mod has delivered already is left out
+  Given a carry of a note and a passage, a reply that delivers both, and the held IDs of the note
+  When the command is given the reply
+  Then the block names the passage only, and the note was not marked as used
 ```
 
 ### 855d4q Removed: 793d4a1c A note that only the explore half picked does not bear on the prompt
@@ -668,7 +654,7 @@ Scenario: 855d4e1c A block delivered within a turn is held
 
 Target: [792b2c3 First-use gating](../../specs/technical/command-line-surface.md#792b2c3-first-use-gating), as [793d4e First-use gating](../793_automatic-memory/793d_technical-spec.md#793d4e-modified-first-use-gating) changes it.
 
-Requirement: 792b2c3 For every [vault](../../GLOSSARY.md#vault)-resolving command other than the commands of the group `auto` (`auto moment`, `auto recall`, `auto deliver`, `auto judge`, `auto place`, `auto write` and `auto sweep`), the command-line-surface MUST ask the [vault-identity-registry](../../specs/technical/vault-identity-registry.md) to ensure the vault at the resolved path before running the command, and MUST NOT run the command when that step fails. For a command of the group `auto` it MUST NOT ask: the command runs against the path as it is, and creates nothing when the path holds no vault.
+Requirement: 792b2c3 For every [vault](../../GLOSSARY.md#vault)-resolving command other than the commands of the group `auto` (`auto moment`, `auto phrases`, `auto recall`, `auto deliver`, `auto judge`, `auto place`, `auto write` and `auto sweep`), the command-line-surface MUST ask the [vault-identity-registry](../../specs/technical/vault-identity-registry.md) to ensure the vault at the resolved path before running the command, and MUST NOT run the command when that step fails. For a command of the group `auto` it MUST NOT ask: the command runs against the path as it is, and creates nothing when the path holds no vault.
 
 Owner: [command-line-surface](../../specs/technical/command-line-surface.md). Supports: [793a2a1e A vault that does not exist is not created](../793_automatic-memory/793a_product-spec.md#793a2a1-uat-scenarios), [793a2a1g A lesson is not written to a vault that does not exist](../793_automatic-memory/793a_product-spec.md#793a2a1-uat-scenarios).
 
@@ -677,19 +663,9 @@ The scenarios [793d4e1a](../793_automatic-memory/793d_technical-spec.md#793d4e1-
 #### 855d4f1 Scenarios
 
 ```gherkin
-Scenario: 855d4f1a The moment command creates no vault
-  Given no vault exists at the resolved path, and a session whose transcript holds a prompt
-  When engram auto moment is dispatched
-  Then no vault exists at the path afterwards and no creation line is printed
-
-Scenario: 855d4f1b The recall command creates no vault
-  Given no vault exists at the resolved path, and a reply of depth glance with a phrase
-  When engram auto recall is dispatched
-  Then no vault exists at the path afterwards and no creation line is printed
-
-Scenario: 855d4f1c The placement command creates no vault
-  Given no vault exists at the resolved path, and a reply that holds one lesson
-  When engram auto place is dispatched
+Scenario: 855d4f1a The moment, phrases, recall and placement commands create no vault
+  Given no vault exists at the resolved path, a session whose transcript holds a prompt, a reply of depth glance, a reply of one phrase and a reply that holds one lesson
+  When engram auto moment, auto phrases, auto recall and auto place are dispatched with them
   Then no vault exists at the path afterwards and no creation line is printed
 ```
 
@@ -697,7 +673,7 @@ Scenario: 855d4f1c The placement command creates no vault
 
 Target: [793d4g Judging a turn](../793_automatic-memory/793d_technical-spec.md#793d4g-judging-a-turn)
 
-Requirement: 793d4g The `turn-judgement` MUST read one JSON object from standard input (the `session`'s ID, the final `answer`, the `text` the [turn](./855a_product-spec.md#855a3a-modified-793a1a-terms) began with, the `origin` of that [prompt](./855a_product-spec.md#855a3a-modified-793a1a-terms), the `reply` of the learn-moment judgement and its `carry`), print nothing and succeed when the reply says the turn is not a learn moment (`{"learn":false}`) and fail, naming the judgement, when the reply is not `{"learn":true}` or `{"learn":false}`. Otherwise it MUST find the [session](../../GLOSSARY.md#session)'s [transcript](../../GLOSSARY.md#transcript) as [793d4d Telling what a session holds](../793_automatic-memory/793d_technical-spec.md#793d4d-telling-what-a-session-holds) does in the directory of [793d4f Finding the transcripts of sessions](../793_automatic-memory/793d_technical-spec.md#793d4f-finding-the-transcripts-of-sessions), and print the request for the model as one object `{"request":{...},"carry":{}}`: `model` of the mid tier (`sonnet`), `system`, `prompt`, `maxTokens` and `timeoutMs`, the last the row of the lessons judgement ([855d2b 793d2b Turn capture flow](#855d2b-modified-793d2b-turn-capture-flow)). The `system` MUST hold the instructions of the judgement and nothing of the transcript, and the `prompt` none of the instructions, so that the model reads them as instructions. The instructions are the [learn skill](../../GLOSSARY.md#learn-skill)'s Step 2: the four kinds of lesson (a correction by the user, an explicit request to remember, a reversal of what was presented and then overturned, and an approach confirmed by the user's praise of a specific behavior or by an observable outcome that resolved an uncertainty), a confirmed approach that is a reusable ordered multi-step procedure for a recurring task being a `runbook` (its `situation`, its `done_when` and its numbered `body`) and any other lesson a `feedback` or a `fact`; the general rule and not the story of the turn, with the exact names, commands, flags and values it depends on; no lesson for a guess, a plan, chatter or a bare thanks; and the reply shape, a JSON array of lessons, each with `kind`, `slug`, `situation` and `covered` beside the fields of its kind. The prompt holds, between `<window>` and `</window>`, the context lines, the line `--- the turn ---` and the turn's lines, and, between `<notes>` and `</notes>`, the [notes](../../GLOSSARY.md#permanent-note) nearest to the turn (what the lookup of [792b24c5 The matched set](../../specs/technical/query-engine.md#792b24c5-the-matched-set) returns for the text of the turn's prompts as its message and only phrase, each note as a line of a block, cut to 400 characters) or `(none)`.
+Requirement: 793d4g The `turn-judgement` MUST read one JSON object from standard input (the `session`'s ID, the final `answer`, the `text` the [turn](./855a_product-spec.md#855a3a-modified-793a1a-terms) began with, the `origin` of that [prompt](./855a_product-spec.md#855a3a-modified-793a1a-terms), the `reply` of the learn-moment judgement and its `carry`), read the reply ([855d1b Terms](#855d1b-terms)), print nothing and succeed when it says the turn is not a learn moment (`{"learn":false}`) and fail, naming the judgement, when it is not `{"learn":true}` or `{"learn":false}`. Otherwise it MUST find the [session](../../GLOSSARY.md#session)'s [transcript](../../GLOSSARY.md#transcript) as [793d4d Telling what a session holds](../793_automatic-memory/793d_technical-spec.md#793d4d-telling-what-a-session-holds) does in the directory of [793d4f Finding the transcripts of sessions](../793_automatic-memory/793d_technical-spec.md#793d4f-finding-the-transcripts-of-sessions), and print the request for the model as one object `{"request":{...},"carry":{}}`: `model` of the mid tier, `system`, `prompt`, `maxTokens` and `timeoutMs`, the last the row of the lessons judgement ([855d2b 793d2b Turn capture flow](#855d2b-modified-793d2b-turn-capture-flow)). The `system` MUST hold the instructions of the judgement and nothing of the transcript, and the `prompt` none of the instructions, so that the model reads them as instructions. The instructions are the [learn skill](../../GLOSSARY.md#learn-skill)'s Step 2: the four kinds of lesson (a correction by the user, an explicit request to remember, a reversal of what was presented and then overturned, and an approach confirmed by the user's praise of a specific behavior or by an observable outcome that resolved an uncertainty), a confirmed approach that is a reusable ordered multi-step procedure for a recurring task being a `runbook` (its `situation`, its `done_when` and its numbered `body`), which replaces the `fact` of an explicit request when the user also says to do it going forward, and any other lesson a `feedback` or a `fact`; the general rule and not the story of the turn, with the exact names, commands, flags and values it depends on; no lesson for a guess, a plan, chatter or a bare thanks; and the reply shape, a JSON array of lessons, each with `kind`, `slug`, `situation` and `covered` beside the fields of its kind. The prompt holds, between `<window>` and `</window>`, the context lines, the line `--- the turn ---` and the turn's lines, and, between `<notes>` and `</notes>`, the [notes](../../GLOSSARY.md#permanent-note) nearest to the turn (what the lookup of [792b24c5 The matched set](../../specs/technical/query-engine.md#792b24c5-the-matched-set) returns for the text of the turn's prompts as its message and only phrase, each note as a line of a block, cut to 400 characters) or `(none)`.
 
 A prompt is a row of the transcript that the user sent; a row the [harness](../../GLOSSARY.md#harness) wrote is none and makes no line: a row marked as meta (the body of a [skill](../../GLOSSARY.md#skill) the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) invoked), a row stamped with an origin the user does not send ([793d4m Telling the prompts the user sends](../793_automatic-memory/793d_technical-spec.md#793d4m-telling-the-prompts-the-user-sends)) and a row whose text begins as [792b15c3 Harness noise](../../specs/technical/transcript-reader.md#792b15c3-harness-noise) (a system reminder, a skill's base directory, the caveat or output of a local command, a task notification); a block of a prompt that begins so is left out, and a slash command's prompt is its arguments, none when it has none. The turn begins at the last prompt with the input `text` (else the last prompt) and ends before the next prompt and after the last line of the agent, which is the final text, added as the last line when no line of the turn holds its first 80 characters; the conversation before it is the context. A line is one message (`User: `, `Agent: ` or `Agent used ` and the tool's name; a break written ` ⏎ `), redacted ([855d4k 793d4j Redacting credentials](#855d4k-modified-793d4j-redacting-credentials)) before it is cut or joined, then cut to its first 1,200 characters; a `<` in a line of the window or of a note MUST be written `&lt;`, which the instructions say, so that no message or note can close the window or open a section; the context is its last 6 lines; the window is cut to 8,000 characters, the oldest context first and then the turn's middle, replaced by the line `--- some of the turn is left out ---`. The command MUST read the transcript once and redact only the lines of the window, so that its time does not grow with the session: 1 MB within 2 seconds.
 
@@ -720,15 +696,15 @@ Scenario: 855d4g1a A turn that is not a learn moment is judged nothing
   When the judgement is given each
   Then with the first it prints nothing and succeeds, and with the second it prints a request
 
-Scenario: 855d4g1b A reply that is not a moment reply fails the command
-  Given replies that are not JSON and that hold no learn field
+Scenario: 855d4g1b A fenced reply is read and a reply that is not a moment reply fails the command
+  Given a reply learn true in a code fence, replies that are not JSON and that hold no learn field
   When the judgement is given each
-  Then it prints nothing and fails each time with an error that names the judgement
+  Then the first prints a request, and the others print nothing and fail with an error that names the judgement
 
 Scenario: 855d4g1c The instructions name the four kinds and the runbook
   Given the transcript of a session with a prompt, and a reply that says learn
   When the judgement is given the session
-  Then the system of the request names a correction, an explicit request to remember, a reversal and a confirmed approach, says that a confirmed multi-step procedure is a runbook with its situation, done_when and numbered body, and holds none of the transcript
+  Then the system of the request names a correction, an explicit request to remember, a reversal and a confirmed approach, says that a confirmed multi-step procedure is a runbook with its situation, done_when and numbered body, that the runbook replaces the fact for a request to do it going forward, and holds none of the transcript
 ```
 
 ### 855d4h Added: Placing the lessons
@@ -750,15 +726,10 @@ Scenario: 855d4h1b A note written automatically in the session is a seen note
   When the placement is given a reply of a lesson
   Then the request lists the first note and not the second
 
-Scenario: 855d4h1c A session that has seen no note prints nothing
-  Given a vault holding a note, a session whose transcript names none, and a reply of a lesson
-  When the placement is given the reply
-  Then it prints nothing and succeeds, and looks nothing up
-
-Scenario: 855d4h1d A reply with no whole lesson prints nothing
-  Given a reply that is an empty list, and one whose only lesson lacks a field
+Scenario: 855d4h1c A session that has seen no note, and a reply with no whole lesson, print nothing
+  Given a vault holding a note, a session whose transcript names none and a reply of a lesson, and, in turn, a reply that is an empty list and one whose only lesson lacks a field
   When the placement is given each
-  Then it prints nothing and succeeds each time
+  Then it prints nothing and succeeds each time, and looks nothing up
 
 Scenario: 855d4h1e A reply that is not a list fails the command
   Given a reply that is not JSON, and an input that is not a JSON object
@@ -775,7 +746,7 @@ Scenario: 855d4h1f A seen note cannot reshape the request or hold a credential
 
 Target: [793d4h Writing the lessons of a reply](../793_automatic-memory/793d_technical-spec.md#793d4h-writing-the-lessons-of-a-reply)
 
-Requirement: 793d4h The `lesson-writing` MUST read one JSON object from standard input: the `session`'s ID, the `turn`'s ID, the model's `reply` or, when it gave none, the `failure`, and, after a capture, the `carry` of the placement and the `placement` reply. The reply is a JSON array of lessons, fenced or not; a lesson has a `kind` (`feedback` with `behavior`, `impact` and `action`; `fact` with `subject`, `predicate` and `object`; or `runbook` with `done_when` and `body`, the numbered steps), a `slug` of 1 to 64 lower-case letters, digits and dashes, and a `situation`, and may name as `covered` the file name of a [note](../../GLOSSARY.md#permanent-note) of the [vault](../../GLOSSARY.md#vault) that already states it. A lesson whose `covered` names a file of the vault MUST NOT be written but recorded as skipped with that name (a name that is not a file of the vault, or not a file name, covers nothing). Each other lesson MUST be written as a note of its kind through the learn path of [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand), with the source `written automatically (session <the session's ID>)`, and its path printed. The placement reply is a JSON array of `slug`, `position` (`continuation`, `sibling` or `top`), `target` and `supersedes` (each a note with a `type` of `updates`, `narrows` or `refutes` and a `claim`); a lesson MUST be written as a continuation or a sibling of its target only when the carry names the target as a seen note, and with a supersession only for a seen note the carry names, and every other placement or supersession is ignored: the lesson is written at the top of the vault's order, with the rest. With no placement reply every lesson is written at the top, with no supersession; a placement reply that is not a list is ignored in the same way and recorded as skipped with the reason. Every field is written as one line (its line breaks and white space become single spaces and its control and format characters are dropped), so that a field cannot make a line of its own, such as one opening with `Supersedes:`, which the vault reads as a link. A reply that is not a list, and a lesson that lacks a field or has an unknown kind, write nothing and are recorded with the reason ([793d4k Recording what automatic memory did](../793_automatic-memory/793d_technical-spec.md#793d4k-recording-what-automatic-memory-did)); a reply cut before its list ends keeps the lessons that are whole, and the cut is recorded as skipped. An object that holds a `cue` is the write of a deep delivery, which [855d4j Writing what a deep delivery writes](#855d4j-added-writing-what-a-deep-delivery-writes) states.
+Requirement: 793d4h The `lesson-writing` MUST read one JSON object from standard input: the `session`'s ID, the `turn`'s ID, the model's `reply` or, when it gave none, the `failure`, and, after a capture, the `carry` of the placement and the `placement` reply. The reply is a JSON array of lessons, fenced or not; a lesson has a `kind` (`feedback`, `fact` or `runbook`, with the fields of its kind), a `slug` of 1 to 64 lower-case letters, digits and dashes, and a `situation`, and may name as `covered` the file name of a [note](../../GLOSSARY.md#permanent-note) of the [vault](../../GLOSSARY.md#vault) that already states it. A lesson whose `covered` names a file of the vault MUST NOT be written but recorded as skipped with that name (any other name covers nothing). Each other lesson MUST be written as a note of its kind through the learn path of [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand), with the source `written automatically (session <the session's ID>)`. The placement reply is a JSON array of `slug`, `position` (`continuation`, `sibling` or `top`), `target` and `supersedes` (each a note with a `type` of `updates`, `narrows` or `refutes` and a `claim`); a lesson MUST be written as a continuation or a sibling of its target only when the carry names the target as a seen note, and with a supersession only for a seen note the carry names, and every other placement or supersession is ignored: the lesson is written at the top. With no placement reply every lesson is written at the top, with no supersession; a placement reply that is not a list is ignored in the same way and recorded as skipped with the reason. Every field is written as one line (its line breaks and white space become single spaces and its control and format characters are dropped), so that no field makes a line of its own, such as one opening with `Supersedes:`. A reply that is not a list, and a lesson that lacks a field or has an unknown kind, write nothing and are recorded with the reason ([793d4k Recording what automatic memory did](../793_automatic-memory/793d_technical-spec.md#793d4k-recording-what-automatic-memory-did)); a reply cut before its list ends keeps the lessons that are whole, and the cut is recorded as skipped. An object that holds a `cue` is the write of a deep delivery, which [855d4j Writing what a deep delivery writes](#855d4j-added-writing-what-a-deep-delivery-writes) states.
 
 Owner: `lesson-writing`. Supports: [793a2c1a A correction becomes a note](../793_automatic-memory/793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1b A request to remember becomes a note](../793_automatic-memory/793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1c An approach the user confirmed becomes a note](../793_automatic-memory/793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1d The agent's own correction becomes a note](../793_automatic-memory/793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1e An approach that succeeded with evidence becomes a note](../793_automatic-memory/793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1f Guesses, plans and chatter produce no note](../793_automatic-memory/793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1g A credential in the turn is not in the note](../793_automatic-memory/793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1h A thanks that names no approach produces no note](../793_automatic-memory/793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1i A request to remember is written when the agent says it did not save it](../793_automatic-memory/793a_product-spec.md#793a2c1-uat-scenarios), [793a3c1a A lesson an earlier note states is not written again](../793_automatic-memory/793a_product-spec.md#793a3c1-uat-scenarios), [793a3c1b A lesson the agent saved itself is not written again](../793_automatic-memory/793a_product-spec.md#793a3c1-uat-scenarios), [793a3c1c A lesson no earlier note states is written](../793_automatic-memory/793a_product-spec.md#793a3c1-uat-scenarios), [855a2b1a A note states the rule and not the story](855a_product-spec.md#855a2b1-uat-scenarios), [855a2b1b The note states the lesson the learn skill writes](855a_product-spec.md#855a2b1-uat-scenarios), [855a2b1c A confirmed procedure is written as a runbook](855a_product-spec.md#855a2b1-uat-scenarios), [855a2c1a A sub-point of a note the session holds continues it](855a_product-spec.md#855a2c1-uat-scenarios), [855a2c1b The same thought at the same level is a sibling](855a_product-spec.md#855a2c1-uat-scenarios), [855a2c1c A note the session has not seen is not a target](855a_product-spec.md#855a2c1-uat-scenarios), [855a2d1a A correcting note names the note it corrects](855a_product-spec.md#855a2d1-uat-scenarios).
 
@@ -817,18 +788,13 @@ Scenario: 855d4i1f A placement reply that is not a list is ignored and recorded
 
 ### 855d4j Added: Writing what a deep delivery writes
 
-Requirement: 855d4j The `lesson-writing` MUST, given a `cue`, the `session`'s ID, the model's `reply` to a candidate request and its `carry`, write nothing when the carry's depth is not deep. At deep depth it MUST act on the reply's `lessons` and `candidates`, each of an ID the carry holds only. For each lesson, a `fact` or a `feedback` as [855d4i 793d4h Writing the lessons of a reply](#855d4i-modified-793d4h-writing-the-lessons-of-a-reply) reads it with the chunk IDs of the carry's passages that evidence it (`chunks`) and optionally a `supersedes` of a [note](../../GLOSSARY.md#permanent-note) of the carry, it MUST write the note through the learn path at the top of the [vault](../../GLOSSARY.md#vault)'s order with the source `written automatically (session <the session's ID>)`, those chunk IDs as its chunk sources and the supersession. For each candidate note with the verdict `covered` it MUST amend the note, as [`engram amend`](../../specs/technical/note-amendment.md) does, with the chunk IDs it lists as chunk sources and no field changed; for `near`, with those and the `fields` it names that its kind has. It MUST NOT amend a note that came from the parent vault or is a pending copy. It MUST record each note written or amended as `written` with its file name and each lesson or candidate left out as `skipped` with the reason ([793d4k Recording what automatic memory did](../793_automatic-memory/793d_technical-spec.md#793d4k-recording-what-automatic-memory-did)), and the run with no [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms).
+Requirement: 855d4j The `lesson-writing` MUST, given a `cue`, the `session`'s ID, the model's `reply` to a candidate request and its `carry`, act on the reply's `lessons` and `candidates`, each of an ID the carry holds only. For each lesson, a `fact` or a `feedback` as [855d4i 793d4h Writing the lessons of a reply](#855d4i-modified-793d4h-writing-the-lessons-of-a-reply) reads it with the chunk IDs of the carry's passages that evidence it (`chunks`) and optionally a `supersedes` of a [note](../../GLOSSARY.md#permanent-note) of the carry, it MUST write the note through the learn path at the top of the [vault](../../GLOSSARY.md#vault)'s order with the source `written automatically (session <the session's ID>)`, those chunk IDs as its chunk sources and the supersession. For each candidate note with the verdict `covered` it MUST amend the note, as [`engram amend`](../../specs/technical/note-amendment.md) does, with the chunk IDs it lists as chunk sources and no field changed; for `near`, with those and the `fields` it names that its kind has. It MUST NOT amend a note that came from the parent vault or is a pending copy. It MUST record each note written or amended as `written` with its file name and each lesson or candidate left out as `skipped` with the reason ([793d4k Recording what automatic memory did](../793_automatic-memory/793d_technical-spec.md#793d4k-recording-what-automatic-memory-did)), and the run with no [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms).
 
 Owner: `lesson-writing`. Supports: [855a2a1b A deep delivery writes the lesson the vault lacks](855a_product-spec.md#855a2a1-uat-scenarios), [855a2a1a A glance leaves the vault's notes as they were](855a_product-spec.md#855a2a1-uat-scenarios).
 
 #### 855d4j1 Scenarios
 
 ```gherkin
-Scenario: 855d4j1a A glance writes nothing
-  Given a carry of depth glance, and a reply that holds a lesson, a covered note and a near note
-  When the writing is given the reply
-  Then no note is written or amended and no record is made
-
 Scenario: 855d4j1b A lesson the vault lacks is crystallized with its evidence
   Given a carry of depth deep that holds a passage, and a reply with one fact lesson that lists the passage
   When the writing is given the reply
@@ -903,7 +869,7 @@ Scenario: 793d4m1e A headless turn that is not judged is recorded as skipped wit
 
 Target: [793d4p Telling what automatic memory did](../793_automatic-memory/793d_technical-spec.md#793d4p-telling-what-automatic-memory-did)
 
-Requirement: 793d4p The `prompt-delivery` MUST print on standard error the lines that show the user what [automatic memory](./855a_product-spec.md#855a3a-modified-793a1a-terms) did, one to a line, at most four, one for each of four kinds in the order below and none for a kind with nothing to show, and nothing else. The line of what it delivered is `delivered` and then, for the [notes](../../GLOSSARY.md#permanent-note), `the note` and its file name, or `the notes` and the file names separated by commas, and for the passages, `the passage` and its chunk ID, or `the passages` and the chunk IDs separated by commas, the two parts joined by `and`, in the order of the block ([793d4a Delivering the notes that bear on a prompt](../793_automatic-memory/793d_technical-spec.md#793d4a-delivering-the-notes-that-bear-on-a-prompt)). The other three lines tell the records of the kinds `written`, `skipped` and `failed` that [793d4k Recording what automatic memory did](../793_automatic-memory/793d_technical-spec.md#793d4k-recording-what-automatic-memory-did) makes for the [session](../../GLOSSARY.md#session) of the request, read from the directory its `--records` flag names, else `auto` in the engram data directory, that it has not shown, oldest first, each line beginning with the time (`15:04:05`) of the oldest of its records: for `written`, `wrote the note` and its file name, or `wrote the notes` and the file names separated by commas; for `skipped`, `left out:` and, for each record, `the lesson` and its slug and a colon when it has a slug, then the reason, the records separated by semicolons; for `failed`, `failed:` and, for each record, `writing` and its slug and a colon when it has a slug, then the reason, separated by semicolons. It prints these lines also when it is given no reply, which is the case of a prompt that is not a recall moment. A reason is written as one line and redacted ([793d4j Redacting credentials](../793_automatic-memory/793d_technical-spec.md#793d4j-redacting-credentials)); a line is cut in its middle, so that both ends stay, when it is longer than 240 characters; every line is one line of single spaces with no control or format character. After printing the lines of the records it MUST mark each record that a line it printed tells, also one that the cut left out of the text of the line, by an empty file beside the record, named for it with the suffix `.told`, so that a line is shown once; a record with a mark makes no line, nor does a record of another session, of a kind that tells nothing, or that cannot be read, nor a directory that cannot be read, and a mark that cannot be written is the end of it. Then it MUST remove each record that has a mark, and the mark, and the directory of the session once nothing is left in it, so that the records do not pile up; what it cannot remove is the end of it. For a cue other than `prompt` it MUST print the line of what it delivered only, and read, mark and remove no record. The lines are no part of the block ([793d4c Framing the notes of a block as data](../793_automatic-memory/793d_technical-spec.md#793d4c-framing-the-notes-of-a-block-as-data)).
+Requirement: 793d4p The `prompt-delivery` MUST print on standard error the lines that show the user what [automatic memory](./855a_product-spec.md#855a3a-modified-793a1a-terms) did, one to a line, at most four, one for each of four kinds in the order below and none for a kind with nothing to show, and nothing else, in the formats of [855d8a Formats of the lines of 793d4p](#855d8a-formats-of-the-lines-of-793d4p): the line of what it delivered, the [notes](../../GLOSSARY.md#permanent-note) and the passages in the order of the block ([793d4a Delivering the notes that bear on a prompt](../793_automatic-memory/793d_technical-spec.md#793d4a-delivering-the-notes-that-bear-on-a-prompt)), and the lines of the records of the kinds `written`, `skipped` and `failed` that [793d4k Recording what automatic memory did](../793_automatic-memory/793d_technical-spec.md#793d4k-recording-what-automatic-memory-did) makes for the [session](../../GLOSSARY.md#session) of the request, read from the directory its `--records` flag names, else `auto` in the engram data directory, that it has not shown, oldest first, each line beginning with the time (`15:04:05`) of the oldest of its records. It prints these lines also when it is given no reply, which is the case of a prompt that is not a recall moment. A reason is written as one line and redacted ([793d4j Redacting credentials](../793_automatic-memory/793d_technical-spec.md#793d4j-redacting-credentials)); a line is cut in its middle, so that both ends stay, when it is longer than 240 characters; every line is one line of single spaces with no control or format character. After printing the lines of the records it MUST mark each record that a line it printed tells, also one that the cut left out of the text of the line, by an empty file beside the record, named for it with the suffix `.told`, so that a line is shown once; a record with a mark makes no line, nor does a record of another session, of a kind that tells nothing, or that cannot be read, nor a directory that cannot be read, and a mark that cannot be written is the end of it. Then it MUST remove each record that has a mark, and the mark, and the directory of the session once nothing is left in it, so that the records do not pile up; what it cannot remove is the end of it. For a cue other than `prompt` it MUST print the line of what it delivered only, and read, mark and remove no record. The lines are no part of the block ([793d4c Framing the notes of a block as data](../793_automatic-memory/793d_technical-spec.md#793d4c-framing-the-notes-of-a-block-as-data)).
 
 Owner: `prompt-delivery`. Supports: [793a2e1a What was delivered and what was written for the previous turn is in the session by the next prompt](../793_automatic-memory/793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1b A write that finishes after the next prompt is shown by the prompt after it finishes](../793_automatic-memory/793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1c A delivery that could not be done is shown with its reason](../793_automatic-memory/793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1d A write that failed is shown with its reason](../793_automatic-memory/793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1e A sweep that failed is shown with its reason](../793_automatic-memory/793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1f A turn that is not captured is shown with the reason](../793_automatic-memory/793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1g The notes delivered with a prompt are one line](../793_automatic-memory/793a_product-spec.md#793a2e1-uat-scenarios).
 
@@ -947,6 +913,36 @@ Scenario: 855d4p1c A prompt that is not a recall moment shows the records
 
 Target: [793d4p1k A warning of the lookup is no line for the user](../793_automatic-memory/793d_technical-spec.md#793d4p1-scenarios). The lookup is the `recall-lookup`'s now, and [855d4b1k A warning of the lookup is no line for the user](#855d4b1-scenarios) states the same for it.
 
+### 855d4v Added: Phrasing the lookup
+
+Requirement: 855d4v The `phrase-judgement` MUST read one JSON object from standard input: the `session`'s ID, the `cue`, the `reply` of the moment judgement and its `carry`. It MUST read the reply ([855d1b Terms](#855d1b-terms)) as a JSON object with a `depth` of `none`, `glance` or `deep`, and fail, printing nothing and naming the judgement, when the reply is not one or the depth is none of the three. A depth of `none` MUST print nothing, succeed and look nothing up. Otherwise it MUST print one object `{"request":{...},"carry":{...}}`. The request has `model` of the mid tier, `system`, `prompt` and `maxTokens`, and no `timeoutMs` ([855d2a 793d2a Prompt delivery flow](#855d2a-modified-793d2a-prompt-delivery-flow)). The `system` MUST hold the instructions and nothing of the [session](../../GLOSSARY.md#session): the [recall skill](../../GLOSSARY.md#recall-skill)'s Step 1, one short queryable phrase for each of ten angles (the situation or setting, the user's intent, the current concrete action, the problem or blocker, the candidate approach, the tooling in play, prior related work, an adjacent technique, a failure mode to avoid, the domain), about 3 of them at glance and all 10 at deep, each keyed to the task and not to a fear ("implementing Claude Code hooks", not "common mistakes when writing hooks"), none filtered before the lookup, and the reply shape `{"phrases":[...]}`. The `prompt` MUST hold the window of the carry between `<window>` and `</window>`. The carry holds the cue, the depth and the window. It MUST fail, printing nothing and naming the cause, when the input is not a JSON object.
+
+Owner: `phrase-judgement` (new; `phrase-judgement.md` at promotion). Supports: [855a3b1b A note whose words match but that does not apply is not delivered](855a_product-spec.md#855a3b1-uat-scenarios), [855a3b1d The notes that arrive are the notes the recall skill draws on](855a_product-spec.md#855a3b1-uat-scenarios), [855a3b1e A passage of an earlier conversation arrives when it applies](855a_product-spec.md#855a3b1-uat-scenarios), [855a2a1b A deep delivery writes the lesson the vault lacks](855a_product-spec.md#855a2a1-uat-scenarios).
+
+#### 855d4v1 Scenarios
+
+```gherkin
+Scenario: 855d4v1a The request holds the ten angles and the window
+  Given a reply of depth deep and a carry that holds a window
+  When the phrases are asked
+  Then it prints a request for the model sonnet with no time limit, whose system names the ten angles, the keying to the task and the reply shape, whose prompt holds the window, and a carry that holds the cue, the depth and the window
+
+Scenario: 855d4v1b The number of phrases follows the depth
+  Given replies of depth glance and of depth deep
+  When the phrases are asked for each
+  Then the system of the first asks for about 3 phrases and that of the second for 10
+
+Scenario: 855d4v1c A depth of none looks nothing up
+  Given a reply of depth none
+  When the phrases are asked
+  Then it prints nothing, succeeds and looks nothing up
+
+Scenario: 855d4v1d A fenced reply is read and a reply that is not a moment reply fails the command
+  Given a reply of depth glance in a code fence, replies that are not JSON, and one that holds a depth that is none of the three
+  When the phrases are asked for each
+  Then the first prints a request, and the others print nothing and fail with an error that names the judgement
+```
+
 ## 855d5 Product-scenario mapping
 
 The mappings of [793d5 Product-scenario mapping](../793_automatic-memory/793d_technical-spec.md#793d5-product-scenario-mapping) stand for every scenario that [855a1 Problem Statement](855a_product-spec.md#855a1-problem-statement) leaves as it is. Each scenario that [855a1 Problem Statement](855a_product-spec.md#855a1-problem-statement) adds or replaces is restated in full at its mapping, the replaced ones of 793 as Modified operations of their mapping nodes.
@@ -965,7 +961,7 @@ Scenario: 793a2a1a The next session has memory after one engram update
   Then the note is in the agent's context before the agent answers
 ```
 
-Realized by [793d4b Deploying the mods of the source](../793_automatic-memory/793d_technical-spec.md#793d4b-deploying-the-mods-of-the-source), [793d2a Prompt delivery flow](../793_automatic-memory/793d_technical-spec.md#793d2a-prompt-delivery-flow), [855d4a Judging the moment](#855d4a-added-judging-the-moment), [855d4b Looking up the candidates for the phrases](#855d4b-added-looking-up-the-candidates-for-the-phrases) and [855d4c 793d4a Delivering the notes that bear on a prompt](#855d4c-modified-793d4a-delivering-the-notes-that-bear-on-a-prompt).
+Realized by [793d4b Deploying the mods of the source](../793_automatic-memory/793d_technical-spec.md#793d4b-deploying-the-mods-of-the-source), [793d2a Prompt delivery flow](../793_automatic-memory/793d_technical-spec.md#793d2a-prompt-delivery-flow), [855d4a Judging the moment](#855d4a-added-judging-the-moment), [855d4v Phrasing the lookup](#855d4v-added-phrasing-the-lookup), [855d4b Looking up the candidates for the phrases](#855d4b-added-looking-up-the-candidates-for-the-phrases) and [855d4c 793d4a Delivering the notes that bear on a prompt](#855d4c-modified-793d4a-delivering-the-notes-that-bear-on-a-prompt).
 
 ### 855d5b Modified: 793d5i Mapping of 793a2a1b
 
@@ -996,7 +992,7 @@ Scenario: 793a2b1a The notes that apply to a prompt arrive with it
   Then before the agent acts its context holds the staging note and not the formatting note, and the prompt in the conversation is exactly as the user typed it
 ```
 
-Realized by [793d2a Prompt delivery flow](../793_automatic-memory/793d_technical-spec.md#793d2a-prompt-delivery-flow), [855d4a Judging the moment](#855d4a-added-judging-the-moment), [855d4b Looking up the candidates for the phrases](#855d4b-added-looking-up-the-candidates-for-the-phrases) and [855d4c 793d4a Delivering the notes that bear on a prompt](#855d4c-modified-793d4a-delivering-the-notes-that-bear-on-a-prompt).
+Realized by [793d2a Prompt delivery flow](../793_automatic-memory/793d_technical-spec.md#793d2a-prompt-delivery-flow), [855d4a Judging the moment](#855d4a-added-judging-the-moment), [855d4v Phrasing the lookup](#855d4v-added-phrasing-the-lookup), [855d4b Looking up the candidates for the phrases](#855d4b-added-looking-up-the-candidates-for-the-phrases) and [855d4c 793d4a Delivering the notes that bear on a prompt](#855d4c-modified-793d4a-delivering-the-notes-that-bear-on-a-prompt).
 
 ### 855d5d Modified: 793d5b Mapping of 793a2b1b
 
@@ -1041,7 +1037,7 @@ Scenario: 793a2b1d A prompt that matches no note arrives with nothing
   Then the prompt arrives with nothing from the vault, and the agent answers it
 ```
 
-Realized by [793d2a Prompt delivery flow](../793_automatic-memory/793d_technical-spec.md#793d2a-prompt-delivery-flow), [855d4a Judging the moment](#855d4a-added-judging-the-moment) and [855d4b Looking up the candidates for the phrases](#855d4b-added-looking-up-the-candidates-for-the-phrases).
+Realized by [793d2a Prompt delivery flow](../793_automatic-memory/793d_technical-spec.md#793d2a-prompt-delivery-flow), [855d4a Judging the moment](#855d4a-added-judging-the-moment), [855d4v Phrasing the lookup](#855d4v-added-phrasing-the-lookup) and [855d4b Looking up the candidates for the phrases](#855d4b-added-looking-up-the-candidates-for-the-phrases).
 
 ### 855d5g Modified: 793d5e Mapping of 793a2d1a
 
@@ -1276,7 +1272,7 @@ Scenario: 855a2e1a A note arrives before the agent declares its work done
   Then before the agent declares it done its context holds the changelog note
 ```
 
-Realized by [855d2c Mid-turn recall flow](#855d2c-added-mid-turn-recall-flow), [855d4a Judging the moment](#855d4a-added-judging-the-moment), [855d4b Looking up the candidates for the phrases](#855d4b-added-looking-up-the-candidates-for-the-phrases) and [855d4c 793d4a Delivering the notes that bear on a prompt](#855d4c-modified-793d4a-delivering-the-notes-that-bear-on-a-prompt).
+Realized by [855d2c Mid-turn recall flow](#855d2c-added-mid-turn-recall-flow), [855d4a Judging the moment](#855d4a-added-judging-the-moment), [855d4v Phrasing the lookup](#855d4v-added-phrasing-the-lookup), [855d4b Looking up the candidates for the phrases](#855d4b-added-looking-up-the-candidates-for-the-phrases) and [855d4c 793d4a Delivering the notes that bear on a prompt](#855d4c-modified-793d4a-delivering-the-notes-that-bear-on-a-prompt).
 
 ### 855d5x Mapping of 855a2e1b
 
@@ -1289,20 +1285,20 @@ Scenario: 855a2e1b A note arrives after a failure the agent cannot explain
   Then before the agent's next action its context holds the make ci note
 ```
 
-Realized by [855d2c Mid-turn recall flow](#855d2c-added-mid-turn-recall-flow), [855d4a Judging the moment](#855d4a-added-judging-the-moment), [855d4b Looking up the candidates for the phrases](#855d4b-added-looking-up-the-candidates-for-the-phrases) and [855d4c 793d4a Delivering the notes that bear on a prompt](#855d4c-modified-793d4a-delivering-the-notes-that-bear-on-a-prompt).
+Realized by [855d2c Mid-turn recall flow](#855d2c-added-mid-turn-recall-flow), [855d4a Judging the moment](#855d4a-added-judging-the-moment), [855d4v Phrasing the lookup](#855d4v-added-phrasing-the-lookup), [855d4b Looking up the candidates for the phrases](#855d4b-added-looking-up-the-candidates-for-the-phrases) and [855d4c 793d4a Delivering the notes that bear on a prompt](#855d4c-modified-793d4a-delivering-the-notes-that-bear-on-a-prompt).
 
 ### 855d5y Mapping of 855a2e1c
 
-The product scenario [855a2e1c A note arrives before the agent starts building a new approach](855a_product-spec.md#855a2e1-uat-scenarios), restated in full at its first mapping location:
+The product scenario [855a2e1c A note arrives before the agent starts building a new approach](855a_product-spec.md#855a2f-modified-855a2e1c-a-note-arrives-before-the-agent-starts-building-a-new-approach), restated in full at its first mapping location:
 
 ```gherkin
 Scenario: 855a2e1c A note arrives before the agent starts building a new approach
   Given the user has run engram update, and a vault holding a note that says schema changes are written as migrations with the migrate tool and never by editing schema.sql
   When the user asks the agent in a prompt to add an index on orders.created_at, the prompt arrives with nothing from the vault, and the agent is about to edit schema.sql
-  Then before the edit its context holds the migration note
+  Then before the agent's next action its context holds the migration note
 ```
 
-Realized by [855d2c Mid-turn recall flow](#855d2c-added-mid-turn-recall-flow), [855d4a Judging the moment](#855d4a-added-judging-the-moment), [855d4b Looking up the candidates for the phrases](#855d4b-added-looking-up-the-candidates-for-the-phrases) and [855d4c 793d4a Delivering the notes that bear on a prompt](#855d4c-modified-793d4a-delivering-the-notes-that-bear-on-a-prompt).
+Realized by [855d2c Mid-turn recall flow](#855d2c-added-mid-turn-recall-flow), [855d4a Judging the moment](#855d4a-added-judging-the-moment), [855d4v Phrasing the lookup](#855d4v-added-phrasing-the-lookup), [855d4b Looking up the candidates for the phrases](#855d4b-added-looking-up-the-candidates-for-the-phrases) and [855d4c 793d4a Delivering the notes that bear on a prompt](#855d4c-modified-793d4a-delivering-the-notes-that-bear-on-a-prompt).
 
 ### 855d5z Mapping of 855a3b1a
 
@@ -1328,7 +1324,7 @@ Scenario: 855a3b1b A note whose words match but that does not apply is not deliv
   Then the prompt arrives with nothing from the vault, and the agent answers it
 ```
 
-Realized by [793d2a Prompt delivery flow](../793_automatic-memory/793d_technical-spec.md#793d2a-prompt-delivery-flow), [855d4a Judging the moment](#855d4a-added-judging-the-moment) and [855d4b Looking up the candidates for the phrases](#855d4b-added-looking-up-the-candidates-for-the-phrases).
+Realized by [793d2a Prompt delivery flow](../793_automatic-memory/793d_technical-spec.md#793d2a-prompt-delivery-flow), [855d4a Judging the moment](#855d4a-added-judging-the-moment), [855d4v Phrasing the lookup](#855d4v-added-phrasing-the-lookup) and [855d4b Looking up the candidates for the phrases](#855d4b-added-looking-up-the-candidates-for-the-phrases).
 
 ### 855d5zb Mapping of 855a3b1c
 
@@ -1354,7 +1350,7 @@ Scenario: 855a3b1d The notes that arrive are the notes the recall skill draws on
   Then the notes that arrived with the prompt in the first session are the staging note and the backup note, and the notes that the agent names in the second are the same two
 ```
 
-Realized by [793d2a Prompt delivery flow](../793_automatic-memory/793d_technical-spec.md#793d2a-prompt-delivery-flow), [855d4a Judging the moment](#855d4a-added-judging-the-moment), [855d4b Looking up the candidates for the phrases](#855d4b-added-looking-up-the-candidates-for-the-phrases) and [855d4c 793d4a Delivering the notes that bear on a prompt](#855d4c-modified-793d4a-delivering-the-notes-that-bear-on-a-prompt).
+Realized by [793d2a Prompt delivery flow](../793_automatic-memory/793d_technical-spec.md#793d2a-prompt-delivery-flow), [855d4a Judging the moment](#855d4a-added-judging-the-moment), [855d4v Phrasing the lookup](#855d4v-added-phrasing-the-lookup), [855d4b Looking up the candidates for the phrases](#855d4b-added-looking-up-the-candidates-for-the-phrases) and [855d4c 793d4a Delivering the notes that bear on a prompt](#855d4c-modified-793d4a-delivering-the-notes-that-bear-on-a-prompt).
 
 ### 855d5zd Mapping of 855a3b1e
 
@@ -1386,54 +1382,52 @@ Realized by [793d2a Prompt delivery flow](../793_automatic-memory/793d_technical
 
 Target: [793d6 Recommended impact](../793_automatic-memory/793d_technical-spec.md#793d6-recommended-impact)
 
-- **Repository:** the directory `agent-instructions/mods/` and the package `internal/auto` of 793, the command group `engram auto` with `moment`, `recall`, `deliver`, `judge`, `place`, `write` and `sweep`; the instructions of every judgement are text files of the package, those of the lessons rewritten from the [learn skill](../../GLOSSARY.md#learn-skill)'s Step 2, those of the moment, the candidates and the placement new; the mod's JavaScript routes five chains instead of three ([855d2a 793d2a Prompt delivery flow](#855d2a-modified-793d2a-prompt-delivery-flow), [855d2b 793d2b Turn capture flow](#855d2b-modified-793d2b-turn-capture-flow), [855d2c Mid-turn recall flow](#855d2c-added-mid-turn-recall-flow), [793d2c Conversation sweep flow](../793_automatic-memory/793d_technical-spec.md#793d2c-conversation-sweep-flow)).
+- **Repository:** the directory `agent-instructions/mods/` and the package `internal/auto` of 793, the command group `engram auto` with `moment`, `phrases`, `recall`, `deliver`, `judge`, `place`, `write` and `sweep`; the instructions of every judgement are text files of the package, those of the lessons rewritten from the [learn skill](../../GLOSSARY.md#learn-skill)'s Step 2, those of the moment, the phrases, the candidates and the placement new; the mod's JavaScript routes five chains instead of three ([855d2a 793d2a Prompt delivery flow](#855d2a-modified-793d2a-prompt-delivery-flow), [855d2b 793d2b Turn capture flow](#855d2b-modified-793d2b-turn-capture-flow), [855d2c Mid-turn recall flow](#855d2c-added-mid-turn-recall-flow), [793d2c Conversation sweep flow](../793_automatic-memory/793d_technical-spec.md#793d2c-conversation-sweep-flow)).
 - **Dependencies:** none new in Go; a Claude Code release whose type definitions are those of [855d1a Verified host facts](#855d1a-verified-host-facts) (2.1.301 read, 2.1.302 verified for 793); `node`, as in 793.
 - **Toolchain:** the `targ acceptance` target of 793 gains the scenarios that drive a real Claude Code [session](../../GLOSSARY.md#session) with a real model; they keep the `network` build tag.
-- **Operational:** for each [prompt](./855a_product-spec.md#855a3a-modified-793a1a-terms), one process start (`deliver`) when it is not a recall moment, and up to three process starts and two model calls (one cheap tier, one mid tier) when it is; the same chain for each tool call, each failed tool call and each batch of the main loop, which is a cheap-tier model call at each of them, held by it ([855d2c Mid-turn recall flow](#855d2c-added-mid-turn-recall-flow)); after each [turn](./855a_product-spec.md#855a3a-modified-793a1a-terms), up to four process starts and three model calls (one cheap tier, two mid tier), apart from the turn, and the sweep of 793 ([793d2c Conversation sweep flow](../793_automatic-memory/793d_technical-spec.md#793d2c-conversation-sweep-flow)); a deep delivery adds one `write` after the block. A wait of a prompt or of a tool call is bounded by the 2 minutes of the flow and a wait of a capture by its row ([855d2a 793d2a Prompt delivery flow](#855d2a-modified-793d2a-prompt-delivery-flow), [855d2b 793d2b Turn capture flow](#855d2b-modified-793d2b-turn-capture-flow)); what the calls take is measured, not assumed ([855d7a Hypotheses and their measurements](#855d7a-added-hypotheses-and-their-measurements)).
-- **Risk:** the hot path grows from one command at a prompt to a chain, and acts within every turn: a stalled model call holds a prompt or a tool call up to 2 minutes before it is stepped aside, and every tool call of every session now waits for a cheap-tier call ([855b30 Every tool call of the main loop is judged, one at a time](855b_decision-log.md#855b30-every-tool-call-of-the-main-loop-is-judged-one-at-a-time)); the rows of the capture may be too small for three calls, in which case a capture fails and is recorded ([855b18 The 2-minute promises stay](855b_decision-log.md#855b18-the-2-minute-promises-stay)). The risk of a stall between the spawn of a command and its first instruction ([793c32 Is the stall between the spawn of the command and its first instruction a risk to the product?](../793_automatic-memory/793c_open-questions.md#793c32-is-the-stall-between-the-spawn-of-the-command-and-its-first-instruction-a-risk-to-the-product)) is bounded by the row of the step. A mid-turn delivery that the [transcript](../../GLOSSARY.md#transcript) does not record would be delivered twice ([855d7a1f A block delivered within a turn is held](#855d7a1-scenarios)). Open risk [793c70 Is a sweep that is ended at its bound retried at every turn?](../793_automatic-memory/793c_open-questions.md#793c70-is-a-sweep-that-is-ended-at-its-bound-retried-at-every-turn) stands.
+- **Operational:** for each [prompt](./855a_product-spec.md#855a3a-modified-793a1a-terms), one process start (`deliver`) when it is not a recall moment, and up to four process starts and three model calls (one cheap tier, two mid tier) when it is; the same chain for each tool call, each failed tool call and each batch of the main loop, a cheap-tier model call at each of them, held by it, the chains of a session running at once ([855d2c Mid-turn recall flow](#855d2c-added-mid-turn-recall-flow)); after each [turn](./855a_product-spec.md#855a3a-modified-793a1a-terms), up to four process starts and three model calls (one cheap tier, two mid tier), apart from the turn, and the sweep of 793 ([793d2c Conversation sweep flow](../793_automatic-memory/793d_technical-spec.md#793d2c-conversation-sweep-flow)); a deep delivery adds one `write` after the block. Each wait of a prompt or of a tool call is bounded by 2 minutes of its own and a wait of a capture by its row ([855d2a 793d2a Prompt delivery flow](#855d2a-modified-793d2a-prompt-delivery-flow), [855d2b 793d2b Turn capture flow](#855d2b-modified-793d2b-turn-capture-flow)); what the calls take, and cost, is measured, not assumed ([855d7a Hypotheses and their measurements](#855d7a-added-hypotheses-and-their-measurements)).
+- **Risk:** the hot path grows from one command at a prompt to a chain, and acts within every turn: a stalled model call holds a prompt or a tool call up to 2 minutes before it is stepped aside, every tool call of every session waits for a cheap-tier call ([855b30 Every tool call of the main loop is judged, the chains run at once](855b_decision-log.md#855b30-every-tool-call-of-the-main-loop-is-judged-the-chains-run-at-once)), and the cheap-tier calls add tokens and cost to every session ([855d7a1i The cost of the judgements is recorded](#855d7a1-scenarios)); the rows of the capture may be too small for three calls, in which case a capture fails and is recorded ([855b18 The 2-minute promises stay](855b_decision-log.md#855b18-the-2-minute-promises-stay)). The risk of a stall between the spawn of a command and its first instruction ([793c32 Is the stall between the spawn of the command and its first instruction a risk to the product?](../793_automatic-memory/793c_open-questions.md#793c32-is-the-stall-between-the-spawn-of-the-command-and-its-first-instruction-a-risk-to-the-product)) is bounded by the wait of the step. A mid-turn delivery that the [transcript](../../GLOSSARY.md#transcript) does not record would be delivered twice, which [855d7a1f A block delivered within a turn is held](#855d7a1-scenarios) is measured first to settle and [855b40 A ledger of what was delivered, if the transcript lacks it](855b_decision-log.md#855b40-a-ledger-of-what-was-delivered-if-the-transcript-lacks-it) answers. Open risk [793c70 Is a sweep that is ended at its bound retried at every turn?](../793_automatic-memory/793c_open-questions.md#793c70-is-a-sweep-that-is-ended-at-its-bound-retried-at-every-turn) stands.
 
 ## 855d7 Hypotheses
 
 ### 855d7a Added: Hypotheses and their measurements
 
-Unknown numbers are hypotheses. None is a promise: the 2 minutes of [855d2a 793d2a Prompt delivery flow](#855d2a-modified-793d2a-prompt-delivery-flow) and the rows of [855d2b 793d2b Turn capture flow](#855d2b-modified-793d2b-turn-capture-flow) are bounds, and a hypothesis that a chain fits its bound is refuted when a measurement exceeds it. The measurements run with the real model and a real Claude Code [session](../../GLOSSARY.md#session), and record what they measure.
+Unknown numbers are hypotheses. None is a promise: the 2 minutes of each wait of [855d2a 793d2a Prompt delivery flow](#855d2a-modified-793d2a-prompt-delivery-flow) and the rows of [855d2b 793d2b Turn capture flow](#855d2b-modified-793d2b-turn-capture-flow) are bounds, and a hypothesis that a chain fits its bound is refuted when a measurement exceeds it. Each states what refutes it. The measurements run with the real model and a real Claude Code [session](../../GLOSSARY.md#session), and record what they measure. The [transcript](../../GLOSSARY.md#transcript) hypothesis is a gate: it is measured first, before [855d2c Mid-turn recall flow](#855d2c-added-mid-turn-recall-flow) is built, and if the transcript does not record the block, `deliver` keeps for each session a record of what it delivered that is never removed, and `session-context` reads it ([855b40 A ledger of what was delivered, if the transcript lacks it](855b_decision-log.md#855b40-a-ledger-of-what-was-delivered-if-the-transcript-lacks-it)).
 
-| Hypothesis | Basis | Measured by |
-| --- | --- | --- |
-| A chain of a recall moment, at glance or deep depth, finishes well within the 2 minutes, so that none is stepped aside in ordinary use | 793 verified about 2 seconds for one small request ([793d1 Orientation](../793_automatic-memory/793d_technical-spec.md#793d1-orientation)); the rest is unmeasured | [855d7a1a A recall chain is timed](#855d7a1-scenarios) |
-| The three calls of a capture, with the steps between them, fit the rows of [855d2b 793d2b Turn capture flow](#855d2b-modified-793d2b-turn-capture-flow), which are under the 2 minutes of [793a2c Lessons are written without the agent](../793_automatic-memory/793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) | none: unmeasured | [855d7a1b The judgements of a capture are timed](#855d7a1-scenarios), [855d7a1c A capture fits the 2 minutes](#855d7a1-scenarios) |
-| The write of a deep delivery fits its 60 seconds | none: unmeasured | [855d7a1d A deep write is timed](#855d7a1-scenarios) |
-| A chain adds a time to each tool call that can be told apart from the call's own | none: unmeasured ([855b30 Every tool call of the main loop is judged, one at a time](855b_decision-log.md#855b30-every-tool-call-of-the-main-loop-is-judged-one-at-a-time)) | [855d7a1e A tool call is held for the time of a chain](#855d7a1-scenarios) |
-| The context an event within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) added is recorded in the [transcript](../../GLOSSARY.md#transcript) as the context of a [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) is | not in the type definitions ([855d1a Verified host facts](#855d1a-verified-host-facts)) | [855d7a1f A block delivered within a turn is held](#855d7a1-scenarios) |
-| The cheap tier writes phrases whose lookup finds the [notes](../../GLOSSARY.md#permanent-note) the [recall skill](../../GLOSSARY.md#recall-skill) would | none: unmeasured ([855b26 The moment judgement gives the phrases](855b_decision-log.md#855b26-the-moment-judgement-gives-the-phrases)) | [855d7a1g The phrases find what the recall skill finds](#855d7a1-scenarios) |
+| Hypothesis | Basis | Refuted when | Measured by |
+| --- | --- | --- | --- |
+| The context an event within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) added is recorded in the transcript as the context of a [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) is | not in the type definitions ([855d1a Verified host facts](#855d1a-verified-host-facts)) | the transcript holds no such record of the block, or holds it more than once | [855d7a1f A block delivered within a turn is held](#855d7a1-scenarios) |
+| A context put at `tool.call` reaches the model only at its next request, after the tool's result | the context is "What the model reads after the tool's result" ([855d1a Verified host facts](#855d1a-verified-host-facts)) | the context is absent from the model's next request, or is in a request before the tool's result | [855d7a1h A context put at a tool call arrives with its result](#855d7a1-scenarios) |
+| A chain of a recall moment, at glance or deep depth, finishes well within the 2 minutes, so that none is stepped aside in ordinary use | 793 verified about 2 seconds for one small request ([793d1 Orientation](../793_automatic-memory/793d_technical-spec.md#793d1-orientation)); the rest is unmeasured | any wait of a chain passes the 2 minutes | [855d7a1a A recall chain is timed](#855d7a1-scenarios) |
+| The three calls of a capture, with the steps between them, fit the rows of [855d2b 793d2b Turn capture flow](#855d2b-modified-793d2b-turn-capture-flow), which are under the 2 minutes of [793a2c Lessons are written without the agent](../793_automatic-memory/793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) | none: unmeasured | any wait passes its row, or a [note](../../GLOSSARY.md#permanent-note) is written more than 2 minutes after the turn ended | [855d7a1b A capture is timed against its rows and the 2 minutes](#855d7a1-scenarios) |
+| The write of a deep delivery fits its 60 seconds | none: unmeasured | the write passes 60 seconds | [855d7a1d A deep write is timed](#855d7a1-scenarios) |
+| The chains of the tool calls of a turn, run at once, add less to the turn than the sum of their own times | none: unmeasured ([855b30 Every tool call of the main loop is judged, the chains run at once](855b_decision-log.md#855b30-every-tool-call-of-the-main-loop-is-judged-the-chains-run-at-once)) | the time added to the turn equals or exceeds that sum | [855d7a1e The chains of a turn's tool calls are timed](#855d7a1-scenarios) |
+| The mid tier writes phrases whose lookup finds the [notes](../../GLOSSARY.md#permanent-note) the [recall skill](../../GLOSSARY.md#recall-skill) would | none: unmeasured ([855b26 The moment judgement gives the depth, a mid-tier call the phrases](855b_decision-log.md#855b26-the-moment-judgement-gives-the-depth-a-mid-tier-call-the-phrases)) | the share of the notes the skill draws on that are among the candidates is lower than the share the skill's own phrases reach on the same prompts | [855d7a1g The phrases find what the recall skill finds](#855d7a1-scenarios) |
+| The cheap-tier calls of a session's tool calls cost less than the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s own model use in that session | none: unmeasured | they cost more in tokens or in cost | [855d7a1i The cost of the judgements is recorded](#855d7a1-scenarios) |
+| The moment judgement gives none for few of the prompts for which the recall skill draws on a note | none: unmeasured | it gives none for more than half of them | [855d7a1j The moment judgement's false none is recorded](#855d7a1-scenarios) |
 
 #### 855d7a1 Scenarios
 
 ```gherkin
 Scenario: 855d7a1a A recall chain is timed
-  Given a real Claude Code session and a vault, and 20 prompts, of which 10 are recall moments at glance and 5 at deep
+  Given a real Claude Code session and a vault, and 20 prompts
   When each is sent
-  Then the time of each step and of each model call, and of the chain, is recorded, and no chain exceeds the 2 minutes
+  Then the depth the moment judgement chose, the time of each step and of each model call, and of the chain, is recorded, and no wait exceeds the 2 minutes
 
-Scenario: 855d7a1b The judgements of a capture are timed
-  Given a real Claude Code session and a vault, and 10 turns that hold a lesson
-  When each completes
-  Then the time of each step and of each model call of the capture is recorded, and none exceeds its row of the capture
-
-Scenario: 855d7a1c A capture fits the 2 minutes
+Scenario: 855d7a1b A capture is timed against its rows and the 2 minutes
   Given a real Claude Code session and a vault holding a note the session has seen, and 10 turns that hold a lesson
   When each completes
-  Then the time from the end of the turn to the written note is recorded, and none exceeds 2 minutes
+  Then the time of each step and of each model call of the capture, and from the end of the turn to the written note, is recorded, and none exceeds its row or the 2 minutes
 
 Scenario: 855d7a1d A deep write is timed
   Given a real Claude Code session and a vault, and 10 recall moments of deep depth
   When each is sent
   Then the time of the write that follows the block is recorded, and none exceeds the row of 60 seconds
 
-Scenario: 855d7a1e A tool call is held for the time of a chain
-  Given a real Claude Code session and a vault, and a turn of 10 tool calls
+Scenario: 855d7a1e The chains of a turn's tool calls are timed
+  Given a real Claude Code session and a vault, and a turn of 10 tool calls, some of them in parallel
   When the turn runs with the mod and without it
-  Then the time added to each tool call and to the turn is recorded
+  Then the time added to each tool call and to the turn is recorded, with the sum of the times of the chains
 
 Scenario: 855d7a1f A block delivered within a turn is held
   Given a real Claude Code session and a vault holding a note that applies to a tool call
@@ -1443,5 +1437,38 @@ Scenario: 855d7a1f A block delivered within a turn is held
 Scenario: 855d7a1g The phrases find what the recall skill finds
   Given a real Claude Code session, a vault, and 10 prompts for each of which the recall skill run in glance mode names the notes it draws on
   When each prompt is sent with automatic memory on
-  Then the share of those notes that are among the candidates is recorded
+  Then the share of those notes that are among the candidates is recorded, with the share the skill's own phrases reach
+
+Scenario: 855d7a1h A context put at a tool call arrives with its result
+  Given a real Claude Code session and a vault holding a note that applies to a tool call
+  When the agent makes that tool call
+  Then the order of the tool's result, the block and the agent's next message in the model's requests is recorded, with the time the block arrived
+
+Scenario: 855d7a1i The cost of the judgements is recorded
+  Given a real Claude Code session and a vault, and a session of 10 prompts and their tool calls
+  When it runs with the mod and without it
+  Then the tokens and the cost of the cheap-tier calls, of the mid-tier calls and of the agent's own use are recorded
+
+Scenario: 855d7a1j The moment judgement's false none is recorded
+  Given a real Claude Code session, a vault, and 20 prompts for each of which the recall skill run in glance mode names a note it draws on
+  When each prompt is sent with automatic memory on
+  Then the share of the prompts for which the moment judgement answers none is recorded
 ```
+
+## 855d8 Notes bound for the plan
+
+Details of mechanism that the requirements above point to, bound for the implementation plan.
+
+### 855d8a Formats of the lines of 793d4p
+
+- Delivered: `delivered`, then for the [notes](../../GLOSSARY.md#permanent-note) `the note` and its file name, or `the notes` and the file names separated by commas, and for the passages `the passage` and its chunk ID, or `the passages` and the chunk IDs separated by commas, the two parts joined by `and`.
+- Written: `wrote the note` and its file name, or `wrote the notes` and the file names separated by commas.
+- Skipped: `left out:` and, for each record, `the lesson` and its slug and a colon when it has a slug, then the reason, the records separated by semicolons.
+- Failed: `failed:` and, for each record, `writing` and its slug and a colon when it has a slug, then the reason, the records separated by semicolons.
+
+### 855d8b The candidates of the lookup
+
+- Verdicts: `covered`, a [note](../../GLOSSARY.md#permanent-note) that states what applies to the moment; `near`, a note that addresses the same situation and omits a substantive claim; `evidence`, a passage that applies; `unrelated`.
+- Budget: a note whole; a chunk cut to 1,200 characters; at most 30 candidates and 60,000 characters of text in all, the last of the matched set dropped first.
+- Candidate line: `- <file name or chunk ID> (<date>; <situation, or passage>): <body or text>`, written as one line.
+- Carry: for each candidate, its ID, kind, date, situation, full text and whether it came from the parent [vault](../../GLOSSARY.md#vault) or is pending.
