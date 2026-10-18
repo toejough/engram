@@ -811,8 +811,8 @@ Review finding G3-9 ([793b110 A lesson that is left out keeps its slug only when
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793d4h1i | Dedicated example | three lessons that lack a field, with a slug of the shape, a slug of instructions of 2,400 characters and a slug of 65 letters: only the first record holds a slug, and the last lesson is not written either | Red | | | |
-| 793d4h1c (amended) | Dedicated example | a lesson whose slug is not kebab-case is left out with no slug | Red | | | |
+| 793d4h1i | Dedicated example | three lessons that lack a field, with a slug of the shape, a slug of instructions of 2,400 characters and a slug of 65 letters: only the first record holds a slug, and the last lesson is not written either | Green-all | 3884de60 | | |
+| 793d4h1c (amended) | Dedicated example | a lesson whose slug is not kebab-case is left out with no slug | Green-all | 3884de60 | | |
 
 ### 793e6f The delivery merges the parent vault
 

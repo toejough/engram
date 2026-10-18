@@ -35,7 +35,7 @@ type Lesson struct {
 }
 
 // defect returns what is wrong with the lesson, or nothing when it is whole: it has a kind it knows and the fields of
-// its kind, a slug of lower-case letters, digits and dashes, and a situation.
+// its kind, a slug of 1 to 64 lower-case letters, digits and dashes, and a situation.
 func (l Lesson) defect() string {
 	names := []string{"situation"}
 	values := []string{l.Situation}
@@ -51,8 +51,8 @@ func (l Lesson) defect() string {
 		return fmt.Sprintf("the kind %q is not feedback or fact", l.Kind)
 	}
 
-	if !slugPattern.MatchString(l.Slug) {
-		return "the slug is not lower-case letters, digits and dashes"
+	if !isSlug(l.Slug) {
+		return "the slug is not 1 to 64 lower-case letters, digits and dashes"
 	}
 
 	if empty := slices.IndexFunc(values, isBlank); empty >= 0 {
@@ -126,7 +126,7 @@ func ParseLessons(reply string) ([]Lesson, []Skipped) {
 		lesson := found.redacted()
 
 		if reason := lesson.defect(); reason != "" {
-			skipped = append(skipped, Skipped{Slug: lesson.Slug, Reason: reason})
+			skipped = append(skipped, Skipped{Slug: shownSlug(lesson.Slug), Reason: reason})
 
 			continue
 		}
@@ -155,6 +155,8 @@ const (
 	kindFeedback = "feedback"
 	// recordedReasonLimit is how many characters of a reason a record keeps at most (793d4k).
 	recordedReasonLimit = 300
+	// slugLimit is how many characters a slug has at most (793d4h).
+	slugLimit = 64
 )
 
 // unexported variables.
@@ -174,6 +176,11 @@ func endsTooSoon(err error, length int) bool {
 // isBlank reports whether the text is empty once its white space is gone.
 func isBlank(text string) bool {
 	return strings.TrimSpace(text) == ""
+}
+
+// isSlug reports whether a text is a slug: 1 to slugLimit lower-case letters, digits and dashes (793d4h).
+func isSlug(text string) bool {
+	return len(text) <= slugLimit && slugPattern.MatchString(text)
 }
 
 // oneRedacted is the text written as one line and then redacted: the redaction comes second, because writing a text as
@@ -212,6 +219,15 @@ func readList(text string) (lessons []Lesson, ended, isList bool) {
 	_, afterErr := decoder.Token()
 
 	return lessons, true, errors.Is(afterErr, io.EOF)
+}
+
+// shownSlug is the slug of a lesson that is left out when it is one, and nothing when it is the model's text (793d4k).
+func shownSlug(slug string) string {
+	if isSlug(slug) {
+		return slug
+	}
+
+	return ""
 }
 
 // unfenced returns the reply without the white space around it and the code fence a model may put around a list.
