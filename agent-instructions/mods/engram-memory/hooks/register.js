@@ -1,7 +1,7 @@
 // Automatic memory: the notes of the vault that bear on a prompt arrive beside it (793a2b), and after the turn the
 // lessons it holds become notes (793a2c) and its conversation is indexed (793a2f). The logic is in the engram binary
-// (`engram auto deliver`, `judge`, `write` and `sweep`); this module routes to it and puts what the delivery prints
-// beside the prompt.
+// (`engram auto deliver`, `judge`, `write` and `sweep`); this module routes to it, puts the block the delivery prints
+// beside the prompt, and shows the user the lines it prints for the user, through the host's log (793d2a).
 
 // The prompt is held for 8 seconds at most (793a2d): everything the module does for it, the call for the session's ID
 // and the command, is bounded at 7, and the second left is for starting the command and running the prompt's hooks.
@@ -45,9 +45,14 @@ export function register(on) {
       raised.shift()
     }
 
-    const block = await notesFor($, e)
+    const delivery = await deliveryFor($, e)
 
-    return next(block ? { ...e, context: [...(e.context ?? []), block] } : e)
+    // the lines go to the user and the model reads none of them: they are logged, not added to the context (793d2a)
+    for (const line of delivery.shown) {
+      $.ui.log(line)
+    }
+
+    return next(delivery.block ? { ...e, context: [...(e.context ?? []), delivery.block] } : e)
   })
 
   on('turn.start', async (_$, e, next) => {
@@ -78,8 +83,8 @@ export function register(on) {
   })
 }
 
-// ask is the text of the model's answer to a request, and fails when the model gives none (793d2b). The call ends at the
-// time limit that the request holds.
+// ask is the text of the model's answer to a request, and fails when the model gives none (793d2b). The call ends at
+// the time limit that the request holds.
 async function ask($, request) {
   let reply
 
@@ -129,7 +134,7 @@ async function afterTurn($, e, job) {
 // captureLessons judges a turn that ended, asks the model for the judgement and has the lessons written (793d2b). It
 // ends quietly when the judgement has nothing to judge. Each stage has its bound.
 async function captureLessons($, e, turn, session) {
-  const printed = await run($, 'judge', {
+  const { stdout: printed } = await run($, 'judge', {
     session,
     turn: e.turnId,
     text: turn.text,
@@ -151,21 +156,26 @@ function describe(error) {
   return error instanceof Error ? error.message : String(error)
 }
 
-// deliver is the block the command prints for the prompt, or nothing when it prints something that is not a block. The
-// command is ended at the bound by the time limit of the process call, and a command that fails fails the delivery. The
-// session's ID is left in the delivery as soon as it is known, for the report of a failure.
+// deliver is what the command prints for the prompt: the block it prints on standard output, or nothing when that is
+// not a block, and the lines it prints on standard error for the user, one to a line. The command is ended at the bound
+// by the time limit of the process call, and a command that fails fails the delivery. The session's ID is left in the
+// delivery as soon as it is known, for the report of a failure.
 async function deliver($, e, delivery) {
   delivery.session = await $.session.id()
 
   const input = { text: e.text, session: delivery.session, origin: originOf(e) }
-  const block = await run($, 'deliver', input, BOUND_MS)
+  const { stdout, stderr } = await run($, 'deliver', input, BOUND_MS)
 
-  return block.startsWith(MARKER) ? block : ''
+  return {
+    block: stdout.startsWith(MARKER) ? stdout : '',
+    shown: stderr.split('\n').map((text) => text.trim()).filter((text) => text !== ''),
+  }
 }
 
-// notesFor is the block for the prompt, or nothing when the whole of deliver does not finish within the bound or fails:
-// the prompt goes on as if automatic memory were not installed, and the failure is reported (793d2a).
-async function notesFor($, e) {
+// deliveryFor is the block and the lines for the user for the prompt, or nothing when the whole of deliver does not
+// finish within the bound or fails: the prompt goes on as if automatic memory were not installed, and the failure is
+// reported (793d2a).
+async function deliveryFor($, e) {
   const delivery = { session: '' }
   let timer
   const late = new Promise((_resolve, reject) => {
@@ -177,7 +187,7 @@ async function notesFor($, e) {
   } catch (error) {
     reportDelivery($, delivery.session, error)
 
-    return ''
+    return { block: '', shown: [] }
   } finally {
     clearTimeout(timer)
   }
@@ -254,9 +264,9 @@ async function report($, session, turn, error) {
   }
 }
 
-// run is what a step of `engram auto` printed for an input, and fails, naming the command, when it exits with other
-// than 0 or cannot be run. The command is ended after timeoutMs, and after the default of the process call when there
-// is none.
+// run is what a step of `engram auto` printed for an input, on standard output and on standard error, and fails, naming
+// the command, when it exits with other than 0 or cannot be run. The command is ended after timeoutMs, and after the
+// default of the process call when there is none.
 async function run($, step, input, timeoutMs) {
   const command = `engram auto ${step}`
   let result
@@ -271,5 +281,5 @@ async function run($, step, input, timeoutMs) {
     throw new Error(`${command} exited with ${result.exitCode}: ${String(result.stderr ?? '').trim().split('\n')[0]}`)
   }
 
-  return result.stdout.trim()
+  return { stdout: result.stdout.trim(), stderr: String(result.stderr ?? '') }
 }
