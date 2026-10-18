@@ -556,8 +556,8 @@ func notesOf(payload []byte) ([]auto.Note, error) {
 }
 
 // pruneShown removes the records of a session whose line was shown, each with its mark, and then the directory of the
-// session when nothing is left in it, so that the records do not pile up (793d4p). A record without a mark stays, and so
-// does a file that is no record; what cannot be removed is the end of it.
+// session when nothing is left in it, so that the records do not pile up (793d4p). A record without a mark stays, and
+// so does a file that is no record; what cannot be removed is the end of it.
 func pruneShown(deps AutoDeliverDeps, dir, session string) {
 	if dir == "" || !isPlainName(session) {
 		return

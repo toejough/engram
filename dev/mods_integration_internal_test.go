@@ -659,7 +659,8 @@ func Test793d2c1e_Mod_ASweepThatIsEndedIsRunOnceMoreAsEnded(t *testing.T) {
 		Judge: map[string]any{"exitCode": 0, "stdout": ""},
 		Sweep: map[string]any{"rejects": "the command ran for 90000 ms"},
 		SweepEnded: map[string]any{
-			"exitCode": 1, "stdout": "", "stderr": "auto sweep: the sweep was ended at its time limit; run engram ingest --auto\n",
+			"exitCode": 1, "stdout": "",
+			"stderr": "auto sweep: the sweep was ended at its time limit; run engram ingest --auto\n",
 		},
 	})
 

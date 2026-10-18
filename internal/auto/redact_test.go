@@ -300,8 +300,10 @@ func credentialSpecs() []credentialSpec {
 		}},
 	}
 
-	for _, name := range []string{"s" + "k", "p" + "k", "r" + "k", "gh" + "p", "gh" + "o", "gh" + "s", "gh" + "u", "gh" + "r",
-		"github" + "_pat", "np" + "m", "gl" + "pat"} {
+	for _, name := range []string{
+		"s" + "k", "p" + "k", "r" + "k", "gh" + "p", "gh" + "o", "gh" + "s", "gh" + "u", "gh" + "r", "github" + "_pat",
+		"np" + "m", "gl" + "pat",
+	} {
 		for _, separator := range []string{"-", "_"} {
 			prefix := name + separator
 
