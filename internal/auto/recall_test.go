@@ -2,6 +2,7 @@ package auto_test
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -40,6 +41,84 @@ func Test855d4b1i_Recall_ACandidateCannotReshapeTheRequestOrHoldACredential(t *t
 	})
 
 	rapid.Check(t, checkRecallIsSafe)
+}
+
+func Test855d4b1l_Recall_TheCandidatesAreHeldToACountAndABudget(t *testing.T) {
+	t.Parallel()
+
+	t.Run("named example: 40 notes of 3,000 characters are 20 candidates", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		matched := make([]auto.Candidate, 0, 40)
+		for index := range 40 {
+			matched = append(matched, auto.Candidate{
+				ID: "n" + strconv.Itoa(index) + ".md", Kind: auto.KindNote, Date: "2026-10-17", Situation: "s",
+				Text: strings.Repeat("abcdefgh ", 333) + "abc",
+			})
+		}
+
+		step := auto.Recall(recallOf("glance"), matched)
+
+		g.Expect(candidatesOf(step.Request.Prompt)).To(HaveLen(20))
+		g.Expect(step.Carry.Candidates).To(Equal(matched[:20]))
+	})
+
+	t.Run("named example: 40 short notes are 30 candidates", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		matched := make([]auto.Candidate, 0, 40)
+		for index := range 40 {
+			matched = append(matched, auto.Candidate{
+				ID: "n" + strconv.Itoa(index) + ".md", Kind: auto.KindNote, Date: "2026-10-17", Situation: "s", Text: "short",
+			})
+		}
+
+		step := auto.Recall(recallOf("glance"), matched)
+
+		g.Expect(candidatesOf(step.Request.Prompt)).To(HaveLen(30))
+		g.Expect(step.Carry.Candidates).To(Equal(matched[:30]))
+	})
+
+	rapid.Check(t, func(rt *rapid.T) {
+		count := rapid.IntRange(1, 45).Draw(rt, "count")
+		matched := make([]auto.Candidate, 0, count)
+
+		for index := range count {
+			candidate := auto.Candidate{ID: "n" + strconv.Itoa(index) + ".md", Kind: auto.KindNote, Date: "2026-10-17", Situation: "s"}
+			words := rapid.IntRange(0, 6000).Draw(rt, "words")
+
+			if rapid.Bool().Draw(rt, "is a chunk") {
+				candidate.ID, candidate.Kind = "c"+strconv.Itoa(index)+"#turn-1", auto.KindPassage
+			}
+
+			candidate.Text = strings.Repeat("word ", words)
+			matched = append(matched, candidate)
+		}
+
+		step := auto.Recall(recallOf("glance"), matched)
+		lines := candidatesOf(step.Request.Prompt)
+
+		if len(lines) > 30 {
+			rt.Fatalf("%d candidates", len(lines))
+		}
+
+		if !slices.Equal(step.Carry.Candidates, matched[:len(lines)]) {
+			rt.Fatalf("the candidates are not the first %d of the matched set", len(lines))
+		}
+
+		total := 0
+
+		for _, line := range lines {
+			_, text, _ := strings.Cut(line, "): ")
+			total += utf8.RuneCountInString(text)
+		}
+
+		if total > 60000 {
+			rt.Fatalf("%d characters of text", total)
+		}
+	})
 }
 
 // candidatesOf returns the lines of the section of candidates of a prompt: the lines between the tags that hold it.
