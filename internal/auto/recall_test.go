@@ -82,14 +82,22 @@ func Test855d4b1l_Recall_TheCandidatesAreHeldToACountAndABudget(t *testing.T) {
 	})
 
 	rapid.Check(t, func(rt *rapid.T) {
-		count := rapid.IntRange(1, 45).Draw(rt, "count")
+		// a matched set of many short candidates meets the cap on the count, and one of a few long candidates meets the
+		// budget of text, so that neither run holds more text than the test needs
+		long := rapid.Bool().Draw(rt, "long")
+		count, sizes := rapid.IntRange(1, 45).Draw(rt, "count"), []int{0, 1, 5}
+
+		if long {
+			count, sizes = rapid.IntRange(1, 14).Draw(rt, "count"), []int{0, 20, 300, 1000}
+		}
+
 		matched := make([]auto.Candidate, 0, count)
 
 		for index := range count {
 			candidate := auto.Candidate{
 				ID: "n" + strconv.Itoa(index) + ".md", Kind: auto.KindNote, Date: "2026-10-17", Situation: "s",
 			}
-			words := rapid.IntRange(0, 6000).Draw(rt, "words")
+			words := rapid.SampledFrom(sizes).Draw(rt, "words")
 
 			if rapid.Bool().Draw(rt, "is a chunk") {
 				candidate.ID, candidate.Kind = "c"+strconv.Itoa(index)+"#turn-1", auto.KindPassage
