@@ -43,3 +43,11 @@ A default stands until the owner answers; his answer is recorded in the entry wi
 - **Status:** open; (b) stands as the author's default.
 
 Step 3, the technical specification ([855d Judged Automatic Memory - Technical Spec](./855d_technical-spec.md#judged-automatic-memory---technical-spec)), raised the four questions above at the fix pass of its review; its other author defaults are [855b24 The three cues of a turn ride three tool events](./855b_decision-log.md#855b24-the-three-cues-of-a-turn-ride-three-tool-events) to [855b40 A ledger of what was delivered, if the transcript lacks it](./855b_decision-log.md#855b40-a-ledger-of-what-was-delivered-if-the-transcript-lacks-it), for the owner to overrule at the walkthrough.
+
+## 855c6 Which date does a note carry?
+
+- **Context:** a candidate line carries the date the [note](../../GLOSSARY.md#permanent-note) was written or last amended, so that the model can tell the newer of two conflicting candidates ([855b32 Candidates are judged one by one, and the session's own transcript is not a candidate](./855b_decision-log.md#855b32-candidates-are-judged-one-by-one-and-the-sessions-own-transcript-is-not-a-candidate), [855d4b Looking up the candidates for the phrases](./855d_technical-spec.md#855d4b-added-looking-up-the-candidates-for-the-phrases)). No field of a note records an amendment: `created` is written once, and the use date is in the sidecar.
+- **Options:** (a) The `created` date: an amended note looks as old as it was written, so a revised note can lose to a later note it predates. (b) A stamp that `engram amend` writes when it changes a note's content, read as the date: the promise holds as written, and the amendment component, its specification and the exchange hash change. (c) The date of the file, which the lookup does not return.
+- **Recommendation:** (a) for now: the notes a revision makes are rare against the notes written, and (b) is a change of its own to a component outside this change ([855b56 The date of a note is its created date](./855b_decision-log.md#855b56-the-date-of-a-note-is-its-created-date)).
+- **Blocks:** [855d4b1g The request is for the mid tier and holds the verdicts, the window and the dated candidates](./855d_technical-spec.md#855d4b1-scenarios), in its reading of the date of a note.
+- **Status:** open; (a) stands as the author's default.
