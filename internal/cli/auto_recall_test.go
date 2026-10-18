@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -15,6 +17,7 @@ import (
 
 	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/cli"
+	"github.com/toejough/engram/internal/embed"
 )
 
 func Test855d4b1a_Recall_ThePhrasesAreLookedUpOnceAsPhrasesOfTheirOwn(t *testing.T) {
@@ -366,6 +369,41 @@ func payloadQuery(payload string) cli.QueryRun {
 
 		return err
 	}
+}
+
+func Test855d4b1k_Recall_AWarningOfTheLookupIsNoLineForTheUser(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := plantTwoNotes(t)
+
+	// the embedding of the second note is of another model: the lookup drops it, and warns
+	backupPath := filepath.Join(vault, backupNoteName)
+	backup, readErr := os.ReadFile(backupPath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	stale, buildErr := embed.BuildSidecar(t.Context(), stubEmbedder{modelID: "other@4", dims: 4}, backup)
+	g.Expect(buildErr).NotTo(HaveOccurred())
+	g.Expect(os.WriteFile(filepath.Join(vault, embed.SidecarPath(backupNoteName)), embed.MarshalSidecar(stale),
+		0o600)).To(Succeed())
+
+	var stdout, debug bytes.Buffer
+
+	stderr := executeForTestWithDeps(t,
+		[]string{"engram", "auto", "recall", "--vault", vault, "--chunks-dir", t.TempDir()},
+		func(d *cli.Deps) {
+			d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
+			d.Getenv = func(string) string { return "" }
+			d.UserHomeDir = func() (string, error) { return t.TempDir(), nil }
+			d.Stdin = recallInput("glance", "When is the Zorblax staging database reset?")
+			d.Stdout = &stdout
+			d.DebugLog = &debug
+		})
+
+	g.Expect(stdout.String()).To(HavePrefix(`{"request":`), "the request of the candidate judgement")
+	g.Expect(stdout.String()).To(ContainSubstring(resetNoteName), "the note that is fit is a candidate")
+	g.Expect(stderr).To(BeEmpty(), "what the user is shown")
+	g.Expect(debug.String()).To(ContainSubstring("dropped 1 sidecar"), "the debug log holds the warning of the lookup")
 }
 
 // recallInput is the JSON object that the memory mod hands to the recall: the reply of the phrases judgement, a list of
