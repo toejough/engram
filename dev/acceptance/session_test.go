@@ -111,6 +111,20 @@ func (c *conversation) end(stderr string) {
 	})
 }
 
+// rawLine returns the first `ui_log` event the process printed whose text holds a word, as it printed it.
+func (c *conversation) rawLine(word string) string {
+	c.shownLock.Lock()
+	defer c.shownLock.Unlock()
+
+	for _, raw := range c.shownRaw {
+		if strings.Contains(raw, word) {
+			return raw
+		}
+	}
+
+	return ""
+}
+
 // readResults sends the line of each result event that the process prints to the results channel, keeps the text of
 // each notice that the host prints for a mod (a mod that changes the text of a reply has the host show its text
 // beneath the reply as a notice), and keeps each `ui_log` event of the mod: the log lines the host gives the user.
@@ -190,37 +204,6 @@ func (c *conversation) say(prompt string) *turn {
 	}
 }
 
-// shownCount returns how many log lines of the mod the process has printed so far.
-func (c *conversation) shownCount() int {
-	c.shownLock.Lock()
-	defer c.shownLock.Unlock()
-
-	return len(c.shown)
-}
-
-// shownSince returns the text of the log lines of the mod that the process printed after the first count of them: those
-// of a prompt are printed before its result, and the result is awaited.
-func (c *conversation) shownSince(count int) []string {
-	c.shownLock.Lock()
-	defer c.shownLock.Unlock()
-
-	return slices.Clone(c.shown[count:])
-}
-
-// rawLine returns the first `ui_log` event the process printed whose text holds a word, as it printed it.
-func (c *conversation) rawLine(word string) string {
-	c.shownLock.Lock()
-	defer c.shownLock.Unlock()
-
-	for _, raw := range c.shownRaw {
-		if strings.Contains(raw, word) {
-			return raw
-		}
-	}
-
-	return ""
-}
-
 // shownByTheMod returns the notices the host printed for automatic memory's mod, such as the text it changed a reply
 // to.
 func (c *conversation) shownByTheMod() []string {
@@ -236,6 +219,23 @@ func (c *conversation) shownByTheMod() []string {
 	}
 
 	return shown
+}
+
+// shownCount returns how many log lines of the mod the process has printed so far.
+func (c *conversation) shownCount() int {
+	c.shownLock.Lock()
+	defer c.shownLock.Unlock()
+
+	return len(c.shown)
+}
+
+// shownSince returns the text of the log lines of the mod that the process printed after the first count of them: those
+// of a prompt are printed before its result, and the result is awaited.
+func (c *conversation) shownSince(count int) []string {
+	c.shownLock.Lock()
+	defer c.shownLock.Unlock()
+
+	return slices.Clone(c.shown[count:])
 }
 
 // tell sends one prompt as say does, and logs the agent's reply: the record of the step.

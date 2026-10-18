@@ -34,6 +34,9 @@ type AutoDeliverDeps struct {
 	// ReadDir and ReadFile read the session-log directory, where Claude Code keeps the record of each session.
 	ReadDir  func(path string) ([]fs.DirEntry, error)
 	ReadFile func(path string) ([]byte, error)
+	// WriteRecord writes one file of the records of a session, and makes its directory: the mark of a record whose line
+	// was shown.
+	WriteRecord func(path string, data []byte) error
 }
 
 // AutoJudgeArgs holds parsed flags for `engram auto judge`: those of the delivery, because the judgement looks up
@@ -113,8 +116,12 @@ type LearnRun func(ctx context.Context, args LearnArgs) (string, error)
 // QueryRun runs the lookup of `engram query` for the arguments it is given and prints its payload.
 type QueryRun func(ctx context.Context, args QueryArgs, stdout io.Writer) error
 
-// RunAutoDeliver reads a prompt from standard input and prints the block of the notes that bear on it (793d4a).
-func RunAutoDeliver(ctx context.Context, args AutoDeliverArgs, deps AutoDeliverDeps, stdout io.Writer) error {
+// RunAutoDeliver reads a prompt from standard input, prints the block of the notes that bear on it on standard output
+// (793d4a), and prints on standard error the lines that show the user the notes it delivered and what automatic memory
+// did that the user was not shown yet, marking the records whose lines it printed (793d4p).
+func RunAutoDeliver(
+	ctx context.Context, args AutoDeliverArgs, deps AutoDeliverDeps, stdout, stderr io.Writer,
+) error {
 	var request auto.Request
 
 	decodeErr := json.NewDecoder(deps.Stdin).Decode(&request)
@@ -126,27 +133,36 @@ func RunAutoDeliver(ctx context.Context, args AutoDeliverArgs, deps AutoDeliverD
 		return nil
 	}
 
-	// the record of the session is read once: it says what the agent holds and which lines it was told (793d4d)
+	// the record of the session is read once: it says what the agent holds (793d4d)
 	record := recordOf(deps.ReadDir, deps.ReadFile, args.SessionsDir, request.Session)
 
-	block, err := auto.Deliver(ctx, request,
+	delivery, err := auto.Deliver(ctx, request,
 		func(ctx context.Context, text string) ([]auto.Note, error) {
 			return lookUpNotes(ctx, args.VaultPath, text, deps.Query)
 		},
 		func(string) string {
 			return auto.HeldText(record)
 		},
-		func(session string) []string {
-			return auto.ActivityLines(recordsOf(deps, args.RecordsDir, session), auto.ToldLines(record))
+		func(session string) []auto.Line {
+			return auto.ActivityLines(recordsOf(deps, args.RecordsDir, session))
 		})
 	if err != nil {
 		return fmt.Errorf("auto deliver: %w", err)
 	}
 
-	_, writeErr := io.WriteString(stdout, block)
+	_, writeErr := io.WriteString(stdout, delivery.Block)
 	if writeErr != nil {
 		return fmt.Errorf("auto deliver: writing the block: %w", writeErr)
 	}
+
+	for _, line := range delivery.Shown {
+		_, shownErr := fmt.Fprintln(stderr, line)
+		if shownErr != nil {
+			return fmt.Errorf("auto deliver: writing a line for the user: %w", shownErr)
+		}
+	}
+
+	markShown(deps.WriteRecord, args.RecordsDir, request.Session, delivery.Told)
 
 	return nil
 }
@@ -264,6 +280,8 @@ const (
 	recordFilePerm fs.FileMode = 0o600
 	// recordTimeFormat writes the time a record was made at in the name of its file: it sorts as the time does.
 	recordTimeFormat = "20060102T150405.000000000Z"
+	// toldFileExt ends the name of the mark of a record whose line was shown: the name of the record's file, then this.
+	toldFileExt = ".told"
 )
 
 // unexported variables.
@@ -367,6 +385,18 @@ func lookUpNotes(ctx context.Context, vault, text string, query QueryRun) ([]aut
 	return notesOf(payload.Bytes())
 }
 
+// markShown marks each record whose line was shown, by an empty file beside the record, so that its line is not shown
+// again (793d4p). A mark that cannot be written is the end of it.
+func markShown(write func(path string, data []byte) error, dir, session string, files []string) {
+	if dir == "" || !isPlainName(session) {
+		return
+	}
+
+	for _, file := range files {
+		_ = write(filepath.Join(dir, session, file+toldFileExt), nil)
+	}
+}
+
 // newAutoDeliverDeps wires RunAutoDeliver and RunAutoJudge from the injected CLI capabilities - pure composition
 // (#700).
 func newAutoDeliverDeps(d Deps) AutoDeliverDeps {
@@ -377,8 +407,9 @@ func newAutoDeliverDeps(d Deps) AutoDeliverDeps {
 		Query: func(ctx context.Context, args QueryArgs, stdout io.Writer) error {
 			return RunQuery(ctx, args, queryDeps, stdout)
 		},
-		ReadDir:  d.FS.ReadDir,
-		ReadFile: d.FS.ReadFile,
+		ReadDir:     d.FS.ReadDir,
+		ReadFile:    d.FS.ReadFile,
+		WriteRecord: recordWriterFrom(d),
 	}
 }
 
@@ -534,10 +565,10 @@ func recordWriterFrom(d Deps) func(path string, data []byte) error {
 	}
 }
 
-// recordsOf returns the records of what automatic memory did for a session, oldest first: those of the files of the
-// session's directory in the directory of records, in the order of their names, which sort as the time they were made
-// does (793d4k). A directory that cannot be listed, a file that cannot be read or that is no record, and a record of
-// another session leave nothing (793d4p).
+// recordsOf returns the records of what automatic memory did for a session, oldest first, that the user was not shown:
+// those of the files of the session's directory in the directory of records, in the order of their names, which sort
+// as the time they were made does (793d4k), less those with a mark beside them (793d4p). A directory that cannot be
+// listed, a file that cannot be read or that is no record, and a record of another session leave nothing.
 func recordsOf(deps AutoDeliverDeps, dir, session string) []auto.Record {
 	if dir == "" || !isPlainName(session) {
 		return nil
@@ -545,10 +576,11 @@ func recordsOf(deps AutoDeliverDeps, dir, session string) []auto.Record {
 
 	// a directory that cannot be listed has no records
 	entries, _ := deps.ReadDir(filepath.Join(dir, session))
+	shown := shownRecords(entries)
 	records := make([]auto.Record, 0, len(entries))
 
 	for _, entry := range entries {
-		if filepath.Ext(entry.Name()) != recordFileExt {
+		if filepath.Ext(entry.Name()) != recordFileExt || shown[entry.Name()] {
 			continue
 		}
 
@@ -557,6 +589,7 @@ func recordsOf(deps AutoDeliverDeps, dir, session string) []auto.Record {
 		var record auto.Record
 
 		if readErr == nil && json.Unmarshal(data, &record) == nil && record.Session == session {
+			record.File = entry.Name()
 			records = append(records, record)
 		}
 	}
@@ -574,6 +607,19 @@ func sessionsDirOf(getenv func(string) string, userHomeDir func() (string, error
 	}
 
 	return sessionDirFrom(getenv, userHomeDir)("")
+}
+
+// shownRecords returns the file names of the records that have a mark beside them (793d4p).
+func shownRecords(entries []fs.DirEntry) map[string]bool {
+	shown := make(map[string]bool, len(entries))
+
+	for _, entry := range entries {
+		if filepath.Ext(entry.Name()) == toldFileExt {
+			shown[strings.TrimSuffix(entry.Name(), toldFileExt)] = true
+		}
+	}
+
+	return shown
 }
 
 // situationAndSourceOf extracts the situation and the source from the front matter of a note, or nothing when the

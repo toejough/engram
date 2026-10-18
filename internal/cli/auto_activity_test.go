@@ -34,8 +34,8 @@ func Test793d4p1c_RunAutoDeliver_ALineThatWasShownIsNotShownAgain(t *testing.T) 
 	// the mark beside the first record: its line was shown
 	g.Expect(os.WriteFile(filepath.Join(dir, firstFile+".told"), nil, 0o600)).To(Succeed())
 
-	first := deliverOver(t, records, "", sessionID)
-	second := deliverOver(t, records, "", sessionID)
+	first := deliverOver(t, records, sessionID)
+	second := deliverOver(t, records, sessionID)
 
 	g.Expect(first.err).NotTo(HaveOccurred())
 	g.Expect(second.err).NotTo(HaveOccurred())
@@ -58,9 +58,9 @@ func Test793d4p1e_RunAutoDeliver_AtMostFiveLinesAreShownAtOnce(t *testing.T) {
 			}))
 	}
 
-	first := deliverOver(t, records, "", sessionID)
-	second := deliverOver(t, records, "", sessionID)
-	third := deliverOver(t, records, "", sessionID)
+	first := deliverOver(t, records, sessionID)
+	second := deliverOver(t, records, sessionID)
+	third := deliverOver(t, records, sessionID)
 
 	g.Expect(recordLines(first.shown)).To(HaveLen(5), "the lines of the first prompt")
 	g.Expect(recordLines(second.shown)).To(Equal([]string{
@@ -107,7 +107,7 @@ func Test793d4p1f_RunAutoDeliver_TheRecordsOfAnotherSessionAnUnreadableRecordAnd
 		auto.RecordFailed, func(r *auto.Record) { r.Reason = "the other session's failure" }))
 
 	shown := func(session string) []string {
-		result := deliverOver(t, records, "", session)
+		result := deliverOver(t, records, session)
 		g.Expect(result.err).NotTo(HaveOccurred(), "the delivery for "+session)
 		g.Expect(result.block).To(ContainSubstring(resetNoteName), "the note for "+session)
 
@@ -150,7 +150,7 @@ func Test793d4p1h_RunAutoDeliver_ANoteDeliveredIsShownAsALine(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	result := deliverOver(t, t.TempDir(), "", sessionID)
+	result := deliverOver(t, t.TempDir(), sessionID)
 
 	g.Expect(result.err).NotTo(HaveOccurred())
 	g.Expect(result.block).To(ContainSubstring("- "+resetNoteName+" ("), "the block, on standard output")
@@ -186,9 +186,9 @@ func activityRecordAt(index int, session, kind string, fill func(*auto.Record)) 
 	return record
 }
 
-// deliverOver runs the delivery for a prompt of a session, over the vault of one note and the directories of records of
-// what automatic memory did and of sessions that it is given, and returns what it prints.
-func deliverOver(t *testing.T, records, sessions, session string) shownBy {
+// deliverOver runs the delivery for a prompt of a session, over the vault of one note and the directory of records of
+// what automatic memory did that it is given, and returns what it prints.
+func deliverOver(t *testing.T, records, session string) shownBy {
 	t.Helper()
 
 	memFS := newInMemoryFS()
@@ -198,7 +198,7 @@ func deliverOver(t *testing.T, records, sessions, session string) shownBy {
 	var block, shown bytes.Buffer
 
 	err := cli.RunAutoDeliver(context.Background(),
-		cli.AutoDeliverArgs{VaultPath: vault, SessionsDir: sessions, RecordsDir: records},
+		cli.AutoDeliverArgs{VaultPath: vault, RecordsDir: records},
 		cli.AutoDeliverDeps{
 			Stdin:       userPrompt("When is the Zorblax staging database reset?", session),
 			Query:       queryOver(newQueryDeps(memFS)),

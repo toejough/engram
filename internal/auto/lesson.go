@@ -84,6 +84,9 @@ type Record struct {
 	Note    string    `json:"note,omitempty"`
 	Slug    string    `json:"slug,omitempty"`
 	Reason  string    `json:"reason,omitempty"`
+	// File is the name of the file the record is kept in, which the line that tells it is marked by (793d4p); it is
+	// no part of the record.
+	File string `json:"-"`
 }
 
 // Reply is the model's reply to the request of the judgement of a turn, or the failure to get one, as the memory mod

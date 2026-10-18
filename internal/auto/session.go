@@ -24,29 +24,6 @@ func HeldText(record []byte) string {
 	return held.text.String()
 }
 
-// ToldLines returns the text of the lines that tell what automatic memory did and that a session was told, from the
-// session's record (793d4d): each line that begins with an asterisk and a space of the blocks delivered beside prompts,
-// without the asterisk and the space.
-func ToldLines(record []byte) []string {
-	var told []string
-
-	for line := range bytes.SplitSeq(record, []byte("\n")) {
-		var row recordRow
-
-		// most rows of a record are no attachment of a hook: they are not read
-		if !bytes.Contains(line, []byte(deliveredType)) || json.Unmarshal(line, &row) != nil ||
-			row.Attachment.Type != deliveredType {
-			continue
-		}
-
-		for _, entry := range entriesOf(row.Attachment.Content) {
-			told = append(told, toldLinesOf(entry)...)
-		}
-	}
-
-	return told
-}
-
 // unexported constants.
 const (
 	// deliveredType is the type of the attachment that a session's record keeps for the context a hook put beside a
@@ -227,23 +204,4 @@ func textOf(raw json.RawMessage) string {
 	}
 
 	return strings.Join(parts, "\n")
-}
-
-// toldLinesOf returns the text of the lines that tell what automatic memory did, of a block it delivered, or nothing
-// for any other entry.
-func toldLinesOf(entry string) []string {
-	if !strings.HasPrefix(entry, marker) {
-		return nil
-	}
-
-	var texts []string
-
-	for line := range strings.SplitSeq(entry, "\n") {
-		text, isLine := strings.CutPrefix(line, activityMark)
-		if isLine {
-			texts = append(texts, text)
-		}
-	}
-
-	return texts
 }

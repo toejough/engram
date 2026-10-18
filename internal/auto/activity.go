@@ -1,27 +1,32 @@
 package auto
 
 import (
-	"slices"
 	"unicode/utf8"
 )
 
-// Activity tells what automatic memory did that a session was not told yet: the text of each line, oldest first
-// (793d4p).
-type Activity func(session string) []string
+// Activity returns the lines that tell what automatic memory did for a session and the user was not shown yet, oldest
+// first (793d4p).
+type Activity func(session string) []Line
 
-// ActivityLines returns the text of the lines that tell what the records of a session say automatic memory did, for the
-// records whose line the session was not told, oldest first and five at most (793d4p). A record of the kind nothing
-// says nothing.
-func ActivityLines(records []Record, told []string) []string {
-	lines := make([]string, 0, activityLimit)
+// Line is a line that tells the user what a record of what automatic memory did says (793d4p), with the file of the
+// record, which is marked once the line has been shown.
+type Line struct {
+	Text string
+	File string
+}
+
+// ActivityLines returns the lines that tell what the records of a session say automatic memory did, for the records
+// whose line the user was not shown, oldest first and five at most (793d4p). A record of the kind nothing says nothing.
+func ActivityLines(records []Record) []Line {
+	lines := make([]Line, 0, activityLimit)
 
 	for _, record := range records {
 		text := activityText(record)
-		if text == "" || slices.Contains(told, text) {
+		if text == "" {
 			continue
 		}
 
-		lines = append(lines, text)
+		lines = append(lines, Line{Text: text, File: record.File})
 
 		if len(lines) == activityLimit {
 			break

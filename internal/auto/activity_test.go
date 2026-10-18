@@ -95,6 +95,17 @@ func Test793d4p1e_ActivityLines_AtMostFiveLinesAreShownAtOnce(t *testing.T) {
 	}), "the lines of one delivery; the rest wait for the next")
 }
 
+// filesOf returns the file of the record that each line tells.
+func filesOf(lines []auto.Line) []string {
+	files := make([]string, 0, len(lines))
+
+	for _, line := range lines {
+		files = append(files, line.File)
+	}
+
+	return files
+}
+
 // recordAt makes a record of a kind, made a second after the one at the index before it, and lets the test fill it.
 func recordAt(index int, kind string, fill func(*auto.Record)) auto.Record {
 	zone := time.FixedZone("EDT", -4*60*60)
@@ -111,17 +122,6 @@ func recordAt(index int, kind string, fill func(*auto.Record)) auto.Record {
 	}
 
 	return record
-}
-
-// filesOf returns the file of the record that each line tells.
-func filesOf(lines []auto.Line) []string {
-	files := make([]string, 0, len(lines))
-
-	for _, line := range lines {
-		files = append(files, line.File)
-	}
-
-	return files
 }
 
 // textsOf returns the text of each line.

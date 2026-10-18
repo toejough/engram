@@ -270,20 +270,6 @@ const (
 	slowWrite = 12 * time.Second
 )
 
-// linesNaming returns the lines that tell what automatic memory did that name a note: the judgement of a turn may
-// write more than one note, and a line is told for each.
-func linesNaming(told []string, note string) []string {
-	var named []string
-
-	for _, line := range told {
-		if strings.Contains(line, note) {
-			named = append(named, line)
-		}
-	}
-
-	return named
-}
-
 // holdNone fails the test when an entry of the context beside the prompts of the turns holds one of the lines shown to
 // the user, or a line that begins with an asterisk: the lines go to the user, and the model is told none (793a2d).
 func holdNone(g *WithT, shown []string, turns ...*turn) {
@@ -296,4 +282,18 @@ func holdNone(g *WithT, shown []string, turns ...*turn) {
 			}
 		}
 	}
+}
+
+// linesNaming returns the lines that tell what automatic memory did that name a note: the judgement of a turn may
+// write more than one note, and a line is told for each.
+func linesNaming(told []string, note string) []string {
+	var named []string
+
+	for _, line := range told {
+		if strings.Contains(line, note) {
+			named = append(named, line)
+		}
+	}
+
+	return named
 }

@@ -190,7 +190,7 @@ func autoTargets(
 				a.VaultPath, a.SessionsDir = paths(a.VaultPath, a.SessionsDir)
 				a.RecordsDir = recordsDir(a.RecordsDir)
 
-				errHandler(RunAutoDeliver(withLog(ctx), a, newAutoDeliverDeps(deps), deps.Stdout))
+				errHandler(RunAutoDeliver(withLog(ctx), a, newAutoDeliverDeps(deps), deps.Stdout, deps.Stderr))
 			}).Name("deliver").Description(
 				"Print the block of the notes that bear on a prompt (the automatic-memory mod runs this for each prompt)"),
 			targ.Targ(func(ctx context.Context, a AutoJudgeArgs) {
