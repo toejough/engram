@@ -701,7 +701,7 @@ Adds no component: the delivery reads the records at every [prompt](./793a_produ
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2e1b | Dedicated example, product acceptance (`network`) | a judgement row; an `engram` on the path waits 12 seconds before the write and then runs it | | Not started | | | |
+| 793a2e1b | Dedicated example, product acceptance (`network`) | a judgement row; an `engram` on the path waits 12 seconds before the write and then runs it; passed when written; mutation (scratch copy): the mod awaiting the capture inside the turn's event holds the second prompt until the write ended, so that it arrives with the line, which fails it | | Done | n/a | 23b2fb54 | |
 
 #### 793e6d3 A delivery that could not be done is shown with its reason
 

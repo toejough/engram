@@ -399,20 +399,10 @@ func (m *machine) jobsTake(wait time.Duration) {
 	m.t.Helper()
 
 	dir := filepath.Join(m.root, "jobs")
-	mkdirAll(m.t, dir)
 
-	script := "#!/bin/sh\ncase \"$1 $2\" in\n\"auto judge\"|\"auto write\"|\"auto sweep\")\n: > '" + dir +
-		"/started-'\"$2\"\nexec sleep " + strconv.Itoa(int(wait.Seconds())) + "\n;;\nesac\nexec '" +
-		filepath.Join(m.gobin, engramBinaryName) + "' \"$@\"\n"
-	path := filepath.Join(dir, engramBinaryName)
-	writeFile(m.t, path, script)
-
-	err := os.Chmod(path, 0o700)
-	if err != nil {
-		m.t.Fatalf("making the slow engram executable: %v", err)
-	}
-
-	m.pathFront = dir
+	m.wrapsEngram(dir, "#!/bin/sh\ncase \"$1 $2\" in\n\"auto judge\"|\"auto write\"|\"auto sweep\")\n: > '"+dir+
+		"/started-'\"$2\"\nexec sleep "+strconv.Itoa(int(wait.Seconds()))+"\n;;\nesac\nexec '"+
+		filepath.Join(m.gobin, engramBinaryName)+"' \"$@\"\n")
 }
 
 // learnsFact writes a fact into the vault and returns the file name of the note.
@@ -450,19 +440,9 @@ func (m *machine) lookupTakes(wait time.Duration) {
 	m.t.Helper()
 
 	dir := filepath.Join(m.root, "slow")
-	mkdirAll(m.t, dir)
 
-	script := "#!/bin/sh\n: > '" + filepath.Join(dir, "started") + "'\nsleep " + strconv.Itoa(int(wait.Seconds())) +
-		"\nexec '" + filepath.Join(m.gobin, engramBinaryName) + "' \"$@\"\n"
-	path := filepath.Join(dir, engramBinaryName)
-	writeFile(m.t, path, script)
-
-	err := os.Chmod(path, 0o700)
-	if err != nil {
-		m.t.Fatalf("making the slow engram executable: %v", err)
-	}
-
-	m.pathFront = dir
+	m.wrapsEngram(dir, "#!/bin/sh\n: > '"+filepath.Join(dir, "started")+"'\nsleep "+strconv.Itoa(int(wait.Seconds()))+
+		"\nexec '"+filepath.Join(m.gobin, engramBinaryName)+"' \"$@\"\n")
 }
 
 // mustSucceed fails the test when a command exited non-zero.
@@ -625,26 +605,34 @@ func (m *machine) vaultIsRemoved() {
 	}
 }
 
+// wrapsEngram puts a script named engram in a directory that comes first on the machine's PATH, so that it stands
+// between the mod and the machine's own engram.
+func (m *machine) wrapsEngram(dir, script string) {
+	m.t.Helper()
+
+	mkdirAll(m.t, dir)
+
+	path := filepath.Join(dir, engramBinaryName)
+	writeFile(m.t, path, script)
+
+	err := os.Chmod(path, 0o700)
+	if err != nil {
+		m.t.Fatalf("making the engram in %s executable: %v", dir, err)
+	}
+
+	m.pathFront = dir
+}
+
 // writeTakes makes the writing of the lessons take the given time: engram on the PATH notes that the writing started
 // and waits, and then runs the machine's own engram, which writes what it was given.
 func (m *machine) writeTakes(wait time.Duration) {
 	m.t.Helper()
 
 	dir := filepath.Join(m.root, "slow-write")
-	mkdirAll(m.t, dir)
 
-	script := "#!/bin/sh\ncase \"$1 $2\" in\n\"auto write\")\n: > '" + dir + "/started'\nsleep " +
-		strconv.Itoa(int(wait.Seconds())) + "\n;;\nesac\nexec '" + filepath.Join(m.gobin, engramBinaryName) +
-		"' \"$@\"\n"
-	path := filepath.Join(dir, engramBinaryName)
-	writeFile(m.t, path, script)
-
-	err := os.Chmod(path, 0o700)
-	if err != nil {
-		m.t.Fatalf("making the slow engram executable: %v", err)
-	}
-
-	m.pathFront = dir
+	m.wrapsEngram(dir, "#!/bin/sh\ncase \"$1 $2\" in\n\"auto write\")\n: > '"+dir+"/started'\nsleep "+
+		strconv.Itoa(int(wait.Seconds()))+"\n;;\nesac\nexec '"+filepath.Join(m.gobin, engramBinaryName)+
+		"' \"$@\"\n")
 }
 
 // vaultNote is a note of the vault as its file holds it.
