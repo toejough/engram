@@ -809,7 +809,7 @@ Scenario: 793d4k1f A directory of records that cannot be made, and a record that
 
 ### 793d4m Telling the prompts the user sends
 
-Requirement: 793d4m The `prompt-delivery`, the `turn-judgement` and the `conversation-sweep` MUST each read the `origin` of the JSON object they are given, the kind Claude Code stamps on a [prompt](./793a_product-spec.md#793a1a-terms), and act only for a prompt the user sends, one whose origin is `composer`, `bridge`, `slack-ping` or `sdk`; for any other origin, including none, each MUST print nothing, succeed and look nothing up. The `turn-judgement` and the `conversation-sweep` MUST do the same for the origin `sdk`, the headless host's own [turn](./793a_product-spec.md#793a1a-terms) (`claude -p`, the SDK), unless the user switched on capturing such turns with the flag `--capture-sdk` or the environment variable `ENGRAM_AUTO_CAPTURE_SDK` set to a true value (`1`), so that a script run with `claude -p` under the user's own home writes and indexes nothing by default. The definition is theirs: the mod passes the origin it received and decides nothing ([793b64 The prompts the user sends](./793b_decision-log.md#793b64-the-prompts-the-user-sends), [793b84 A headless prompt is judged only when the user asks](./793b_decision-log.md#793b84-a-headless-prompt-is-judged-only-when-the-user-asks)).
+Requirement: 793d4m The `prompt-delivery`, the `turn-judgement` and the `conversation-sweep` MUST each read the `origin` of the JSON object they are given, the kind Claude Code stamps on a [prompt](./793a_product-spec.md#793a1a-terms), and act only for a prompt the user sends, one whose origin is `composer`, `bridge`, `slack-ping` or `sdk`; for any other origin, including none, each MUST print nothing, succeed and look nothing up. The `turn-judgement` and the `conversation-sweep` MUST do the same for the origin `sdk`, the headless host's own [turn](./793a_product-spec.md#793a1a-terms) (`claude -p`, the SDK), unless the user switched on capturing such turns with the flag `--capture-sdk` or the environment variable `ENGRAM_AUTO_CAPTURE_SDK` set to a true value (`1`), so that a script run with `claude -p` under the user's own home writes and indexes nothing by default. When the `turn-judgement` leaves out a turn for that reason it MUST record that as [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did) records a reply that is not a list, a record of the kind `skipped` with no slug and a reason that says the turn was not captured because headless prompts are captured only when `ENGRAM_AUTO_CAPTURE_SDK` is set, in the directory of its `--records` flag, else `auto` in the engram data directory, and still print nothing and succeed; it MUST record nothing for any other origin it leaves out. The definition is theirs: the mod passes the origin it received and decides nothing ([793b64 The prompts the user sends](./793b_decision-log.md#793b64-the-prompts-the-user-sends), [793b84 A headless prompt is judged only when the user asks](./793b_decision-log.md#793b84-a-headless-prompt-is-judged-only-when-the-user-asks)).
 
 Owner: `prompt-delivery`, `turn-judgement` and `conversation-sweep`. Supports: [793a2d1b Automatic memory's work starts no session of its own](./793a_product-spec.md#793a2d1-uat-scenarios). No clause of a product requirement names an origin, so none of its scenarios does: all are raised by prompts the user sends, which this requirement lets through.
 
@@ -835,6 +835,11 @@ Scenario: 793d4m1d A turn that a background task's notification starts is not ju
   Given the user has run engram update, and a session in which the agent may run a sleep command but may not run engram commands
   When the agent starts a task in the background in a turn the user began, and the task's notification starts a turn of its own that the agent answers
   Then automatic memory has made one record, that of the user's turn, and the vault holds no note
+
+Scenario: 793d4m1e A headless turn that is not judged is recorded as skipped with the reason
+  Given the record of a session whose turn began with a prompt of the origin sdk, a place for the records, and, in turn, an origin the user does not send
+  When the judgement is given the turn, without the flag --capture-sdk and with it
+  Then without it the judgement prints nothing and succeeds, and one record of the kind skipped, with the session's ID and the turn's ID and a reason that says the turn was not captured and names ENGRAM_AUTO_CAPTURE_SDK, is made; with it no record is made, and for the other origin no record is made
 ```
 
 ### 793d4n Sweeping the conversation
@@ -1394,6 +1399,19 @@ Scenario: 793a2e1e A sweep that failed is shown with its reason
 ```
 
 Realized by [793d2c Conversation sweep flow](#793d2c-conversation-sweep-flow) (the mod reports a sweep that fails to the writing, as a failure that names the sweep and the cause), [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did) (the writing records it as a failure) and [793d4p Telling what automatic memory did](#793d4p-telling-what-automatic-memory-did) (the block of the next [prompt](./793a_product-spec.md#793a1a-terms) carries its line).
+
+### 793d5zk Mapping of 793a2e1f
+
+The product scenario [793a2e1f A turn that is not captured is shown with the reason](./793a_product-spec.md#793a2e1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2e1f A turn that is not captured is shown with the reason
+  Given the user has run engram update, and headless prompts are captured only when the user asks
+  When the user corrects the agent in a headless session, and sends another prompt
+  Then the second prompt arrives with a line that says the turn was not captured, with the reason
+```
+
+Realized by [793d4m Telling the prompts the user sends](#793d4m-telling-the-prompts-the-user-sends) (the judgement records a headless [turn](./793a_product-spec.md#793a1a-terms) it leaves out as skipped, with the reason) and [793d4p Telling what automatic memory did](#793d4p-telling-what-automatic-memory-did) (the block of the next [prompt](./793a_product-spec.md#793a1a-terms) carries its line).
 
 ## 793d6 Recommended impact
 

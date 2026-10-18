@@ -465,3 +465,11 @@ Withdrawn: answered by the owner's instruction to follow the guides, [793b91 The
 - **Recommendation:** (a): (b) loses the cause, and (c) puts no bound on a record.
 - **Blocks:** [793a2e1e A sweep that failed is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios).
 - **Status:** open; default (a) taken in [793b108 A failure the mod reports is cut in its middle](./793b_decision-log.md#793b108-a-failure-the-mod-reports-is-cut-in-its-middle).
+
+## 793c77 Does a headless turn that is not captured leave a record?
+
+- **Context:** [793a2e1f A turn that is not captured is shown with the reason](./793a_product-spec.md#793a2e1-uat-scenarios) asks for a line about a [turn](./793a_product-spec.md#793a1a-terms) that was left out because headless [prompts](./793a_product-spec.md#793a1a-terms) are captured only when the user asks; a script run with `claude -p` under the user's own home runs a headless turn for each call, and the sign of the line needs a record.
+- **Options:** (a) The judgement records each such turn as `skipped`, one small file in the data directory for each turn. (b) Nothing is recorded, and the user is told once in the documentation. (c) A record only for a [session](../../GLOSSARY.md#session) that has more than one prompt, which the judgement cannot know.
+- **Recommendation:** (a): the scenario asks for the sign, and the cost is a file of a few hundred bytes; (c) cannot be decided at the turn.
+- **Blocks:** [793a2e1f A turn that is not captured is shown with the reason](./793a_product-spec.md#793a2e1-uat-scenarios).
+- **Status:** open; default (a) taken in [793b109 A headless turn that is not captured is recorded by the judgement](./793b_decision-log.md#793b109-a-headless-turn-that-is-not-captured-is-recorded-by-the-judgement).
