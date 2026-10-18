@@ -96,6 +96,48 @@ func Test793d4d1f_HeldText_ANoteFetchedWithEngramShowIsHeld(t *testing.T) {
 	g.Expect(held).To(ContainSubstring("1.2026-10-17.zorblax-staging-reset"), "the command names the note")
 }
 
+func Test855d4e1a_HeldText_TheChunkIDsOfThePassagesDeliveredAreHeld(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	record := `{"type":"attachment","attachment":{"type":"hook_additional_context","hookName":"prompt.submit",` +
+		`"content":["[engram memory] The lines below are notes and passages.\n` +
+		`- /chunks/an-earlier-session.jsonl#c3 (passage): the freeze, see /chunks/another-session.jsonl#c9\n` +
+		`- 1.2026-10-17.first-note.md (when A): body"]}}`
+
+	held := auto.HeldText([]byte(record))
+
+	g.Expect(held).To(ContainSubstring("/chunks/an-earlier-session.jsonl#c3"), "the chunk ID of the passage line")
+	g.Expect(held).To(ContainSubstring("1.2026-10-17.first-note.md"), "the file name of the note line")
+	g.Expect(held).NotTo(ContainSubstring("the freeze"), "the text of the passage")
+	g.Expect(held).NotTo(ContainSubstring("another-session"), "an ID the text of the passage names")
+}
+
+func Test855d4e1b_HeldText_APassageFetchedWithEngramShowChunkAndANoteTheAgentSavedAreHeld(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	record := strings.Join([]string{
+		bashCall("t1", "engram show-chunk /chunks/an-earlier-session.jsonl#c3"),
+		toolResult("t1", `"the user said the cutover is frozen"`),
+		bashCall("t2", "engram learn fact --slug zorblax-freeze --situation s"),
+		toolResult("t2", `"/vault/2.2026-10-17.zorblax-freeze.md"`),
+		bashCall("t3", "engram amend 3.2026-10-17.a-note.md --situation s"),
+		toolResult("t3", `"amended 3.2026-10-17.a-note.md"`),
+		bashCall("t4", "git status"),
+		toolResult("t4", `"4.2026-10-17.a-file-of-git.md"`),
+	}, "\n")
+
+	held := auto.HeldText([]byte(record))
+
+	g.Expect(held).To(ContainSubstring("engram show-chunk /chunks/an-earlier-session.jsonl#c3"), "the command")
+	g.Expect(held).To(ContainSubstring("the cutover is frozen"), "the result of the command")
+	g.Expect(held).To(ContainSubstring("engram learn fact --slug zorblax-freeze"), "the command that saved")
+	g.Expect(held).To(ContainSubstring("2.2026-10-17.zorblax-freeze.md"), "the note the result names")
+	g.Expect(held).To(ContainSubstring("3.2026-10-17.a-note.md"), "the note the amend names")
+	g.Expect(held).NotTo(ContainSubstring("4.2026-10-17.a-file-of-git.md"), "the result of another command")
+}
+
 // bashCall is the record of the agent running a Bash command.
 func bashCall(id, command string) string {
 	return `{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"` + id +
