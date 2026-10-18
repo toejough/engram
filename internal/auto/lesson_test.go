@@ -1,9 +1,12 @@
 package auto_test
 
 import (
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	. "github.com/onsi/gomega"
+	"pgregory.net/rapid"
 
 	"github.com/toejough/engram/internal/auto"
 )
@@ -99,4 +102,53 @@ func Test793d4h1d_ParseLessons_TheCodeFenceAroundTheListIsNotPartOfIt(t *testing
 			}
 		})
 	}
+}
+
+func Test793d4k1j_RecordedReason_WhateverTextSurroundsACredentialNoPartOfItIsKept(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		found := credentialShape().Draw(rt, "credential")
+		// letters that spell none of the names of a secret, so that the text around the credential changes none of
+		// its shape: the place where the reason is cut is the only thing that varies
+		before := rapid.StringMatching(`[xyz .,\n]{0,400}`).Draw(rt, "before")
+		after := rapid.StringMatching(`[xyz .,\n]{0,400}`).Draw(rt, "after")
+
+		reason := auto.RecordedReason(before + " " + found.text + " " + after)
+
+		switch {
+		case strings.Contains(reason, "\n"):
+			rt.Fatalf("the reason is not one line: %q", reason)
+		case utf8.RuneCountInString(reason) > recordedReasonLimit:
+			rt.Fatalf("the reason is %d characters long: %q", utf8.RuneCountInString(reason), reason)
+		case holdsPartOf(reason, found.secret):
+			rt.Fatalf("a part of the secret %q is in %q", found.secret, reason)
+		}
+	})
+}
+
+// unexported constants.
+const (
+	// partLength is how many characters of a secret make a part of it that must not be kept.
+	partLength = 8
+	// recordedReasonLimit is how many characters of a reason a record keeps at most (793d4k).
+	recordedReasonLimit = 300
+)
+
+// holdsPartOf reports whether the text holds the secret or, when it is longer than partLength characters, a part of it
+// of partLength characters.
+func holdsPartOf(text, secret string) bool {
+	runes := []rune(strings.TrimSpace(secret))
+
+	if len(runes) <= partLength {
+		return strings.Contains(text, string(runes))
+	}
+
+	for start := 0; start+partLength <= len(runes); start++ {
+		if strings.Contains(text, string(runes[start:start+partLength])) {
+			return true
+		}
+	}
+
+	return false
 }

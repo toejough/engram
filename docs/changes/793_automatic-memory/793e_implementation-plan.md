@@ -132,14 +132,14 @@ flowchart TD
     n793e6g11 --> n793e6d6
     n793e6d1 --> n793e6h1[793e6h1 What the user is shown goes through the host's log, and is not put in the prompt's context<br/>Complete]
     n793e6h1 --> n793e6h2[793e6h2 The text of a prompt is in no failure<br/>Complete]
-    n793e6h1 --> n793e6h3[793e6h3 A failure is written as one line, redacted, and cut by the writing<br/>Ready]
+    n793e6h1 --> n793e6h3[793e6h3 A failure is written as one line, redacted, and cut by the writing<br/>In progress: 0/3 entries complete]
     n793e6a2 --> n793e6f[793e6f The delivery merges the parent vault<br/>Blocked by: 793c34]
     classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
     classDef blocked fill:#eeeeee,stroke:#757575,color:#000,stroke-dasharray:5 5
     class n793e6a1,n793e6a2,n793e6a3,n793e6a4,n793e6a5,n793e6a6,n793e6a7,n793e6a8,n793e6a9,n793e6a10,n793e6a11,n793e6a12,n793e6b1,n793e6b2,n793e6b3,n793e6b4,n793e6b5,n793e6b6,n793e6b7,n793e6b8,n793e6b9,n793e6b10,n793e6b11,n793e6b12,n793e6b13,n793e6b14,n793e6b15,n793e6g1,n793e6g2,n793e6g3,n793e6g4,n793e6g5,n793e6g6,n793e6g7,n793e6g8,n793e6g9,n793e6g10,n793e6g11,n793e6g12,n793e6g13,n793e6g14,n793e6g15,n793e6g16,n793e6g17,n793e6g18,n793e6g19,n793e6e1,n793e6c1,n793e6c2,n793e6c3,n793e6d1,n793e6d2,n793e6d3,n793e6d4,n793e6d5,n793e6d6,n793e6h1,n793e6h2 complete
-    class n793e6h3 ready
+    class n793e6h3 progress
     class n793e6f blocked
 ```
 
@@ -800,9 +800,9 @@ Review finding G3-3 ([793b108 A failure the mod reports is cut in its middle](./
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793d4k1j | Dedicated example | the failure the review used: a credential placed at the cut, 100 characters in; the record holds none of it, one line, at most 300 characters, both ends | | | Not started | | | |
-| 793d4k1j | Property-based (`rapid`) | the order of the reduction, over the text around a credential | whatever text surrounds a credential of the shapes of [793d4j Redacting credentials](./793d_technical-spec.md#793d4j-redacting-credentials): the recorded reason is one line of at most 300 characters and holds no part of the credential | | Not started | | | |
-| 793d2b1m (amended) | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a failure of 1000 characters reaches the writing whole: the mod cuts nothing | | | Not started | | | |
+| 793d4k1j | Dedicated example | the failure the review used: a credential placed at the cut, 100 characters in; the record holds none of it, one line, at most 300 characters, both ends | | | Red | | | |
+| 793d4k1j | Property-based (`rapid`) | the order of the reduction, over the text around a credential | whatever text surrounds a credential of the shapes of [793d4j Redacting credentials](./793d_technical-spec.md#793d4j-redacting-credentials): the recorded reason is one line of at most 300 characters and holds no part of the credential | | Red | | | |
+| 793d2b1m (amended) | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a failure of 1000 characters reaches the writing whole: the mod cuts nothing | | | Red | | | |
 
 ### 793e6f The delivery merges the parent vault
 

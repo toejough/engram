@@ -12,6 +12,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	. "github.com/onsi/gomega"
 	"pgregory.net/rapid"
@@ -467,6 +468,48 @@ func Test793d4k1c_RunAutoWrite_ALessonLeftOutAndAReplyThatIsNotAListAreRecordedW
 			g.Expect(record["reason"]).To(ContainSubstring("not a list of lessons"))
 		}
 	})
+}
+
+func Test793d4k1j_RunAutoWrite_AReasonIsWrittenAsOneLineRedactedAndCutInItsMiddle(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// the credential is built here, as the tests of the redaction build theirs; it begins before the place where the
+	// reason is cut and ends after it, so that a reason cut before it is redacted leaves part of the credential, as the
+	// review of the third group found. The sentence names no secret, so that the redaction does not take the cause for
+	// the value of a name
+	token := "ghp" + "_" + strings.Repeat("a1", 18)
+	failure := "engram auto judge exited with 1: Error: auto judge: reading " + strings.Repeat("x", 70) +
+		"\nthe value " + token + " leaked\n" + strings.Repeat("y", 600) + ": permission denied"
+
+	encoded, marshalErr := json.Marshal(map[string]string{"session": sessionID, "turn": turnID, "failure": failure})
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	records := &recordedFiles{}
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", RecordsDir: "/data/auto"},
+		cli.AutoWriteDeps{
+			Stdin:       bytes.NewReader(encoded),
+			Learn:       learnInto(map[string]string{}),
+			Now:         func() time.Time { return recordedAt },
+			WriteRecord: records.write,
+		}, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(records.all()).To(HaveLen(1), "the records")
+
+	for _, record := range records.all() {
+		reason, _ := record["reason"].(string)
+
+		g.Expect(reason).NotTo(ContainSubstring("\n"), "the reason is one line")
+		g.Expect(reason).NotTo(ContainSubstring("ghp_"), "the credential, or part of it")
+		g.Expect(utf8.RuneCountInString(reason)).To(BeNumerically("<=", 300), "the reason as recorded")
+		g.Expect(reason).To(HavePrefix("engram auto judge exited with 1: Error: auto judge: reading xxx"),
+			"the beginning of the reason, which names the step")
+		g.Expect(reason).To(HaveSuffix("yyy: permission denied"), "the end of the reason, which gives the cause")
+	}
 }
 
 func Test793d4k1d_RunAutoWrite_AFailureIsRecorded(t *testing.T) {

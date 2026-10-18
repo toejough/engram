@@ -484,14 +484,16 @@ func Test793d2b1l_Mod_TheWorkAfterATurnIsStartedFromATimerWithNoCallInFlightWhen
 	g.Expect(outcome.Sweeps).To(HaveLen(1), "the sweep was run when the timers were let go")
 }
 
-func Test793d2b1m_Mod_AFailureLongerThanItsBoundKeepsBothEnds(t *testing.T) {
+func Test793d2b1m_Mod_ALongFailureIsReportedWhole(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
 	// a line of 1000 characters: the step at its beginning, a long path, and the cause at its end
-	stderr := "Error: auto judge: reading " + strings.Repeat("a-long-directory/", 55) + "the record: permission denied\n"
-	outcome := runCaptureDriver(t, captureScenario{Judge: map[string]any{"exitCode": 1, "stdout": "", "stderr": stderr}})
+	line := "Error: auto judge: reading " + strings.Repeat("a-long-directory/", 55) + "the record: permission denied"
+	outcome := runCaptureDriver(t, captureScenario{
+		Judge: map[string]any{"exitCode": 1, "stdout": "", "stderr": line + "\n"},
+	})
 
 	reports := outcome.inputsOf("engram auto write")
 
@@ -504,10 +506,8 @@ func Test793d2b1m_Mod_AFailureLongerThanItsBoundKeepsBothEnds(t *testing.T) {
 	failure, isText := reports[0]["failure"].(string)
 
 	g.Expect(isText).To(BeTrue(), "the failure is text")
-	g.Expect(utf8.RuneCountInString(failure)).To(BeNumerically("<=", 300), "the failure as reported")
-	g.Expect(failure).To(HavePrefix("engram auto judge exited with 1: Error: auto judge: reading a-long-directory/"),
-		"the beginning of the failure, which names the step")
-	g.Expect(failure).To(HaveSuffix("the record: permission denied"), "the end of the failure, which gives the cause")
+	g.Expect(utf8.RuneCountInString(failure)).To(BeNumerically(">", 1000), "the failure as reported")
+	g.Expect(failure).To(Equal("engram auto judge exited with 1: "+line), "the failure, from the step to the cause")
 }
 
 func Test793d2c1a_Mod_SweepsTheConversationAfterATurnApartFromTheCapture(t *testing.T) {
