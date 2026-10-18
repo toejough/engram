@@ -425,7 +425,7 @@ The sweep indexes the [session](../../GLOSSARY.md#session)'s record as `--transc
 
 ## 793b102 The sweep and the capture run apart
 
-The mod starts the sweep and the capture of a [turn](./793a_product-spec.md#793a1a-terms) together, each with a bound of its own ([793d2c Conversation sweep flow](./793d_technical-spec.md#793d2c-conversation-sweep-flow)): the sweep indexes the [session](../../GLOSSARY.md#session)'s record, where no [note](../../GLOSSARY.md#permanent-note) enters, and the capture writes notes, so neither reads what the other writes, no order is needed and neither extends the other's bound. A headless turn is swept only when it is judged ([793d4m Telling the prompts the user sends](./793d_technical-spec.md#793d4m-telling-the-prompts-the-user-sends)), so that a script run with `claude -p` indexes nothing by default. A.
+The mod starts the sweep and the capture of a [turn](./793a_product-spec.md#793a1a-terms) together, each with a bound of its own ([793d2c Conversation sweep flow](./793d_technical-spec.md#793d2c-conversation-sweep-flow)): the sweep indexes the [session](../../GLOSSARY.md#session)'s record, where no [note](../../GLOSSARY.md#permanent-note) enters, and the capture writes notes, so neither reads what the other writes, no order is needed and neither extends the other's bound. A headless turn is swept only when it is judged ([793d4m Telling the prompts the user sends](./793d_technical-spec.md#793d4m-telling-the-prompts-the-user-sends)), so that a script run with `claude -p` indexes nothing by default. A ([793c78 Do the sweep and the capture of a turn run apart?](./793c_open-questions.md#793c78-do-the-sweep-and-the-capture-of-a-turn-run-apart)).
 
 ## 793b103 The work after a turn is started from a timer
 
@@ -441,7 +441,7 @@ The block of the delivery carries the lines that tell what [automatic memory](./
 
 ## 793b106 Two records the display needs
 
-A delivery that fails or is ended is reported to the writing by the mod, from a timer, as the other failed steps are, and recorded as `failed`; the judgement records a headless [turn](./793a_product-spec.md#793a1a-terms) it leaves out as `skipped` with the reason ([793d4m Telling the prompts the user sends](./793d_technical-spec.md#793d4m-telling-the-prompts-the-user-sends)); a sweep that succeeds says nothing, and its failure is reported by the mod. A.
+A delivery that fails or is ended is reported to the writing by the mod, from a timer, as the other failed steps are, and recorded as `failed`; the judgement records a headless [turn](./793a_product-spec.md#793a1a-terms) it leaves out as `skipped` with the reason ([793d4m Telling the prompts the user sends](./793d_technical-spec.md#793d4m-telling-the-prompts-the-user-sends)); a sweep that succeeds says nothing, and its failure is reported by the mod. A ([793c79 Which records does the display need beyond those of the writing?](./793c_open-questions.md#793c79-which-records-does-the-display-need-beyond-those-of-the-writing)).
 
 ## 793b107 A delivery that could not be done is reported without the prompt's text
 

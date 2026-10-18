@@ -473,3 +473,19 @@ Withdrawn: answered by the owner's instruction to follow the guides, [793b91 The
 - **Recommendation:** (a): the scenario asks for the sign, and the cost is a file of a few hundred bytes; (c) cannot be decided at the turn.
 - **Blocks:** [793a2e1f A turn that is not captured is shown with the reason](./793a_product-spec.md#793a2e1-uat-scenarios).
 - **Status:** open; default (a) taken in [793b109 A headless turn that is not captured is recorded by the judgement](./793b_decision-log.md#793b109-a-headless-turn-that-is-not-captured-is-recorded-by-the-judgement).
+
+## 793c78 Do the sweep and the capture of a turn run apart?
+
+- **Context:** after each [turn](./793a_product-spec.md#793a1a-terms) the mod indexes the [session](../../GLOSSARY.md#session)'s record (the sweep, up to 90 seconds) and captures its lessons (up to 115 seconds); the sweep reads the record and writes the chunk index, the capture writes [notes](../../GLOSSARY.md#permanent-note), and neither reads what the other writes.
+- **Options:** (a) Each is a job of its own, started from a timer, with a bound of its own. (b) The sweep after the capture, in one chain. (c) The sweep inside the judgement command.
+- **Recommendation:** (a): (b) lets the capture's bound or failure delay the sweep, so that a slow model call leaves the conversation unsearchable, and (c) puts the index in the path of the model call.
+- **Blocks:** [793a2f1a The conversation so far is findable after a turn](./793a_product-spec.md#793a2f1-uat-scenarios).
+- **Status:** open; default (a) taken in [793b102 The sweep and the capture run apart](./793b_decision-log.md#793b102-the-sweep-and-the-capture-run-apart).
+
+## 793c79 Which records does the display need beyond those of the writing?
+
+- **Context:** [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) asks for a sign of a delivery that could not be done and of a headless [turn](./793a_product-spec.md#793a1a-terms) that was not captured; neither is a reply of the model, which is all the writing records.
+- **Options:** (a) The mod reports a failed delivery to the writing, and the judgement records the headless turn it leaves out. (b) The mod writes the records itself, with a file call of the host. (c) The delivery records its own failure.
+- **Recommendation:** (a): the writing is the one place records are made and checked, the mod holds no logic, and (c) cannot work for a delivery that is ended or that fails before it runs.
+- **Blocks:** [793a2e1c A delivery that could not be done is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1f A turn that is not captured is shown with the reason](./793a_product-spec.md#793a2e1-uat-scenarios).
+- **Status:** open; default (a) taken in [793b106 Two records the display needs](./793b_decision-log.md#793b106-two-records-the-display-needs).
