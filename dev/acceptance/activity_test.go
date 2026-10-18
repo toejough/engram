@@ -49,8 +49,8 @@ func Test793a2e1a_WhatWasDeliveredAndWhatWasWrittenForThePreviousTurnIsInTheSess
 		g.Expect(next.blocks()).To(HaveLen(1), "the blocks of the next prompt")
 
 		if len(next.blocks()) == 1 {
-			g.Expect(linesToldBy(next.blocks()[0])).To(ConsistOf(And(ContainSubstring("wrote the note"),
-				ContainSubstring(written))), "the lines that tell what automatic memory did")
+			g.Expect(linesNaming(linesToldBy(next.blocks()[0]), written)).To(ConsistOf(ContainSubstring("wrote the note")),
+				"the lines that name the note written")
 		}
 	})
 }
@@ -101,8 +101,8 @@ func Test793a2e1b_AWriteThatFinishesAfterTheNextPromptIsShownWhenItFinishes(t *t
 		g.Expect(third.blocks()).To(HaveLen(1), "the blocks of the third prompt")
 
 		if len(third.blocks()) == 1 {
-			g.Expect(linesToldBy(third.blocks()[0])).To(ConsistOf(And(ContainSubstring("wrote the note"),
-				ContainSubstring(written))), "the lines that tell what automatic memory did, with the third prompt")
+			g.Expect(linesNaming(linesToldBy(third.blocks()[0]), written)).To(ConsistOf(ContainSubstring("wrote the note")),
+				"the lines that name the note written, with the third prompt")
 		}
 	})
 }
@@ -190,7 +190,7 @@ func Test793a2e1d_AWriteThatFailedIsShownWithItsReason(t *testing.T) {
 
 			t.Logf("the lines that tell what automatic memory did, with the second prompt: %q", told)
 
-			g.Expect(told).To(ConsistOf(And(ContainSubstring("failed: writing "), HaveSuffix("permission denied"))),
+			g.Expect(told).To(ContainElement(And(ContainSubstring("failed: writing "), HaveSuffix("permission denied"))),
 				"the lines that tell what automatic memory did, with the second prompt")
 		}
 	})
@@ -285,6 +285,20 @@ const (
 	// slowWrite is how long the write takes in the scenario of a write that finishes after the next prompt.
 	slowWrite = 12 * time.Second
 )
+
+// linesNaming returns the lines that tell what automatic memory did that name a note: the judgement of a turn may
+// write more than one note, and a line is told for each.
+func linesNaming(told []string, note string) []string {
+	var named []string
+
+	for _, line := range told {
+		if strings.Contains(line, note) {
+			named = append(named, line)
+		}
+	}
+
+	return named
+}
 
 // linesToldBy returns the lines of a block that tell what automatic memory did: those that begin with an asterisk.
 func linesToldBy(block string) []string {
