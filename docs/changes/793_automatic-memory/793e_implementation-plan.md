@@ -688,8 +688,8 @@ Builds what the other nodes read: the lines that tell what [automatic memory](./
 | 793d4p1c | Dedicated example | a line told once, over a record of the session of the real form | | | Done | 300fbc46 | 34ec6b9e | |
 | 793d4p1d | Dedicated example | the form of a reason: one line, redacted, both ends kept; the credential straddles the place of the cut, so that mutation (scratch copy): a cut made before the redaction leaves part of the credential and fails it | | | Done | 300fbc46 | 34ec6b9e | |
 | 793d4p1e | Dedicated example | the bound of five lines, and the rest at the next prompt | | | Done | 300fbc46 | 34ec6b9e | |
-| 793d4p1f | Dedicated example | the boundaries of the reading of records, over a real temporary directory | | | Not started | | | |
-| 793d4p1g | Dedicated example | the directory of records through the dispatch of `engram auto deliver`, with the flag and without it | | | Not started | | | |
+| 793d4p1f | Dedicated example | the boundaries of the reading of records, over a real temporary directory | | | Red | | | |
+| 793d4p1g | Dedicated example | the directory of records through the dispatch of `engram auto deliver`, with the flag and without it | | | Red | | | |
 | 793d4d1g | Dedicated example | the told lines, and that a [note](../../GLOSSARY.md#permanent-note) a line names is not held | | | Done | 300fbc46 | 34ec6b9e | |
 | 793d4c1d | Dedicated example | the form of a line that tells what the system did | | | Done | 300fbc46 | 34ec6b9e | |
 | 793d4c1a (amended) | Property-based (`rapid`) with named examples | the properties of the block, with lines told among hostile text | the properties of [793d4c1a A note cannot reshape the block](./793d_technical-spec.md#793d4c1-scenarios), with any lines told: one more line for each, after the notes, each beginning with an asterisk and a space | | Done | 300fbc46 | 34ec6b9e | |
