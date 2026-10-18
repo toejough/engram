@@ -1,0 +1,19 @@
+This is a deep recall, which also grows the vault. Beyond the verdicts:
+- For each candidate note judged covered or near, list in its entry "chunks" the IDs of the passages among the
+  candidates that evidence it, when there are any.
+- For each candidate note judged near, give in its entry "fields" the fields to revise, so that the note states the
+  claim it omits, each a short string: for a fact note any of subject, predicate and object, and for a feedback note any
+  of behavior, impact and action. Revise from all the evidence, the later date winning a conflict. Never revise a note
+  into a restatement of what it already says.
+- In "lessons", list each lesson the evidence of the passages shows that no candidate note states: a rule or a fact,
+  and not the story, in the form in which it applies again, keeping the exact names, commands, flags and values it
+  depends on. Give each lesson "kind" ("feedback" for a rule about what to do or not to do, "fact" for something that
+  is true), "slug" (kebab-case), "situation" (when it applies, as a retrieval cue), "covered" (null), "chunks" (the IDs
+  of the passages that evidence it), and, for feedback, "behavior", "impact" and "action", and, for fact, "subject",
+  "predicate" and "object", each a short string; and, when it corrects, narrows or refutes a candidate note, "supersedes"
+  with that note's file name, a "type" of updates, narrows or refutes, and a "claim". A guess, a plan, chatter or a bare
+  thanks is no lesson. Give one lesson for the principle of a set of passages, not one for each passage.
+Reply with only the JSON object {"candidates":[{"id":"...","verdict":"...","newer":"...","chunks":["..."],
+"fields":{"subject":"..."}}],"lessons":[{"kind":"fact","slug":"...","situation":"...","covered":null,"chunks":["..."],
+"subject":"...","predicate":"...","object":"..."}]}, with "lessons" an empty list when the evidence shows none, no code
+fence and no other text.

@@ -39,6 +39,8 @@ type MomentInput struct {
 type Step struct {
 	Request ModelRequest `json:"request"`
 	Carry   Carry        `json:"carry"`
+	// Write tells the mod that a write follows the delivery: a deep recall's.
+	Write bool `json:"write,omitempty"`
 }
 
 // Moment returns the request that judges whether a moment is one for recall (855d4a): the conversation lines before it

@@ -66,13 +66,21 @@ func Recall(input RecallInput, matched []Candidate) Step {
 		lines = append(lines, candidateLine(candidate))
 	}
 
+	deep := input.Carry.Depth == DepthDeep
+	system := candidateInstructions
+
+	if deep {
+		system += deepInstructions
+	}
+
 	return Step{
 		Request: ModelRequest{
-			Model: recallModel, System: candidateInstructions,
+			Model: recallModel, System: system,
 			Prompt:    fmt.Sprintf(candidatesShape, input.Carry.Window, strings.Join(lines, "\n")),
 			MaxTokens: recallMaxTokens,
 		},
 		Carry: Carry{Cue: input.Cue, Depth: input.Carry.Depth, Window: input.Carry.Window, Candidates: matched},
+		Write: deep,
 	}
 }
 
@@ -91,6 +99,11 @@ const (
 
 //go:embed prompts/candidates.txt
 var candidateInstructions string
+
+// deepInstructions are added to those of the candidates at deep depth: the lessons and the revisions.
+//
+//go:embed prompts/candidates_deep.txt
+var deepInstructions string
 
 // candidateLine is the line of a candidate: its ID, its situation or the word passage, and its text, written as one
 // line and redacted (855d8b, 793d4j).
