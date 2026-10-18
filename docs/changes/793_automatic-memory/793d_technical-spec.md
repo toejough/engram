@@ -6,11 +6,11 @@ Filled depth first ([793f3 Depth first](./793f_algorithm.md#793f3-depth-first)),
 
 The product problem, [793a1 Problem Statement](./793a_product-spec.md#793a1-problem-statement): the [agent](./793a_product-spec.md#793a1a-terms) consults the [vault](../../GLOSSARY.md#vault) only when it remembers to, and the instruction to look first was refused in 6 of 6 headless trials. Today it reaches the vault only through its own commands (`engram query`, `engram show`), when a [skill](../../GLOSSARY.md#skill) or its instructions tell it to. [`engram update`](../../GLOSSARY.md#engram-update) deploys the skills of `agent-instructions/skills/` into each [harness](../../GLOSSARY.md#harness) through an engram-owned root per harness that the harness's skills directory links into ([harness-deploy-sync](../../specs/technical/harness-deploy-sync.md)); `engram query` searches the [notes](../../GLOSSARY.md#permanent-note), and the chunk index when one is configured ([query-engine](../../specs/technical/query-engine.md)). Nothing in a [session](../../GLOSSARY.md#session) acts at a [prompt](./793a_product-spec.md#793a1a-terms) without the agent's help, and `engram update` installs nothing but skills.
 
-A **mod** is a folder Claude Code loads as a plugin of function hooks when it sits in `~/.claude/skills/<name>` (also as a link): its hooks module registers functions for session events, and `prompt.submit` runs for each prompt before it enters the session, where a function may add context that the model reads beside the prompt and the user does not see. The solution: `engram update` deploys one mod, `engram-memory`, from `agent-instructions/mods/` through the skills machinery. For each prompt the mod runs a new command, `engram auto deliver`, which prints the notes that bear on the prompt text, as `engram query` would, as one block that the mod puts beside the prompt ([793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow)). After the [turn](./793a_product-spec.md#793a1a-terms) of a prompt the user sent, the mod runs `engram auto judge`, which prints the request of one model call, makes that call with the user's own login and runs `engram auto write` with the reply, which writes each lesson as a note through the learn path ([793d2b Turn capture flow](#793d2b-turn-capture-flow)), and `engram auto sweep`, which indexes the session's record in the chunk index so that `engram query` finds the conversation ([793d2c Conversation sweep flow](#793d2c-conversation-sweep-flow)). The delivery also prints, apart from the block, the lines that show the user what [automatic memory](./793a_product-spec.md#793a1a-terms) did, from the records of what became of each reply, failure and skip, and the mod shows each as a log line of the host, which the user sees and the model does not read ([793d4p Telling what automatic memory did](#793d4p-telling-what-automatic-memory-did)). The commands, not the mod, hold the logic.
+A **mod** is a folder Claude Code loads as a plugin of function hooks when it sits in `~/.claude/skills/<name>` (also as a link): its hooks module registers functions for session events, and `prompt.submit` runs for each prompt before it enters the session, where a function may add context that the model reads beside the prompt and the user does not see. The solution: `engram update` deploys one mod, `engram-memory`, from `agent-instructions/mods/` through the skills machinery. For each prompt the mod runs a new command, `engram auto deliver`, which prints the notes that bear on the prompt text, as `engram query` would, as one block that the mod puts beside the prompt ([793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow)). After the [turn](./793a_product-spec.md#793a1a-terms) of a prompt the user sent, the mod runs `engram auto judge`, which prints the request of one model call, makes that call with the user's own login and runs `engram auto write` with the reply, which writes each lesson as a note through the learn path ([793d2b Turn capture flow](#793d2b-turn-capture-flow)), and `engram auto sweep`, which indexes the session's [transcript](../../GLOSSARY.md#transcript) in the chunk index so that `engram query` finds the conversation ([793d2c Conversation sweep flow](#793d2c-conversation-sweep-flow)). The delivery also prints, apart from the block, the lines that show the user what [automatic memory](./793a_product-spec.md#793a1a-terms) did, from the records of what became of each reply, failure and skip, and the mod shows each as a log line of the host, which the user sees and the model does not read ([793d4p Telling what automatic memory did](#793d4p-telling-what-automatic-memory-did)). The commands, not the mod, hold the logic.
 
 The call raises neither a prompt nor a turn, so [automatic memory](./793a_product-spec.md#793a1a-terms) starts no session of its own ([793b63 A turn is judged by one model call, and no session is started](./793b_decision-log.md#793b63-a-turn-is-judged-by-one-model-call-and-no-session-is-started)).
 
-Verified with Claude Code 2.1.302: a mod in a linked skills folder loads in a headless `claude -p` session, and the context it adds is recorded in the session's [transcript](../../GLOSSARY.md#transcript) as a `hook_additional_context` record before the agent's first reply; `turn.complete` carries the turn's final text and ID and fires when the record already holds the turn's last row; `$.model.complete` answers `haiku` within about two seconds, also from work left running after the hook that started it returned. `$.ui.log`, called in a hook or from a timer, appends one line to the conversation as the user sees it, "drawn like a system notice (dim; not sent to the model)" in the host's type file, and to no record of the session; a host that streams JSON receives it as a `system` event of the subtype `ui_log` with the mod's name, and plain text output of `claude -p` shows none.
+Verified with Claude Code 2.1.302: a mod in a linked skills folder loads in a headless `claude -p` session, and the context it adds is recorded in the session's [transcript](../../GLOSSARY.md#transcript) as a `hook_additional_context` row before the agent's first reply; `turn.complete` carries the turn's final text and ID and fires when the transcript already holds the turn's last row; `$.model.complete` answers `haiku` within about two seconds, also from work left running after the hook that started it returned. `$.ui.log`, called in a hook or from a timer, appends one line to the conversation as the user sees it, "drawn like a system notice (dim; not sent to the model)" in the host's type file, and to no transcript of the session; a host that streams JSON receives it as a `system` event of the subtype `ui_log` with the mod's name, and plain text output of `claude -p` shows none.
 
 ## 793d2 Recommended sequence diffs
 
@@ -36,7 +36,7 @@ sequenceDiagram
         Engine-->>Delivery: 792b24c5 the notes that match
     end
     Delivery->>Context: 793d4d the text the session holds
-    Context-->>Delivery: 793d4d the text from the session's record
+    Context-->>Delivery: 793d4d the text from the session's transcript
     Delivery->>Records: 793d4p the records of the session not yet shown
     Records-->>Delivery: 793d4p what automatic memory did
     Delivery-->>Mod: 793d4a, 793d4p the block on standard output, the lines for the user on standard error
@@ -228,7 +228,7 @@ sequenceDiagram
     Session->>Mod: 793d2c turn.complete
     Mod-->>Session: 793d2c the event's result, at once
     Mod->>Sweep: 793d2c, 793d4n engram auto sweep, the session's ID and the origin on standard input
-    Sweep->>Index: 793d4n the session's record, as engram ingest --transcript indexes it
+    Sweep->>Index: 793d4n the session's transcript, as engram ingest --transcript indexes it
     opt the sweep is ended at its bound
         Mod->>Sweep: 793d2c, 793d4n engram auto sweep again, with ended set
         Sweep-->>Mod: 793d4n the sweep gives up for the session and fails, naming what to run
@@ -281,10 +281,10 @@ Scenario: 793d2c1f A sweep that gave up before is not reported again
 
 - **automatic-memory-mod** (added): the mod `engram-memory`, a hooks module in `agent-instructions/mods/engram-memory/` (informational). Owns the routing and the placement of the block (the lookup is the command's), the showing of the lines for the user and the routing of the judgement, of the write and of the sweep after a [turn](./793a_product-spec.md#793a1a-terms) ([793d2b Turn capture flow](#793d2b-turn-capture-flow), [793d2c Conversation sweep flow](#793d2c-conversation-sweep-flow)); tested in a real Claude Code [session](../../GLOSSARY.md#session) against an `engram` that prints a chosen block.
 - **prompt-delivery** (added): the command `engram auto deliver` (`internal/cli/auto.go`, `internal/auto`, informational). Turns a [prompt](./793a_product-spec.md#793a1a-terms) into the block of [notes](../../GLOSSARY.md#permanent-note) that bear on it and the lines that show the user what [automatic memory](./793a_product-spec.md#793a1a-terms) did, owning the choice and rendering of both and the marks of the records shown (the hook is the mod's); tested through standard input and output over an in-memory [vault](../../GLOSSARY.md#vault) and records.
-- **session-context** (added): what a session's [agent](./793a_product-spec.md#793a1a-terms) already holds of the vault, read from the session's record (`internal/auto`, `internal/cli/auto.go`, informational), owning the record's format, the rule for what counts as held (which notes to deliver is the delivery's); tested over records of a session.
-- **turn-judgement** (added): the command `engram auto judge` (`internal/cli/auto.go`, `internal/auto`, informational). Turns a turn into the request of the call that judges it, redacting credentials first ([793d4j Redacting credentials](#793d4j-redacting-credentials)), owning the choice of the turn's lines and the instructions (the call is the mod's); tested through standard input and output over records of a session.
+- **session-context** (added): what a session's [agent](./793a_product-spec.md#793a1a-terms) already holds of the vault, read from the session's [transcript](../../GLOSSARY.md#transcript) (`internal/auto`, `internal/cli/auto.go`, informational), owning the transcript's format, the rule for what counts as held (which notes to deliver is the delivery's); tested over transcripts of a session.
+- **turn-judgement** (added): the command `engram auto judge` (`internal/cli/auto.go`, `internal/auto`, informational). Turns a turn into the request of the call that judges it, redacting credentials first ([793d4j Redacting credentials](#793d4j-redacting-credentials)), owning the choice of the turn's lines and the instructions (the call is the mod's); tested through standard input and output over transcripts of a session.
 - **lesson-writing** (added): the command `engram auto write` (`internal/cli/auto.go`, `internal/auto`, informational). Turns the model's reply into notes of the vault, owning the reading of the reply and the mark of a note (the write itself is the learn path's), and keeps the record of what became of each reply ([793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did)); tested through standard input and output over an in-memory vault.
-- **conversation-sweep** (added): the command `engram auto sweep` (`internal/cli/auto.go`, `internal/auto`, informational). Turns a session's record into chunks of the chunk index, owning the choice of the record and of the turns it acts for (the indexing is [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand)'s); tested through standard input and output over an injected index, and with the real `engram` for the end of a sweep.
+- **conversation-sweep** (added): the command `engram auto sweep` (`internal/cli/auto.go`, `internal/auto`, informational). Turns a session's transcript into chunks of the chunk index, owning the choice of the transcript and of the turns it acts for (the indexing is [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand)'s); tested through standard input and output over an injected index, and with the real `engram` for the end of a sweep.
 - **chunk-index-store** (retained): `engram ingest`, which indexes a source under the lock of the manifest and leaves the index usable when it is ended ([792b18c2 Locked reconciliation](../../specs/technical/chunk-index-store.md#792b18c2-locked-reconciliation), [792b18c3 Change detection](../../specs/technical/chunk-index-store.md#792b18c3-change-detection)).
 - **learn path** (retained): the write of a note, as [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand) does it (`RunLearn`).
 - **harness-deploy-sync** (updated): plans, links, reports and removes the mod as it does a [skill](../../GLOSSARY.md#skill) directory, and reports it as a mod ([793b47 A dry run reports the mod as a mod](./793b_decision-log.md#793b47-a-dry-run-reports-the-mod-as-a-mod)).
@@ -318,7 +318,7 @@ Scenario: 793d4a1c A note that only the explore half picked does not bear on the
   Then the block names the matched note and not the explore pick
 
 Scenario: 793d4a1d A note the session holds is left out
-  Given a lookup that returns two notes, and a session whose record shows that one of them was delivered
+  Given a lookup that returns two notes, and a session whose transcript shows that one of them was delivered
   When the command is given a prompt of that session
   Then the block names the other note only
 
@@ -333,7 +333,7 @@ Scenario: 793d4a1f The chunk index is not searched
   Then the chunk index is never listed, and the block names the note
 
 Scenario: 793d4a1g A note the agent fetched by its basename is left out
-  Given a lookup that returns two notes, and a session whose record shows that the agent ran engram show with the basename of one of them
+  Given a lookup that returns two notes, and a session whose transcript shows that the agent ran engram show with the basename of one of them
   When the command is given a prompt of that session
   Then the block names the other note only
 
@@ -375,7 +375,7 @@ Scenario: 793d4c1c A note written automatically says so in its line
 
 ### 793d4d Telling what a session holds
 
-Requirement: 793d4d The `session-context` MUST, given a [session](../../GLOSSARY.md#session)'s ID, find the session's record (the file named for the ID with the suffix `.jsonl`, in the directory of records it is given ([793d4f Finding the records of sessions](#793d4f-finding-the-records-of-sessions)) or a subdirectory) and return, of what the [agent](./793a_product-spec.md#793a1a-terms) was given, only: the file name on each [note](../../GLOSSARY.md#permanent-note) line (a line beginning with a dash and a space; the name runs to the space before the situation's parenthesis) of every block delivered beside a [prompt](./793a_product-spec.md#793a1a-terms) (an `attachment` entry of type `hook_additional_context` beginning `[engram memory]`), and the text of each Bash command the agent ran that contains `engram query` or `engram show` with its result (the `tool_result` block, of a `user` record, whose `tool_use_id` is the command's `tool_use` ID). It MUST return nothing of a block's situations and bodies, of other entries, of other tools' results, of prompts or of replies, and nothing, without an error, when the session has no record, the record cannot be read or the ID is not a plain file name.
+Requirement: 793d4d The `session-context` MUST, given a [session](../../GLOSSARY.md#session)'s ID, find the session's [transcript](../../GLOSSARY.md#transcript) (the file named for the ID with the suffix `.jsonl`, in the directory of transcripts it is given ([793d4f Finding the transcripts of sessions](#793d4f-finding-the-transcripts-of-sessions)) or a subdirectory) and return, of what the [agent](./793a_product-spec.md#793a1a-terms) was given, only: the file name on each [note](../../GLOSSARY.md#permanent-note) line (a line beginning with a dash and a space; the name runs to the space before the situation's parenthesis) of every block delivered beside a [prompt](./793a_product-spec.md#793a1a-terms) (an `attachment` entry of type `hook_additional_context` beginning `[engram memory]`), and the text of each Bash command the agent ran that contains `engram query` or `engram show` with its result (the `tool_result` block, of a `user` row, whose `tool_use_id` is the command's `tool_use` ID). It MUST return nothing of a block's situations and bodies, of other entries, of other tools' results, of prompts or of replies, and nothing, without an error, when the session has no transcript, the transcript cannot be read or the ID is not a plain file name.
 
 Owner: `session-context` (new; `session-context.md` at promotion). Supports: [793a2b1b A note delivered earlier in the session is not delivered again](./793a_product-spec.md#793a2b1-uat-scenarios), [793a2b1c A note the agent looked up itself is not delivered](./793a_product-spec.md#793a2b1-uat-scenarios).
 
@@ -383,32 +383,32 @@ Owner: `session-context` (new; `session-context.md` at promotion). Supports: [79
 
 ```gherkin
 Scenario: 793d4d1a The note lines of the blocks delivered beside prompts are what a session holds
-  Given the record of a session with a block delivered beside a prompt, whose note lines name two notes and whose first note's body names a third, an entry of another hook beside a prompt, a prompt, a reply and other attachments
+  Given the transcript of a session with a block delivered beside a prompt, whose note lines name two notes and whose first note's body names a third, an entry of another hook beside a prompt, a prompt, a reply and other attachments
   When what the session holds is read
   Then the text holds the file names of the two notes, and nothing of the situations and bodies, the other hook's entry, the prompt, the reply or the other attachments
 
 Scenario: 793d4d1d What the agent's own lookup printed is held
-  Given the record of a session in which the agent ran engram query as a Bash command, whose result names a note, as a string and as text blocks
+  Given the transcript of a session in which the agent ran engram query as a Bash command, whose result names a note, as a string and as text blocks
   When what the session holds is read
   Then the text holds the command and the result, and nothing of the reply
 
 Scenario: 793d4d1e A listing of the vault is not held
-  Given the record of a session in which the agent ran ls over the vault, whose result names a note
+  Given the transcript of a session in which the agent ran ls over the vault, whose result names a note
   When what the session holds is read
   Then the text does not hold the note's name
 
 Scenario: 793d4d1f A note fetched with engram show is held
-  Given the record of a session in which the agent ran engram show with the basename of a note, whose result does not name the note
+  Given the transcript of a session in which the agent ran engram show with the basename of a note, whose result does not name the note
   When what the session holds is read
   Then the text holds the command, which names the note
 
-Scenario: 793d4d1b The record is found under its project directory
-  Given a session-log directory whose subdirectory for a project holds the record of the session
+Scenario: 793d4d1b The transcript is found under its project directory
+  Given a session-log directory whose subdirectory for a project holds the transcript of the session
   When what the session holds is read
-  Then the text is that of the blocks of that record
+  Then the text is that of the blocks of that transcript
 
-Scenario: 793d4d1c A session with no record, or an ID that is not a file name, holds nothing
-  Given a session-log directory with no record of the session, and an ID that holds a path separator
+Scenario: 793d4d1c A session with no transcript, or an ID that is not a file name, holds nothing
+  Given a session-log directory with no transcript of the session, and an ID that holds a path separator
   When what the session holds is read
   Then it is empty and there is no error
 ```
@@ -434,7 +434,7 @@ Scenario: 793d4e1a The delivery command creates no vault
   Then no vault exists at the path afterwards, nothing is printed to standard output and no creation line is printed
 
 Scenario: 793d4e1b The judgement command creates no vault
-  Given no vault exists at the resolved path, and a session whose record holds a prompt
+  Given no vault exists at the resolved path, and a session whose transcript holds a prompt
   When engram auto judge is dispatched
   Then no vault exists at the path afterwards and no creation line is printed
 
@@ -444,7 +444,7 @@ Scenario: 793d4e1c The writing command creates no vault and writes no note
   Then no vault exists at the path afterwards, no note was written, nothing is printed to standard output and no creation line is printed
 
 Scenario: 793d4e1d The sweep command creates no vault
-  Given no vault exists at the resolved path, and the record of a session
+  Given no vault exists at the resolved path, and the transcript of a session
   When engram auto sweep is dispatched
   Then no vault exists at the path afterwards, nothing is printed to standard output and no creation line is printed
 ```
@@ -499,43 +499,43 @@ Scenario: 793d4b1h A second update leaves the mod as the first left it
   Then the files of the mod and the link to it are those the first run left, and the report lists the mod once
 ```
 
-### 793d4f Finding the records of sessions
+### 793d4f Finding the transcripts of sessions
 
-Requirement: 793d4f The `prompt-delivery` MUST read the records of [sessions](../../GLOSSARY.md#session) from the directory its `--sessions` flag names or, without the flag, from the directory `ENGRAM_TRANSCRIPT_DIR` names when set, else the `projects` directory of the directory `CLAUDE_CONFIG_DIR` names when set, else `<home>/.claude/projects`, and from no directory when the home directory cannot be found. It MUST NOT change the session-log directory of [792b17c6 Session-log directory](../../specs/technical/ingestion-source-discovery.md#792b17c6-session-log-directory) that [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand) sweeps.
+Requirement: 793d4f The `prompt-delivery` MUST read the [transcripts](../../GLOSSARY.md#transcript) of [sessions](../../GLOSSARY.md#session) from the directory its `--sessions` flag names or, without the flag, from the directory `ENGRAM_TRANSCRIPT_DIR` names when set, else the `projects` directory of the directory `CLAUDE_CONFIG_DIR` names when set, else `<home>/.claude/projects`, and from no directory when the home directory cannot be found. It MUST NOT change the session-log directory of [792b17c6 Session-log directory](../../specs/technical/ingestion-source-discovery.md#792b17c6-session-log-directory) that [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand) sweeps.
 
 Owner: `prompt-delivery`. Supports: [793a2b1b A note delivered earlier in the session is not delivered again](./793a_product-spec.md#793a2b1-uat-scenarios), [793a2b1c A note the agent looked up itself is not delivered](./793a_product-spec.md#793a2b1-uat-scenarios).
 
 #### 793d4f1 Scenarios
 
 ```gherkin
-Scenario: 793d4f1a ENGRAM_TRANSCRIPT_DIR names the records first
-  Given ENGRAM_TRANSCRIPT_DIR and CLAUDE_CONFIG_DIR are both set, and the record of a session in each, the first showing one note delivered and the second another
+Scenario: 793d4f1a ENGRAM_TRANSCRIPT_DIR names the transcripts first
+  Given ENGRAM_TRANSCRIPT_DIR and CLAUDE_CONFIG_DIR are both set, and the transcript of a session in each, the first showing one note delivered and the second another
   When engram auto deliver is dispatched for a prompt of the session, without --sessions
   Then the block names the second note only
 
 Scenario: 793d4f1b CLAUDE_CONFIG_DIR names them when ENGRAM_TRANSCRIPT_DIR does not
-  Given only CLAUDE_CONFIG_DIR is set, a record of the session in its projects directory showing one note delivered, and a record of the session in the home's .claude/projects showing another
+  Given only CLAUDE_CONFIG_DIR is set, a transcript of the session in its projects directory showing one note delivered, and a transcript of the session in the home's .claude/projects showing another
   When engram auto deliver is dispatched for a prompt of the session, without --sessions
   Then the block names the second note only
 
 Scenario: 793d4f1c The home's .claude/projects holds them by default
-  Given neither variable is set, and a record of the session in the home's .claude/projects showing one note delivered
+  Given neither variable is set, and a transcript of the session in the home's .claude/projects showing one note delivered
   When engram auto deliver is dispatched for a prompt of the session, without --sessions
   Then the block names the other note only
 
-Scenario: 793d4f1d No record is read when no directory can be found
+Scenario: 793d4f1d No transcript is read when no directory can be found
   Given neither variable is set, and a home directory that cannot be found
   When engram auto deliver is dispatched for a prompt of a session, without --sessions
-  Then no record is read, and the block names the notes that bear on the prompt
+  Then no transcript is read, and the block names the notes that bear on the prompt
 ```
 
 ### 793d4g Judging a turn
 
-Requirement: 793d4g The `turn-judgement` MUST read one JSON object from standard input (the `session`'s ID, the final `answer`, the `text` the [turn](./793a_product-spec.md#793a1a-terms) began with, the `origin` of that [prompt](./793a_product-spec.md#793a1a-terms)), print nothing when the origin is not one the user sends ([793d4m Telling the prompts the user sends](#793d4m-telling-the-prompts-the-user-sends)), find the [session](../../GLOSSARY.md#session)'s record as [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) does in the directory of [793d4f Finding the records of sessions](#793d4f-finding-the-records-of-sessions), and print the request for the model as one JSON object: `model` (`haiku`), `effort` (`low`), `system`, `prompt`, `maxTokens` and `timeoutMs`. The `system` MUST hold the instructions of the judgement and nothing of the record, and the `prompt` none of the instructions, so that the model reads them as instructions. The prompt holds, between `<window>` and `</window>`, the context lines, the line `--- the turn ---` and the turn's lines, and, between `<notes>` and `</notes>`, the [notes](../../GLOSSARY.md#permanent-note) nearest to the turn (what the lookup of [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) returns for the text of the turn's prompts, each as a block line, cut to 400 characters) or `(none)`.
+Requirement: 793d4g The `turn-judgement` MUST read one JSON object from standard input (the `session`'s ID, the final `answer`, the `text` the [turn](./793a_product-spec.md#793a1a-terms) began with, the `origin` of that [prompt](./793a_product-spec.md#793a1a-terms)), print nothing when the origin is not one the user sends ([793d4m Telling the prompts the user sends](#793d4m-telling-the-prompts-the-user-sends)), find the [session](../../GLOSSARY.md#session)'s [transcript](../../GLOSSARY.md#transcript) as [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) does in the directory of [793d4f Finding the transcripts of sessions](#793d4f-finding-the-transcripts-of-sessions), and print the request for the model as one JSON object: `model` (`haiku`), `effort` (`low`), `system`, `prompt`, `maxTokens` and `timeoutMs`. The `system` MUST hold the instructions of the judgement and nothing of the transcript, and the `prompt` none of the instructions, so that the model reads them as instructions. The prompt holds, between `<window>` and `</window>`, the context lines, the line `--- the turn ---` and the turn's lines, and, between `<notes>` and `</notes>`, the [notes](../../GLOSSARY.md#permanent-note) nearest to the turn (what the lookup of [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) returns for the text of the turn's prompts, each as a block line, cut to 400 characters) or `(none)`.
 
-A prompt is a row of the record that the user sent; a row the [harness](../../GLOSSARY.md#harness) wrote is none and makes no line: a row marked as meta (the body of a [skill](../../GLOSSARY.md#skill) the [agent](./793a_product-spec.md#793a1a-terms) invoked), a row stamped with an origin the user does not send ([793d4m Telling the prompts the user sends](#793d4m-telling-the-prompts-the-user-sends)) and a row whose text begins as [792b15c3 Harness noise](../../specs/technical/transcript-reader.md#792b15c3-harness-noise) (harness noise) (a system reminder, a skill's base directory, the caveat or output of a local command, a task notification); a block of a prompt that begins so is left out, and a slash command's prompt is its arguments, none when it has none. The turn begins at the last prompt with the input `text` (else the last prompt) and ends before the next prompt and after the last line of the agent, which is the final text, added as the last line when no line of the turn holds its first 80 characters; the conversation before it is the context. A line is one message (`User: `, `Agent: ` or `Agent used ` and the tool's name; a break written ` ⏎ `), redacted ([793d4j Redacting credentials](#793d4j-redacting-credentials)) before it is cut or joined, then cut to its first 1,200 characters; a `<` in a line of the window or of a note MUST be written `&lt;`, which the instructions say, so that no message or note can close the window or open a section; the context is its last 6 lines; the window is cut to 8,000 characters, the oldest context first and then the turn's middle, replaced by the line `--- some of the turn is left out ---`. The command MUST read the record once and redact only the lines of the window, so that its time does not grow with the session: 1 MB within 2 seconds.
+A prompt is a row of the transcript that the user sent; a row the [harness](../../GLOSSARY.md#harness) wrote is none and makes no line: a row marked as meta (the body of a [skill](../../GLOSSARY.md#skill) the [agent](./793a_product-spec.md#793a1a-terms) invoked), a row stamped with an origin the user does not send ([793d4m Telling the prompts the user sends](#793d4m-telling-the-prompts-the-user-sends)) and a row whose text begins as [792b15c3 Harness noise](../../specs/technical/transcript-reader.md#792b15c3-harness-noise) (harness noise) (a system reminder, a skill's base directory, the caveat or output of a local command, a task notification); a block of a prompt that begins so is left out, and a slash command's prompt is its arguments, none when it has none. The turn begins at the last prompt with the input `text` (else the last prompt) and ends before the next prompt and after the last line of the agent, which is the final text, added as the last line when no line of the turn holds its first 80 characters; the conversation before it is the context. A line is one message (`User: `, `Agent: ` or `Agent used ` and the tool's name; a break written ` ⏎ `), redacted ([793d4j Redacting credentials](#793d4j-redacting-credentials)) before it is cut or joined, then cut to its first 1,200 characters; a `<` in a line of the window or of a note MUST be written `&lt;`, which the instructions say, so that no message or note can close the window or open a section; the context is its last 6 lines; the window is cut to 8,000 characters, the oldest context first and then the turn's middle, replaced by the line `--- some of the turn is left out ---`. The command MUST read the transcript once and redact only the lines of the window, so that its time does not grow with the session: 1 MB within 2 seconds.
 
-It MUST print nothing and succeed when the record holds no prompt, and print nothing and fail, naming the cause, when the input is not a JSON object, no [vault](../../GLOSSARY.md#vault) exists at the vault's path, the session has no record in the directory of records, or the lookup fails, the cause holding no text of the turn's prompts ([793b107 A delivery that could not be done is reported without the prompt's text](./793b_decision-log.md#793b107-a-delivery-that-could-not-be-done-is-reported-without-the-prompts-text)): the capture is then recorded once, with its reason, and the model is not asked.
+It MUST print nothing and succeed when the transcript holds no prompt, and print nothing and fail, naming the cause, when the input is not a JSON object, no [vault](../../GLOSSARY.md#vault) exists at the vault's path, the session has no transcript in the directory of transcripts, or the lookup fails, the cause holding no text of the turn's prompts ([793b107 A delivery that could not be done is reported without the prompt's text](./793b_decision-log.md#793b107-a-delivery-that-could-not-be-done-is-reported-without-the-prompts-text)): the capture is then recorded once, with its reason, and the model is not asked.
 
 Owner: `turn-judgement` (new; `turn-judgement.md` at promotion). Supports: [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1b A request to remember becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1c An approach the user confirmed becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1d The agent's own correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1e An approach that succeeded with evidence becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1f Guesses, plans and chatter produce no note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1g A credential in the turn is not in the note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1h A thanks that names no approach produces no note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1i A request to remember is written when the agent says it did not save it](./793a_product-spec.md#793a2c1-uat-scenarios), [793a3c1a A lesson an earlier note states is not written again](./793a_product-spec.md#793a3c1-uat-scenarios), [793a3c1b A lesson the agent saved itself is not written again](./793a_product-spec.md#793a3c1-uat-scenarios), [793a3c1c A lesson no earlier note states is written](./793a_product-spec.md#793a3c1-uat-scenarios).
 
@@ -543,17 +543,17 @@ Owner: `turn-judgement` (new; `turn-judgement.md` at promotion). Supports: [793a
 
 ```gherkin
 Scenario: 793d4g1a The request holds the instructions, the context and the turn
-  Given the record of a session with a first turn and a second turn in which the user corrected the agent
+  Given the transcript of a session with a first turn and a second turn in which the user corrected the agent
   When the judgement is given the session and the second turn's final text
   Then it prints a request for the model haiku at effort low whose prompt holds the instructions, the first turn's lines, the line --- the turn ---, and the second turn's lines, each opening with its label
 
-Scenario: 793d4g1b The final text is added when the record lacks it
-  Given the record of a session whose last row is the user's prompt
+Scenario: 793d4g1b The final text is added when the transcript lacks it
+  Given the transcript of a session whose last row is the user's prompt
   When the judgement is given the session and a final text
   Then the last line of the turn is the final text, labelled as the agent's
 
-Scenario: 793d4g1c A session with no prompt in its record is judged nothing
-  Given the record of a session with no prompt
+Scenario: 793d4g1c A session with no prompt in its transcript is judged nothing
+  Given the transcript of a session with no prompt
   When the judgement is given the session
   Then it prints nothing and succeeds
 
@@ -573,13 +573,13 @@ Scenario: 793d4g1f A line is cut after its credentials are redacted
   Then no part of the token is in the request
 
 Scenario: 793d4g1h The nearest notes are in the request
-  Given a vault holding a note that says when the staging database is reset, and the record of a session whose turn asks about the staging database
+  Given a vault holding a note that says when the staging database is reset, and the transcript of a session whose turn asks about the staging database
   When the judgement is given the session
   Then the request lists the staging note, with its file name, its situation and its body on one line
 
 Scenario: 793d4g1i A failed lookup fails the command and prints nothing
   Given a lookup that fails
-  When the judgement is given the record of a session with a prompt
+  When the judgement is given the transcript of a session with a prompt
   Then it fails with an error that names the lookup's failure and holds no text of the turn's prompts, and it prints nothing
 
 Scenario: 793d4g1j A note cannot reshape the window
@@ -588,74 +588,74 @@ Scenario: 793d4g1j A note cannot reshape the window
   Then the note is one line of the section of notes, the credential is redacted, and the body is cut to 400 characters
 
 Scenario: 793d4g1g A long conversation is cut to the bound
-  Given a record with more context than the window holds, and a turn with more lines than it holds
+  Given a transcript with more context than the window holds, and a turn with more lines than it holds
   When the judgement is given the session
   Then the context is its last 6 lines or fewer, the window is no longer than 8,000 characters, the first line of the turn and its last lines are kept, and the line that says that some of the turn is left out stands where they were
 
 Scenario: 793d4g1k A prompt of text blocks is one prompt, and the result of a tool is none
-  Given a record whose last prompt is made of two text blocks and an image, followed by a row that holds only the result of a tool
+  Given a transcript whose last prompt is made of two text blocks and an image, followed by a row that holds only the result of a tool
   When the judgement is given the session
   Then the turn begins with one line for the prompt, holding the text of both blocks, and the result of the tool makes no line
 
 Scenario: 793d4g1l The body of a skill is no prompt
-  Given the record of a session whose turn began with a prompt of the user, in which the agent invoked a skill and the harness wrote the skill's body as a row marked as meta
+  Given the transcript of a session whose turn began with a prompt of the user, in which the agent invoked a skill and the harness wrote the skill's body as a row marked as meta
   When the judgement is given the session
   Then the request has no line for the skill's body, and the turn begins with the user's prompt
 
 Scenario: 793d4g1m A system reminder in the row of a prompt is not part of the prompt
-  Given a record whose last prompt is a row of two text blocks, the user's words and a system reminder, followed by a row that holds only a system reminder
+  Given a transcript whose last prompt is a row of two text blocks, the user's words and a system reminder, followed by a row that holds only a system reminder
   When the judgement is given the session
   Then the prompt is one line of the user's words alone, and the row of the system reminder makes no line
 
 Scenario: 793d4g1n A task notification delivered into a turn is no prompt
-  Given the record of a session whose turn began with a prompt of the user, and in which a task notification was delivered as a row of the user's before the agent's last text
+  Given the transcript of a session whose turn began with a prompt of the user, and in which a task notification was delivered as a row of the user's before the agent's last text
   When the judgement is given the session
   Then the request has no line for the notification, and the turn begins with the user's prompt
 
 Scenario: 793d4g1o A command that ran locally is no prompt, and a slash command is its arguments
-  Given the record of a session whose turn began with a prompt of the user and holds, after it, the caveat, the name with no arguments and the output of a command that ran locally, and a record whose prompt is a slash command given arguments
+  Given the transcript of a session whose turn began with a prompt of the user and holds, after it, the caveat, the name with no arguments and the output of a command that ran locally, and a transcript whose prompt is a slash command given arguments
   When the judgement is given each
   Then none of the rows of the command that ran locally is a line of the first request, and the prompt of the second is the arguments
 
 Scenario: 793d4g1p A row of an origin the user does not send is no prompt
-  Given a record whose turn began with a prompt of the user, and a row of the user's stamped with the origin peer whose text opens with none of the marks of the harness, delivered before the agent's last text
+  Given a transcript whose turn began with a prompt of the user, and a row of the user's stamped with the origin peer whose text opens with none of the marks of the harness, delivered before the agent's last text
   When the judgement is given the session
   Then the request has no line for that row, and the turn begins with the user's prompt
 
-Scenario: 793d4g1w A session with no record fails the command
-  Given a session that no record holds, and no session at all
+Scenario: 793d4g1w A session with no transcript fails the command
+  Given a session that no transcript holds, and no session at all
   When the judgement is given each
-  Then it prints nothing and fails each time, with an error that names the session and the directory of the records
+  Then it prints nothing and fails each time, with an error that names the session and the directory of the transcripts
 
 Scenario: 793d4g1x A vault that does not exist fails the command
-  Given a path that holds no vault, and the record of a session with a prompt
+  Given a path that holds no vault, and the transcript of a session with a prompt
   When the judgement is given the session
   Then it prints nothing, fails with an error that names the path, and looks nothing up
 
-Scenario: 793d4g1q A long record is judged in time
-  Given the record of a session of 1 MB, of which the turn is the last prompt
+Scenario: 793d4g1q A long transcript is judged in time
+  Given the transcript of a session of 1 MB, of which the turn is the last prompt
   When the judgement is given the session
   Then it prints the request within 2 seconds
 
 Scenario: 793d4g1r A prompt typed ahead does not begin the turn of the one before it
-  Given the record of a session whose first turn ended with the agent saying that its guess was wrong and what the file says, and whose second prompt, typed ahead, is already in the record
+  Given the transcript of a session whose first turn ended with the agent saying that its guess was wrong and what the file says, and whose second prompt, typed ahead, is already in the transcript
   When the judgement is given the session, the text of the first prompt and the first turn's final text
   Then the turn of the request is the first turn's lines, and the second prompt is no line of the request
 
 Scenario: 793d4g1s A turn that a notification started after it is not part of it
-  Given the record of a session whose turn began with a prompt of the user and ended with the agent's text, followed by a task notification and the lines of the turn it started
+  Given the transcript of a session whose turn began with a prompt of the user and ended with the agent's text, followed by a task notification and the lines of the turn it started
   When the judgement is given the session, the text of the prompt and the final text
   Then the turn of the request ends with the final text, and holds nothing of the turn the notification started
 
 Scenario: 793d4g1t A text that no prompt has begins the turn at the last prompt
-  Given the record of a session with two prompts, and a text that neither has
+  Given the transcript of a session with two prompts, and a text that neither has
   When the judgement is given the session and that text
   Then the turn of the request begins at the last prompt
 
 Scenario: 793d4g1u The instructions are the system of the request
-  Given the record of a session with a prompt
+  Given the transcript of a session with a prompt
   When the judgement is given the session
-  Then the system of the request holds the instructions of the judgement and nothing of the record, and its prompt holds the window and the notes and none of the instructions
+  Then the system of the request holds the instructions of the judgement and nothing of the transcript, and its prompt holds the window and the notes and none of the instructions
 
 Scenario: 793d4g1v A message or a note cannot close the window or open a section
   Given messages and notes whose texts hold the tags that close and open the window and the section of notes, and other uses of the character that opens a tag
@@ -738,7 +738,7 @@ Scenario: 793d4j1b The name of an assignment is kept, and a text that is not a c
   Then each name is kept and its value is redacted, and the commit ID, the runs, the token, the shapes one character short and the sentence are as they were
 
 Scenario: 793d4j1c The request holds no credential of the turn
-  Given a record whose prompts and replies hold credentials of every shape
+  Given a transcript whose prompts and replies hold credentials of every shape
   When the judgement is given the session
   Then the prompt of the request holds none of them
 
@@ -848,17 +848,17 @@ Owner: `prompt-delivery`, `turn-judgement` and `conversation-sweep`. Supports: [
 
 ```gherkin
 Scenario: 793d4m1a A prompt of an origin the user sends is delivered for and its turn is judged
-  Given a vault holding a note that bears on a prompt, the record of a session whose turn began with that prompt, and each of the origins composer, bridge, slack-ping and sdk, the judgement asked to judge the turns of headless prompts
+  Given a vault holding a note that bears on a prompt, the transcript of a session whose turn began with that prompt, and each of the origins composer, bridge, slack-ping and sdk, the judgement asked to judge the turns of headless prompts
   When the delivery is given the prompt, and the judgement is given the turn, with each origin
   Then the delivery prints its block and the judgement prints its request, with each
 
 Scenario: 793d4m1b A prompt of any other origin is delivered nothing and its turn is judged nothing
-  Given the same vault and record, and any origin but those four, including none: task-notification, scheduled-trigger, peer, channel, plugin, unclassified and the empty origin
+  Given the same vault and transcript, and any origin but those four, including none: task-notification, scheduled-trigger, peer, channel, plugin, unclassified and the empty origin
   When the delivery is given the prompt, and the judgement is given the turn, with it
   Then each prints nothing, succeeds, and looks nothing up
 
 Scenario: 793d4m1c The turn of a headless prompt is judged only when the user asks
-  Given the record of a session whose turn began with a prompt of the origin sdk
+  Given the transcript of a session whose turn began with a prompt of the origin sdk
   When the judgement is given the turn, without the flag --capture-sdk and with it
   Then without it the judgement prints nothing and succeeds, and with it the judgement prints its request
 
@@ -868,57 +868,57 @@ Scenario: 793d4m1d A turn that a background task's notification starts is not ju
   Then automatic memory has judged one turn, that of the user's, and the vault holds no note
 
 Scenario: 793d4m1e A headless turn that is not judged is recorded as skipped with the reason
-  Given the record of a session whose turn began with a prompt of the origin sdk, a place for the records, and, in turn, an origin the user does not send
+  Given the transcript of a session whose turn began with a prompt of the origin sdk, a place for the records, and, in turn, an origin the user does not send
   When the judgement is given the turn, without the flag --capture-sdk and with it
   Then without it the judgement prints nothing and succeeds, and one record of the kind skipped, with the session's ID and the turn's ID and a reason that says the turn was not captured and names ENGRAM_AUTO_CAPTURE_SDK, is made; with it no record is made, and for the other origin no record is made
 ```
 
 ### 793d4n Sweeping the conversation
 
-Requirement: 793d4n The `conversation-sweep` MUST read one JSON object from standard input (the `session`'s ID and the `origin`), act only for the [prompts](./793a_product-spec.md#793a1a-terms) that [793d4m Telling the prompts the user sends](#793d4m-telling-the-prompts-the-user-sends) lets the judgement act for, and for them find the [session](../../GLOSSARY.md#session)'s record as [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) does in the directory of [793d4f Finding the records of sessions](#793d4f-finding-the-records-of-sessions), and index it in the chunk index as `--transcript` of [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand) does, as the one explicit source, printing nothing. It MUST print nothing, succeed and index nothing for any other origin; print nothing and fail, naming the cause, when the input is not a JSON object, the session has no record in the directory of records or the index fails; wait for the lock that `engram ingest` takes on the manifest when another ingest holds it; and leave the chunk index usable when it is ended at any moment, so that a later sweep indexes the record whole. It MUST also print nothing, succeed and index nothing for a session whose directory in the records of [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did) (the directory of its `--records` flag, else `auto` in the engram data directory) holds the file `sweep.ended`; and when the object it reads has `ended` set to true, the mod having ended the sweep at its bound, MUST write that file, print nothing and fail with an error that says the sweep was ended at its time limit, that it is not run again in this session and that `engram ingest --auto` indexes the history, except that it succeeds when the file is there already, so that the user is told once. It MUST NOT create a [vault](../../GLOSSARY.md#vault) ([793d4e First-use gating](#793d4e-modified-first-use-gating)).
+Requirement: 793d4n The `conversation-sweep` MUST read one JSON object from standard input (the `session`'s ID and the `origin`), act only for the [prompts](./793a_product-spec.md#793a1a-terms) that [793d4m Telling the prompts the user sends](#793d4m-telling-the-prompts-the-user-sends) lets the judgement act for, and for them find the [session](../../GLOSSARY.md#session)'s [transcript](../../GLOSSARY.md#transcript) as [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) does in the directory of [793d4f Finding the transcripts of sessions](#793d4f-finding-the-transcripts-of-sessions), and index it in the chunk index as `--transcript` of [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand) does, as the one explicit source, printing nothing. It MUST print nothing, succeed and index nothing for any other origin; print nothing and fail, naming the cause, when the input is not a JSON object, the session has no transcript in the directory of transcripts or the index fails; wait for the lock that `engram ingest` takes on the manifest when another ingest holds it; and leave the chunk index usable when it is ended at any moment, so that a later sweep indexes the transcript whole. It MUST also print nothing, succeed and index nothing for a session whose directory in the records of [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did) (the directory of its `--records` flag, else `auto` in the engram data directory) holds the file `sweep.ended`; and when the object it reads has `ended` set to true, the mod having ended the sweep at its bound, MUST write that file, print nothing and fail with an error that says the sweep was ended at its time limit, that it is not run again in this session and that `engram ingest --auto` indexes the history, except that it succeeds when the file is there already, so that the user is told once. It MUST NOT create a [vault](../../GLOSSARY.md#vault) ([793d4e First-use gating](#793d4e-modified-first-use-gating)).
 
 Owner: `conversation-sweep` (new; `conversation-sweep.md` at promotion). Supports: [793a2f1a The conversation so far is findable after a turn](./793a_product-spec.md#793a2f1-uat-scenarios), [793a2f1b A conversation too long to index in time is left alone and the user is told once what to run](./793a_product-spec.md#793a2f1-uat-scenarios).
 
 #### 793d4n1 Scenarios
 
 ```gherkin
-Scenario: 793d4n1a The record of the session is indexed as the one explicit source
-  Given the record of a session in the directory of records, and an index
+Scenario: 793d4n1a The transcript of the session is indexed as the one explicit source
+  Given the transcript of a session in the directory of transcripts, and an index
   When the sweep is given the session
-  Then the index is run for the record's path alone, as an explicit transcript, and nothing is printed
+  Then the index is run for the transcript's path alone, as an explicit transcript, and nothing is printed
 
-Scenario: 793d4n1b A session with no record fails the command
-  Given a session that no record holds, and no session at all
+Scenario: 793d4n1b A session with no transcript fails the command
+  Given a session that no transcript holds, and no session at all
   When the sweep is given each
-  Then it prints nothing and fails each time, with an error that names the session and the directory of the records, and indexes nothing
+  Then it prints nothing and fails each time, with an error that names the session and the directory of the transcripts, and indexes nothing
 
 Scenario: 793d4n1c A prompt of an origin that is not swept is swept nothing
-  Given the record of a session, and each of the origins task-notification, peer, the empty origin, and sdk without the flag --capture-sdk
+  Given the transcript of a session, and each of the origins task-notification, peer, the empty origin, and sdk without the flag --capture-sdk
   When the sweep is given the session with each, and then with sdk and the flag
-  Then with each of the first it prints nothing, succeeds and indexes nothing, and with the last it indexes the record
+  Then with each of the first it prints nothing, succeeds and indexes nothing, and with the last it indexes the transcript
 
 Scenario: 793d4n1d A failed index fails the command, naming the cause
   Given an index that fails, and an input that is not a JSON object
-  When the sweep is given the record of a session, and the input
+  When the sweep is given the transcript of a session, and the input
   Then it prints nothing and fails each time, with an error that names the index's failure and the input
 
 Scenario: 793d4n1e A sweep that is ended leaves the chunk index usable
-  Given the record of a session of several turns, and the real engram
+  Given the transcript of a session of several turns, and the real engram
   When the sweep is ended while it works, and then runs again
-  Then the manifest is not corrupt after the first, and the second indexes the whole record
+  Then the manifest is not corrupt after the first, and the second indexes the whole transcript
 
-Scenario: 793d4n1f Two sweeps at once index both records
-  Given the records of two sessions, and the real engram
+Scenario: 793d4n1f Two sweeps at once index both transcripts
+  Given the transcripts of two sessions, and the real engram
   When both sweeps run at once
-  Then the manifest records both sources, and each record is indexed whole
+  Then the manifest records both sources, and each transcript is indexed whole
 
 Scenario: 793d4n1g A sweep that was ended gives up for the session and fails, naming what to run
-  Given the record of a session, a place for the records of what automatic memory did, and an index
+  Given the transcript of a session, a place for the records of what automatic memory did, and an index
   When the sweep is given the session as ended, and then again
   Then the first writes the file sweep.ended in the directory of the session and fails with an error that says the sweep was ended, that it is not run again and that engram ingest --auto indexes the history, the second succeeds, and neither runs the index
 
 Scenario: 793d4n1h A session that gave up is not swept
-  Given the record of a session and the file sweep.ended in the directory of the session
+  Given the transcript of a session and the file sweep.ended in the directory of the session
   When the sweep is given the session
   Then it prints nothing, succeeds and runs no index
 ```
@@ -1136,7 +1136,7 @@ Scenario: 793a2c1a A correction becomes a note
   Then within 2 minutes the vault holds a note that states the correction and says it was written automatically, and the agent wrote nothing to the vault
 ```
 
-Realized by [793d2b Turn capture flow](#793d2b-turn-capture-flow), [793d4g Judging a turn](#793d4g-judging-a-turn), [793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply) and [793d4f Finding the records of sessions](#793d4f-finding-the-records-of-sessions); the [agent](./793a_product-spec.md#793a1a-terms) may not run `engram` commands, so the [note](../../GLOSSARY.md#permanent-note) is the writing's.
+Realized by [793d2b Turn capture flow](#793d2b-turn-capture-flow), [793d4g Judging a turn](#793d4g-judging-a-turn), [793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply) and [793d4f Finding the transcripts of sessions](#793d4f-finding-the-transcripts-of-sessions); the [agent](./793a_product-spec.md#793a1a-terms) may not run `engram` commands, so the [note](../../GLOSSARY.md#permanent-note) is the writing's.
 
 ### 793d5k Mapping of 793a2c1b
 
@@ -1370,7 +1370,7 @@ Scenario: 793a2f1a The conversation so far is findable after a turn
   Then within 2 minutes engram query returns a chunk of the conversation for each of the two things, and neither the user nor the agent ran engram ingest
 ```
 
-Realized by [793d2c Conversation sweep flow](#793d2c-conversation-sweep-flow), [793d4n Sweeping the conversation](#793d4n-sweeping-the-conversation) (the record is found as [793d4f Finding the records of sessions](#793d4f-finding-the-records-of-sessions) finds it) and [793d4e First-use gating](#793d4e-modified-first-use-gating); the [agent](./793a_product-spec.md#793a1a-terms) may not run `engram` commands, so the indexing is the sweep's.
+Realized by [793d2c Conversation sweep flow](#793d2c-conversation-sweep-flow), [793d4n Sweeping the conversation](#793d4n-sweeping-the-conversation) (the [transcript](../../GLOSSARY.md#transcript) is found as [793d4f Finding the transcripts of sessions](#793d4f-finding-the-transcripts-of-sessions) finds it) and [793d4e First-use gating](#793d4e-modified-first-use-gating); the [agent](./793a_product-spec.md#793a1a-terms) may not run `engram` commands, so the indexing is the sweep's.
 
 ### 793d5zc Mapping of 793a2d1c
 
@@ -1520,5 +1520,5 @@ Realized by [793d2c Conversation sweep flow](#793d2c-conversation-sweep-flow) (t
 - **Repository:** a new directory `agent-instructions/mods/`, a new package `internal/auto` and a new command group `engram auto` (`deliver`, `judge`, `write`, `sweep`); the update's deploy set gains the mods.
 - **Dependencies:** none new in Go; a Claude Code release that loads mods (2.1.302 verified, 2.1.287 the first the earlier attempt found); `node`, which `targ check-full` needs to parse the mod's JavaScript and run its tests ([793b55 The mod's JavaScript is parsed by a test of the dev integration suite](./793b_decision-log.md#793b55-the-mods-javascript-is-parsed-by-a-test-of-the-dev-integration-suite)).
 - **Toolchain:** a `targ acceptance` target runs the tests that drive a real Claude Code [session](../../GLOSSARY.md#session); they carry the `network` build tag, so `targ test` does not run them.
-- **Operational:** one process start and one lookup per [prompt](./793a_product-spec.md#793a1a-terms), held at most by the mod's one timer of 7 seconds ([793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow)); after each [turn](./793a_product-spec.md#793a1a-terms), three process starts and one model call of the user's own login, apart from the turn ([793d2b Turn capture flow](#793d2b-turn-capture-flow), [793d2c Conversation sweep flow](#793d2c-conversation-sweep-flow)); the sweep embeds the chunks that are new, 1.7 seconds after a turn of a session of 26 MB and, for a record that was never indexed, 0.42 seconds a chunk, 264 seconds for 625 chunks, more than its bound ([793c70 Is a sweep that is ended at its bound retried at every turn?](./793c_open-questions.md#793c70-is-a-sweep-that-is-ended-at-its-bound-retried-at-every-turn)).
-- **Risk:** every prompt of every Claude Code session runs the command ([793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow)). Open risk [793c32 Is the stall between the spawn of the command and its first instruction a risk to the product?](./793c_open-questions.md#793c32-is-the-stall-between-the-spawn-of-the-command-and-its-first-instruction-a-risk-to-the-product): on a loaded machine the time between the spawn of the command and its first instruction has reached the whole bound, so the prompt is held about 7 seconds with nothing delivered or shown; not optimised here. Open risk [793c70 Is a sweep that is ended at its bound retried at every turn?](./793c_open-questions.md#793c70-is-a-sweep-that-is-ended-at-its-bound-retried-at-every-turn): a long record that was never indexed is not searchable until an ingest with `--auto` has run; its first sweep is ended, the sweep gives up for the session and the user is told once.
+- **Operational:** one process start and one lookup per [prompt](./793a_product-spec.md#793a1a-terms), held at most by the mod's one timer of 7 seconds ([793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow)); after each [turn](./793a_product-spec.md#793a1a-terms), three process starts and one model call of the user's own login, apart from the turn ([793d2b Turn capture flow](#793d2b-turn-capture-flow), [793d2c Conversation sweep flow](#793d2c-conversation-sweep-flow)); the sweep embeds the chunks that are new, 1.7 seconds after a turn of a session of 26 MB and, for a [transcript](../../GLOSSARY.md#transcript) that was never indexed, 0.42 seconds a chunk, 264 seconds for 625 chunks, more than its bound ([793c70 Is a sweep that is ended at its bound retried at every turn?](./793c_open-questions.md#793c70-is-a-sweep-that-is-ended-at-its-bound-retried-at-every-turn)).
+- **Risk:** every prompt of every Claude Code session runs the command ([793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow)). Open risk [793c32 Is the stall between the spawn of the command and its first instruction a risk to the product?](./793c_open-questions.md#793c32-is-the-stall-between-the-spawn-of-the-command-and-its-first-instruction-a-risk-to-the-product): on a loaded machine the time between the spawn of the command and its first instruction has reached the whole bound, so the prompt is held about 7 seconds with nothing delivered or shown; not optimised here. Open risk [793c70 Is a sweep that is ended at its bound retried at every turn?](./793c_open-questions.md#793c70-is-a-sweep-that-is-ended-at-its-bound-retried-at-every-turn): a long transcript that was never indexed is not searchable until an ingest with `--auto` has run; its first sweep is ended, the sweep gives up for the session and the user is told once.

@@ -129,7 +129,7 @@ Withdrawn: author choice, [793b40 The scenarios of the first group](./793b_decis
 ## 793c20 What does a session hold, so that a note is not delivered twice?
 
 - **Context:** [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) does not deliver a [note](../../GLOSSARY.md#permanent-note) the [agent](./793a_product-spec.md#793a1a-terms) already has in the [session](../../GLOSSARY.md#session); something has to say what it has.
-- **Options:** (a) The file names on the note lines of the blocks delivered, and the command and result of each `engram query` and `engram show` the agent ran, read from the session's record. (b) Every tool result, the first version. (c) A ledger kept by the mod.
+- **Options:** (a) The file names on the note lines of the blocks delivered, and the command and result of each `engram query` and `engram show` the agent ran, read from the session's [transcript](../../GLOSSARY.md#transcript). (b) Every tool result, the first version. (c) A ledger kept by the mod.
 - **Recommendation:** (a): (b) counted an `ls` listing and missed an `engram show`, and (c) is lost with the process.
 - **Blocks:** the scenarios of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) that test what the agent already has.
 - **Status:** open; default (a) taken in [793b45 What a session holds](./793b_decision-log.md#793b45-what-a-session-holds).
@@ -162,9 +162,9 @@ Withdrawn: author choice, [793b49 The acceptance run is capped at four tests at 
 
 Withdrawn: author choice, [793b50 The mod uses what the command printed only when it succeeded and printed a block](./793b_decision-log.md#793b50-the-mod-uses-what-the-command-printed-only-when-it-succeeded-and-printed-a-block).
 
-## 793c26 Does the delivery read the records where Claude Code writes them, and does the sweep follow?
+## 793c26 Does the delivery read the transcripts where Claude Code writes them, and does the sweep follow?
 
-Withdrawn: author choice, [793b51 The delivery finds the records where Claude Code writes them](./793b_decision-log.md#793b51-the-delivery-finds-the-records-where-claude-code-writes-them).
+Withdrawn: author choice, [793b51 The delivery finds the transcripts where Claude Code writes them](./793b_decision-log.md#793b51-the-delivery-finds-the-transcripts-where-claude-code-writes-them).
 
 ## 793c27 Does the delivery's lookup need imptest evidence of its arguments, or a waiver?
 
@@ -188,7 +188,7 @@ Withdrawn: author choice, [793b56 The 7 seconds bound the whole hook, not the co
 
 ## 793c32 Is the stall between the spawn of the command and its first instruction a risk to the product?
 
-- **Context:** under many parallel acceptance tests the command stalled between its spawn and its first instruction (`prompt.submit settled in 7060.0ms`, no output from the child), so on a loaded machine a [prompt](./793a_product-spec.md#793a1a-terms) is held about 7 seconds with nothing delivered or shown; the cause is not established. With a [vault](../../GLOSSARY.md#vault) of 10 [notes](../../GLOSSARY.md#permanent-note), 5 runs after a warm-up: one delivery takes about 0.19 seconds, what one `engram query` takes, and a record of 300 KB adds about 2 milliseconds.
+- **Context:** under many parallel acceptance tests the command stalled between its spawn and its first instruction (`prompt.submit settled in 7060.0ms`, no output from the child), so on a loaded machine a [prompt](./793a_product-spec.md#793a1a-terms) is held about 7 seconds with nothing delivered or shown; the cause is not established. With a [vault](../../GLOSSARY.md#vault) of 10 [notes](../../GLOSSARY.md#permanent-note), 5 runs after a warm-up: one delivery takes about 0.19 seconds, what one `engram query` takes, and a [transcript](../../GLOSSARY.md#transcript) of 300 KB adds about 2 milliseconds.
 - **Options:** (a) Record it as an open risk, measure the cost of one delivery so that the groups that add work to the path know what they add to, and optimise nothing. (b) Find and remove the stall in this change. (c) Accept the risk without recording it.
 - **Recommendation:** (a).
 - **Blocks:** the sizing of the work that [793e6b Lessons are written without the agent](./793e_implementation-plan.md#793e6b-lessons-are-written-without-the-agent) and the later groups add to the per-prompt path.
@@ -256,7 +256,7 @@ Withdrawn: author choice, [793b70 The capture reports its own failures, and noth
 
 ## 793c43 Should a missing vault end the capture before the model is asked?
 
-Withdrawn: author choice, [793b82 A judgement without a vault or a record fails, and the model is not asked](./793b_decision-log.md#793b82-a-judgement-without-a-vault-or-a-record-fails-and-the-model-is-not-asked), which amends [793b71 The commands of the group auto take no first-use step](./793b_decision-log.md#793b71-the-commands-of-the-group-auto-take-no-first-use-step).
+Withdrawn: author choice, [793b82 A judgement without a vault or a transcript fails, and the model is not asked](./793b_decision-log.md#793b82-a-judgement-without-a-vault-or-a-transcript-fails-and-the-model-is-not-asked), which amends [793b71 The commands of the group auto take no first-use step](./793b_decision-log.md#793b71-the-commands-of-the-group-auto-take-no-first-use-step).
 
 ## 793c44 Is the window between a note's file and its embedding a risk?
 
@@ -266,13 +266,13 @@ Withdrawn: author choice, [793b82 A judgement without a vault or a record fails,
 - **Blocks:** [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working) if (b) or (c) is chosen.
 - **Status:** open; default (a) taken in [793b73 The tests of an absence wait for the end of the write, and for a settling time](./793b_decision-log.md#793b73-the-tests-of-an-absence-wait-for-the-end-of-the-write-and-for-a-settling-time).
 
-## 793c45 Is the reading of a prompt in the record the rule of the transcript-reader?
+## 793c45 Is the reading of a prompt in the transcript the rule of the transcript-reader?
 
 Withdrawn: author choice, [793b74 A row the harness wrote is no prompt](./793b_decision-log.md#793b74-a-row-the-harness-wrote-is-no-prompt).
 
-## 793c46 Is 2 seconds for a record of 1 MB the right bound for the judgement?
+## 793c46 Is 2 seconds for a transcript of 1 MB the right bound for the judgement?
 
-Withdrawn: author choice, [793b75 The record is read once, and the lines of the window are the only ones redacted](./793b_decision-log.md#793b75-the-record-is-read-once-and-the-lines-of-the-window-are-the-only-ones-redacted).
+Withdrawn: author choice, [793b75 The transcript is read once, and the lines of the window are the only ones redacted](./793b_decision-log.md#793b75-the-transcript-is-read-once-and-the-lines-of-the-window-are-the-only-ones-redacted).
 
 ## 793c47 Is the turn the one that began with the text the mod saw?
 
@@ -302,9 +302,9 @@ Withdrawn: author choice, [793b80 The delivered line shows the mark of a note wr
 
 Withdrawn: author choice, [793b81 A text is written as one line before it is redacted, and cut last](./793b_decision-log.md#793b81-a-text-is-written-as-one-line-before-it-is-redacted-and-cut-last).
 
-## 793c53 Should a judgement without a record fail, and be recorded as a failure?
+## 793c53 Should a judgement without a transcript fail, and be recorded as a failure?
 
-Withdrawn: author choice, [793b82 A judgement without a vault or a record fails, and the model is not asked](./793b_decision-log.md#793b82-a-judgement-without-a-vault-or-a-record-fails-and-the-model-is-not-asked).
+Withdrawn: author choice, [793b82 A judgement without a vault or a transcript fails, and the model is not asked](./793b_decision-log.md#793b82-a-judgement-without-a-vault-or-a-transcript-fails-and-the-model-is-not-asked).
 
 ## 793c54 Should a failure that the writing recorded still fail the command?
 
@@ -386,29 +386,29 @@ Withdrawn: author choice, [793b97 The commit columns stay](./793b_decision-log.m
 - **Blocks:** the guide's rule that the default suite holds only pure tests, at promotion.
 - **Status:** open; default (a) taken in [793b99 Default-suite tests that cross the filesystem](./793b_decision-log.md#793b99-default-suite-tests-that-cross-the-filesystem).
 
-## 793c68 Does the sweep index the session's record only?
+## 793c68 Does the sweep index the session's transcript only?
 
 - **Context:** the sweep makes the conversation findable ([793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory)); the [agent](./793a_product-spec.md#793a1a-terms)'s closing sweep is [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand) with `--auto`, over the repository's markdown, the ancestor `.claude` directories and every [session](../../GLOSSARY.md#session) log.
-- **Options:** (a) The [session](../../GLOSSARY.md#session)'s record only, as an explicit `--transcript`. (b) `engram ingest --auto` after every [turn](./793a_product-spec.md#793a1a-terms).
+- **Options:** (a) The [session](../../GLOSSARY.md#session)'s [transcript](../../GLOSSARY.md#transcript) only, as an explicit `--transcript`. (b) `engram ingest --auto` after every [turn](./793a_product-spec.md#793a1a-terms).
 - **Recommendation:** (a): the promise is one conversation, the explicit source reaches a session in a throwaway directory, and the cost is one session (1.7 s after a turn of 26 MB) and not the corpus.
 - **Blocks:** [793a2f1a The conversation so far is findable after a turn](./793a_product-spec.md#793a2f1-uat-scenarios).
-- **Status:** open; default (a) taken in [793b100 The sweep indexes the session's record after every turn](./793b_decision-log.md#793b100-the-sweep-indexes-the-sessions-record-after-every-turn).
+- **Status:** open; default (a) taken in [793b100 The sweep indexes the session's transcript after every turn](./793b_decision-log.md#793b100-the-sweep-indexes-the-sessions-transcript-after-every-turn).
 
 ## 793c69 Should a second sweep wait for the lock or be skipped?
 
 - **Context:** [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand) holds the lock on the manifest for the whole run, and the [agent](./793a_product-spec.md#793a1a-terms)'s closing sweep takes the same lock for minutes on a large backlog.
 - **Options:** (a) Wait for the lock within the sweep's bound. (b) Skip with a recorded reason when another ingest runs, with a non-blocking lock in the ingest.
 - **Recommendation:** (a): a skipped sweep leaves the [turn](./793a_product-spec.md#793a1a-terms)'s conversation unsearchable until the next one, and a wait costs an idle process for the bound.
-- **Blocks:** [793d4n1f Two sweeps at once index both records](./793d_technical-spec.md#793d4n1-scenarios).
+- **Blocks:** [793d4n1f Two sweeps at once index both transcripts](./793d_technical-spec.md#793d4n1-scenarios).
 - **Status:** open; default (a) taken in [793b101 A second sweep waits for the lock of the ingest](./793b_decision-log.md#793b101-a-second-sweep-waits-for-the-lock-of-the-ingest).
 
 ## 793c70 Is a sweep that is ended at its bound retried at every turn?
 
-- **Context:** a first sweep of a long history that was never indexed takes 0.42 s a chunk (264 s for 625 chunks; 78.6 s at about 415% of a CPU for a record of 300 [turns](./793a_product-spec.md#793a1a-terms)), longer than the 90 seconds of the bound, and the ingest writes the index of a source only when it has embedded all of it, so a sweep that is ended keeps nothing. Retried at every [turn](./793a_product-spec.md#793a1a-terms) it spent up to 90 seconds of the machine each time and showed a failure at every following [prompt](./793a_product-spec.md#793a1a-terms). Now a sweep that is ended gives up for the [session](../../GLOSSARY.md#session) and the user is told once what to run ([793b115 A sweep that is ended at its bound is not run again in the session](./793b_decision-log.md#793b115-a-sweep-that-is-ended-at-its-bound-is-not-run-again-in-the-session)); until the [agent](./793a_product-spec.md#793a1a-terms)'s closing sweep or [engram ingest](../../GLOSSARY.md#engram-ingest-subcommand) with `--auto` indexes the history, [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) is not kept for that session.
+- **Context:** a first sweep of a long history that was never indexed takes 0.42 s a chunk (264 s for 625 chunks; 78.6 s at about 415% of a CPU for a [transcript](../../GLOSSARY.md#transcript) of 300 [turns](./793a_product-spec.md#793a1a-terms)), longer than the 90 seconds of the bound, and the ingest writes the index of a source only when it has embedded all of it, so a sweep that is ended keeps nothing. Retried at every [turn](./793a_product-spec.md#793a1a-terms) it spent up to 90 seconds of the machine each time and showed a failure at every following [prompt](./793a_product-spec.md#793a1a-terms). Now a sweep that is ended gives up for the [session](../../GLOSSARY.md#session) and the user is told once what to run ([793b115 A sweep that is ended at its bound is not run again in the session](./793b_decision-log.md#793b115-a-sweep-that-is-ended-at-its-bound-is-not-run-again-in-the-session)); until the [agent](./793a_product-spec.md#793a1a-terms)'s closing sweep or [engram ingest](../../GLOSSARY.md#engram-ingest-subcommand) with `--auto` indexes the history, [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) is not kept for that session.
 - **Options:** (a) Retry at every turn, as first built. (b) Give up for the session once a sweep is ended, telling the user once what to run. (c) Make the ingest keep what it has embedded when it is ended. (d) The sweep gives the ingest a deadline under its bound, and the ingest persists what it embedded, append-only by chunk hash, so that each sweep goes on where the last stopped and the history is indexed in a few turns.
-- **Recommendation:** (d): it converges, where (a) leaves a long record unsearchable for as long as its sweeps are ended and (b) leaves it so for the rest of the session; (c) and (d) change the canonical ingest, so neither is built here and the owner decides, and (b) stands until then.
-- **Blocks:** [793a2f1a The conversation so far is findable after a turn](./793a_product-spec.md#793a2f1-uat-scenarios) for a long record that was never indexed: it fails until an ingest with `--auto` has run, and [793a2f1b A conversation too long to index in time is left alone and the user is told once what to run](./793a_product-spec.md#793a2f1-uat-scenarios) for the line the user is told.
-- **Status:** open; default (b) taken in [793b115 A sweep that is ended at its bound is not run again in the session](./793b_decision-log.md#793b115-a-sweep-that-is-ended-at-its-bound-is-not-run-again-in-the-session), replacing (a) of [793b100 The sweep indexes the session's record after every turn](./793b_decision-log.md#793b100-the-sweep-indexes-the-sessions-record-after-every-turn).
+- **Recommendation:** (d): it converges, where (a) leaves a long transcript unsearchable for as long as its sweeps are ended and (b) leaves it so for the rest of the session; (c) and (d) change the canonical ingest, so neither is built here and the owner decides, and (b) stands until then.
+- **Blocks:** [793a2f1a The conversation so far is findable after a turn](./793a_product-spec.md#793a2f1-uat-scenarios) for a long transcript that was never indexed: it fails until an ingest with `--auto` has run, and [793a2f1b A conversation too long to index in time is left alone and the user is told once what to run](./793a_product-spec.md#793a2f1-uat-scenarios) for the line the user is told.
+- **Status:** open; default (b) taken in [793b115 A sweep that is ended at its bound is not run again in the session](./793b_decision-log.md#793b115-a-sweep-that-is-ended-at-its-bound-is-not-run-again-in-the-session), replacing (a) of [793b100 The sweep indexes the session's transcript after every turn](./793b_decision-log.md#793b100-the-sweep-indexes-the-sessions-transcript-after-every-turn).
 
 ## 793c71 How is the work after a turn kept from holding the next prompt?
 
@@ -428,8 +428,8 @@ Withdrawn: author choice, [793b97 The commit columns stay](./793b_decision-log.m
 
 ## 793c73 Is a line shown once, by a mark beside its record?
 
-- **Context:** a line must not be shown at every [prompt](./793a_product-spec.md#793a1a-terms) after it, and the host keeps a log line in no record of the [session](../../GLOSSARY.md#session), which is where the lines were read back from when they were in the block.
-- **Options:** (a) The delivery marks each record whose line it printed, by a file beside the record. (b) A cursor kept by the mod, in memory or in the host's store. (c) The lines read back from the session's record, as before.
+- **Context:** a line must not be shown at every [prompt](./793a_product-spec.md#793a1a-terms) after it, and the host keeps a log line in no [transcript](../../GLOSSARY.md#transcript) of the [session](../../GLOSSARY.md#session), which is where the lines were read back from when they were in the block.
+- **Options:** (a) The delivery marks each record whose line it printed, by a file beside the record. (b) A cursor kept by the mod, in memory or in the host's store. (c) The lines read back from the session's transcript, as before.
 - **Recommendation:** (a): the state is a file of the data directory, like the records, and survives a restart and a resumed session; (b) shows a resumed session's history again, or puts state and logic in the mod, and (c) is no longer possible.
 - **Blocks:** [793d4p1c A line that was shown is not shown again](./793d_technical-spec.md#793d4p1-scenarios).
 - **Status:** open; default (a) taken in [793b105 What is shown, and how](./793b_decision-log.md#793b105-what-is-shown-and-how).
@@ -468,7 +468,7 @@ Withdrawn: author choice, [793b97 The commit columns stay](./793b_decision-log.m
 
 ## 793c78 Do the sweep and the capture of a turn run apart?
 
-- **Context:** after each [turn](./793a_product-spec.md#793a1a-terms) the mod indexes the [session](../../GLOSSARY.md#session)'s record (the sweep, up to 90 seconds) and captures its lessons (up to 115 seconds); the sweep reads the record and writes the chunk index, the capture writes [notes](../../GLOSSARY.md#permanent-note), and neither reads what the other writes.
+- **Context:** after each [turn](./793a_product-spec.md#793a1a-terms) the mod indexes the [session](../../GLOSSARY.md#session)'s [transcript](../../GLOSSARY.md#transcript) (the sweep, up to 90 seconds) and captures its lessons (up to 115 seconds); the sweep reads the transcript and writes the chunk index, the capture writes [notes](../../GLOSSARY.md#permanent-note), and neither reads what the other writes.
 - **Options:** (a) Each is a job of its own, started from a timer, with a bound of its own. (b) The sweep after the capture, in one chain. (c) The sweep inside the judgement command.
 - **Recommendation:** (a): (b) lets the capture's bound or failure delay the sweep, so that a slow model call leaves the conversation unsearchable, and (c) puts the index in the path of the model call.
 - **Blocks:** [793a2f1a The conversation so far is findable after a turn](./793a_product-spec.md#793a2f1-uat-scenarios).
@@ -540,7 +540,7 @@ Withdrawn: author choice, [793b122 A lesson that the judgement calls covered by 
 
 ## 793c88 Does the index keep the short versions of the last chunk of a conversation?
 
-- **Context:** the sweep after each [turn](./793a_product-spec.md#793a1a-terms) indexes the [transcript](../../GLOSSARY.md#transcript) as `--transcript` of [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand) does; the last chunk of a transcript grows with each turn until it is full, and the index is append-only by the hash of a chunk's text ([792b18c5 Rebuilding a source's index](../../specs/technical/chunk-index-store.md#792b18c5-rebuilding-a-sources-index)), so each sweep adds the longer version and keeps the shorter, all under one anchor. Measured on the built binary: four short turns, four sweeps, 4 records, all anchored `turn-1`; `engram query` can return several of them.
+- **Context:** the sweep after each [turn](./793a_product-spec.md#793a1a-terms) indexes the [transcript](../../GLOSSARY.md#transcript) as `--transcript` of [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand) does; the last chunk of a transcript grows with each turn until it is full, and the index is append-only by the hash of a chunk's text ([792b18c5 Rebuilding a source's index](../../specs/technical/chunk-index-store.md#792b18c5-rebuilding-a-sources-index)), so each sweep adds the longer version and keeps the shorter, all under one anchor. Measured on the built binary: four short turns, four sweeps, 4 chunks, all anchored `turn-1`; `engram query` can return several of them.
 - **Options:** (a) As built: the index keeps every version of the last chunk. (b) The sweep indexes only complete chunks: the last chunk waits until the next turn begins, and the newest turn is not findable until then. (c) Re-indexing a transcript replaces its tail, which changes the canonical requirement 792b18c5.
 - **Recommendation:** (a) for this change: the cost is a few kilobytes of versions for each chunk that grows and results that repeat a prefix, bounded by the size of a chunk (1,500 characters); (b) fails [793a2f1a The conversation so far is findable after a turn](./793a_product-spec.md#793a2f1-uat-scenarios), and (c) is the right fix, as a change of its own to the canonical specification.
 - **Blocks:** the canonical requirement [792b18c5 Rebuilding a source's index](../../specs/technical/chunk-index-store.md#792b18c5-rebuilding-a-sources-index), if the owner chooses (c).
@@ -553,3 +553,11 @@ Withdrawn: author choice, [793b122 A lesson that the judgement calls covered by 
 - **Recommendation:** (a): the probe is how the instructions were tuned, 60 runs for each variant, and a target keeps its tests from rotting without adding a language to the gates; (b) removes the means to tell a better sentence from noise, and (c) leaves tests that nothing runs.
 - **Blocks:** the merge of `dev/eval/auto-judge/`, code that the branch introduces and no check runs ([793e7 Completion gates](./793e_implementation-plan.md#793e7-completion-gates) asks `targ test` and `targ check-full` to cover the branch).
 - **Status:** open; default (c), as built, taken in [793b120 The judgement probe stays as built until the owner decides](./793b_decision-log.md#793b120-the-judgement-probe-stays-as-built-until-the-owner-decides).
+
+## 793c90 Do the terms of the Terms list and the term mod move to the glossary now, or at promotion?
+
+- **Context:** `docs/AGENTS.md` lets a change define its terms in the Terms list of its product spec ([793a1a Terms](./793a_product-spec.md#793a1a-terms): [agent](./793a_product-spec.md#793a1a-terms), [prompt](./793a_product-spec.md#793a1a-terms), [turn](./793a_product-spec.md#793a1a-terms), bears on, [automatic memory](./793a_product-spec.md#793a1a-terms), sweep and recognised credential), and the term mod is defined in [793d1 Orientation](./793d_technical-spec.md#793d1-orientation); `docs/GLOSSARY.md` holds none of them, and the review of the whole branch found that [793e7 Completion gates](./793e_implementation-plan.md#793e7-completion-gates) did not ask for their move.
+- **Options:** (a) Move them at promotion, in the merge that promotes the specs, as a completion gate. (b) Enter them in `docs/GLOSSARY.md` now. (c) Leave them in the specs once promoted.
+- **Recommendation:** (a): the glossary then states what the canonical specifications state, and the links to the Terms list change in the same merge; (b) puts in the glossary the terms of behavior that is not yet canonical, and (c) leaves them where a reader of the glossary does not look.
+- **Blocks:** [793e7 Completion gates](./793e_implementation-plan.md#793e7-completion-gates).
+- **Status:** open; default (a) taken in [793b124 A transcript is the session's, a record is a file automatic memory writes](./793b_decision-log.md#793b124-a-transcript-is-the-sessions-a-record-is-a-file-automatic-memory-writes).
