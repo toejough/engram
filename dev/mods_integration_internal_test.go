@@ -385,6 +385,21 @@ func Test793d2b1k_Mod_ARequestThatIsNotJSONIsAFailureOfTheJudgement(t *testing.T
 	}
 }
 
+func Test793d2b1l_Mod_TheWorkAfterATurnIsStartedFromATimerWithNoCallInFlightWhenTheEventSettles(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	outcome := runCaptureDriver(t, captureScenario{
+		Judge: map[string]any{"hold": true, "exitCode": 0, "stdout": requestPrinted},
+		Model: map[string]any{"isAnswered": true, "text": "THE REPLY"},
+	})
+
+	g.Expect(outcome.Settle.Made).To(BeZero(), "the calls the hook of the event made")
+	g.Expect(outcome.Settle.InFlight).To(BeZero(), "the calls in flight when the hook settled")
+	g.Expect(outcome.inputsOf("engram auto judge")).To(HaveLen(1), "the judgement was run when the timers were let go")
+	g.Expect(outcome.Sweeps).To(HaveLen(1), "the sweep was run when the timers were let go")
+}
+
 func Test793d2c1a_Mod_SweepsTheConversationAfterATurnApartFromTheCapture(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -525,8 +540,9 @@ const (
 	// judgement answers once the driver lets it (hold), exits with a code and prints a text, or rejects, and its model
 	// answers with a result or rejects. It records the order and the input of what the module asks of it, except the
 	// delivery and the sweep, and prints what the hook of the end of the turn returned, whether that hook was still
-	// waiting when the driver gave up on it, the calls, and the sweeps, which it records apart with whether the judgement
-	// was still running when each was run.
+	// waiting when the driver gave up on it, the calls, the sweeps, which it records apart with whether the judgement
+	// was still running when each was run, and the calls the hook made and left in flight when it settled. The mod's
+	// timers run once the hook has settled.
 	captureDriver = `
 import { pathToFileURL } from 'node:url'
 
@@ -596,6 +612,29 @@ const host = {
   ui: { log: () => {} },
 }
 
+// the host holds the next event of a mod until the calls its event left in flight settle, so the calls are counted when
+// they are made and while they are in flight; its timers run only when the driver lets them
+let made = 0
+let inFlight = 0
+function counted(call) {
+  return (...args) => {
+    made++
+    inFlight++
+    const done = () => { inFlight-- }
+    const running = call(...args)
+    Promise.resolve(running).then(done, done)
+    return running
+  }
+}
+host.session.id = counted(host.session.id)
+host.process.run = counted(host.process.run)
+host.model.complete = counted(host.model.complete)
+const timers = []
+host.clock = { after: (_milliseconds, run) => { timers.push(run) } }
+function fireTimers() {
+  for (const run of timers.splice(0)) void run()
+}
+
 if (scenario.script) {
   for (const step of scenario.script) {
     if (step.submit) {
@@ -608,6 +647,7 @@ if (scenario.script) {
     if (step.complete) {
       const completed = { reason: 'answer', ...step.complete }
       await handlers['turn.complete'](host, completed, async (event) => ({ text: event.answer }))
+      fireTimers()
     }
   }
   releaseJudgement({ exitCode: scenario.judge.exitCode, stdout: scenario.judge.stdout })
@@ -628,6 +668,7 @@ if (handlers['turn.start']) {
 }
 
 const waited = Symbol('waited')
+const madeBefore = made
 const hook = handlers['turn.complete'](host, { answer: 'Understood.', turnId: 'a-turn', reason: 'answer', ...agent },
   async (event) => ({ text: event.answer }))
 let giveUp
@@ -635,6 +676,9 @@ const gaveUp = new Promise((resolve) => { giveUp = wait(() => resolve(waited), 5
 const returned = await Promise.race([hook, gaveUp])
 clearTimeout(giveUp)
 const held = returned === waited
+const settle = { made: made - madeBefore, inFlight }
+
+fireTimers()
 
 // a judgement that is held lets the sweep start while it runs
 for (let tick = 0; scenario.judge.hold && tick < 50 && sweeps.length === 0; tick++) {
@@ -645,7 +689,7 @@ releaseJudgement({ exitCode: scenario.judge.exitCode, stdout: scenario.judge.std
 
 await settled()
 
-console.log(JSON.stringify({ returned: held ? {} : returned, held, calls, sweeps, delays }))
+console.log(JSON.stringify({ returned: held ? {} : returned, held, calls, sweeps, delays, settle }))
 `
 	// driverTimeout is how long the mod may take under the stand-in host before the test gives it up.
 	driverTimeout = 20 * time.Second
@@ -696,6 +740,10 @@ type captureOutcome struct {
 		TimeoutMs    float64        `json:"timeoutMs"`
 		WhileJudging bool           `json:"whileJudging"`
 	} `json:"sweeps"`
+	Settle struct {
+		Made     int `json:"made"`
+		InFlight int `json:"inFlight"`
+	} `json:"settle"`
 }
 
 // inputsOf returns the inputs of the calls that ran a step, in the order they were made.
