@@ -868,7 +868,7 @@ Review finding B-9 ([793b111 The mark of a note written automatically is looked 
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793d4c1c (amended) | Dedicated example | the source the earlier mod wrote, `captured from the conversation; written automatically (session s1, turn 3)`, over a note on disk | Red | | | |
+| 793d4c1c (amended) | Dedicated example | the source the earlier mod wrote, `captured from the conversation; written automatically (session s1, turn 3)`, over a note on disk | Green-all | de9bc0d7 | | |
 
 ### 793e6f The delivery merges the parent vault
 

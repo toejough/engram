@@ -109,9 +109,9 @@ const (
 )
 
 // markOf is the words that end the line of a note that was written automatically, with the space before them, and
-// nothing for any other note (793d4c).
+// nothing for any other note (793d4c): the words may stand anywhere in the source, as the earlier mod wrote them.
 func markOf(note Note) string {
-	if strings.HasPrefix(note.Source, automaticSource) {
+	if strings.Contains(note.Source, automaticSource) {
 		return " " + automaticMark
 	}
 
