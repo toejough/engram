@@ -16,6 +16,7 @@ import (
 
 	"github.com/toejough/engram/internal/auto"
 	"github.com/toejough/engram/internal/cli"
+	"github.com/toejough/engram/internal/embed"
 )
 
 func Test793d4p1c_RunAutoDeliver_ALineThatWasShownIsNotShownAgain(t *testing.T) {
@@ -179,6 +180,40 @@ func Test793d4p1j_RunAutoDeliver_AMarkThatCannotBeWrittenDoesNotFailTheCommand(t
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(recordLines(shown.String())).To(Equal([]string{"20:32:25 wrote the note a.md"}), "the line is shown")
+}
+
+func Test793d4p1k_Targets_AWarningOfTheLookupIsNoLineForTheUser(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := plantTwoNotes(t)
+
+	// the embedding of the second note is of another model: the lookup drops it, and warns
+	backupPath := filepath.Join(vault, backupNoteName)
+	backup, readErr := os.ReadFile(backupPath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	stale, buildErr := embed.BuildSidecar(t.Context(), stubEmbedder{modelID: "other@4", dims: 4}, backup)
+	g.Expect(buildErr).NotTo(HaveOccurred())
+	g.Expect(os.WriteFile(filepath.Join(vault, embed.SidecarPath(backupNoteName)), embed.MarshalSidecar(stale),
+		0o600)).To(Succeed())
+
+	var stdout, debug bytes.Buffer
+
+	stderr := executeForTestWithDeps(t,
+		[]string{"engram", "auto", "deliver", "--vault", vault, "--records", t.TempDir()},
+		func(d *cli.Deps) {
+			d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
+			d.Getenv = func(string) string { return "" }
+			d.UserHomeDir = func() (string, error) { return t.TempDir(), nil }
+			d.Stdin = userPrompt("When is the Zorblax staging database reset?", sessionID)
+			d.Stdout = &stdout
+			d.DebugLog = &debug
+		})
+
+	g.Expect(stdout.String()).To(ContainSubstring(resetNoteName), "the block holds the note that is fit")
+	g.Expect(stderr).To(Equal("delivered the note "+resetNoteName+"\n"), "what the user is shown")
+	g.Expect(debug.String()).To(ContainSubstring("dropped 1 sidecar"), "the debug log holds the warning of the lookup")
 }
 
 // unexported constants.

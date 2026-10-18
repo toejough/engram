@@ -145,9 +145,9 @@ flowchart TD
     n793e6h1 --> n793e6h7[793e6h7 The documents say what the group does<br/>Complete]
     n793e6a2 --> n793e6f[793e6f The delivery merges the parent vault<br/>Blocked by: 793c34]
     n793e6g7 --> n793e6i1[793e6i1 A note written by the earlier mod is marked as written automatically<br/>Complete]
-    n793e6h1 --> n793e6i2[793e6i2 The warnings of the lookup go to the debug log, not to the user<br/>Ready]
+    n793e6h1 --> n793e6i2[793e6i2 The warnings of the lookup go to the debug log, not to the user<br/>In progress: 0/1 entries complete]
     class n793e6i1 complete
-    class n793e6i2 ready
+    class n793e6i2 progress
     classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
@@ -879,7 +879,7 @@ Review finding B-5 ([793b112 The warnings of the lookup go to the debug log](./7
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793d4p1k | Dedicated example | `engram auto deliver` dispatched over a [vault](../../GLOSSARY.md#vault) of two notes, the embedding of one of another model, with a debug log: standard error holds the line of the note delivered and nothing else, and the log holds the warning | Not started | | | |
+| 793d4p1k | Dedicated example | `engram auto deliver` dispatched over a [vault](../../GLOSSARY.md#vault) of two notes, the embedding of one of another model, with a debug log: standard error holds the line of the note delivered and nothing else, and the log holds the warning | Red | | | |
 
 ### 793e6f The delivery merges the parent vault
 
