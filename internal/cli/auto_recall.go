@@ -62,6 +62,10 @@ func RunAutoRecall(ctx context.Context, args AutoRecallArgs, deps AutoRecallDeps
 		return fmt.Errorf("auto recall: %w", candidatesErr)
 	}
 
+	if len(matched) == 0 {
+		return nil
+	}
+
 	return printStep(stdout, "auto recall", auto.Recall(input, matched))
 }
 
