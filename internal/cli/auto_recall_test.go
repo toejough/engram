@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -192,6 +193,35 @@ func Test855d4b1d_Recall_TheNotesAndPassagesThatMatchedBecomeCandidatesTheExplor
 		g.Expect(lines[1]).To(Equal(
 			"- /sessions/earlier.jsonl#turn-3 (undated; passage): USER: the staging resets on Sunday."))
 	}
+}
+
+func Test855d4b1d_Recall_OnlyTheIndexFilesOfTheSourcesThatMatchedAreRead(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	own := "/home/joe/.claude/projects/-home-joe-zorblax/" + sessionID + ".jsonl"
+	payload := payloadOf(
+		chunkItem("/sessions/earlier.jsonl#turn-3", "direct"), chunkItem("/sessions/earlier.jsonl#turn-5", "direct"),
+		chunkItem("/sessions/another.jsonl#turn-1", "direct"), chunkItem(own+"#turn-2", "direct"))
+	records := chunksRead(
+		chunk.Record{Source: "/sessions/earlier.jsonl", Anchor: "turn-3", Text: "USER: a."},
+		chunk.Record{Source: "/sessions/earlier.jsonl", Anchor: "turn-5", Text: "USER: b."},
+		chunk.Record{Source: "/sessions/another.jsonl", Anchor: "turn-1", Text: "USER: c."})
+
+	var read []string
+
+	err := cli.RunAutoRecall(context.Background(), cli.AutoRecallArgs{VaultPath: "/a/vault", ChunksDir: "/a/chunks"},
+		cli.AutoRecallDeps{
+			Stdin: recallInput("glance", "staging resets"), Query: payloadQuery(payload),
+			ReadChunks: func(dir, source string) ([]chunk.Record, error) {
+				read = append(read, dir+" "+source)
+
+				return records(dir, source)
+			},
+		}, io.Discard)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(read).To(Equal([]string{"/a/chunks /sessions/earlier.jsonl", "/a/chunks /sessions/another.jsonl"}),
+		"each matched source once, and not the session's own")
 }
 
 func Test855d4b1e_Recall_AChunkOfTheSessionsOwnTranscriptIsNotACandidate(t *testing.T) {
@@ -471,9 +501,13 @@ func chunkItem(path, provenance string) string {
 	return "  - path: " + path + "\n    kind: chunk\n    score: 0.5\n    provenances: [" + provenance + "]\n"
 }
 
-// chunksRead returns a reading of the chunk index that holds the records.
-func chunksRead(records ...chunk.Record) func(string) ([]chunk.Record, error) {
-	return func(string) ([]chunk.Record, error) { return records, nil }
+// chunksRead returns a reading of the index file of a source that holds the records of the source.
+func chunksRead(records ...chunk.Record) func(string, string) ([]chunk.Record, error) {
+	return func(_, source string) ([]chunk.Record, error) {
+		return slices.DeleteFunc(slices.Clone(records), func(record chunk.Record) bool {
+			return record.Source != source
+		}), nil
+	}
 }
 
 // fromParent marks an item of the payload of the lookup as one from the parent vault.
