@@ -449,3 +449,11 @@ Withdrawn: answered by the owner's instruction to follow the guides, [793b91 The
 - **Recommendation:** (a): (b) puts a block beside a prompt that matches nothing, against [793a2b1b A note delivered earlier in the session is not delivered again](./793a_product-spec.md#793a2b1-uat-scenarios), and with names it states the note twice.
 - **Blocks:** [793a2e1a What was delivered and what was written for the previous turn is in the session by the next prompt](./793a_product-spec.md#793a2e1-uat-scenarios).
 - **Status:** open; default (a) taken in [793b105 What is shown, and how](./793b_decision-log.md#793b105-what-is-shown-and-how).
+
+## 793c75 Should the line for a delivery that could not be done name the prompt?
+
+- **Context:** [793a2e1c A delivery that could not be done is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios) asks for a line that says the delivery for the first [prompt](./793a_product-spec.md#793a1a-terms) could not be done; the line comes at the next prompt, and the records of what [automatic memory](./793a_product-spec.md#793a1a-terms) did persist in the data directory.
+- **Options:** (a) No text of the prompt: the time of the line says which delivery it was. (b) The first words of the prompt, in the failure.
+- **Recommendation:** (a): the text of a prompt may hold a secret that the redaction by shape does not catch, and (b) would keep it in a file.
+- **Blocks:** [793a2e1c A delivery that could not be done is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios).
+- **Status:** open; default (a) taken in [793b107 A delivery that could not be done is reported without the prompt's text](./793b_decision-log.md#793b107-a-delivery-that-could-not-be-done-is-reported-without-the-prompts-text).

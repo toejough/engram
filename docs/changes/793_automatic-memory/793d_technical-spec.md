@@ -41,12 +41,13 @@ sequenceDiagram
     Records-->>Delivery: 793d4p what automatic memory did
     Delivery-->>Mod: 793d4a the block
     Mod-->>Session: 793d2a the prompt unchanged, the block as context
+    Mod->>Records: 793d2a, 793d4k a delivery that failed or was ended, as a failure, from a timer
     Session-->>User: the agent acts with the notes in its context
 ```
 
-Requirement: 793d2a For each [prompt](./793a_product-spec.md#793a1a-terms) a Claude Code [session](../../GLOSSARY.md#session) raises, the `automatic-memory-mod` MUST run `engram auto deliver` with the prompt text, the session's ID and the prompt's origin (the kind Claude Code stamps on it: `composer`, `sdk`, `task-notification` and the rest) as one JSON object on standard input; MUST add the command's output to the prompt's context as one block when the command exited with 0 and the output begins with `[engram memory]`, and nothing otherwise; and MUST leave the prompt text as received. It MUST hold the prompt for its own work, the session-ID call and the wait for the command together, at most 7 seconds, so the prompt is held under the 8 seconds of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), and when the work does not finish within them MUST end the command and let the prompt continue as it was, with nothing added.
+Requirement: 793d2a For each [prompt](./793a_product-spec.md#793a1a-terms) a Claude Code [session](../../GLOSSARY.md#session) raises, the `automatic-memory-mod` MUST run `engram auto deliver` with the prompt text, the session's ID and the prompt's origin (the kind Claude Code stamps on it: `composer`, `sdk`, `task-notification` and the rest) as one JSON object on standard input; MUST add the command's output to the prompt's context as one block when the command exited with 0 and the output begins with `[engram memory]`, and nothing otherwise; and MUST leave the prompt text as received. It MUST hold the prompt for its own work, the session-ID call and the wait for the command together, at most 7 seconds, so the prompt is held under the 8 seconds of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), and when the work does not finish within them MUST end the command and let the prompt continue as it was, with nothing added. When the command fails (it exits with other than 0 or cannot be run) or the work does not finish within the bound, and the session's ID is known, it MUST also run `engram auto write` with the session's ID, no [turn](./793a_product-spec.md#793a1a-terms) and a `failure`, a sentence that names the delivery and how it failed, as [793d2b Turn capture flow](#793d2b-turn-capture-flow) does for a step that fails, and MUST start that run from a timer (`$.clock.after`), so that the prompt is held no longer and no call of the host is in flight when the hook settles; a command that prints nothing, or text that is not a block, has not failed.
 
-Owner: `automatic-memory-mod` (new; `automatic-memory-mod.md` at promotion). Supports: [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2b1b A note delivered earlier in the session is not delivered again](./793a_product-spec.md#793a2b1-uat-scenarios), [793a2d1a A slow lookup does not hold a prompt for more than 8 seconds](./793a_product-spec.md#793a2d1-uat-scenarios), [793a2d1d The prompt and the reply are as they were](./793a_product-spec.md#793a2d1-uat-scenarios).
+Owner: `automatic-memory-mod` (new; `automatic-memory-mod.md` at promotion). Supports: [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2b1b A note delivered earlier in the session is not delivered again](./793a_product-spec.md#793a2b1-uat-scenarios), [793a2d1a A slow lookup does not hold a prompt for more than 8 seconds](./793a_product-spec.md#793a2d1-uat-scenarios), [793a2d1d The prompt and the reply are as they were](./793a_product-spec.md#793a2d1-uat-scenarios), [793a2e1c A delivery that could not be done is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios).
 
 #### 793d2a1 Scenarios
 
@@ -90,6 +91,16 @@ Scenario: 793d2a1h The command receives the prompt's origin
   Given a session with the mod installed, and an engram whose auto deliver prints a block
   When a prompt is sent from a headless session, with claude -p
   Then the command received the origin sdk
+
+Scenario: 793d2a1i A command that fails is reported to the writing
+  Given the mod, a session whose ID is known, and an engram whose auto deliver exits with 1 and prints a cause on standard error
+  When a prompt is submitted
+  Then the prompt goes on as it was with nothing added, no call of the host is in flight when the hook settles, and, when the timers run, auto write received the session's ID, no turn and a failure that names the delivery and the cause
+
+Scenario: 793d2a1j A delivery that does not finish within its bound is reported to the writing
+  Given the mod, a session whose ID is known, and an engram whose auto deliver runs until its time limit
+  When a prompt is submitted
+  Then the prompt goes on as it was with nothing added, auto deliver was given the time limit of 7 seconds, and, when the timers run, auto write received the session's ID, no turn and a failure that names the delivery and the 7 seconds
 ```
 
 ### 793d2b Turn capture flow
@@ -1339,6 +1350,19 @@ Scenario: 793a2e1b A write that finishes after the next prompt is shown when it 
 ```
 
 Realized by [793d4p Telling what automatic memory did](#793d4p-telling-what-automatic-memory-did) (the records are read at every [prompt](./793a_product-spec.md#793a1a-terms) and a write makes its records last, so the line is told at the first prompt after the write finished) and [793d2b Turn capture flow](#793d2b-turn-capture-flow) (the write runs apart from the prompts, so the second prompt is not held for it).
+
+### 793d5zh Mapping of 793a2e1c
+
+The product scenario [793a2e1c A delivery that could not be done is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2e1c A delivery that could not be done is shown with its reason
+  Given the user has run engram update, a vault holding a note that says when the staging database is reset, and a lookup that takes 20 seconds
+  When the user sends a prompt asking when the staging database is reset, the lookup becomes quick again, and the user sends another prompt
+  Then the second prompt arrives with a line that says the delivery for the first could not be done, with the reason
+```
+
+Realized by [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow) (the mod ends the delivery at its bound, lets the [prompt](./793a_product-spec.md#793a1a-terms) go on and reports the failure to the writing, from a timer), [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did) (the writing records it as a failure) and [793d4p Telling what automatic memory did](#793d4p-telling-what-automatic-memory-did) (the block of the next prompt carries its line).
 
 ## 793d6 Recommended impact
 

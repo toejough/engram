@@ -701,13 +701,17 @@ Adds no component: the delivery reads the records at every [prompt](./793a_produ
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2e1b | Dedicated example, product acceptance (`network`) | a judgement row; an `engram` on the path waits 12 seconds before the write and then runs it; passed when written; mutation (scratch copy): the mod awaiting the capture inside the turn's event holds the second prompt until the write ended, so that it arrives with the line, which fails it | | Done | n/a | 23b2fb54 | a14cd337 |
+| 793a2e1b | Dedicated example, product acceptance (`network`) | a judgement row; an `engram` on the path waits 12 seconds before the write and then runs it; passed when written; mutation (scratch copy): the mod awaiting the capture inside the [turn](./793a_product-spec.md#793a1a-terms)'s event holds the second prompt until the write ended, so that it arrives with the line, which fails it | | Done | n/a | 23b2fb54 | a14cd337 |
 
 #### 793e6d3 A delivery that could not be done is shown with its reason
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 793a2e1c | Dedicated example, product acceptance (`network`) | an `engram` on the path that takes 20 seconds for the delivery while a file is there, and is quick again once the test removes it | | Not started | | | |
+| 793d2a1i | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the stand-in host counts the calls in flight when the hook settles: a report started inside the hook would hold the next [prompt](./793a_product-spec.md#793a1a-terms), which a live [session](../../GLOSSARY.md#session) shows only as time | | Not started | | | |
+| 793d2a1j | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the bound of the delivery, with the timer of the stand-in fired at once | | Not started | | | |
+| 793d2a1d (amended) | Dedicated example, real dependency (`network`) | the stand-in `engram` records the calls of the delivery only, so that the report of the failed delivery, which it also receives, does not replace what it recorded | | Not started | | | |
+| 793d2a1e (amended) | Dedicated example, real dependency (`network`) | as the row above | | Not started | | | |
 
 #### 793e6d4 A write that failed is shown with its reason
 

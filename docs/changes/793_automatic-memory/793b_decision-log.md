@@ -442,3 +442,7 @@ The block of the delivery carries the lines that tell what [automatic memory](./
 ## 793b106 Two records the display needs
 
 A delivery that fails or is ended is reported to the writing by the mod, from a timer, as the other failed steps are, and recorded as `failed`; the judgement records a headless [turn](./793a_product-spec.md#793a1a-terms) it leaves out as `skipped` with the reason ([793d4m Telling the prompts the user sends](./793d_technical-spec.md#793d4m-telling-the-prompts-the-user-sends)); a sweep that succeeds says nothing, and its failure is reported by the mod. A.
+
+## 793b107 A delivery that could not be done is reported without the prompt's text
+
+The failure that the mod reports for a delivery names the delivery, the cause and, for a delivery that was ended, the bound, and no text of the [prompt](./793a_product-spec.md#793a1a-terms): the time of the line, within seconds of the prompt, says which one it was, while the text of a prompt may hold a secret that the redaction by shape does not catch ([793b69 Credentials are redacted by shape, and the rest is a known risk](./793b_decision-log.md#793b69-credentials-are-redacted-by-shape-and-the-rest-is-a-known-risk)) and would be kept in a file of the data directory. A ([793c75 Should the line for a delivery that could not be done name the prompt?](./793c_open-questions.md#793c75-should-the-line-for-a-delivery-that-could-not-be-done-name-the-prompt)).
