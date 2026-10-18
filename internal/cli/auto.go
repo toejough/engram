@@ -329,6 +329,14 @@ var (
 		"engram ingest --auto indexes the history")
 )
 
+// noteFields are the fields of the front matter of a note that automatic memory reads.
+type noteFields struct {
+	Situation string `yaml:"situation"`
+	Source    string `yaml:"source"`
+	Created   string `yaml:"created"`
+	Pending   bool   `yaml:"pending"`
+}
+
 // outcomes is what became of a reply so far, as the records that tell it: base holds what they share.
 type outcomes struct {
 	base    auto.Record
@@ -525,6 +533,18 @@ func newAutoWriteDeps(d Deps) AutoWriteDeps {
 	}
 }
 
+// noteFieldsOf extracts the fields of the front matter of a note that automatic memory reads, or nothing when the
+// block does not parse.
+func noteFieldsOf(frontmatter []byte) noteFields {
+	var fields noteFields
+
+	if yaml.Unmarshal(frontmatter, &fields) != nil {
+		return noteFields{}
+	}
+
+	return fields
+}
+
 // notesOf reads the notes out of an `engram query` payload.
 func notesOf(payload []byte) ([]auto.Note, error) {
 	var parsed queryPayload
@@ -706,26 +726,6 @@ func shownRecords(entries []fs.DirEntry) map[string]bool {
 	}
 
 	return shown
-}
-
-// noteFields are the fields of the front matter of a note that automatic memory reads.
-type noteFields struct {
-	Situation string `yaml:"situation"`
-	Source    string `yaml:"source"`
-	Created   string `yaml:"created"`
-	Pending   bool   `yaml:"pending"`
-}
-
-// noteFieldsOf extracts the fields of the front matter of a note that automatic memory reads, or nothing when the
-// block does not parse.
-func noteFieldsOf(frontmatter []byte) noteFields {
-	var fields noteFields
-
-	if yaml.Unmarshal(frontmatter, &fields) != nil {
-		return noteFields{}
-	}
-
-	return fields
 }
 
 // situationAndSourceOf extracts the situation and the source from the front matter of a note, or nothing when the

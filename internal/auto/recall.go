@@ -9,21 +9,15 @@ import (
 	"strings"
 )
 
-// ErrPhrasesReply is the failure of a step given a reply of the phrases judgement that holds no phrase (855d4b).
-var ErrPhrasesReply = errors.New(`the reply of the phrases judgement is not {"phrases": [...]} with a phrase`)
-
-// RecallInput is the reply of the phrases judgement and its carry, as the memory mod hands them over (855d4b).
-type RecallInput struct {
-	Session string `json:"session"`
-	Cue     string `json:"cue"`
-	Reply   string `json:"reply"`
-	Carry   Carry  `json:"carry"`
-}
-
-// The kinds of a candidate (855d8b).
+// Exported constants.
 const (
 	KindNote    = "note"
 	KindPassage = "passage"
+)
+
+// Exported variables.
+var (
+	ErrPhrasesReply = errors.New(`the reply of the phrases judgement is not {"phrases": [...]} with a phrase`)
 )
 
 // Candidate is a note or a passage the lookup matched, as the candidate judgement is asked about it (855d4b): its ID is
@@ -36,6 +30,31 @@ type Candidate struct {
 	Text      string `json:"text"`
 	Parent    bool   `json:"parent"`
 	Pending   bool   `json:"pending"`
+}
+
+// RecallInput is the reply of the phrases judgement and its carry, as the memory mod hands them over (855d4b).
+type RecallInput struct {
+	Session string `json:"session"`
+	Cue     string `json:"cue"`
+	Reply   string `json:"reply"`
+	Carry   Carry  `json:"carry"`
+}
+
+// PhrasesOf returns the phrases of the reply of the phrases judgement that the lookup is run for: the first 3 at
+// glance and the first 10 at deep (855d4b).
+func PhrasesOf(reply, depth string) ([]string, error) {
+	var parsed struct {
+		Phrases []string `json:"phrases"`
+	}
+
+	readErr := json.Unmarshal([]byte(unfenced(reply)), &parsed)
+	phrases := slices.DeleteFunc(parsed.Phrases, isBlank)
+
+	if readErr != nil || len(phrases) == 0 {
+		return nil, ErrPhrasesReply
+	}
+
+	return phrases[:min(len(phrases), phraseLimit(depth))], nil
 }
 
 // Recall returns the request that judges the candidates the lookup matched (855d4b): the window of the carry and a
@@ -57,22 +76,21 @@ func Recall(input RecallInput, matched []Candidate) Step {
 	}
 }
 
-// PhrasesOf returns the phrases of the reply of the phrases judgement that the lookup is run for: the first 3 at
-// glance and the first 10 at deep (855d4b).
-func PhrasesOf(reply, depth string) ([]string, error) {
-	var parsed struct {
-		Phrases []string `json:"phrases"`
-	}
+// unexported constants.
+const (
+	// candidatesShape is the prompt of the request: the window and the section of candidates, each between its tags.
+	candidatesShape = "<window>\n%s\n</window>\n<candidates>\n%s\n</candidates>"
+	deepPhrases     = 10
+	glancePhrases   = 3
+	recallMaxTokens = 4000
+	recallModel     = "sonnet"
+	// undated stands in the line of a candidate for the date of one that has none: a chunk indexed before the index
+	// kept the time.
+	undated = "undated"
+)
 
-	readErr := json.Unmarshal([]byte(unfenced(reply)), &parsed)
-	phrases := slices.DeleteFunc(parsed.Phrases, isBlank)
-
-	if readErr != nil || len(phrases) == 0 {
-		return nil, ErrPhrasesReply
-	}
-
-	return phrases[:min(len(phrases), phraseLimit(depth))], nil
-}
+//go:embed prompts/candidates.txt
+var candidateInstructions string
 
 // candidateLine is the line of a candidate: its ID, its situation or the word passage, and its text, written as one
 // line and redacted (855d8b, 793d4j).
@@ -99,19 +117,3 @@ func phraseLimit(depth string) int {
 
 	return deepPhrases
 }
-
-// unexported constants.
-const (
-	// candidatesShape is the prompt of the request: the window and the section of candidates, each between its tags.
-	candidatesShape = "<window>\n%s\n</window>\n<candidates>\n%s\n</candidates>"
-	deepPhrases     = 10
-	glancePhrases   = 3
-	recallMaxTokens = 4000
-	recallModel     = "sonnet"
-	// undated stands in the line of a candidate for the date of one that has none: a chunk indexed before the index
-	// kept the time.
-	undated = "undated"
-)
-
-//go:embed prompts/candidates.txt
-var candidateInstructions string

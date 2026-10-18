@@ -71,6 +71,12 @@ func RunAutoRecall(ctx context.Context, args AutoRecallArgs, deps AutoRecallDeps
 	return printStep(stdout, "auto recall", auto.Recall(input, matched))
 }
 
+// unexported constants.
+const (
+	// maxCandidates is how many items the lookup is asked for: the most candidates the judgement holds (855d8b).
+	maxCandidates = 30
+)
+
 // candidatesOf reads the notes and the passages that matched out of an `engram query` payload, in the order of the
 // payload: not a note that only the explore half picked, and not a chunk that only the recency channel gave (855d4b).
 // Nor is a chunk of the session's own transcript. The text of a chunk is read from the chunk index, as `engram
@@ -101,7 +107,7 @@ func candidatesOf(
 
 			candidates = append(candidates, auto.Candidate{
 				ID: item.Path, Kind: auto.KindNote, Date: fields.Created, Situation: fields.Situation,
-				Text: strings.TrimSpace(body),
+				Text:   strings.TrimSpace(body),
 				Parent: item.FromParent != nil && *item.FromParent, Pending: fields.Pending,
 			})
 
@@ -130,15 +136,6 @@ func candidatesOf(
 	return candidates, nil
 }
 
-// dayOf is the day a chunk was indexed, or nothing for a chunk indexed before the index kept the time.
-func dayOf(indexed time.Time) string {
-	if indexed.IsZero() {
-		return ""
-	}
-
-	return indexed.UTC().Format(noteDateFormat)
-}
-
 // chunkRecordsByID reads the records of the chunk index by their IDs.
 func chunkRecordsByID(dir string, read func(dir string) ([]chunk.Record, error)) (map[string]chunk.Record, error) {
 	records, err := read(dir)
@@ -155,8 +152,11 @@ func chunkRecordsByID(dir string, read func(dir string) ([]chunk.Record, error))
 	return byID, nil
 }
 
-// unexported constants.
-const (
-	// maxCandidates is how many items the lookup is asked for: the most candidates the judgement holds (855d8b).
-	maxCandidates = 30
-)
+// dayOf is the day a chunk was indexed, or nothing for a chunk indexed before the index kept the time.
+func dayOf(indexed time.Time) string {
+	if indexed.IsZero() {
+		return ""
+	}
+
+	return indexed.UTC().Format(noteDateFormat)
+}

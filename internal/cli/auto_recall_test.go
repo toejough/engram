@@ -131,20 +131,6 @@ func Test855d4b1c_Recall_AReplyThatIsNotAPhrasesReplyFailsTheCommand(t *testing.
 	}
 }
 
-// recallInputOfReply is the JSON object that the memory mod hands to the recall, with the reply of the phrases
-// judgement as the model gave it, at glance.
-func recallInputOfReply(reply string) io.Reader {
-	input, err := json.Marshal(map[string]any{
-		"session": sessionID, "cue": "prompt", "reply": reply,
-		"carry": map[string]string{"cue": "prompt", "depth": "glance", "window": "User: Prepare a test run."},
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	return bytes.NewReader(input)
-}
-
 func Test855d4b1d_Recall_TheNotesAndPassagesThatMatchedBecomeCandidatesTheExplorePicksAndTheNewestChunks(
 	t *testing.T,
 ) {
@@ -176,7 +162,8 @@ func Test855d4b1d_Recall_TheNotesAndPassagesThatMatchedBecomeCandidatesTheExplor
 	if len(lines) == 2 {
 		g.Expect(lines[0]).To(HavePrefix("- 1.2026-10-17.zorblax-staging-reset.md (2026-10-17; " + resetSituation + "): " +
 			resetBody))
-		g.Expect(lines[1]).To(Equal("- /sessions/earlier.jsonl#turn-3 (undated; passage): USER: the staging resets on Sunday."))
+		g.Expect(lines[1]).To(Equal(
+			"- /sessions/earlier.jsonl#turn-3 (undated; passage): USER: the staging resets on Sunday."))
 	}
 }
 
@@ -224,7 +211,8 @@ func Test855d4b1g_Recall_TheRequestIsForTheMidTierAndHoldsTheVerdictsTheWindowAn
 
 	payload := payloadOf(
 		noteItem("1.2026-10-17.zorblax-staging-reset.md", "direct", "2026-10-17", resetSituation, resetBody),
-		fromParent(noteItem("2.2026-10-12.zorblax-backup-window.md", "direct", "2026-10-12", "backing up Zorblax", "Back up at 02:00.")),
+		fromParent(noteItem("2.2026-10-12.zorblax-backup-window.md", "direct", "2026-10-12", "backing up Zorblax",
+			"Back up at 02:00.")),
 		chunkItem("/sessions/earlier.jsonl#turn-3", "direct"),
 	)
 
@@ -245,13 +233,18 @@ func Test855d4b1g_Recall_TheRequestIsForTheMidTierAndHoldsTheVerdictsTheWindowAn
 
 	var step struct {
 		Request struct {
-			Model, Effort, System, Prompt string
-			MaxTokens                     int
-		}
+			Model     string `json:"model"`
+			Effort    string `json:"effort"`
+			System    string `json:"system"`
+			Prompt    string `json:"prompt"`
+			MaxTokens int    `json:"maxTokens"`
+		} `json:"request"`
 		Carry struct {
-			Cue, Depth, Window string
-			Candidates         []map[string]any
-		}
+			Cue        string           `json:"cue"`
+			Depth      string           `json:"depth"`
+			Window     string           `json:"window"`
+			Candidates []map[string]any `json:"candidates"`
+		} `json:"carry"`
 	}
 
 	g.Expect(json.Unmarshal(out.Bytes(), &step)).To(Succeed())
@@ -264,7 +257,8 @@ func Test855d4b1g_Recall_TheRequestIsForTheMidTierAndHoldsTheVerdictsTheWindowAn
 	g.Expect(step.Request.System).To(ContainSubstring(`{"candidates":[`), "the reply shape")
 	g.Expect(step.Request.System).NotTo(Or(ContainSubstring("zorblax"), ContainSubstring("Zorblax"),
 		ContainSubstring("USER:")), "none of the candidates")
-	g.Expect(step.Request.System).NotTo(Or(ContainSubstring(`"lessons"`), ContainSubstring("fields")), "a glance asks for no lesson")
+	g.Expect(step.Request.System).NotTo(Or(ContainSubstring(`"lessons"`), ContainSubstring("fields")),
+		"a glance asks for no lesson")
 	g.Expect(step.Request.Prompt).To(HavePrefix("<window>\nUser: Prepare a test run.\n</window>\n<candidates>\n"))
 	g.Expect(candidateLines(t, out.Bytes())).To(Equal([]string{
 		"- 1.2026-10-17.zorblax-staging-reset.md (2026-10-17; " + resetSituation + "): " + resetBody,
@@ -284,26 +278,7 @@ func Test855d4b1g_Recall_TheRequestIsForTheMidTierAndHoldsTheVerdictsTheWindowAn
 	}))
 }
 
-// recallInput is the JSON object that the memory mod hands to the recall: the reply of the phrases judgement, a list of
-// phrases, and the carry of the step before, of a depth.
-func recallInput(depth string, phrases ...string) io.Reader {
-	reply, err := json.Marshal(map[string][]string{"phrases": phrases})
-	if err != nil {
-		panic(err)
-	}
-
-	input, err := json.Marshal(map[string]any{
-		"session": sessionID, "cue": "prompt", "reply": string(reply),
-		"carry": map[string]string{"cue": "prompt", "depth": depth, "window": "User: Prepare a test run."},
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	return bytes.NewReader(input)
-}
-
-// resetSituation and resetBody are what the note of the Zorblax staging reset says.
+// unexported constants.
 const (
 	resetBody      = "The Zorblax staging database is reset every Sunday at 03:40 UTC."
 	resetSituation = "testing against the Zorblax staging database"
@@ -340,6 +315,11 @@ func chunksRead(records ...chunk.Record) func(string) ([]chunk.Record, error) {
 	return func(string) ([]chunk.Record, error) { return records, nil }
 }
 
+// fromParent marks an item of the payload of the lookup as one from the parent vault.
+func fromParent(item string) string {
+	return item + "    from_parent: true\n"
+}
+
 // noteItem is an item of the payload of the lookup for a note.
 func noteItem(path, provenance, created, situation, body string) string {
 	return "  - path: " + path + "\n    kind: fact\n    score: 0.9\n    provenances: [" + provenance + "]\n" +
@@ -361,7 +341,35 @@ func payloadQuery(payload string) cli.QueryRun {
 	}
 }
 
-// fromParent marks an item of the payload of the lookup as one from the parent vault.
-func fromParent(item string) string {
-	return item + "    from_parent: true\n"
+// recallInput is the JSON object that the memory mod hands to the recall: the reply of the phrases judgement, a list of
+// phrases, and the carry of the step before, of a depth.
+func recallInput(depth string, phrases ...string) io.Reader {
+	reply, err := json.Marshal(map[string][]string{"phrases": phrases})
+	if err != nil {
+		panic(err)
+	}
+
+	input, err := json.Marshal(map[string]any{
+		"session": sessionID, "cue": "prompt", "reply": string(reply),
+		"carry": map[string]string{"cue": "prompt", "depth": depth, "window": "User: Prepare a test run."},
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	return bytes.NewReader(input)
+}
+
+// recallInputOfReply is the JSON object that the memory mod hands to the recall, with the reply of the phrases
+// judgement as the model gave it, at glance.
+func recallInputOfReply(reply string) io.Reader {
+	input, err := json.Marshal(map[string]any{
+		"session": sessionID, "cue": "prompt", "reply": reply,
+		"carry": map[string]string{"cue": "prompt", "depth": "glance", "window": "User: Prepare a test run."},
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	return bytes.NewReader(input)
 }
