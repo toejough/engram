@@ -157,6 +157,30 @@ func Test793d4p1h_RunAutoDeliver_ANoteDeliveredIsShownAsALine(t *testing.T) {
 	g.Expect(result.shown).To(Equal("delivered the note "+resetNoteName+"\n"), "what the user is shown")
 }
 
+func Test793d4p1j_RunAutoDeliver_AMarkThatCannotBeWrittenDoesNotFailTheCommand(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	records := t.TempDir()
+
+	plantActivity(t, filepath.Join(records, sessionID), "20261017T203225.000000000Z-0-written.json",
+		activityRecordAt(0, sessionID, auto.RecordWritten, func(r *auto.Record) { r.Note = "a.md" }))
+
+	var block, shown bytes.Buffer
+
+	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: t.TempDir(), RecordsDir: records},
+		cli.AutoDeliverDeps{
+			Stdin:       userPrompt("When is the Zorblax staging database reset?", sessionID),
+			Query:       queryOver(newQueryDeps(newInMemoryFS())),
+			ReadDir:     os.ReadDir,
+			ReadFile:    os.ReadFile,
+			WriteRecord: func(string, []byte) error { return errors.New("the disk is full") },
+		}, &block, &shown)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(recordLines(shown.String())).To(Equal([]string{"20:32:25 wrote the note a.md"}), "the line is shown")
+}
+
 // unexported constants.
 const (
 	// otherSessionID and thirdSessionID are the IDs of other sessions in the tests.
