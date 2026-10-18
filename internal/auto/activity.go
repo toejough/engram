@@ -59,7 +59,14 @@ func activityText(record Record) string {
 
 		phrase += ": " + reasonText(record.Reason)
 	case RecordFailed:
-		phrase = "failed: " + reasonText(record.Reason)
+		phrase = "failed: "
+
+		// a failed record with a slug is the write of a lesson
+		if record.Slug != "" {
+			phrase += "writing " + oneLine(record.Slug) + ": "
+		}
+
+		phrase += reasonText(record.Reason)
 	default:
 		return ""
 	}
