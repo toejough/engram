@@ -1,0 +1,4 @@
+{
+  "description": "The probe of the gates of change 855",
+  "modules": ["./register.js"]
+}

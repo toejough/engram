@@ -586,8 +586,10 @@ type transcriptRow struct {
 		Content json.RawMessage `json:"content"`
 	} `json:"message"`
 	Attachment struct {
-		Type    string          `json:"type"`
-		Content json.RawMessage `json:"content"`
+		Type      string          `json:"type"`
+		Content   json.RawMessage `json:"content"`
+		HookName  string          `json:"hookName"`
+		HookEvent string          `json:"hookEvent"`
 	} `json:"attachment"`
 }
 
