@@ -62,7 +62,7 @@ func Test855d4b1l_Recall_TheCandidatesAreHeldToACountAndABudget(t *testing.T) {
 		step := auto.Recall(recallOf("glance"), matched)
 
 		g.Expect(candidatesOf(step.Request.Prompt)).To(HaveLen(20))
-		g.Expect(step.Carry.Candidates).To(Equal(matched[:20]))
+		g.Expect(idsOf(step.Carry.Candidates)).To(Equal(idsOf(matched[:20])))
 	})
 
 	t.Run("named example: 40 short notes are 30 candidates", func(t *testing.T) {
@@ -79,7 +79,7 @@ func Test855d4b1l_Recall_TheCandidatesAreHeldToACountAndABudget(t *testing.T) {
 		step := auto.Recall(recallOf("glance"), matched)
 
 		g.Expect(candidatesOf(step.Request.Prompt)).To(HaveLen(30))
-		g.Expect(step.Carry.Candidates).To(Equal(matched[:30]))
+		g.Expect(idsOf(step.Carry.Candidates)).To(Equal(idsOf(matched[:30])))
 	})
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -115,7 +115,7 @@ func Test855d4b1l_Recall_TheCandidatesAreHeldToACountAndABudget(t *testing.T) {
 			rt.Fatalf("%d candidates", len(lines))
 		}
 
-		if !slices.Equal(step.Carry.Candidates, matched[:len(lines)]) {
+		if !slices.Equal(idsOf(step.Carry.Candidates), idsOf(matched[:len(lines)])) {
 			rt.Fatalf("the candidates are not the first %d of the matched set", len(lines))
 		}
 
@@ -130,6 +130,17 @@ func Test855d4b1l_Recall_TheCandidatesAreHeldToACountAndABudget(t *testing.T) {
 			rt.Fatalf("%d characters of text", total)
 		}
 	})
+}
+
+// idsOf returns the IDs of candidates, in their order.
+func idsOf(candidates []auto.Candidate) []string {
+	ids := make([]string, 0, len(candidates))
+
+	for _, candidate := range candidates {
+		ids = append(ids, candidate.ID)
+	}
+
+	return ids
 }
 
 // candidatesOf returns the lines of the section of candidates of a prompt: the lines between the tags that hold it.

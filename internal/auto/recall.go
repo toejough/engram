@@ -62,13 +62,21 @@ func PhrasesOf(reply, depth string) ([]string, error) {
 }
 
 // Recall returns the request that judges the candidates the lookup matched (855d4b): the window of the carry and a
-// line for each candidate.
+// line for each candidate. The carry holds each candidate redacted and written as one line, its text not cut (855b55).
 func Recall(input RecallInput, matched []Candidate) Step {
 	lines := make([]string, 0, min(len(matched), MaxCandidates))
+	held := make([]Candidate, 0, cap(lines))
 	used := 0
 
 	for _, candidate := range matched {
-		text := candidateText(candidate)
+		candidate.Situation = oneRedacted(candidate.Situation)
+		candidate.Text = oneRedacted(candidate.Text)
+		text := candidate.Text
+
+		if candidate.Kind == KindPassage {
+			text = clipped(text, passageLimit)
+		}
+
 		used += utf8.RuneCountInString(text)
 
 		// the last of the matched set is dropped first (855d8b)
@@ -77,9 +85,8 @@ func Recall(input RecallInput, matched []Candidate) Step {
 		}
 
 		lines = append(lines, candidateLine(candidate, text))
+		held = append(held, candidate)
 	}
-
-	matched = matched[:len(lines)]
 
 	deep := input.Carry.Depth == DepthDeep
 	system := candidateInstructions
@@ -94,7 +101,7 @@ func Recall(input RecallInput, matched []Candidate) Step {
 			Prompt:    fmt.Sprintf(candidatesShape, input.Carry.Window, strings.Join(lines, "\n")),
 			MaxTokens: recallMaxTokens,
 		},
-		Carry: Carry{Cue: input.Cue, Depth: input.Carry.Depth, Window: input.Carry.Window, Candidates: matched},
+		Carry: Carry{Cue: input.Cue, Depth: input.Carry.Depth, Window: input.Carry.Window, Candidates: held},
 		Write: deep,
 	}
 }
@@ -153,17 +160,6 @@ func candidateLine(candidate Candidate, text string) string {
 	}
 
 	return escaped("- " + oneRedacted(candidate.ID) + " (" + strings.Join(about, "; ") + "): " + text)
-}
-
-// candidateText is the text of a candidate as its line holds it: a note whole, and a chunk cut to passageLimit
-// characters, after the redaction (855b33).
-func candidateText(candidate Candidate) string {
-	text := oneRedacted(candidate.Text)
-	if candidate.Kind == KindPassage {
-		return clipped(text, passageLimit)
-	}
-
-	return text
 }
 
 // phraseLimit is how many phrases the lookup is run for at a depth.
