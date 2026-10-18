@@ -417,3 +417,11 @@ Withdrawn: answered by the owner's instruction to follow the guides, [793b91 The
 - **Recommendation:** (a) until it is seen: it concerns only a long session that was never indexed, and (c) changes the canonical ingest.
 - **Blocks:** nothing.
 - **Status:** open; default (a) taken in [793b100 The sweep indexes the session's record after every turn](./793b_decision-log.md#793b100-the-sweep-indexes-the-sessions-record-after-every-turn).
+
+## 793c71 How is the work after a turn kept from holding the next prompt?
+
+- **Context:** [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) forbids holding a [prompt](./793a_product-spec.md#793a1a-terms) for more than 8 seconds; the host holds the next event of a mod until the calls of the host that the previous event left in flight settle, and the capture (up to 115 seconds) and the sweep (up to 90) are such calls.
+- **Options:** (a) Start the work from a timer of the mod. (b) A loop on `$.process.spawn`. (c) A process detached from the shell, which the mod cannot see fail.
+- **Recommendation:** (a): a call started from a timer held neither the next prompt nor the next reply, where (b) held the reply for 21 seconds and (c) loses the report of a failure.
+- **Blocks:** [793a2d1c The work after a turn does not hold the next prompt](./793a_product-spec.md#793a2d1-uat-scenarios).
+- **Status:** open; default (a) taken in [793b103 The work after a turn is started from a timer](./793b_decision-log.md#793b103-the-work-after-a-turn-is-started-from-a-timer).

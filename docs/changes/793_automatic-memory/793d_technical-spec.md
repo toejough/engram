@@ -43,7 +43,7 @@ sequenceDiagram
 
 Requirement: 793d2a For each [prompt](./793a_product-spec.md#793a1a-terms) a Claude Code [session](../../GLOSSARY.md#session) raises, the `automatic-memory-mod` MUST run `engram auto deliver` with the prompt text, the session's ID and the prompt's origin (the kind Claude Code stamps on it: `composer`, `sdk`, `task-notification` and the rest) as one JSON object on standard input; MUST add the command's output to the prompt's context as one block when the command exited with 0 and the output begins with `[engram memory]`, and nothing otherwise; and MUST leave the prompt text as received. It MUST hold the prompt for its own work, the session-ID call and the wait for the command together, at most 7 seconds, so the prompt is held under the 8 seconds of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), and when the work does not finish within them MUST end the command and let the prompt continue as it was, with nothing added.
 
-Owner: `automatic-memory-mod` (new; `automatic-memory-mod.md` at promotion). Supports: [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2b1b A note delivered earlier in the session is not delivered again](./793a_product-spec.md#793a2b1-uat-scenarios), [793a2d1a A slow lookup does not hold a prompt for more than 8 seconds](./793a_product-spec.md#793a2d1-uat-scenarios).
+Owner: `automatic-memory-mod` (new; `automatic-memory-mod.md` at promotion). Supports: [793a2a1a The next session has memory after one engram update](./793a_product-spec.md#793a2a1-uat-scenarios), [793a2b1b A note delivered earlier in the session is not delivered again](./793a_product-spec.md#793a2b1-uat-scenarios), [793a2d1a A slow lookup does not hold a prompt for more than 8 seconds](./793a_product-spec.md#793a2d1-uat-scenarios), [793a2d1d The prompt and the reply are as they were](./793a_product-spec.md#793a2d1-uat-scenarios).
 
 #### 793d2a1 Scenarios
 
@@ -116,9 +116,9 @@ sequenceDiagram
     Writing->>Record: 793d4k what became of the reply
 ```
 
-Requirement: 793d2b For each [turn](./793a_product-spec.md#793a1a-terms) a [session](../../GLOSSARY.md#session) completes, the `automatic-memory-mod` MUST give the event's result back at once and then, apart from the event, run `engram auto judge` with one JSON object on standard input: the session's ID, the turn's ID, the turn's final text, the text the turn began with and the origin of the [prompt](./793a_product-spec.md#793a1a-terms) it began with. It MUST do nothing for a turn that a [subagent](../../GLOSSARY.md#subagent) ran, which the event's `agentId` says. When the command exits with 0 and prints a request, the mod MUST ask the model for it through the host's model call, exactly as printed, and when the model answers run `engram auto write` with the session's ID, the turn's ID and the reply; when it exits with 0 and prints nothing, nothing more. When a step fails (the command exits with other than 0 or prints what is not a request, a request that is not a JSON object being a failure of `engram auto judge`; the model does not answer; a call is ended or rejected) it MUST run `engram auto write` with the session's ID, the turn's ID and a `failure`, a sentence that names the step and how it failed, in place of the reply. It MUST bound each stage so that together they take under the 2 minutes of [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent): the session-ID call 5 seconds (then it does nothing), `engram auto judge` 15, the model call the 60 of the request, `engram auto write` 20 and its failure report 15, 115 in all; a stage that overruns has failed. The mod keeps the text and origin of each prompt the session raises: a turn that starts with a text takes the oldest kept prompt with that text and drops the prompts kept before it, which began no turn; a turn whose text no kept prompt has takes the origin of the newest; a turn that starts with no text has no origin.
+Requirement: 793d2b For each [turn](./793a_product-spec.md#793a1a-terms) a [session](../../GLOSSARY.md#session) completes, the `automatic-memory-mod` MUST give the event's result back at once, with no call of the host in flight, and then, from a timer (`$.clock.after`), run `engram auto judge` with one JSON object on standard input: the session's ID, the turn's ID, the turn's final text, the text the turn began with and the origin of the [prompt](./793a_product-spec.md#793a1a-terms) it began with. It MUST do nothing for a turn that a [subagent](../../GLOSSARY.md#subagent) ran, which the event's `agentId` says. When the command exits with 0 and prints a request, the mod MUST ask the model for it through the host's model call, exactly as printed, and when the model answers run `engram auto write` with the session's ID, the turn's ID and the reply; when it exits with 0 and prints nothing, nothing more. When a step fails (the command exits with other than 0 or prints what is not a request, a request that is not a JSON object being a failure of `engram auto judge`; the model does not answer; a call is ended or rejected) it MUST run `engram auto write` with the session's ID, the turn's ID and a `failure`, a sentence that names the step and how it failed, in place of the reply. It MUST bound each stage so that together they take under the 2 minutes of [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent): the session-ID call 5 seconds (then it does nothing), `engram auto judge` 15, the model call the 60 of the request, `engram auto write` 20 and its failure report 15, 115 in all; a stage that overruns has failed. The mod keeps the text and origin of each prompt the session raises: a turn that starts with a text takes the oldest kept prompt with that text and drops the prompts kept before it, which began no turn; a turn whose text no kept prompt has takes the origin of the newest; a turn that starts with no text has no origin.
 
-Owner: `automatic-memory-mod`. Supports: [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1b A request to remember becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1c An approach the user confirmed becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1d The agent's own correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1e An approach that succeeded with evidence becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1f Guesses, plans and chatter produce no note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1g A credential in the turn is not in the note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1h A thanks that names no approach produces no note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1i A request to remember is written when the agent says it did not save it](./793a_product-spec.md#793a2c1-uat-scenarios), [793a3c1a A lesson an earlier note states is not written again](./793a_product-spec.md#793a3c1-uat-scenarios), [793a3c1b A lesson the agent saved itself is not written again](./793a_product-spec.md#793a3c1-uat-scenarios), [793a3c1c A lesson no earlier note states is written](./793a_product-spec.md#793a3c1-uat-scenarios).
+Owner: `automatic-memory-mod`. Supports: [793a2c1a A correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1b A request to remember becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1c An approach the user confirmed becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1d The agent's own correction becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1e An approach that succeeded with evidence becomes a note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1f Guesses, plans and chatter produce no note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1g A credential in the turn is not in the note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1h A thanks that names no approach produces no note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1i A request to remember is written when the agent says it did not save it](./793a_product-spec.md#793a2c1-uat-scenarios), [793a3c1a A lesson an earlier note states is not written again](./793a_product-spec.md#793a3c1-uat-scenarios), [793a3c1b A lesson the agent saved itself is not written again](./793a_product-spec.md#793a3c1-uat-scenarios), [793a3c1c A lesson no earlier note states is written](./793a_product-spec.md#793a3c1-uat-scenarios), [793a2d1c The work after a turn does not hold the next prompt](./793a_product-spec.md#793a2d1-uat-scenarios), [793a2d1d The prompt and the reply are as they were](./793a_product-spec.md#793a2d1-uat-scenarios), [793a2d1e A write that fails does not break the session](./793a_product-spec.md#793a2d1-uat-scenarios).
 
 #### 793d2b1 Scenarios
 
@@ -177,6 +177,11 @@ Scenario: 793d2b1k A request that is not JSON is a failure of the judgement
   Given the mod, and an engram whose auto judge prints text that begins as a request and is not a JSON object
   When a turn completes
   Then the model was never asked, and auto write received a failure that names the judgement
+
+Scenario: 793d2b1l The work after a turn is started from a timer, with no call in flight when the event settles
+  Given the mod, a host that counts the calls it has in flight when the hook of an event settles and runs the mod's timers only when the driver lets them, and an engram whose auto judge and auto sweep do not answer
+  When a turn completes
+  Then no call of the host was made or in flight when the event's hook settled, and auto judge and auto sweep were run when the timers were let go
 ```
 
 ### 793d2c Conversation sweep flow
@@ -204,9 +209,9 @@ sequenceDiagram
     end
 ```
 
-Requirement: 793d2c For each [turn](./793a_product-spec.md#793a1a-terms) a [session](../../GLOSSARY.md#session) completes, the `automatic-memory-mod` MUST give the event's result back at once and then, apart from the event and apart from the capture of [793d2b Turn capture flow](#793d2b-turn-capture-flow), run `engram auto sweep` with one JSON object on standard input: the session's ID and the origin of the [prompt](./793a_product-spec.md#793a1a-terms) the turn began with. It MUST do nothing for a turn that a [subagent](../../GLOSSARY.md#subagent) ran, and for a session whose ID does not come within 5 seconds. It MUST end the command after 90 seconds, so that the call for the ID (5), the sweep (90) and the report of its failure (15) take 110 seconds, under the 2 minutes of [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory); the bound of the sweep neither extends nor waits for those of the capture. When the command exits with other than 0, or is ended or cannot run, it MUST run `engram auto write` with the session's ID, the turn's ID and a `failure`, a sentence that names the sweep and how it failed.
+Requirement: 793d2c For each [turn](./793a_product-spec.md#793a1a-terms) a [session](../../GLOSSARY.md#session) completes, the `automatic-memory-mod` MUST give the event's result back at once and then, from a timer and apart from the capture of [793d2b Turn capture flow](#793d2b-turn-capture-flow), run `engram auto sweep` with one JSON object on standard input: the session's ID and the origin of the [prompt](./793a_product-spec.md#793a1a-terms) the turn began with. It MUST do nothing for a turn that a [subagent](../../GLOSSARY.md#subagent) ran, and for a session whose ID does not come within 5 seconds. It MUST end the command after 90 seconds, so that the call for the ID (5), the sweep (90) and the report of its failure (15) take 110 seconds, under the 2 minutes of [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory); the bound of the sweep neither extends nor waits for those of the capture. When the command exits with other than 0, or is ended or cannot run, it MUST run `engram auto write` with the session's ID, the turn's ID and a `failure`, a sentence that names the sweep and how it failed.
 
-Owner: `automatic-memory-mod`. Supports: [793a2f1a The conversation so far is findable after a turn](./793a_product-spec.md#793a2f1-uat-scenarios).
+Owner: `automatic-memory-mod`. Supports: [793a2f1a The conversation so far is findable after a turn](./793a_product-spec.md#793a2f1-uat-scenarios), [793a2d1c The work after a turn does not hold the next prompt](./793a_product-spec.md#793a2d1-uat-scenarios).
 
 #### 793d2c1 Scenarios
 
@@ -727,7 +732,7 @@ Scenario: 793d4j1i A credential that characters that are not shown split is not 
 
 Requirement: 793d4k The `lesson-writing` MUST record what became of each reply or failure it reads, where the display of [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) can read it: per lesson written, kind `written` with the [note](../../GLOSSARY.md#permanent-note)'s file name; per lesson left out, `skipped` with its slug and the reason; per reply that is not a list, `skipped` with the reason; per reply with no lesson, `nothing`; per failure, `failed` with the failure. A lesson that cannot be written is recorded `failed` and the command then succeeds, so the mod does not report it a second time. A record is a JSON file of its own in a directory named for the [session](../../GLOSSARY.md#session)'s ID under `auto` in the engram data directory, its name opening with the time it was made; it holds the time, the session's ID, the [turn](./793a_product-spec.md#793a1a-terms)'s ID, the kind, the note, the slug and the reason. A record that cannot be written does not fail the command unless it records a failure, when the command fails with the reason.
 
-Owner: `lesson-writing`. Supports: [793a2c1f Guesses, plans and chatter produce no note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1h A thanks that names no approach produces no note](./793a_product-spec.md#793a2c1-uat-scenarios).
+Owner: `lesson-writing`. Supports: [793a2c1f Guesses, plans and chatter produce no note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1h A thanks that names no approach produces no note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2d1e A write that fails does not break the session](./793a_product-spec.md#793a2d1-uat-scenarios).
 
 #### 793d4k1 Scenarios
 
@@ -1211,6 +1216,45 @@ Scenario: 793a2f1a The conversation so far is findable after a turn
 ```
 
 Realized by [793d2c Conversation sweep flow](#793d2c-conversation-sweep-flow), [793d4n Sweeping the conversation](#793d4n-sweeping-the-conversation) (the record is found as [793d4f Finding the records of sessions](#793d4f-finding-the-records-of-sessions) finds it) and [793d4e First-use gating](#793d4e-modified-first-use-gating); the [agent](./793a_product-spec.md#793a1a-terms) may not run `engram` commands, so the indexing is the sweep's.
+
+### 793d5zc Mapping of 793a2d1c
+
+The product scenario [793a2d1c The work after a turn does not hold the next prompt](./793a_product-spec.md#793a2d1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2d1c The work after a turn does not hold the next prompt
+  Given the user has run engram update, and a judgement, a write and a sweep that each take 60 seconds
+  When the user sends a prompt, and then another while that work goes on
+  Then the second prompt reaches the agent within 8 seconds, as the user typed it, and the agent answers it
+```
+
+Realized by [793d2b Turn capture flow](#793d2b-turn-capture-flow) and [793d2c Conversation sweep flow](#793d2c-conversation-sweep-flow): the work is started from a timer, so no call of the host is in flight when the event settles, and the host, which holds the next event of the mod until the calls in flight settle, holds nothing.
+
+### 793d5zd Mapping of 793a2d1d
+
+The product scenario [793a2d1d The prompt and the reply are as they were](./793a_product-spec.md#793a2d1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2d1d The prompt and the reply are as they were
+  Given the user has run engram update, and a session in which the user's correction became a note
+  When the user sends a prompt that the note bears on, typed with extra spaces and a line break
+  Then the prompt in the conversation is exactly as the user typed it, and the reply is exactly the agent's text
+```
+
+Realized by [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow) (the [prompt](./793a_product-spec.md#793a1a-terms) stays as received, the block beside it) and [793d2b Turn capture flow](#793d2b-turn-capture-flow) (the event's result is given back as it was); nothing else of the mod edits a prompt or a reply.
+
+### 793d5ze Mapping of 793a2d1e
+
+The product scenario [793a2d1e A write that fails does not break the session](./793a_product-spec.md#793a2d1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2d1e A write that fails does not break the session
+  Given the user has run engram update, and a vault that cannot be written
+  When the user corrects the agent in a prompt, the turn ends, and the user sends another prompt
+  Then the agent answers the second prompt as typed, and the vault holds no new note
+```
+
+Realized by [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did) (a lesson that cannot be written is recorded once and the command succeeds) and [793d2b Turn capture flow](#793d2b-turn-capture-flow) (the capture steps aside; a failed step is reported to the writing).
 
 ## 793d6 Recommended impact
 

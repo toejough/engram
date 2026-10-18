@@ -174,9 +174,22 @@ Scenario: 793a2d1b Automatic memory's work starts no session of its own
   Given the user has run engram update, and a session in which the agent may not run engram commands
   When the user corrects the agent in a prompt, and the turn ends
   Then within 2 minutes the vault holds a note for the correction, and no session but the user's exists, so nothing was delivered to or written from another
-```
 
-The other clauses' scenarios are pending step 2 ([793e6c Never in the way](./793e_implementation-plan.md#793e6c-never-in-the-way)).
+Scenario: 793a2d1c The work after a turn does not hold the next prompt
+  Given the user has run engram update, and a judgement, a write and a sweep that each take 60 seconds
+  When the user sends a prompt, and then another while that work goes on
+  Then the second prompt reaches the agent within 8 seconds, as the user typed it, and the agent answers it
+
+Scenario: 793a2d1d The prompt and the reply are as they were
+  Given the user has run engram update, and a session in which the user's correction became a note
+  When the user sends a prompt that the note bears on, typed with extra spaces and a line break
+  Then the prompt in the conversation is exactly as the user typed it, and the reply is exactly the agent's text
+
+Scenario: 793a2d1e A write that fails does not break the session
+  Given the user has run engram update, and a vault that cannot be written
+  When the user corrects the agent in a prompt, the turn ends, and the user sends another prompt
+  Then the agent answers the second prompt as typed, and the vault holds no new note
+```
 
 ### 793a2e The user can see what it did
 

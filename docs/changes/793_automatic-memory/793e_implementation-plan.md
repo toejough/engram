@@ -28,8 +28,8 @@ Added by the second group ([793e6b Lessons are written without the agent](#793e6
 Added by the third group ([793e6e The conversation becomes searchable memory](#793e6e-the-conversation-becomes-searchable-memory)):
 
 - `internal/cli/auto.go`, `internal/cli/targets.go`: the command `sweep`, which indexes the session's record with the ingest, wired outside the first-use step ([793b100 The sweep indexes the session's record after every turn](./793b_decision-log.md#793b100-the-sweep-indexes-the-sessions-record-after-every-turn), [793b101 A second sweep waits for the lock of the ingest](./793b_decision-log.md#793b101-a-second-sweep-waits-for-the-lock-of-the-ingest)).
-- `agent-instructions/mods/engram-memory/hooks/register.js`: the job that sweeps after `turn.complete`, apart from the capture ([793b102 The sweep and the capture run apart](./793b_decision-log.md#793b102-the-sweep-and-the-capture-run-apart)).
-- `dev/acceptance/sweep_test.go`, `dev/mods_integration_internal_test.go`, `dev/auto_sweep_integration_internal_test.go`: the scenario test, the stand-in host's tests of the job, and the tests over the real binary, which the dev integration suite runs because the integration gate of `internal/` runs only tests named for it.
+- `agent-instructions/mods/engram-memory/hooks/register.js`: the job that sweeps after `turn.complete`, apart from the capture ([793b102 The sweep and the capture run apart](./793b_decision-log.md#793b102-the-sweep-and-the-capture-run-apart)), both started from a timer ([793b103 The work after a turn is started from a timer](./793b_decision-log.md#793b103-the-work-after-a-turn-is-started-from-a-timer)).
+- `dev/acceptance/sweep_test.go`, `dev/acceptance/never_test.go`, `dev/mods_integration_internal_test.go`, `dev/auto_sweep_integration_internal_test.go`: the scenario test, the stand-in host's tests of the job, and the tests over the real binary, which the dev integration suite runs because the integration gate of `internal/` runs only tests named for it.
 
 ## 793e2 Test methods
 
@@ -106,17 +106,20 @@ flowchart TD
     n793e6g14 --> n793e6g19
     n793e6g17 --> n793e6g19
     n793e6g12 --> n793e6e1[793e6e1 The conversation so far is findable after a turn<br/>Complete]
-    n793e6a6 --> n793e6c[793e6c Never in the way<br/>Ready]
-    n793e6g12 --> n793e6c
-    n793e6g10 --> n793e6d[793e6d The user can see what it did<br/>Blocked by: 793e6c]
+    n793e6a6 --> n793e6c1[793e6c1 The work after a turn does not hold the next prompt<br/>Ready]
+    n793e6g12 --> n793e6c1
+    n793e6e1 --> n793e6c1
+    n793e6b11 --> n793e6c2[793e6c2 The prompt and the reply are as they were<br/>Blocked by: 793e6c1]
+    n793e6b13 --> n793e6c3[793e6c3 A write that fails does not break the session<br/>Blocked by: 793e6c2]
+    n793e6g10 --> n793e6d[793e6d The user can see what it did<br/>Blocked by: 793e6c3]
     n793e6a2 --> n793e6f[793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d]
     classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
     classDef blocked fill:#eeeeee,stroke:#757575,color:#000,stroke-dasharray:5 5
     class n793e6a1,n793e6a2,n793e6a3,n793e6a4,n793e6a5,n793e6a6,n793e6a7,n793e6a8,n793e6a9,n793e6a10,n793e6a11,n793e6a12,n793e6b1,n793e6b2,n793e6b3,n793e6b4,n793e6b5,n793e6b6,n793e6b7,n793e6b8,n793e6b9,n793e6b10,n793e6b11,n793e6b12,n793e6b13,n793e6b14,n793e6b15,n793e6g1,n793e6g2,n793e6g3,n793e6g4,n793e6g5,n793e6g6,n793e6g7,n793e6g8,n793e6g9,n793e6g10,n793e6g11,n793e6g12,n793e6g13,n793e6g14,n793e6g15,n793e6g16,n793e6g17,n793e6g18,n793e6g19,n793e6e1 complete
-    class n793e6c ready
-    class n793e6d,n793e6f blocked
+    class n793e6c1 ready
+    class n793e6c2,n793e6c3,n793e6d,n793e6f blocked
 ```
 
 Colour follows the status: green `Complete`, blue `Ready`, dashed grey `Blocked by`, yellow `In progress` (none now). A group is `Blocked by` the previous group of the order of [793e4 Depth-first order](#793e4-depth-first-order), which adds no arrow: the order is the rule that a later group needs the previous group's committed result.
@@ -635,10 +638,32 @@ One node for the scenario of [793a2f The conversation becomes searchable memory]
 
 ### 793e6c Never in the way
 
-The rest of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way): no editing of the [prompt](./793a_product-spec.md#793a1a-terms) or the reply, no breaking or stalling of a [session](../../GLOSSARY.md#session), stepping aside when it cannot do its work. Its own-sessions clause is taken by [793e6b Lessons are written without the agent](#793e6b-lessons-are-written-without-the-agent).
+The rest of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way): no editing of the [prompt](./793a_product-spec.md#793a1a-terms) or the reply, no breaking or stalling of a [session](../../GLOSSARY.md#session), stepping aside when it cannot do its work. Its own-sessions clause is taken by [793e6b Lessons are written without the agent](#793e6b-lessons-are-written-without-the-agent). One node for each of its three scenarios, in the order below.
 
-| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- |
+#### 793e6c1 The work after a turn does not hold the next prompt
+
+The mod started the work after a [turn](./793a_product-spec.md#793a1a-terms) inside the dispatch of the event, which the host holds the next [prompt](./793a_product-spec.md#793a1a-terms) for ([793b103 The work after a turn is started from a timer](./793b_decision-log.md#793b103-the-work-after-a-turn-is-started-from-a-timer)).
+
+| Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793a2d1c | Dedicated example, product acceptance (`network`) | an `engram` on the path records the start of each job after a turn and takes 60 seconds, and the second prompt is sent while they go on; the wait is measured from the moment the test sends the prompt, since the row of the prompt in the record is written when the host enters it | | Not started | | | |
+| 793d2b1l | Dedicated example, real dependency (`integration`) | the stand-in host counts the calls in flight when the hook of an event settles, which a live [session](../../GLOSSARY.md#session) cannot show | | Not started | | | |
+
+#### 793e6c2 The prompt and the reply are as they were
+
+Adds no component: the mod gives the [prompt](./793a_product-spec.md#793a1a-terms) on as it received it and the event's result back as it was.
+
+| Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793a2d1d | Dedicated example, product acceptance (`network`) | a judgement row, as the [note](../../GLOSSARY.md#permanent-note) is the model's; the reply is compared with the result of the run | | Not started | | | |
+
+#### 793e6c3 A write that fails does not break the session
+
+Adds no component: the writing records a failure once and succeeds, and the mod reports a failed step.
+
+| Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793a2d1e | Dedicated example, product acceptance (`network`) | a judgement row, as the correction must become a lesson; the [vault](../../GLOSSARY.md#vault) is made read-only and the test waits for the record of the failed write | | Not started | | | |
 
 ### 793e6d The user can see what it did
 
