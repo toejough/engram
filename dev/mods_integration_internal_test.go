@@ -950,7 +950,7 @@ const host = {
   session: { id: () => (scenario.stalls === 'id' ? new Promise(() => {}) : Promise.resolve('a-session')) },
   process: {
     run: async (argv, init) => {
-      if (argv[2] === 'deliver') return { exitCode: 0, stdout: '' }
+      if (argv[2] === 'moment' || argv[2] === 'deliver') return { exitCode: 0, stdout: '' }
       if (argv[2] === 'sweep') {
         const input = JSON.parse(init.stdin)
         sweeps.push({ step: argv.join(' '), input, timeoutMs: init.timeoutMs, whileJudging: !judgementReleased })

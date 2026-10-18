@@ -1,11 +1,18 @@
-// Automatic memory: the notes of the vault that bear on a prompt arrive beside it (793a2b), and after the turn the
-// lessons it holds become notes (793a2c) and its conversation is indexed (793a2f). The logic is in the engram binary
-// (`engram auto deliver`, `judge`, `write` and `sweep`); this module routes to it, puts the block the delivery prints
-// beside the prompt, and shows the user the lines it prints for the user, through the host's log (793d2a).
+// Automatic memory: the notes and passages of the vault that apply to a prompt arrive beside it (855a3b), and after the
+// turn the lessons it holds become notes (793a2c) and its conversation is indexed (793a2f). The logic is in the engram
+// binary (`engram auto moment`, `phrases`, `recall`, `deliver`, `judge`, `write` and `sweep`); this module routes to
+// it, asks the model for the requests the steps print, puts the block the delivery prints beside the prompt, and shows
+// the user the lines it prints for the user, through the host's log (855d2a).
 
-// The prompt is held for 8 seconds at most (793a2d): everything the module does for it, the call for the session's ID
-// and the command, is bounded at 7, and the second left is for starting the command and running the prompt's hooks.
-const BOUND_MS = 7000
+// Each wait of the flow of a prompt, a step or a model call, has 2 minutes of its own (855a3c): a wait that is only slow
+// is waited for, and one that has not answered by then has stalled, and the flow steps aside.
+const STEP_BOUND_MS = 120000
+
+// The steps of the flow of a prompt that print a request, in order; the delivery follows them (855d2a).
+const CHAIN = ['moment', 'phrases', 'recall']
+
+// Every request a step of the flow of a prompt prints begins with this (855d1b); anything else is not a request.
+const STEP = '{"request":'
 
 // Every block the command prints opens with this (793d4c); anything else is not a block.
 const MARKER = '[engram memory]'
@@ -34,6 +41,10 @@ const REQUEST = '{"model":'
 // names its origin, the start of the turn names its text, the end of the turn names only the turn.
 const raised = []
 const turns = new Map()
+
+// The IDs of the notes and passages the module delivered in each session, by the session's ID (855d2c): the file name
+// of a note and the chunk ID of a passage, each given to the delivery as held, so that a note is delivered once.
+const delivered = new Map()
 
 // So many prompts are kept at most: one that is dropped, or delivered into a running turn, starts no turn.
 const RAISED_MAX = 20
@@ -97,6 +108,31 @@ async function ask($, request) {
 
   if (!reply.isAnswered) {
     throw new Error(`the model call was not answered: ${reply.reason}`)
+  }
+
+  return reply.text
+}
+
+// askModel is the text of the model's answer to a request of the flow of a prompt, and fails when the model gives none.
+// The request is asked exactly as the step printed it; the call is aborted through its signal when it has not answered
+// within 2 minutes (855d2a).
+async function askModel($, request) {
+  const stop = new AbortController()
+  const timer = setTimeout(() => stop.abort(), STEP_BOUND_MS)
+  let reply
+
+  try {
+    reply = await $.model.complete(request, { signal: stop.signal })
+  } catch (error) {
+    throw new Error(`the model call failed: ${describe(error)}`)
+  } finally {
+    clearTimeout(timer)
+  }
+
+  if (!reply.isAnswered) {
+    const why = stop.signal.aborted ? `gave nothing within ${limitText(STEP_BOUND_MS)}` : `was not answered: ${reply.reason}`
+
+    throw new Error(`the model call ${why}`)
   }
 
   return reply.text
@@ -167,45 +203,61 @@ async function sweep($, session, origin) {
   }
 }
 
+// limitText is a time limit written for a person: whole minutes, else milliseconds.
+function limitText(ms) {
+  return ms >= 60000 && ms % 60000 === 0 ? `${ms / 60000} minutes` : `${ms} ms`
+}
+
 // describe is the text of a failure.
 function describe(error) {
   return error instanceof Error ? error.message : String(error)
 }
 
-// deliver is what the command prints for the prompt: the block it prints on standard output, or nothing when that is
-// not a block, and the lines it prints on standard error for the user, one to a line. The command is ended at the bound
-// by the time limit of the process call, and a command that fails fails the delivery. The session's ID is left in the
-// delivery as soon as it is known, for the report of a failure.
-async function deliver($, e, delivery) {
-  delivery.session = await $.session.id()
+// delivery is the block and the lines for the user for a prompt, or nothing when the flow does not finish or fails: the
+// prompt goes on as if automatic memory were not installed, and the failure is reported (855d2a).
+async function deliveryFor($, e) {
+  const state = { session: '' }
 
-  const input = { text: e.text, session: delivery.session, origin: originOf(e) }
-  const { stdout, stderr } = await run($, 'deliver', input, BOUND_MS)
+  try {
+    return await promptChain($, e, state)
+  } catch (error) {
+    reportDelivery($, state.session, error)
 
-  return {
-    block: stdout.startsWith(MARKER) ? stdout : '',
-    shown: stderr.split('\n').map((text) => text.trim()).filter((text) => text !== ''),
+    return { block: '', shown: [] }
   }
 }
 
-// deliveryFor is the block and the lines for the user for the prompt, or nothing when the whole of deliver does not
-// finish within the bound or fails: the prompt goes on as if automatic memory were not installed, and the failure is
-// reported (793d2a).
-async function deliveryFor($, e) {
-  const delivery = { session: '' }
-  let timer
-  const late = new Promise((_resolve, reject) => {
-    timer = setTimeout(() => reject(new Error(`the delivery gave nothing within ${BOUND_MS} ms`)), BOUND_MS)
-  })
+// promptChain runs the steps of the flow of a prompt in order (855d2a): the moment, the phrases and the recall, each
+// given the reply to the request before it and its carry and asking the model for the request it prints, and then the
+// delivery with the last reply and its carry. A step that prints nothing ends the chain there, and the delivery is run
+// with the prompt's text and the cue alone. The session's ID is left in the state as soon as it is known, for the
+// report of a failure.
+async function promptChain($, e, state) {
+  state.session = await bounded($.session.id(), ID_BOUND_MS, "the call for the session's ID")
 
-  try {
-    return await Promise.race([deliver($, e, delivery), late])
-  } catch (error) {
-    reportDelivery($, delivery.session, error)
+  const base = { session: state.session, origin: originOf(e), cue: 'prompt', held: [...(delivered.get(state.session) ?? [])] }
+  let answer = {}
 
-    return { block: '', shown: [] }
-  } finally {
-    clearTimeout(timer)
+  for (const step of CHAIN) {
+    const { stdout } = await run($, step, { ...base, ...(step === 'moment' ? { text: e.text } : answer) }, STEP_BOUND_MS)
+
+    if (stdout === '') {
+      answer = {}
+
+      break
+    }
+
+    const printed = stepOf(stdout, step)
+
+    answer = { reply: await askModel($, printed.request), carry: printed.carry }
+  }
+
+  const { stdout, stderr } = await run($, 'deliver', { ...base, text: e.text, ...answer }, STEP_BOUND_MS)
+
+  return {
+    block: stdout.startsWith(MARKER) ? newLinesOf(state.session, stdout) : '',
+    // the lines go to the user and the model reads none of them
+    shown: stderr.split('\n').map((text) => text.trim()).filter((text) => text !== ''),
   }
 }
 
@@ -222,6 +274,20 @@ function reportDelivery($, session, error) {
   })
 }
 
+// stepOf is what a step of the flow of a prompt printed: the request for the model and the carry, or a failure that
+// names the step when what it printed is not one (855d2a).
+function stepOf(printed, step) {
+  if (!printed.startsWith(STEP)) {
+    throw new Error(`engram auto ${step} printed what is not a request`)
+  }
+
+  try {
+    return JSON.parse(printed)
+  } catch (error) {
+    throw new Error(`engram auto ${step} printed a request that is not JSON: ${describe(error)}`)
+  }
+}
+
 // requestOf is the request for the model that the judgement printed, or a failure that names the judgement when what it
 // printed is not one, or is not a JSON object (793d2b).
 function requestOf(printed) {
@@ -234,6 +300,22 @@ function requestOf(printed) {
   } catch (error) {
     throw new Error(`engram auto judge printed a request that is not JSON: ${describe(error)}`)
   }
+}
+
+// newLinesOf is the block less each line whose ID the session's set holds, with the IDs of the lines left added to the
+// set in the same step, so that a note or a passage is delivered once however many chains find it; nothing when no line
+// is left (855d2c). The ID of a line is what runs from its dash and space to the next space.
+function newLinesOf(session, block) {
+  const ids = delivered.get(session) ?? new Set()
+  const lines = block.split('\n').filter((line) => !line.startsWith('- ') || !ids.has(line.slice(2).split(' ')[0]))
+
+  for (const line of lines.filter((line) => line.startsWith('- '))) {
+    ids.add(line.slice(2).split(' ')[0])
+  }
+
+  delivered.set(session, ids)
+
+  return lines.some((line) => line.startsWith('- ')) ? lines.join('\n') : ''
 }
 
 // originOf is the kind of origin that Claude Code stamped on a prompt, or nothing when it stamped none (793d2a).
@@ -275,7 +357,10 @@ async function run($, step, input, timeoutMs) {
   try {
     result = await $.process.run(['engram', 'auto', step], { stdin: JSON.stringify(input), timeoutMs })
   } catch (error) {
-    throw Object.assign(new Error(`${command} was ended or could not run: ${describe(error)}`), { ended: true })
+    throw Object.assign(
+      new Error(`${command} was ended at its limit of ${limitText(timeoutMs ?? 30000)} or could not run: ${describe(error)}`),
+      { ended: true },
+    )
   }
 
   if (result.exitCode !== 0) {
