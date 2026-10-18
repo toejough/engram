@@ -683,17 +683,17 @@ Builds what the other nodes read: the lines that tell what [automatic memory](./
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 793a2e1a | Dedicated example, product acceptance (`network`) | a judgement row, as the lesson is the model's; the earlier [prompt](./793a_product-spec.md#793a1a-terms) asks and asks to remember in one, so that its block and its write are of one [turn](./793a_product-spec.md#793a1a-terms) | | | Red | | | |
-| 793d4p1a | Dedicated example | the line of each kind of record, over records of the real form | | | Not started | | | |
-| 793d4p1b | Dedicated example | a record of the kind nothing says nothing, so a turn with nothing to report adds no block | | | Not started | | | |
-| 793d4p1c | Dedicated example | a line told once, over a record of the session of the real form | | | Not started | | | |
-| 793d4p1d | Dedicated example | the form of a reason: one line, redacted, both ends kept | | | Not started | | | |
-| 793d4p1e | Dedicated example | the bound of five lines, and the rest at the next prompt | | | Not started | | | |
+| 793d4p1a | Dedicated example | the line of each kind of record, over records of the real form | | | Red | | | |
+| 793d4p1b | Dedicated example | a record of the kind nothing says nothing, so a turn with nothing to report adds no block | | | Red | | | |
+| 793d4p1c | Dedicated example | a line told once, over a record of the session of the real form | | | Red | | | |
+| 793d4p1d | Dedicated example | the form of a reason: one line, redacted, both ends kept | | | Red | | | |
+| 793d4p1e | Dedicated example | the bound of five lines, and the rest at the next prompt | | | Red | | | |
 | 793d4p1f | Dedicated example | the boundaries of the reading of records, over a real temporary directory | | | Not started | | | |
 | 793d4p1g | Dedicated example | the directory of records through the dispatch of `engram auto deliver`, with the flag and without it | | | Not started | | | |
-| 793d4d1g | Dedicated example | the told lines, and that a [note](../../GLOSSARY.md#permanent-note) a line names is not held | | | Not started | | | |
-| 793d4c1d | Dedicated example | the form of a line that tells what the system did | | | Not started | | | |
-| 793d4c1a (amended) | Property-based (`rapid`) with named examples | the properties of the block, with lines told among hostile text | the properties of [793d4c1a A note cannot reshape the block](./793d_technical-spec.md#793d4c1-scenarios), with any lines told: one more line for each, after the notes, each beginning with an asterisk and a space | | Not started | | | |
-| 793d4a1i (amended) | Injected and impure interaction (`imptest`) | the reading of what the session was not told is given the request's session ID | | | Not started | | | |
+| 793d4d1g | Dedicated example | the told lines, and that a [note](../../GLOSSARY.md#permanent-note) a line names is not held | | | Red | | | |
+| 793d4c1d | Dedicated example | the form of a line that tells what the system did | | | Red | | | |
+| 793d4c1a (amended) | Property-based (`rapid`) with named examples | the properties of the block, with lines told among hostile text | the properties of [793d4c1a A note cannot reshape the block](./793d_technical-spec.md#793d4c1-scenarios), with any lines told: one more line for each, after the notes, each beginning with an asterisk and a space | | Red | | | |
+| 793d4a1i (amended) | Injected and impure interaction (`imptest`) | the reading of what the session was not told is given the request's session ID | | | Red | | | |
 
 #### 793e6d2 A write that finishes after the next prompt is shown when it finishes
 
