@@ -107,6 +107,27 @@ func Test855d4b1c_Recall_AReplyThatIsNotAPhrasesReplyFailsTheCommand(t *testing.
 		}
 	})
 
+	t.Run("a carry with no depth fails the command, naming the depth", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		var out bytes.Buffer
+
+		err := cli.RunAutoRecall(context.Background(), cli.AutoRecallArgs{VaultPath: "/a/vault"},
+			cli.AutoRecallDeps{
+				Stdin: strings.NewReader(`{"session":"` + sessionID + `","reply":"{\"phrases\":[\"a\"]}",` +
+					`"carry":{"cue":"prompt","window":"User: x"}}`),
+				Query: func(context.Context, cli.QueryArgs, io.Writer) error {
+					t.Error("the lookup was run for a carry with no depth")
+
+					return nil
+				},
+			}, &out)
+
+		g.Expect(err).To(MatchError(ContainSubstring("depth")))
+		g.Expect(out.String()).To(BeEmpty())
+	})
+
 	for name, reply := range map[string]string{
 		"text that is not JSON": "the phrases are staging and resets", "an empty reply": "",
 		"an object with no phrases": "{}", "an empty list": `{"phrases":[]}`,
@@ -488,7 +509,7 @@ func recallInput(depth string, phrases ...string) io.Reader {
 	}
 
 	input, err := json.Marshal(map[string]any{
-		"session": sessionID, "cue": "prompt", "reply": string(reply),
+		"session": sessionID, "reply": string(reply),
 		"carry": map[string]string{"cue": "prompt", "depth": depth, "window": "User: Prepare a test run."},
 	})
 	if err != nil {
@@ -502,7 +523,7 @@ func recallInput(depth string, phrases ...string) io.Reader {
 // judgement as the model gave it, at glance.
 func recallInputOfReply(reply string) io.Reader {
 	input, err := json.Marshal(map[string]any{
-		"session": sessionID, "cue": "prompt", "reply": reply,
+		"session": sessionID, "reply": reply,
 		"carry": map[string]string{"cue": "prompt", "depth": "glance", "window": "User: Prepare a test run."},
 	})
 	if err != nil {

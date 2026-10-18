@@ -260,7 +260,10 @@ func checkRecallIsSafe(rt *rapid.T) {
 	padding := rapid.IntRange(0, 400).Draw(rt, "padding")
 	passageText := tagText().Draw(rt, "passage") + " " + second.text + strings.Repeat(" word", padding)
 
-	step, _ := auto.Recall(recallOf("deep"), []auto.Candidate{
+	input := recallOf("deep")
+	input.Carry.Window = tagText().Draw(rt, "window")
+
+	step, _ := auto.Recall(input, []auto.Candidate{
 		{ID: "n1.md", Kind: auto.KindNote, Date: "2026-10-17", Situation: tagText().Draw(rt, "situation"), Text: noteText},
 		{ID: "c1#turn-1", Kind: auto.KindPassage, Date: "2026-10-14", Text: passageText},
 	})
@@ -324,7 +327,7 @@ func checkCarryIsSafe(rt *rapid.T, held []auto.Candidate, secrets []string, padd
 // recallOf is the reply of the phrases judgement to the recall, with a window and a depth.
 func recallOf(depth string) auto.RecallInput {
 	return auto.RecallInput{
-		Session: "4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11", Cue: "prompt", Reply: `{"phrases":["a"]}`,
+		Session: "4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11", Reply: `{"phrases":["a"]}`,
 		Carry: auto.Carry{Cue: "prompt", Depth: depth, Window: "User: Prepare a test run."},
 	}
 }

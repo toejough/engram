@@ -23,7 +23,7 @@ func Test855d4v1c_Phrases_ADepthOfNoneLooksNothingUp(t *testing.T) {
 			var out bytes.Buffer
 
 			err := cli.RunAutoPhrases(context.Background(), cli.AutoPhrasesDeps{
-				Stdin: strings.NewReader(`{"session":"` + sessionID + `","cue":"prompt","reply":"{\"depth\":\"` + depth +
+				Stdin: strings.NewReader(`{"session":"` + sessionID + `","reply":"{\"depth\":\"` + depth +
 					`\"}","carry":{"cue":"prompt","window":"User: Prepare a test run."}}`),
 			}, &out)
 
@@ -43,7 +43,7 @@ func Test855d4v1c_Phrases_ARequestThatCannotBeWrittenFailsTheCommand(t *testing.
 	g := NewWithT(t)
 
 	err := cli.RunAutoPhrases(context.Background(), cli.AutoPhrasesDeps{
-		Stdin: strings.NewReader(`{"session":"` + sessionID + `","cue":"prompt","reply":"{\"depth\":\"glance\"}",` +
+		Stdin: strings.NewReader(`{"session":"` + sessionID + `","reply":"{\"depth\":\"glance\"}",` +
 			`"carry":{"cue":"prompt","window":"User: Prepare a test run."}}`),
 	}, failingWriter{})
 
