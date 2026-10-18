@@ -164,8 +164,8 @@ func Test855d4b1d_Recall_TheNotesAndPassagesThatMatchedBecomeCandidatesTheExplor
 	g.Expect(lines).To(HaveLen(2), "the matched note and the matched chunk")
 
 	if len(lines) == 2 {
-		g.Expect(lines[0]).To(HavePrefix("- 1.2026-10-17.zorblax-staging-reset.md (2026-10-17; " + resetSituation + "): " +
-			resetBody))
+		g.Expect(lines[0]).To(HavePrefix("- 1.2026-10-17.zorblax-staging-reset.md (2026-10-17; fact; " +
+			resetSituation + "): " + resetBody))
 		g.Expect(lines[1]).To(Equal(
 			"- /sessions/earlier.jsonl#turn-3 (undated; passage): USER: the staging resets on Sunday."))
 	}
@@ -267,19 +267,19 @@ func Test855d4b1g_Recall_TheRequestIsForTheMidTierAndHoldsTheVerdictsTheWindowAn
 		"a glance asks for no lesson")
 	g.Expect(step.Request.Prompt).To(HavePrefix("<window>\nUser: Prepare a test run.\n</window>\n<candidates>\n"))
 	g.Expect(candidateLines(t, out.Bytes())).To(Equal([]string{
-		"- 1.2026-10-17.zorblax-staging-reset.md (2026-10-17; " + resetSituation + "): " + resetBody,
-		"- 2.2026-10-12.zorblax-backup-window.md (2026-10-12; backing up Zorblax): Back up at 02:00.",
+		"- 1.2026-10-17.zorblax-staging-reset.md (2026-10-17; fact; " + resetSituation + "): " + resetBody,
+		"- 2.2026-10-12.zorblax-backup-window.md (2026-10-12; fact; parent; backing up Zorblax): Back up at 02:00.",
 		"- /sessions/earlier.jsonl#turn-3 (2026-10-14; passage): USER: the staging resets on Sunday.",
 	}))
 	g.Expect(step.Carry.Cue).To(Equal("prompt"))
 	g.Expect(step.Carry.Depth).To(Equal("glance"))
 	g.Expect(step.Carry.Window).To(Equal("User: Prepare a test run."))
 	g.Expect(step.Carry.Candidates).To(Equal([]map[string]any{
-		{"id": "1.2026-10-17.zorblax-staging-reset.md", "kind": "note", "date": "2026-10-17", "situation": resetSituation,
-			"text": resetBody, "parent": false, "pending": false},
-		{"id": "2.2026-10-12.zorblax-backup-window.md", "kind": "note", "date": "2026-10-12",
+		{"id": "1.2026-10-17.zorblax-staging-reset.md", "kind": "note", "type": "fact", "date": "2026-10-17",
+			"situation": resetSituation, "text": resetBody, "parent": false, "pending": false},
+		{"id": "2.2026-10-12.zorblax-backup-window.md", "kind": "note", "type": "fact", "date": "2026-10-12",
 			"situation": "backing up Zorblax", "text": "Back up at 02:00.", "parent": true, "pending": false},
-		{"id": "/sessions/earlier.jsonl#turn-3", "kind": "passage", "date": "2026-10-14", "situation": "",
+		{"id": "/sessions/earlier.jsonl#turn-3", "kind": "passage", "type": "", "date": "2026-10-14", "situation": "",
 			"text": "USER: the staging resets on Sunday.", "parent": false, "pending": false},
 	}))
 }
@@ -308,6 +308,7 @@ func Test855d4b1h_Recall_ADeepRequestAlsoAsksForTheLessonsAndTheRevisions(t *tes
 	g.Expect(json.Unmarshal(out.Bytes(), &step)).To(Succeed())
 	g.Expect(step.Request.System).To(And(ContainSubstring(`"lessons"`), ContainSubstring(`"fields"`),
 		ContainSubstring(`"chunks"`)), "the lessons the evidence shows and the fields to revise")
+	g.Expect(step.Request.System).To(ContainSubstring("runbook note"), "the fields of a runbook")
 	g.Expect(step.Request.System).To(ContainSubstring("that a newer candidate reverses is near, with fields"),
 		"a note that a newer candidate reverses is revised")
 	g.Expect(step.Write).To(BeTrue(), "the output holds write true at deep")
