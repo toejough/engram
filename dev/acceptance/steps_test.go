@@ -375,6 +375,14 @@ func (m *machine) hasVault() bool {
 	return err == nil
 }
 
+// headlessIsNotCaptured leaves the switch for the capture of headless prompts out of the machine's environment, as a
+// user's own is until the user asks (793d4m).
+func (m *machine) headlessIsNotCaptured() {
+	m.t.Helper()
+
+	m.headlessLeftOut = true
+}
+
 // hookFailures returns the lines of the machine's Claude Code debug logs that say the mod's hook failed and was
 // skipped: a prompt then goes on as if the mod were not installed, but the user sees that it failed.
 func (m *machine) hookFailures() []string {

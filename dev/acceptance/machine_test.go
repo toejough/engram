@@ -121,6 +121,9 @@ type machine struct {
 	work        string // the working directory of runs that need none of their own
 	tmp         string // TMPDIR
 	pathFront   string // a directory that comes first on the PATH of every command, or empty
+	// headlessLeftOut is true when the machine does not switch on the capture of headless prompts, which the
+	// environment of every other machine does
+	headlessLeftOut bool
 }
 
 // assertIsolated fails the test unless a run in dir with env reaches nothing of the owner's.
@@ -182,8 +185,11 @@ func (m *machine) env(extra ...string) []string {
 		"ENGRAM_TRANSCRIPT_DIR=" + m.transcripts,
 		"GOFLAGS=-buildvcs=false",
 		"DISABLE_AUTOUPDATER=1",
-		// every scenario is driven by a headless run, whose turns are judged only when the user asks for it (793d4m)
-		"ENGRAM_AUTO_CAPTURE_SDK=1",
+	}
+
+	// every scenario is driven by a headless run, whose turns are judged only when the user asks for it (793d4m)
+	if !m.headlessLeftOut {
+		env = append(env, "ENGRAM_AUTO_CAPTURE_SDK=1")
 	}
 
 	if sharedBuild.cache != "" {
