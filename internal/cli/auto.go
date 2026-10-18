@@ -379,7 +379,8 @@ func lookUpNotes(ctx context.Context, vault, text string, query QueryRun) ([]aut
 
 	queryErr := query(ctx, args, &payload)
 	if queryErr != nil {
-		return nil, fmt.Errorf("looking up %q: %w", text, queryErr)
+		// the text is a prompt, and a failure is forwarded by the mod and stored: it names none of it (793b107)
+		return nil, fmt.Errorf("lookup: %w", queryErr)
 	}
 
 	return notesOf(payload.Bytes())
