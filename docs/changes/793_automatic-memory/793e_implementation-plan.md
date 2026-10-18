@@ -73,7 +73,7 @@ The groups, in the order of the catalog ([793b28 Depth-first order](./793b_decis
 | [793e6c Never in the way](#793e6c-never-in-the-way) | the rest of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), without the clause about its own sessions | none | Complete |
 | [793e6d The user can see what it did](#793e6d-the-user-can-see-what-it-did) | [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) | none | Complete |
 | [793e6h The fixes of the review round of the third group](#793e6h-the-fixes-of-the-review-round-of-the-third-group) | the defects the third group's one review round found in [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) and [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), and in their technical requirements | none | Complete |
-| [793e6i The fixes of the review of the whole branch](#793e6i-the-fixes-of-the-review-of-the-whole-branch) | the defects the one review round of the whole branch found in [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did), [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), their technical requirements and the documents | none | In progress: 2/7 nodes complete |
+| [793e6i The fixes of the review of the whole branch](#793e6i-the-fixes-of-the-review-of-the-whole-branch) | the defects the one review round of the whole branch found in [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did), [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), their technical requirements and the documents | none | In progress: 3/7 nodes complete |
 | [793e6f The delivery merges the parent vault](#793e6f-the-delivery-merges-the-parent-vault) | the clause of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) that the [notes](../../GLOSSARY.md#permanent-note) are those `engram query` returns, for a [vault](../../GLOSSARY.md#vault) that has a parent ([793c34 Does the delivery merge the parent vault, as `engram query` does?](./793c_open-questions.md#793c34-does-the-delivery-merge-the-parent-vault-as-engram-query-does)) | none | Blocked by: [793c34 Does the delivery merge the parent vault, as `engram query` does?](./793c_open-questions.md#793c34-does-the-delivery-merge-the-parent-vault-as-engram-query-does) |
 
 ## 793e9 Dependency graph
@@ -147,9 +147,8 @@ flowchart TD
     n793e6a2 --> n793e6f[793e6f The delivery merges the parent vault<br/>Blocked by: 793c34]
     n793e6g7 --> n793e6i1[793e6i1 A note written by the earlier mod is marked as written automatically<br/>Complete]
     n793e6h1 --> n793e6i2[793e6i2 The warnings of the lookup go to the debug log, not to the user<br/>Complete]
-    n793e6h1 --> n793e6i3[793e6i3 One line is shown for each of what was delivered, written, left out and failed<br/>In progress: 0/7 entries complete]
-    class n793e6i1,n793e6i2 complete
-    class n793e6i3 progress
+    n793e6h1 --> n793e6i3[793e6i3 One line is shown for each of what was delivered, written, left out and failed<br/>Complete]
+    class n793e6i1,n793e6i2,n793e6i3 complete
     classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
@@ -889,13 +888,13 @@ Review finding B-4 ([793b113 One line is shown for each of what was delivered, w
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2e1g | Dedicated example, product acceptance (`network`) | a [vault](../../GLOSSARY.md#vault) of three notes about the staging database and one about formatting Python files; the events of the prompt hold one line that names the three notes and the block holds three lines | | 3 of 3 | Green-all | 83d00649 | | |
-| 793d4p1a (amended) | Dedicated example | one line for the written, one for the left out and one for the failed, over records of the real form | | | Green-all | 83d00649 | | |
-| 793d4p1d (amended) | Dedicated example | the line is one line, redacted and cut in its middle; the credential straddles the place of the cut, so that a cut made before the redaction leaves part of it | | | Green-all | 83d00649 | | |
-| 793d4p1e (amended) | Dedicated example | seven written, two left out and two failed: three lines, the first cut with both ends of its names, every record marked, and no line at the next prompt | | | Green-all | 83d00649 | | |
-| 793d4p1i (amended) | Property-based (`rapid`) | the form of every line printed, whatever the texts of notes and records hold | whatever the texts hold: each line printed on standard error is one line, holds no control or format character and no white space but a space, has at most 240 characters, and there is a line for each of the four kinds that has something to tell and no other | | Green-all | 83d00649 | | |
-| 793d4p1l | Dedicated example | two notes delivered over a vault of two notes: one line on standard error, and a line for each note in the block | | | Green-all | 83d00649 | | |
-| 793d4a1i (amended) | Injected and impure interaction (`imptest`) | the reading of what the [session](../../GLOSSARY.md#session) was not shown returns lines that hold the files of the records they tell | | | Green-all | 83d00649 | | |
+| 793a2e1g | Dedicated example, product acceptance (`network`) | a [vault](../../GLOSSARY.md#vault) of three notes about the staging database and one about formatting Python files; the events of the prompt hold one line that names the three notes and the block holds three lines | | 3 of 3 | Done | 83d00649 | 944f1258 | |
+| 793d4p1a (amended) | Dedicated example | one line for the written, one for the left out and one for the failed, over records of the real form | | | Done | 83d00649 | 944f1258 | |
+| 793d4p1d (amended) | Dedicated example | the line is one line, redacted and cut in its middle; the credential straddles the place of the cut, so that a cut made before the redaction leaves part of it | | | Done | 83d00649 | 944f1258 | |
+| 793d4p1e (amended) | Dedicated example | seven written, two left out and two failed: three lines, the first cut with both ends of its names, every record marked, and no line at the next prompt | | | Done | 83d00649 | 944f1258 | |
+| 793d4p1i (amended) | Property-based (`rapid`) | the form of every line printed, whatever the texts of notes and records hold | whatever the texts hold: each line printed on standard error is one line, holds no control or format character and no white space but a space, has at most 240 characters, and there is a line for each of the four kinds that has something to tell and no other | | Done | 83d00649 | 944f1258 | |
+| 793d4p1l | Dedicated example | two notes delivered over a vault of two notes: one line on standard error, and a line for each note in the block | | | Done | 83d00649 | 944f1258 | |
+| 793d4a1i (amended) | Injected and impure interaction (`imptest`) | the reading of what the [session](../../GLOSSARY.md#session) was not shown returns lines that hold the files of the records they tell | | | Done | 83d00649 | 944f1258 | |
 
 ### 793e6f The delivery merges the parent vault
 
