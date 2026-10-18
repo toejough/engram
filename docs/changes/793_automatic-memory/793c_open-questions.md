@@ -505,3 +505,11 @@ Withdrawn: answered by the owner's instruction to follow the guides, [793b91 The
 - **Recommendation:** (a) until the owner wants the bar raised: it is about one run in eleven, it was the same before the group, and each miss is now visible; (b) is the way to raise it.
 - **Blocks:** nothing.
 - **Status:** open; default (a) is the behavior of the second group, unchanged.
+
+## 793c82 Does a lesson that is left out keep the slug the model gave it?
+
+- **Context:** a lesson of the model's reply that is not whole is left out and recorded as skipped with its slug, and the line that tells it shows the slug ([793d4p Telling what automatic memory did](./793d_technical-spec.md#793d4p-telling-what-automatic-memory-did)); the slug is the model's text, unvalidated and unbounded: a slug of 2,400 characters of instructions made a line of 2,426 characters.
+- **Options:** (a) The slug is kept only when it is 1 to 64 lower-case letters, digits and dashes, and a lesson whose slug is not is left out for that. (b) Kept as the model wrote it, as built before. (c) Never kept.
+- **Recommendation:** (a): the line names the lesson when it can, and a slug that is not one cannot reach it; (b) shows any text the model writes, and (c) loses the name of the lesson in the common case.
+- **Blocks:** [793d4h1i A lesson left out keeps its slug only when it is one](./793d_technical-spec.md#793d4h1-scenarios).
+- **Status:** open; default (a) taken in [793b110 A lesson that is left out keeps its slug only when it is one](./793b_decision-log.md#793b110-a-lesson-that-is-left-out-keeps-its-slug-only-when-it-is-one).
