@@ -189,8 +189,8 @@ func (m *machine) awaitNote(turnEnds time.Time, what string, match func(vaultNot
 }
 
 // awaitRecord waits until automatic memory has recorded what became of a turn of a session, and returns the kind of the
-// first record. A test of an absence waits for it, so that the absence is the result of the judgement and not of a
-// judgement that did not finish.
+// first record. A test whose turn must leave a record waits for it; a test of an absence waits for the end of the write
+// (awaitWrites), since a reply with no lesson makes no record.
 func (m *machine) awaitRecord(session string, turnEnds time.Time) string {
 	m.t.Helper()
 

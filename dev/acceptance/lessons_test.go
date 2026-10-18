@@ -532,7 +532,7 @@ func Test793a3e1a_TheAgentsOwnLookupsAndSavesKeepWorking(t *testing.T) {
 		g.Expect(whenTheTurnEnd).To(And(ContainSubstring("Monday at 05:00 UTC"), ContainSubstring("source: agent")),
 			"the note the agent saved")
 
-		machine.awaitRecord(chat.session.id, chat.turnEnds)
+		machine.awaitWrites(chat.session.id, chat.turnEnds, 1)
 
 		g.Expect(machine.noteText(saved)).To(Equal(whenTheTurnEnd), "the note the agent saved, after the judgement")
 	})
