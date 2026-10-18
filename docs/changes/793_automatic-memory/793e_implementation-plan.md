@@ -655,7 +655,7 @@ Adds no component: the mod gives the [prompt](./793a_product-spec.md#793a1a-term
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2d1d | Dedicated example, product acceptance (`network`) | a judgement row, as the [note](../../GLOSSARY.md#permanent-note) is the model's; the reply in the record is compared with the result of the run, and a text that a mod has the host show beneath a reply, which the host prints as a notice, fails it; passed when written; mutations (scratch copies): a mod that appends to the prompt, and one that appends to the reply, each fail it | | Green-all | n/a | | |
+| 793a2d1d | Dedicated example, product acceptance (`network`) | a judgement row, as the [note](../../GLOSSARY.md#permanent-note) is the model's; the reply in the record is compared with the result of the run, and a text that a mod has the host show beneath a reply, which the host prints as a notice, fails it; passed when written; mutations (scratch copies): a mod that appends to the prompt, and one that appends to the reply, each fail it | | Done | n/a | ba768e43 | |
 
 #### 793e6c3 A write that fails does not break the session
 
@@ -663,7 +663,7 @@ Adds no component: the writing records a failure once and succeeds, and the mod 
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2d1e | Dedicated example, product acceptance (`network`) | a judgement row, as the correction must become a lesson; the [vault](../../GLOSSARY.md#vault) is made read-only and the test waits for the record of the failed write; passed when written; mutation (scratch copy): a writing that records nothing for a lesson it cannot write fails it (no record comes); a mod that does not catch the failure does not, as the host passes a rejected timer by | | Green-all | n/a | | |
+| 793a2d1e | Dedicated example, product acceptance (`network`) | a judgement row, as the correction must become a lesson; the [vault](../../GLOSSARY.md#vault) is made read-only and the test waits for the record of the failed write; passed when written; mutation (scratch copy): a writing that records nothing for a lesson it cannot write fails it (no record comes); a mod that does not catch the failure does not, as the host passes a rejected timer by | | Done | n/a | 60c7f2f9 | |
 
 ### 793e6d The user can see what it did
 
