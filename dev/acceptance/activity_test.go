@@ -171,8 +171,7 @@ func Test793a2e1d_AWriteThatFailedIsShownWithItsReason(t *testing.T) {
 		chat.tell(askHowToBuild)
 		chat.tell(correctTheBuild)
 
-		kinds := machine.awaitRecords(chat.session.id, chat.turnEnds, 2)
-		g.Expect(kinds[len(kinds)-1]).To(Equal("failed"), "what became of the correction: the write failed")
+		machine.awaitRecordOfKind(chat.session.id, chat.turnEnds, "failed")
 
 		second = chat.tell(askSomethingElse)
 	})

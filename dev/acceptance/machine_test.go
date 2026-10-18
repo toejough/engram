@@ -183,6 +183,7 @@ func (m *machine) env(extra ...string) []string {
 		"ENGRAM_VAULT_PATH=" + m.vault,
 		"ENGRAM_CHUNKS_DIR=" + m.chunks,
 		"ENGRAM_TRANSCRIPT_DIR=" + m.transcripts,
+		"ENGRAM_DEBUG_LOG=" + filepath.Join(m.root, debugLogName),
 		"GOFLAGS=-buildvcs=false",
 		"DISABLE_AUTOUPDATER=1",
 	}

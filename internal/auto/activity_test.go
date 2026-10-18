@@ -39,11 +39,12 @@ func Test793d4p1a_ActivityLines_ARecordThatWasNotShownBecomesALine(t *testing.T)
 	}), "the records that each line tells")
 }
 
-func Test793d4p1b_ActivityLines_ARecordOfTheKindNothingMakesNoLine(t *testing.T) {
+func Test793d4p1b_ActivityLines_ARecordOfAKindThatTellsNothingMakesNoLine(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	g.Expect(auto.ActivityLines([]auto.Record{recordAt(0, auto.RecordNothing, nil)})).To(BeEmpty())
+	// nothing is the kind that an earlier version made for a reply with no lesson
+	g.Expect(auto.ActivityLines([]auto.Record{recordAt(0, "nothing", nil)})).To(BeEmpty())
 }
 
 func Test793d4p1d_ActivityLines_AReasonIsOneLineRedactedAndCutInItsMiddle(t *testing.T) {

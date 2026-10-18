@@ -228,7 +228,9 @@ func Test793a2c1f_GuessesPlansAndChatterProduceNoNote(t *testing.T) {
 		})
 
 	step(t, "Then 2 minutes after the turn ends the vault holds no note", func() {
-		g.Expect(machine.awaitRecord(chat.session.id, chat.turnEnds)).To(Equal("nothing"), "what became of the turn")
+		machine.awaitSettled(chat.session.id, chat.turnEnds, 1)
+
+		g.Expect(machine.recordKinds(chat.session.id)).To(BeEmpty(), "what became of the turn: nothing, so no record")
 		g.Expect(machine.noteNames()).To(BeEmpty(), "the notes of the vault")
 	})
 }
@@ -287,8 +289,9 @@ func Test793a2c1h_AThanksThatNamesNoApproachProducesNoNote(t *testing.T) {
 	})
 
 	step(t, "Then 2 minutes after the turn ends the vault holds no note", func() {
-		g.Expect(machine.awaitRecords(chat.session.id, chat.turnEnds, 2)).To(Equal([]string{"nothing", "nothing"}),
-			"what became of the two turns")
+		machine.awaitSettled(chat.session.id, chat.turnEnds, 2)
+
+		g.Expect(machine.recordKinds(chat.session.id)).To(BeEmpty(), "what became of the two turns: nothing, so no record")
 		g.Expect(machine.noteNames()).To(BeEmpty(), "the notes of the vault")
 	})
 }
@@ -373,8 +376,7 @@ func Test793a3a1a_AWrittenNoteIsDeliveredWithLaterPrompts(t *testing.T) {
 		written = machine.awaitAutomaticNote(chat.turnEnds, "that states the correction", buildTarget)
 
 		// the note is written when the write has ended: until it has embedded the note, a lookup finds no embedding
-		kinds := machine.awaitRecords(chat.session.id, chat.turnEnds, 2)
-		g.Expect(kinds[len(kinds)-1]).To(Equal("written"), "what became of the correction")
+		machine.awaitRecordOfKind(chat.session.id, chat.turnEnds, "written")
 	})
 
 	var inSession, inNewSession *turn
@@ -441,8 +443,10 @@ func Test793a3c1b_ALessonTheAgentSavedItselfIsNotWrittenAgain(t *testing.T) {
 	})
 
 	step(t, "Then 2 minutes after the turn ends the vault holds one note for it, the one the agent saved", func() {
-		g.Expect(machine.awaitRecord(chat.session.id, chat.turnEnds)).To(BeElementOf("skipped", "nothing"),
-			"what became of the turn")
+		machine.awaitSettled(chat.session.id, chat.turnEnds, 1)
+
+		g.Expect(machine.recordKinds(chat.session.id)).To(Or(BeEmpty(), ConsistOf("skipped")),
+			"what became of the turn: nothing, or a lesson the vault states")
 
 		notes := machine.notes()
 

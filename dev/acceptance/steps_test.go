@@ -28,6 +28,8 @@ const (
 	captureBound = 2 * time.Minute
 	// capturePoll is how often the vault is looked at while a note is awaited.
 	capturePoll = 250 * time.Millisecond
+	// debugLogName is the file in the machine's directory that every engram command run on it writes its debug log to.
+	debugLogName = "engram-debug.log"
 	// claudeSettings lets the agent run engram, which the scenarios where it looks a note up itself need.
 	claudeSettings = `{"permissions":{"allow":["Bash(engram:*)"]}}`
 	// earlierConversation is a conversation that answers askStagingReset.
@@ -232,13 +234,30 @@ func (m *machine) awaitRecords(session string, turnEnds time.Time, count int) []
 	}
 }
 
-// awaitSettled waits until automatic memory has made count records of the turns of a session and then for the settling
-// time, so that a second note written for the same turn would be in the vault when the test looks.
+// awaitSettled waits until the writing of the turns of a session has ended count times and then for the settling time,
+// so that a second note written for the same turn would be in the vault when the test looks.
 func (m *machine) awaitSettled(session string, turnEnds time.Time, count int) {
 	m.t.Helper()
 
-	m.awaitRecords(session, turnEnds, count)
+	m.awaitWrites(session, turnEnds, count)
 	time.Sleep(settleTime)
+}
+
+// awaitWrites waits until the writing has ended count times for a session, as its debug log says: a reply with no
+// lesson makes no record, so the end of a write is told by the line the writing logs when it ends (793d4k).
+func (m *machine) awaitWrites(session string, turnEnds time.Time, count int) {
+	m.t.Helper()
+
+	deadline := turnEnds.Add(captureBound)
+
+	for m.writesLogged(session) < count {
+		if time.Now().After(deadline) {
+			m.t.Fatalf("the writing ended %d times within %s of the last turn's end, not %d\n%s", m.writesLogged(session),
+				captureBound, count, m.hookLog())
+		}
+
+		time.Sleep(capturePoll)
+	}
 }
 
 // chunksCannotBeWritten takes the right to create a file in the machine's chunk index directory away; reading it still
@@ -574,6 +593,17 @@ func (m *machine) notes() []vaultNote {
 	}
 
 	return notes
+}
+
+// writesLogged returns how many times the writing has ended for a session, as the debug log of the machine records it:
+// one line for each run, whatever it recorded.
+func (m *machine) writesLogged(session string) int {
+	data, err := os.ReadFile(filepath.Join(m.root, debugLogName))
+	if err != nil {
+		return 0
+	}
+
+	return strings.Count(string(data), "auto.write: session="+session+" ")
 }
 
 // recordKinds returns the kinds of the records that automatic memory made for a session, oldest first: the records are

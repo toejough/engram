@@ -18,6 +18,7 @@ import (
 	"pgregory.net/rapid"
 
 	"github.com/toejough/engram/internal/cli"
+	"github.com/toejough/engram/internal/debuglog"
 )
 
 func Test793d4h1a_RunAutoWrite_AFeedbackLessonBecomesAFeedbackNoteMarkedAsWrittenAutomatically(t *testing.T) {
@@ -382,7 +383,7 @@ func Test793d4k1a_RunAutoWrite_ALessonThatIsWrittenIsRecordedWithItsNote(t *test
 	}
 }
 
-func Test793d4k1b_RunAutoWrite_AReplyWithNoLessonIsRecordedAsNothing(t *testing.T) {
+func Test793d4k1b_RunAutoWrite_AReplyWithNoLessonMakesNoRecord(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -399,11 +400,42 @@ func Test793d4k1b_RunAutoWrite_AReplyWithNoLessonIsRecordedAsNothing(t *testing.
 		}, &out)
 	g.Expect(err).NotTo(HaveOccurred())
 
-	g.Expect(records.kinds()).To(Equal([]string{"nothing"}))
+	g.Expect(records.all()).To(BeEmpty(), "the records of a reply with no lesson")
+}
 
-	for _, record := range records.all() {
-		g.Expect(record).To(HaveKeyWithValue("session", sessionID))
-		g.Expect(record).To(HaveKeyWithValue("turn", turnID))
+func Test793d4k1k_RunAutoWrite_AWriteThatEndsLogsWhatItDid(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var logged bytes.Buffer
+
+	ctx := debuglog.WithLogger(context.Background(),
+		debuglog.New(&logged, "engram", func() time.Time { return recordedAt }))
+	lesson := `[{"kind":"fact","slug":"staging-reset","situation":"testing on the staging database",` +
+		`"subject":"the staging database","predicate":"is reset every","object":"Sunday night"}]`
+
+	for _, reply := range []string{lesson, "[]"} {
+		var out bytes.Buffer
+
+		err := cli.RunAutoWrite(ctx, cli.AutoWriteArgs{VaultPath: "/vault", RecordsDir: "/data/auto"},
+			cli.AutoWriteDeps{
+				Stdin:       replyInput(reply),
+				Learn:       learnInto(map[string]string{}),
+				Now:         func() time.Time { return recordedAt },
+				WriteRecord: (&recordedFiles{}).write,
+			}, &out)
+		g.Expect(err).NotTo(HaveOccurred())
+	}
+
+	lines := strings.Split(strings.TrimSpace(logged.String()), "\n")
+
+	g.Expect(lines).To(HaveLen(2), "a line for each write")
+
+	if len(lines) == 2 {
+		g.Expect(lines[0]).To(HaveSuffix("[engram] auto.write: session=" + sessionID + " turn=" + turnID +
+			" written=1 skipped=0 failed=0"))
+		g.Expect(lines[1]).To(HaveSuffix("[engram] auto.write: session=" + sessionID + " turn=" + turnID +
+			" written=0 skipped=0 failed=0"))
 	}
 }
 

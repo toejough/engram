@@ -248,13 +248,13 @@ func Test793d4m1d_ATurnThatABackgroundTasksNotificationStartsIsNotJudged(t *test
 		chat.awaitTurnOfItsOwn()
 	})
 
-	step(t, "Then automatic memory has made one record, that of the user's turn, and the vault holds no note", func() {
+	step(t, "Then automatic memory has judged one turn, that of the user's, and the vault holds no note", func() {
 		g.Expect(chat.session.notifications()).To(Equal(1), "the notifications that the session's record holds")
 
 		machine.awaitSettled(chat.session.id, chat.turnEnds, 1)
 		time.Sleep(ownTurnSettle)
 
-		g.Expect(machine.recordKinds(chat.session.id)).To(Equal([]string{"nothing"}), "the records of the turns")
+		g.Expect(machine.writesLogged(chat.session.id)).To(Equal(1), "the turns judged")
 		g.Expect(machine.noteNames()).To(BeEmpty(), "the notes of the vault")
 		g.Expect(machine.hookFailures()).To(BeEmpty(), "the mod's hook was skipped")
 	})

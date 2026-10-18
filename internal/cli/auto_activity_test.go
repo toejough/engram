@@ -36,8 +36,8 @@ func Test793d4p1c_RunAutoDeliver_ALineThatWasShownIsNotShownAgain(t *testing.T) 
 	// the mark beside the first record: its line was shown
 	g.Expect(os.WriteFile(filepath.Join(dir, firstFile+".told"), nil, 0o600)).To(Succeed())
 
-	first := deliverOver(t, records, sessionID)
-	second := deliverOver(t, records, sessionID)
+	first := deliverOverRemoving(t, records, sessionID, keepTheRecords)
+	second := deliverOverRemoving(t, records, sessionID, keepTheRecords)
 
 	g.Expect(first.err).NotTo(HaveOccurred())
 	g.Expect(second.err).NotTo(HaveOccurred())
@@ -80,8 +80,8 @@ func Test793d4p1e_RunAutoDeliver_OneLineIsShownForEachKindOfRecord(t *testing.T)
 			func(r *auto.Record) { r.Reason = "the disk is full" }))
 	}
 
-	first := deliverOver(t, records, sessionID)
-	second := deliverOver(t, records, sessionID)
+	first := deliverOverRemoving(t, records, sessionID, keepTheRecords)
+	second := deliverOverRemoving(t, records, sessionID, keepTheRecords)
 
 	g.Expect(first.err).NotTo(HaveOccurred())
 	g.Expect(second.err).NotTo(HaveOccurred())
@@ -191,6 +191,54 @@ func Test793d4p1h_RunAutoDeliver_ANoteDeliveredIsShownAsALine(t *testing.T) {
 	g.Expect(result.shown).To(Equal("delivered the note "+resetNoteName+"\n"), "what the user is shown")
 }
 
+func Test793d4p1m_RunAutoDeliver_TheRecordsThatWereShownAreRemovedWithTheirMarks(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	records := t.TempDir()
+	dir := filepath.Join(records, sessionID)
+	shownFile, newFile := "20261017T203225.000000000Z-0-written.json", "20261017T203226.000000000Z-0-written.json"
+
+	plantActivity(t, dir, shownFile, activityRecordAt(0, sessionID, auto.RecordWritten,
+		func(r *auto.Record) { r.Note = "a.md" }))
+	plantActivity(t, dir, newFile, activityRecordAt(1, sessionID, auto.RecordWritten,
+		func(r *auto.Record) { r.Note = "b.md" }))
+	g.Expect(os.WriteFile(filepath.Join(dir, shownFile+".told"), nil, 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(dir, "notes.txt"), []byte("not a record"), 0o600)).To(Succeed())
+
+	first := deliverOver(t, records, sessionID)
+	second := deliverOver(t, records, sessionID)
+
+	g.Expect(first.err).NotTo(HaveOccurred())
+	g.Expect(recordLines(first.shown)).To(Equal([]string{"20:32:26 wrote the note b.md"}), "the lines of the first prompt")
+
+	for _, gone := range []string{shownFile, shownFile + ".told", newFile, newFile + ".told"} {
+		g.Expect(filepath.Join(dir, gone)).NotTo(BeAnExistingFile(), gone+" was shown")
+	}
+
+	g.Expect(filepath.Join(dir, "notes.txt")).To(BeAnExistingFile(), "a file that is no record")
+	g.Expect(recordLines(second.shown)).To(BeEmpty(), "the lines of the second prompt")
+}
+
+func Test793d4p1n_RunAutoDeliver_TheDirectoryOfASessionWhoseRecordsWereShownIsRemoved(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	records := t.TempDir()
+	dir := filepath.Join(records, sessionID)
+
+	plantActivity(t, dir, "20261017T203225.000000000Z-0-written.json", activityRecordAt(0, sessionID,
+		auto.RecordWritten, func(r *auto.Record) { r.Note = "a.md" }))
+
+	first := deliverOver(t, records, sessionID)
+	second := deliverOver(t, records, sessionID)
+
+	g.Expect(first.err).NotTo(HaveOccurred())
+	g.Expect(recordLines(first.shown)).To(Equal([]string{"20:32:25 wrote the note a.md"}), "the lines of the first prompt")
+	g.Expect(dir).NotTo(BeADirectory(), "the directory of the session")
+	g.Expect(recordLines(second.shown)).To(BeEmpty(), "the lines of the second prompt")
+}
+
 func Test793d4p1j_RunAutoDeliver_AMarkThatCannotBeWrittenDoesNotFailTheCommand(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -209,6 +257,7 @@ func Test793d4p1j_RunAutoDeliver_AMarkThatCannotBeWrittenDoesNotFailTheCommand(t
 			ReadDir:     os.ReadDir,
 			ReadFile:    os.ReadFile,
 			WriteRecord: func(string, []byte) error { return errors.New("the disk is full") },
+			Remove:      os.Remove,
 		}, &block, &shown)
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -304,6 +353,14 @@ func activityRecordAt(index int, session, kind string, fill func(*auto.Record)) 
 func deliverOver(t *testing.T, records, session string) shownBy {
 	t.Helper()
 
+	return deliverOverRemoving(t, records, session, os.Remove)
+}
+
+// deliverOverRemoving is deliverOver with the removal of the records that were shown given, so that a test of the marks
+// can have a place that cannot remove them.
+func deliverOverRemoving(t *testing.T, records, session string, remove func(path string) error) shownBy {
+	t.Helper()
+
 	memFS := newInMemoryFS()
 	vault := t.TempDir()
 	plantNoteWithSidecar(t, memFS, vault, resetNoteName, zorblaxResetNote)
@@ -318,6 +375,7 @@ func deliverOver(t *testing.T, records, session string) shownBy {
 			ReadDir:     os.ReadDir,
 			ReadFile:    os.ReadFile,
 			WriteRecord: writeFileExclusively,
+			Remove:      remove,
 		}, &block, &shown)
 
 	return shownBy{block: block.String(), shown: shown.String(), err: err}
@@ -339,6 +397,11 @@ func deliverWith(t *testing.T, args []string, home string, environment map[strin
 	})
 
 	return shownBy{block: stdout.String(), shown: stderr}
+}
+
+// keepTheRecords is a removal that removes nothing: a place that cannot remove a record.
+func keepTheRecords(string) error {
+	return errors.New("the place cannot remove a record")
 }
 
 // plantActivity writes a record of what automatic memory did as the writing makes it: a JSON file of its own, in a

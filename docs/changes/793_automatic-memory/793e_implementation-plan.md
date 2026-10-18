@@ -150,9 +150,9 @@ flowchart TD
     n793e6g7 --> n793e6i1[793e6i1 A note written by the earlier mod is marked as written automatically<br/>Complete]
     n793e6h1 --> n793e6i2[793e6i2 The warnings of the lookup go to the debug log, not to the user<br/>Complete]
     n793e6h1 --> n793e6i3[793e6i3 One line is shown for each of what was delivered, written, left out and failed<br/>Complete]
-    n793e6i3 --> n793e6i4[793e6i4 A turn with nothing to write leaves no record, and the records that were shown are removed<br/>Ready]
+    n793e6i3 --> n793e6i4[793e6i4 A turn with nothing to write leaves no record, and the records that were shown are removed<br/>In progress: 1/11 entries complete]
     class n793e6i1,n793e6i2,n793e6i3 complete
-    class n793e6i4 ready
+    class n793e6i4 progress
     classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
@@ -903,25 +903,21 @@ Review finding B-4 ([793b113 One line is shown for each of what was delivered, w
 
 #### 793e6i4 A turn with nothing to write leaves no record, and the records that were shown are removed
 
-Review finding B-7 ([793b114 A turn with nothing to write leaves no record, and a record is removed once its line was shown](./793b_decision-log.md#793b114-a-turn-with-nothing-to-write-leaves-no-record-and-a-record-is-removed-once-its-line-was-shown), [793c86 Does every turn leave a record, and does a record stay once its line was shown?](./793c_open-questions.md#793c86-does-every-turn-leave-a-record-and-does-a-record-stay-once-its-line-was-shown)): every [turn](./793a_product-spec.md#793a1a-terms) wrote a record, a reply with no lesson one of the kind `nothing`, and nothing was ever removed. The rows of the tests of an absence change their wait, from the record of the kind `nothing` to the line of the debug log, and say so.
+Review finding B-7 ([793b114 A turn with nothing to write leaves no record, and a record is removed once its line was shown](./793b_decision-log.md#793b114-a-turn-with-nothing-to-write-leaves-no-record-and-a-record-is-removed-once-its-line-was-shown), [793c86 Does every turn leave a record, and does a record stay once its line was shown?](./793c_open-questions.md#793c86-does-every-turn-leave-a-record-and-does-a-record-stay-once-its-line-was-shown)): every [turn](./793a_product-spec.md#793a1a-terms) wrote a record, a reply with no lesson one of the kind `nothing`, and nothing was ever removed. The tests of an absence wait for the line of the debug log in place of the record of the kind `nothing`, and the tests that waited for two records ([793a3a1a A written note is delivered with later prompts](./793a_product-spec.md#793a3a1-uat-scenarios), [793a2d1d The prompt and the reply are as they were](./793a_product-spec.md#793a2d1-uat-scenarios), [793a2d1e A write that fails does not break the session](./793a_product-spec.md#793a2d1-uat-scenarios), [793a2e1d A write that failed is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios)) wait for the record of the kind they need, and pass before and after.
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793d4k1b (amended) | Dedicated example | an empty list makes no record and the command succeeds | | | Not started | | | |
-| 793d4k1k | Dedicated example | the line of the debug log of a write that wrote a [note](../../GLOSSARY.md#permanent-note) and of one that wrote none, over an injected log | | | Not started | | | |
-| 793d4p1b (amended) | Dedicated example | a record of the kind `nothing`, as an earlier version made it, makes no line | | | Not started | | | |
-| 793d4p1c (amended) | Dedicated example | the mark keeps a line from being shown again, with a place that cannot remove a record | | | Not started | | | |
-| 793d4p1e (amended) | Dedicated example | the marks of the records of the three lines, with a place that cannot remove a record | | | Not started | | | |
-| 793d4p1m | Dedicated example | the records that were shown and their marks are removed, a file that is no record stays, and the next [prompt](./793a_product-spec.md#793a1a-terms) prints no line | | | Not started | | | |
-| 793d4p1n | Dedicated example | a directory with nothing else in it is removed | | | Not started | | | |
-| 793d4m1d (amended) | Dedicated example, product acceptance (`network`) | the writes of the [session](../../GLOSSARY.md#session) are counted in the debug log: one, that of the user's turn | | | Not started | | | |
-| 793a2c1f (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the test waits for the write of the turn in the debug log and finds no record | | | Not started | | | |
-| 793a2c1h (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the same for two turns | | | Not started | | | |
-| 793a3a1a (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the test waits for the record of the kind `written` and not for two records | | | Not started | | | |
-| 793a3c1b (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the turn leaves a record of the kind `skipped` or none | | | Not started | | | |
-| 793a2d1d (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the test waits for the record of the kind `written` | | | Not started | | | |
-| 793a2d1e (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the test waits for the record of the kind `failed` | | | Not started | | | |
-| 793a2e1d (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the test waits for the record of the kind `failed` | | | Not started | | | |
+| 793d4k1b (amended) | Dedicated example | an empty list makes no record and the command succeeds | | | Red | | | |
+| 793d4k1k | Dedicated example | the line of the debug log of a write that wrote a [note](../../GLOSSARY.md#permanent-note) and of one that wrote none, over an injected log | | | Red | | | |
+| 793d4p1b (amended) | Dedicated example | a record of the kind `nothing`, as an earlier version made it, makes no line; passed when written, the code telling the kinds it knows; mutation (scratch copy): a list of kinds that holds `nothing` fails it | | | Done | n/a | | |
+| 793d4p1c (amended) | Dedicated example | the mark keeps a line from being shown again, with a place that cannot remove a record | | | Red | | | |
+| 793d4p1e (amended) | Dedicated example | the marks of the records of the three lines, with a place that cannot remove a record | | | Red | | | |
+| 793d4p1m | Dedicated example | the records that were shown and their marks are removed, a file that is no record stays, and the next [prompt](./793a_product-spec.md#793a1a-terms) prints no line | | | Red | | | |
+| 793d4p1n | Dedicated example | a directory with nothing else in it is removed | | | Red | | | |
+| 793d4m1d (amended) | Dedicated example, product acceptance (`network`) | the writes of the [session](../../GLOSSARY.md#session) are counted in the debug log: one, that of the user's turn | | | Red | | | |
+| 793a2c1f (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the test waits for the write of the turn in the debug log and finds no record | | | Red | | | |
+| 793a2c1h (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the same for two turns | | | Red | | | |
+| 793a3c1b (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the turn leaves a record of the kind `skipped` or none | | | Red | | | |
 
 ### 793e6f The delivery merges the parent vault
 

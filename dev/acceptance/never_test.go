@@ -72,8 +72,7 @@ func Test793a2d1d_ThePromptAndTheReplyAreAsTheyWere(t *testing.T) {
 
 			written = machine.awaitAutomaticNote(chat.turnEnds, "that states the correction", buildTarget)
 
-			kinds := machine.awaitRecords(chat.session.id, chat.turnEnds, 2)
-			g.Expect(kinds[len(kinds)-1]).To(Equal("written"), "what became of the correction")
+			machine.awaitRecordOfKind(chat.session.id, chat.turnEnds, "written")
 		})
 
 	var asked *turn
@@ -117,8 +116,7 @@ func Test793a2d1e_AWriteThatFailsDoesNotBreakTheSession(t *testing.T) {
 		chat.tell(askHowToBuild)
 		chat.tell(correctTheBuild)
 
-		kinds := machine.awaitRecords(chat.session.id, chat.turnEnds, 2)
-		g.Expect(kinds[len(kinds)-1]).To(Equal("failed"), "what became of the correction: the write failed")
+		machine.awaitRecordOfKind(chat.session.id, chat.turnEnds, "failed")
 
 		second = chat.tell(askSomethingElse)
 	})
