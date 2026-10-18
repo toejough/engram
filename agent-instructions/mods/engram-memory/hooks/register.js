@@ -46,6 +46,11 @@ const turns = new Map()
 // of a note and the chunk ID of a passage, each given to the delivery as held, so that a note is delivered once.
 const delivered = new Map()
 
+// The last delivery of each session, as a promise that settles when it is over: the deliveries of one session run one
+// after another, so that each reads the set after the one before added to it, and a note is marked as used once
+// (855d2a).
+const deliveries = new Map()
+
 // So many prompts are kept at most: one that is dropped, or delivered into a running turn, starts no turn.
 const RAISED_MAX = 20
 
@@ -124,7 +129,9 @@ async function askModel($, request) {
   try {
     reply = await $.model.complete(request, { signal: stop.signal })
   } catch (error) {
-    throw new Error(`the model call failed: ${describe(error)}`)
+    // a call that is aborted may reject, and it was the bound that ended it
+    throw new Error(stop.signal.aborted ? `the model call gave nothing within ${limitText(STEP_BOUND_MS)}`
+      : `the model call failed: ${describe(error)}`)
   } finally {
     clearTimeout(timer)
   }
@@ -252,12 +259,29 @@ async function promptChain($, e, state) {
     answer = { reply: await askModel($, printed.request), carry: printed.carry }
   }
 
-  const { stdout, stderr } = await run($, 'deliver', { ...base, text: e.text, ...answer }, STEP_BOUND_MS)
+  return inOrder(state.session, async () => {
+    const held = [...(delivered.get(state.session) ?? [])]
+    const { stdout, stderr } = await run($, 'deliver', { ...base, held, text: e.text, ...answer }, STEP_BOUND_MS)
+    const lines = stderr.split('\n').map((text) => text.trim()).filter((text) => text !== '')
 
-  return {
-    block: stdout.startsWith(MARKER) ? newLinesOf(state.session, stdout) : '',
     // the lines go to the user and the model reads none of them
-    shown: stderr.split('\n').map((text) => text.trim()).filter((text) => text !== ''),
+    return stdout.startsWith(MARKER) ? keepNew(state.session, stdout, lines) : { block: '', shown: lines }
+  })
+}
+
+// inOrder runs a delivery of a session after the one before it is over, whatever became of that one (855d2a).
+async function inOrder(session, job) {
+  const before = deliveries.get(session) ?? Promise.resolve()
+  let over
+  const mine = new Promise((resolve) => { over = resolve })
+
+  deliveries.set(session, before.then(() => mine))
+  await before
+
+  try {
+    return await job()
+  } finally {
+    over()
   }
 }
 
@@ -302,20 +326,84 @@ function requestOf(printed) {
   }
 }
 
-// newLinesOf is the block less each line whose ID the session's set holds, with the IDs of the lines left added to the
-// set in the same step, so that a note or a passage is delivered once however many chains find it; nothing when no line
-// is left (855d2c). The ID of a line is what runs from its dash and space to the next space.
-function newLinesOf(session, block) {
+// keepNew is the block less each line whose ID the session's set holds, and the lines for the user, less the notes and
+// passages that line of theirs names which the block left out, with the IDs of the lines left added to the set in the
+// same step, so that a note or a passage is delivered once however many chains find it; no block when no line is left
+// (855d2c, 855d2a).
+function keepNew(session, block, shown) {
   const ids = delivered.get(session) ?? new Set()
-  const lines = block.split('\n').filter((line) => !line.startsWith('- ') || !ids.has(line.slice(2).split(' ')[0]))
+  const lines = block.split('\n')
+  const left = []
+  const kept = lines.filter((line) => {
+    if (!line.startsWith('- ')) {
+      return true
+    }
 
-  for (const line of lines.filter((line) => line.startsWith('- '))) {
-    ids.add(line.slice(2).split(' ')[0])
+    const entry = entryOf(line)
+
+    if (ids.has(entry.id)) {
+      return false
+    }
+
+    left.push(entry)
+
+    return true
+  })
+
+  for (const entry of left) {
+    ids.add(entry.id)
   }
 
   delivered.set(session, ids)
 
-  return lines.some((line) => line.startsWith('- ')) ? lines.join('\n') : ''
+  const all = lines.filter((line) => line.startsWith('- ')).length
+
+  return {
+    block: left.length > 0 ? kept.join('\n') : '',
+    shown: left.length === all ? shown : shown.flatMap((line) => deliveredLineOf(line, left)),
+  }
+}
+
+// entryOf is the ID of a line of a block, whole, and whether the line is a passage's (855d2c): the line of a note is a
+// dash, the file name, which holds no space, and the situation in parentheses; that of a passage is a dash, the chunk
+// ID, which may hold spaces, and `(passage)`.
+function entryOf(line) {
+  const rest = line.slice(2)
+  const note = /^(\S+\.md) \(/.exec(rest)
+
+  if (note) {
+    return { id: note[1], passage: rest.startsWith(`${note[1]} (passage): `) }
+  }
+
+  const at = rest.indexOf(' (passage): ')
+
+  if (at >= 0) {
+    return { id: rest.slice(0, at), passage: true }
+  }
+
+  const open = rest.indexOf(' (')
+
+  return { id: open >= 0 ? rest.slice(0, open) : rest, passage: false }
+}
+
+// deliveredLineOf is the line for the user that names what was delivered, written again for the entries that are left,
+// or nothing when none is left; any other line goes through (855d2a).
+function deliveredLineOf(line, left) {
+  if (!line.startsWith('delivered ')) {
+    return [line]
+  }
+
+  const parts = []
+
+  for (const [passage, word] of [[false, 'note'], [true, 'passage']]) {
+    const ids = left.filter((entry) => entry.passage === passage).map((entry) => entry.id)
+
+    if (ids.length > 0) {
+      parts.push(`the ${word}${ids.length === 1 ? '' : 's'} ${ids.join(', ')}`)
+    }
+  }
+
+  return parts.length > 0 ? [`delivered ${parts.join(' and ')}`] : []
 }
 
 // originOf is the kind of origin that Claude Code stamped on a prompt, or nothing when it stamped none (793d2a).
