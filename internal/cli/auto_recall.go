@@ -50,7 +50,7 @@ func RunAutoRecall(ctx context.Context, args AutoRecallArgs, deps AutoRecallDeps
 
 	queryErr := deps.Query(ctx, QueryArgs{
 		Phrases: phrases, VaultPath: args.VaultPath, ChunksDir: args.ChunksDir,
-		LazyChunks: true, RecentFill: -1, Limit: auto.MaxCandidates,
+		LazyChunks: true, RecentFill: -1, Limit: auto.LookupLimit,
 	}, &payload)
 	if queryErr != nil {
 		// a failure is forwarded by the mod and stored: it names none of the prompt (793b107)
