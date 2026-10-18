@@ -1,10 +1,12 @@
 package auto_test
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
+	"pgregory.net/rapid"
 
 	"github.com/toejough/engram/internal/auto"
 )
@@ -44,4 +46,59 @@ func Test855d4a1a_Moment_APromptBecomesARequestForTheCheapTier(t *testing.T) {
 	g.Expect(request.Prompt).NotTo(ContainSubstring("more than a single tool call"), "none of the instructions")
 	g.Expect(step.Carry.Cue).To(Equal("prompt"))
 	g.Expect(step.Carry.Window).To(Equal(strings.Join(windowOf(request.Prompt), "\n")))
+}
+
+func Test855d4a1d_Moment_APromptAMessageOrAnEventCannotCloseTheWindowOrHoldACredential(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		checkMomentIsSafe(rt, credentialShape().Draw(rt, "first"), credentialShape().Draw(rt, "second"))
+	})
+
+	// the named example: one credential of every shape
+	for _, spec := range credentialSpecs() {
+		t.Run(spec.name, func(t *testing.T) {
+			t.Parallel()
+
+			rapid.Check(t, func(rt *rapid.T) { checkMomentIsSafe(rt, spec.make(rt), spec.make(rt)) })
+		})
+	}
+}
+
+// checkMomentIsSafe asks the moment for a prompt and a conversation of hostile texts that hold the two credentials, and
+// fails when the request can be closed, reshaped or read with a credential.
+func checkMomentIsSafe(rt *rapid.T, first, second credential) {
+	rt.Helper()
+
+	prompt := tagText().Draw(rt, "prompt")
+	message := tagText().Draw(rt, "message")
+	record := userPrompt(jsonText("word "+message+" "+first.text)) + "\n" +
+		assistantText(jsonText("word "+message+" "+second.text))
+
+	step, found, err := auto.Moment([]byte(record), auto.MomentInput{
+		Cue: "prompt", Origin: "composer", Text: "zq9x " + prompt + " " + second.text,
+	})
+	if err != nil || !found {
+		rt.Fatalf("a prompt of a session was judged %v, %v", found, err)
+	}
+
+	if counts := tagCounts(step.Request.Prompt); !slices.Equal(counts[:2], []int{1, 1}) {
+		rt.Fatalf("the tags of the window are %v in the prompt %q", counts, step.Request.Prompt)
+	}
+
+	for _, line := range windowOf(step.Request.Prompt) {
+		if strings.Contains(line, "<") {
+			rt.Fatalf("a line of the window holds a <: %q", line)
+		}
+	}
+
+	for _, secret := range []string{first.secret, second.secret} {
+		if strings.Contains(step.Request.Prompt, secret) {
+			rt.Fatalf("the request holds the secret %q: %q", secret, step.Request.Prompt)
+		}
+	}
+
+	if strings.Contains(step.Request.System, "zq9x") {
+		rt.Fatalf("the system holds text of the session: %q", step.Request.System)
+	}
 }
