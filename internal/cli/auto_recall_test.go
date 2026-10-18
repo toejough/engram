@@ -104,8 +104,9 @@ func Test855d4b1c_Recall_AReplyThatIsNotAPhrasesReplyFailsTheCommand(t *testing.
 	})
 
 	for name, reply := range map[string]string{
-		"text that is not JSON": "the phrases are staging and resets", "an empty reply": "", "an object with no phrases": "{}",
-		"an empty list": `{"phrases":[]}`, "a list of blanks": `{"phrases":["", "  "]}`, "a list": `["staging"]`,
+		"text that is not JSON": "the phrases are staging and resets", "an empty reply": "",
+		"an object with no phrases": "{}", "an empty list": `{"phrases":[]}`,
+		"a list of blanks": `{"phrases":["", "  "]}`, "a list": `["staging"]`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -152,7 +153,7 @@ func Test855d4b1d_Recall_TheNotesAndPassagesThatMatchedBecomeCandidatesTheExplor
 
 	payload := payloadOf(
 		noteItem("1.2026-10-17.zorblax-staging-reset.md", "direct", "2026-10-17", resetSituation, resetBody),
-		noteItem("2.2026-10-10.zorblax-explore-pick.md", "explore", "2026-10-10", "an explore pick", "Picked by the explore."),
+		noteItem("2.2026-10-10.zorblax-explore-pick.md", "explore", "2026-10-10", "an explore pick", "Picked by explore."),
 		chunkItem("/sessions/earlier.jsonl#turn-3", "direct"),
 		chunkItem("/sessions/newest.jsonl#turn-9", "recent"),
 	)

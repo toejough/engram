@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// ErrPhrasesReply is the failure of a step that is given a reply of the phrases judgement that holds no phrase (855d4b).
+// ErrPhrasesReply is the failure of a step given a reply of the phrases judgement that holds no phrase (855d4b).
 var ErrPhrasesReply = errors.New(`the reply of the phrases judgement is not {"phrases": [...]} with a phrase`)
 
 // RecallInput is the reply of the phrases judgement and its carry, as the memory mod hands them over (855d4b).
