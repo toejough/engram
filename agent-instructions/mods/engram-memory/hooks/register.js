@@ -17,11 +17,14 @@ const STEP = '{"request":'
 // Every block the command prints opens with this (793d4c); anything else is not a block.
 const MARKER = '[engram memory]'
 
-// The bounds of the stages of the capture of a turn (793d2b): the call for the session's ID, `engram auto judge`,
-// `engram auto write` and the run of it that reports a failure. With the 60 seconds that the request of the model holds
-// they are 115 seconds, under the 2 minutes of the product (793a2c).
+// The bounds of the stages of the capture of a turn (855d2b): the call for the session's ID, the steps `engram auto
+// moment`, `judge` and `place`, `engram auto write` and the run of it that reports a failure. The three model calls hold
+// the limits of their requests, 10, 30 and 15 seconds; together they are 115 seconds, under the 2 minutes of the
+// product (793a2c).
 const ID_BOUND_MS = 5000
-const JUDGE_BOUND_MS = 15000
+const MOMENT_BOUND_MS = 5000
+const JUDGE_BOUND_MS = 10000
+const PLACE_BOUND_MS = 5000
 const WRITE_BOUND_MS = 20000
 const REPORT_BOUND_MS = 15000
 
@@ -32,9 +35,6 @@ const SWEEP_BOUND_MS = 90000
 // A sweep that is ended is run once more, as ended, so that the command gives up for the session (793d2c): the call
 // for the ID (5), the sweep (90), this run (5) and the report of its failure (15) are 115 seconds, under the 2 minutes.
 const GIVE_UP_BOUND_MS = 5000
-
-// Every request the judgement prints opens with this (793d4g); anything else is not a request.
-const REQUEST = '{"model":'
 
 // The prompts the session raised that have started no turn, oldest first, each with its text and its origin; and the
 // text and the origin of each turn the main loop has started and not completed, by the turn's ID (793d2b): the prompt
@@ -175,24 +175,48 @@ async function afterTurn($, e, job) {
   }
 }
 
-// captureLessons judges a turn that ended, asks the model for the judgement and has the lessons written (793d2b). It
-// ends quietly when the judgement has nothing to judge. Each stage has its bound.
+// captureLessons judges a turn that ended and has the lessons written (855d2b): the moment, the judgement and the
+// placement each print the request for the model, which is asked exactly as printed, and the writing is given the
+// replies and the carry of the placement. It ends quietly when the moment or the judgement prints nothing, and writes
+// the lessons at the top when the placement prints nothing. Each stage has its bound.
 async function captureLessons($, e, turn, session) {
-  const { stdout: printed } = await run($, 'judge', {
-    session,
-    turn: e.turnId,
-    text: turn.text,
-    answer: e.answer,
-    origin: turn.origin,
-  }, JUDGE_BOUND_MS)
+  const fields = { session, turn: e.turnId, text: turn.text, answer: e.answer, origin: turn.origin }
+  const moment = await asked($, 'moment', { ...fields, cue: 'turn-end' }, MOMENT_BOUND_MS)
 
-  if (printed === '') {
+  if (moment === null) {
     return
   }
 
-  const reply = await ask($, requestOf(printed))
+  const judged = await asked($, 'judge', { ...fields, reply: moment.reply, carry: moment.carry }, JUDGE_BOUND_MS)
 
-  await run($, 'write', { session, turn: e.turnId, reply }, WRITE_BOUND_MS)
+  if (judged === null) {
+    return
+  }
+
+  const placed = await asked($, 'place', { session, turn: e.turnId, reply: judged.reply, carry: judged.carry },
+    PLACE_BOUND_MS)
+  const written = { session, turn: e.turnId, reply: judged.reply }
+
+  if (placed !== null) {
+    written.carry = placed.carry
+    written.placement = placed.reply
+  }
+
+  await run($, 'write', written, WRITE_BOUND_MS)
+}
+
+// asked runs a step of the capture and asks the model for the request it prints (855d2b): the reply and the carry, or
+// nothing when the step prints nothing. A request that is not an object is a failure of the step.
+async function asked($, step, input, bound) {
+  const { stdout } = await run($, step, input, bound)
+
+  if (stdout === '') {
+    return null
+  }
+
+  const printed = stepOf(stdout, step)
+
+  return { reply: await ask($, printed.request), carry: printed.carry }
 }
 
 // sweep indexes the conversation of the session (793d2c).
@@ -298,8 +322,8 @@ function reportDelivery($, session, error) {
   })
 }
 
-// stepOf is what a step of the flow of a prompt printed: the request for the model and the carry, or a failure that
-// names the step when what it printed is not one (855d2a).
+// stepOf is what a step printed: the request for the model and the carry, or a failure that names the step when what it
+// printed is not one (855d2a, 855d2b).
 function stepOf(printed, step) {
   if (!printed.startsWith(STEP)) {
     throw new Error(`engram auto ${step} printed what is not a request`)
@@ -309,20 +333,6 @@ function stepOf(printed, step) {
     return JSON.parse(printed)
   } catch (error) {
     throw new Error(`engram auto ${step} printed a request that is not JSON: ${describe(error)}`)
-  }
-}
-
-// requestOf is the request for the model that the judgement printed, or a failure that names the judgement when what it
-// printed is not one, or is not a JSON object (793d2b).
-function requestOf(printed) {
-  if (!printed.startsWith(REQUEST)) {
-    throw new Error('engram auto judge printed what is not a request')
-  }
-
-  try {
-    return JSON.parse(printed)
-  } catch (error) {
-    throw new Error(`engram auto judge printed a request that is not JSON: ${describe(error)}`)
   }
 }
 
