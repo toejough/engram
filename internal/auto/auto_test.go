@@ -197,6 +197,28 @@ func Test855d4c1b_Deliver_ACandidateTheCarryDoesNotHoldIsNotDelivered(t *testing
 	g.Expect(linesOf(delivery.Block)).To(HaveLen(2), "the framing line and the one note")
 }
 
+func Test855d4d1b_Deliver_APassageIsRedactedAndANoteIsDeliveredAsItIs(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	run := strings.Repeat("aZ3", 14)
+	testName := "Test855d4c1g_Deliver_ANoteOrPassageTheModHasDeliveredAlreadyIsLeftOut"
+
+	g.Expect(auto.Redact(run)).NotTo(Equal(run), "the run of the test reads as a token")
+	g.Expect(auto.Redact(testName)).NotTo(Equal(testName), "the name of the test reads as a token")
+
+	passage := aPassage("/chunks/an-earlier-session.jsonl#c3", "the key was "+run+" in that session")
+	note := aNote("1.2026-10-17.a.md")
+	note.Text = "run " + testName + " to check"
+
+	delivery := deliver(t, requestFor([]auto.Candidate{note, passage}), "", nil)
+
+	g.Expect(delivery.Block).NotTo(ContainSubstring(run), "a token in a passage")
+	g.Expect(delivery.Block).To(ContainSubstring("the key was [redacted] in that session"))
+	g.Expect(delivery.Block).To(ContainSubstring(testName), "a name in a note")
+	g.Expect(delivery.Block).To(ContainSubstring("/chunks/an-earlier-session.jsonl#c3 (passage)"), "the ID raw")
+}
+
 func Test855d4c1c_Deliver_APassageTheSessionHoldsIsLeftOut(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
