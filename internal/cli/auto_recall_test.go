@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -306,6 +307,26 @@ func Test855d4b1h_Recall_ADeepRequestAlsoAsksForTheLessonsAndTheRevisions(t *tes
 	g.Expect(step.Request.System).To(And(ContainSubstring(`"lessons"`), ContainSubstring(`"fields"`),
 		ContainSubstring(`"chunks"`)), "the lessons the evidence shows and the fields to revise")
 	g.Expect(step.Write).To(BeTrue(), "the output holds write true at deep")
+}
+
+func Test855d4b1j_Recall_AFailedLookupFailsTheCommandAndPrintsNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoRecall(context.Background(), cli.AutoRecallArgs{VaultPath: "/a/vault"},
+		cli.AutoRecallDeps{
+			Stdin: recallInput("glance", "Prepare a test run against the Zorblax staging database tonight"),
+			Query: func(context.Context, cli.QueryArgs, io.Writer) error {
+				return errors.New("the vault cannot be scanned")
+			},
+			ReadChunks: chunksRead(),
+		}, &out)
+
+	g.Expect(err).To(MatchError(ContainSubstring("auto recall: lookup: the vault cannot be scanned")))
+	g.Expect(err).NotTo(MatchError(ContainSubstring("Zorblax")), "the cause holds no text of the prompt")
+	g.Expect(out.String()).To(BeEmpty())
 }
 
 func Test855d4b1k_Recall_AWarningOfTheLookupIsNoLineForTheUser(t *testing.T) {
