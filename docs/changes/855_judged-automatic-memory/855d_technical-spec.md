@@ -1418,7 +1418,7 @@ Scenario: 855d7a1a A recall chain is timed
 Scenario: 855d7a1b The judgements of a capture are timed
   Given a real Claude Code session and a vault, and 10 turns that hold a lesson
   When each completes
-  Then the time of each step and of each model call of the capture is recorded, and none exceeds its row of {855d2b}
+  Then the time of each step and of each model call of the capture is recorded, and none exceeds its row of the capture
 
 Scenario: 855d7a1c A capture fits the 2 minutes
   Given a real Claude Code session and a vault holding a note the session has seen, and 10 turns that hold a lesson
