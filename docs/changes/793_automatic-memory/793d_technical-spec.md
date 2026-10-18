@@ -1327,6 +1327,19 @@ Scenario: 793a2e1a What was delivered and what was written for the previous turn
 
 Realized by [793d4p Telling what automatic memory did](#793d4p-telling-what-automatic-memory-did) (the line of the record of the write), [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) (the line is told once) and [793d4c Framing the notes of a block as data](#793d4c-framing-the-notes-of-a-block-as-data) (its form), with the delivery of [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) and [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow): what was delivered is the block of the earlier [prompt](./793a_product-spec.md#793a1a-terms), which stays in the [session](../../GLOSSARY.md#session) and is not stated again.
 
+### 793d5zg Mapping of 793a2e1b
+
+The product scenario [793a2e1b A write that finishes after the next prompt is shown when it finishes](./793a_product-spec.md#793a2e1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2e1b A write that finishes after the next prompt is shown when it finishes
+  Given the user has run engram update, and a write that takes 12 seconds
+  When the user corrects the agent in a prompt, sends another before the write finishes, and a third after it finished
+  Then the second prompt arrives with no line about the write, and the third arrives with a line that names the note written
+```
+
+Realized by [793d4p Telling what automatic memory did](#793d4p-telling-what-automatic-memory-did) (the records are read at every [prompt](./793a_product-spec.md#793a1a-terms) and a write makes its records last, so the line is told at the first prompt after the write finished) and [793d2b Turn capture flow](#793d2b-turn-capture-flow) (the write runs apart from the prompts, so the second prompt is not held for it).
+
 ## 793d6 Recommended impact
 
 - **Repository:** a new directory `agent-instructions/mods/`, a new package `internal/auto` and a new command group `engram auto` (`deliver`, `judge`, `write`, `sweep`); the update's deploy set gains the mods.
