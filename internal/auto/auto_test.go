@@ -219,6 +219,46 @@ func Test855d4d1b_Deliver_APassageIsRedactedAndANoteIsDeliveredAsItIs(t *testing
 	g.Expect(delivery.Block).To(ContainSubstring("/chunks/an-earlier-session.jsonl#c3 (passage)"), "the ID raw")
 }
 
+func Test855d4c1h_Deliver_AReplyWithTextBeforeTheObjectIsReadByTheObject(t *testing.T) {
+	t.Parallel()
+
+	note := aNote("1.2026-10-17.a.md")
+	reasoning := "The note says the database is reset on Sundays.\nThe task does not touch it.\n\n"
+
+	t.Run("an object that delivers", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		request := requestFor([]auto.Candidate{note})
+		request.Reply = reasoning + `{"candidates":[{"id":"1.2026-10-17.a.md","verdict":"covered"}]}`
+
+		g.Expect(deliver(t, request, "", nil).Block).To(ContainSubstring("1.2026-10-17.a.md"))
+	})
+
+	t.Run("an object that does not deliver", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		request := requestFor([]auto.Candidate{note})
+		request.Reply = reasoning + `{"candidates":[{"id":"1.2026-10-17.a.md","verdict":"unrelated"}]}`
+
+		g.Expect(deliver(t, request, "", nil).Block).To(BeEmpty())
+	})
+
+	t.Run("text with no object", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		request := requestFor([]auto.Candidate{note})
+		request.Reply = reasoning
+
+		_, err := auto.Deliver(t.Context(), request, func(string) string { return "" },
+			func(string) []auto.Line { return nil }, func(context.Context, auto.Candidate) {})
+
+		g.Expect(err).To(MatchError(auto.ErrCandidatesReply))
+	})
+}
+
 func Test855d4c1c_Deliver_APassageTheSessionHoldsIsLeftOut(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
