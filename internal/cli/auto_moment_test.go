@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -66,6 +67,46 @@ func Test855d4a1e_Moment_APromptOfAnOriginTheUserDoesNotSendIsJudgedNothing(t *t
 			t.Fatal("the moment did not finish: the record of the session was not read once from the directory")
 		}
 	})
+}
+
+func Test855d4a1f_Moment_ASessionWithNoTranscriptIsJudgedWithoutConversationLines(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoMoment(context.Background(), cli.AutoMomentArgs{SessionsDir: "/sessions"},
+		cli.AutoMomentDeps{
+			Stdin:      momentInput("composer"),
+			ReadRecord: func(string, string) []byte { return nil },
+		}, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var step struct {
+		Request struct {
+			Prompt string `json:"prompt"`
+		} `json:"request"`
+	}
+
+	g.Expect(json.Unmarshal(out.Bytes(), &step)).To(Succeed(), "the output is one JSON object: %q", out.String())
+	g.Expect(step.Request.Prompt).To(Equal("<window>\n" +
+		"User: Prepare a test run against the Zorblax staging database tonight.\n</window>"))
+}
+
+func Test855d4a1g_Moment_AnInputThatIsNotAJSONObjectFailsTheCommand(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoMoment(context.Background(), cli.AutoMomentArgs{SessionsDir: "/sessions"},
+		cli.AutoMomentDeps{
+			Stdin:      strings.NewReader("not a JSON object"),
+			ReadRecord: func(string, string) []byte { return nil },
+		}, &out)
+
+	g.Expect(err).To(MatchError(ContainSubstring("auto moment: reading the moment")))
+	g.Expect(out.String()).To(BeEmpty())
 }
 
 // momentInput is the JSON object that the memory mod hands to the moment for a prompt of an origin.
