@@ -758,7 +758,7 @@ Review finding G3-1, the blocker ([793b105 What is shown, and how](./793b_decisi
 | 793a2e1e | Dedicated example, product acceptance (`network`) | the directory of the chunk index is made read-only | | | Red | 33850cbb | | |
 | 793a2e1f | Dedicated example, product acceptance (`network`) | the machine does not set the variable that switches on the capture of headless prompts | | | Red | 33850cbb | | |
 | 793a2d1e (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the context of the second prompt holds nothing about the failed write, where it held the line of the failure | | | Red | 33850cbb | | |
-| 793d2a1k | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the stand-in host records the calls of the host's log, which a live session shows only as events: two lines, in order, and neither in the context | | | Not started | | | |
+| 793d2a1k | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the stand-in host records the calls of the host's log, which a live session shows only as events: two lines, in order, and neither in the context | | | Red | | | |
 | 793d2a1i (amended) | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a command that fails shows no line | | | Not started | | | |
 | 793d2a1j (amended) | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a delivery that does not finish within its bound shows no line | | | Not started | | | |
 | 793d4a1i (amended) | Injected and impure interaction (`imptest`) | the reading of what the session was not shown is given the request's session ID | | | Done | a2deed27 | d0f7f9f8 | |

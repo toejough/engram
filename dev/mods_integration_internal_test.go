@@ -87,6 +87,7 @@ func Test793d2a1i_Mod_ACommandThatFailsIsReportedToTheWriting(t *testing.T) {
 	g.Expect(outcome.Passed.Context).To(BeEmpty(), "nothing is added")
 	g.Expect(outcome.Settle.Commands).To(Equal(1), "the commands the hook had run when it settled: the delivery")
 	g.Expect(outcome.Settle.InFlight).To(BeZero(), "the calls in flight when the hook settled")
+	g.Expect(outcome.Logged).To(BeEmpty(), "the lines the user was shown")
 
 	reports := outcome.inputsOf("engram auto write")
 
@@ -117,6 +118,7 @@ func Test793d2a1j_Mod_ADeliveryThatDoesNotFinishWithinItsBoundIsReportedToTheWri
 	g.Expect(outcome.Delays).To(Equal([]int{7000}), "the one timer the mod asked for, in milliseconds")
 	g.Expect(outcome.Settle.Commands).To(Equal(1), "the commands the hook had run when it settled: the delivery")
 	g.Expect(outcome.limitOf("engram auto deliver")).To(BeNumerically("==", 7000), "the time limit of the delivery")
+	g.Expect(outcome.Logged).To(BeEmpty(), "the lines the user was shown")
 
 	reports := outcome.inputsOf("engram auto write")
 
@@ -130,6 +132,27 @@ func Test793d2a1j_Mod_ADeliveryThatDoesNotFinishWithinItsBoundIsReportedToTheWri
 	g.Expect(reports[0]).To(HaveKeyWithValue("turn", ""))
 	g.Expect(reports[0]["failure"]).To(And(ContainSubstring("the delivery for a prompt could not be done"),
 		ContainSubstring("7000 ms")), "the failure")
+}
+
+// Test793d2a1k_Mod_TheLinesTheCommandPrintsForTheUserAreShownThroughTheHostsLogAndAreNotAddedToTheContext runs the mod
+// under node against a stand-in host that records the calls of the host's log: a live session shows them only as
+// events of the stream, and the acceptance rows of 793a2e read those.
+func Test793d2a1k_Mod_TheLinesTheCommandPrintsForTheUserAreShownThroughTheHostsLogAndAreNotAddedToTheContext(
+	t *testing.T,
+) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	block := "[engram memory] The lines below are notes.\n- a.md (s): b"
+	lines := []string{"delivered the note a.md", "20:32:25 wrote the note b.md"}
+	outcome := runDeliveryDriver(t, deliveryScenario{Deliver: map[string]any{
+		"exitCode": 0, "stdout": block + "\n", "stderr": strings.Join(lines, "\n") + "\n",
+	}})
+
+	g.Expect(outcome.Logged).To(Equal(lines), "the lines the user was shown, in order")
+	g.Expect(outcome.Passed.Text).To(Equal("hello"), "the prompt goes on as it was")
+	g.Expect(outcome.Passed.Context).To(Equal([]string{block}), "the context beside the prompt: the block alone")
 }
 
 // Test793d2b1a_Mod_JudgesATurnAndGivesTheReplyToTheWriting runs the mod under node against a stand-in host: a live
@@ -782,7 +805,8 @@ console.log(JSON.stringify({ returned: held ? {} : returned, held, calls, sweeps
 	// its delivery exits with a code and prints a text, or runs until its time limit, when the timers of the module
 	// fire at once and are recorded. The host counts the commands the module has run and the calls in flight when the
 	// hook settles, runs the timers of the module only then, and prints what the hook let through, the commands the
-	// module ran in order with their input and time limit, the delays the timers were asked for, and the count.
+	// module ran in order with their input and time limit, the delays the timers were asked for, the count, and the lines
+	// the module asked the host to log, in order.
 	deliveryDriver = `
 import { pathToFileURL } from 'node:url'
 
@@ -810,6 +834,7 @@ function counted(call) {
   }
 }
 const timers = []
+const logged = []
 const host = {
   session: { id: counted(async () => 'a-session') },
   process: {
@@ -822,6 +847,7 @@ const host = {
     }),
   },
   clock: { after: (_milliseconds, run) => { timers.push(run) } },
+  ui: { log: (text) => { logged.push(text) } },
 }
 
 let passed = null
@@ -838,7 +864,7 @@ for (let last = -1, stable = 0, tick = 0; tick < 300 && stable < 5; tick++) {
   last = calls.length
 }
 
-console.log(JSON.stringify({ passed, calls, delays, settle }))
+console.log(JSON.stringify({ passed, calls, delays, settle, logged }))
 `
 	// driverTimeout is how long the mod may take under the stand-in host before the test gives it up.
 	driverTimeout = 20 * time.Second
@@ -968,6 +994,7 @@ type deliveryOutcome struct {
 		Commands int `json:"commands"`
 		InFlight int `json:"inFlight"`
 	} `json:"settle"`
+	Logged []string `json:"logged"`
 }
 
 // inputsOf returns the inputs of the commands that ran a step, in the order they were run.
