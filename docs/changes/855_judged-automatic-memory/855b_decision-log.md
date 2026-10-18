@@ -176,7 +176,7 @@ As in [793e2 Test methods](../793_automatic-memory/793e_implementation-plan.md#7
 
 ## 855b44 The status of a row
 
-A row starts `Planned`, the guide's `Not started` under the name the planning brief gives it, then `Red`, `Green-all` and `Done`, with the commit columns of [793b13 Departure: one refactor pass, and extra catalog columns](../793_automatic-memory/793b_decision-log.md#793b13-departure-one-refactor-pass-and-extra-catalog-columns). A measurement row whose hypothesis a number refutes ends `Refuted`; a conditional work row that is not needed ends `Not needed`. The guide's vocabulary is `Not started`, so the name is a departure for the owner to confirm. Decided by: Author (default; owner may override, shown at the walkthrough).
+A row starts `Not started`, as in the plan guide, then `Red`, `Green-all` and `Done`, with the commit columns of [793b13 Departure: one refactor pass, and extra catalog columns](../793_automatic-memory/793b_decision-log.md#793b13-departure-one-refactor-pass-and-extra-catalog-columns). A measurement row whose hypothesis a number refutes ends `Refuted`; a conditional work row that is not needed ends `Not needed`. Decided by: Author (default; owner may override).
 
 ## 855b45 The conformance check follows the removals at once and reads 855 at the end
 
