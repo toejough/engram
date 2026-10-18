@@ -497,3 +497,11 @@ Withdrawn: answered by the owner's instruction to follow the guides, [793b91 The
 - **Recommendation:** (a): (b) lets a token in a path through, and the loss is the readability of one long name.
 - **Blocks:** nothing.
 - **Status:** open; default (a) is the behaviour of [793b69 Credentials are redacted by shape, and the rest is a known risk](./793b_decision-log.md#793b69-credentials-are-redacted-by-shape-and-the-rest-is-a-known-risk), unchanged.
+
+## 793c81 Does the judgement call a different lesson about the same subject covered by an earlier note too often?
+
+- **Context:** in 60 runs of [793a3c1c A lesson no earlier note states is written](./793a_product-spec.md#793a3c1-uat-scenarios) at the end of the third group, 5 failed (2 of the first 10, 1 of the next 20, 2 of the last 30) and 17 of 20 passed on the commit before the group, so it is not the group's: the judgement put the lesson of the backup schedule in a `covered` call that names the [note](../../GLOSSARY.md#permanent-note) of the reset (`1.2026-10-17.zorblax-staging-reset.md`), and the record reads `skipped`, with the reason that the [vault](../../GLOSSARY.md#vault) already states it. The display of [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) now shows such a call at the next [prompt](./793a_product-spec.md#793a1a-terms), as a line that says the lesson was left out, and why.
+- **Options:** (a) Accept it: the call is shown, and the lesson is written when it comes up again. (b) Tighten the instructions of the judgement on when a note covers a lesson, a change to the instructions that goes through the trap [harness](../../GLOSSARY.md#harness). (c) Check the call in code against the subject of the lesson.
+- **Recommendation:** (a) until the owner wants the bar raised: it is about one run in eleven, it was the same before the group, and each miss is now visible; (b) is the way to raise it.
+- **Blocks:** nothing.
+- **Status:** open; default (a) is the behavior of the second group, unchanged.

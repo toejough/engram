@@ -582,7 +582,7 @@ Review finding 18: only one side of [793a3c Nothing the vault already says is wr
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a3c1c | Dedicated example, product acceptance (`network`) | the other side of the cover: a different lesson about the same subject; passed when written; mutation (scratch copy): an instruction that a nearest [note](../../GLOSSARY.md#permanent-note) on the same subject covers the lesson (the row passed 1 of 6 runs) | 10 of 10 | Done | n/a | 228d02b4 | f5f9a637 |
+| 793a3c1c | Dedicated example, product acceptance (`network`) | the other side of the cover: a different lesson about the same subject; passed when written; mutation (scratch copy): an instruction that a nearest [note](../../GLOSSARY.md#permanent-note) on the same subject covers the lesson (the row passed 1 of 6 runs) | 10 of 10; 55 of 60 at the end of the third group, 17 of 20 on the commit before it: the judgement called the backup lesson covered by the note about the reset in 5 runs ([793c81 Does the judgement call a different lesson about the same subject covered by an earlier note too often?](./793c_open-questions.md#793c81-does-the-judgement-call-a-different-lesson-about-the-same-subject-covered-by-an-earlier-note-too-often)) | Done | n/a | 228d02b4 | f5f9a637 |
 
 #### 793e6g16 A turn that a background task's notification starts is not judged
 
