@@ -30,14 +30,13 @@ func Test793d4p1a_ActivityLines_ARecordThatWasNotShownBecomesALine(t *testing.T)
 
 	g.Expect(textsOf(lines)).To(Equal([]string{
 		"20:32:25 wrote the note 2.2026-10-17.zorblax-backup.md",
-		"20:32:26 left out the lesson zorblax-build: the vault already states it: 1.2026-10-17.zorblax-build.md",
-		"20:32:27 left out: the reply is not a list of lessons",
-		"20:32:28 failed: the model call failed: timed out",
-		"20:32:29 failed: writing zorblax-build: learn: acquiring lock: permission denied",
-	}))
-	g.Expect(filesOf(lines)).To(Equal([]string{
-		"record-0.json", "record-1.json", "record-2.json", "record-3.json", "record-4.json",
-	}), "the record that each line tells")
+		"20:32:26 left out: the lesson zorblax-build: the vault already states it: 1.2026-10-17.zorblax-build.md; " +
+			"the reply is not a list of lessons",
+		"20:32:28 failed: the model call failed: timed out; writing zorblax-build: learn: acquiring lock: permission denied",
+	}), "one line for the written, one for the left out and one for the failed")
+	g.Expect(filesOf(lines)).To(Equal([][]string{
+		{"record-0.json"}, {"record-1.json", "record-2.json"}, {"record-3.json", "record-4.json"},
+	}), "the records that each line tells")
 }
 
 func Test793d4p1b_ActivityLines_ARecordOfTheKindNothingMakesNoLine(t *testing.T) {
@@ -69,38 +68,61 @@ func Test793d4p1d_ActivityLines_AReasonIsOneLineRedactedAndCutInItsMiddle(t *tes
 	}
 
 	line := lines[0].Text
-	shown := strings.TrimPrefix(line, "20:32:25 failed: ")
 
 	g.Expect(line).NotTo(ContainSubstring("\n"), "the line is one line")
 	g.Expect(line).NotTo(ContainSubstring("ghp_"), "the credential, or part of it")
-	g.Expect(utf8.RuneCountInString(shown)).To(BeNumerically("<=", 240), "the reason as shown")
-	g.Expect(shown).To(HavePrefix("learn: writing xxx"), "the beginning of the reason")
-	g.Expect(shown).To(HaveSuffix("yyy: permission denied"), "the end of the reason, which holds the cause")
+	g.Expect(utf8.RuneCountInString(line)).To(BeNumerically("<=", 240), "the line as shown")
+	g.Expect(line).To(HavePrefix("20:32:25 failed: learn: writing xxx"), "the beginning of the line")
+	g.Expect(line).To(HaveSuffix("yyy: permission denied"), "the end of the line, which holds the cause")
 }
 
-func Test793d4p1e_ActivityLines_AtMostFiveLinesAreShownAtOnce(t *testing.T) {
+func Test793d4p1e_ActivityLines_OneLineIsShownForEachKindOfRecord(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	records := make([]auto.Record, 0, 7)
-	notes := []string{"a", "b", "c", "d", "e", "f", "g"}
+	records := make([]auto.Record, 0, 11)
 
-	for index, note := range notes {
-		records = append(records, recordAt(index, auto.RecordWritten, func(r *auto.Record) { r.Note = note + ".md" }))
+	for index := range 7 {
+		records = append(records, recordAt(index, auto.RecordWritten, func(r *auto.Record) {
+			r.Note = fmt.Sprintf("%d.2026-10-17.zorblax-note-%d.md", index+1, index)
+		}))
 	}
 
-	g.Expect(textsOf(auto.ActivityLines(records))).To(Equal([]string{
-		"20:32:25 wrote the note a.md", "20:32:26 wrote the note b.md", "20:32:27 wrote the note c.md",
-		"20:32:28 wrote the note d.md", "20:32:29 wrote the note e.md",
-	}), "the lines of one delivery; the rest wait for the next")
+	for index := 7; index < 9; index++ {
+		records = append(records, recordAt(index, auto.RecordSkipped, func(r *auto.Record) {
+			r.Slug, r.Reason = fmt.Sprintf("lesson-%d", index), "the vault already states it"
+		}))
+	}
+
+	for index := 9; index < 11; index++ {
+		records = append(records, recordAt(index, auto.RecordFailed, func(r *auto.Record) { r.Reason = "the disk is full" }))
+	}
+
+	lines := auto.ActivityLines(records)
+
+	g.Expect(lines).To(HaveLen(3), "one line for each kind")
+
+	if len(lines) != 3 {
+		return
+	}
+
+	written := lines[0].Text
+
+	g.Expect(utf8.RuneCountInString(written)).To(BeNumerically("<=", 240), "the line of the written, cut")
+	g.Expect(written).To(HavePrefix("20:32:25 wrote the notes 1.2026-10-17.zorblax-note-0.md, 2.2026-10-17.zorblax-note-1.md"))
+	g.Expect(written).To(HaveSuffix("7.2026-10-17.zorblax-note-6.md"), "the first and the last of the file names stay")
+	g.Expect(lines[0].Files).To(HaveLen(7), "every record is told, also those the cut left out of the text")
+	g.Expect(lines[1].Text).To(Equal("20:32:32 left out: the lesson lesson-7: the vault already states it; " +
+		"the lesson lesson-8: the vault already states it"))
+	g.Expect(lines[2].Text).To(Equal("20:32:34 failed: the disk is full; the disk is full"))
 }
 
-// filesOf returns the file of the record that each line tells.
-func filesOf(lines []auto.Line) []string {
-	files := make([]string, 0, len(lines))
+// filesOf returns the files of the records that each line tells.
+func filesOf(lines []auto.Line) [][]string {
+	files := make([][]string, 0, len(lines))
 
 	for _, line := range lines {
-		files = append(files, line.File)
+		files = append(files, line.Files)
 	}
 
 	return files

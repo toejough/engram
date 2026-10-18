@@ -673,7 +673,7 @@ func deliverBy(t *testing.T, vault, home string, environment map[string]string) 
 // delivered, or nothing when all are.
 func notOnlyDelivered(stderr string) string {
 	for line := range strings.SplitSeq(stderr, "\n") {
-		if line != "" && !strings.HasPrefix(line, "delivered the note ") {
+		if line != "" && !strings.HasPrefix(line, "delivered the note") {
 			return line
 		}
 	}

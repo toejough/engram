@@ -147,9 +147,9 @@ flowchart TD
     n793e6a2 --> n793e6f[793e6f The delivery merges the parent vault<br/>Blocked by: 793c34]
     n793e6g7 --> n793e6i1[793e6i1 A note written by the earlier mod is marked as written automatically<br/>Complete]
     n793e6h1 --> n793e6i2[793e6i2 The warnings of the lookup go to the debug log, not to the user<br/>Complete]
-    n793e6h1 --> n793e6i3[793e6i3 One line is shown for each of what was delivered, written, left out and failed<br/>Ready]
+    n793e6h1 --> n793e6i3[793e6i3 One line is shown for each of what was delivered, written, left out and failed<br/>In progress: 0/7 entries complete]
     class n793e6i1,n793e6i2 complete
-    class n793e6i3 ready
+    class n793e6i3 progress
     classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
@@ -889,13 +889,13 @@ Review finding B-4 ([793b113 One line is shown for each of what was delivered, w
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2e1g | Dedicated example, product acceptance (`network`) | a [vault](../../GLOSSARY.md#vault) of three notes about the staging database and one about formatting Python files; the events of the prompt hold one line that names the three notes and the block holds three lines | | | Not started | | | |
-| 793d4p1a (amended) | Dedicated example | one line for the written, one for the left out and one for the failed, over records of the real form | | | Not started | | | |
-| 793d4p1d (amended) | Dedicated example | the line is one line, redacted and cut in its middle; the credential straddles the place of the cut, so that a cut made before the redaction leaves part of it | | | Not started | | | |
-| 793d4p1e (amended) | Dedicated example | seven written, two left out and two failed: three lines, the first cut with both ends of its names, every record marked, and no line at the next prompt | | | Not started | | | |
-| 793d4p1i (amended) | Property-based (`rapid`) | the form of every line printed, whatever the texts of notes and records hold | whatever the texts hold: each line printed on standard error is one line, holds no control or format character and no white space but a space, has at most 240 characters, and there is a line for each of the four kinds that has something to tell and no other | | Not started | | | |
-| 793d4p1l | Dedicated example | two notes delivered over a vault of two notes: one line on standard error, and a line for each note in the block | | | Not started | | | |
-| 793d4a1i (amended) | Injected and impure interaction (`imptest`) | the reading of what the [session](../../GLOSSARY.md#session) was not shown returns lines that hold the files of the records they tell | | | Not started | | | |
+| 793a2e1g | Dedicated example, product acceptance (`network`) | a [vault](../../GLOSSARY.md#vault) of three notes about the staging database and one about formatting Python files; the events of the prompt hold one line that names the three notes and the block holds three lines | | | Red | | | |
+| 793d4p1a (amended) | Dedicated example | one line for the written, one for the left out and one for the failed, over records of the real form | | | Red | | | |
+| 793d4p1d (amended) | Dedicated example | the line is one line, redacted and cut in its middle; the credential straddles the place of the cut, so that a cut made before the redaction leaves part of it | | | Red | | | |
+| 793d4p1e (amended) | Dedicated example | seven written, two left out and two failed: three lines, the first cut with both ends of its names, every record marked, and no line at the next prompt | | | Red | | | |
+| 793d4p1i (amended) | Property-based (`rapid`) | the form of every line printed, whatever the texts of notes and records hold | whatever the texts hold: each line printed on standard error is one line, holds no control or format character and no white space but a space, has at most 240 characters, and there is a line for each of the four kinds that has something to tell and no other | | Red | | | |
+| 793d4p1l | Dedicated example | two notes delivered over a vault of two notes: one line on standard error, and a line for each note in the block | | | Red | | | |
+| 793d4a1i (amended) | Injected and impure interaction (`imptest`) | the reading of what the [session](../../GLOSSARY.md#session) was not shown returns lines that hold the files of the records they tell | | | Red | | | |
 
 ### 793e6f The delivery merges the parent vault
 

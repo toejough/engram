@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	. "github.com/onsi/gomega"
 	"github.com/toejough/imptest/match"
@@ -43,7 +44,7 @@ func Test793d4a1i_Deliver_AsksTheLookupForTheTextAndWhatTheSessionHoldsAndWasNot
 			Return([]auto.Note{{Path: "1.2026-10-17.a.md", Situation: "s", Body: "b"}}, nil)
 		heldCalls.ArgsShould(Equal("4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11")).Return("")
 		activityCalls.ArgsShould(Equal("4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11")).
-			Return([]auto.Line{{Text: "20:32:25 failed: x", File: "x.json"}})
+			Return([]auto.Line{{Text: "20:32:25 failed: x", Files: []string{"x.json"}}})
 	}()
 
 	select {
@@ -154,14 +155,23 @@ func Test793d4p1h_Deliver_ANoteDeliveredIsShownAsALine(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
+	delivery := deliveryOf(t, []auto.Note{{Path: "1.2026-10-17.a.md", Situation: "s", Body: "b"}}, nil)
+
+	g.Expect(delivery.Shown).To(Equal([]string{"delivered the note 1.2026-10-17.a.md"}), "the line of the note")
+	g.Expect(delivery.Told).To(BeEmpty(), "no record is told by a note")
+}
+
+func Test793d4p1l_Deliver_TheNotesDeliveredAreOneLine(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
 	delivery := deliveryOf(t, []auto.Note{
 		{Path: "1.2026-10-17.a.md", Situation: "s", Body: "b"},
 		{Path: "2.2026-10-17.b.md", Situation: "s", Body: "b"},
 	}, nil)
 
-	g.Expect(delivery.Shown).To(Equal([]string{
-		"delivered the note 1.2026-10-17.a.md", "delivered the note 2.2026-10-17.b.md",
-	}), "a line for each note of the block, in its order")
+	g.Expect(delivery.Shown).To(Equal([]string{"delivered the notes 1.2026-10-17.a.md, 2.2026-10-17.b.md"}),
+		"one line for the notes of the block, in its order")
 	g.Expect(delivery.Told).To(BeEmpty(), "no record is told by a note")
 }
 
@@ -193,7 +203,7 @@ func Test793d4p1i_Deliver_ALineShownIsOneLineWhateverTheTextsHold(t *testing.T) 
 			rt.Fatalf("delivering: %v", err)
 		}
 
-		if problem := shownProblem(delivery, len(notes), len(auto.ActivityLines(records))); problem != "" {
+		if problem := shownProblem(delivery, len(notes) > 0, records); problem != "" {
 			rt.Fatalf("%s: %q", problem, delivery.Shown)
 		}
 	})
@@ -201,6 +211,8 @@ func Test793d4p1i_Deliver_ALineShownIsOneLineWhateverTheTextsHold(t *testing.T) 
 
 // unexported constants.
 const (
+	// maxLine is how many characters a line shown to the user holds at most.
+	maxLine     = 240
 	maxNotes    = 6
 	mockTimeout = 5 * time.Second
 	// sourceMark is text that only a source holds in the tests of the block.
@@ -345,21 +357,37 @@ func shapeProblem(block string, notes []auto.Note, framing string) string {
 	}
 }
 
-// shownProblem tells what is wrong with the lines shown to the user, or nothing when they are right: one for each note
-// and for each record line, each one line of single spaces with no control or format character.
-func shownProblem(delivery auto.Delivery, notes, records int) string {
-	if len(delivery.Shown) != notes+records {
-		return fmt.Sprintf("%d notes and %d record lines made %d lines", notes, records, len(delivery.Shown))
+// shownProblem tells what is wrong with the lines shown to the user, or nothing when they are right: one for the notes
+// delivered, if there are any, and one for each kind of the records, each one line of single spaces with no control or
+// format character and of at most 240 characters, and every record told.
+func shownProblem(delivery auto.Delivery, delivered bool, records []auto.Record) string {
+	kinds := map[string]bool{}
+
+	for _, record := range records {
+		kinds[record.Kind] = true
+	}
+
+	want := len(kinds)
+	if delivered {
+		want++
+	}
+
+	if len(delivery.Shown) != want {
+		return fmt.Sprintf("%d kinds of record and delivered notes %v made %d lines", len(kinds), delivered, len(delivery.Shown))
 	}
 
 	for _, line := range delivery.Shown {
 		if strings.ContainsFunc(line, isLoose) || line != strings.Join(strings.Fields(line), " ") {
 			return fmt.Sprintf("the line %q is not one line of single spaces", line)
 		}
+
+		if utf8.RuneCountInString(line) > maxLine {
+			return fmt.Sprintf("the line %q is longer than %d characters", line, maxLine)
+		}
 	}
 
-	if len(delivery.Told) != records {
-		return fmt.Sprintf("%d record lines told %d records", records, len(delivery.Told))
+	if len(delivery.Told) != len(records) {
+		return fmt.Sprintf("%d records were told as %d", len(records), len(delivery.Told))
 	}
 
 	return ""

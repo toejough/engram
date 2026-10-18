@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	. "github.com/onsi/gomega"
 
@@ -45,29 +46,61 @@ func Test793d4p1c_RunAutoDeliver_ALineThatWasShownIsNotShownAgain(t *testing.T) 
 	g.Expect(filepath.Join(dir, secondFile+".told")).To(BeAnExistingFile(), "the mark of the line that was shown")
 }
 
-func Test793d4p1e_RunAutoDeliver_AtMostFiveLinesAreShownAtOnce(t *testing.T) {
+func Test793d4p1e_RunAutoDeliver_OneLineIsShownForEachKindOfRecord(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	records := t.TempDir()
 	dir := filepath.Join(records, sessionID)
+	files := make([]string, 0, 11)
 
 	for index := range 7 {
-		plantActivity(t, dir, fmt.Sprintf("2026101720322%d.000000000Z-0-written.json", index),
-			activityRecordAt(index, sessionID, auto.RecordWritten, func(r *auto.Record) {
-				r.Note = fmt.Sprintf("note-%d.md", index)
-			}))
+		name := fmt.Sprintf("2026101720322%d.000000000Z-0-written.json", index)
+		files = append(files, name)
+
+		plantActivity(t, dir, name, activityRecordAt(index, sessionID, auto.RecordWritten, func(r *auto.Record) {
+			r.Note = fmt.Sprintf("%d.2026-10-17.zorblax-note-%d.md", index+1, index)
+		}))
+	}
+
+	for index := 7; index < 9; index++ {
+		name := fmt.Sprintf("2026101720322%d.000000000Z-0-skipped.json", index)
+		files = append(files, name)
+
+		plantActivity(t, dir, name, activityRecordAt(index, sessionID, auto.RecordSkipped, func(r *auto.Record) {
+			r.Slug, r.Reason = fmt.Sprintf("lesson-%d", index), "the vault already states it"
+		}))
+	}
+
+	for index := 9; index < 11; index++ {
+		name := fmt.Sprintf("202610172032%d.000000000Z-0-failed.json", index+15)
+		files = append(files, name)
+
+		plantActivity(t, dir, name, activityRecordAt(index, sessionID, auto.RecordFailed,
+			func(r *auto.Record) { r.Reason = "the disk is full" }))
 	}
 
 	first := deliverOver(t, records, sessionID)
 	second := deliverOver(t, records, sessionID)
-	third := deliverOver(t, records, sessionID)
 
-	g.Expect(recordLines(first.shown)).To(HaveLen(5), "the lines of the first prompt")
-	g.Expect(recordLines(second.shown)).To(Equal([]string{
-		"20:32:30 wrote the note note-5.md", "20:32:31 wrote the note note-6.md",
-	}), "the lines of the second prompt")
-	g.Expect(recordLines(third.shown)).To(BeEmpty(), "the lines of the third prompt")
+	g.Expect(first.err).NotTo(HaveOccurred())
+	g.Expect(second.err).NotTo(HaveOccurred())
+
+	lines := recordLines(first.shown)
+
+	g.Expect(lines).To(HaveLen(3), "the lines of the first prompt: one for each kind")
+
+	if len(lines) == 3 {
+		g.Expect(utf8.RuneCountInString(lines[0])).To(BeNumerically("<=", 240), "the line of the written")
+		g.Expect(lines[0]).To(HavePrefix("20:32:25 wrote the notes 1.2026-10-17.zorblax-note-0.md, "))
+		g.Expect(lines[0]).To(HaveSuffix("7.2026-10-17.zorblax-note-6.md"))
+	}
+
+	g.Expect(recordLines(second.shown)).To(BeEmpty(), "the lines of the second prompt")
+
+	for _, name := range files {
+		g.Expect(filepath.Join(dir, name+".told")).To(BeAnExistingFile(), "the mark of the record "+name)
+	}
 }
 
 func Test793d4p1f_RunAutoDeliver_TheRecordsOfAnotherSessionAnUnreadableRecordAndAMissingDirectoryMakeNoLine(
@@ -117,7 +150,7 @@ func Test793d4p1f_RunAutoDeliver_TheRecordsOfAnotherSessionAnUnreadableRecordAnd
 
 	g.Expect(shown(sessionID)).To(Equal([]string{
 		"20:32:25 wrote the note a.md",
-		"20:32:29 left out the lesson staging-reset: the vault already states it",
+		"20:32:29 left out: the lesson staging-reset: the vault already states it",
 	}), "the lines of the session, oldest first")
 	g.Expect(shown(otherSessionID)).To(Equal([]string{"20:32:30 failed: the other session's failure"}),
 		"the lines of the other session")
@@ -156,6 +189,27 @@ func Test793d4p1h_RunAutoDeliver_ANoteDeliveredIsShownAsALine(t *testing.T) {
 	g.Expect(result.err).NotTo(HaveOccurred())
 	g.Expect(result.block).To(ContainSubstring("- "+resetNoteName+" ("), "the block, on standard output")
 	g.Expect(result.shown).To(Equal("delivered the note "+resetNoteName+"\n"), "what the user is shown")
+}
+
+func Test793d4p1l_Targets_TheNotesDeliveredAreOneLine(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	result := deliverWith(t, []string{"engram", "auto", "deliver", "--vault", plantTwoNotes(t), "--records", t.TempDir()},
+		t.TempDir(), nil)
+
+	g.Expect(result.block).To(ContainSubstring("- "+resetNoteName+" ("), "the block holds the first note")
+	g.Expect(result.block).To(ContainSubstring("- "+backupNoteName+" ("), "the block holds the second note")
+
+	lines := strings.Split(strings.TrimSpace(result.shown), "\n")
+
+	g.Expect(lines).To(HaveLen(1), "what the user is shown")
+
+	if len(lines) == 1 {
+		g.Expect(lines[0]).To(HavePrefix("delivered the notes "))
+		g.Expect(lines[0]).To(ContainSubstring(resetNoteName))
+		g.Expect(lines[0]).To(ContainSubstring(backupNoteName))
+	}
 }
 
 func Test793d4p1j_RunAutoDeliver_AMarkThatCannotBeWrittenDoesNotFailTheCommand(t *testing.T) {
@@ -314,7 +368,7 @@ func recordLines(shown string) []string {
 	var lines []string
 
 	for line := range strings.SplitSeq(shown, "\n") {
-		if line != "" && !strings.HasPrefix(line, "delivered the note ") {
+		if line != "" && !strings.HasPrefix(line, "delivered the note") {
 			lines = append(lines, line)
 		}
 	}

@@ -258,6 +258,62 @@ func Test793a2e1f_ATurnThatIsNotCapturedIsShownWithTheReason(t *testing.T) {
 	})
 }
 
+func Test793a2e1g_TheNotesDeliveredWithAPromptAreOneLine(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var (
+		bearing    []string
+		formatting string
+		chat       *conversation
+	)
+
+	step(t, "Given the user has run engram update, and a vault holding three notes that bear on a prompt about the "+
+		"staging database and a note about formatting Python files", func() {
+		machine.hasRunUpdate()
+
+		bearing = []string{
+			machine.learnsFact(stagingReset), machine.learnsFact(stagingBackup), machine.learnsFact(stagingRestore),
+		}
+		formatting = machine.learnsFeedback(formatPython)
+		chat = machine.startSession("zorblax").converse()
+	})
+
+	var asked *turn
+
+	step(t, "When the user sends a prompt asking what there is to know about the staging database", func() {
+		asked = chat.tell(askStagingEverything)
+	})
+
+	step(t, "Then the session shows one line that names the three notes, and no other line about the delivery", func() {
+		blocks := asked.blocks()
+
+		g.Expect(blocks).To(HaveLen(1), "the blocks delivered with the prompt")
+
+		if len(blocks) == 1 {
+			for _, note := range bearing {
+				g.Expect(blocks[0]).To(ContainSubstring(note), "the block holds the note")
+			}
+
+			g.Expect(blocks[0]).NotTo(ContainSubstring(formatting), "the block holds the note about formatting")
+		}
+
+		t.Logf("the lines shown with the prompt: %q", asked.shown)
+
+		g.Expect(asked.shown).To(HaveLen(1), "the lines shown with the prompt")
+
+		if len(asked.shown) == 1 {
+			for _, note := range bearing {
+				g.Expect(asked.shown[0]).To(ContainSubstring(note), "the line names the note")
+			}
+		}
+
+		holdNone(g, asked.shown, asked)
+	})
+}
+
 // unexported constants.
 const (
 	// askAnotherThing is a prompt that no note bears on, other than askSomethingElse.
@@ -266,6 +322,8 @@ const (
 	// same database.
 	askResetAndRememberBackup = "When is the Zorblax staging database reset? Also remember that it is backed up " +
 		"every Monday at 05:00 UTC. Reply with one short sentence."
+	// askStagingEverything is a prompt that the three notes about the staging database bear on.
+	askStagingEverything = "What is there to know about the Zorblax staging database? Reply with one short sentence."
 	// slowWrite is how long the write takes in the scenario of a write that finishes after the next prompt.
 	slowWrite = 12 * time.Second
 )

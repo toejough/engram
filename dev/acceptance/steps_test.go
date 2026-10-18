@@ -68,6 +68,14 @@ var (
 		predicate: "is reset every",
 		object:    "Sunday at 03:40 UTC",
 	}
+	// stagingRestore is a third note about the same database, which bears on the same prompt.
+	stagingRestore = fact{
+		slug:      "zorblax-staging-restore",
+		situation: "testing against the Zorblax staging database",
+		subject:   "the Zorblax staging database",
+		predicate: "is restored from the backup with",
+		object:    "the make zorblax-restore command",
+	}
 )
 
 // fact is a note of the vault that states one thing.
