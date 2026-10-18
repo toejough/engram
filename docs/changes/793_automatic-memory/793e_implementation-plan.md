@@ -54,8 +54,8 @@ The groups, in the order of the catalog ([793b28 Depth-first order](./793b_decis
 | [793e6a On after update, and memory arrives with the prompt](#793e6a-on-after-update-and-memory-arrives-with-the-prompt) | [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update), [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) and the 8-second hold of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) | none | Complete |
 | [793e6b Lessons are written without the agent](#793e6b-lessons-are-written-without-the-agent) | [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), and the clause of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) about its own sessions ([793b58 The first group delivers for every origin of a prompt](./793b_decision-log.md#793b58-the-first-group-delivers-for-every-origin-of-a-prompt)) | [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later), [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again), [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working) | Complete |
 | [793e6g The fixes of the review round of the second group](#793e6g-the-fixes-of-the-review-round-of-the-second-group) | the defects the second group's one review round found in [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), its interactions and its technical requirements | none | Complete |
-| [793e6e The conversation becomes searchable memory](#793e6e-the-conversation-becomes-searchable-memory) | [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) | none | Ready |
-| [793e6c Never in the way](#793e6c-never-in-the-way) | the rest of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), without the clause about its own sessions | none | Blocked by: [793e6e The conversation becomes searchable memory](#793e6e-the-conversation-becomes-searchable-memory) |
+| [793e6e The conversation becomes searchable memory](#793e6e-the-conversation-becomes-searchable-memory) | [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) | none | Complete |
+| [793e6c Never in the way](#793e6c-never-in-the-way) | the rest of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), without the clause about its own sessions | none | Ready |
 | [793e6d The user can see what it did](#793e6d-the-user-can-see-what-it-did) | [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) | none | Blocked by: [793e6c Never in the way](#793e6c-never-in-the-way) |
 | [793e6f The delivery merges the parent vault](#793e6f-the-delivery-merges-the-parent-vault) | the clause of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) that the [notes](../../GLOSSARY.md#permanent-note) are those `engram query` returns, for a [vault](../../GLOSSARY.md#vault) that has a parent ([793c34 Does the delivery merge the parent vault, as `engram query` does?](./793c_open-questions.md#793c34-does-the-delivery-merge-the-parent-vault-as-engram-query-does)) | none | Blocked by: [793e6d The user can see what it did](#793e6d-the-user-can-see-what-it-did) |
 
@@ -105,8 +105,8 @@ flowchart TD
     n793e6b2 --> n793e6g19[793e6g19 A request to remember is written, whatever the agent says about saving it<br/>Complete]
     n793e6g14 --> n793e6g19
     n793e6g17 --> n793e6g19
-    n793e6g12 --> n793e6e1[793e6e1 The conversation so far is findable after a turn<br/>Ready]
-    n793e6a6 --> n793e6c[793e6c Never in the way<br/>Blocked by: 793e6e1]
+    n793e6g12 --> n793e6e1[793e6e1 The conversation so far is findable after a turn<br/>Complete]
+    n793e6a6 --> n793e6c[793e6c Never in the way<br/>Ready]
     n793e6g12 --> n793e6c
     n793e6g10 --> n793e6d[793e6d The user can see what it did<br/>Blocked by: 793e6c]
     n793e6a2 --> n793e6f[793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d]
@@ -114,9 +114,9 @@ flowchart TD
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
     classDef blocked fill:#eeeeee,stroke:#757575,color:#000,stroke-dasharray:5 5
-    class n793e6a1,n793e6a2,n793e6a3,n793e6a4,n793e6a5,n793e6a6,n793e6a7,n793e6a8,n793e6a9,n793e6a10,n793e6a11,n793e6a12,n793e6b1,n793e6b2,n793e6b3,n793e6b4,n793e6b5,n793e6b6,n793e6b7,n793e6b8,n793e6b9,n793e6b10,n793e6b11,n793e6b12,n793e6b13,n793e6b14,n793e6b15,n793e6g1,n793e6g2,n793e6g3,n793e6g4,n793e6g5,n793e6g6,n793e6g7,n793e6g8,n793e6g9,n793e6g10,n793e6g11,n793e6g12,n793e6g13,n793e6g14,n793e6g15,n793e6g16,n793e6g17,n793e6g18,n793e6g19 complete
-    class n793e6e1 ready
-    class n793e6c,n793e6d,n793e6f blocked
+    class n793e6a1,n793e6a2,n793e6a3,n793e6a4,n793e6a5,n793e6a6,n793e6a7,n793e6a8,n793e6a9,n793e6a10,n793e6a11,n793e6a12,n793e6b1,n793e6b2,n793e6b3,n793e6b4,n793e6b5,n793e6b6,n793e6b7,n793e6b8,n793e6b9,n793e6b10,n793e6b11,n793e6b12,n793e6b13,n793e6b14,n793e6b15,n793e6g1,n793e6g2,n793e6g3,n793e6g4,n793e6g5,n793e6g6,n793e6g7,n793e6g8,n793e6g9,n793e6g10,n793e6g11,n793e6g12,n793e6g13,n793e6g14,n793e6g15,n793e6g16,n793e6g17,n793e6g18,n793e6g19,n793e6e1 complete
+    class n793e6c ready
+    class n793e6d,n793e6f blocked
 ```
 
 Colour follows the status: green `Complete`, blue `Ready`, dashed grey `Blocked by`, yellow `In progress` (none now). A group is `Blocked by` the previous group of the order of [793e4 Depth-first order](#793e4-depth-first-order), which adds no arrow: the order is the rule that a later group needs the previous group's committed result.
@@ -620,18 +620,18 @@ One node for the scenario of [793a2f The conversation becomes searchable memory]
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2f1a | Dedicated example, product acceptance (`network`) | the [agent](./793a_product-spec.md#793a1a-terms) may not run `engram` commands, so the indexing is [automatic memory](./793a_product-spec.md#793a1a-terms)'s; the test asks `engram query` as the user does, and measures the time from the end of the [turn](./793a_product-spec.md#793a1a-terms) to the chunk | | Done | | 80d53086 | |
-| 793d4n1a | Injected and impure interaction (`imptest`) | the index is an injected function: the record's path alone, as an explicit [transcript](../../GLOSSARY.md#transcript), is the evidence | | Done | f6802712 | 904f4a38 | |
-| 793d4n1b | Dedicated example | a [session](../../GLOSSARY.md#session) with no record, and none at all, fail naming the session and the directory | | Done | f6802712 | 904f4a38 | |
-| 793d4n1c | Dedicated example | the origins that are swept nothing, and the headless one with and without the flag | | Done | f6802712 | 904f4a38 | |
-| 793d4n1d | Dedicated example | the failure branches: an index that fails and an input that is not a JSON object | | Done | f6802712 | 904f4a38 | |
-| 793d4e1d | Dedicated example | the first-use step is in the target's wiring, so only a dispatch through `cli.Targets` shows whether it runs | | Done | f6802712 | 904f4a38 | |
-| 793d2c1a | Dedicated example, real dependency (`integration`) | the stand-in host does not answer the judgement until the driver lets it, which a live [session](../../GLOSSARY.md#session) cannot show | | Done | 57e25307 | 80d53086 | |
-| 793d2c1b | Dedicated example, real dependency (`integration`) | a failing and an ended sweep are reported to the writing as failures naming the sweep | | Done | 57e25307 | 80d53086 | |
-| 793d2c1c | Dedicated example, real dependency (`integration`) | the bounds of the sweep and of the call for the ID, with the timers of the stand-in fired at once | | Done | 57e25307 | 80d53086 | |
-| 793d2c1d | Dedicated example, real dependency (`integration`) | a turn a [subagent](../../GLOSSARY.md#subagent) ran is not swept | | Done | n/a | 57e25307 | |
-| 793d4n1e | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the real `engram` ended with a kill while it embeds: inherited behaviour of the ingest; passed when written; mutation (scratch copy): a lock that a kill leaves behind fails it | | Done | n/a | fdb9bace | |
-| 793d4n1f | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | two real sweeps at once: the lost update of #660; passed when written; mutations (scratch copies): no lock, and a lock that a kill leaves behind, fail it | | Done | n/a | fdb9bace | |
+| 793a2f1a | Dedicated example, product acceptance (`network`) | the [agent](./793a_product-spec.md#793a1a-terms) may not run `engram` commands, so the indexing is [automatic memory](./793a_product-spec.md#793a1a-terms)'s; the test asks `engram query` as the user does, and measures the time from the end of the [turn](./793a_product-spec.md#793a1a-terms) to the chunk (0.3 to 1.9 seconds in 3 runs); the message of the red commit names the second thing, and the query that failed was for the first | 3 of 3 | Done | 4ce8cfb0 | 80d53086 | 44e62c88 |
+| 793d4n1a | Injected and impure interaction (`imptest`) | the index is an injected function: the record's path alone, as an explicit [transcript](../../GLOSSARY.md#transcript), is the evidence | | Done | f6802712 | 904f4a38 | 7804b4d1 |
+| 793d4n1b | Dedicated example | a [session](../../GLOSSARY.md#session) with no record, and none at all, fail naming the session and the directory | | Done | f6802712 | 904f4a38 | 7804b4d1 |
+| 793d4n1c | Dedicated example | the origins that are swept nothing, and the headless one with and without the flag | | Done | f6802712 | 904f4a38 | 7804b4d1 |
+| 793d4n1d | Dedicated example | the failure branches: an index that fails and an input that is not a JSON object | | Done | f6802712 | 904f4a38 | 7804b4d1 |
+| 793d4e1d | Dedicated example | the first-use step is in the target's wiring, so only a dispatch through `cli.Targets` shows whether it runs | | Done | f6802712 | 904f4a38 | 7804b4d1 |
+| 793d2c1a | Dedicated example, real dependency (`integration`) | the stand-in host does not answer the judgement until the driver lets it, which a live [session](../../GLOSSARY.md#session) cannot show | | Done | 57e25307 | 80d53086 | 660ae8d5 |
+| 793d2c1b | Dedicated example, real dependency (`integration`) | a failing and an ended sweep are reported to the writing as failures naming the sweep | | Done | 57e25307 | 80d53086 | 660ae8d5 |
+| 793d2c1c | Dedicated example, real dependency (`integration`) | the bounds of the sweep and of the call for the ID, with the timers of the stand-in fired at once | | Done | 57e25307 | 80d53086 | 660ae8d5 |
+| 793d2c1d | Dedicated example, real dependency (`integration`) | a turn a [subagent](../../GLOSSARY.md#subagent) ran is not swept | | Done | n/a | 57e25307 | 660ae8d5 |
+| 793d4n1e | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the real `engram` ended with a kill while it embeds: inherited behaviour of the ingest; passed when written; mutation (scratch copy): a lock that a kill leaves behind fails it | | Done | n/a | fdb9bace | 44e62c88 |
+| 793d4n1f | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | two real sweeps at once: the lost update of #660; passed when written; mutations (scratch copies): no lock, and a lock that a kill leaves behind, fail it | | Done | n/a | fdb9bace | 44e62c88 |
 
 ### 793e6c Never in the way
 
