@@ -188,7 +188,7 @@ The two hypotheses of the gates are about the host, and the mod of this change d
 
 ## 855b47 Rewritten, adapted and deleted tests of 793
 
-A replaced scenario of 793 keeps the name of its test; the test is rewritten in place, and its red is the rewrite failing against the code before it. A scenario of 793 that stays but whose test only gives the command new input has a work row that names the tests and the mutation that fails them, and no red of its own. The test of a removed scenario is deleted in a commit of its own. Rejected: new names for replaced tests, which the conformance check and the history key on the ID. Decided by: Author (default; owner may override).
+A replaced scenario of 793 keeps its ID in the name of its test: the conformance check looks for a function named `Test<ID>_...`, so the suffix may change, and does where it now says the opposite (`Test793a2d1a_...MoreThan8Seconds` and `Test793d2a1d_...ASlowCommandIsEnded...`). The test is rewritten in place, and its red is the rewrite failing against the code before it; a rewrite that passes against that code has `n/a` for its red and states the mutation that fails it. A scenario of 793 that stays but whose test only gives the command new input has a work row that names the tests and the mutation that fails them, and no red of its own. The test of a removed scenario is deleted in a commit of its own. Rejected: new IDs for replaced tests, which the history keys on. Decided by: Author (default; owner may override).
 
 ## 855b48 A measurement row asserts a record and its bound
 
