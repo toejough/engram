@@ -49,8 +49,56 @@ func Test793a2d1c_TheWorkAfterATurnDoesNotHoldTheNextPrompt(t *testing.T) {
 		})
 }
 
+func Test793a2d1d_ThePromptAndTheReplyAreAsTheyWere(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var (
+		chat    *conversation
+		written string
+	)
+
+	step(t, "Given the user has run engram update, and a session in which the user's correction became a note",
+		func() {
+			machine.hasRunUpdate()
+
+			chat = machine.startSession("zorblax").converse()
+			chat.tell(askHowToBuild)
+			chat.tell(correctTheBuild)
+
+			written = machine.awaitAutomaticNote(chat.turnEnds, "that states the correction", buildTarget)
+
+			kinds := machine.awaitRecords(chat.session.id, chat.turnEnds, 2)
+			g.Expect(kinds[len(kinds)-1]).To(Equal("written"), "what became of the correction")
+		})
+
+	var asked *turn
+
+	step(t, "When the user sends a prompt that the note bears on, typed with extra spaces and a line break", func() {
+		asked = chat.tell(askHowToBuildSpaced)
+	})
+
+	step(t, "Then the prompt in the conversation is exactly as the user typed it, and the reply is exactly the "+
+		"agent's text", func() {
+		g.Expect(asked.blocks()).To(ConsistOf(ContainSubstring(written)), "the note arrived with the prompt")
+
+		text, isPrompt := asked.rows[0].promptText()
+		g.Expect(isPrompt).To(BeTrue())
+		g.Expect(text).To(Equal(askHowToBuildSpaced), "the prompt in the conversation")
+
+		g.Expect(asked.reply).NotTo(BeEmpty(), "the agent answered")
+		g.Expect(asked.finalText()).To(Equal(asked.reply), "the agent's text in the conversation, and the reply")
+		g.Expect(chat.shownByTheMod()).To(BeEmpty(), "what the mod showed beneath a reply")
+	})
+}
+
 // unexported constants.
 const (
+	// askHowToBuildSpaced is askHowToBuild typed with extra spaces and a line break, which nothing has a reason to
+	// change.
+	askHowToBuildSpaced = "How  do I build   the Zorblax project?\nAnswer in one line."
 	// askSomethingElse is a prompt that no note bears on.
 	askSomethingElse = "What is 17 plus 25? Reply with the number only."
 	// jobStartWait is how long the work after a turn has to start.

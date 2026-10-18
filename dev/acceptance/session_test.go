@@ -66,6 +66,9 @@ type conversation struct {
 	results  chan string // the line of each result the process prints, one for each prompt it has answered
 	ended    sync.Once
 	turnEnds time.Time // when the process printed the result of the last prompt it answered: the turn ended
+
+	noticesLock sync.Mutex
+	notices     []string // the text of each notice the process printed that a mod showed beneath a reply
 }
 
 // awaitTurnOfItsOwn waits for the result of a turn that no prompt of the test began, such as the turn that the
@@ -104,22 +107,52 @@ func (c *conversation) end(stderr string) {
 	})
 }
 
-// readResults sends the line of each result event that the process prints to the results channel.
+// readResults sends the line of each result event that the process prints to the results channel, and keeps the text of
+// each notice that the host prints for a mod: a mod that changes the text of a reply has the host show its text beneath
+// the reply as a notice.
 func (c *conversation) readResults(stdout io.Reader) {
 	scanner := bufio.NewScanner(stdout)
 	scanner.Buffer(nil, maxLineBytes)
 
 	for scanner.Scan() {
 		var event struct {
-			Type string `json:"type"`
+			Type    string `json:"type"`
+			Subtype string `json:"subtype"`
+			Content string `json:"content"`
 		}
 
-		if json.Unmarshal(scanner.Bytes(), &event) == nil && event.Type == "result" {
+		if json.Unmarshal(scanner.Bytes(), &event) != nil {
+			continue
+		}
+
+		switch {
+		case event.Type == "result":
 			c.results <- scanner.Text()
+		case event.Type == "system" && event.Subtype == "informational":
+			c.noticesLock.Lock()
+			c.notices = append(c.notices, event.Content)
+			c.noticesLock.Unlock()
 		}
 	}
 
 	close(c.results)
+}
+
+// shownByTheMod returns the notices the host printed for automatic memory's mod, such as the text it changed a reply
+// to.
+func (c *conversation) shownByTheMod() []string {
+	c.noticesLock.Lock()
+	defer c.noticesLock.Unlock()
+
+	var shown []string
+
+	for _, notice := range c.notices {
+		if strings.Contains(notice, modName) {
+			shown = append(shown, notice)
+		}
+	}
+
+	return shown
 }
 
 // say sends one prompt to the running session and returns what the session's record holds of it once the model has
@@ -625,6 +658,38 @@ func (t *turn) contexts() []string {
 	}
 
 	return entries
+}
+
+// finalText returns the text of the last row of the agent in the turn: what the agent said last.
+func (t *turn) finalText() string {
+	for _, row := range slices.Backward(t.rows) {
+		if row.Type != "assistant" {
+			continue
+		}
+
+		var blocks []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		}
+
+		if json.Unmarshal(row.Message.Content, &blocks) != nil {
+			continue
+		}
+
+		var texts []string
+
+		for _, block := range blocks {
+			if block.Type == "text" {
+				texts = append(texts, block.Text)
+			}
+		}
+
+		if len(texts) > 0 {
+			return strings.Join(texts, "\n")
+		}
+	}
+
+	return ""
 }
 
 // hold returns how long the prompt waited before the model was asked: from the prompt's own row to the first request

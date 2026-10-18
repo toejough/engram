@@ -655,7 +655,7 @@ Adds no component: the mod gives the [prompt](./793a_product-spec.md#793a1a-term
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2d1d | Dedicated example, product acceptance (`network`) | a judgement row, as the [note](../../GLOSSARY.md#permanent-note) is the model's; the reply is compared with the result of the run | | Not started | | | |
+| 793a2d1d | Dedicated example, product acceptance (`network`) | a judgement row, as the [note](../../GLOSSARY.md#permanent-note) is the model's; the reply in the record is compared with the result of the run, and a text that a mod has the host show beneath a reply, which the host prints as a notice, fails it; passed when written; mutations (scratch copies): a mod that appends to the prompt, and one that appends to the reply, each fail it | | Green-all | n/a | | |
 
 #### 793e6c3 A write that fails does not break the session
 
