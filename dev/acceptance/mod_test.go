@@ -102,34 +102,38 @@ func Test793d2a1c_Mod_AnEmptyOutputAddsNothing(t *testing.T) {
 		})
 }
 
-func Test793d2a1d_Mod_ASlowCommandIsEndedAndThePromptContinues(t *testing.T) {
+func Test793d2a1d_Mod_ASlowJudgementIsWaitedFor(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 	machine := newMachine(t)
 
-	step(t, "Given a session with the mod installed, and an engram whose auto deliver takes 20 seconds", func() {
+	step(t, "Given a session with the mod installed, and an engram whose auto moment, auto phrases and auto recall "+
+		"print a request each and whose auto deliver prints a block, the first of them after 20 seconds", func() {
 		machine.hasClaudeCode()
 		machine.hasMod()
-		machine.hasStandInEngram(standInBlock, slowLookup, 0)
+		machine.hasStandInEngram(standInBlock, 0, 0)
+		machine.standInSays("moment", standInRequest, slowJudgement)
+		machine.standInSays("phrases", standInRequest, 0)
+		machine.standInSays("recall", standInRequest, 0)
 	})
 
 	var sent *turn
 
 	step(t, "When a prompt is sent", func() {
-		sent = machine.startSession("a-project").sendOffline()
+		sent = machine.startSession("a-project").send(promptHello)
 		t.Logf("the prompt waited %s", sent.hold())
 	})
 
-	step(t, "Then the model is asked within 8 seconds of the prompt, with the prompt exactly as sent and no context "+
-		"beside it, and the mod's hook did not fail", func() {
-		g.Expect(sent.hold()).To(BeNumerically("<", holdLimit), "how long the prompt waited")
+	step(t, "Then the session holds the prompt exactly as sent and then the block as context, after the 20 seconds, "+
+		"and the mod's hook did not fail", func() {
+		g.Expect(sent.hold()).To(BeNumerically(">=", slowJudgement), "how long the prompt waited")
 
 		text, isPrompt := sent.rows[0].promptText()
 		g.Expect(isPrompt).To(BeTrue())
 		g.Expect(text).To(Equal(promptHello))
 
-		g.Expect(sent.contexts()).To(BeEmpty(), "context beside the prompt")
+		g.Expect(sent.blocks()).To(Equal([]string{strings.TrimSpace(standInBlock)}))
 		g.Expect(machine.hookFailures()).To(BeEmpty(), "the mod's hook was skipped")
 	})
 }
@@ -269,6 +273,10 @@ const (
 	promptHello = "hello there"
 	// standInBlock is what the stand-in engram prints for any prompt.
 	standInBlock = "[engram memory] A block from a stand-in engram.\n- a.md (s): b\n"
+	// standInRequest is what the stand-in engram prints for a step of the chain that needs a judgement: a request that a
+	// real model answers in a word, and a carry.
+	standInRequest = `{"request":{"model":"haiku","system":"Reply with the single word ok.","prompt":"ok","maxTokens":16},` +
+		`"carry":{"cue":"prompt","depth":"glance","window":"w"}}` + "\n"
 	// standInNotABlock is what an engram that does not know the command prints: not a block.
 	standInNotABlock = "Unknown command: auto\nusage: engram <command> [flags]\n"
 )

@@ -37,8 +37,6 @@ const (
 	// askStagingReset is a prompt that the stagingReset note answers. The Zorblax staging database is made up, so
 	// the agent cannot know the answer without the note.
 	askStagingReset = "When is the Zorblax staging database reset?"
-	// askStagingResetDay is another prompt that the stagingReset note answers.
-	askStagingResetDay = "What day of the week is the Zorblax staging database reset on?"
 	// askThanks is a prompt that is no recall moment, and that the stagingReset note shares words with (855a3b1a).
 	askThanks = "Thanks, that settles when the Zorblax staging database is reset."
 	// captureBound is how long after a turn ends the vault must hold the notes of its lessons (793a2c).
@@ -377,8 +375,10 @@ func (m *machine) hasRunUpdate(agentMayRun ...string) {
 
 // hasStandInEngram puts a stand-in for engram first on the machine's PATH: for the delivery it records its arguments
 // and standard input, waits as long as it is told to, prints the text it is given and exits with the status it is
-// given; for the writing it notes that it was run; for any other command it reads its input and exits with 0, so that
-// what the mod reports or does after a turn replaces nothing the delivery recorded.
+// given; for the writing it notes that it was run; for the steps of the chain before the delivery (moment, phrases and
+// recall) it records its standard input, and prints and waits as standInSays and standInWaits say, nothing by default,
+// so that the chain ends at the delivery; for any other command it reads its input and exits with 0, so that what the
+// mod reports or does after a turn replaces nothing the delivery recorded.
 func (m *machine) hasStandInEngram(block string, wait time.Duration, status int) {
 	m.t.Helper()
 
@@ -386,10 +386,11 @@ func (m *machine) hasStandInEngram(block string, wait time.Duration, status int)
 	mkdirAll(m.t, dir)
 	writeFile(m.t, filepath.Join(dir, "block"), block)
 
-	script := "#!/bin/sh\ncase \"$1 $2\" in\n\"auto deliver\")\nprintf '%s\\n' \"$*\" > '" + filepath.Join(dir, "args") +
-		"'\ncat > '" + filepath.Join(dir, "stdin") + "'\nsleep " + strconv.Itoa(int(wait.Seconds())) + "\ncat '" +
-		filepath.Join(dir, "block") + "'\nexit " + strconv.Itoa(status) + "\n;;\n\"auto write\")\ncat > '" +
-		filepath.Join(dir, "write") + "'\nexit 0\n;;\nesac\ncat > /dev/null\nexit 0\n"
+	script := "#!/bin/sh\nd='" + dir + "'\ncase \"$1 $2\" in\n\"auto deliver\")\nprintf '%s\\n' \"$*\" > \"$d/args\"\n" +
+		"cat > \"$d/stdin\"\nsleep " + strconv.Itoa(int(wait.Seconds())) + "\ncat \"$d/block\"\nexit " + strconv.Itoa(status) +
+		"\n;;\n\"auto write\")\ncat > \"$d/write\"\nexit 0\n;;\n\"auto moment\"|\"auto phrases\"|\"auto recall\")\n" +
+		"cat > \"$d/$2.stdin\"\nif [ -e \"$d/$2.wait\" ]; then sleep \"$(cat \"$d/$2.wait\")\"; fi\n" +
+		"if [ -e \"$d/$2.out\" ]; then cat \"$d/$2.out\"; fi\nexit 0\n;;\nesac\ncat > /dev/null\nexit 0\n"
 	path := filepath.Join(m.gobin, engramBinaryName)
 
 	mkdirAll(m.t, m.gobin)
@@ -399,6 +400,16 @@ func (m *machine) hasStandInEngram(block string, wait time.Duration, status int)
 	if err != nil {
 		m.t.Fatalf("making the stand-in executable: %v", err)
 	}
+}
+
+// standInSays makes the stand-in engram print the text for a step of the chain before the delivery (moment, phrases or
+// recall), after it has waited for the time given.
+func (m *machine) standInSays(step, text string, wait time.Duration) {
+	m.t.Helper()
+
+	dir := filepath.Join(m.root, "stand-in")
+	writeFile(m.t, filepath.Join(dir, step+".out"), text)
+	writeFile(m.t, filepath.Join(dir, step+".wait"), strconv.Itoa(int(wait.Seconds())))
 }
 
 // hasVault reports whether a vault exists at the machine's vault path.
@@ -715,7 +726,7 @@ func (m *machine) sessionsRecorded() []string {
 
 // standInCalled returns the arguments and the request, the JSON object on standard input, that the stand-in engram was
 // run with.
-func (m *machine) standInCalled() (string, map[string]string) {
+func (m *machine) standInCalled() (string, map[string]any) {
 	m.t.Helper()
 
 	args, argsErr := os.ReadFile(filepath.Join(m.root, "stand-in", "args"))
@@ -725,7 +736,7 @@ func (m *machine) standInCalled() (string, map[string]string) {
 		m.t.Fatalf("the stand-in engram was never run (%v, %v)\n%s", argsErr, stdinErr, m.hookLog())
 	}
 
-	request := map[string]string{}
+	request := map[string]any{}
 
 	err := json.Unmarshal(stdin, &request)
 	if err != nil {

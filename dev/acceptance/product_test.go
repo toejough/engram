@@ -401,6 +401,4 @@ const (
 	holdLimit = 8 * time.Second
 	// slowJudgement is a judgement that takes longer than the hold of 793 did.
 	slowJudgement = 20 * time.Second
-	// slowLookup is a lookup that takes longer than the hold.
-	slowLookup = 20 * time.Second
 )

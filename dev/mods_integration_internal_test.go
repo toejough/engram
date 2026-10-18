@@ -32,7 +32,7 @@ func Test793d2a1c_Mod_ADeliveryThatPrintsNothingIsNotAFailure(t *testing.T) {
 	g.Expect(outcome.Passed.Context).To(BeEmpty(), "nothing is added")
 	g.Expect(outcome.Logged).To(BeEmpty(), "the lines the user was shown")
 	g.Expect(outcome.reports()).To(BeEmpty(), "the reports to the writing")
-	g.Expect(outcome.Calls).To(HaveLen(1), "the commands the mod ran: the delivery")
+	g.Expect(outcome.Calls).To(HaveLen(2), "the commands the mod ran: the moment, which prints nothing, and the delivery")
 }
 
 // Test793d2a1f_Mod_TextThatIsNotABlockIsNotAFailure runs the mod under node against a stand-in host that records every
@@ -50,7 +50,7 @@ func Test793d2a1f_Mod_TextThatIsNotABlockIsNotAFailure(t *testing.T) {
 	g.Expect(outcome.Passed.Context).To(BeEmpty(), "nothing is added")
 	g.Expect(outcome.Logged).To(BeEmpty(), "the lines the user was shown")
 	g.Expect(outcome.reports()).To(BeEmpty(), "the reports to the writing")
-	g.Expect(outcome.Calls).To(HaveLen(1), "the commands the mod ran: the delivery")
+	g.Expect(outcome.Calls).To(HaveLen(2), "the commands the mod ran: the moment, which prints nothing, and the delivery")
 }
 
 // Test793d2a1g_Mod_ASessionThatDoesNotGiveItsIDInTimeDoesNotHoldThePrompt runs the mod under node against a stand-in
@@ -103,7 +103,7 @@ func Test793d2a1g_Mod_ASessionThatDoesNotGiveItsIDInTimeDoesNotHoldThePrompt(t *
 	g.Expect(json.Unmarshal(out, &outcome)).To(Succeed(), "the driver printed %q", out)
 	g.Expect(outcome.Passed.Text).To(Equal("hello"), "the prompt goes on as it was")
 	g.Expect(outcome.Passed.Context).To(BeEmpty(), "nothing is added")
-	g.Expect(outcome.Delays).To(Equal([]int{7000}), "the one timer the mod asked for, in milliseconds")
+	g.Expect(outcome.Delays).To(Equal([]int{5000}), "the one timer the mod asked for, in milliseconds")
 	g.Expect(outcome.Ran).To(BeZero(), "the command was run")
 }
 
@@ -120,7 +120,7 @@ func Test793d2a1i_Mod_ACommandThatFailsIsReportedToTheWriting(t *testing.T) {
 
 	g.Expect(outcome.Passed.Text).To(Equal("hello"), "the prompt goes on as it was")
 	g.Expect(outcome.Passed.Context).To(BeEmpty(), "nothing is added")
-	g.Expect(outcome.Settle.Commands).To(Equal(1), "the commands the hook had run when it settled: the delivery")
+	g.Expect(outcome.Settle.Commands).To(Equal(2), "the commands the hook had run when it settled: the moment and the delivery")
 	g.Expect(outcome.Settle.InFlight).To(BeZero(), "the calls in flight when the hook settled")
 	g.Expect(outcome.Logged).To(BeEmpty(), "the lines the user was shown")
 
@@ -139,20 +139,23 @@ func Test793d2a1i_Mod_ACommandThatFailsIsReportedToTheWriting(t *testing.T) {
 }
 
 // Test793d2a1j_Mod_ADeliveryThatDoesNotFinishWithinItsBoundIsReportedToTheWriting runs the mod under node against a
-// stand-in host whose delivery runs until its time limit and whose timers fire at once: a live session cannot be made
-// to pass the bound without waiting for it.
+// stand-in host whose model call never settles unless its signal aborts it, and whose timers fire at once: a live
+// session cannot be made to pass the bound without waiting for it.
 func Test793d2a1j_Mod_ADeliveryThatDoesNotFinishWithinItsBoundIsReportedToTheWriting(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	outcome := runDeliveryDriver(t, deliveryScenario{Stalls: true})
+	outcome := runDeliveryDriver(t, deliveryScenario{
+		Steps: map[string]map[string]any{"moment": {"exitCode": 0, "stdout": aStep(1)}}, ModelNeverSettles: true,
+		FastTimers: true,
+	})
 
 	g.Expect(outcome.Passed.Text).To(Equal("hello"), "the prompt goes on as it was")
 	g.Expect(outcome.Passed.Context).To(BeEmpty(), "nothing is added")
-	g.Expect(outcome.Delays).To(Equal([]int{7000}), "the one timer the mod asked for, in milliseconds")
-	g.Expect(outcome.Settle.Commands).To(Equal(1), "the commands the hook had run when it settled: the delivery")
-	g.Expect(outcome.limitOf("engram auto deliver")).To(BeNumerically("==", 7000), "the time limit of the delivery")
+	g.Expect(outcome.Delays).To(ContainElement(120000), "the timer that aborts the call, in milliseconds")
+	g.Expect(outcome.modelCalls()).To(HaveLen(1), "the model was asked once")
+	g.Expect(outcome.Settle.InFlight).To(BeZero(), "the calls in flight when the hook settled")
 	g.Expect(outcome.Logged).To(BeEmpty(), "the lines the user was shown")
 
 	reports := outcome.reports()
@@ -166,7 +169,7 @@ func Test793d2a1j_Mod_ADeliveryThatDoesNotFinishWithinItsBoundIsReportedToTheWri
 	g.Expect(reports[0]).To(HaveKeyWithValue("session", "a-session"))
 	g.Expect(reports[0]).To(HaveKeyWithValue("turn", ""))
 	g.Expect(reports[0]["failure"]).To(And(ContainSubstring("the delivery for a prompt could not be done"),
-		ContainSubstring("7000 ms")), "the failure")
+		ContainSubstring("2 minutes")), "the failure")
 }
 
 // Test793d2a1k_Mod_TheLinesTheCommandPrintsForTheUserAreShownThroughTheHostsLogAndAreNotAddedToTheContext runs the mod
@@ -700,6 +703,173 @@ func Test793d2c1f_Mod_ASweepThatGaveUpBeforeIsNotReportedAgain(t *testing.T) {
 	g.Expect(outcome.reports()).To(BeEmpty(), "the reports to the writing")
 }
 
+// Test855d2a1a_Mod_TheStepsRunInOrderEachGivenTheReplyAndTheCarryBefore runs the mod under node against a stand-in host
+// that records every command the mod runs and every request it asks the model for, in order.
+func Test855d2a1a_Mod_TheStepsRunInOrderEachGivenTheReplyAndTheCarryBefore(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runDeliveryDriver(t, deliveryScenario{
+		Steps: map[string]map[string]any{
+			"moment":  {"exitCode": 0, "stdout": aStep(1)},
+			"phrases": {"exitCode": 0, "stdout": aStep(2)},
+			"recall":  {"exitCode": 0, "stdout": aStep(3)},
+		},
+		Deliver: map[string]any{"exitCode": 0, "stdout": "[engram memory] The lines below are notes.\n- a.md (s): b\n"},
+		Replies: []string{"reply 1", "reply 2", "reply 3"},
+	})
+
+	g.Expect(outcome.Passed.Text).To(Equal("hello"), "the prompt goes on as it was")
+	g.Expect(outcome.Passed.Context).To(Equal([]string{"[engram memory] The lines below are notes.\n- a.md (s): b"}),
+		"the block, as context")
+	g.Expect(outcome.reports()).To(BeEmpty(), "the reports to the writing")
+	g.Expect(outcome.order()).To(Equal([]string{
+		"engram auto moment", "model", "engram auto phrases", "model", "engram auto recall", "model",
+		"engram auto deliver",
+	}), "the steps and the model's calls, in order")
+
+	if len(outcome.Calls) != 7 {
+		return
+	}
+
+	base := map[string]any{"session": "a-session", "origin": "composer", "cue": "prompt", "held": []any{}}
+	input := func(extra map[string]any) map[string]any {
+		fields := map[string]any{}
+		for key, value := range base {
+			fields[key] = value
+		}
+
+		for key, value := range extra {
+			fields[key] = value
+		}
+
+		return fields
+	}
+
+	g.Expect(outcome.Calls[0].Input).To(Equal(input(map[string]any{"text": "hello"})))
+	g.Expect(outcome.Calls[1].Asked).To(Equal(requestOfStep(1)), "the request, exactly as the step printed it")
+	g.Expect(outcome.Calls[1].Asked).NotTo(HaveKey("timeoutMs"), "no time limit in the request")
+	g.Expect(outcome.Calls[1].Signal).To(BeTrue(), "the call can be aborted")
+	g.Expect(outcome.Calls[2].Input).To(Equal(input(map[string]any{"reply": "reply 1", "carry": carryOfStep(1)})))
+	g.Expect(outcome.Calls[3].Asked).To(Equal(requestOfStep(2)))
+	g.Expect(outcome.Calls[4].Input).To(Equal(input(map[string]any{"reply": "reply 2", "carry": carryOfStep(2)})))
+	g.Expect(outcome.Calls[5].Asked).To(Equal(requestOfStep(3)))
+	g.Expect(outcome.Calls[6].Input).To(Equal(input(map[string]any{
+		"text": "hello", "reply": "reply 3", "carry": carryOfStep(3),
+	})))
+	g.Expect(outcome.limitOf("engram auto moment")).To(BeNumerically("==", 120000), "the time limit of a step")
+	g.Expect(outcome.limitOf("engram auto phrases")).To(BeNumerically("==", 120000))
+	g.Expect(outcome.limitOf("engram auto recall")).To(BeNumerically("==", 120000))
+	g.Expect(outcome.limitOf("engram auto deliver")).To(BeNumerically("==", 120000))
+	g.Expect(outcome.Delays).To(ContainElements(5000, 120000), "the bounds of the call for the ID and of a wait")
+}
+
+// Test855d2a1b_Mod_AStepThatPrintsNothingLeavesTheLinesToTheDelivery runs the mod under node against a stand-in host
+// whose delivery prints a line and no block, and whose steps print nothing in turn.
+func Test855d2a1b_Mod_AStepThatPrintsNothingLeavesTheLinesToTheDelivery(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		steps map[string]map[string]any
+		asked int
+		order []string
+	}{
+		"the moment prints nothing": {
+			steps: map[string]map[string]any{"moment": {"exitCode": 0, "stdout": ""}},
+			asked: 0, order: []string{"engram auto moment", "engram auto deliver"},
+		},
+		"the phrases print nothing after a moment request": {
+			steps: map[string]map[string]any{
+				"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": ""},
+			},
+			asked: 1, order: []string{
+				"engram auto moment", "model", "engram auto phrases", "engram auto deliver",
+			},
+		},
+		"the recall prints nothing after the two requests": {
+			steps: map[string]map[string]any{
+				"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": aStep(2)},
+				"recall": {"exitCode": 0, "stdout": ""},
+			},
+			asked: 2, order: []string{
+				"engram auto moment", "model", "engram auto phrases", "model", "engram auto recall", "engram auto deliver",
+			},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			outcome := runDeliveryDriver(t, deliveryScenario{
+				Steps:   test.steps,
+				Deliver: map[string]any{"exitCode": 0, "stdout": "", "stderr": "20:32:25 wrote the note b.md\n"},
+				Replies: []string{"reply 1", "reply 2", "reply 3"},
+			})
+
+			g.Expect(outcome.order()).To(Equal(test.order), "the steps and the model's calls, in order")
+			g.Expect(outcome.modelCalls()).To(HaveLen(test.asked), "the requests the model was asked")
+			g.Expect(outcome.Logged).To(Equal([]string{"20:32:25 wrote the note b.md"}), "the line shown to the user")
+			g.Expect(outcome.Passed.Context).To(BeEmpty(), "no context beside the prompt")
+			g.Expect(outcome.reports()).To(BeEmpty(), "the reports to the writing")
+
+			deliveries := outcome.inputsOf("engram auto deliver")
+
+			g.Expect(deliveries).To(HaveLen(1))
+
+			if len(deliveries) == 1 {
+				g.Expect(deliveries[0]).To(HaveKeyWithValue("text", "hello"))
+				g.Expect(deliveries[0]).To(HaveKeyWithValue("cue", "prompt"))
+				g.Expect(deliveries[0]).NotTo(HaveKey("reply"))
+				g.Expect(deliveries[0]).NotTo(HaveKey("carry"))
+			}
+		})
+	}
+}
+
+// Test855d2a1d_Mod_OutputThatIsNotARequestOrABlockFailsTheStep runs the mod under node against a stand-in host that
+// records every command the mod runs and every request it asks the model for.
+func Test855d2a1d_Mod_OutputThatIsNotARequestOrABlockFailsTheStep(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a moment that prints what is not a request", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+
+		outcome := runDeliveryDriver(t, deliveryScenario{Steps: map[string]map[string]any{
+			"moment": {"exitCode": 0, "stdout": "Unknown command: auto\n"},
+		}})
+
+		g.Expect(outcome.modelCalls()).To(BeEmpty(), "the model was never asked")
+		g.Expect(outcome.Passed.Text).To(Equal("hello"), "the prompt goes on as it was")
+		g.Expect(outcome.Passed.Context).To(BeEmpty(), "nothing is added")
+
+		reports := outcome.reports()
+
+		g.Expect(reports).To(HaveLen(1), "the runs of auto write")
+
+		if len(reports) == 1 {
+			g.Expect(reports[0]["failure"]).To(ContainSubstring("engram auto moment"), "the failure names the step")
+		}
+	})
+
+	t.Run("a delivery that prints what is not a block", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+
+		outcome := runDeliveryDriver(t, deliveryScenario{Deliver: map[string]any{
+			"exitCode": 0, "stdout": "Unknown command: auto\n",
+		}})
+
+		g.Expect(outcome.Passed.Text).To(Equal("hello"), "the prompt goes on as it was")
+		g.Expect(outcome.Passed.Context).To(BeEmpty(), "nothing is added")
+		g.Expect(outcome.reports()).To(BeEmpty(), "no failure was reported")
+	})
+}
+
 // TestMods_EveryJavaScriptModuleParses: the real mods parse under the real node, and the real node rejects a broken
 // module, which the stand-in node of the unit tests cannot show (793b55).
 func TestMods_EveryJavaScriptModuleParses(t *testing.T) {
@@ -888,11 +1058,13 @@ await settled()
 console.log(JSON.stringify({ returned: held ? {} : returned, held, calls, sweeps, delays, settle }))
 `
 	// deliveryDriver runs the prompt.submit hook of the module named by MOD against a host that behaves as SCENARIO says:
-	// its delivery exits with a code and prints a text, or runs until its time limit, when the timers of the module
-	// fire at once and are recorded. The host counts the commands the module has run and the calls in flight when the
-	// hook settles, runs the timers of the module only then, and prints what the hook let through, the commands the
-	// module ran in order with their input and time limit, the delays the timers were asked for, the count, and the lines
-	// the module asked the host to log, in order.
+	// each step of the chain exits with a code and prints a text (a step that is not named prints nothing), or runs
+	// until its time limit; its model answers with the next of the replies, or never settles unless its signal aborts
+	// it. The timers of the module are recorded with the delay they were asked for, and fire at once when the scenario
+	// says so; the host counts the commands the module has run and the calls in flight when the hook settles, runs the
+	// timers of the module only then, and prints what the hook let through, the commands and the requests the module
+	// made in order with their input and time limit, the delays the timers were asked for, the count, and the lines the
+	// module asked the host to log, in order.
 	deliveryDriver = `
 import { pathToFileURL } from 'node:url'
 
@@ -904,8 +1076,9 @@ const scenario = JSON.parse(process.env.SCENARIO)
 const calls = []
 const delays = []
 const wait = globalThis.setTimeout
-if (scenario.stalls) {
-  globalThis.setTimeout = (callback, delay) => { delays.push(delay); return wait(callback, 0) }
+globalThis.setTimeout = (callback, delay, ...rest) => {
+  delays.push(delay)
+  return scenario.fastTimers ? wait(callback, 0) : wait(callback, delay, ...rest)
 }
 
 // the host holds the next event of a mod until the calls its event left in flight settle
@@ -921,15 +1094,30 @@ function counted(call) {
 }
 const timers = []
 const logged = []
+let replied = 0
 const host = {
   session: { id: counted(async () => 'a-session') },
   process: {
     run: counted(async (argv, init) => {
+      const step = argv[2]
       calls.push({ step: argv.join(' '), input: JSON.parse(init.stdin), timeoutMs: init.timeoutMs })
-      if (argv[2] !== 'deliver') return { exitCode: 0, stdout: '' }
-      if (!scenario.stalls) return scenario.deliver
-      await new Promise((resolve) => wait(resolve, 5))
-      throw new Error('the command ran too long')
+      if (step === 'write') return { exitCode: 0, stdout: '' }
+      if (step === scenario.stalls) {
+        await new Promise((resolve) => wait(resolve, 5))
+        throw new Error('the command ran too long')
+      }
+      return (step === 'deliver' ? scenario.deliver : scenario.steps?.[step]) ?? { exitCode: 0, stdout: '' }
+    }),
+  },
+  model: {
+    complete: counted(async (asked, options) => {
+      calls.push({ step: 'model', asked, signal: options?.signal !== undefined })
+      if (scenario.modelNeverSettles) {
+        return new Promise((resolve) => {
+          options.signal.addEventListener('abort', () => resolve({ isAnswered: false, reason: 'aborted' }))
+        })
+      }
+      return { isAnswered: true, text: scenario.replies?.[replied++] ?? 'a reply' }
     }),
   },
   clock: { after: (_milliseconds, run) => { timers.push(run) } },
@@ -951,6 +1139,7 @@ for (let last = -1, stable = 0, tick = 0; tick < 300 && stable < 5; tick++) {
 }
 
 console.log(JSON.stringify({ passed, calls, delays, settle, logged }))
+process.exit(0)
 `
 	// driverTimeout is how long the mod may take under the stand-in host before the test gives it up.
 	driverTimeout = 20 * time.Second
@@ -1080,6 +1269,8 @@ type deliveryOutcome struct {
 	Calls []struct {
 		Step      string         `json:"step"`
 		Input     map[string]any `json:"input"`
+		Asked     map[string]any `json:"asked"`
+		Signal    bool           `json:"signal"`
 		TimeoutMs float64        `json:"timeoutMs"`
 	} `json:"calls"`
 	Delays []int `json:"delays"`
@@ -1088,6 +1279,19 @@ type deliveryOutcome struct {
 		InFlight int `json:"inFlight"`
 	} `json:"settle"`
 	Logged []string `json:"logged"`
+}
+
+// inputsOf returns the inputs of the runs of a step, in the order they were run.
+func (o deliveryOutcome) inputsOf(step string) []map[string]any {
+	var inputs []map[string]any
+
+	for _, call := range o.Calls {
+		if call.Step == step {
+			inputs = append(inputs, call.Input)
+		}
+	}
+
+	return inputs
 }
 
 // limitOf returns the time limit the first command that ran a step was given.
@@ -1101,24 +1305,64 @@ func (o deliveryOutcome) limitOf(step string) float64 {
 	return 0
 }
 
-// reports returns the inputs of the runs of the writing, the reports of a failure, in the order they were run.
-func (o deliveryOutcome) reports() []map[string]any {
-	var inputs []map[string]any
+// modelCalls returns the requests the module asked the model for, in order.
+func (o deliveryOutcome) modelCalls() []map[string]any {
+	var asked []map[string]any
 
 	for _, call := range o.Calls {
-		if call.Step == "engram auto write" {
-			inputs = append(inputs, call.Input)
+		if call.Step == "model" {
+			asked = append(asked, call.Asked)
 		}
 	}
 
-	return inputs
+	return asked
 }
 
-// deliveryScenario is how the stand-in host of deliveryDriver behaves: what the delivery exits with and prints, or that
-// it runs until its time limit.
+// order returns the commands and the model's calls of the chain in the order they were made: the reports to the writing
+// are left out.
+func (o deliveryOutcome) order() []string {
+	var steps []string
+
+	for _, call := range o.Calls {
+		if call.Step != "engram auto write" {
+			steps = append(steps, call.Step)
+		}
+	}
+
+	return steps
+}
+
+// reports returns the inputs of the runs of the writing, the reports of a failure, in the order they were run.
+func (o deliveryOutcome) reports() []map[string]any {
+	return o.inputsOf("engram auto write")
+}
+
+// deliveryScenario is how the stand-in host of deliveryDriver behaves: what each step of the chain exits with and
+// prints, what the delivery does, the replies of the model, the step that runs until its time limit, that the model
+// never settles unless its signal aborts it, and that the timers of the module fire at once.
 type deliveryScenario struct {
-	Deliver map[string]any `json:"deliver,omitempty"`
-	Stalls  bool           `json:"stalls,omitempty"`
+	Deliver           map[string]any            `json:"deliver,omitempty"`
+	Steps             map[string]map[string]any `json:"steps,omitempty"`
+	Replies           []string                  `json:"replies,omitempty"`
+	Stalls            string                    `json:"stalls,omitempty"`
+	ModelNeverSettles bool                      `json:"modelNeverSettles,omitempty"`
+	FastTimers        bool                      `json:"fastTimers,omitempty"`
+}
+
+// aStep is what a step prints for a judgement, the nth of a chain: the request for the model and the carry.
+func aStep(n int) string {
+	return fmt.Sprintf(`{"request":{"model":"sonnet","system":"S%d","prompt":"P%d","maxTokens":100},`+
+		`"carry":{"cue":"prompt","depth":"glance","window":"W%d"}}`+"\n", n, n, n)
+}
+
+// carryOfStep is the carry of aStep as the driver decodes it.
+func carryOfStep(n int) map[string]any {
+	return map[string]any{"cue": "prompt", "depth": "glance", "window": fmt.Sprintf("W%d", n)}
+}
+
+// requestOfStep is the request of aStep as the driver decodes it.
+func requestOfStep(n int) map[string]any {
+	return map[string]any{"model": "sonnet", "system": fmt.Sprintf("S%d", n), "prompt": fmt.Sprintf("P%d", n), "maxTokens": float64(100)}
 }
 
 // modulesOf reads every JavaScript file below a directory, by its path relative to the directory.
