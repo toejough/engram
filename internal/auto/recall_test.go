@@ -39,7 +39,28 @@ func Test855d4b1i_Recall_ACandidateCannotReshapeTheRequestOrHoldACredential(t *t
 		}
 
 		g.Expect(step.Carry.Candidates[1].Text).To(Equal(strings.TrimSpace(passage)),
-			"the carry holds the chunk in full, written as one line")
+			"the carry holds the chunk in full")
+	})
+
+	t.Run("named example: an ID that reads as a token is in the line and the carry as it is", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		id := "/var/folders/wt/aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3/conversations/an-earlier-session.md#preamble"
+
+		g.Expect(auto.Redact(id)).NotTo(Equal(id), "the ID of the test reads as a token")
+
+		step, _ := auto.Recall(recallOf("glance"), []auto.Candidate{
+			{ID: id, Kind: auto.KindPassage, Date: "2026-10-14", Text: "the cutover is frozen"},
+		})
+
+		g.Expect(candidatesOf(step.Request.Prompt)).To(
+			Equal([]string{"- " + id + " (2026-10-14; passage): the cutover is frozen"}))
+		g.Expect(step.Carry.Candidates).To(HaveLen(1))
+
+		if len(step.Carry.Candidates) == 1 {
+			g.Expect(step.Carry.Candidates[0].ID).To(Equal(id))
+		}
 	})
 
 	rapid.Check(t, checkRecallIsSafe)
@@ -270,28 +291,13 @@ func checkCandidatesAreHeld(rt *rapid.T) {
 	}
 }
 
-// checkCarryIsSafe fails when the carry holds a credential or a line break, or holds a chunk cut shorter than the line
-// of it in the request does (855b55): the line holds the chunk to 1,200 characters, and the carry in full.
-func checkCarryIsSafe(rt *rapid.T, held []auto.Candidate, secrets []string, passageLine string) {
+// checkCarryIsRaw fails when the carry is not the matched candidates as they are, credentials and line breaks
+// included: only the request is redacted, and the delivery shows the agent the same notes raw (855b55).
+func checkCarryIsRaw(rt *rapid.T, held, matched []auto.Candidate) {
 	rt.Helper()
 
-	for _, candidate := range held {
-		for _, secret := range secrets {
-			if strings.Contains(candidate.Text, secret) || strings.Contains(candidate.Situation, secret) {
-				rt.Fatalf("the carry holds the secret %q: %+v", secret, candidate)
-			}
-		}
-
-		if strings.ContainsAny(candidate.Text+candidate.Situation, "\n\r") {
-			rt.Fatalf("the carry holds a line break: %+v", candidate)
-		}
-	}
-
-	const cutLength = 1200
-
-	carried := utf8.RuneCountInString(held[1].Text)
-	if lined := utf8.RuneCountInString(strings.ReplaceAll(passageLine, "&lt;", "<")); lined != min(carried, cutLength) {
-		rt.Fatalf("the carry holds %d characters of a chunk that the request holds %d of", carried, lined)
+	if !slices.Equal(held, matched) {
+		rt.Fatalf("the carry %+v is not the candidates %+v", held, matched)
 	}
 }
 
@@ -309,10 +315,11 @@ func checkRecallIsSafe(rt *rapid.T) {
 	input := recallOf("deep")
 	input.Carry.Window = tagText().Draw(rt, "window")
 
-	step, _ := auto.Recall(input, []auto.Candidate{
+	matched := []auto.Candidate{
 		{ID: "n1.md", Kind: auto.KindNote, Date: "2026-10-17", Situation: tagText().Draw(rt, "situation"), Text: noteText},
 		{ID: "c1#turn-1", Kind: auto.KindPassage, Date: "2026-10-14", Text: passageText},
-	})
+	}
+	step, _ := auto.Recall(input, matched)
 
 	if counts := tagCounts(step.Request.Prompt); !slices.Equal(counts[:2], []int{1, 1}) ||
 		strings.Count(step.Request.Prompt, "<candidates>") != 1 ||
@@ -340,7 +347,7 @@ func checkRecallIsSafe(rt *rapid.T) {
 	// the cut comes before the escape, which writes a < as four characters
 	_, text, _ := strings.Cut(lines[1], "(2026-10-14; passage): ")
 
-	checkCarryIsSafe(rt, step.Carry.Candidates, []string{first.secret, second.secret}, text)
+	checkCarryIsRaw(rt, step.Carry.Candidates, matched)
 
 	if length := utf8.RuneCountInString(strings.ReplaceAll(text, "&lt;", "<")); length > 1200 {
 		rt.Fatalf("a chunk of %d characters is in the request", length)
