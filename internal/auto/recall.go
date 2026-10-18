@@ -1,6 +1,7 @@
 package auto
 
 import (
+	_ "embed" // the instructions of the judgement are a text file of the package
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,8 +31,11 @@ const (
 type Candidate struct {
 	ID        string `json:"id"`
 	Kind      string `json:"kind"`
+	Date      string `json:"date"`
 	Situation string `json:"situation"`
 	Text      string `json:"text"`
+	Parent    bool   `json:"parent"`
+	Pending   bool   `json:"pending"`
 }
 
 // Recall returns the request that judges the candidates the lookup matched (855d4b): the window of the carry and a
@@ -44,8 +48,12 @@ func Recall(input RecallInput, matched []Candidate) Step {
 	}
 
 	return Step{
-		Request: ModelRequest{Prompt: fmt.Sprintf(candidatesShape, input.Carry.Window, strings.Join(lines, "\n"))},
-		Carry:   Carry{Cue: input.Cue, Depth: input.Carry.Depth, Window: input.Carry.Window},
+		Request: ModelRequest{
+			Model: recallModel, System: candidateInstructions,
+			Prompt:    fmt.Sprintf(candidatesShape, input.Carry.Window, strings.Join(lines, "\n")),
+			MaxTokens: recallMaxTokens,
+		},
+		Carry: Carry{Cue: input.Cue, Depth: input.Carry.Depth, Window: input.Carry.Window, Candidates: matched},
 	}
 }
 
@@ -74,7 +82,13 @@ func candidateLine(candidate Candidate) string {
 		about = KindPassage
 	}
 
-	return escaped("- " + oneRedacted(candidate.ID) + " (" + oneRedacted(about) + "): " + oneRedacted(candidate.Text))
+	date := candidate.Date
+	if date == "" {
+		date = undated
+	}
+
+	return escaped("- " + oneRedacted(candidate.ID) + " (" + oneRedacted(date) + "; " + oneRedacted(about) +
+		"): " + oneRedacted(candidate.Text))
 }
 
 // phraseLimit is how many phrases the lookup is run for at a depth.
@@ -90,6 +104,14 @@ func phraseLimit(depth string) int {
 const (
 	// candidatesShape is the prompt of the request: the window and the section of candidates, each between its tags.
 	candidatesShape = "<window>\n%s\n</window>\n<candidates>\n%s\n</candidates>"
-	deepPhrases   = 10
-	glancePhrases = 3
+	deepPhrases     = 10
+	glancePhrases   = 3
+	recallMaxTokens = 4000
+	recallModel     = "sonnet"
+	// undated stands in the line of a candidate for the date of one that has none: a chunk indexed before the index
+	// kept the time.
+	undated = "undated"
 )
+
+//go:embed prompts/candidates.txt
+var candidateInstructions string

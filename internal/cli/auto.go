@@ -708,19 +708,32 @@ func shownRecords(entries []fs.DirEntry) map[string]bool {
 	return shown
 }
 
+// noteFields are the fields of the front matter of a note that automatic memory reads.
+type noteFields struct {
+	Situation string `yaml:"situation"`
+	Source    string `yaml:"source"`
+	Created   string `yaml:"created"`
+	Pending   bool   `yaml:"pending"`
+}
+
+// noteFieldsOf extracts the fields of the front matter of a note that automatic memory reads, or nothing when the
+// block does not parse.
+func noteFieldsOf(frontmatter []byte) noteFields {
+	var fields noteFields
+
+	if yaml.Unmarshal(frontmatter, &fields) != nil {
+		return noteFields{}
+	}
+
+	return fields
+}
+
 // situationAndSourceOf extracts the situation and the source from the front matter of a note, or nothing when the
 // block does not parse.
 func situationAndSourceOf(frontmatter []byte) (situation, source string) {
-	var probe struct {
-		Situation string `yaml:"situation"`
-		Source    string `yaml:"source"`
-	}
+	fields := noteFieldsOf(frontmatter)
 
-	if yaml.Unmarshal(frontmatter, &probe) != nil {
-		return "", ""
-	}
-
-	return probe.Situation, probe.Source
+	return fields.Situation, fields.Source
 }
 
 // sweepEndedMark returns the path of the mark of a session whose sweep was ended, or nothing when there is no directory

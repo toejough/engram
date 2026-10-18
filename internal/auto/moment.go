@@ -12,6 +12,8 @@ type Carry struct {
 	Cue    string `json:"cue"`
 	Depth  string `json:"depth,omitempty"`
 	Window string `json:"window"`
+	// Candidates are the notes and passages the lookup found, in full, for the judgement of them.
+	Candidates []Candidate `json:"candidates,omitempty"`
 }
 
 // ModelRequest is the request of a call of the model that a step prints: the fields the host's model call takes

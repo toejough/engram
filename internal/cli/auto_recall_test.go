@@ -174,8 +174,9 @@ func Test855d4b1d_Recall_TheNotesAndPassagesThatMatchedBecomeCandidatesTheExplor
 	g.Expect(lines).To(HaveLen(2), "the matched note and the matched chunk")
 
 	if len(lines) == 2 {
-		g.Expect(lines[0]).To(HavePrefix("- 1.2026-10-17.zorblax-staging-reset.md (" + resetSituation + "): " + resetBody))
-		g.Expect(lines[1]).To(Equal("- /sessions/earlier.jsonl#turn-3 (passage): USER: the staging resets on Sunday."))
+		g.Expect(lines[0]).To(HavePrefix("- 1.2026-10-17.zorblax-staging-reset.md (2026-10-17; " + resetSituation + "): " +
+			resetBody))
+		g.Expect(lines[1]).To(Equal("- /sessions/earlier.jsonl#turn-3 (undated; passage): USER: the staging resets on Sunday."))
 	}
 }
 
@@ -197,7 +198,7 @@ func Test855d4b1e_Recall_AChunkOfTheSessionsOwnTranscriptIsNotACandidate(t *test
 		}, &out)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(candidateLines(t, out.Bytes())).To(Equal([]string{
-		"- /sessions/another.jsonl#turn-3 (passage): USER: another conversation.",
+		"- /sessions/another.jsonl#turn-3 (undated; passage): USER: another conversation.",
 	}))
 }
 

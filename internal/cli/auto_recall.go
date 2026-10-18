@@ -8,6 +8,8 @@ import (
 	"io"
 	"path/filepath"
 	"slices"
+	"strings"
+	"time"
 
 	"go.yaml.in/yaml/v3"
 
@@ -95,10 +97,12 @@ func candidatesOf(
 
 		if item.Kind != chunkItemKind {
 			frontmatter, body, _ := splitFrontmatterAndBody(item.Content)
-			situation, _ := situationAndSourceOf([]byte(frontmatter))
+			fields := noteFieldsOf([]byte(frontmatter))
 
 			candidates = append(candidates, auto.Candidate{
-				ID: item.Path, Kind: auto.KindNote, Situation: situation, Text: body,
+				ID: item.Path, Kind: auto.KindNote, Date: fields.Created, Situation: fields.Situation,
+				Text: strings.TrimSpace(body),
+				Parent: item.FromParent != nil && *item.FromParent, Pending: fields.Pending,
 			})
 
 			continue
@@ -118,10 +122,21 @@ func candidatesOf(
 			continue
 		}
 
-		candidates = append(candidates, auto.Candidate{ID: item.Path, Kind: auto.KindPassage, Text: record.Text})
+		candidates = append(candidates, auto.Candidate{
+			ID: item.Path, Kind: auto.KindPassage, Date: dayOf(record.IngestedAt), Text: record.Text,
+		})
 	}
 
 	return candidates, nil
+}
+
+// dayOf is the day a chunk was indexed, or nothing for a chunk indexed before the index kept the time.
+func dayOf(indexed time.Time) string {
+	if indexed.IsZero() {
+		return ""
+	}
+
+	return indexed.UTC().Format(noteDateFormat)
 }
 
 // chunkRecordsByID reads the records of the chunk index by their IDs.
