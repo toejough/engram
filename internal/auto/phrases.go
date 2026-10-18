@@ -4,6 +4,7 @@ import (
 	_ "embed" // the instructions of the judgement are a text file of the package
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // PhrasesInput is the reply of the moment judgement and its carry, as the memory mod hands them over (855d4v).
@@ -25,7 +26,7 @@ func Phrases(input PhrasesInput) (Step, bool, error) {
 
 	return Step{
 		Request: ModelRequest{
-			Model: phrasesModel, System: phraseInstructions,
+			Model: phrasesModel, System: strings.Replace(phraseInstructions, "{{count}}", countFor(reply.Depth), 1),
 			Prompt: fmt.Sprintf(windowShape, input.Carry.Window), MaxTokens: phrasesMaxTokens,
 		},
 		Carry: Carry{Cue: input.Cue, Depth: reply.Depth, Window: input.Carry.Window},
@@ -34,9 +35,21 @@ func Phrases(input PhrasesInput) (Step, bool, error) {
 
 // unexported constants.
 const (
+	// the phrases asked for at glance and at deep, by the depth: about 3 at glance, and all ten angles at deep
+	deepCount        = "Write exactly 10 short queryable phrases, one for each of these ten angles"
+	glanceCount      = "Write about 3 short queryable phrases, from the angles below that fit the moment best"
 	phrasesMaxTokens = 1000
 	phrasesModel     = "sonnet"
 )
 
 //go:embed prompts/phrases.txt
 var phraseInstructions string
+
+// countFor is the sentence of the instructions that asks for the phrases of a depth.
+func countFor(depth string) string {
+	if depth == "glance" {
+		return glanceCount
+	}
+
+	return deepCount
+}
