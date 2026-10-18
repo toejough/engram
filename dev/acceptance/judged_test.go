@@ -18,26 +18,39 @@ func Test855a3b1a_APromptThatIsNotARecallMomentArrivesWithNothing(t *testing.T) 
 	g := NewWithT(t)
 	machine := newMachine(t)
 
+	var chat *conversation
+
 	step(t, "Given the user has run engram update, and a vault holding a note that says when the staging database "+
 		"is reset", func() {
 		machine.hasEngram()
 		machine.hasClaudeCode()
 		machine.agentMayNotRunEngram()
 		machine.learnsFact(stagingReset)
+		machine.stepsAreRecorded()
 		machine.mustSucceed(machine.update(), "engram update")
+
+		chat = machine.startSession("a-project").converse()
 	})
 
 	var sent *turn
 
 	step(t, "When the user sends a prompt that says only thanks, that settles when the staging database is reset",
 		func() {
-			sent = machine.startSession("a-project").send(askThanks)
-			t.Logf("the agent replied %q (cost $%.4f)", sent.reply, sent.cost)
+			sent = chat.tell(askThanks)
 		})
 
 	step(t, "Then the prompt arrives with nothing from the vault, and the agent answers it", func() {
 		g.Expect(sent.blocks()).To(BeEmpty(), "blocks automatic memory delivered with the prompt")
 		g.Expect(sent.reply).NotTo(BeEmpty(), "the agent answered")
+
+		// the chain ran and found no recall moment: the moment ran, and nothing failed
+		_, ran := machine.stepPrinted("moment")
+
+		g.Expect(ran).To(BeTrue(), "the moment ran")
+
+		machine.awaitSettled(chat.session.id, chat.turnEnds, 1)
+
+		g.Expect(machine.recordKinds(chat.session.id)).NotTo(ContainElement("failed"), "what became of the turns")
 	})
 }
 
@@ -47,26 +60,47 @@ func Test855a3b1b_ANoteWhoseWordsMatchButThatDoesNotApplyIsNotDelivered(t *testi
 	g := NewWithT(t)
 	machine := newMachine(t)
 
+	var (
+		chat *conversation
+		note string
+	)
+
 	step(t, "Given the user has run engram update, and a vault holding a note that says when the staging database "+
 		"is reset", func() {
 		machine.hasEngram()
 		machine.hasClaudeCode()
 		machine.agentMayNotRunEngram()
-		machine.learnsFact(stagingReset)
+		note = machine.learnsFact(stagingReset)
+		machine.stepsAreRecorded()
 		machine.mustSucceed(machine.update(), "engram update")
+
+		chat = machine.startSession("a-project").converse()
 	})
 
 	var sent *turn
 
 	step(t, "When the user asks the agent in a prompt to write a function that parses the staging database "+
 		"connection string from a config file", func() {
-		sent = machine.startSession("a-project").send(askParseConnection)
-		t.Logf("the agent replied %q (cost $%.4f)", sent.reply, sent.cost)
+		sent = chat.tell(askParseConnection)
 	})
 
 	step(t, "Then the prompt arrives with nothing from the vault, and the agent answers it", func() {
 		g.Expect(sent.blocks()).To(BeEmpty(), "blocks automatic memory delivered with the prompt")
 		g.Expect(sent.reply).NotTo(BeEmpty(), "the agent answered")
+
+		// the recall found the note and the candidate judgement left it out: the moment and the recall ran, the recall
+		// held the note as a candidate, and nothing failed
+		_, moment := machine.stepPrinted("moment")
+		recall, recalled := machine.stepPrinted("recall")
+
+		g.Expect(moment).To(BeTrue(), "the moment ran")
+		g.Expect(recalled).To(BeTrue(), "the recall ran")
+		g.Expect(recall).To(ContainSubstring(`"id":"`+note+`"`), "the recall held the note as a candidate")
+
+		machine.awaitSettled(chat.session.id, chat.turnEnds, 1)
+
+		g.Expect(machine.recordKinds(chat.session.id)).NotTo(ContainElement("failed"),
+			machine.recordsText()+"\n"+machine.deliveryAsked())
 	})
 }
 

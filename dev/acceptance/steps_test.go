@@ -16,9 +16,10 @@ import (
 
 // unexported constants.
 const (
-	// askParseConnection is a prompt that the stagingReset note shares words with and does not apply to (855a3b1b).
+	// askParseConnection is a prompt of several steps, so a recall moment, that the stagingReset note shares words with
+	// and does not apply to (855a3b1b).
 	askParseConnection = "Write a function that parses the Zorblax staging database connection string from a config " +
-		"file, and reply with only its name."
+		"file, write a test for it, and run the test. Reply with only the function's name."
 	// askPlanFreeze is a prompt that the passage of freezeConversation applies to (855a3b1e).
 	askPlanFreeze = "Plan the Zorblax staging deploys of next month so that they avoid the production cutover " +
 		"freeze. Reply with one short sentence."
@@ -767,6 +768,37 @@ func (m *machine) stepNeverEnds(step string) {
 	m.t.Helper()
 
 	m.stepWraps(step, "exec sleep "+strconv.Itoa(int(neverEnds.Seconds())))
+}
+
+// deliveryAsked returns the request the delivery was last given, as stepsAreRecorded kept it.
+func (m *machine) deliveryAsked() string {
+	data, _ := os.ReadFile(filepath.Join(m.root, "steps-seen", "deliver.in"))
+
+	return string(data)
+}
+
+// stepPrinted returns what the recorded step printed, and whether it ran at all (see stepsAreRecorded).
+func (m *machine) stepPrinted(step string) (string, bool) {
+	m.t.Helper()
+
+	data, err := os.ReadFile(filepath.Join(m.root, "steps-seen", step+".out"))
+
+	return string(data), err == nil
+}
+
+// stepsAreRecorded puts an engram on the PATH that keeps what the moment, the phrases and the recall printed, and runs
+// the machine's own engram for them and for anything else: the debug log says that the moment found nothing, and no
+// log line says what the recall found.
+func (m *machine) stepsAreRecorded() {
+	m.t.Helper()
+
+	dir := filepath.Join(m.root, "steps-seen")
+	engram := filepath.Join(m.gobin, engramBinaryName)
+
+	m.wrapsEngram(dir, "#!/bin/sh\ncase \"$1 $2\" in\n\"auto deliver\")\ncat > '"+dir+"/deliver.in'\n'"+engram+
+		"' \"$@\" < '"+dir+"/deliver.in'\nexit $?\n;;\n\"auto moment\"|\"auto phrases\"|\"auto recall\")\n'"+engram+
+		"' \"$@\" > '"+dir+"/'\"$2\".out\ncode=$?\ncat '"+dir+"/'\"$2\".out\nexit $code\n;;\nesac\nexec '"+engram+
+		"' \"$@\"\n")
 }
 
 // stepStarted reports whether the slow step of stepTakes or stepNeverEnds was started.

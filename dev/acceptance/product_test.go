@@ -180,7 +180,7 @@ func Test793a2a1e_AVaultThatDoesNotExistIsNotCreated(t *testing.T) {
 	var sent *turn
 
 	step(t, "When the user starts a session and sends a prompt", func() {
-		sent = machine.startSession("a-project").send(askStagingReset)
+		sent = machine.startSession("a-project").send(askPrepareRun)
 		t.Logf("the agent replied %q (cost $%.4f)", sent.reply, sent.cost)
 	})
 
