@@ -89,10 +89,10 @@ const (
 	// candidatesShape is the prompt of the request: the window and the section of candidates, each between its tags.
 	candidatesShape = "<window>\n%s\n</window>\n<candidates>\n%s\n</candidates>"
 	deepPhrases     = 10
+	glancePhrases   = 3
 	// passageLimit is how many characters of a chunk a candidate line holds at most: a stretch of conversation is
 	// longer than a note's lines (855b33).
-	passageLimit = 1200
-	glancePhrases   = 3
+	passageLimit    = 1200
 	recallMaxTokens = 4000
 	recallModel     = "sonnet"
 	// undated stands in the line of a candidate for the date of one that has none: a chunk indexed before the index
