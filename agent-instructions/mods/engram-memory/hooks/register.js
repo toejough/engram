@@ -64,11 +64,14 @@ export function register(on) {
 
     turns.delete(e.turnId)
 
-    // the lessons are captured and the conversation is swept (793d2c) apart from the turn, and apart from each other:
-    // the event's result does not wait for them; the turn of a subagent is left out
+    // the lessons are captured and the conversation is swept (793d2c) apart from the turn, and apart from each other,
+    // from a timer: the host holds the next event of the mod, a prompt among them, until the calls an event left in
+    // flight settle, and a timer's calls are no event's; the turn of a subagent is left out
     if (e.agentId === undefined) {
-      void afterTurn($, e, (session) => captureLessons($, e, turn, session))
-      void afterTurn($, e, (session) => run($, 'sweep', { session, origin: turn.origin }, SWEEP_BOUND_MS))
+      $.clock.after(0, () => {
+        void afterTurn($, e, (session) => captureLessons($, e, turn, session))
+        void afterTurn($, e, (session) => run($, 'sweep', { session, origin: turn.origin }, SWEEP_BOUND_MS))
+      })
     }
 
     return result
