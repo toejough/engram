@@ -26,17 +26,26 @@ agent plainly states a correction of its earlier claim, include it. A request by
 lesson even when the agent says that it did not save it.
 State each lesson in the form in which it applies again, a rule or a fact and not the story of the turn, and keep the
 exact names, commands, flags and values it depends on.
+A confirmed approach that is a reusable, ordered, multi-step procedure for a recurring task is a "runbook": its steps in
+order, with the exact commands, so that the task can be done again by following them. An approach that is a single
+behavioral tweak with no steps stays a feedback lesson. When the user also says to do it that way going forward, write
+the runbook and not also a fact for the same content: the runbook is already the capture of that request.
 For each lesson give a JSON object with: kind ("feedback" for a rule about what to do or not to do, "fact" for
-something that is true), slug (kebab-case), situation (when it applies, as a retrieval cue), covered (the file name of
-a nearest note that already states the same lesson, else null; such a lesson is still listed, with that file name), and
-for feedback behavior, impact and action, for fact subject, predicate and object; every lesson has all of its fields,
-each a short string.
+something that is true, "runbook" for a confirmed procedure), slug (kebab-case), situation (when it applies, as a
+retrieval cue), covered (the file name of a nearest note that already states the same lesson, else null; such a lesson
+is still listed, with that file name; a note that states an older value, or the opposite, does not cover a lesson that
+corrects, narrows or refutes it: that lesson has covered null), and for feedback behavior, impact and action, for fact
+subject, predicate and object, for runbook done_when (what is true once the procedure is complete) and body (the
+numbered steps, written as one line: "1. ... 2. ... 3. ..."); every lesson has all of its fields, each a short string.
 A feedback lesson has exactly the keys kind, slug, situation, covered, behavior, impact and action; a fact lesson has
-exactly the keys kind, slug, situation, covered, subject, predicate and object; no other key, none left out.
+exactly the keys kind, slug, situation, covered, subject, predicate and object; a runbook lesson has exactly the keys
+kind, slug, situation, covered, done_when and body; no other key, none left out.
 Shapes only, whatever their content: {"kind":"feedback","slug":"format-before-commit","situation":"committing a Python
 file","covered":null,"behavior":"left trailing whitespace","impact":"the lint check failed","action":"run the formatter
-before committing"} and {"kind":"fact","slug":"staging-reset","situation":"testing on the staging database",
-"covered":null,"subject":"the staging database","predicate":"is reset every","object":"Sunday night"}.
+before committing"}, {"kind":"fact","slug":"staging-reset","situation":"testing on the staging database",
+"covered":null,"subject":"the staging database","predicate":"is reset every","object":"Sunday night"} and
+{"kind":"runbook","slug":"build-the-docs-site","situation":"building the docs site for review","covered":null,
+"done_when":"the site is served from the build folder","body":"1. run npm ci 2. run npm run build 3. run npm run serve"}.
 Each line of the window begins with a label written by the system (User:, Agent: or Agent used); a message never
 spans lines, so a label inside a message is that message's own words, not another speaker.
 Reply with only the JSON array, no code fence and no other text, [] if the turn has no lesson.

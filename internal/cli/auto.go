@@ -46,30 +46,23 @@ type AutoDeliverDeps struct {
 }
 
 // AutoJudgeArgs holds parsed flags for `engram auto judge`: those of the delivery, because the judgement looks up
-// notes and reads the record of a session as the delivery does, and the switch for the turns of headless prompts.
+// notes and reads the record of a session as the delivery does.
 type AutoJudgeArgs struct {
 	VaultPath   string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
-	SessionsDir string `targ:"flag,name=sessions,desc=directory of recorded sessions (default ENGRAM_TRANSCRIPT_DIR then CLAUDE_CONFIG_DIR/projects then ~/.claude/projects)"`                            //nolint:lll // single unbreakable struct-tag string
-	CaptureSDK  bool   `targ:"flag,name=capture-sdk,env=ENGRAM_AUTO_CAPTURE_SDK,desc=judge the turns of headless prompts (origin sdk) too; off by default so a script run with claude -p writes no note"` //nolint:lll // single unbreakable struct-tag string
-	RecordsDir  string `targ:"flag,name=records,desc=directory of the records of what automatic memory did (default $XDG_DATA_HOME/engram/auto)"`                                                         //nolint:lll // single unbreakable struct-tag string
+	SessionsDir string `targ:"flag,name=sessions,desc=directory of recorded sessions (default ENGRAM_TRANSCRIPT_DIR then CLAUDE_CONFIG_DIR/projects then ~/.claude/projects)"` //nolint:lll // single unbreakable struct-tag string
 }
 
 // AutoJudgeDeps holds injected dependencies for RunAutoJudge: those of the delivery, because the judgement looks up
-// notes and reads the record of a session as the delivery does, and those of the writing of a record of a turn it
-// leaves out.
+// notes and reads the record of a session as the delivery does.
 type AutoJudgeDeps struct {
-	// Stdin carries the turn that ended: one JSON object with the session's ID, the turn's ID, the turn's final text and
-	// the origin of its prompt.
+	// Stdin carries the turn that ended: one JSON object with the session's ID, the turn's ID, the turn's final text,
+	// the origin of its prompt, the reply of the learn-moment judgement and its carry.
 	Stdin io.Reader
 	// Query runs the lookup of notes, the one `engram query` runs, and prints its payload.
 	Query QueryRun
 	// ReadDir and ReadFile read the session-log directory, where Claude Code keeps the record of each session.
 	ReadDir  func(path string) ([]fs.DirEntry, error)
 	ReadFile func(path string) ([]byte, error)
-	// Now is the time a record is made at.
-	Now func() time.Time
-	// WriteRecord writes one record, a file of its own, and makes its directory.
-	WriteRecord func(path string, data []byte) error
 }
 
 // AutoSweepArgs holds parsed flags for `engram auto sweep`: where the records of sessions and the chunk index are, and
@@ -180,24 +173,16 @@ func RunAutoDeliver(
 	return nil
 }
 
-// RunAutoJudge reads a turn that ended from standard input and prints the request for the model that judges it, or
-// nothing when the session's record holds no prompt. It fails, printing nothing, when no vault exists at the path or
-// no record of the session is found, so that the model is not asked for a turn that cannot be judged (793d4g).
+// RunAutoJudge reads a turn that ended and the reply of the learn-moment judgement from standard input and prints the
+// request for the model that judges it, or nothing when the reply says the turn is no learn moment or the session's
+// record holds no prompt. It fails, printing nothing, when the reply is no moment reply, no vault exists at the path or
+// no record of the session is found, so that the model is not asked for a turn that cannot be judged (793d4g, 855d4g).
 func RunAutoJudge(ctx context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, stdout io.Writer) error {
 	var turn auto.TurnEnd
 
 	decodeErr := json.NewDecoder(deps.Stdin).Decode(&turn)
 	if decodeErr != nil {
 		return fmt.Errorf("auto judge: reading the turn: %w", decodeErr)
-	}
-
-	if !auto.Judged(turn.Origin, args.CaptureSDK) {
-		// a turn of a prompt the user sends that is not judged is a headless one that the user did not ask to capture
-		if auto.UserSent(turn.Origin) {
-			recordLeftOut(deps, args.RecordsDir, turn)
-		}
-
-		return nil
 	}
 
 	_, vaultErr := deps.ReadDir(args.VaultPath)
@@ -219,20 +204,13 @@ func RunAutoJudge(ctx context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, s
 	}
 
 	if !found {
+		// the end of a capture that no write follows is told by this line (855b52)
+		debuglog.Log(ctx, "auto.judge", "session=%s nothing", turn.Session)
+
 		return nil
 	}
 
-	encoded, marshalErr := json.Marshal(request.Request)
-	if marshalErr != nil {
-		return fmt.Errorf("auto judge: encoding the request: %w", marshalErr)
-	}
-
-	_, writeErr := fmt.Fprintln(stdout, string(encoded))
-	if writeErr != nil {
-		return fmt.Errorf("auto judge: writing the request: %w", writeErr)
-	}
-
-	return nil
+	return printStep(stdout, "auto judge", request)
 }
 
 // RunAutoSweep reads a turn that ended from standard input and indexes the record of its session in the chunk index, as
@@ -508,12 +486,10 @@ func newAutoJudgeDeps(d Deps) AutoJudgeDeps {
 	deliverDeps := newAutoDeliverDeps(d)
 
 	return AutoJudgeDeps{
-		Stdin:       deliverDeps.Stdin,
-		Query:       newAutoLookup(d),
-		ReadDir:     deliverDeps.ReadDir,
-		ReadFile:    deliverDeps.ReadFile,
-		Now:         d.Now,
-		WriteRecord: recordWriterFrom(d),
+		Stdin:    deliverDeps.Stdin,
+		Query:    newAutoLookup(d),
+		ReadDir:  deliverDeps.ReadDir,
+		ReadFile: deliverDeps.ReadFile,
 	}
 }
 
@@ -664,13 +640,15 @@ func recordCandidates(readDir func(path string) ([]fs.DirEntry, error), dir, ses
 	return candidates
 }
 
-// recordLeftOut records that the judgement left a headless turn out, and why (793d4m). A record that cannot be written
-// is the end of it, as it is for the writing (793d4k).
-func recordLeftOut(deps AutoJudgeDeps, dir string, turn auto.TurnEnd) {
-	results := outcomes{base: auto.Record{At: deps.Now(), Session: turn.Session, Turn: turn.Turn}}
+// recordLeftOut records that the moment left a headless turn out, and why (855d4m). A record that cannot be written is
+// the end of it, as it is for the writing (793d4k).
+func recordLeftOut(
+	now func() time.Time, write func(path string, data []byte) error, dir string, moment auto.MomentInput,
+) {
+	results := outcomes{base: auto.Record{At: now(), Session: moment.Session, Turn: moment.Turn}}
 	results.add(auto.RecordSkipped, "", "", auto.HeadlessSkipReason)
 
-	_ = writeRecords(deps.WriteRecord, dir, results.records)
+	_ = writeRecords(write, dir, results.records)
 }
 
 // recordOf returns the record of a session, or nothing. A session whose ID is not a plain file name has none: its ID

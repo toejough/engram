@@ -164,12 +164,15 @@ func autoRecallTargets(
 	withLog func(context.Context) context.Context,
 	errHandler func(error),
 	home string,
+	recordsDir func(flag string) string,
 ) []any {
 	return []any{
 		targ.Targ(func(ctx context.Context, a AutoMomentArgs) {
 			if a.SessionsDir == "" {
 				a.SessionsDir = sessionsDirOf(deps.Getenv, deps.UserHomeDir)
 			}
+
+			a.RecordsDir = recordsDir(a.RecordsDir)
 
 			errHandler(RunAutoMoment(withLog(ctx), a, newAutoMomentDeps(deps), deps.Stdout))
 		}).Name("moment").Description(
@@ -216,7 +219,7 @@ func autoTargets(
 	}
 
 	return []any{
-		targ.Group("auto", slices.Concat(autoRecallTargets(deps, withLog, errHandler, home), []any{
+		targ.Group("auto", slices.Concat(autoRecallTargets(deps, withLog, errHandler, home, recordsDir), []any{
 			targ.Targ(func(ctx context.Context, a AutoDeliverArgs) {
 				a.VaultPath, a.SessionsDir = paths(a.VaultPath, a.SessionsDir)
 				a.RecordsDir = recordsDir(a.RecordsDir)
@@ -226,7 +229,6 @@ func autoTargets(
 				"Print the block of the notes that bear on a prompt (the automatic-memory mod runs this for each prompt)"),
 			targ.Targ(func(ctx context.Context, a AutoJudgeArgs) {
 				a.VaultPath, a.SessionsDir = paths(a.VaultPath, a.SessionsDir)
-				a.RecordsDir = recordsDir(a.RecordsDir)
 
 				errHandler(RunAutoJudge(withLog(ctx), a, newAutoJudgeDeps(deps), deps.Stdout))
 			}).Name("judge").Description(

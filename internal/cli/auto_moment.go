@@ -34,8 +34,9 @@ type AutoMomentDeps struct {
 type RecordRead func(dir, session string) []byte
 
 // RunAutoMoment reads a moment from standard input and prints the request for the model that judges it, and the carry
-// for the next step, or nothing when the prompt is not one the user sends (855d4a). The record of the session is read
-// once, and a session with no record is judged without conversation lines.
+// for the next step, or nothing when the prompt is not one the user sends, or, at the end of a turn, when the turn is a
+// headless one that the user did not ask to capture, which a record tells (855d4a, 855d4m). The record of the session is
+// read once, and a session with no record is judged without conversation lines.
 func RunAutoMoment(ctx context.Context, args AutoMomentArgs, deps AutoMomentDeps, stdout io.Writer) error {
 	var input auto.MomentInput
 
@@ -44,9 +45,14 @@ func RunAutoMoment(ctx context.Context, args AutoMomentArgs, deps AutoMomentDeps
 		return fmt.Errorf("auto moment: reading the moment: %w", decodeErr)
 	}
 
-	if !auto.UserSent(input.Origin) {
+	if !auto.UserSent(input.Origin) || (input.Cue == auto.CueTurnEnd && !auto.Judged(input.Origin, args.CaptureSDK)) {
+		// a turn of a prompt the user sends that is not judged is a headless one that the user did not ask to capture
+		if auto.UserSent(input.Origin) {
+			recordLeftOut(deps.Now, deps.WriteRecord, args.RecordsDir, input)
+		}
+
 		// the end of a capture that no write follows is told by this line (855b52)
-		if input.Cue == "turn-end" {
+		if input.Cue == auto.CueTurnEnd {
 			debuglog.Log(ctx, "auto.moment", "session=%s nothing", input.Session)
 		}
 
@@ -63,5 +69,7 @@ func newAutoMomentDeps(d Deps) AutoMomentDeps {
 		ReadRecord: func(dir, session string) []byte {
 			return recordOf(d.FS.ReadDir, d.FS.ReadFile, dir, session)
 		},
+		Now:         d.Now,
+		WriteRecord: recordWriterFrom(d),
 	}
 }

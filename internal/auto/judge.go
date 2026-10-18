@@ -34,36 +34,54 @@ type TurnEnd struct {
 	Carry Carry  `json:"carry"`
 }
 
-// Judge returns the request for the model that judges the turn a session's record holds, and false when the record
-// holds no prompt (793d4g). It reads the record once, and redacts the lines of the window only. The turn begins at the
-// last prompt that has the text the turn began with, or at the last prompt of the record when none has, and ends before
-// the next prompt and after its final text; the lines before it are the context, and the final text is the turn's last
-// line when no line of the turn holds its beginning. The notes are the ones nearest to the turn, which the lookup finds
-// for the text of the turn's prompts and the model may name as already stating a lesson.
+// Judge returns the request for the model that judges the turn a session's record holds, and false when the reply of the
+// learn-moment judgement says the turn is no learn moment or the record holds no prompt (793d4g, 855d4g). It reads the
+// record once, and redacts the lines of the window only. The turn begins at the last prompt that has the text the turn
+// began with, or at the last prompt of the record when none has, and ends before the next prompt and after its final
+// text; the lines before it are the context, and the final text is the turn's last line when no line of the turn holds
+// its beginning. The notes are the ones nearest to the turn, which the lookup finds for the text of the turn's prompts
+// and the model may name as already stating a lesson.
 func Judge(ctx context.Context, record []byte, end TurnEnd, lookup Lookup) (Step, bool, error) {
+	learn, replyErr := LearnMoment(end.Reply)
+	if replyErr != nil {
+		return Step{}, false, replyErr
+	}
+
 	messages, last := messagesOf(record)
-	if last < 0 {
+	if !learn || last < 0 {
 		return Step{}, false, nil
 	}
 
 	start := startOf(messages, last, end.Text)
 	finish := endOf(messages, start)
-	before := linesOf(messages[max(start-contextLines, 0):start])
-	turn := linesOf(messages[start:finish])
 
 	notes, err := lookup(ctx, promptsOf(messages[start:finish]))
 	if err != nil {
 		return Step{}, false, fmt.Errorf("looking up the notes: %w", err)
 	}
 
-	before, turn = fit(before, withAnswer(turn, end.Answer))
-	window := slices.Concat(before, []string{divider}, turn)
+	window := windowOf(messages, start, finish, end.Answer)
 
 	return Step{Request: ModelRequest{
-		Model: cheapTier, Effort: judgeEffort, System: instructions,
+		Model: midTier, System: instructions,
 		Prompt:    fmt.Sprintf(promptShape, strings.Join(window, "\n"), noteLines(notes)),
 		MaxTokens: judgeMaxTokens, TimeoutMs: judgeTimeoutMs,
 	}}, true, nil
+}
+
+// LearnMoment reads the reply of the learn-moment judgement: whether the turn is a learn moment (855d4g). A reply that
+// is neither {"learn":true} nor {"learn":false} is an error.
+func LearnMoment(reply string) (bool, error) {
+	var parsed struct {
+		Learn *bool `json:"learn"`
+	}
+
+	readErr := json.Unmarshal([]byte(unfenced(reply)), &parsed)
+	if readErr != nil || parsed.Learn == nil {
+		return false, ErrLearnReply
+	}
+
+	return *parsed.Learn, nil
 }
 
 // unexported constants.
@@ -75,9 +93,10 @@ const (
 	contextLines = 6
 	// divider is the line that ends the context and opens the turn.
 	divider        = "--- the turn ---"
-	judgeEffort    = "low"
-	judgeMaxTokens = 1500
-	judgeTimeoutMs = 60000
+	// judgeMaxTokens is a ceiling and not a spend: the lessons of a turn with a runbook and its steps (855b78).
+	judgeMaxTokens = 3000
+	// judgeTimeoutMs is the row of the model call of the lessons judgement (855d2b).
+	judgeTimeoutMs = 30000
 	// leftOut stands in the turn for the lines of its middle that the window could not hold.
 	leftOut = "--- some of the turn is left out ---"
 	// lineBreak stands in a line for a break of the message's own.
@@ -175,6 +194,17 @@ func fit(context, turn []string) ([]string, []string) {
 	}
 
 	return context, slices.Concat([]string{turn[0], leftOut}, turn[last:])
+}
+
+// windowOf returns the lines of the window of the turn the messages from start to finish make: the last lines before it
+// as context, the divider and the turn's lines, ending with the final text, cut to the bound of the window (793d4g).
+func windowOf(messages []message, start, finish int, answer string) []string {
+	before := linesOf(messages[max(start-contextLines, 0):start])
+	turn := linesOf(messages[start:finish])
+
+	before, turn = fit(before, withAnswer(turn, answer))
+
+	return slices.Concat(before, []string{divider}, turn)
 }
 
 // holdsText reports whether a message has a line of its own: its text is not empty once its white space, control and
