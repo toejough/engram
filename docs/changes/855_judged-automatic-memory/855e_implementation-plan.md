@@ -237,11 +237,11 @@ The command `auto recall`: the lookup of the matched set for several phrases, th
 
 #### 855e6b4 The three commands create no vault
 
-The row for `auto place` joins it in [855e6d4 The placement command creates no vault](#855e6d4-the-placement-command-creates-no-vault).
+The test also dispatches `auto place`, from [855e6d4 The placement command creates no vault](#855e6d4-the-placement-command-creates-no-vault).
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d4f1a | `Test855d4f1a_TargetsMomentPhrasesRecall_TheMomentPhrasesRecallAndPlacementCommandsCreateNoVault` | Dedicated example | a path with no [vault](../../GLOSSARY.md#vault), the three commands dispatched through the real targets: no vault and no creation line afterwards | Not started |  |  |  |
+| 855d4f1a | `Test855d4f1a_Targets_TheMomentPhrasesRecallAndPlacementCommandsCreateNoVault` | Dedicated example | a path with no [vault](../../GLOSSARY.md#vault), the commands dispatched through the real targets: no vault and no creation line afterwards; `auto moment`, `auto phrases` and `auto recall` here, `auto place` in [855e6d4 The placement command creates no vault](#855e6d4-the-placement-command-creates-no-vault) | Not started |  |  |  |
 
 ### 855e6c The candidates are judged and delivered with the prompt
 
@@ -269,7 +269,9 @@ The command `auto deliver` takes the candidate judgement's reply and the carry, 
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
-| Adapt the tests of the scenarios 793d4c1a, 793d4c1b and 793d4c1c that call the delivery with the old input (the [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s text) to the new (the cue, the held IDs, the reply and the carry) | Non-test action | their contracts stay, so they have no red of their own; mutation: a delivery that reads the old input fails each of them | Not started |
+| Adapt the tests that stay and call the delivery with the old input (the [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s text) to the new (the cue, the held IDs, the reply and the carry): 793d4c1a and 793d4c1b (internal/auto/auto_test.go, through `blockOf` and `deliveryOf`), 793d4c1c, 793d4e1a, and 793d4f1a to 793d4f1d (internal/cli/auto_test.go) | Non-test action | their contracts stay, so they have no red of their own; mutation: a delivery that reads the old input fails each of them | Not started |
+| Adapt the deliver half of `Test793d4m1a_Auto_APromptOfAnOriginTheUserSendsIsDeliveredForAndItsTurnIsJudged` and `Test793d4m1b_Auto_APromptOfAnyOtherOriginIsDeliveredNothingAndItsTurnIsJudgedNothing` (internal/cli/auto_origin_test.go) to the new input | Non-test action | each test drives the delivery and the judgement in one function; the delivery half is adapted here so that the group ends green, and the judgement half is rewritten in [855e6d1 Judging the learn moment and the lessons](#855e6d1-judging-the-learn-moment-and-the-lessons); mutation: a delivery that reads the old input fails the delivery half | Not started |
+| Delete `TestTargets_AutoDeliverPrintsTheNotesThatBearOnThePromptOnStandardInput` (internal/cli/auto_test.go) | Non-test action | it has no scenario and drives the old input through the real targets; the wiring of the command stays run by the adapted 793d4e1a and the rewritten `Test793d4p1l_Targets_TheNotesDeliveredAreOneLine` | Not started |
 
 | Gherkin | Test | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -286,8 +288,6 @@ The command `auto deliver` takes the candidate judgement's reply and the carry, 
 | 855d4c1e | `Test855d4c1e_Deliver_APassageIsCutTo1200Characters` | Dedicated example | a passage is cut to 1,200 characters |  | Not started |  |  |  |
 | 855d4c1g | `Test855d4c1g_Deliver_ANoteOrPassageTheModHasDeliveredAlreadyIsLeftOut` | Interaction (`imptest`) | a held ID is left out of the block and its note is not marked as used: a forbidden call |  | Not started |  |  |  |
 | 855d4d1a | `Test855d4d1a_Deliver_APassageCannotReshapeTheBlock` | Property-based (`rapid`) with named examples | passage text is open input as note text was in 793 | for any chunk IDs and texts with line breaks, control and format characters, the framing line and lines that read as other notes, mixed: the framing line is first and nowhere else; there is exactly one line for each passage, each beginning with a dash and a space and holding single spaces and no control or format character | Not started |  |  |  |
-| 793d4m1a | `Test793d4m1a_DeliverOrigin_APromptOfAnOriginTheUserSendsIsJudgedAndDelivered` | Dedicated example | the origin gate of the delivery: the four origins the user sends are delivered for; the rewritten test covers the delivery half only, the moment half is in [855e6d1 Judging the learn moment and the lessons](#855e6d1-judging-the-learn-moment-and-the-lessons) |  | Not started |  |  |  |
-| 793d4m1b | `Test793d4m1b_DeliverOrigin_APromptOfAnyOtherOriginIsJudgedAndDeliveredNothing` | Dedicated example | any other origin, including none, is delivered nothing and looks nothing up |  | Not started |  |  |  |
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
@@ -297,15 +297,18 @@ The command `auto deliver` takes the candidate judgement's reply and the carry, 
 
 | Gherkin | Test | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793d4p1h | `Test793d4p1h_Deliver_ANoteDeliveredIsShownAsALine`, `Test793d4p1h_RunAutoDeliver_ANoteDeliveredIsShownAsALine` | Dedicated example | a [note](../../GLOSSARY.md#permanent-note) delivered is shown as a line; rewritten from the reply and the carry |  | Not started |  |  |  |
+| 793d4p1h | `Test793d4p1h_Deliver_ANoteDeliveredIsShownAsALine` | Dedicated example | the pure line of a [note](../../GLOSSARY.md#permanent-note) delivered; rewritten from the reply and the carry |  | Not started |  |  |  |
+| 793d4p1h | `Test793d4p1h_RunAutoDeliver_ANoteDeliveredIsShownAsALine` | Dedicated example | the command prints the block on standard output and the line on standard error; rewritten from the reply and the carry |  | Not started |  |  |  |
 | 793d4p1i | `Test793d4p1i_Deliver_ALineShownIsOneLineWhateverTheTextsHold` | Property-based (`rapid`) with named examples | a line is one line whatever the texts hold | for any notes in a carry, reply and record texts with line breaks, control and format characters and lines that read as other lines: each line printed on standard error is one line of single spaces with no control or format character, of at most 240 characters, and there is one line for each of the four kinds that has something to tell and no other | Not started |  |  |  |
-| 793d4p1l | `Test793d4p1l_Deliver_TheNotesDeliveredAreOneLine`, `Test793d4p1l_Targets_TheNotesDeliveredAreOneLine` | Dedicated example | the notes delivered are one line, naming each |  | Not started |  |  |  |
+| 793d4p1l | `Test793d4p1l_Deliver_TheNotesDeliveredAreOneLine` | Dedicated example | the pure line of two notes delivered, naming each |  | Not started |  |  |  |
+| 793d4p1l | `Test793d4p1l_Targets_TheNotesDeliveredAreOneLine` | Dedicated example | the same through the real targets |  | Not started |  |  |  |
 | 855d4p1a | `Test855d4p1a_Lines_ThePassagesDeliveredAreNamedInTheLine` | Dedicated example | the passages delivered are named in the line, in the formats of [855d8a Formats of the lines of 793d4p](./855d_technical-spec.md#855d8a-formats-of-the-lines-of-793d4p) |  | Not started |  |  |  |
 | 855d4p1b | `Test855d4p1b_Lines_ADeliveryWithinATurnShowsItsLineOnlyAndTouchesNoRecord` | Interaction (`imptest`) | a delivery within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) shows its line only: no record is marked or removed, a forbidden call on the injected records |  | Not started |  |  |  |
 | 855d4p1c | `Test855d4p1c_Lines_APromptThatIsNotARecallMomentShowsTheRecords` | Dedicated example | a [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) that is not a recall moment gets no block and still shows and marks the records |  | Not started |  |  |  |
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
+| Adapt the tests that stay and give the delivery the old input: 793d4p1c, `Test793d4p1e_RunAutoDeliver_OneLineIsShownForEachKindOfRecord`, 793d4p1f, 793d4p1g, 793d4p1j, 793d4p1m and 793d4p1n (internal/cli/auto_activity_test.go) | Non-test action | their contracts stay, so they have no red of their own; mutation: a delivery that reads the old input fails each of them | Not started |
 | Delete the test of 793d4p1k ([855d4u 793d4p1k A warning of the lookup is no line for the user](./855d_technical-spec.md#855d4u-removed-793d4p1k-a-warning-of-the-lookup-is-no-line-for-the-user)) | Non-test action | the warning of the lookup is the recall command's now, in [855e6b3 Looking up the candidates for the phrases](#855e6b3-looking-up-the-candidates-for-the-phrases) | Not started |
 
 #### 855e6c5 The prompt flow of the mod
@@ -358,18 +361,20 @@ The command `auto moment` with the cue `turn-end`, the origin gate for headless 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 855d4a1b | `Test855d4a1b_Moment_ATurnThatEndedBecomesALearnMomentRequest` | Dedicated example | a turn that ended becomes the learn-moment request, with the 10-second limit | Not started |  |  |  |
-| 793d4m1a | `Test793d4m1a_MomentOrigin_APromptOfAnOriginTheUserSendsIsJudgedAndDelivered` | Dedicated example | the moment half of the origin gate: the four origins are judged with both cues | Not started |  |  |  |
-| 793d4m1b | `Test793d4m1b_MomentOrigin_APromptOfAnyOtherOriginIsJudgedAndDeliveredNothing` | Dedicated example | any other origin is judged nothing with each cue | Not started |  |  |  |
+| 793d4m1a | `Test793d4m1a_Auto_APromptOfAnOriginTheUserSendsIsDeliveredForAndItsTurnIsJudged` | Dedicated example | the origin gate of both steps: the four origins the user sends are judged with both cues of the moment, and delivered for as before; rewritten in place, from the judgement to the moment, its delivery half adapted in [855e6c3 Delivering the chosen candidates](#855e6c3-delivering-the-chosen-candidates) | Not started |  |  |  |
+| 793d4m1b | `Test793d4m1b_Auto_APromptOfAnyOtherOriginIsDeliveredNothingAndItsTurnIsJudgedNothing` | Interaction (`imptest`) | any other origin, including none, is judged nothing with each cue and delivered nothing, and the injected lookup receives no call: a forbidden call; rewritten in place, from the judgement to the moment | Not started |  |  |  |
 | 793d4m1c | `Test793d4m1c_Targets_TheTurnOfAHeadlessPromptIsJudgedOnlyWhenTheUserAsks` | Dedicated example | a headless turn is judged only with the flag; rewritten from the judgement to the moment | Not started |  |  |  |
-| 793d4m1e | `Test793d4m1e_RunAutoJudge_AHeadlessTurnThatIsNotJudgedIsRecordedAsSkippedWithTheReason`, `Test793d4m1e_Targets_AHeadlessTurnThatIsNotJudgedIsRecordedUnderTheEngramDataDirectory` | Dedicated example | a headless turn left out is recorded as skipped with the reason; rewritten from the judgement to the moment | Not started |  |  |  |
-| 793d4g1a | `Test793d4g1a_Judge_TheRequestHoldsTheInstructionsTheContextAndTheTurn`, `Test793d4g1a_RunAutoJudge_PrintsTheRequestForTheTurnTheRecordEndsWith` | Dedicated example | the request holds the instructions, the context and the turn; rewritten for the reply `{"learn":true}` beside the fields | Not started |  |  |  |
+| 793d4m1e | `Test793d4m1e_RunAutoJudge_AHeadlessTurnThatIsNotJudgedIsRecordedAsSkippedWithTheReason` | Dedicated example | a headless turn left out is recorded as skipped with the reason; rewritten in place, from the judgement to the moment | Not started |  |  |  |
+| 793d4m1e | `Test793d4m1e_Targets_AHeadlessTurnThatIsNotJudgedIsRecordedUnderTheEngramDataDirectory` | Dedicated example | the same through the real targets, the record under the engram data directory | Not started |  |  |  |
+| 793d4g1a | `Test793d4g1a_Judge_TheRequestHoldsTheInstructionsTheContextAndTheTurn` | Dedicated example | the request holds the instructions, the context and the turn; rewritten in place for the reply `{"learn":true}` beside the fields | Not started |  |  |  |
+| 793d4g1a | `Test793d4g1a_RunAutoJudge_PrintsTheRequestForTheTurnTheRecordEndsWith` | Dedicated example | the command prints that request for the turn the record ends with; rewritten in place for the reply | Not started |  |  |  |
 | 855d4g1a | `Test855d4g1a_Judge_ATurnThatIsNotALearnMomentIsJudgedNothing` | Dedicated example | a turn that is not a learn moment is judged nothing | Not started |  |  |  |
 | 855d4g1b | `Test855d4g1b_Judge_AFencedReplyIsReadAndAReplyThatIsNotAMomentReplyFails` | Dedicated example | a fenced reply is read, and a reply that is no moment reply fails the command naming the judgement | Not started |  |  |  |
 | 855d4g1c | `Test855d4g1c_Judge_TheInstructionsNameTheFourKindsAndTheRunbook` | Dedicated example | the instructions name the four kinds and the runbook, and hold none of the [transcript](../../GLOSSARY.md#transcript) | Not started |  |  |  |
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
-| Adapt the other 23 tests of the scenarios 793d4g1b to 793d4g1x to give the judgement the reply `{"learn":true}` beside the fields they name | Non-test action | their contracts stay ([855d4g 793d4g Judging a turn](./855d_technical-spec.md#855d4g-modified-793d4g-judging-a-turn)), so they have no red of their own; mutation: a judgement that prints nothing without the reply, or that fails it, fails each of them | Not started |
+| Adapt the other 25 test functions of the scenarios 793d4g1b to 793d4g1x (23 scenarios; 793d4g1c and 793d4g1h have two functions each) to give the judgement the reply `{"learn":true}` beside the fields they name, and `Test793d4e1b_Targets_AutoJudgeCreatesNoVault`, `Test793d4j1c_Judge_TheRequestHoldsNoCredentialOfTheTurn` and `Test793d4j1h_Judge_ACredentialThatCharactersNotShownSplitIsNotInTheRequest`, which give it the same input | Non-test action | their contracts stay ([855d4g 793d4g Judging a turn](./855d_technical-spec.md#855d4g-modified-793d4g-judging-a-turn), [855d4k 793d4j Redacting credentials](./855d_technical-spec.md#855d4k-modified-793d4j-redacting-credentials)), so they have no red of their own; mutation: a judgement that prints nothing without the reply, or that fails it, fails each of them | Not started |
 
 #### 855e6d2 Placing the lessons
 
@@ -398,9 +403,9 @@ The command `auto write` after a capture. The scenarios of 793d4h that stay need
 
 #### 855e6d4 The placement command creates no vault
 
-| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d4f1a | `Test855d4f1a_TargetsPlace_TheMomentPhrasesRecallAndPlacementCommandsCreateNoVault` | Dedicated example | the fourth command of the scenario, `auto place`, through the real targets: no [vault](../../GLOSSARY.md#vault) and no creation line | Not started |  |  |  |
+| Work | Classification | Why | Status |
+| --- | --- | --- | --- |
+| Extend `Test855d4f1a_Targets_TheMomentPhrasesRecallAndPlacementCommandsCreateNoVault` (the row of [855e6b4 The three commands create no vault](#855e6b4-the-three-commands-create-no-vault)) to dispatch `auto place` with its reply, the fourth command of the scenario | Non-test action | the test passes when extended, so it has no red of its own; mutation: a first-use step that is asked for `auto place` fails it | Not started |
 
 #### 855e6d5 The capture flow of the mod
 
