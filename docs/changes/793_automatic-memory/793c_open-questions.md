@@ -457,3 +457,11 @@ Withdrawn: answered by the owner's instruction to follow the guides, [793b91 The
 - **Recommendation:** (a): the text of a prompt may hold a secret that the redaction by shape does not catch, and (b) would keep it in a file.
 - **Blocks:** [793a2e1c A delivery that could not be done is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios).
 - **Status:** open; default (a) taken in [793b107 A delivery that could not be done is reported without the prompt's text](./793b_decision-log.md#793b107-a-delivery-that-could-not-be-done-is-reported-without-the-prompts-text).
+
+## 793c76 Is a failure the mod reports cut in its middle?
+
+- **Context:** the mod reports a failed step to the writing as a sentence of up to 300 characters; the message of an error names its step at its beginning and gives its cause at its end, and a path in between can fill the 300 characters (the failed sweep of [793a2e1e A sweep that failed is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios) lost its cause).
+- **Options:** (a) Cut it in its middle, so that both ends stay. (b) Cut it to its first characters, as built before. (c) Do not cut it.
+- **Recommendation:** (a): (b) loses the cause, and (c) puts no bound on a record.
+- **Blocks:** [793a2e1e A sweep that failed is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios).
+- **Status:** open; default (a) taken in [793b108 A failure the mod reports is cut in its middle](./793b_decision-log.md#793b108-a-failure-the-mod-reports-is-cut-in-its-middle).

@@ -723,11 +723,12 @@ Adds no component: the record of the failed write is read like any other, and it
 
 #### 793e6d5 A sweep that failed is shown with its reason
 
-Adds no component: the mod reports a failed sweep to the writing.
+Adds no component: the mod reports a failed sweep to the writing, and cuts a long failure in its middle ([793b108 A failure the mod reports is cut in its middle](./793b_decision-log.md#793b108-a-failure-the-mod-reports-is-cut-in-its-middle)).
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 793a2e1e | Dedicated example, product acceptance (`network`) | the directory of the chunk index is made read-only | | Not started | | | |
+| 793d2b1m | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a failure of the length of a real one, a path in its middle, under the stand-in host | | Not started | | | |
 
 #### 793e6d6 A turn that is not captured is shown with the reason
 
