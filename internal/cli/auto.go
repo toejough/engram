@@ -388,10 +388,6 @@ func lookUpNotes(ctx context.Context, vault, text string, query QueryRun) ([]aut
 // markShown marks each record whose line was shown, by an empty file beside the record, so that its line is not shown
 // again (793d4p). A mark that cannot be written is the end of it.
 func markShown(write func(path string, data []byte) error, dir, session string, files []string) {
-	if dir == "" || !isPlainName(session) {
-		return
-	}
-
 	for _, file := range files {
 		_ = write(filepath.Join(dir, session, file+toldFileExt), nil)
 	}
