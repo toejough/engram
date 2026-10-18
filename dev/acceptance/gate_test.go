@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -49,6 +50,8 @@ const (
 	// gatePrompt makes the agent make two tool calls, one after the other.
 	gatePrompt = "Run the shell command `echo one` with the Bash tool and wait for its result, then run the " +
 		"shell command `echo two` with the Bash tool, then say done."
+	// gateSingleCall makes the agent make one tool call.
+	gateSingleCall = "Run the shell command `echo one` with the Bash tool, then say done."
 	// probeNote is the note the block of the probe names.
 	probeNote = "probe-note.md"
 )
@@ -59,6 +62,45 @@ type hostEvent struct {
 	at     time.Time
 	kind   string // tool call, tool result, block, request or reply
 	detail string
+}
+
+func Test855d7a1h_Gate_AContextPutAtAToolCallArrivesWithItsResult(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var chat *conversation
+
+	step(t, "Given a real Claude Code session with the probe installed, which puts a block that names a note at "+
+		"the first tool call of the session", func() {
+		machine.hasClaudeCode()
+		machine.agentMayRun("echo")
+		machine.hasProbe()
+		chat = machine.startSession("a-project").converse()
+	})
+
+	step(t, "When the agent makes that tool call", func() {
+		chat.tell(gateSingleCall)
+	})
+
+	step(t, "Then the order of the tool's result, the block and the agent's next message in the model's requests "+
+		"is recorded, with the time the block arrived", func() {
+		events := chat.session.hostEvents()
+		t.Logf("the record around the tool call:\n%s", describeEvents(events))
+		t.Logf("the probe reports: %q", chat.shown)
+
+		order := chat.session.requestOrder()
+		t.Logf("the items of the model's request that follows the tool call, in order: %v", order)
+
+		g.Expect(order).NotTo(BeEmpty(), "the items of the model's request that follows the tool call")
+
+		result := slices.Index(order, "tool result")
+		block := slices.Index(order, "block")
+
+		g.Expect(result).To(BeNumerically(">=", 0), "the tool's result is in the request")
+		g.Expect(block).To(BeNumerically(">", result), "the block follows the tool's result in the request")
+	})
 }
 
 // hasProbe installs the probe of the gates in the place of the mod (855b46).
@@ -121,6 +163,11 @@ func (r transcriptRow) eventKind() (string, string) {
 	}
 
 	return "", ""
+}
+
+// requestOrder returns the kinds of the items, in order, of the model's request that follows the first tool call.
+func (s *session) requestOrder() []string {
+	return nil
 }
 
 // toolCalls counts the tool calls the agent made in the turn.

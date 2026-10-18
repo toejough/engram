@@ -169,13 +169,13 @@ Not scenarios of the specs: the rows are named by what they build. Both are fixt
 
 | Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1f | `Test855d7a1f_Gate_ABlockDeliveredWithinATurnIsHeld` | measurement | Measurement, real dependency (`network`) | the [transcript](../../GLOSSARY.md#transcript)'s record of a block added within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) is not in the type definitions ([855d1a Verified host facts](./855d_technical-spec.md#855d1a-verified-host-facts)); red is the run before the probe delivers: no block in the transcript. Confirmed is green; refuted (no record, or more than one) ends the row as `Refuted`, builds the ledger node and records the result in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) | Done | 38a584bf | 7bafa13a |  |
+| 855d7a1f | `Test855d7a1f_Gate_ABlockDeliveredWithinATurnIsHeld` | measurement | Measurement, real dependency (`network`) | the [transcript](../../GLOSSARY.md#transcript)'s record of a block added within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) is not in the type definitions ([855d1a Verified host facts](./855d_technical-spec.md#855d1a-verified-host-facts)); red is the run before the probe delivers: no block in the transcript. Confirmed is green; refuted (no record, or more than one) ends the row as `Refuted`, builds the ledger node and records the result in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) | Done | 38a584bf | 7bafa13a | c938317f |
 
 #### 855e6a3 A context put at a tool call arrives with its result
 
 | Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1h | `Test855d7a1h_Gate_AContextPutAtAToolCallArrivesWithItsResult` | measurement | Measurement, real dependency (`network`) | the host's text says the context is read after the tool's result; the row records the order of the result, the block and the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s next message, and the time the block arrived. Refuted (the block precedes the result, or never arrives) ends the row as `Refuted` | Not started |  |  |  |
+| 855d7a1h | `Test855d7a1h_Gate_AContextPutAtAToolCallArrivesWithItsResult` | measurement | Measurement, real dependency (`network`) | the host's text says the context is read after the tool's result; the row records the order of the result, the block and the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s next message, and the time the block arrived. Refuted (the block precedes the result, or never arrives) ends the row as `Refuted` | Red |  |  |  |
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
