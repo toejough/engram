@@ -1,5 +1,12 @@
 package auto
 
+import (
+	_ "embed" // the instructions of the judgement are a text file of the package
+	"fmt"
+	"slices"
+	"strings"
+)
+
 // ModelRequest is the request of a call of the model that a step prints: the fields the host's model call takes
 // (855d1b). The effort is the cheap tier's only, and the time limit a capture's.
 type ModelRequest struct {
@@ -31,7 +38,31 @@ type MomentInput struct {
 	Text    string `json:"text"`
 }
 
-// Moment returns the request that judges whether a moment is one for recall.
+// Moment returns the request that judges whether a moment is one for recall (855d4a): the conversation lines before it
+// and the line of the moment, as the window of a judgement of a turn is built (793d4g).
 func Moment(record []byte, input MomentInput) (Step, bool, error) {
-	return Step{}, false, nil
+	messages, _ := messagesOf(record)
+	before := linesOf(messages[max(len(messages)-contextLines, 0):])
+	before, turn := fit(before, []string{escaped(userLabel + messageText(input.Text))})
+	window := strings.Join(slices.Concat(before, turn), "\n")
+
+	return Step{
+		Request: ModelRequest{
+			Model: momentModel, Effort: momentEffort, System: recallMoment,
+			Prompt: fmt.Sprintf(momentShape, window), MaxTokens: momentMaxTokens,
+		},
+		Carry: Carry{Cue: input.Cue, Window: window},
+	}, true, nil
 }
+
+// unexported constants.
+const (
+	momentEffort    = "low"
+	momentMaxTokens = 200
+	momentModel     = "haiku"
+	// momentShape is the prompt of the request: the window between its tags.
+	momentShape = "<window>\n%s\n</window>"
+)
+
+//go:embed prompts/moment_recall.txt
+var recallMoment string
