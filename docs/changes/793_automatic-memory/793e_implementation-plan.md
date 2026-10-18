@@ -879,7 +879,7 @@ Review finding B-5 ([793b112 The warnings of the lookup go to the debug log](./7
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793d4p1k | Dedicated example | `engram auto deliver` dispatched over a [vault](../../GLOSSARY.md#vault) of two notes, the embedding of one of another model, with a debug log: standard error holds the line of the note delivered and nothing else, and the log holds the warning | Red | | | |
+| 793d4p1k | Dedicated example | `engram auto deliver` dispatched over a [vault](../../GLOSSARY.md#vault) of two notes, the embedding of one of another model, with a debug log: standard error holds the line of the note delivered and nothing else, and the log holds the warning | Green-all | 14029428 | | |
 
 ### 793e6f The delivery merges the parent vault
 

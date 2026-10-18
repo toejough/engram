@@ -16,6 +16,7 @@ import (
 	"go.yaml.in/yaml/v3"
 
 	"github.com/toejough/engram/internal/auto"
+	"github.com/toejough/engram/internal/debuglog"
 )
 
 // AutoDeliverArgs holds parsed flags for `engram auto deliver`.
@@ -405,6 +406,12 @@ func markShown(write func(path string, data []byte) error, dir, session string, 
 // (#700).
 func newAutoDeliverDeps(d Deps) AutoDeliverDeps {
 	queryDeps := newQueryDeps(d)
+
+	// the mod shows every line of standard error to the user, so the warnings of the lookup go to the debug log (793d4p)
+	logger := debuglog.New(d.DebugLog, "engram", d.Now)
+	queryDeps.LogWarning = func(format string, args ...any) {
+		logger.Log("auto.lookup", "warning: "+format, args...)
+	}
 
 	return AutoDeliverDeps{
 		Stdin: d.Stdin,
