@@ -134,7 +134,8 @@ func Test793d4g1i_RunAutoJudge_AFailedLookupFailsTheCommandAndPrintsNothing(t *t
 	g := NewWithT(t)
 
 	sessions := t.TempDir()
-	record := `{"type":"user","message":{"role":"user","content":"When is the Zorblax staging database reset?"}}` + "\n"
+	record := `{"type":"user","message":{"role":"user","content":` +
+		`"When is the Zorblax staging database reset? the db pass is hunter2-abc"}}` + "\n"
 	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
 
 	query := newQueryDeps(newInMemoryFS())
@@ -150,7 +151,8 @@ func Test793d4g1i_RunAutoJudge_AFailedLookupFailsTheCommandAndPrintsNothing(t *t
 			ReadFile: os.ReadFile,
 		}, &out)
 
-	g.Expect(err).To(MatchError(ContainSubstring("embedder down")))
+	g.Expect(err).To(MatchError(And(ContainSubstring("embedder down"), Not(ContainSubstring("hunter2-abc")),
+		Not(ContainSubstring("Zorblax staging")))), "the cause, and none of the turn's prompts")
 	g.Expect(out.String()).To(BeEmpty())
 }
 

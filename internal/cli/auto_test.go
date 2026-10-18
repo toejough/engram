@@ -59,13 +59,18 @@ func Test793d4a1b_RunAutoDeliver_AFailedLookupFailsTheCommandAndPrintsNothing(t 
 	query := newQueryDeps(newInMemoryFS())
 	query.Embedder = errorEmbedder{}
 
-	var out bytes.Buffer
+	var out, shown bytes.Buffer
 
+	// a word that no redaction by shape takes for a secret, in the prompt the lookup is for
 	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: t.TempDir()},
-		cli.AutoDeliverDeps{Stdin: userPrompt("anything", ""), Query: queryOver(query)}, &out, io.Discard)
+		cli.AutoDeliverDeps{
+			Stdin: userPrompt("how do I deploy zorblax staging, the db pass hunter2-abc", ""), Query: queryOver(query),
+		}, &out, &shown)
 
-	g.Expect(err).To(MatchError(ContainSubstring("embedder down")))
+	g.Expect(err).To(MatchError(And(ContainSubstring("embedder down"), Not(ContainSubstring("hunter2-abc")),
+		Not(ContainSubstring("zorblax staging")))), "the cause, and none of the prompt")
 	g.Expect(out.String()).To(BeEmpty())
+	g.Expect(shown.String()).To(BeEmpty())
 }
 
 func Test793d4a1c_NotesOf_ANoteOnlyTheExploreHalfPickedDoesNotBearOnThePrompt(t *testing.T) {

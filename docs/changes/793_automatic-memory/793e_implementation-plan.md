@@ -790,8 +790,8 @@ Review findings G3-2 and P-2 ([793b107 A delivery that could not be done is repo
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793d4a1b (amended) | Dedicated example | a lookup that fails over a prompt with a password in it: the error of the command names the cause and holds nothing of the prompt | Not started | | | |
-| 793d4g1i (amended) | Dedicated example | the same for the judgement, which looks up the text of the turn's prompts | Not started | | | |
+| 793d4a1b (amended) | Dedicated example | a lookup that fails over a prompt with a password in it: the error of the command names the cause and holds nothing of the prompt | Red | | | |
+| 793d4g1i (amended) | Dedicated example | the same for the judgement, which looks up the text of the turn's prompts | Red | | | |
 
 ### 793e6f The delivery merges the parent vault
 
