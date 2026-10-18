@@ -299,7 +299,10 @@ func Test793d4c1c_RunAutoDeliver_ALineSaysWhenItsNoteWasWrittenAutomatically(t *
 		marked bool
 	}{
 		"a note written automatically": {source: "written automatically (session " + sessionID + ")", marked: true},
-		"a note the agent saved":       {source: "agent"},
+		"a note the earlier mod wrote": {
+			source: "captured from the conversation; written automatically (session " + sessionID + ", turn 3)", marked: true,
+		},
+		"a note the agent saved": {source: "agent"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
