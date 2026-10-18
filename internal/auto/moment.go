@@ -40,7 +40,7 @@ type Step struct {
 
 // Moment returns the request that judges whether a moment is one for recall (855d4a): the conversation lines before it
 // and the line of the moment, as the window of a judgement of a turn is built (793d4g).
-func Moment(record []byte, input MomentInput) (Step, bool, error) {
+func Moment(record []byte, input MomentInput) Step {
 	messages, _ := messagesOf(record)
 	before := linesOf(messages[max(len(messages)-contextLines, 0):])
 	before, turn := fit(before, []string{escaped(userLabel + messageText(input.Text))})
@@ -52,7 +52,7 @@ func Moment(record []byte, input MomentInput) (Step, bool, error) {
 			Prompt: fmt.Sprintf(momentShape, window), MaxTokens: momentMaxTokens,
 		},
 		Carry: Carry{Cue: input.Cue, Window: window},
-	}, true, nil
+	}
 }
 
 // unexported constants.

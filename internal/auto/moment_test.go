@@ -20,13 +20,10 @@ func Test855d4a1a_Moment_APromptBecomesARequestForTheCheapTier(t *testing.T) {
 		assistantText("Try make all."),
 	}, "\n")
 
-	step, found, err := auto.Moment([]byte(record), auto.MomentInput{
+	step := auto.Moment([]byte(record), auto.MomentInput{
 		Session: "4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11", Cue: "prompt", Origin: "composer",
 		Text: "Prepare a test run against the Zorblax staging database tonight.",
 	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(found).To(BeTrue())
 
 	request := step.Request
 	g.Expect(request.Model).To(Equal("haiku"))
@@ -75,12 +72,9 @@ func checkMomentIsSafe(rt *rapid.T, first, second credential) {
 	record := userPrompt(jsonText("word "+message+" "+first.text)) + "\n" +
 		assistantText(jsonText("word "+message+" "+second.text))
 
-	step, found, err := auto.Moment([]byte(record), auto.MomentInput{
+	step := auto.Moment([]byte(record), auto.MomentInput{
 		Cue: "prompt", Origin: "composer", Text: "zq9x " + prompt + " " + second.text,
 	})
-	if err != nil || !found {
-		rt.Fatalf("a prompt of a session was judged %v, %v", found, err)
-	}
 
 	if counts := tagCounts(step.Request.Prompt); !slices.Equal(counts[:2], []int{1, 1}) {
 		rt.Fatalf("the tags of the window are %v in the prompt %q", counts, step.Request.Prompt)

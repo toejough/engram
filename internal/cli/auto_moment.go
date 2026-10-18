@@ -40,16 +40,7 @@ func RunAutoMoment(_ context.Context, args AutoMomentArgs, deps AutoMomentDeps, 
 		return nil
 	}
 
-	step, found, momentErr := auto.Moment(deps.ReadRecord(args.SessionsDir, input.Session), input)
-	if momentErr != nil {
-		return fmt.Errorf("auto moment: %w", momentErr)
-	}
-
-	if !found {
-		return nil
-	}
-
-	encoded, marshalErr := json.Marshal(step)
+	encoded, marshalErr := json.Marshal(auto.Moment(deps.ReadRecord(args.SessionsDir, input.Session), input))
 	if marshalErr != nil {
 		return fmt.Errorf("auto moment: encoding the request: %w", marshalErr)
 	}
