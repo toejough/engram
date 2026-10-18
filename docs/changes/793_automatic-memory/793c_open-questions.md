@@ -489,3 +489,11 @@ Withdrawn: answered by the owner's instruction to follow the guides, [793b91 The
 - **Recommendation:** (a): the writing is the one place records are made and checked, the mod holds no logic, and (c) cannot work for a delivery that is ended or that fails before it runs.
 - **Blocks:** [793a2e1c A delivery that could not be done is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1f A turn that is not captured is shown with the reason](./793a_product-spec.md#793a2e1-uat-scenarios).
 - **Status:** open; default (a) taken in [793b106 Two records the display needs](./793b_decision-log.md#793b106-two-records-the-display-needs).
+
+## 793c80 Is a path with a long name of letters and digits redacted in a line?
+
+- **Context:** the line that tells a reason redacts it by shape ([793d4j Redacting credentials](./793d_technical-spec.md#793d4j-redacting-credentials)); a part of a path of 32 or more letters and digits is the shape of a token, so a long name of a directory, such as the temporary directory of a test or a project directory named for a long path, shows as `[redacted]` in a line of [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did), while the cause at the end of the reason stays.
+- **Options:** (a) Accept it: the redaction errs toward hiding. (b) Exempt a run of letters and digits between slashes. (c) Redact only what is named a credential by its context.
+- **Recommendation:** (a): (b) lets a token in a path through, and the loss is the readability of one long name.
+- **Blocks:** nothing.
+- **Status:** open; default (a) is the behaviour of [793b69 Credentials are redacted by shape, and the rest is a known risk](./793b_decision-log.md#793b69-credentials-are-redacted-by-shape-and-the-rest-is-a-known-risk), unchanged.
