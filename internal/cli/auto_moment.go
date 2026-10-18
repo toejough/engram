@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/toejough/engram/internal/auto"
+	"github.com/toejough/engram/internal/debuglog"
 )
 
 // AutoMomentArgs holds parsed flags for `engram auto moment`.
@@ -28,7 +29,7 @@ type RecordRead func(dir, session string) []byte
 // RunAutoMoment reads a moment from standard input and prints the request for the model that judges it, and the carry
 // for the next step, or nothing when the prompt is not one the user sends (855d4a). The record of the session is read
 // once, and a session with no record is judged without conversation lines.
-func RunAutoMoment(_ context.Context, args AutoMomentArgs, deps AutoMomentDeps, stdout io.Writer) error {
+func RunAutoMoment(ctx context.Context, args AutoMomentArgs, deps AutoMomentDeps, stdout io.Writer) error {
 	var input auto.MomentInput
 
 	decodeErr := json.NewDecoder(deps.Stdin).Decode(&input)
@@ -37,6 +38,11 @@ func RunAutoMoment(_ context.Context, args AutoMomentArgs, deps AutoMomentDeps, 
 	}
 
 	if !auto.UserSent(input.Origin) {
+		// the end of a capture that no write follows is told by this line (855b52)
+		if input.Cue == "turn-end" {
+			debuglog.Log(ctx, "auto.moment", "session=%s nothing", input.Session)
+		}
+
 		return nil
 	}
 
