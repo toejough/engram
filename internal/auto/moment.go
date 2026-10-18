@@ -14,6 +14,8 @@ type Carry struct {
 	Window string `json:"window,omitempty"`
 	// Candidates are the notes and passages the lookup found, in full, for the judgement of them.
 	Candidates []Candidate `json:"candidates,omitempty"`
+	// Seen names, by file name, the notes the session has seen, which the placement judged the lessons against (855d4h).
+	Seen []string `json:"seen,omitempty"`
 }
 
 // MomentInput is a moment, as the memory mod hands it over (855d4a).

@@ -92,7 +92,7 @@ const (
 	// contextLines is how many lines of the conversation before the turn the window holds at most.
 	contextLines = 6
 	// divider is the line that ends the context and opens the turn.
-	divider        = "--- the turn ---"
+	divider = "--- the turn ---"
 	// judgeMaxTokens is a ceiling and not a spend: the lessons of a turn with a runbook and its steps (855b78).
 	judgeMaxTokens = 3000
 	// judgeTimeoutMs is the row of the model call of the lessons judgement (855d2b).
