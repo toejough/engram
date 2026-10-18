@@ -175,7 +175,7 @@ Not scenarios of the specs: the rows are named by what they build. Both are fixt
 
 | Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1h | `Test855d7a1h_Gate_AContextPutAtAToolCallArrivesWithItsResult` | measurement | Measurement, real dependency (`network`) | the host's text says the context is read after the tool's result; the row records the order of the result, the block and the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s next message, and the time the block arrived. Refuted (the block precedes the result, or never arrives) ends the row as `Refuted` | Green-all | 370ef56a |  |  |
+| 855d7a1h | `Test855d7a1h_Gate_AContextPutAtAToolCallArrivesWithItsResult` | measurement | Measurement, real dependency (`network`) | the host's text says the context is read after the tool's result; the row records the order of the result, the block and the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s next message, and the time the block arrived. Refuted (the block precedes the result, or never arrives) ends the row as `Refuted` | Done | 370ef56a | f1ad2d8a |  |
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |

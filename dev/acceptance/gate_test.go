@@ -79,16 +79,16 @@ func Test855d7a1h_Gate_AContextPutAtAToolCallArrivesWithItsResult(t *testing.T) 
 
 		g.Expect(order).NotTo(BeEmpty(), "the items of the model's request that follows the tool call")
 
-		result := slices.Index(order, "tool result")
-		block := slices.Index(order, "block")
+		result := slices.Index(order, kindToolResult)
+		block := slices.Index(order, kindBlock)
 
 		g.Expect(result).To(BeNumerically(">=", 0), "the tool's result is in the request")
 		g.Expect(block).To(BeNumerically(">", result), "the block follows the tool's result in the request")
 
-		resulted := firstEvent(events, 0, "tool result")
-		blocked := firstEvent(events, resulted.row, "block")
-		asked := firstEvent(events, blocked.row, "request")
-		answered := firstEvent(events, asked.row, "reply")
+		resulted := firstEvent(events, 0, kindToolResult)
+		blocked := firstEvent(events, resulted.row, kindBlock)
+		asked := firstEvent(events, blocked.row, kindRequest)
+		answered := firstEvent(events, asked.row, kindReply)
 
 		t.Logf("the tool's result at %s, the block %s later, the request %s after that, and the agent's next message "+
 			"%s after the request", resulted.at.Format("15:04:05.000"), blocked.at.Sub(resulted.at),
@@ -108,6 +108,13 @@ const (
 		"shell command `echo two` with the Bash tool, then say done."
 	// gateSingleCall makes the agent make one tool call.
 	gateSingleCall = "Run the shell command `echo one` with the Bash tool, then say done."
+	// the kinds of the events and items that the recorder tells apart
+	kindBlock      = "block"
+	kindReply      = "reply"
+	kindRequest    = "request"
+	kindText       = "text"
+	kindToolCall   = "tool call"
+	kindToolResult = "tool result"
 	// probeNote is the note the block of the probe names.
 	probeNote = "probe-note.md"
 )
@@ -177,7 +184,7 @@ func (s *session) requestOrder() []string {
 		case row.Message.Role != "":
 			messages[messageHash(row.Message.Role, row.Message.Content)] = row
 
-			if kind == "tool result" && resultAt < 0 {
+			if kind == kindToolResult && resultAt < 0 {
 				resultAt = index
 			}
 		}
@@ -209,21 +216,21 @@ func (r transcriptRow) eventKind() (string, string) {
 
 	switch {
 	case r.Type == "api-request":
-		return "request", ""
+		return kindRequest, ""
 	case r.Type == "attachment" && r.Attachment.Type == "hook_additional_context":
-		return "block", r.Attachment.HookName + " " + r.Attachment.HookEvent
+		return kindBlock, r.Attachment.HookName + " " + r.Attachment.HookEvent
 	case r.Type == "assistant" && json.Unmarshal(r.Message.Content, &blocks) == nil:
 		for _, block := range blocks {
 			if block.Type == "tool_use" {
-				return "tool call", block.Name
+				return kindToolCall, block.Name
 			}
 		}
 
-		return "reply", ""
+		return kindReply, ""
 	case r.Type == "user" && json.Unmarshal(r.Message.Content, &blocks) == nil:
 		for _, block := range blocks {
 			if block.Type == "tool_result" {
-				return "tool result", ""
+				return kindToolResult, ""
 			}
 		}
 	}
@@ -237,7 +244,7 @@ func (r transcriptRow) itemKinds() []string {
 	var text string
 
 	if json.Unmarshal(r.Message.Content, &text) == nil {
-		return []string{"text"}
+		return []string{kindText}
 	}
 
 	var blocks []struct {
@@ -254,13 +261,13 @@ func (r transcriptRow) itemKinds() []string {
 	for _, block := range blocks {
 		switch {
 		case block.Type == "tool_use":
-			kinds = append(kinds, "tool call")
+			kinds = append(kinds, kindToolCall)
 		case block.Type == "tool_result":
-			kinds = append(kinds, "tool result")
+			kinds = append(kinds, kindToolResult)
 		case strings.Contains(block.Text, engramMarker):
-			kinds = append(kinds, "block")
+			kinds = append(kinds, kindBlock)
 		default:
-			kinds = append(kinds, "text")
+			kinds = append(kinds, kindText)
 		}
 	}
 
@@ -272,7 +279,7 @@ func (t *turn) toolCalls() int {
 	count := 0
 
 	for _, row := range t.rows {
-		if kind, _ := row.eventKind(); kind == "tool call" {
+		if kind, _ := row.eventKind(); kind == kindToolCall {
 			count++
 		}
 	}
