@@ -46,6 +46,13 @@ func Test855d7a1f_Gate_ABlockDeliveredWithinATurnIsHeld(t *testing.T) {
 		g.Expect(sent.toolCalls()).To(Equal(2), "the tool calls the agent made")
 		g.Expect(chat.session.blocksNaming(probeNote)).To(Equal(1), "the blocks in the transcript that name the note")
 	})
+
+	step(t, "And the transcript already holds the block when the second tool call is made, before the turn ends", func() {
+		t.Logf("the probe reports: %q", chat.shown)
+
+		g.Expect(linesNaming(chat.shown, "at the second call")).To(ConsistOf(probeSecondCallHolds),
+			"the lines the probe showed about the transcript at the second tool call")
+	})
 }
 
 func Test855d7a1h_Gate_AContextPutAtAToolCallArrivesWithItsResult(t *testing.T) {
@@ -115,6 +122,9 @@ const (
 	kindText       = "text"
 	kindToolCall   = "tool call"
 	kindToolResult = "tool result"
+	// probeSecondCallHolds is the line the probe shows when, at its second tool call, the session's transcript holds one
+	// block of type hook_additional_context.
+	probeSecondCallHolds = "probe: at the second call the transcript holds 1 hook_additional_context"
 	// probeNote is the note the block of the probe names.
 	probeNote = "probe-note.md"
 )
