@@ -24,6 +24,10 @@ func Phrases(input PhrasesInput) (Step, bool, error) {
 
 	_ = json.Unmarshal([]byte(unfenced(input.Reply)), &reply)
 
+	if reply.Depth == "none" {
+		return Step{}, false, nil
+	}
+
 	return Step{
 		Request: ModelRequest{
 			Model: phrasesModel, System: strings.Replace(phraseInstructions, "{{count}}", countFor(reply.Depth), 1),
