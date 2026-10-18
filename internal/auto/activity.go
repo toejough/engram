@@ -120,15 +120,6 @@ func noteWord(count int) string {
 	return "notes"
 }
 
-// passageWord is passage, or passages when there are several.
-func passageWord(count int) string {
-	if count == 1 {
-		return "passage"
-	}
-
-	return "passages"
-}
-
 // partText is what a record adds to the line of its kind: the file name of the note written, or the reason, with the
 // lesson it is about when it has one, written as one line and redacted (793d4j, 793d4p).
 func partText(record Record) string {
@@ -142,6 +133,15 @@ func partText(record Record) string {
 	default:
 		return "writing " + oneLine(record.Slug) + ": " + oneRedacted(record.Reason)
 	}
+}
+
+// passageWord is passage, or passages when there are several.
+func passageWord(count int) string {
+	if count == 1 {
+		return "passage"
+	}
+
+	return "passages"
 }
 
 // squeezed is the text cut in its middle to limit characters, so that both ends stay: an error names the step at its

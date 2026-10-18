@@ -49,15 +49,12 @@ const (
 	claudeSettings = `{"permissions":{"allow":["Bash(engram:*)"]}}`
 	// debugLogName is the file in the machine's directory that every engram command run on it writes its debug log to.
 	debugLogName = "engram-debug.log"
-	// freezeConversation is an earlier conversation that states the freeze askPlanFreeze is about (855a3b1e).
-	freezeConversation = "In an earlier session the user said that the production cutover is frozen on the last " +
-		"Friday of every month, and that no deploy of any kind may go out on that day."
-	// unrelatedConversation is an earlier conversation that has nothing to do with the staging database (793a2b1d).
-	unrelatedConversation = "In an earlier session the user said that the office coffee machine is descaled every " +
-		"second Tuesday, and asked who holds the key to the supplies cupboard."
 	// earlierConversation is a conversation that answers askStagingReset.
 	earlierConversation = "In an earlier session the user said that the Zorblax staging database is reset every " +
 		"Sunday at 03:40 UTC, and asked when the staging database is reset."
+	// freezeConversation is an earlier conversation that states the freeze askPlanFreeze is about (855a3b1e).
+	freezeConversation = "In an earlier session the user said that the production cutover is frozen on the last " +
+		"Friday of every month, and that no deploy of any kind may go out on that day."
 	learnSource = "acceptance test"
 	modName     = "engram-memory"
 	// neverEnds is how long a step that never exits sleeps: far past any bound.
@@ -69,6 +66,9 @@ const (
 	// settleTime is how long a test of an absence waits, after the records of a write exist, for a second write to
 	// show: the writes of one turn end within a second of each other.
 	settleTime = 5 * time.Second
+	// unrelatedConversation is an earlier conversation that has nothing to do with the staging database (793a2b1d).
+	unrelatedConversation = "In an earlier session the user said that the office coffee machine is descaled every " +
+		"second Tuesday, and asked who holds the key to the supplies cupboard."
 )
 
 // unexported variables.
@@ -322,55 +322,6 @@ func (m *machine) chunksCannotBeWritten() {
 	}
 
 	m.t.Cleanup(func() { _ = os.Chmod(m.chunks, dirPerm) })
-}
-
-// stepIsQuick takes away the file that keeps the step of stepTakes slow.
-func (m *machine) stepIsQuick() {
-	m.t.Helper()
-
-	err := os.Remove(filepath.Join(m.root, "slow-step", "slow"))
-	if err != nil {
-		m.t.Fatalf("making the step quick: %v", err)
-	}
-}
-
-// stepNeverEnds makes a step of `engram auto` never exit, for as long as the file slow is in the wrapper's directory:
-// a real model call cannot be made to hang, so the step that stands in front of the first one does (855a3c1a).
-func (m *machine) stepNeverEnds(step string) {
-	m.t.Helper()
-
-	m.stepWraps(step, "exec sleep "+strconv.Itoa(int(neverEnds.Seconds())))
-}
-
-// stepStarted reports whether the slow step of stepTakes or stepNeverEnds was started.
-func (m *machine) stepStarted() bool {
-	_, err := os.Stat(filepath.Join(m.root, "slow-step", "started"))
-
-	return err == nil
-}
-
-// stepTakes makes a step of `engram auto` (moment, phrases, recall or deliver) take the given time for as long as the
-// file slow is in the wrapper's directory: engram on the PATH notes that the step started and waits, and runs the
-// machine's own engram for anything else. The wait replaces the process, so that ending the step ends all of it. A real
-// model cannot be made slow, so the delay stands in front of the first step of the chain (793a2d1a).
-func (m *machine) stepTakes(step string, wait time.Duration) {
-	m.t.Helper()
-
-	m.stepWraps(step, "exec sleep "+strconv.Itoa(int(wait.Seconds())))
-}
-
-// stepWraps puts an engram on the PATH that notes that a step started and then does the action, while the file slow is
-// there, and runs the machine's own engram otherwise.
-func (m *machine) stepWraps(step, action string) {
-	m.t.Helper()
-
-	dir := filepath.Join(m.root, "slow-step")
-	mkdirAll(m.t, dir)
-	writeFile(m.t, filepath.Join(dir, "slow"), "")
-
-	m.wrapsEngram(dir, "#!/bin/sh\ncase \"$1 $2\" in\n\"auto "+step+"\")\nif [ -e '"+filepath.Join(dir, "slow")+
-		"' ]; then\n: > '"+filepath.Join(dir, "started")+"'\n"+action+"\nfi\n;;\nesac\nexec '"+
-		filepath.Join(m.gobin, engramBinaryName)+"' \"$@\"\n")
 }
 
 // hasClaudeCode installs Claude Code's directory on the machine, with the one permission the scenarios need.
@@ -791,6 +742,65 @@ func (m *machine) standInReported() bool {
 	return err == nil
 }
 
+// stepIsQuick takes away the file that keeps the step of stepTakes slow.
+func (m *machine) stepIsQuick() {
+	m.t.Helper()
+
+	err := os.Remove(filepath.Join(m.root, "slow-step", "slow"))
+	if err != nil {
+		m.t.Fatalf("making the step quick: %v", err)
+	}
+}
+
+// stepNeverEnds makes a step of `engram auto` never exit, for as long as the file slow is in the wrapper's directory:
+// a real model call cannot be made to hang, so the step that stands in front of the first one does (855a3c1a).
+func (m *machine) stepNeverEnds(step string) {
+	m.t.Helper()
+
+	m.stepWraps(step, "exec sleep "+strconv.Itoa(int(neverEnds.Seconds())))
+}
+
+// stepStarted reports whether the slow step of stepTakes or stepNeverEnds was started.
+func (m *machine) stepStarted() bool {
+	_, err := os.Stat(filepath.Join(m.root, "slow-step", "started"))
+
+	return err == nil
+}
+
+// stepTakes makes a step of `engram auto` (moment, phrases, recall or deliver) take the given time for as long as the
+// file slow is in the wrapper's directory: engram on the PATH notes that the step started and waits, and runs the
+// machine's own engram for anything else. The wait replaces the process, so that ending the step ends all of it. A real
+// model cannot be made slow, so the delay stands in front of the first step of the chain (793a2d1a).
+func (m *machine) stepTakes(step string, wait time.Duration) {
+	m.t.Helper()
+
+	m.stepWraps(step, "exec sleep "+strconv.Itoa(int(wait.Seconds())))
+}
+
+// stepWraps puts an engram on the PATH that notes that a step started and then does the action, while the file slow is
+// there, and runs the machine's own engram otherwise.
+func (m *machine) stepWraps(step, action string) {
+	m.t.Helper()
+
+	dir := filepath.Join(m.root, "slow-step")
+	mkdirAll(m.t, dir)
+	writeFile(m.t, filepath.Join(dir, "slow"), "")
+
+	m.wrapsEngram(dir, "#!/bin/sh\ncase \"$1 $2\" in\n\"auto "+step+"\")\nif [ -e '"+filepath.Join(dir, "slow")+
+		"' ]; then\n: > '"+filepath.Join(dir, "started")+"'\n"+action+"\nfi\n;;\nesac\nexec '"+
+		filepath.Join(m.gobin, engramBinaryName)+"' \"$@\"\n")
+}
+
+// vaultCanBeRead gives the right to read the machine's vault back.
+func (m *machine) vaultCanBeRead() {
+	m.t.Helper()
+
+	err := os.Chmod(m.vault, dirPerm)
+	if err != nil {
+		m.t.Fatalf("making the vault readable: %v", err)
+	}
+}
+
 // vaultCannotBeRead takes the right to read the machine's vault away until vaultCanBeRead gives it back or the test
 // ends.
 func (m *machine) vaultCannotBeRead() {
@@ -802,16 +812,6 @@ func (m *machine) vaultCannotBeRead() {
 	}
 
 	m.t.Cleanup(func() { _ = os.Chmod(m.vault, dirPerm) })
-}
-
-// vaultCanBeRead gives the right to read the machine's vault back.
-func (m *machine) vaultCanBeRead() {
-	m.t.Helper()
-
-	err := os.Chmod(m.vault, dirPerm)
-	if err != nil {
-		m.t.Fatalf("making the vault readable: %v", err)
-	}
 }
 
 // vaultCannotBeWritten takes the right to create a file in the machine's vault away; reading it still works.

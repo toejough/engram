@@ -28,6 +28,10 @@ var (
 	ErrCandidatesReply = errors.New(`the reply of the candidate judgement is not {"candidates": [...]}`)
 )
 
+// Activate marks a note delivered as used and, for a note of the parent vault, pulls it down as a pending copy, as
+// `engram activate` does (855d4c). A failure is the activation's to report: the note is delivered all the same.
+type Activate func(ctx context.Context, note Candidate)
+
 // Delivery is what a prompt is answered with (855d4c, 793d4p): the block for the agent, the lines for the user, and the
 // records whose lines they are.
 type Delivery struct {
@@ -53,10 +57,6 @@ type Note struct {
 	Body      string // what the note says, on one line
 	Source    string // where the note came from
 }
-
-// Activate marks a note delivered as used and, for a note of the parent vault, pulls it down as a pending copy, as
-// `engram activate` does (855d4c). A failure is the activation's to report: the note is delivered all the same.
-type Activate func(ctx context.Context, note Candidate)
 
 // Request is a delivery asked for, as the memory mod hands it over (855d4c): the session, the origin of the prompt, the
 // cue, the IDs the mod delivered already, and, when a candidate request was answered, the model's reply and the carry.
@@ -137,6 +137,20 @@ const (
 	originHeadless = "sdk"
 )
 
+// unexported variables.
+var (
+	// deliveringVerdicts are the verdicts of the candidate judgement that deliver a candidate (855d8b): all but unrelated.
+	deliveringVerdicts = []string{"covered", "near", "evidence"}
+)
+
+// verdict is the entry of the reply of the candidate judgement for a candidate: its ID, its verdict, and the candidate
+// that reverses it, if one does (855d4c).
+type verdict struct {
+	ID      string `json:"id"`
+	Verdict string `json:"verdict"`
+	Newer   string `json:"newer"`
+}
+
 // chosenOf returns the candidates of the carry that the reply delivers, in the order of the carry (855d4c). A request
 // with no reply delivers none. The session's held text is read only when there is a candidate to drop by it.
 func chosenOf(request Request, held Held) ([]Candidate, error) {
@@ -145,11 +159,7 @@ func chosenOf(request Request, held Held) ([]Candidate, error) {
 	}
 
 	var reply struct {
-		Candidates *[]struct {
-			ID      string `json:"id"`
-			Verdict string `json:"verdict"`
-			Newer   string `json:"newer"`
-		} `json:"candidates"`
+		Candidates *[]verdict `json:"candidates"`
 	}
 
 	readErr := json.Unmarshal([]byte(unfenced(request.Reply)), &reply)
@@ -166,25 +176,17 @@ func chosenOf(request Request, held Held) ([]Candidate, error) {
 	delivered := make([]Candidate, 0, len(request.Carry.Candidates))
 
 	for _, candidate := range request.Carry.Candidates {
-		index := slices.IndexFunc(*reply.Candidates, func(entry struct {
-			ID      string `json:"id"`
-			Verdict string `json:"verdict"`
-			Newer   string `json:"newer"`
-		},
-		) bool {
-			return entry.ID == candidate.ID
-		})
+		index := slices.IndexFunc(*reply.Candidates, func(entry verdict) bool { return entry.ID == candidate.ID })
 		if index < 0 {
 			continue
 		}
 
 		entry := (*reply.Candidates)[index]
 		reversed := entry.Newer != "" && slices.Contains(ids, entry.Newer)
-		if !slices.Contains(deliveringVerdicts, entry.Verdict) || reversed || slices.Contains(request.Held, candidate.ID) {
-			continue
-		}
 
-		delivered = append(delivered, candidate)
+		if slices.Contains(deliveringVerdicts, entry.Verdict) && !reversed && !slices.Contains(request.Held, candidate.ID) {
+			delivered = append(delivered, candidate)
+		}
 	}
 
 	if len(delivered) == 0 {
@@ -248,9 +250,3 @@ func render(notes, passages []Candidate) string {
 
 	return strings.Join(lines, "\n") + "\n"
 }
-
-// unexported variables.
-var (
-	// deliveringVerdicts are the verdicts of the candidate judgement that deliver a candidate (855d8b): all but unrelated.
-	deliveringVerdicts = []string{"covered", "near", "evidence"}
-)

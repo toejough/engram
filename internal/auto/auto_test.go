@@ -476,32 +476,6 @@ func deliveryOf(t interface {
 	return delivery
 }
 
-// requestFor is the request of a delivery of a prompt of a session, whose carry holds the candidates and whose reply
-// gives each of them a verdict that delivers it: covered for a note and evidence for a passage.
-func requestFor(candidates []auto.Candidate) auto.Request {
-	verdicts := make([]string, 0, len(candidates))
-
-	for _, candidate := range candidates {
-		verdict := "covered"
-		if candidate.Kind == auto.KindPassage {
-			verdict = "evidence"
-		}
-
-		encoded, err := json.Marshal(map[string]string{"id": candidate.ID, "verdict": verdict})
-		if err != nil {
-			panic(err)
-		}
-
-		verdicts = append(verdicts, string(encoded))
-	}
-
-	return auto.Request{
-		Session: "4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11", Origin: "composer", Cue: "prompt",
-		Reply: `{"candidates":[` + strings.Join(verdicts, ",") + `]}`,
-		Carry: auto.Carry{Cue: "prompt", Depth: auto.DepthGlance, Window: "w", Candidates: candidates},
-	}
-}
-
 // framingLine returns the line that opens every block, as the block of a single note shows it.
 func framingLine(t *testing.T) string {
 	t.Helper()
@@ -588,6 +562,32 @@ func recordOfKind(kind, note, slug, reason string) auto.Record {
 		Slug:    slug,
 		Reason:  reason,
 		File:    "record.json",
+	}
+}
+
+// requestFor is the request of a delivery of a prompt of a session, whose carry holds the candidates and whose reply
+// gives each of them a verdict that delivers it: covered for a note and evidence for a passage.
+func requestFor(candidates []auto.Candidate) auto.Request {
+	verdicts := make([]string, 0, len(candidates))
+
+	for _, candidate := range candidates {
+		verdict := "covered"
+		if candidate.Kind == auto.KindPassage {
+			verdict = "evidence"
+		}
+
+		encoded, err := json.Marshal(map[string]string{"id": candidate.ID, "verdict": verdict})
+		if err != nil {
+			panic(err)
+		}
+
+		verdicts = append(verdicts, string(encoded))
+	}
+
+	return auto.Request{
+		Session: "4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11", Origin: "composer", Cue: "prompt",
+		Reply: `{"candidates":[` + strings.Join(verdicts, ",") + `]}`,
+		Carry: auto.Carry{Cue: "prompt", Depth: auto.DepthGlance, Window: "w", Candidates: candidates},
 	}
 }
 

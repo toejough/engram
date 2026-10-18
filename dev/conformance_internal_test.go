@@ -50,6 +50,36 @@ func TestScenarioIDs_ListsEachScenarioOnceInOrder(t *testing.T) {
 	}
 }
 
+// TestScenariosWithoutTest_ARemovedScenarioNeedsNoTest: the specs of 793 still hold the scenarios that 855 removes, and
+// their tests are deleted, so a scenario that a Removed operation names is exempt (855b45).
+func TestScenariosWithoutTest_ARemovedScenarioNeedsNoTest(t *testing.T) {
+	t.Parallel()
+
+	spec := "### 855d4q Removed: 793d4a1c A note that only the explore half picked does not bear on the prompt\n\n" +
+		"Target: [793d4a1c A note](../793/793d.md#793d4a1-scenarios). The lookup is the recall-lookup's now.\n\n" +
+		"### 855d4c Modified: 793d4a Delivering the notes\n\nThe scenarios 793d4a1a is replaced, Removed: 793d4a1b\n"
+	ids := []string{"793d4a1a", "793d4a1b", "793d4a1c"}
+
+	t.Run("a scenario a Removed heading names is exempt, one no heading names is not", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+
+		g.Expect(removedScenarioIDs(spec)).To(Equal([]string{"793d4a1c"}))
+		g.Expect(scenariosWithoutTest(exceptIDs(ids, removedScenarioIDs(spec)), nil)).
+			To(Equal([]string{"793d4a1a", "793d4a1b"}))
+	})
+
+	t.Run("a spec with no Removed heading exempts nothing", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+
+		g.Expect(removedScenarioIDs("### 855d4c Modified: 793d4a Delivering\n")).To(BeEmpty())
+		g.Expect(exceptIDs(ids, nil)).To(Equal(ids))
+	})
+}
+
 func TestScenariosWithoutTest_NamesThoseNoTestSourceDeclares(t *testing.T) {
 	t.Parallel()
 
@@ -162,34 +192,4 @@ func TestScenariosWithoutTest_OnlyADeclaredFunctionIsATest(t *testing.T) {
 			g.Expect(scenariosWithoutTest(testCase.ids, testCase.sources)).To(Equal(testCase.want))
 		})
 	}
-}
-
-// TestScenariosWithoutTest_ARemovedScenarioNeedsNoTest: the specs of 793 still hold the scenarios that 855 removes, and
-// their tests are deleted, so a scenario that a Removed operation names is exempt (855b45).
-func TestScenariosWithoutTest_ARemovedScenarioNeedsNoTest(t *testing.T) {
-	t.Parallel()
-
-	spec := "### 855d4q Removed: 793d4a1c A note that only the explore half picked does not bear on the prompt\n\n" +
-		"Target: [793d4a1c A note](../793/793d.md#793d4a1-scenarios). The lookup is the recall-lookup's now.\n\n" +
-		"### 855d4c Modified: 793d4a Delivering the notes\n\nThe scenarios 793d4a1a is replaced, Removed: 793d4a1b\n"
-	ids := []string{"793d4a1a", "793d4a1b", "793d4a1c"}
-
-	t.Run("a scenario a Removed heading names is exempt, one no heading names is not", func(t *testing.T) {
-		t.Parallel()
-
-		g := NewWithT(t)
-
-		g.Expect(removedScenarioIDs(spec)).To(Equal([]string{"793d4a1c"}))
-		g.Expect(scenariosWithoutTest(exceptIDs(ids, removedScenarioIDs(spec)), nil)).
-			To(Equal([]string{"793d4a1a", "793d4a1b"}))
-	})
-
-	t.Run("a spec with no Removed heading exempts nothing", func(t *testing.T) {
-		t.Parallel()
-
-		g := NewWithT(t)
-
-		g.Expect(removedScenarioIDs("### 855d4c Modified: 793d4a Delivering\n")).To(BeEmpty())
-		g.Expect(exceptIDs(ids, nil)).To(Equal(ids))
-	})
 }

@@ -283,7 +283,7 @@ func Test793a2b1c_ANoteTheAgentLookedUpItselfIsNotDelivered(t *testing.T) {
 
 	var (
 		stagingNote, holidayNote string
-		inSession               *session
+		inSession                *session
 	)
 
 	step(t, "Given a session in which, before the user ran engram update, "+

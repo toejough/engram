@@ -134,38 +134,6 @@ func Test793d4m1b_Auto_APromptOfAnyOtherOriginIsDeliveredNothingAndItsTurnIsJudg
 	})
 }
 
-// originRequest is the JSON object that the memory mod hands to a command: the field given, the session of the record
-// recordOfAPrompt writes, and the origin.
-func originRequest(origin, field, value string) io.Reader {
-	return requestOf(map[string]string{field: value, "session": sessionID, "origin": origin})
-}
-
-// recordOfAPrompt writes the record of a session whose last turn began with a prompt, and returns the directory of the
-// records.
-func recordOfAPrompt(tb testing.TB) string {
-	tb.Helper()
-
-	dir := tb.TempDir()
-	record := `{"type":"user","message":{"role":"user","content":"When is the Zorblax staging database reset?"}}` + "\n"
-
-	err := os.WriteFile(filepath.Join(dir, sessionID+".jsonl"), []byte(record), 0o600)
-	if err != nil {
-		tb.Fatalf("writing the record: %v", err)
-	}
-
-	return dir
-}
-
-// requestOf is the JSON object that the memory mod hands to a command, with the fields given, as a reader.
-func requestOf(fields map[string]string) io.Reader {
-	encoded, err := json.Marshal(fields)
-	if err != nil {
-		panic(err)
-	}
-
-	return bytes.NewReader(encoded)
-}
-
 // backupCandidate is the candidate of a second note of the vault about the same database, as the carry holds it.
 func backupCandidate() auto.Candidate {
 	return auto.Candidate{
@@ -239,6 +207,28 @@ func lastUsed(tb testing.TB, vault, note string) string {
 // noActivation is an activation that marks nothing, for a test that does not look at the vault.
 func noActivation(context.Context, string, auto.Candidate) {}
 
+// originRequest is the JSON object that the memory mod hands to a command: the field given, the session of the record
+// recordOfAPrompt writes, and the origin.
+func originRequest(origin, field, value string) io.Reader {
+	return requestOf(map[string]string{field: value, "session": sessionID, "origin": origin})
+}
+
+// recordOfAPrompt writes the record of a session whose last turn began with a prompt, and returns the directory of the
+// records.
+func recordOfAPrompt(tb testing.TB) string {
+	tb.Helper()
+
+	dir := tb.TempDir()
+	record := `{"type":"user","message":{"role":"user","content":"When is the Zorblax staging database reset?"}}` + "\n"
+
+	err := os.WriteFile(filepath.Join(dir, sessionID+".jsonl"), []byte(record), 0o600)
+	if err != nil {
+		tb.Fatalf("writing the record: %v", err)
+	}
+
+	return dir
+}
+
 // repliesFor is the reply of a candidate judgement that delivers each of the candidates: covered for a note and
 // evidence for a passage.
 func repliesFor(candidates []auto.Candidate) string {
@@ -263,6 +253,16 @@ func repliesFor(candidates []auto.Candidate) string {
 
 // requestJSON is a request to a command, with the fields given, as a reader.
 func requestJSON(fields map[string]any) io.Reader {
+	encoded, err := json.Marshal(fields)
+	if err != nil {
+		panic(err)
+	}
+
+	return bytes.NewReader(encoded)
+}
+
+// requestOf is the JSON object that the memory mod hands to a command, with the fields given, as a reader.
+func requestOf(fields map[string]string) io.Reader {
 	encoded, err := json.Marshal(fields)
 	if err != nil {
 		panic(err)

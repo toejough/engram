@@ -58,8 +58,8 @@ func Test793d4a1b_RunAutoDeliver_AReplyThatIsNotAReplyFailsTheCommandAndPrintsNo
 	const prompt = "how do I deploy zorblax staging, the db pass hunter2-abc"
 
 	for name, reply := range map[string]string{
-		"text that is not JSON": "I think the first note applies.",
-		"a JSON array":          `[{"id":"1.2026-10-17.zorblax-staging-reset.md","verdict":"covered"}]`,
+		"text that is not JSON":        "I think the first note applies.",
+		"a JSON array":                 `[{"id":"1.2026-10-17.zorblax-staging-reset.md","verdict":"covered"}]`,
 		"an object with no candidates": `{"verdicts":[]}`,
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -104,69 +104,6 @@ func Test793d4a1d_RunAutoDeliver_ANoteTheSessionHoldsIsLeftOut(t *testing.T) {
 
 	g.Expect(out.String()).To(ContainSubstring("2.2026-10-17.zorblax-backup-window.md"))
 	g.Expect(out.String()).NotTo(ContainSubstring("1.2026-10-17.zorblax-staging-reset.md"))
-}
-
-func Test855d4c1d_Targets_AutoDeliverMarksTheNotesItDeliversAsUsed(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault, home := t.TempDir(), t.TempDir()
-	plantNoteOnDisk(t, vault, resetNoteName, zorblaxResetNote)
-	plantNoteOnDisk(t, vault, backupNoteName, strings.NewReplacer("reset", "backed up", "1.", "2.").
-		Replace(zorblaxResetNote))
-
-	var stdout bytes.Buffer
-
-	executeForTestWithDeps(t,
-		[]string{"engram", "auto", "deliver", "--vault", vault, "--records", t.TempDir()},
-		func(d *cli.Deps) {
-			d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
-			d.Getenv = func(string) string { return "" }
-			d.UserHomeDir = func() (string, error) { return home, nil }
-			d.Stdin = deliveryRequest(sessionID, resetCandidate())
-			d.Stdout = &stdout
-		})
-
-	g.Expect(stdout.String()).To(ContainSubstring(resetNoteName), "the block holds the note")
-	g.Expect(lastUsed(t, vault, resetNoteName)).NotTo(BeEmpty(), "the note delivered was marked as used")
-	g.Expect(lastUsed(t, vault, backupNoteName)).To(BeEmpty(), "a note that was not delivered was not")
-}
-
-func Test855d4c1f_Deliver_TheDeliveryLooksNothingUp(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	sessions, records, vault, chunks := t.TempDir(), t.TempDir(), t.TempDir(), t.TempDir()
-
-	var touched []string
-
-	var out bytes.Buffer
-
-	err := cli.RunAutoDeliver(context.Background(),
-		cli.AutoDeliverArgs{VaultPath: vault, SessionsDir: sessions, RecordsDir: records},
-		cli.AutoDeliverDeps{
-			Stdin:       deliveryRequest(sessionID, resetCandidate(), freezePassage()),
-			Activate:    noActivation,
-			WriteRecord: writeFileExclusively,
-			Remove:      os.Remove,
-			ReadDir: func(path string) ([]fs.DirEntry, error) {
-				touched = append(touched, path)
-
-				return os.ReadDir(path)
-			},
-			ReadFile: func(path string) ([]byte, error) {
-				touched = append(touched, path)
-
-				return os.ReadFile(path)
-			},
-		}, &out, io.Discard)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(out.String()).To(ContainSubstring(resetNoteName), "the note of the carry is delivered")
-
-	for _, path := range touched {
-		g.Expect(path).NotTo(HavePrefix(vault), "the vault was read")
-		g.Expect(path).NotTo(HavePrefix(chunks), "the chunk index was read")
-	}
 }
 
 func Test793d4a1e_RunAutoDeliver_NoNoteToDeliverPrintsNothing(t *testing.T) {
@@ -510,6 +447,69 @@ func Test793d4m1c_Targets_TheTurnOfAHeadlessPromptIsJudgedOnlyWhenTheUserAsks(t 
 				g.Expect(stdout.String()).To(BeEmpty(), "the turn of a headless prompt is judged nothing")
 			}
 		})
+	}
+}
+
+func Test855d4c1d_Targets_AutoDeliverMarksTheNotesItDeliversAsUsed(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault, home := t.TempDir(), t.TempDir()
+	plantNoteOnDisk(t, vault, resetNoteName, zorblaxResetNote)
+	plantNoteOnDisk(t, vault, backupNoteName, strings.NewReplacer("reset", "backed up", "1.", "2.").
+		Replace(zorblaxResetNote))
+
+	var stdout bytes.Buffer
+
+	executeForTestWithDeps(t,
+		[]string{"engram", "auto", "deliver", "--vault", vault, "--records", t.TempDir()},
+		func(d *cli.Deps) {
+			d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
+			d.Getenv = func(string) string { return "" }
+			d.UserHomeDir = func() (string, error) { return home, nil }
+			d.Stdin = deliveryRequest(sessionID, resetCandidate())
+			d.Stdout = &stdout
+		})
+
+	g.Expect(stdout.String()).To(ContainSubstring(resetNoteName), "the block holds the note")
+	g.Expect(lastUsed(t, vault, resetNoteName)).NotTo(BeEmpty(), "the note delivered was marked as used")
+	g.Expect(lastUsed(t, vault, backupNoteName)).To(BeEmpty(), "a note that was not delivered was not")
+}
+
+func Test855d4c1f_Deliver_TheDeliveryLooksNothingUp(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	sessions, records, vault, chunks := t.TempDir(), t.TempDir(), t.TempDir(), t.TempDir()
+
+	var touched []string
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoDeliver(context.Background(),
+		cli.AutoDeliverArgs{VaultPath: vault, SessionsDir: sessions, RecordsDir: records},
+		cli.AutoDeliverDeps{
+			Stdin:       deliveryRequest(sessionID, resetCandidate(), freezePassage()),
+			Activate:    noActivation,
+			WriteRecord: writeFileExclusively,
+			Remove:      os.Remove,
+			ReadDir: func(path string) ([]fs.DirEntry, error) {
+				touched = append(touched, path)
+
+				return os.ReadDir(path)
+			},
+			ReadFile: func(path string) ([]byte, error) {
+				touched = append(touched, path)
+
+				return os.ReadFile(path)
+			},
+		}, &out, io.Discard)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(out.String()).To(ContainSubstring(resetNoteName), "the note of the carry is delivered")
+
+	for _, path := range touched {
+		g.Expect(path).NotTo(HavePrefix(vault), "the vault was read")
+		g.Expect(path).NotTo(HavePrefix(chunks), "the chunk index was read")
 	}
 }
 

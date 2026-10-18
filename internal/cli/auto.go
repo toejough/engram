@@ -377,22 +377,6 @@ type sweepTurn struct {
 	Ended bool `json:"ended"`
 }
 
-// coveringNote returns the file name of the note of the vault that a lesson names as covering it, or nothing: only the
-// name of a file that is in the vault covers, with the suffix .md or without it (793d4h).
-func coveringNote(covered, vault string, exists func(path string) bool) string {
-	name := strings.TrimSuffix(covered, ".md")
-	if !isPlainName(name) {
-		return ""
-	}
-
-	name += ".md"
-	if exists(filepath.Join(vault, name)) {
-		return name
-	}
-
-	return ""
-}
-
 // activationFrom returns the activation of a note delivered: `engram activate` for a note of the vault, and with the
 // parent flag for a note of the parent vault. Its output and its warnings are no line for the user, and a failure is
 // the debug log's: the note is delivered all the same (855d4c).
@@ -415,6 +399,22 @@ func activationFrom(d Deps) func(ctx context.Context, vault string, note auto.Ca
 			logger.Log("auto.activate", "note=%s parent=%v: %v", note.ID, note.Parent, activateErr)
 		}
 	}
+}
+
+// coveringNote returns the file name of the note of the vault that a lesson names as covering it, or nothing: only the
+// name of a file that is in the vault covers, with the suffix .md or without it (793d4h).
+func coveringNote(covered, vault string, exists func(path string) bool) string {
+	name := strings.TrimSuffix(covered, ".md")
+	if !isPlainName(name) {
+		return ""
+	}
+
+	name += ".md"
+	if exists(filepath.Join(vault, name)) {
+		return name
+	}
+
+	return ""
 }
 
 // fileExistsFrom returns a check that a file is there, through the injected file system.
@@ -503,6 +503,20 @@ func newAutoDeliverDeps(d Deps) AutoDeliverDeps {
 	}
 }
 
+// newAutoJudgeDeps wires RunAutoJudge from the injected CLI capabilities - pure composition (#700).
+func newAutoJudgeDeps(d Deps) AutoJudgeDeps {
+	deliverDeps := newAutoDeliverDeps(d)
+
+	return AutoJudgeDeps{
+		Stdin:       deliverDeps.Stdin,
+		Query:       newAutoLookup(d),
+		ReadDir:     deliverDeps.ReadDir,
+		ReadFile:    deliverDeps.ReadFile,
+		Now:         d.Now,
+		WriteRecord: recordWriterFrom(d),
+	}
+}
+
 // newAutoLookup wires the lookup of notes the judgement and the recall run from the injected CLI capabilities - pure
 // composition (#700): the mod shows every line of standard error to the user, so the warnings of the lookup go to the
 // debug log (793d4p).
@@ -516,20 +530,6 @@ func newAutoLookup(d Deps) QueryRun {
 
 	return func(ctx context.Context, args QueryArgs, stdout io.Writer) error {
 		return RunQuery(ctx, args, queryDeps, stdout)
-	}
-}
-
-// newAutoJudgeDeps wires RunAutoJudge from the injected CLI capabilities - pure composition (#700).
-func newAutoJudgeDeps(d Deps) AutoJudgeDeps {
-	deliverDeps := newAutoDeliverDeps(d)
-
-	return AutoJudgeDeps{
-		Stdin:       deliverDeps.Stdin,
-		Query:       newAutoLookup(d),
-		ReadDir:     deliverDeps.ReadDir,
-		ReadFile:    deliverDeps.ReadFile,
-		Now:         d.Now,
-		WriteRecord: recordWriterFrom(d),
 	}
 }
 
