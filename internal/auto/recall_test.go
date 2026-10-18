@@ -257,8 +257,8 @@ func checkRecallIsSafe(rt *rapid.T) {
 	first := credentialShape().Draw(rt, "first")
 	second := credentialShape().Draw(rt, "second")
 	noteText := tagText().Draw(rt, "note") + " " + first.text
-	padding := rapid.IntRange(0, 400).Draw(rt, "padding")
-	passageText := tagText().Draw(rt, "passage") + " " + second.text + strings.Repeat(" word", padding)
+	passageText := tagText().Draw(rt, "passage") + " " + second.text +
+		strings.Repeat(" word", rapid.IntRange(0, 400).Draw(rt, "padding"))
 
 	input := recallOf("deep")
 	input.Carry.Window = tagText().Draw(rt, "window")
@@ -291,17 +291,19 @@ func checkRecallIsSafe(rt *rapid.T) {
 		}
 	}
 
-	checkCarryIsSafe(rt, step.Carry.Candidates, []string{first.secret, second.secret}, padding)
-
 	// the cut comes before the escape, which writes a < as four characters
 	_, text, _ := strings.Cut(lines[1], "(2026-10-14; passage): ")
+
+	checkCarryIsSafe(rt, step.Carry.Candidates, []string{first.secret, second.secret}, text)
+
 	if length := utf8.RuneCountInString(strings.ReplaceAll(text, "&lt;", "<")); length > 1200 {
 		rt.Fatalf("a chunk of %d characters is in the request", length)
 	}
 }
 
-// checkCarryIsSafe fails when the carry holds a credential, a line break, or a chunk cut short (855b55).
-func checkCarryIsSafe(rt *rapid.T, held []auto.Candidate, secrets []string, padding int) {
+// checkCarryIsSafe fails when the carry holds a credential or a line break, or holds a chunk cut shorter than the line
+// of it in the request does (855b55): the line holds the chunk to 1,200 characters, and the carry in full.
+func checkCarryIsSafe(rt *rapid.T, held []auto.Candidate, secrets []string, passageLine string) {
 	rt.Helper()
 
 	for _, candidate := range held {
@@ -316,11 +318,11 @@ func checkCarryIsSafe(rt *rapid.T, held []auto.Candidate, secrets []string, padd
 		}
 	}
 
-	const wordLength, cutLength = len(" word"), 1200
+	const cutLength = 1200
 
-	if padding*wordLength > cutLength+wordLength && utf8.RuneCountInString(held[1].Text) <= cutLength {
-		rt.Fatalf("the carry holds %d characters of a chunk of at least %d", utf8.RuneCountInString(held[1].Text),
-			padding*wordLength)
+	carried := utf8.RuneCountInString(held[1].Text)
+	if lined := utf8.RuneCountInString(strings.ReplaceAll(passageLine, "&lt;", "<")); lined != min(carried, cutLength) {
+		rt.Fatalf("the carry holds %d characters of a chunk that the request holds %d of", carried, lined)
 	}
 }
 
