@@ -259,6 +259,8 @@ func Test855d4b1g_Recall_TheRequestIsForTheMidTierAndHoldsTheVerdictsTheWindowAn
 		ContainSubstring("evidence"), ContainSubstring("unrelated")), "the four verdicts")
 	g.Expect(step.Request.System).To(ContainSubstring("later date"), "the newer as the later date that reverses")
 	g.Expect(step.Request.System).To(ContainSubstring(`{"candidates":[`), "the reply shape")
+	g.Expect(step.Request.System).To(ContainSubstring("only matches the superseded content is near, not covered"),
+		"the recall skill's rule of Step 2.5C")
 	g.Expect(step.Request.System).NotTo(Or(ContainSubstring("zorblax"), ContainSubstring("Zorblax"),
 		ContainSubstring("USER:")), "none of the candidates")
 	g.Expect(step.Request.System).NotTo(Or(ContainSubstring(`"lessons"`), ContainSubstring("fields")),
@@ -306,6 +308,8 @@ func Test855d4b1h_Recall_ADeepRequestAlsoAsksForTheLessonsAndTheRevisions(t *tes
 	g.Expect(json.Unmarshal(out.Bytes(), &step)).To(Succeed())
 	g.Expect(step.Request.System).To(And(ContainSubstring(`"lessons"`), ContainSubstring(`"fields"`),
 		ContainSubstring(`"chunks"`)), "the lessons the evidence shows and the fields to revise")
+	g.Expect(step.Request.System).To(ContainSubstring("that a newer candidate reverses is near, with fields"),
+		"a note that a newer candidate reverses is revised")
 	g.Expect(step.Write).To(BeTrue(), "the output holds write true at deep")
 }
 
