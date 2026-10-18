@@ -152,7 +152,8 @@ async function captureLessons($, e, turn, session) {
   await run($, 'write', { session, turn: e.turnId, reply }, WRITE_BOUND_MS)
 }
 
-// sweep indexes the conversation of the session (793d2c). A sweep that is ended at its bound is run once more, as ended:
+// sweep indexes the conversation of the session (793d2c).
+// A sweep that is ended at its bound is run once more, as ended:
 // the command gives up for the session and fails once, naming what to run (793d4n), and that failure is reported.
 async function sweep($, session, origin) {
   try {
