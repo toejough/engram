@@ -37,7 +37,8 @@ func Test855d4b1i_Recall_ACandidateCannotReshapeTheRequestOrHoldACredential(t *t
 			g.Expect(lines[1]).To(Equal("- c1#turn-1 (2026-10-14; passage): " + strings.TrimSpace(passage)[:1200]))
 		}
 
-		g.Expect(step.Carry.Candidates[1].Text).To(Equal(passage), "the carry holds the chunk in full")
+		g.Expect(step.Carry.Candidates[1].Text).To(Equal(strings.TrimSpace(passage)),
+			"the carry holds the chunk in full, written as one line")
 	})
 
 	rapid.Check(t, checkRecallIsSafe)
@@ -147,8 +148,8 @@ func checkRecallIsSafe(rt *rapid.T) {
 	first := credentialShape().Draw(rt, "first")
 	second := credentialShape().Draw(rt, "second")
 	noteText := tagText().Draw(rt, "note") + " " + first.text
-	passageText := tagText().Draw(rt, "passage") + " " + second.text +
-		strings.Repeat(" word", rapid.IntRange(0, 400).Draw(rt, "padding"))
+	padding := rapid.IntRange(0, 400).Draw(rt, "padding")
+	passageText := tagText().Draw(rt, "passage") + " " + second.text + strings.Repeat(" word", padding)
 
 	step := auto.Recall(recallOf("deep"), []auto.Candidate{
 		{ID: "n1.md", Kind: auto.KindNote, Date: "2026-10-17", Situation: tagText().Draw(rt, "situation"), Text: noteText},
@@ -178,10 +179,36 @@ func checkRecallIsSafe(rt *rapid.T) {
 		}
 	}
 
+	checkCarryIsSafe(rt, step.Carry.Candidates, []string{first.secret, second.secret}, padding)
+
 	// the cut comes before the escape, which writes a < as four characters
 	_, text, _ := strings.Cut(lines[1], "(2026-10-14; passage): ")
 	if length := utf8.RuneCountInString(strings.ReplaceAll(text, "&lt;", "<")); length > 1200 {
 		rt.Fatalf("a chunk of %d characters is in the request", length)
+	}
+}
+
+// checkCarryIsSafe fails when the carry holds a credential, a line break, or a chunk cut short (855b55).
+func checkCarryIsSafe(rt *rapid.T, held []auto.Candidate, secrets []string, padding int) {
+	rt.Helper()
+
+	for _, candidate := range held {
+		for _, secret := range secrets {
+			if strings.Contains(candidate.Text, secret) || strings.Contains(candidate.Situation, secret) {
+				rt.Fatalf("the carry holds the secret %q: %+v", secret, candidate)
+			}
+		}
+
+		if strings.ContainsAny(candidate.Text+candidate.Situation, "\n\r") {
+			rt.Fatalf("the carry holds a line break: %+v", candidate)
+		}
+	}
+
+	const wordLength, cutLength = len(" word"), 1200
+
+	if padding*wordLength > cutLength+wordLength && utf8.RuneCountInString(held[1].Text) <= cutLength {
+		rt.Fatalf("the carry holds %d characters of a chunk of at least %d", utf8.RuneCountInString(held[1].Text),
+			padding*wordLength)
 	}
 }
 
