@@ -19,15 +19,15 @@ Added to the shape of [793e8 Implementation shape](../793_automatic-memory/793e_
 
 The cycle, the classifications and the suites are those of [793e2 Test methods](../793_automatic-memory/793e_implementation-plan.md#793e2-test-methods): write the test; red, run it and confirm it fails for the expected reason, commit; green, the minimum change with the whole suite passing, commit; refactor, commit. Each scenario is run by one Go test named `Test<ID>_...`; a product scenario drives a real Claude Code [session](../../GLOSSARY.md#session) in an isolated HOME ([793f7 Test isolation](../793_automatic-memory/793f_algorithm.md#793f7-test-isolation)). What this plan adds:
 
-- **Red `n/a`.** A test that pins inherited behaviour passes when written; its row says `n/a` in the red column and states the mutation that fails it. No other red cell has `n/a`.
-- **Rewritten tests.** A scenario of 793 that 855 replaces keeps its test's name; the test is rewritten in place and its red is the rewrite failing against the earlier code ([855b47 Rewritten, adapted and deleted tests of 793](./855b_decision-log.md#855b47-rewritten-adapted-and-deleted-tests-of-793)).
-- **Measurement rows.** The row records numbers and asserts its record and its bound ([855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)).
-- **Judgement rows.** A product scenario whose outcome the model decides has a `Runs` entry, its passes in 10 runs against the bar of 9, each red attributed to its cause ([793b86 The acceptance run takes a count](../793_automatic-memory/793b_decision-log.md#793b86-the-acceptance-run-takes-a-count)).
+- **Red `n/a`.** A test that pins inherited behaviour, and a rewrite of a replaced test that passes against the earlier code, pass when written; the row says `n/a` in the red column and states the mutation that fails it. No other red cell has `n/a`.
+- **Rewritten tests.** A scenario of 793 that 855 replaces keeps its ID in the name of its test, and the suffix changes when it now says the opposite; the test is rewritten in place and its red is the rewrite failing against the earlier code ([855b47 Rewritten, adapted and deleted tests of 793](./855b_decision-log.md#855b47-rewritten-adapted-and-deleted-tests-of-793)).
+- **Measurement rows.** The row records the numbers and asserts its record and its bound; its red is the run before the recorder exists (no record); a bound that fails ends the row `Refuted` with the numbers in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log), and the test then keeps a record-only assertion ([855e7 Completion gates](#855e7-completion-gates), [855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)).
+- **Judgement rows.** A product scenario whose outcome the model decides has a `Runs` entry of 10 runs, its passes against the bar of 9, each red attributed to its cause ([793b86 The acceptance run takes a count](../793_automatic-memory/793b_decision-log.md#793b86-the-acceptance-run-takes-a-count)); a row decided by a fault the test makes has 1 run.
 - **Properties.** A `rapid` row names its properties; the named examples of the scenario stay beside it.
 
 ## 855e10 Process rules
 
-Those of 793 stand: depth first, one node at a time, each document change and each phase its own commit ([793f3 Depth first](../793_automatic-memory/793f_algorithm.md#793f3-depth-first)); haiku searches, sonnet builds, opus reviews, one review round per phase and no more unless the owner asks ([793f4 Delegation](../793_automatic-memory/793f_algorithm.md#793f4-delegation), [793b33 One agent review round per phase](../793_automatic-memory/793b_decision-log.md#793b33-one-agent-review-round-per-phase)); the hash of a commit is recorded by the next commit ([793b30 Commit hashes are recorded by the next commit](../793_automatic-memory/793b_decision-log.md#793b30-commit-hashes-are-recorded-by-the-next-commit)); test isolation ([793f7 Test isolation](../793_automatic-memory/793f_algorithm.md#793f7-test-isolation)). The trailer of a commit is `AI-Used: [claude]` alone; no commit is amended, rebased or pushed before the review, and a merge is fast-forward only after a rebase on main and a re-test. A command is never run against the owner's installed binary, [vault](../../GLOSSARY.md#vault), `~/.claude`, `~/.pi` or `~/.local/share/engram`, and a temporary directory is removed by its literal path. What 855 adds: each step runs its unit tests and the acceptance rows it touches, and the full suite runs at the end of a group ([855b49 Tests are scoped per step, and the full suite runs at the end of a group](./855b_decision-log.md#855b49-tests-are-scoped-per-step-and-the-full-suite-runs-at-the-end-of-a-group)); the order of the groups is the order of the table in [855e4 Depth-first order](#855e4-depth-first-order), and the graph shows only the prerequisites.
+Those of [855f2 The algorithm](./855f_algorithm.md#855f2-the-algorithm) apply, with [855b49 Tests are scoped per step, and the full suite runs at the end of a group](./855b_decision-log.md#855b49-tests-are-scoped-per-step-and-the-full-suite-runs-at-the-end-of-a-group); the order of the groups is that of [855e4 Depth-first order](#855e4-depth-first-order). No commit is ever amended.
 
 ## 855e3 Test status
 
@@ -57,29 +57,29 @@ flowchart TD
     n855e6a2["855e6a2 A block delivered within a turn is held<br/>Complete"]
     n855e6a3["855e6a3 A context put at a tool call arrives with its result<br/>Complete"]
     n855e6a4["855e6a4 The ledger of what was delivered, if the transcript lacks it<br/>Complete"]
-    n855e6b1["855e6b1 Judging the moment of a prompt<br/>Ready"]
-    n855e6b2["855e6b2 Phrasing the lookup<br/>Blocked by: 855e6b1"]
+    n855e6b1["855e6b1 Judging the moment of a prompt<br/>Blocked by: 855c2 (proceeds on the default)"]
+    n855e6b2["855e6b2 Phrasing the lookup<br/>Blocked by: 855e6b1, 855c2 (proceeds on the default)"]
     n855e6b3["855e6b3 Looking up the candidates for the phrases<br/>Blocked by: 855e6b2"]
     n855e6b4["855e6b4 The three commands create no vault<br/>Blocked by: 855e6b3"]
     n855e6c1["855e6c1 The conformance check skips the removed scenarios<br/>Ready"]
     n855e6c2["855e6c2 A session holds the passages delivered to it<br/>Ready"]
     n855e6c3["855e6c3 Delivering the chosen candidates<br/>Blocked by: 855e6c1, 855e6b3, 855e6c2"]
     n855e6c4["855e6c4 The lines that tell the user what was delivered<br/>Blocked by: 855e6c3"]
-    n855e6c5["855e6c5 The prompt flow of the mod<br/>Blocked by: 855e6c3"]
+    n855e6c5["855e6c5 The prompt flow of the mod<br/>Blocked by: 855e6c3, 855c5 (proceeds on the default)"]
     n855e6c6["855e6c6 The scenarios of the prompt chain<br/>Blocked by: 855e6c4, 855e6c5"]
-    n855e6d1["855e6d1 Judging the learn moment and the lessons<br/>Blocked by: 855e6b1"]
+    n855e6d1["855e6d1 Judging the learn moment and the lessons<br/>Blocked by: 855e6b1, 855e6c3"]
     n855e6d2["855e6d2 Placing the lessons<br/>Blocked by: 855e6d1, 855e6c2"]
     n855e6d3["855e6d3 Writing the placed lessons and the runbooks<br/>Blocked by: 855e6d2"]
     n855e6d4["855e6d4 The placement command creates no vault<br/>Blocked by: 855e6d2, 855e6b4"]
     n855e6d5["855e6d5 The capture flow of the mod<br/>Blocked by: 855e6d1, 855e6d3, 855e6c5"]
     n855e6d6["855e6d6 The scenarios of the learn chain<br/>Blocked by: 855e6d5, 855e6c6"]
-    n855e6e1["855e6e1 Writing what a deep delivery writes<br/>Blocked by: 855e6d3"]
+    n855e6e1["855e6e1 Writing what a deep delivery writes<br/>Blocked by: 855e6d3, 855e6b3"]
     n855e6e2["855e6e2 The mod's write after a deep block<br/>Blocked by: 855e6e1, 855e6c5"]
     n855e6e3["855e6e3 The scenarios of the depth<br/>Blocked by: 855e6e2, 855e6c6"]
     n855e6f1["855e6f1 The tool cues of the moment<br/>Blocked by: 855e6b1"]
     n855e6f2["855e6f2 A block delivered within a turn is held<br/>Blocked by: 855e6c2"]
-    n855e6f3["855e6f3 The mid-turn flow of the mod<br/>Blocked by: 855e6f1, 855e6f2, 855e6c5"]
-    n855e6f4["855e6f4 The scenarios of the turn<br/>Blocked by: 855e6f3, 855e6c6"]
+    n855e6f3["855e6f3 The mid-turn flow of the mod<br/>Blocked by: 855e6f1, 855e6f2, 855e6c5, 855c3 (proceeds on the default)"]
+    n855e6f4["855e6f4 The scenarios of the turn<br/>Blocked by: 855e6f3, 855e6c6, 855c4 (proceeds on the default)"]
     n855e6g1["855e6g1 A recall chain is timed<br/>Blocked by: 855e6c6"]
     n855e6g2["855e6g2 A capture is timed against its rows<br/>Blocked by: 855e6d6"]
     n855e6g3["855e6g3 A deep write is timed<br/>Blocked by: 855e6e3"]
@@ -87,7 +87,7 @@ flowchart TD
     n855e6g5["855e6g5 The phrases find what the recall skill finds<br/>Blocked by: 855e6c6"]
     n855e6g6["855e6g6 The cost of the judgements is recorded<br/>Blocked by: 855e6f4, 855e6d6"]
     n855e6g7["855e6g7 The moment judgement's false none is recorded<br/>Blocked by: 855e6c6"]
-    n855e6g8["855e6g8 The conformance check reads the specs of 855<br/>Blocked by: 855e6g1, 855e6g2, 855e6g3, 855e6g4, 855e6g5, 855e6g6, 855e6g7"]
+    n855e6g8["855e6g8 The conformance check reads the specs of 855<br/>Blocked by: 855e6g1, 855e6g2, 855e6g3, 855e6g4, 855e6g5, 855e6g6, 855e6g7, 855e6d4"]
     n855e6a1 --> n855e6a2
     n855e6a1 --> n855e6a3
     n855e6a2 --> n855e6a4
@@ -102,6 +102,7 @@ flowchart TD
     n855e6c4 --> n855e6c6
     n855e6c5 --> n855e6c6
     n855e6b1 --> n855e6d1
+    n855e6c3 --> n855e6d1
     n855e6d1 --> n855e6d2
     n855e6c2 --> n855e6d2
     n855e6d2 --> n855e6d3
@@ -113,6 +114,7 @@ flowchart TD
     n855e6d5 --> n855e6d6
     n855e6c6 --> n855e6d6
     n855e6d3 --> n855e6e1
+    n855e6b3 --> n855e6e1
     n855e6e1 --> n855e6e2
     n855e6c5 --> n855e6e2
     n855e6e2 --> n855e6e3
@@ -142,11 +144,12 @@ flowchart TD
     n855e6g5 --> n855e6g8
     n855e6g6 --> n855e6g8
     n855e6g7 --> n855e6g8
+    n855e6d4 --> n855e6g8
 ```
 
 ## 855e5 Node status
 
-As in the plan guide: `Blocked by`, `Ready`, `In progress: n/x entries complete`, `Complete` and `Merged`. Every node becomes `Merged` together, when branch `feat/judged-automatic-memory` is merged to main ([855e7 Completion gates](#855e7-completion-gates)).
+As in the plan guide: `Blocked by`, `Ready`, `In progress: n/x entries complete`, `Complete` and `Merged`. A node marked `Blocked by: 855cN (proceeds on the default)` waits for an open question of [855c Judged Automatic Memory - Open Questions](./855c_open-questions.md#judged-automatic-memory---open-questions) that has an author default: it is worked on the default and redone if the owner answers otherwise. Every node becomes `Merged` together, when branch `feat/judged-automatic-memory` is merged to main ([855e7 Completion gates](#855e7-completion-gates)).
 
 ## 855e6 Test catalog
 
@@ -175,7 +178,7 @@ Not scenarios of the specs: the rows are named by what they build. Both are fixt
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1h | `Test855d7a1h_Gate_AContextPutAtAToolCallArrivesWithItsResult` | Measurement, real dependency (`network`) | the host's text says the context is read after the tool's result; the row records the order of the result, the block and the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s next message, and the time the block arrived. Refuted (the block precedes the result, or never arrives) ends the row as `Refuted` | Done | 370ef56a | f1ad2d8a | 613d0dcf, 9aec282a |
+| 855d7a1h | `Test855d7a1h_Gate_AContextPutAtAToolCallArrivesWithItsResult` | Measurement, real dependency (`network`) | the host's text says the context is read after the tool's result; the row records the order of the result, the block and the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s next message, and the time the block arrived; red (370ef56a) is the run before the recorder reads the request that follows the tool call: no record of its items. Refuted (the block precedes the result, or never arrives) ends the row as `Refuted` | Done | 370ef56a | f1ad2d8a | 613d0dcf, 9aec282a |
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
@@ -539,43 +542,43 @@ Measures the seven hypotheses of [855d7a Hypotheses and their measurements](./85
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1a | `Test855d7a1a_Hyp_ARecallChainIsTimed` | Measurement, real dependency (`network`) | 20 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms): the depth chosen and the time of each step, each model call and the chain against the 2 minutes; records the numbers and asserts its record and its bound; red is the run before the recorder exists (no record); a refuted bound ends the row `Refuted` with the numbers in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) ([855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)) | Not started |  |  |  |
+| 855d7a1a | `Test855d7a1a_Hyp_ARecallChainIsTimed` | Measurement, real dependency (`network`) | 20 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms): the depth chosen and the time of each step, each model call and the chain against the 2 minutes | Not started |  |  |  |
 
 #### 855e6g2 A capture is timed against its rows
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1b | `Test855d7a1b_Hyp_ACaptureIsTimedAgainstItsRowsAndThe2Minutes` | Measurement, real dependency (`network`) | 10 [turns](../793_automatic-memory/793a_product-spec.md#793a1a-terms) that hold a lesson: each step and call against its row, and the time from the end of the turn to the [note](../../GLOSSARY.md#permanent-note) against the 2 minutes; records the numbers and asserts its record and its bound; red is the run before the recorder exists (no record); a refuted bound ends the row `Refuted` with the numbers in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) ([855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)) | Not started |  |  |  |
+| 855d7a1b | `Test855d7a1b_Hyp_ACaptureIsTimedAgainstItsRowsAndThe2Minutes` | Measurement, real dependency (`network`) | 10 [turns](../793_automatic-memory/793a_product-spec.md#793a1a-terms) that hold a lesson: each step and call against its row, and the time from the end of the turn to the [note](../../GLOSSARY.md#permanent-note) against the 2 minutes | Not started |  |  |  |
 
 #### 855e6g3 A deep write is timed
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1d | `Test855d7a1d_Hyp_ADeepWriteIsTimed` | Measurement, real dependency (`network`) | 10 deep moments: the write that follows the block against its 60 seconds; records the numbers and asserts its record and its bound; red is the run before the recorder exists (no record); a refuted bound ends the row `Refuted` with the numbers in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) ([855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)) | Not started |  |  |  |
+| 855d7a1d | `Test855d7a1d_Hyp_ADeepWriteIsTimed` | Measurement, real dependency (`network`) | 10 deep moments: the write that follows the block against its 60 seconds | Not started |  |  |  |
 
 #### 855e6g4 The chains of a turn's tool calls are timed
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1e | `Test855d7a1e_Hyp_TheChainsOfATurnsToolCallsAreTimed` | Measurement, real dependency (`network`) | a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) of 10 tool calls with and without the mod: the time added to each call and to the turn against the sum of the times of the chains; records the numbers and asserts its record and its bound; red is the run before the recorder exists (no record); a refuted bound ends the row `Refuted` with the numbers in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) ([855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)) | Not started |  |  |  |
+| 855d7a1e | `Test855d7a1e_Hyp_TheChainsOfATurnsToolCallsAreTimed` | Measurement, real dependency (`network`) | a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) of 10 tool calls with and without the mod: the time added to each call and to the turn against the sum of the times of the chains | Not started |  |  |  |
 
 #### 855e6g5 The phrases find what the recall skill finds
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1g | `Test855d7a1g_Hyp_ThePhrasesFindWhatTheRecallSkillFinds` | Measurement, real dependency (`network`) | 10 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms): the share of the [notes](../../GLOSSARY.md#permanent-note) the recall [skill](../../GLOSSARY.md#skill) draws on that are among the candidates, against the share the skill's own phrases reach; records the numbers and asserts its record and its bound; red is the run before the recorder exists (no record); a refuted bound ends the row `Refuted` with the numbers in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) ([855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)) | Not started |  |  |  |
+| 855d7a1g | `Test855d7a1g_Hyp_ThePhrasesFindWhatTheRecallSkillFinds` | Measurement, real dependency (`network`) | 10 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms): the share of the [notes](../../GLOSSARY.md#permanent-note) the recall [skill](../../GLOSSARY.md#skill) draws on that are among the candidates, against the share the skill's own phrases reach | Not started |  |  |  |
 
 #### 855e6g6 The cost of the judgements is recorded
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1i | `Test855d7a1i_Hyp_TheCostOfTheJudgementsIsRecorded` | Measurement, real dependency (`network`) | a [session](../../GLOSSARY.md#session) of 10 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms) with and without the mod: the tokens and cost of the cheap-tier calls, the mid-tier calls and the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s own use, against the agent's own; records the numbers and asserts its record and its bound; red is the run before the recorder exists (no record); a refuted bound ends the row `Refuted` with the numbers in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) ([855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)) | Not started |  |  |  |
+| 855d7a1i | `Test855d7a1i_Hyp_TheCostOfTheJudgementsIsRecorded` | Measurement, real dependency (`network`) | a [session](../../GLOSSARY.md#session) of 10 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms) with and without the mod: the tokens and cost of the cheap-tier calls, the mid-tier calls and the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s own use, against the agent's own | Not started |  |  |  |
 
 #### 855e6g7 The moment judgement's false none is recorded
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1j | `Test855d7a1j_Hyp_TheMomentJudgementsFalseNoneIsRecorded` | Measurement, real dependency (`network`) | 20 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms) for which the recall [skill](../../GLOSSARY.md#skill) draws on a [note](../../GLOSSARY.md#permanent-note): the share answered none against one half; records the numbers and asserts its record and its bound; red is the run before the recorder exists (no record); a refuted bound ends the row `Refuted` with the numbers in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) ([855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)) | Not started |  |  |  |
+| 855d7a1j | `Test855d7a1j_Hyp_TheMomentJudgementsFalseNoneIsRecorded` | Measurement, real dependency (`network`) | 20 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms) for which the recall [skill](../../GLOSSARY.md#skill) draws on a [note](../../GLOSSARY.md#permanent-note): the share answered none against one half | Not started |  |  |  |
 
 #### 855e6g8 The conformance check reads the specs of 855
 
@@ -588,15 +591,15 @@ Not scenarios of the specs: the rows are named by test. Every scenario of [855a 
 
 ## 855e7 Completion gates
 
-- Every scenario of [855a Judged Automatic Memory - Product Spec](./855a_product-spec.md#judged-automatic-memory---product-spec) and [855d Judged Automatic Memory - Technical Spec](./855d_technical-spec.md#judged-automatic-memory---technical-spec) that this change adds, replaces or restates has a row, every row is `Done` (a measurement row may be `Refuted` with the owner's answer recorded), and the tests of the five removed scenarios are deleted.
+- Every scenario of [855a Judged Automatic Memory - Product Spec](./855a_product-spec.md#judged-automatic-memory---product-spec) and [855d Judged Automatic Memory - Technical Spec](./855d_technical-spec.md#judged-automatic-memory---technical-spec) that this change adds, replaces or restates has a row, every test row is `Done`, or `Refuted` for a measurement row whose numbers and the owner's answer are recorded, every work row is `Done` or `Not needed`, and the tests of the five removed scenarios are deleted. The test of a `Refuted` row is changed to a record-only assertion that names the decision of [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) holding the numbers, or to the owner's new bound, so that `targ acceptance` passes.
 - Every product scenario has a Go test named with its ID that drove a real Claude Code [session](../../GLOSSARY.md#session) in an isolated HOME and passed, its run output recorded; each judgement row has 9 passes in 10 runs, its `Runs` entry filled with the cause of each red; every technical scenario has a passing Go test named with its ID; the conformance check over both changes passes.
 - No test, check or run touched the owner's real `~/.claude`, `~/.local/share/engram`, `~/.pi` or GOBIN ([793f7 Test isolation](../793_automatic-memory/793f_algorithm.md#793f7-test-isolation)).
 - Every `rapid` row has its properties; every injected or impure collaboration has the call, argument, ordering and side-effect evidence from `imptest` that its contract needs; the valid path and the invalid-path gating and preservation of each command and flow are covered by passing tests.
 - `targ check-full`, `targ test` and the full `targ acceptance` pass on the final commit of the branch, and at the end of every group.
 - The nine hypotheses of [855d7a Hypotheses and their measurements](./855d_technical-spec.md#855d7a-added-hypotheses-and-their-measurements) are measured and the result of each is in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log), with the numbers.
 - The docs checker reports no hard finding for the change directories of 855 and 793, and nothing soft for 855 but the bare first-cell IDs of the catalog.
-- Every `Done` row has its red, green and refactor commits recorded, and every refactor commit's message names the code it removed or merged, or says that nothing could be removed.
-- The order of integration is that of [855b9 The change layers on 793 by Modified operations](./855b_decision-log.md#855b9-the-change-layers-on-793-by-modified-operations): 793 is promoted and merged first; this branch is then rebased on main, its links into `../793_automatic-memory/` and its edits to [793c Automatic Memory - Open Questions](../793_automatic-memory/793c_open-questions.md#automatic-memory---open-questions) are re-pointed to the canonical files, and every gate above is run again before the fast-forward merge.
+- Every `Done` test row has its red, green and refactor commits recorded (a row whose red is `n/a` has its mutation instead of a red commit), and every refactor commit's message names the code it removed or merged, or says that nothing could be removed.
+- The order of integration is that of [855b9 The change layers on 793 by Modified operations](./855b_decision-log.md#855b9-the-change-layers-on-793-by-modified-operations): 793 is promoted and merged first; this branch is then rebased on main, its links into `../793_automatic-memory/` and its edits to [793c Automatic Memory - Open Questions](../793_automatic-memory/793c_open-questions.md#automatic-memory---open-questions) are re-pointed to the canonical files, the directory of 793 being gone, and the conformance check, which reads the specs of both changes from their change directories, is re-pointed in the same step to the canonical specifications plus the specs of 855 with the exemptions of the Removed operations of [855d Judged Automatic Memory - Technical Spec](./855d_technical-spec.md#judged-automatic-memory---technical-spec); every gate above is then run again before the fast-forward merge.
 - The product and technical deltas of 855 are applied to the canonical specifications after those of 793, without changing stable IDs, and this change directory is deleted in the same merge as the implementation; the terms of [855a3a 793a1a Terms](./855a_product-spec.md#855a3a-modified-793a1a-terms) are entered in `docs/GLOSSARY.md` in that merge.
 - The review of the branch against main is done and its findings are applied before the merge ([793b33 One agent review round per phase](../793_automatic-memory/793b_decision-log.md#793b33-one-agent-review-round-per-phase)).
 - Every node is `Merged`.
