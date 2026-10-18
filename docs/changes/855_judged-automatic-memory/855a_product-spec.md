@@ -99,11 +99,19 @@ Scenario: 855a2e1b A note arrives after a failure the agent cannot explain
   Given the user has run engram update, and a vault holding a note that says make ci fails with the message LINT_STRICT is unset unless LINT_STRICT=1 is set
   When the user asks the agent in a prompt to get the branch ready for review, the prompt arrives with nothing from the vault, and the agent runs make ci, which fails with that message
   Then before the agent's next action its context holds the make ci note
+```
 
+The scenario 855a2e1c is replaced by [855a2f 855a2e1c A note arrives before the agent starts building a new approach](#855a2f-modified-855a2e1c-a-note-arrives-before-the-agent-starts-building-a-new-approach).
+
+### 855a2f Modified: 855a2e1c A note arrives before the agent starts building a new approach
+
+Target: 855a2e1c A [note](../../GLOSSARY.md#permanent-note) arrives before the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) starts building a new approach, in [855a2e1 UAT Scenarios](#855a2e1-uat-scenarios). A note put in front of a call reaches the agent with the call's result, so it arrives before the agent's next action and not before the call ([855b37 The before-tool cue promises the next action](./855b_decision-log.md#855b37-the-before-tool-cue-promises-the-next-action)).
+
+```gherkin
 Scenario: 855a2e1c A note arrives before the agent starts building a new approach
   Given the user has run engram update, and a vault holding a note that says schema changes are written as migrations with the migrate tool and never by editing schema.sql
   When the user asks the agent in a prompt to add an index on orders.created_at, the prompt arrives with nothing from the vault, and the agent is about to edit schema.sql
-  Then before the edit its context holds the migration note
+  Then before the agent's next action its context holds the migration note
 ```
 
 ## 855a3 Modified: Automatic memory of 793
