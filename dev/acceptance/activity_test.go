@@ -3,6 +3,7 @@
 package acceptance_test
 
 import (
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -42,16 +43,18 @@ func Test793a2e1a_WhatWasDeliveredAndWhatWasWrittenForThePreviousTurnIsInTheSess
 		next = chat.tell(askSomethingElse)
 	})
 
-	step(t, "Then the conversation shows the staging note delivered with the earlier prompt, and the next prompt "+
-		"arrives with a line that names the note written from it", func() {
+	step(t, "Then the session shows a line that names the staging note delivered with the earlier prompt, and, with "+
+		"the next prompt, a line that names the note written from it", func() {
 		g.Expect(earlier.blocks()).To(ConsistOf(ContainSubstring(stagingNote)), "the blocks of the earlier prompt")
 
-		g.Expect(next.blocks()).To(HaveLen(1), "the blocks of the next prompt")
+		g.Expect(linesNaming(earlier.shown, stagingNote)).To(ConsistOf("delivered the note "+stagingNote),
+			"the lines shown with the earlier prompt that name the staging note")
+		g.Expect(linesNaming(next.shown, written)).To(ConsistOf(ContainSubstring("wrote the note")),
+			"the lines shown with the next prompt that name the note written")
 
-		if len(next.blocks()) == 1 {
-			g.Expect(linesNaming(linesToldBy(next.blocks()[0]), written)).To(ConsistOf(ContainSubstring("wrote the note")),
-				"the lines that name the note written")
-		}
+		t.Logf("a log line as the host streams it to the user: %s", chat.rawLine(written))
+
+		holdNone(g, append(slices.Clone(earlier.shown), next.shown...), earlier, next)
 	})
 }
 
@@ -92,18 +95,13 @@ func Test793a2e1b_AWriteThatFinishesAfterTheNextPromptIsShownWhenItFinishes(t *t
 		third = chat.tell(askAnotherThing)
 	})
 
-	step(t, "Then the second prompt arrives with no line about the write, and the third arrives with a line that "+
+	step(t, "Then the session shows no line about the write with the second prompt, and with the third a line that "+
 		"names the note written", func() {
-		for _, block := range second.blocks() {
-			g.Expect(linesToldBy(block)).To(BeEmpty(), "the lines that tell what automatic memory did, with the second prompt")
-		}
+		g.Expect(second.shown).To(BeEmpty(), "the lines shown with the second prompt")
+		g.Expect(linesNaming(third.shown, written)).To(ConsistOf(ContainSubstring("wrote the note")),
+			"the lines shown with the third prompt that name the note written")
 
-		g.Expect(third.blocks()).To(HaveLen(1), "the blocks of the third prompt")
-
-		if len(third.blocks()) == 1 {
-			g.Expect(linesNaming(linesToldBy(third.blocks()[0]), written)).To(ConsistOf(ContainSubstring("wrote the note")),
-				"the lines that name the note written, with the third prompt")
-		}
+		holdNone(g, third.shown, second, third)
 	})
 }
 
@@ -137,21 +135,18 @@ func Test793a2e1c_ADeliveryThatCouldNotBeDoneIsShownWithItsReason(t *testing.T) 
 		second = chat.tell(askSomethingElse)
 	})
 
-	step(t, "Then the second prompt arrives with a line that says the delivery for the first could not be done, with "+
-		"the reason", func() {
-		g.Expect(first.blocks()).To(BeEmpty(), "the blocks of the first prompt")
-		g.Expect(second.blocks()).To(HaveLen(1), "the blocks of the second prompt")
+	step(t, "Then the session shows, with the second prompt, a line that says the delivery for the first could not be "+
+		"done, with the reason", func() {
+		g.Expect(first.shown).To(BeEmpty(), "the lines shown with the first prompt")
 
-		if len(second.blocks()) == 1 {
-			told := linesToldBy(second.blocks()[0])
+		t.Logf("the lines shown with the second prompt: %q", second.shown)
 
-			t.Logf("the lines that tell what automatic memory did, with the second prompt: %q", told)
+		g.Expect(second.shown).To(ConsistOf(And(ContainSubstring("failed:"),
+			ContainSubstring("the delivery for a prompt could not be done"),
+			Or(ContainSubstring("within 7000 ms"), ContainSubstring("ended")))),
+			"the lines shown with the second prompt")
 
-			g.Expect(told).To(ConsistOf(And(ContainSubstring("failed:"),
-				ContainSubstring("the delivery for a prompt could not be done"),
-				Or(ContainSubstring("within 7000 ms"), ContainSubstring("ended")))),
-				"the lines that tell what automatic memory did, with the second prompt")
-		}
+		holdNone(g, second.shown, first, second)
 	})
 }
 
@@ -182,17 +177,13 @@ func Test793a2e1d_AWriteThatFailedIsShownWithItsReason(t *testing.T) {
 		second = chat.tell(askSomethingElse)
 	})
 
-	step(t, "Then the second prompt arrives with a line that says the write failed, with the reason", func() {
-		g.Expect(second.blocks()).To(HaveLen(1), "the blocks of the second prompt")
+	step(t, "Then the session shows, with the second prompt, a line that says the write failed, with the reason", func() {
+		t.Logf("the lines shown with the second prompt: %q", second.shown)
 
-		if len(second.blocks()) == 1 {
-			told := linesToldBy(second.blocks()[0])
+		g.Expect(second.shown).To(ContainElement(And(ContainSubstring("failed: writing "), HaveSuffix("permission denied"))),
+			"the lines shown with the second prompt")
 
-			t.Logf("the lines that tell what automatic memory did, with the second prompt: %q", told)
-
-			g.Expect(told).To(ContainElement(And(ContainSubstring("failed: writing "), HaveSuffix("permission denied"))),
-				"the lines that tell what automatic memory did, with the second prompt")
-		}
+		holdNone(g, second.shown, second)
 	})
 }
 
@@ -221,17 +212,13 @@ func Test793a2e1e_ASweepThatFailedIsShownWithItsReason(t *testing.T) {
 		second = chat.tell(askAnotherThing)
 	})
 
-	step(t, "Then the second prompt arrives with a line that says the sweep failed, with the reason", func() {
-		g.Expect(second.blocks()).To(HaveLen(1), "the blocks of the second prompt")
+	step(t, "Then the session shows, with the second prompt, a line that says the sweep failed, with the reason", func() {
+		t.Logf("the lines shown with the second prompt: %q", second.shown)
 
-		if len(second.blocks()) == 1 {
-			told := linesToldBy(second.blocks()[0])
+		g.Expect(second.shown).To(ConsistOf(And(ContainSubstring("failed: "), ContainSubstring("sweep"),
+			HaveSuffix("permission denied"))), "the lines shown with the second prompt")
 
-			t.Logf("the lines that tell what automatic memory did, with the second prompt: %q", told)
-
-			g.Expect(told).To(ConsistOf(And(ContainSubstring("failed: "), ContainSubstring("sweep"),
-				HaveSuffix("permission denied"))), "the lines that tell what automatic memory did, with the second prompt")
-		}
+		holdNone(g, second.shown, second)
 	})
 }
 
@@ -260,17 +247,14 @@ func Test793a2e1f_ATurnThatIsNotCapturedIsShownWithTheReason(t *testing.T) {
 		second = chat.tell(askSomethingElse)
 	})
 
-	step(t, "Then the second prompt arrives with a line that says the turn was not captured, with the reason", func() {
-		g.Expect(second.blocks()).To(HaveLen(1), "the blocks of the second prompt")
+	step(t, "Then the session shows, with the second prompt, a line that says the turn was not captured, with the "+
+		"reason", func() {
+		t.Logf("the lines shown with the second prompt: %q", second.shown)
 
-		if len(second.blocks()) == 1 {
-			told := linesToldBy(second.blocks()[0])
+		g.Expect(second.shown).To(ConsistOf(And(ContainSubstring("not captured"),
+			ContainSubstring("ENGRAM_AUTO_CAPTURE_SDK"))), "the lines shown with the second prompt")
 
-			t.Logf("the lines that tell what automatic memory did, with the second prompt: %q", told)
-
-			g.Expect(told).To(ConsistOf(And(ContainSubstring("not captured"), ContainSubstring("ENGRAM_AUTO_CAPTURE_SDK"))),
-				"the lines that tell what automatic memory did, with the second prompt")
-		}
+		holdNone(g, second.shown, second)
 	})
 }
 
@@ -300,15 +284,16 @@ func linesNaming(told []string, note string) []string {
 	return named
 }
 
-// linesToldBy returns the lines of a block that tell what automatic memory did: those that begin with an asterisk.
-func linesToldBy(block string) []string {
-	var told []string
+// holdNone fails the test when an entry of the context beside the prompts of the turns holds one of the lines shown to
+// the user, or a line that begins with an asterisk: the lines go to the user, and the model is told none (793a2d).
+func holdNone(g *WithT, shown []string, turns ...*turn) {
+	for _, round := range turns {
+		for _, entry := range round.contexts() {
+			g.Expect(entry).NotTo(MatchRegexp(`(?m)^\* `), "a line of the context that begins with an asterisk")
 
-	for line := range strings.SplitSeq(block, "\n") {
-		if strings.HasPrefix(line, "* ") {
-			told = append(told, line)
+			for _, line := range shown {
+				g.Expect(entry).NotTo(ContainSubstring(line), "an entry of the context holds a line shown to the user")
+			}
 		}
 	}
-
-	return told
 }

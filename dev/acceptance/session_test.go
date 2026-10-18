@@ -69,6 +69,10 @@ type conversation struct {
 
 	noticesLock sync.Mutex
 	notices     []string // the text of each notice the process printed that a mod showed beneath a reply
+
+	shownLock sync.Mutex
+	shown     []string // the text of each log line the mod showed the user: the process's `ui_log` events, in order
+	shownRaw  []string // the same events as the process printed them
 }
 
 // awaitTurnOfItsOwn waits for the result of a turn that no prompt of the test began, such as the turn that the
@@ -107,9 +111,9 @@ func (c *conversation) end(stderr string) {
 	})
 }
 
-// readResults sends the line of each result event that the process prints to the results channel, and keeps the text of
-// each notice that the host prints for a mod: a mod that changes the text of a reply has the host show its text beneath
-// the reply as a notice.
+// readResults sends the line of each result event that the process prints to the results channel, keeps the text of
+// each notice that the host prints for a mod (a mod that changes the text of a reply has the host show its text
+// beneath the reply as a notice), and keeps each `ui_log` event of the mod: the log lines the host gives the user.
 func (c *conversation) readResults(stdout io.Reader) {
 	scanner := bufio.NewScanner(stdout)
 	scanner.Buffer(nil, maxLineBytes)
@@ -119,6 +123,8 @@ func (c *conversation) readResults(stdout io.Reader) {
 			Type    string `json:"type"`
 			Subtype string `json:"subtype"`
 			Content string `json:"content"`
+			Plugin  string `json:"plugin"`
+			Text    string `json:"text"`
 		}
 
 		if json.Unmarshal(scanner.Bytes(), &event) != nil {
@@ -132,6 +138,11 @@ func (c *conversation) readResults(stdout io.Reader) {
 			c.noticesLock.Lock()
 			c.notices = append(c.notices, event.Content)
 			c.noticesLock.Unlock()
+		case event.Type == "system" && event.Subtype == "ui_log" && event.Plugin == modName:
+			c.shownLock.Lock()
+			c.shown = append(c.shown, event.Text)
+			c.shownRaw = append(c.shownRaw, scanner.Text())
+			c.shownLock.Unlock()
 		}
 	}
 
@@ -151,6 +162,7 @@ func (c *conversation) say(prompt string) *turn {
 		t.Fatalf("encoding the prompt: %v", marshalErr)
 	}
 
+	shownBefore := c.shownCount()
 	sent := time.Now()
 
 	_, writeErr := c.stdin.Write(append(message, '\n'))
@@ -168,6 +180,7 @@ func (c *conversation) say(prompt string) *turn {
 
 		answered := c.session.answeredTurn(prompt, result)
 		answered.sent = sent
+		answered.shown = c.shownSince(shownBefore)
 
 		return answered
 	case <-time.After(sessionTimeout):
@@ -175,6 +188,37 @@ func (c *conversation) say(prompt string) *turn {
 
 		return nil
 	}
+}
+
+// shownCount returns how many log lines of the mod the process has printed so far.
+func (c *conversation) shownCount() int {
+	c.shownLock.Lock()
+	defer c.shownLock.Unlock()
+
+	return len(c.shown)
+}
+
+// shownSince returns the text of the log lines of the mod that the process printed after the first count of them: those
+// of a prompt are printed before its result, and the result is awaited.
+func (c *conversation) shownSince(count int) []string {
+	c.shownLock.Lock()
+	defer c.shownLock.Unlock()
+
+	return slices.Clone(c.shown[count:])
+}
+
+// rawLine returns the first `ui_log` event the process printed whose text holds a word, as it printed it.
+func (c *conversation) rawLine(word string) string {
+	c.shownLock.Lock()
+	defer c.shownLock.Unlock()
+
+	for _, raw := range c.shownRaw {
+		if strings.Contains(raw, word) {
+			return raw
+		}
+	}
+
+	return ""
 }
 
 // shownByTheMod returns the notices the host printed for automatic memory's mod, such as the text it changed a reply
@@ -607,6 +651,7 @@ type turn struct {
 	reply string          // the agent's final text
 	cost  float64         // dollars
 	sent  time.Time       // when the test sent the prompt to the running session; zero for a prompt of its own run
+	shown []string        // the text of the log lines the mod showed the user with the prompt
 }
 
 // agentActsAt returns the index, in the turn's rows, of the first row that shows the agent acting (a reply or a

@@ -121,12 +121,14 @@ func Test793a2d1e_AWriteThatFailsDoesNotBreakTheSession(t *testing.T) {
 		second = chat.tell(askSomethingElse)
 	})
 
-	step(t, "Then the agent answers the second prompt as typed, and the vault holds no new note", func() {
+	step(t, "Then the agent answers the second prompt as typed, with nothing about the failed write in its context, "+
+		"and the vault holds no new note", func() {
 		text, isPrompt := second.rows[0].promptText()
 		g.Expect(isPrompt).To(BeTrue())
 		g.Expect(text).To(Equal(askSomethingElse))
 
 		g.Expect(second.reply).NotTo(BeEmpty(), "the agent answered")
+		g.Expect(second.contexts()).To(BeEmpty(), "what the agent's context holds beside the second prompt")
 		g.Expect(machine.noteNames()).To(BeEmpty(), "the notes of the vault")
 		g.Expect(machine.hookFailures()).To(BeEmpty(), "the mod's hook was skipped")
 	})
