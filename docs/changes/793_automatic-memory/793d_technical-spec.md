@@ -229,15 +229,19 @@ sequenceDiagram
     Mod-->>Session: 793d2c the event's result, at once
     Mod->>Sweep: 793d2c, 793d4n engram auto sweep, the session's ID and the origin on standard input
     Sweep->>Index: 793d4n the session's record, as engram ingest --transcript indexes it
+    opt the sweep is ended at its bound
+        Mod->>Sweep: 793d2c, 793d4n engram auto sweep again, with ended set
+        Sweep-->>Mod: 793d4n the sweep gives up for the session and fails, naming what to run
+    end
     alt the sweep fails or is ended
         Mod->>Writing: 793d2c, 793d4h engram auto write, the session's ID, the turn's ID and a failure
         Writing->>Record: 793d4k what became of the failure
     end
 ```
 
-Requirement: 793d2c For each [turn](./793a_product-spec.md#793a1a-terms) a [session](../../GLOSSARY.md#session) completes, the `automatic-memory-mod` MUST give the event's result back at once and then, from a timer and apart from the capture of [793d2b Turn capture flow](#793d2b-turn-capture-flow), run `engram auto sweep` with one JSON object on standard input: the session's ID and the origin of the [prompt](./793a_product-spec.md#793a1a-terms) the turn began with. It MUST do nothing for a turn that a [subagent](../../GLOSSARY.md#subagent) ran, and for a session whose ID does not come within 5 seconds. It MUST end the command after 90 seconds, so that the call for the ID (5), the sweep (90) and the report of its failure (15) take 110 seconds, under the 2 minutes of [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory); the bound of the sweep neither extends nor waits for those of the capture. When the command exits with other than 0, or is ended or cannot run, it MUST run `engram auto write` with the session's ID, the turn's ID and a `failure`, a sentence that names the sweep and how it failed.
+Requirement: 793d2c For each [turn](./793a_product-spec.md#793a1a-terms) a [session](../../GLOSSARY.md#session) completes, the `automatic-memory-mod` MUST give the event's result back at once and then, from a timer and apart from the capture of [793d2b Turn capture flow](#793d2b-turn-capture-flow), run `engram auto sweep` with one JSON object on standard input: the session's ID and the origin of the [prompt](./793a_product-spec.md#793a1a-terms) the turn began with. It MUST do nothing for a turn that a [subagent](../../GLOSSARY.md#subagent) ran, and for a session whose ID does not come within 5 seconds. It MUST end the command after 90 seconds, and when it is ended or cannot run MUST run it once more, within 5 seconds, with `ended` set to true in the object, so that the command gives up for the session ([793d4n Sweeping the conversation](#793d4n-sweeping-the-conversation)); the call for the ID (5), the sweep (90), the run that gives up (5) and the report of its failure (15) take 115 seconds, under the 2 minutes of [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), and the bound of the sweep neither extends nor waits for those of the capture. When the command exits with other than 0, or the run that gives up exits with other than 0, is ended or cannot run, it MUST run `engram auto write` with the session's ID, the turn's ID and a `failure`, a sentence that names the sweep and how it failed.
 
-Owner: `automatic-memory-mod`. Supports: [793a2f1a The conversation so far is findable after a turn](./793a_product-spec.md#793a2f1-uat-scenarios), [793a2d1c The work after a turn does not hold the next prompt](./793a_product-spec.md#793a2d1-uat-scenarios).
+Owner: `automatic-memory-mod`. Supports: [793a2f1a The conversation so far is findable after a turn](./793a_product-spec.md#793a2f1-uat-scenarios), [793a2f1b A conversation too long to index in time is left alone and the user is told once what to run](./793a_product-spec.md#793a2f1-uat-scenarios), [793a2d1c The work after a turn does not hold the next prompt](./793a_product-spec.md#793a2d1-uat-scenarios).
 
 #### 793d2c1 Scenarios
 
@@ -255,12 +259,22 @@ Scenario: 793d2c1b A sweep that fails is reported to the writing
 Scenario: 793d2c1c A sweep that stalls is ended at its bound and reported
   Given the mod, and a host in which, in turn, the call for the session's ID never answers, and auto sweep runs until its time limit
   When a turn completes
-  Then with the first auto sweep was never run after the mod waited 5 seconds, and with the second auto sweep was given the time limit of 90 seconds and the report of its failure 15, which with the 5 seconds for the ID are less than 120 seconds
+  Then with the first auto sweep was never run after the mod waited 5 seconds, and with the second auto sweep was given the time limit of 90 seconds, its run as ended 5 and the report of its failure 15, which with the 5 seconds for the ID are less than 120 seconds
 
 Scenario: 793d2c1d A turn of a subagent is not swept
   Given the mod
   When a turn that a subagent ran completes
   Then auto sweep was never run
+
+Scenario: 793d2c1e A sweep that is ended is run once more, as ended
+  Given the mod, a session whose ID is known, and an engram whose auto sweep runs until its time limit and, run as ended, exits with 1 and prints a cause on standard error
+  When a turn completes
+  Then auto sweep was run twice, the second time with ended set to true and the time limit of 5 seconds, and auto write received the session's ID, the turn's ID and a failure that names the sweep and the cause of the second run
+
+Scenario: 793d2c1f A sweep that gave up before is not reported again
+  Given the mod, a session whose ID is known, and an engram whose auto sweep runs until its time limit and, run as ended, exits with 0
+  When a turn completes
+  Then auto sweep was run twice, and auto write was never run
 ```
 
 ## 793d3 Recommended component diffs
@@ -861,9 +875,9 @@ Scenario: 793d4m1e A headless turn that is not judged is recorded as skipped wit
 
 ### 793d4n Sweeping the conversation
 
-Requirement: 793d4n The `conversation-sweep` MUST read one JSON object from standard input (the `session`'s ID and the `origin`), act only for the [prompts](./793a_product-spec.md#793a1a-terms) that [793d4m Telling the prompts the user sends](#793d4m-telling-the-prompts-the-user-sends) lets the judgement act for, and for them find the [session](../../GLOSSARY.md#session)'s record as [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) does in the directory of [793d4f Finding the records of sessions](#793d4f-finding-the-records-of-sessions), and index it in the chunk index as `--transcript` of [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand) does, as the one explicit source, printing nothing. It MUST print nothing, succeed and index nothing for any other origin; print nothing and fail, naming the cause, when the input is not a JSON object, the session has no record in the directory of records or the index fails; wait for the lock that `engram ingest` takes on the manifest when another ingest holds it; and leave the chunk index usable when it is ended at any moment, so that a later sweep indexes the record whole. It MUST NOT create a [vault](../../GLOSSARY.md#vault) ([793d4e First-use gating](#793d4e-modified-first-use-gating)).
+Requirement: 793d4n The `conversation-sweep` MUST read one JSON object from standard input (the `session`'s ID and the `origin`), act only for the [prompts](./793a_product-spec.md#793a1a-terms) that [793d4m Telling the prompts the user sends](#793d4m-telling-the-prompts-the-user-sends) lets the judgement act for, and for them find the [session](../../GLOSSARY.md#session)'s record as [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) does in the directory of [793d4f Finding the records of sessions](#793d4f-finding-the-records-of-sessions), and index it in the chunk index as `--transcript` of [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand) does, as the one explicit source, printing nothing. It MUST print nothing, succeed and index nothing for any other origin; print nothing and fail, naming the cause, when the input is not a JSON object, the session has no record in the directory of records or the index fails; wait for the lock that `engram ingest` takes on the manifest when another ingest holds it; and leave the chunk index usable when it is ended at any moment, so that a later sweep indexes the record whole. It MUST also print nothing, succeed and index nothing for a session whose directory in the records of [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did) (the directory of its `--records` flag, else `auto` in the engram data directory) holds the file `sweep.ended`; and when the object it reads has `ended` set to true, the mod having ended the sweep at its bound, MUST write that file, print nothing and fail with an error that says the sweep was ended at its time limit, that it is not run again in this session and that `engram ingest --auto` indexes the history, except that it succeeds when the file is there already, so that the user is told once. It MUST NOT create a [vault](../../GLOSSARY.md#vault) ([793d4e First-use gating](#793d4e-modified-first-use-gating)).
 
-Owner: `conversation-sweep` (new; `conversation-sweep.md` at promotion). Supports: [793a2f1a The conversation so far is findable after a turn](./793a_product-spec.md#793a2f1-uat-scenarios).
+Owner: `conversation-sweep` (new; `conversation-sweep.md` at promotion). Supports: [793a2f1a The conversation so far is findable after a turn](./793a_product-spec.md#793a2f1-uat-scenarios), [793a2f1b A conversation too long to index in time is left alone and the user is told once what to run](./793a_product-spec.md#793a2f1-uat-scenarios).
 
 #### 793d4n1 Scenarios
 
@@ -897,6 +911,16 @@ Scenario: 793d4n1f Two sweeps at once index both records
   Given the records of two sessions, and the real engram
   When both sweeps run at once
   Then the manifest records both sources, and each record is indexed whole
+
+Scenario: 793d4n1g A sweep that was ended gives up for the session and fails, naming what to run
+  Given the record of a session, a place for the records of what automatic memory did, and an index
+  When the sweep is given the session as ended, and then again
+  Then the first writes the file sweep.ended in the directory of the session and fails with an error that says the sweep was ended, that it is not run again and that engram ingest --auto indexes the history, the second succeeds, and neither runs the index
+
+Scenario: 793d4n1h A session that gave up is not swept
+  Given the record of a session and the file sweep.ended in the directory of the session
+  When the sweep is given the session
+  Then it prints nothing, succeeds and runs no index
 ```
 
 ### 793d4p Telling what automatic memory did
@@ -1478,10 +1502,23 @@ Scenario: 793a2e1g The notes delivered with a prompt are one line
 
 Realized by [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) (the lookup finds the three [notes](../../GLOSSARY.md#permanent-note)) and [793d4p Telling what automatic memory did](#793d4p-telling-what-automatic-memory-did) (the delivery prints one line that names the notes it delivered, whatever their number), shown by [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow).
 
+### 793d5zm Mapping of 793a2f1b
+
+The product scenario [793a2f1b A conversation too long to index in time is left alone and the user is told once what to run](./793a_product-spec.md#793a2f1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2f1b A conversation too long to index in time is left alone and the user is told once what to run
+  Given the user has run engram update, and a conversation that is too long to be indexed within 2 minutes
+  When the user sends a prompt, and 2 minutes after its turn ends sends a second, and 2 minutes after the second turn ends sends a third
+  Then the session shows, with the second prompt, one line that says the conversation could not be indexed in time and that engram ingest --auto indexes it, and shows no line about it with the third
+```
+
+Realized by [793d2c Conversation sweep flow](#793d2c-conversation-sweep-flow) (the mod ends the sweep at its bound, runs it once more as ended, and reports the failure of that run to the writing), [793d4n Sweeping the conversation](#793d4n-sweeping-the-conversation) (the command gives up for the [session](../../GLOSSARY.md#session), fails once, naming what to run, and does nothing at the later [turns](./793a_product-spec.md#793a1a-terms)), [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did) (the writing records the failure) and [793d4p Telling what automatic memory did](#793d4p-telling-what-automatic-memory-did) (the delivery of the next [prompt](./793a_product-spec.md#793a1a-terms) prints its line, which [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow) shows).
+
 ## 793d6 Recommended impact
 
 - **Repository:** a new directory `agent-instructions/mods/`, a new package `internal/auto` and a new command group `engram auto` (`deliver`, `judge`, `write`, `sweep`); the update's deploy set gains the mods.
 - **Dependencies:** none new in Go; a Claude Code release that loads mods (2.1.302 verified, 2.1.287 the first the earlier attempt found); `node`, which `targ check-full` needs to parse the mod's JavaScript and run its tests ([793b55 The mod's JavaScript is parsed by a test of the dev integration suite](./793b_decision-log.md#793b55-the-mods-javascript-is-parsed-by-a-test-of-the-dev-integration-suite)).
 - **Toolchain:** a `targ acceptance` target runs the tests that drive a real Claude Code [session](../../GLOSSARY.md#session); they carry the `network` build tag, so `targ test` does not run them.
 - **Operational:** one process start and one lookup per [prompt](./793a_product-spec.md#793a1a-terms), held at most by the mod's one timer of 7 seconds ([793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow)); after each [turn](./793a_product-spec.md#793a1a-terms), three process starts and one model call of the user's own login, apart from the turn ([793d2b Turn capture flow](#793d2b-turn-capture-flow), [793d2c Conversation sweep flow](#793d2c-conversation-sweep-flow)); the sweep embeds the chunks that are new, 1.7 seconds after a turn of a session of 26 MB and, for a record that was never indexed, 0.42 seconds a chunk, 264 seconds for 625 chunks, more than its bound ([793c70 Is a sweep that is ended at its bound retried at every turn?](./793c_open-questions.md#793c70-is-a-sweep-that-is-ended-at-its-bound-retried-at-every-turn)).
-- **Risk:** every prompt of every Claude Code session runs the command ([793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow)). Open risk [793c32 Is the stall between the spawn of the command and its first instruction a risk to the product?](./793c_open-questions.md#793c32-is-the-stall-between-the-spawn-of-the-command-and-its-first-instruction-a-risk-to-the-product): on a loaded machine the time between the spawn of the command and its first instruction has reached the whole bound, so the prompt is held about 7 seconds with nothing delivered or shown; not optimised here. Open risk [793c70 Is a sweep that is ended at its bound retried at every turn?](./793c_open-questions.md#793c70-is-a-sweep-that-is-ended-at-its-bound-retried-at-every-turn): a long record that was never indexed is not searchable while every sweep is ended.
+- **Risk:** every prompt of every Claude Code session runs the command ([793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow)). Open risk [793c32 Is the stall between the spawn of the command and its first instruction a risk to the product?](./793c_open-questions.md#793c32-is-the-stall-between-the-spawn-of-the-command-and-its-first-instruction-a-risk-to-the-product): on a loaded machine the time between the spawn of the command and its first instruction has reached the whole bound, so the prompt is held about 7 seconds with nothing delivered or shown; not optimised here. Open risk [793c70 Is a sweep that is ended at its bound retried at every turn?](./793c_open-questions.md#793c70-is-a-sweep-that-is-ended-at-its-bound-retried-at-every-turn): a long record that was never indexed is not searchable until an ingest with `--auto` has run; its first sweep is ended, the sweep gives up for the session and the user is told once.

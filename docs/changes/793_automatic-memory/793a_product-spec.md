@@ -148,7 +148,7 @@ Scenario: 793a2c1i A request to remember is written when the agent says it did n
 
 ### 793a2f The conversation becomes searchable memory
 
-Requirement: 793a2f Within 2 minutes ([793c2 How soon after a turn must automatic memory have finished writing?](./793c_open-questions.md#793c2-how-soon-after-a-turn-must-automatic-memory-have-finished-writing)) after a [turn](#793a1a-terms) ends, while the [session](../../GLOSSARY.md#session) stays open for those 2 minutes ([793c14 Is a turn that is followed by the end of the session covered?](./793c_open-questions.md#793c14-is-a-turn-that-is-followed-by-the-end-of-the-session-covered)), [automatic memory](#793a1a-terms) MUST make the session's conversation so far findable by the [agent](#793a1a-terms)'s own memory lookup (`engram query`), without the user or the agent running [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand).
+Requirement: 793a2f Within 2 minutes ([793c2 How soon after a turn must automatic memory have finished writing?](./793c_open-questions.md#793c2-how-soon-after-a-turn-must-automatic-memory-have-finished-writing)) after a [turn](#793a1a-terms) ends, while the [session](../../GLOSSARY.md#session) stays open for those 2 minutes ([793c14 Is a turn that is followed by the end of the session covered?](./793c_open-questions.md#793c14-is-a-turn-that-is-followed-by-the-end-of-the-session-covered)), [automatic memory](#793a1a-terms) MUST make the session's conversation so far findable by the [agent](#793a1a-terms)'s own memory lookup (`engram query`), without the user or the agent running [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand). When the conversation is too long to be made findable within those 2 minutes, [automatic memory](#793a1a-terms) MUST say so once, in the session, naming the command `engram ingest --auto`, which makes it findable, and MUST NOT try again for the rest of that session ([793c70 Is a sweep that is ended at its bound retried at every turn?](./793c_open-questions.md#793c70-is-a-sweep-that-is-ended-at-its-bound-retried-at-every-turn)).
 
 #### 793a2f1 UAT Scenarios
 
@@ -157,6 +157,11 @@ Scenario: 793a2f1a The conversation so far is findable after a turn
   Given the user has run engram update, and a session in which the agent may not run engram commands and the user has told the agent a first thing that only this conversation holds
   When the user tells it a second such thing in a prompt, and the turn ends
   Then within 2 minutes engram query returns a chunk of the conversation for each of the two things, and neither the user nor the agent ran engram ingest
+
+Scenario: 793a2f1b A conversation too long to index in time is left alone and the user is told once what to run
+  Given the user has run engram update, and a conversation that is too long to be indexed within 2 minutes
+  When the user sends a prompt, and 2 minutes after its turn ends sends a second, and 2 minutes after the second turn ends sends a third
+  Then the session shows, with the second prompt, one line that says the conversation could not be indexed in time and that engram ingest --auto indexes it, and shows no line about it with the third
 ```
 
 ### 793a2d Never in the way

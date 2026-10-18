@@ -47,6 +47,8 @@ Added by the fixes of the review of the whole branch ([793e6i The fixes of the r
 - `internal/auto/activity.go`, `internal/auto/auto.go`: one line for each of the notes delivered, the notes written, what was left out and what failed ([793b113 One line is shown for each of what was delivered, written, left out and failed](./793b_decision-log.md#793b113-one-line-is-shown-for-each-of-what-was-delivered-written-left-out-and-failed)).
 - `internal/cli/auto.go`, `internal/cli/targets.go`: the writing makes no record for a reply with no lesson and writes a line to the debug log when it ends, and the delivery removes the records it showed ([793b114 A turn with nothing to write leaves no record, and a record is removed once its line was shown](./793b_decision-log.md#793b114-a-turn-with-nothing-to-write-leaves-no-record-and-a-record-is-removed-once-its-line-was-shown)).
 - `dev/acceptance/steps_test.go`: the machine writes a debug log, and the tests of an absence wait for the writes it records.
+- `internal/cli/auto.go`, `internal/cli/targets.go`: the sweep gives up for a session whose sweep was ended, and the command takes the directory of the records ([793b115 A sweep that is ended at its bound is not run again in the session](./793b_decision-log.md#793b115-a-sweep-that-is-ended-at-its-bound-is-not-run-again-in-the-session)).
+- `agent-instructions/mods/engram-memory/hooks/register.js`: a sweep that is ended is run once more, as ended.
 
 ## 793e2 Test methods
 
@@ -151,7 +153,10 @@ flowchart TD
     n793e6h1 --> n793e6i2[793e6i2 The warnings of the lookup go to the debug log, not to the user<br/>Complete]
     n793e6h1 --> n793e6i3[793e6i3 One line is shown for each of what was delivered, written, left out and failed<br/>Complete]
     n793e6i3 --> n793e6i4[793e6i4 A turn with nothing to write leaves no record, and the records that were shown are removed<br/>Complete]
+    n793e6i4 --> n793e6i5[793e6i5 A sweep that is ended at its bound is not run again in the session, and the user is told once<br/>Ready]
+    n793e6d5 --> n793e6i5
     class n793e6i1,n793e6i2,n793e6i3,n793e6i4 complete
+    class n793e6i5 ready
     classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
@@ -906,17 +911,30 @@ Review finding B-7 ([793b114 A turn with nothing to write leaves no record, and 
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793d4k1b (amended) | Dedicated example | an empty list makes no record and the command succeeds | | | Done | 75e74240 | 59545ba3 | |
-| 793d4k1k | Dedicated example | the line of the debug log of a write that wrote a [note](../../GLOSSARY.md#permanent-note) and of one that wrote none, over an injected log | | | Done | 75e74240 | 59545ba3 | |
-| 793d4p1b (amended) | Dedicated example | a record of the kind `nothing`, as an earlier version made it, makes no line; passed when written, the code telling the kinds it knows; mutation (scratch copy): a list of kinds that holds `nothing` fails it | | | Done | n/a | 75e74240 | |
-| 793d4p1c (amended) | Dedicated example | the mark keeps a line from being shown again, with a place that cannot remove a record; passed when written, the marks being written before; mutation (scratch copy): a delivery that writes no marks fails it | | | Done | n/a | 75e74240 | |
-| 793d4p1e (amended) | Dedicated example | the marks of the records of the three lines, with a place that cannot remove a record; passed when written; mutation (scratch copy): a delivery that marks the first record of each line only fails it | | | Done | n/a | 75e74240 | |
-| 793d4p1m | Dedicated example | the records that were shown and their marks are removed, a file that is no record stays, and the next [prompt](./793a_product-spec.md#793a1a-terms) prints no line | | | Done | 75e74240 | 59545ba3 | |
-| 793d4p1n | Dedicated example | a directory with nothing else in it is removed | | | Done | 75e74240 | 59545ba3 | |
-| 793d4m1d (amended) | Dedicated example, product acceptance (`network`) | the writes of the [session](../../GLOSSARY.md#session) are counted in the debug log: one, that of the user's turn | | | Done | 75e74240 | 59545ba3 | |
-| 793a2c1f (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the test waits for the write of the turn in the debug log and finds no record | | | Done | 75e74240 | 59545ba3 | |
-| 793a2c1h (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the same for two turns | | | Done | 75e74240 | 59545ba3 | |
-| 793a3c1b (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the turn leaves a record of the kind `skipped` or none | | | Done | 75e74240 | 59545ba3 | |
+| 793d4k1b (amended) | Dedicated example | an empty list makes no record and the command succeeds | | | Done | 75e74240 | 59545ba3 | 461a1d0d |
+| 793d4k1k | Dedicated example | the line of the debug log of a write that wrote a [note](../../GLOSSARY.md#permanent-note) and of one that wrote none, over an injected log | | | Done | 75e74240 | 59545ba3 | 461a1d0d |
+| 793d4p1b (amended) | Dedicated example | a record of the kind `nothing`, as an earlier version made it, makes no line; passed when written, the code telling the kinds it knows; mutation (scratch copy): a list of kinds that holds `nothing` fails it | | | Done | n/a | 75e74240 | 461a1d0d |
+| 793d4p1c (amended) | Dedicated example | the mark keeps a line from being shown again, with a place that cannot remove a record; passed when written, the marks being written before; mutation (scratch copy): a delivery that writes no marks fails it | | | Done | n/a | 75e74240 | 461a1d0d |
+| 793d4p1e (amended) | Dedicated example | the marks of the records of the three lines, with a place that cannot remove a record; passed when written; mutation (scratch copy): a delivery that marks the first record of each line only fails it | | | Done | n/a | 75e74240 | 461a1d0d |
+| 793d4p1m | Dedicated example | the records that were shown and their marks are removed, a file that is no record stays, and the next [prompt](./793a_product-spec.md#793a1a-terms) prints no line | | | Done | 75e74240 | 59545ba3 | 461a1d0d |
+| 793d4p1n | Dedicated example | a directory with nothing else in it is removed | | | Done | 75e74240 | 59545ba3 | 461a1d0d |
+| 793d4m1d (amended) | Dedicated example, product acceptance (`network`) | the writes of the [session](../../GLOSSARY.md#session) are counted in the debug log: one, that of the user's turn | | | Done | 75e74240 | 59545ba3 | 461a1d0d |
+| 793a2c1f (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the test waits for the write of the turn in the debug log and finds no record | | | Done | 75e74240 | 59545ba3 | 461a1d0d |
+| 793a2c1h (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the same for two turns | | | Done | 75e74240 | 59545ba3 | 461a1d0d |
+| 793a3c1b (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the turn leaves a record of the kind `skipped` or none | | | Done | 75e74240 | 59545ba3 | 461a1d0d |
+
+#### 793e6i5 A sweep that is ended at its bound is not run again in the session, and the user is told once
+
+Review finding B-3 ([793b115 A sweep that is ended at its bound is not run again in the session](./793b_decision-log.md#793b115-a-sweep-that-is-ended-at-its-bound-is-not-run-again-in-the-session), [793c70 Is a sweep that is ended at its bound retried at every turn?](./793c_open-questions.md#793c70-is-a-sweep-that-is-ended-at-its-bound-retried-at-every-turn)): a conversation that is too long to be indexed within the bound of the sweep was swept again at every [turn](./793a_product-spec.md#793a1a-terms) and failed again at every [prompt](./793a_product-spec.md#793a1a-terms).
+
+| Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 793a2f1b | Dedicated example, product acceptance (`network`) | another process holds the lock of the chunk index for the whole test, as the closing sweep of the [agent](./793a_product-spec.md#793a1a-terms) does on a large backlog, so that the sweep waits and is ended at its bound; the second prompt shows one line that names `[engram ingest](../../GLOSSARY.md#engram-ingest-subcommand) --auto`, and the third, after the time of a sweep has passed again, none | | | Not started | | | |
+| 793d4n1g | Dedicated example | the file of the mark is written once and the error names what to run, over an injected writer of files and an index that must not run | | | Not started | | | |
+| 793d4n1h | Dedicated example | a [session](../../GLOSSARY.md#session) with the mark is swept nothing, over an injected index that must not run | | | Not started | | | |
+| 793d2c1e | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the stand-in host ends the first run and fails the second, as the host does, which a live [session](../../GLOSSARY.md#session) shows only after 90 seconds | | | Not started | | | |
+| 793d2c1f | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a second run that succeeds is not reported | | | Not started | | | |
+| 793d2c1c (amended) | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the bounds of the sweep, of the run as ended and of the report, with the timers of the stand-in fired at once | | | Not started | | | |
 
 ### 793e6f The delivery merges the parent vault
 
