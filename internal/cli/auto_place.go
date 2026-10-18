@@ -48,11 +48,7 @@ func RunAutoPlace(_ context.Context, args AutoPlaceArgs, deps AutoPlaceDeps, std
 		return nil
 	}
 
-	vault, vaultErr := vaultNotes(deps.ReadDir, deps.ReadFile, args.VaultPath)
-	if vaultErr != nil {
-		return fmt.Errorf("auto place: %w", vaultErr)
-	}
-
+	vault := vaultNotes(deps.ReadDir, deps.ReadFile, args.VaultPath)
 	held := auto.HeldText(recordOf(deps.ReadDir, deps.ReadFile, args.SessionsDir, input.Session))
 
 	step, found := auto.Place(lessons, auto.SeenNotes(vault, held, input.Session))
@@ -68,15 +64,13 @@ func newAutoPlaceDeps(d Deps) AutoPlaceDeps {
 	return AutoPlaceDeps{Stdin: d.Stdin, ReadDir: d.FS.ReadDir, ReadFile: d.FS.ReadFile}
 }
 
-// vaultNotes reads the notes of a vault: the files named for a Luhmann ID, which the vault's own README is not.
+// vaultNotes reads the notes of a vault: the files named for a Luhmann ID, which the vault's own README is not. A vault
+// that cannot be listed holds no note the session has seen: the writing reports why it cannot write there.
 func vaultNotes(
 	readDir func(path string) ([]fs.DirEntry, error), readFile func(path string) ([]byte, error), vault string,
-) ([]auto.Note, error) {
-	entries, dirErr := readDir(vault)
-	if dirErr != nil {
-		return nil, fmt.Errorf("reading the vault %s: %w", vault, dirErr)
-	}
-
+) []auto.Note {
+	// a vault that cannot be listed has no notes
+	entries, _ := readDir(vault)
 	notes := make([]auto.Note, 0, len(entries))
 
 	for _, entry := range entries {
@@ -96,5 +90,5 @@ func vaultNotes(
 		notes = append(notes, auto.Note{Path: name, Situation: fields.Situation, Body: body, Source: fields.Source})
 	}
 
-	return notes, nil
+	return notes
 }

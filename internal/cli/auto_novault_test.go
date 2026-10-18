@@ -16,7 +16,6 @@ import (
 func Test855d4f1a_Targets_TheMomentPhrasesRecallAndPlacementCommandsCreateNoVault(t *testing.T) {
 	t.Parallel()
 
-	// the placement command, auto place, joins the commands of this table in 855e6d4
 	phrasesInput := `{"session":"` + sessionID + `","cue":"prompt","reply":"{\"depth\":\"glance\"}",` +
 		`"carry":{"cue":"prompt","window":"User: Prepare a test run."}}`
 
@@ -27,6 +26,7 @@ func Test855d4f1a_Targets_TheMomentPhrasesRecallAndPlacementCommandsCreateNoVaul
 		{name: "moment", input: momentInput("composer")},
 		{name: "phrases", input: strings.NewReader(phrasesInput)},
 		{name: "recall", input: recallInput("glance", "staging resets")},
+		{name: "place", input: placeInput(twoLessons)},
 	} {
 		t.Run(command.name, func(t *testing.T) {
 			t.Parallel()
@@ -42,6 +42,8 @@ func Test855d4f1a_Targets_TheMomentPhrasesRecallAndPlacementCommandsCreateNoVaul
 				args = append(args, "--vault", vault, "--chunks-dir", t.TempDir())
 			case "moment":
 				args = append(args, "--sessions", sessions)
+			case "place":
+				args = append(args, "--vault", vault, "--sessions", sessions)
 			}
 
 			var stdout bytes.Buffer
