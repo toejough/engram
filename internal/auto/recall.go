@@ -100,10 +100,10 @@ func Recall(input RecallInput, matched []Candidate) Step {
 
 // unexported constants.
 const (
-	// candidatesShape is the prompt of the request: the window and the section of candidates, each between its tags.
-	candidatesShape = "<window>\n%s\n</window>\n<candidates>\n%s\n</candidates>"
 	// candidateBudget is how many characters of text the candidates hold in all (855d8b).
 	candidateBudget = 60000
+	// candidatesShape is the prompt of the request: the window and the section of candidates, each between its tags.
+	candidatesShape = "<window>\n%s\n</window>\n<candidates>\n%s\n</candidates>"
 	deepPhrases     = 10
 	glancePhrases   = 3
 	// passageLimit is how many characters of a chunk a candidate line holds at most: a stretch of conversation is
