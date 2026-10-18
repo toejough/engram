@@ -135,14 +135,14 @@ flowchart TD
     n793e6h1 --> n793e6h3[793e6h3 A failure is written as one line, redacted, and cut by the writing<br/>Complete]
     n793e6h1 --> n793e6h4[793e6h4 A lesson that is left out keeps its slug only when it is one<br/>Complete]
     n793e6h3 --> n793e6h5[793e6h5 A failure that is reported and cannot be recorded fails the command<br/>Complete]
-    n793e6h1 --> n793e6h6[793e6h6 The tests say what the scenarios say<br/>Ready]
+    n793e6h1 --> n793e6h6[793e6h6 The tests say what the scenarios say<br/>In progress: 0/6 entries complete]
     n793e6a2 --> n793e6f[793e6f The delivery merges the parent vault<br/>Blocked by: 793c34]
     classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
     classDef blocked fill:#eeeeee,stroke:#757575,color:#000,stroke-dasharray:5 5
     class n793e6a1,n793e6a2,n793e6a3,n793e6a4,n793e6a5,n793e6a6,n793e6a7,n793e6a8,n793e6a9,n793e6a10,n793e6a11,n793e6a12,n793e6b1,n793e6b2,n793e6b3,n793e6b4,n793e6b5,n793e6b6,n793e6b7,n793e6b8,n793e6b9,n793e6b10,n793e6b11,n793e6b12,n793e6b13,n793e6b14,n793e6b15,n793e6g1,n793e6g2,n793e6g3,n793e6g4,n793e6g5,n793e6g6,n793e6g7,n793e6g8,n793e6g9,n793e6g10,n793e6g11,n793e6g12,n793e6g13,n793e6g14,n793e6g15,n793e6g16,n793e6g17,n793e6g18,n793e6g19,n793e6e1,n793e6c1,n793e6c2,n793e6c3,n793e6d1,n793e6d2,n793e6d3,n793e6d4,n793e6d5,n793e6d6,n793e6h1,n793e6h2,n793e6h3,n793e6h4,n793e6h5 complete
-    class n793e6h6 ready
+    class n793e6h6 progress
     class n793e6f blocked
 ```
 
@@ -830,12 +830,12 @@ Review findings G3-5, G3-10 and P-3: a test that bounds less than its scenario s
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2d1c (amended) | Dedicated example, product acceptance (`network`) | the result of the second turn is awaited from the moment the test sends the prompt, and must come within 20 seconds, where the arrival test passed a reply held for 21 | Not started | | | |
-| 793a2d1a (amended) | Dedicated example, product acceptance (`network`) | the hold is measured from the moment the test sends the prompt, as in the row above, and not from the prompt's row, which a hold before the row is written misses; the first prompt of a [session](../../GLOSSARY.md#session) takes up the start of the process, so the prompt measured is the second | Not started | | | |
-| 793d2a1c (amended) | Dedicated example, real dependency (`network`) | the stand-in `engram` also records a run of `auto write`, and there is none | Not started | | | |
-| 793d2a1f (amended) | Dedicated example, real dependency (`network`) | the same for the output that is not a block | Not started | | | |
-| 793d2a1c | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the stand-in host records every command the mod runs: a delivery that prints nothing is no failure, so `auto write` is never run | Not started | | | |
-| 793d2a1f | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the same for a delivery that prints what is not a block | Not started | | | |
+| 793a2d1c (amended) | Dedicated example, product acceptance (`network`) | the result of the second turn is awaited from the moment the test sends the prompt, and must come within 20 seconds, where the arrival test passed a reply held for 21; passed when written; no scratch mod I could write holds the reply without the arrival (a loop on `$.process.spawn` in the timer held neither, and a mod that holds the result of the event held both, the second prompt reaching the model after a minute), so the bound is the scenario's own | Green-all | n/a | | |
+| 793a2d1a (amended) | Dedicated example, product acceptance (`network`) | the hold is measured from the moment the test sends the prompt, as in the row above, and not from the prompt's row, which a hold before the row is written misses; the first prompt of a [session](../../GLOSSARY.md#session) takes up the start of the process, so the prompt measured is the second; passed when written; mutation (scratch copy): a mod that waits 20 seconds for the delivery fails it | Green-all | n/a | | |
+| 793d2a1c (amended) | Dedicated example, real dependency (`network`) | the stand-in `engram` also records a run of `auto write`, and there is none; passed when written; mutation (scratch copy): a mod that reports an empty output as a failure fails it | Green-all | n/a | | |
+| 793d2a1f (amended) | Dedicated example, real dependency (`network`) | the same for the output that is not a block; mutation (scratch copy): a mod that reports it as a failure fails it | Green-all | n/a | | |
+| 793d2a1c | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the stand-in host records every command the mod runs: a delivery that prints nothing is no failure, so `auto write` is never run; passed when written; mutation (scratch copy): a mod that reports an empty output as a failure fails it | Green-all | n/a | | |
+| 793d2a1f | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the same for a delivery that prints what is not a block; mutation (scratch copy): a mod that reports it as a failure fails it | Green-all | n/a | | |
 
 ### 793e6f The delivery merges the parent vault
 

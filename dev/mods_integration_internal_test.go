@@ -18,6 +18,41 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+// Test793d2a1c_Mod_ADeliveryThatPrintsNothingIsNotAFailure runs the mod under node against a stand-in host that records
+// every command the mod runs: a live session cannot show that a report to the writing was not made, since the offline
+// run ends once the model is asked.
+func Test793d2a1c_Mod_ADeliveryThatPrintsNothingIsNotAFailure(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runDeliveryDriver(t, deliveryScenario{Deliver: map[string]any{"exitCode": 0, "stdout": ""}})
+
+	g.Expect(outcome.Passed.Text).To(Equal("hello"), "the prompt goes on as it was")
+	g.Expect(outcome.Passed.Context).To(BeEmpty(), "nothing is added")
+	g.Expect(outcome.Logged).To(BeEmpty(), "the lines the user was shown")
+	g.Expect(outcome.reports()).To(BeEmpty(), "the reports to the writing")
+	g.Expect(outcome.Calls).To(HaveLen(1), "the commands the mod ran: the delivery")
+}
+
+// Test793d2a1f_Mod_TextThatIsNotABlockIsNotAFailure runs the mod under node against a stand-in host that records every
+// command the mod runs, for the delivery of an engram that does not know the command.
+func Test793d2a1f_Mod_TextThatIsNotABlockIsNotAFailure(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runDeliveryDriver(t, deliveryScenario{Deliver: map[string]any{
+		"exitCode": 0, "stdout": "Unknown command: auto\nusage: engram <command> [flags]\n",
+	}})
+
+	g.Expect(outcome.Passed.Text).To(Equal("hello"), "the prompt goes on as it was")
+	g.Expect(outcome.Passed.Context).To(BeEmpty(), "nothing is added")
+	g.Expect(outcome.Logged).To(BeEmpty(), "the lines the user was shown")
+	g.Expect(outcome.reports()).To(BeEmpty(), "the reports to the writing")
+	g.Expect(outcome.Calls).To(HaveLen(1), "the commands the mod ran: the delivery")
+}
+
 // Test793d2a1g_Mod_ASessionThatDoesNotGiveItsIDInTimeDoesNotHoldThePrompt runs the mod under node against a stand-in
 // host: a live session cannot be made to stall in the call for its ID. The stand-in's timer fires at once and records
 // the delay it was asked for, and its call for the ID never answers.
@@ -89,7 +124,7 @@ func Test793d2a1i_Mod_ACommandThatFailsIsReportedToTheWriting(t *testing.T) {
 	g.Expect(outcome.Settle.InFlight).To(BeZero(), "the calls in flight when the hook settled")
 	g.Expect(outcome.Logged).To(BeEmpty(), "the lines the user was shown")
 
-	reports := outcome.inputsOf("engram auto write")
+	reports := outcome.reports()
 
 	g.Expect(reports).To(HaveLen(1), "the runs of auto write")
 
@@ -120,7 +155,7 @@ func Test793d2a1j_Mod_ADeliveryThatDoesNotFinishWithinItsBoundIsReportedToTheWri
 	g.Expect(outcome.limitOf("engram auto deliver")).To(BeNumerically("==", 7000), "the time limit of the delivery")
 	g.Expect(outcome.Logged).To(BeEmpty(), "the lines the user was shown")
 
-	reports := outcome.inputsOf("engram auto write")
+	reports := outcome.reports()
 
 	g.Expect(reports).To(HaveLen(1), "the runs of auto write")
 
@@ -495,7 +530,7 @@ func Test793d2b1m_Mod_ALongFailureIsReportedWhole(t *testing.T) {
 		Judge: map[string]any{"exitCode": 1, "stdout": "", "stderr": line + "\n"},
 	})
 
-	reports := outcome.inputsOf("engram auto write")
+	reports := outcome.reports()
 
 	g.Expect(reports).To(HaveLen(1), "the report to the writing")
 
@@ -548,7 +583,7 @@ func Test793d2c1b_Mod_ASweepThatFailsIsReportedToTheWriting(t *testing.T) {
 				Sweep: sweep,
 			})
 
-			reports := outcome.inputsOf("engram auto write")
+			reports := outcome.reports()
 
 			g.Expect(reports).To(HaveLen(1), "the report to the writing")
 
@@ -951,6 +986,11 @@ func (o captureOutcome) limits() []float64 {
 	return limits
 }
 
+// reports returns the inputs of the runs of the writing, the reports of a failure, in the order they were made.
+func (o captureOutcome) reports() []map[string]any {
+	return o.inputsOf("engram auto write")
+}
+
 // stepsAndLimits returns each call the mod made, in order, with its time limit: "<step>: <milliseconds>".
 func (o captureOutcome) stepsAndLimits() []string {
 	steps := make([]string, 0, len(o.Calls))
@@ -997,19 +1037,6 @@ type deliveryOutcome struct {
 	Logged []string `json:"logged"`
 }
 
-// inputsOf returns the inputs of the commands that ran a step, in the order they were run.
-func (o deliveryOutcome) inputsOf(step string) []map[string]any {
-	var inputs []map[string]any
-
-	for _, call := range o.Calls {
-		if call.Step == step {
-			inputs = append(inputs, call.Input)
-		}
-	}
-
-	return inputs
-}
-
 // limitOf returns the time limit the first command that ran a step was given.
 func (o deliveryOutcome) limitOf(step string) float64 {
 	for _, call := range o.Calls {
@@ -1019,6 +1046,19 @@ func (o deliveryOutcome) limitOf(step string) float64 {
 	}
 
 	return 0
+}
+
+// reports returns the inputs of the runs of the writing, the reports of a failure, in the order they were run.
+func (o deliveryOutcome) reports() []map[string]any {
+	var inputs []map[string]any
+
+	for _, call := range o.Calls {
+		if call.Step == "engram auto write" {
+			inputs = append(inputs, call.Input)
+		}
+	}
+
+	return inputs
 }
 
 // deliveryScenario is how the stand-in host of deliveryDriver behaves: what the delivery exits with and prints, or that

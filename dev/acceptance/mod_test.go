@@ -89,15 +89,17 @@ func Test793d2a1c_Mod_AnEmptyOutputAddsNothing(t *testing.T) {
 		sent = machine.startSession("a-project").sendOffline()
 	})
 
-	step(t, "Then the session holds the prompt exactly as sent and no context beside it", func() {
-		text, isPrompt := sent.rows[0].promptText()
-		g.Expect(isPrompt).To(BeTrue())
-		g.Expect(text).To(Equal(promptHello))
+	step(t, "Then the session holds the prompt exactly as sent and no context beside it, and no failure was reported",
+		func() {
+			text, isPrompt := sent.rows[0].promptText()
+			g.Expect(isPrompt).To(BeTrue())
+			g.Expect(text).To(Equal(promptHello))
 
-		g.Expect(sent.contexts()).To(BeEmpty(), "context beside the prompt")
-		g.Expect(machine.hookFailures()).To(BeEmpty(), "the mod's hook was skipped")
-		g.Expect(sent.agentActsAt()).To(BeNumerically(">", 0), "the model was asked")
-	})
+			g.Expect(sent.contexts()).To(BeEmpty(), "context beside the prompt")
+			g.Expect(machine.hookFailures()).To(BeEmpty(), "the mod's hook was skipped")
+			g.Expect(sent.agentActsAt()).To(BeNumerically(">", 0), "the model was asked")
+			g.Expect(machine.standInReported()).To(BeFalse(), "a failure was reported to the writing")
+		})
 }
 
 func Test793d2a1d_Mod_ASlowCommandIsEndedAndThePromptContinues(t *testing.T) {
@@ -185,8 +187,8 @@ func Test793d2a1f_Mod_OutputThatIsNotABlockAddsNothing(t *testing.T) {
 		sent = machine.startSession("a-project").sendOffline()
 	})
 
-	step(t, "Then the session holds the prompt exactly as sent and no context beside it, "+
-		"and the mod's hook did not fail", func() {
+	step(t, "Then the session holds the prompt exactly as sent and no context beside it, the mod's hook did not fail, "+
+		"and no failure was reported", func() {
 		args, _ := machine.standInCalled()
 		g.Expect(args).To(Equal("auto deliver"), "the command was run")
 
@@ -197,6 +199,7 @@ func Test793d2a1f_Mod_OutputThatIsNotABlockAddsNothing(t *testing.T) {
 		g.Expect(sent.contexts()).To(BeEmpty(), "context beside the prompt")
 		g.Expect(machine.hookFailures()).To(BeEmpty(), "the mod's hook was skipped")
 		g.Expect(sent.agentActsAt()).To(BeNumerically(">", 0), "the model was asked")
+		g.Expect(machine.standInReported()).To(BeFalse(), "a failure was reported to the writing")
 	})
 }
 

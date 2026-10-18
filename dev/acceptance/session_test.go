@@ -195,6 +195,7 @@ func (c *conversation) say(prompt string) *turn {
 		answered := c.session.answeredTurn(prompt, result)
 		answered.sent = sent
 		answered.shown = c.shownSince(shownBefore)
+		answered.answered = c.turnEnds
 
 		return answered
 	case <-time.After(sessionTimeout):
@@ -652,6 +653,8 @@ type turn struct {
 	cost  float64         // dollars
 	sent  time.Time       // when the test sent the prompt to the running session; zero for a prompt of its own run
 	shown []string        // the text of the log lines the mod showed the user with the prompt
+	// answered is when the process printed the result of the turn, for a prompt the test sent to the running session
+	answered time.Time
 }
 
 // agentActsAt returns the index, in the turn's rows, of the first row that shows the agent acting (a reply or a
@@ -766,6 +769,11 @@ func (t *turn) reached() time.Duration {
 	}
 
 	return -1
+}
+
+// repliedAfter returns how long after the test sent the prompt the process printed the result of the turn.
+func (t *turn) repliedAfter() time.Duration {
+	return t.answered.Sub(t.sent)
 }
 
 // toolResultsNaming reports whether a result of a tool the agent ran in this turn names a note: the agent looked it up.

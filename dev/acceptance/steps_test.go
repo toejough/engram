@@ -345,8 +345,8 @@ func (m *machine) hasRunUpdate(agentMayRun ...string) {
 
 // hasStandInEngram puts a stand-in for engram first on the machine's PATH: for the delivery it records its arguments
 // and standard input, waits as long as it is told to, prints the text it is given and exits with the status it is
-// given; for any other command it reads its input and exits with 0, so that what the mod reports or does after a turn
-// replaces nothing the delivery recorded.
+// given; for the writing it notes that it was run; for any other command it reads its input and exits with 0, so that
+// what the mod reports or does after a turn replaces nothing the delivery recorded.
 func (m *machine) hasStandInEngram(block string, wait time.Duration, status int) {
 	m.t.Helper()
 
@@ -356,7 +356,8 @@ func (m *machine) hasStandInEngram(block string, wait time.Duration, status int)
 
 	script := "#!/bin/sh\ncase \"$1 $2\" in\n\"auto deliver\")\nprintf '%s\\n' \"$*\" > '" + filepath.Join(dir, "args") +
 		"'\ncat > '" + filepath.Join(dir, "stdin") + "'\nsleep " + strconv.Itoa(int(wait.Seconds())) + "\ncat '" +
-		filepath.Join(dir, "block") + "'\nexit " + strconv.Itoa(status) + "\n;;\nesac\ncat > /dev/null\nexit 0\n"
+		filepath.Join(dir, "block") + "'\nexit " + strconv.Itoa(status) + "\n;;\n\"auto write\")\ncat > '" +
+		filepath.Join(dir, "write") + "'\nexit 0\n;;\nesac\ncat > /dev/null\nexit 0\n"
 	path := filepath.Join(m.gobin, engramBinaryName)
 
 	mkdirAll(m.t, m.gobin)
@@ -657,6 +658,13 @@ func (m *machine) standInCalled() (string, map[string]string) {
 	}
 
 	return strings.TrimSpace(string(args)), request
+}
+
+// standInReported reports whether the stand-in engram was run as the writing: the mod reported a failure to it.
+func (m *machine) standInReported() bool {
+	_, err := os.Stat(filepath.Join(m.root, "stand-in", "write"))
+
+	return err == nil
 }
 
 // vaultCannotBeWritten takes the right to create a file in the machine's vault away; reading it still works.

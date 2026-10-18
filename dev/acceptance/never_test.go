@@ -34,19 +34,21 @@ func Test793a2d1c_TheWorkAfterATurnDoesNotHoldTheNextPrompt(t *testing.T) {
 			WithTimeout(jobStartWait).WithPolling(capturePoll).Should(BeTrue(), "the work after the turn started")
 
 		second = chat.tell(askSomethingElse)
-		t.Logf("the second prompt reached the model %s after it was sent", second.reached())
+		t.Logf("the second prompt reached the model %s after it was sent, and was answered after %s", second.reached(),
+			second.repliedAfter())
 	})
 
-	step(t, "Then the second prompt reaches the agent within 8 seconds, as the user typed it, and the agent answers it",
-		func() {
-			g.Expect(second.reached()).To(BeNumerically("<", holdLimit), "how long the second prompt waited")
+	step(t, "Then the second prompt reaches the agent within 8 seconds, as the user typed it, and the agent answers "+
+		"it within 20 seconds", func() {
+		g.Expect(second.reached()).To(BeNumerically("<", holdLimit), "how long the second prompt waited")
+		g.Expect(second.repliedAfter()).To(BeNumerically("<", replyLimit), "how long the second prompt waited for its reply")
 
-			text, isPrompt := second.rows[0].promptText()
-			g.Expect(isPrompt).To(BeTrue())
-			g.Expect(text).To(Equal(askSomethingElse))
+		text, isPrompt := second.rows[0].promptText()
+		g.Expect(isPrompt).To(BeTrue())
+		g.Expect(text).To(Equal(askSomethingElse))
 
-			g.Expect(second.reply).NotTo(BeEmpty(), "the agent answered")
-		})
+		g.Expect(second.reply).NotTo(BeEmpty(), "the agent answered")
+	})
 }
 
 func Test793a2d1d_ThePromptAndTheReplyAreAsTheyWere(t *testing.T) {
@@ -143,6 +145,9 @@ const (
 	askSomethingElse = "What is 17 plus 25? Reply with the number only."
 	// jobStartWait is how long the work after a turn has to start.
 	jobStartWait = 10 * time.Second
+	// replyLimit is the longest the reply to a prompt may take after the prompt is sent, with the hold of 8 seconds in it
+	// and well under the 60 seconds of the jobs that go on (793a2d1c).
+	replyLimit = 20 * time.Second
 	// slowJob is a job after a turn that takes longer than its bound.
 	slowJob = 60 * time.Second
 )

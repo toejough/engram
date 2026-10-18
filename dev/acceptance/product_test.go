@@ -356,26 +356,32 @@ func Test793a2d1a_ASlowLookupDoesNotHoldAPromptForMoreThan8Seconds(t *testing.T)
 	g := NewWithT(t)
 	machine := newMachine(t)
 
+	var chat *conversation
+
 	step(t, "Given the user has run engram update, and a lookup that takes 20 seconds", func() {
 		machine.hasEngram()
 		machine.hasClaudeCode()
 		machine.learnsFact(stagingReset)
 		machine.mustSucceed(machine.update(), "engram update")
-		machine.lookupTakes(slowLookup)
+		machine.deliveryTakes(slowLookup)
+
+		// the first prompt of a session takes up the start of the process: the prompt that is measured is the second
+		chat = machine.startSession("a-project").converse()
+		chat.tell(askSomethingElse)
 	})
 
 	var sent *turn
 
 	step(t, "When the user sends a prompt", func() {
-		sent = machine.startSession("a-project").send(askStagingReset)
-		t.Logf("the prompt waited %s; the agent replied %q (cost $%.4f)", sent.hold(), sent.reply, sent.cost)
+		sent = chat.tell(askStagingReset)
+		t.Logf("the prompt reached the model %s after it was sent; the agent replied %q", sent.reached(), sent.reply)
 	})
 
 	step(t, "Then the prompt reaches the agent within 8 seconds, as the user typed it and with nothing from the vault, "+
 		"and the agent answers it", func() {
-		g.Expect(machine.lookupStarted()).To(BeTrue(), "the slow lookup was run")
-		g.Expect(sent.hold()).To(BeNumerically("<", holdLimit), "how long the prompt waited")
-		g.Expect(sent.hold()).To(BeNumerically(">", holdLimit/2), "the prompt did wait for the lookup")
+		g.Expect(machine.deliveryStarted()).To(BeTrue(), "the slow lookup was run")
+		g.Expect(sent.reached()).To(BeNumerically("<", holdLimit), "how long the prompt waited")
+		g.Expect(sent.reached()).To(BeNumerically(">", holdLimit/2), "the prompt did wait for the lookup")
 
 		text, isPrompt := sent.rows[0].promptText()
 		g.Expect(isPrompt).To(BeTrue())
