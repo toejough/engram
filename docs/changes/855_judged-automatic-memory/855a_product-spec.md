@@ -8,7 +8,7 @@ Anyone who works with an [agent](../793_automatic-memory/793a_product-spec.md#79
 
 ### 855a2a Delivering writes nothing
 
-Requirement: 855a2a When [automatic memory](../793_automatic-memory/793a_product-spec.md#793a1a-terms) delivers [notes](../../GLOSSARY.md#permanent-note) for a [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms), it MUST NOT add a note to the [vault](../../GLOSSARY.md#vault) or change what any note says.
+Requirement: 855a2a When [automatic memory](../793_automatic-memory/793a_product-spec.md#793a1a-terms) delivers [notes](../../GLOSSARY.md#permanent-note) for a [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms), it MUST NOT write, amend or crystallize a note in the [vault](../../GLOSSARY.md#vault). Marking delivered notes as used, and pulling a used parent note down as a pending copy, is not a write.
 
 #### 855a2a1 UAT Scenarios
 
@@ -21,7 +21,7 @@ Scenario: 855a2a1a Delivering notes leaves the vault's notes as they were
 
 ### 855a2b Lessons are written as the learn skill writes them
 
-Requirement: 855a2b A [note](../../GLOSSARY.md#permanent-note) that [automatic memory](../793_automatic-memory/793a_product-spec.md#793a1a-terms) writes for a lesson ([793a2c Lessons are written without the agent](../793_automatic-memory/793a_product-spec.md#793a2c-lessons-are-written-without-the-agent)) MUST state the lesson that the [learn skill](../../GLOSSARY.md#learn-skill) would write for the [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms), in the form that skill writes it: the general rule or fact and not the story of the turn, the situation in which it applies as a cue that a later task would be described by, and the exact names, commands, flags and values it depends on.
+Requirement: 855a2b A [note](../../GLOSSARY.md#permanent-note) that [automatic memory](../793_automatic-memory/793a_product-spec.md#793a1a-terms) writes for a lesson ([793a2c Lessons are written without the agent](../793_automatic-memory/793a_product-spec.md#793a2c-lessons-are-written-without-the-agent)) MUST state the lesson that the [learn skill](../../GLOSSARY.md#learn-skill) would write for the [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms), in the form that skill writes it: the general rule or fact and not the story of the turn, the situation in which it applies as a cue that a later task would be described by, and the exact names, commands, flags and values it depends on. When the turn confirms a reusable, ordered, multi-step procedure for a recurring task, the note MUST be a runbook as that skill writes it: the situation in which it applies, the numbered steps with their exact commands, and what is true once the procedure is complete. The question-and-answer pairs that the skill also captures are not written ([855b15 Lessons are the three kinds that carry a note](./855b_decision-log.md#855b15-lessons-are-the-three-kinds-that-carry-a-note)).
 
 #### 855a2b1 UAT Scenarios
 
@@ -32,9 +32,14 @@ Scenario: 855a2b1a A note states the rule and not the story
   Then within 2 minutes the vault holds a note that states the rule, holds the flag --force-with-lease, names pushing a branch as the situation in which it applies, and does not tell what happened in the turn
 
 Scenario: 855a2b1b The note states the lesson the learn skill writes
-  Given the user has run engram update, and two sessions with the same history, in which the agent has force-pushed a branch with git push --force, the first where the agent may not run engram commands and the second where it may
+  Given the user has run engram update, and two sessions with the same history, in which the agent has force-pushed a branch with git push --force, the first where the agent may not run engram commands and the second where it may and where automatic memory is not on
   When in each the user tells the agent in a prompt to push with --force-with-lease and never with --force, and in the second asks it to run the learn skill, and the turn ends
-  Then within 2 minutes the note that automatic memory wrote in the first and the note that the learn skill wrote in the second state the same lesson
+  Then within 2 minutes the note that automatic memory wrote in the first and the note that the learn skill wrote in the second state the same rule, hold the same flag and name the same situation
+
+Scenario: 855a2b1c A confirmed procedure is written as a runbook
+  Given the user has run engram update, and a session in which the agent may not run engram commands
+  When the user tells the agent in a prompt that releasing this project is always: run make ci, then tag with git tag vX.Y.Z, then push the tag with git push origin vX.Y.Z, and the agent does these in that order and the user confirms it is the way, and the turn ends
+  Then within 2 minutes the vault holds a runbook note that names releasing the project as its situation, lists the three commands in that order, and says what is true once they are done
 ```
 
 ### 855a2c Lessons are placed as the learn skill places them
@@ -55,27 +60,22 @@ Scenario: 855a2c1b The same thought at the same level is a sibling
   Then within 2 minutes the vault holds a note for it whose ID is a sibling of the ID of the black note
 
 Scenario: 855a2c1c A note the session has not seen is not a target
-  Given the user has run engram update, a vault holding a note that says to format Python files with black before committing, and a session in which no note arrived or was looked up
+  Given the user has run engram update, a vault holding a note that says to format Python files with black before committing, and a session in which no note arrived or was looked up, the prompt below included
   When the user tells the agent in a prompt to format Go files with gofmt before committing, and the turn ends
   Then within 2 minutes the vault holds a note for it placed at the top, and its ID continues no other note's and is no other note's sibling
 ```
 
 ### 855a2d Lessons that correct a note say so
 
-Requirement: 855a2d When the lesson of a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) corrects, narrows or refutes a [note](../../GLOSSARY.md#permanent-note) of the [vault](../../GLOSSARY.md#vault), the note that [automatic memory](../793_automatic-memory/793a_product-spec.md#793a1a-terms) writes MUST say which note it updates, narrows or refutes, as the [learn skill](../../GLOSSARY.md#learn-skill) does, and the note it supersedes MUST show that it was superseded.
+Requirement: 855a2d When the lesson of a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) corrects, narrows or refutes a [note](../../GLOSSARY.md#permanent-note) of the [vault](../../GLOSSARY.md#vault) that was written, delivered or looked up earlier in the same [session](../../GLOSSARY.md#session), the note that [automatic memory](../793_automatic-memory/793a_product-spec.md#793a1a-terms) writes MUST say which note it updates, narrows or refutes, as the [learn skill](../../GLOSSARY.md#learn-skill) does, and the note it supersedes MUST show that it was superseded.
 
 #### 855a2d1 UAT Scenarios
 
 ```gherkin
 Scenario: 855a2d1a A correcting note names the note it corrects
-  Given the user has run engram update, a vault holding a note that says the staging database is reset every Sunday night, and a session in which the agent may not run engram commands
+  Given the user has run engram update, a vault holding a note that says the staging database is reset every Sunday night, and a session in which that note arrived with a prompt and the agent may not run engram commands
   When the user tells the agent in a prompt that since last week the staging database is reset every Monday night, and the turn ends
   Then within 2 minutes the vault holds a note that says it is reset every Monday night and that it updates the Sunday note, and the Sunday note shows that the Monday note supersedes it
-
-Scenario: 855a2d1b A later prompt gets the correcting note and not the corrected one
-  Given the user has run engram update, and a vault holding the Sunday note and the Monday note of the scenario above, the Monday note superseding the Sunday note
-  When the user asks the agent in a prompt to prepare a test run against the staging database tonight
-  Then before the agent acts its context holds the Monday note and not the Sunday note
 ```
 
 ## 855a3 Modified: Automatic memory of 793
@@ -88,7 +88,7 @@ Target: [793a1a Terms](../793_automatic-memory/793a_product-spec.md#793a1a-terms
 - **Prompt:** a message the user sends to the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms).
 - **Turn:** a [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) and everything the agent does in answer, until it hands control back to the user.
 - **Recall moment:** a [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) for which the [recall skill](../../GLOSSARY.md#recall-skill)'s own rule says to run it: the request might entail more than a single tool call or anything more than quick, shallow thinking. The user can read that rule in the skill's description.
-- **Applies to a prompt:** a [note](../../GLOSSARY.md#permanent-note) applies to a prompt when the recall skill, run for that prompt in a [session](../../GLOSSARY.md#session) on the same [vault](../../GLOSSARY.md#vault), draws on it; of two notes that conflict because the newer reverses the older, only the newer applies. The user can run the skill and read which notes it draws on.
+- **Applies to a prompt:** a [note](../../GLOSSARY.md#permanent-note) applies to a prompt when the recall skill, run in its glance mode for that prompt in a [session](../../GLOSSARY.md#session) on the same [vault](../../GLOSSARY.md#vault) in which [automatic memory](../793_automatic-memory/793a_product-spec.md#793a1a-terms) is not on, draws on it; of two notes that conflict because the newer reverses the older, only the newer applies. The user can run the skill in that mode, ask the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) to name the notes it drew on, and read them.
 - **Automatic memory:** what this change adds, done without the user or the agent asking: notes that apply to a prompt arrive in the agent's context ([793a2b Memory arrives with the prompt](../793_automatic-memory/793a_product-spec.md#793a2b-memory-arrives-with-the-prompt)), lessons are written as notes ([793a2c Lessons are written without the agent](../793_automatic-memory/793a_product-spec.md#793a2c-lessons-are-written-without-the-agent)) and the conversation becomes searchable ([793a2f The conversation becomes searchable memory](../793_automatic-memory/793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory)).
 - **Recognised credential:** one of these, as a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) holds it: a private key block; a token of three parts joined by dots that begins `eyJ`, each part of 8 or more letters, digits, `_` or `-` (the first counted after `eyJ`); `sk`, `pk`, `rk`, `ghp`, `gho`, `ghs`, `ghu`, `ghr`, `github_pat`, `npm` or `glpat`, then `-` or `_` and 16 or more letters, digits, `_` or `-`; `AKIA` or `ASIA` and exactly 16 capital letters or digits; `AIza` and 30 or more letters, digits, `_` or `-`; `xoxa-`, `xoxb-`, `xoxp-`, `xoxr-` or `xoxs-` and 10 or more letters, digits or `-`; `Bearer` or `Basic`, in any case, white space and 12 or more letters, digits or `._~+/=-`; the user and password of a web address; the rest of the line of an `Authorization` header; the value that `=`, `:` or `is` gives to a name that holds `key`, `token`, `secret`, `password`, `passwd`, `pwd`, `credential` or `authorization`, or is `pass` or ends in `_pass` or `-pass`, in any case, with up to six words of the sentence between the name and `:` or `is`; a run of 32 or more letters, digits, `+`, `_` or `=` that holds a letter and a digit, other than the 40 lowercase hexadecimal digits of a commit.
 - **Sweep:** the indexing of a [session](../../GLOSSARY.md#session)'s conversation that makes it findable by `engram query` ([793a2f The conversation becomes searchable memory](../793_automatic-memory/793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory)).
@@ -97,9 +97,9 @@ Target: [793a1a Terms](../793_automatic-memory/793a_product-spec.md#793a1a-terms
 
 Target: [793a2b Memory arrives with the prompt](../793_automatic-memory/793a_product-spec.md#793a2b-memory-arrives-with-the-prompt)
 
-Requirement: 793a2b When the user sends a [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) that is a [recall moment](#855a3a-modified-793a1a-terms), [automatic memory](../793_automatic-memory/793a_product-spec.md#793a1a-terms) MUST put the [notes](../../GLOSSARY.md#permanent-note) that [applies to](#855a3a-modified-793a1a-terms) it, less those the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) already has, in the agent's context before the agent acts, unasked. It MUST NOT put anything in the agent's context for a prompt that is not a recall moment, and MUST NOT put a note that does not apply to the prompt because its words match. The agent has a note when automatic memory delivered it earlier in the same [session](../../GLOSSARY.md#session) or the agent looked it up in that session; such a note MUST NOT be put there again. Only notes are delivered; the conversation ([793a2f The conversation becomes searchable memory](../793_automatic-memory/793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory)) is found when the agent asks. The notes arrive beside the prompt, which stays exactly as the user typed it ([793a2d Never in the way](../793_automatic-memory/793a_product-spec.md#793a2d-never-in-the-way)).
+Requirement: 793a2b When the user sends a [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) that is a [recall moment](#855a3a-modified-793a1a-terms), [automatic memory](../793_automatic-memory/793a_product-spec.md#793a1a-terms) MUST put the [notes](../../GLOSSARY.md#permanent-note) that [apply to](#855a3a-modified-793a1a-terms) it, less those the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) already has, in the agent's context before the agent acts, unasked. It MUST NOT put anything in the agent's context for a prompt that is not a recall moment, and MUST NOT put a note that does not apply to the prompt because its words match. The agent has a note when automatic memory delivered it earlier in the same [session](../../GLOSSARY.md#session) or the agent looked it up in that session; such a note MUST NOT be put there again. Only notes are delivered; the conversation ([793a2f The conversation becomes searchable memory](../793_automatic-memory/793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory)) is found when the agent asks. The notes arrive beside the prompt, which stays exactly as the user typed it ([793a2d Never in the way](../793_automatic-memory/793a_product-spec.md#793a2d-never-in-the-way)).
 
-The scenarios [793a2b1a](../793_automatic-memory/793a_product-spec.md#793a2b1-uat-scenarios) to [793a2b1d](../793_automatic-memory/793a_product-spec.md#793a2b1-uat-scenarios) of the target stay, and these are added.
+The scenario [793a2b1d](../793_automatic-memory/793a_product-spec.md#793a2b1-uat-scenarios) of the target stays, [855a3k 793a2b1a The notes that bear on a prompt arrive with it](#855a3k-modified-793a2b1a-the-notes-that-bear-on-a-prompt-arrive-with-it) to [855a3m 793a2b1c A note the agent looked up itself is not delivered](#855a3m-modified-793a2b1c-a-note-the-agent-looked-up-itself-is-not-delivered) are replaced, and these are added.
 
 #### 855a3b1 UAT Scenarios
 
@@ -120,18 +120,27 @@ Scenario: 855a3b1c Of two notes that conflict, only the newer is delivered
   Then before the agent acts its context holds the newer note and not the older
 
 Scenario: 855a3b1d The notes that arrive are the notes the recall skill draws on
-  Given the user has run engram update, and a vault holding a note that says when the staging database is reset, a note that says to take a backup before a database migration, and a note about formatting Python files
-  When the user asks the agent in a prompt to plan a migration of the staging database for tonight, and in a second session on the same vault asks the agent to run the recall skill for the same prompt
-  Then the notes that arrived with the prompt in the first session are the notes that the recall skill draws on in the second
+  Given the user has run engram update, and a vault holding a note that says when the staging database is reset, a note that says to take a backup before a database migration, and a note about formatting Python files, of which the first two plainly apply to the prompt below and the third plainly does not
+  When the user asks the agent in a prompt to plan a migration of the staging database for tonight, and in a second session on the same vault in which automatic memory is not on asks the agent to run the recall skill in its glance mode for the same prompt and to name the notes it drew on
+  Then the notes that arrived with the prompt in the first session are the staging note and the backup note, and the notes that the agent names in the second are the same two
 ```
 
 ### 855a3c Modified: 793a2d Never in the way
 
 Target: [793a2d Never in the way](../793_automatic-memory/793a_product-spec.md#793a2d-never-in-the-way)
 
-Requirement: 793a2d [Automatic memory](../793_automatic-memory/793a_product-spec.md#793a1a-terms) MUST NOT hold a [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) for anything but its own judgement and delivery for that prompt: the work that follows an earlier [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms), the writing of lessons and the sweep, MUST NOT delay it. A judgement or delivery that is only slow MUST NOT make it step aside; the prompt waits for it ([855b4 No time bound before a prompt reaches the agent](./855b_decision-log.md#855b4-no-time-bound-before-a-prompt-reaches-the-agent)). It MUST NOT edit the user's prompt or the text of the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s reply, MUST NOT break a [session](../../GLOSSARY.md#session), and MUST NOT deliver to or write from its own sessions, the sessions it starts itself to do its work. When it cannot do its work, for any reason, including a judgement or delivery that fails and a write that fails, it MUST step aside, and the session MUST continue as if automatic memory were not installed.
+Requirement: 793a2d [Automatic memory](../793_automatic-memory/793a_product-spec.md#793a1a-terms) MUST NOT hold a [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) for anything but its own judgement and delivery for that prompt: the work that follows an earlier [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms), the writing of lessons and the sweep, MUST NOT delay it. A judgement or delivery that is only slow MUST NOT make it step aside; the prompt waits for it ([855b4 No time bound before a prompt reaches the agent](./855b_decision-log.md#855b4-no-time-bound-before-a-prompt-reaches-the-agent)). A judgement or delivery that has not answered after 2 minutes has stalled: it MUST step aside, deliver nothing for the prompt and be shown as a failure. The 2 minutes are a liveness bound and not a latency target ([855b14 A slow step is waited for, a stalled one is not](./855b_decision-log.md#855b14-a-slow-step-is-waited-for-a-stalled-one-is-not)). It MUST NOT edit the user's prompt or the text of the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s reply, MUST NOT break or stall a [session](../../GLOSSARY.md#session), and MUST NOT deliver to or write from its own sessions, the sessions it starts itself to do its work. When it cannot do its work, for any reason, including a judgement or delivery that fails or stalls and a write that fails, it MUST step aside, and the session MUST continue as if automatic memory were not installed.
 
-The scenarios [793a2d1b](../793_automatic-memory/793a_product-spec.md#793a2d1-uat-scenarios), [793a2d1d](../793_automatic-memory/793a_product-spec.md#793a2d1-uat-scenarios) and [793a2d1e](../793_automatic-memory/793a_product-spec.md#793a2d1-uat-scenarios) of the target stay.
+The scenarios [793a2d1b](../793_automatic-memory/793a_product-spec.md#793a2d1-uat-scenarios) and [793a2d1e](../793_automatic-memory/793a_product-spec.md#793a2d1-uat-scenarios) of the target stay, [855a3n 793a2d1d The prompt and the reply are as they were](#855a3n-modified-793a2d1d-the-prompt-and-the-reply-are-as-they-were) is replaced, and this is added.
+
+#### 855a3c1 UAT Scenarios
+
+```gherkin
+Scenario: 855a3c1a A judgement that never answers is stepped aside after 2 minutes
+  Given the user has run engram update, a vault holding a note that says when the staging database is reset, and a judgement that never answers
+  When the user sends a prompt to prepare a test run against the staging database tonight
+  Then the prompt reaches the agent within 3 minutes, as the user typed it and with nothing from the vault, the agent answers it, and the session shows with the next prompt a line that says the delivery could not be done, with the reason
+```
 
 ### 855a3d Modified: 793a2d1a A slow lookup does not hold a prompt for more than 8 seconds
 
@@ -140,7 +149,7 @@ Target: [793a2d1a A slow lookup does not hold a prompt for more than 8 seconds](
 ```gherkin
 Scenario: 793a2d1a A slow judgement holds the prompt until it has the notes
   Given the user has run engram update, a vault holding a note that says when the staging database is reset, and a judgement that takes 20 seconds
-  When the user sends a prompt asking when the staging database is reset
+  When the user sends a prompt to prepare a test run against the staging database tonight
   Then the prompt reaches the agent after the judgement finished, as the user typed it and with the staging note, and the agent answers it
 ```
 
@@ -150,7 +159,7 @@ Target: [793a2d1c The work after a turn does not hold the next prompt](../793_au
 
 ```gherkin
 Scenario: 793a2d1c The work after a turn does not hold the next prompt
-  Given the user has run engram update, and a judgement, a write and a sweep after a turn that each take 60 seconds
+  Given the user has run engram update, and a judgement, a write and a sweep after a turn that each take 10 minutes
   When the user sends a prompt, and then another while that work goes on
   Then the second prompt reaches the agent while that work goes on, as the user typed it, and the agent answers it
 ```
@@ -179,6 +188,96 @@ Target: [793a2e1g The notes delivered with a prompt are one line](../793_automat
 ```gherkin
 Scenario: 793a2e1g The notes delivered with a prompt are one line
   Given the user has run engram update, and a vault holding three notes that apply to a prompt about the staging database and a note about formatting Python files
-  When the user sends a prompt asking what there is to know about the staging database
+  When the user sends a prompt to prepare a test run against the staging database tonight
   Then the session shows one line that names the three notes, and no other line about the delivery
+```
+
+### 855a3i Modified: 793a2a1a The next session has memory after one engram update
+
+Target: [793a2a1a The next session has memory after one engram update](../793_automatic-memory/793a_product-spec.md#793a2a1-uat-scenarios)
+
+```gherkin
+Scenario: 793a2a1a The next session has memory after one engram update
+  Given a machine with Claude Code on which the user has never run engram update, and a vault holding a note that says when the staging database is reset
+  When the user runs engram update
+  And starts a Claude Code session in a project other than the one engram update was run in, and sends a prompt to prepare a test run against the staging database tonight
+  Then the note is in the agent's context before the agent answers
+```
+
+### 855a3j Modified: 793a2a1b A second update still delivers each note once
+
+Target: [793a2a1b A second update still delivers each note once](../793_automatic-memory/793a_product-spec.md#793a2a1-uat-scenarios)
+
+```gherkin
+Scenario: 793a2a1b A second update still delivers each note once
+  Given a machine on which the user has run engram update once, and a vault holding a note that says when the staging database is reset
+  When the user runs engram update again
+  And starts a session and sends a prompt to prepare a test run against the staging database tonight
+  Then the note is in the agent's context once
+```
+
+### 855a3k Modified: 793a2b1a The notes that bear on a prompt arrive with it
+
+Target: [793a2b1a The notes that bear on a prompt arrive with it](../793_automatic-memory/793a_product-spec.md#793a2b1-uat-scenarios)
+
+```gherkin
+Scenario: 793a2b1a The notes that apply to a prompt arrive with it
+  Given the user has run engram update, and a vault holding a note that says when the staging database is reset and a note about formatting Python files
+  When the user sends a prompt to prepare a test run against the staging database tonight
+  Then before the agent acts its context holds the staging note and not the formatting note, and the prompt in the conversation is exactly as the user typed it
+```
+
+### 855a3l Modified: 793a2b1b A note delivered earlier in the session is not delivered again
+
+Target: [793a2b1b A note delivered earlier in the session is not delivered again](../793_automatic-memory/793a_product-spec.md#793a2b1-uat-scenarios)
+
+```gherkin
+Scenario: 793a2b1b A note delivered earlier in the session is not delivered again
+  Given a session in which a prompt to prepare a test run against the staging database tonight arrived with the staging note
+  When the user sends another prompt to prepare a second test run against the staging database tonight
+  Then the second prompt arrives with nothing from the vault, and the staging note is in the agent's context once
+```
+
+### 855a3m Modified: 793a2b1c A note the agent looked up itself is not delivered
+
+Target: [793a2b1c A note the agent looked up itself is not delivered](../793_automatic-memory/793a_product-spec.md#793a2b1-uat-scenarios)
+
+```gherkin
+Scenario: 793a2b1c A note the agent looked up itself is not delivered
+  Given a session in which, before the user ran engram update, the agent looked up the staging note itself with engram query, and a vault that has gained another note since, which says the reset is skipped on public holidays
+  When the user runs engram update, resumes that session, and sends a prompt to prepare a test run against the staging database tonight
+  Then the prompt arrives with the other note and not the staging note
+```
+
+### 855a3n Modified: 793a2d1d The prompt and the reply are as they were
+
+Target: [793a2d1d The prompt and the reply are as they were](../793_automatic-memory/793a_product-spec.md#793a2d1-uat-scenarios)
+
+```gherkin
+Scenario: 793a2d1d The prompt and the reply are as they were
+  Given the user has run engram update, and a session in which the user's correction became a note
+  When the user sends a prompt that is a recall moment and that the note applies to, typed with extra spaces and a line break
+  Then the prompt in the conversation is exactly as the user typed it, and the reply is exactly the agent's text
+```
+
+### 855a3o Modified: 793a2e1a What was delivered and what was written for the previous turn is in the session by the next prompt
+
+Target: [793a2e1a What was delivered and what was written for the previous turn is in the session by the next prompt](../793_automatic-memory/793a_product-spec.md#793a2e1-uat-scenarios)
+
+```gherkin
+Scenario: 793a2e1a What was delivered and what was written for the previous turn is in the session by the next prompt
+  Given the user has run engram update, a vault holding a note that says when the staging database is reset, and a session in which the user asked in one prompt to prepare a test run against the staging database tonight and to remember that it is backed up every Monday at 05:00 UTC
+  When the user sends the next prompt
+  Then the session shows a line that names the staging note delivered with the earlier prompt, and, with the next prompt, a line that names the note written from it
+```
+
+### 855a3p Modified: 793a2e1c A delivery that could not be done is shown with its reason
+
+Target: [793a2e1c A delivery that could not be done is shown with its reason](../793_automatic-memory/793a_product-spec.md#793a2e1-uat-scenarios)
+
+```gherkin
+Scenario: 793a2e1c A delivery that could not be done is shown with its reason
+  Given the user has run engram update, and a vault holding a note that says when the staging database is reset, which cannot be read
+  When the user sends a prompt to prepare a test run against the staging database tonight, the vault becomes readable again, and the user sends another prompt
+  Then the session shows, with the second prompt, a line that says the delivery for the first could not be done, with the reason
 ```
