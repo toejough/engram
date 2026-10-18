@@ -232,11 +232,11 @@ Withdrawn: author choice, [793b62 The scenarios of the second group](./793b_deci
 
 ## 793c39 Which origins count as the prompts the user sends?
 
-- **Context:** the first group delivered for every origin ([793b58 The first group delivers for every origin of a prompt](./793b_decision-log.md#793b58-the-first-group-delivers-for-every-origin-of-a-prompt)); this group adds the filter. A headless [session](../../GLOSSARY.md#session)'s [prompt](./793a_product-spec.md#793a1a-terms) has the origin `sdk`, as does a prompt another program sends with the SDK.
+- **Context:** the first group delivered for every origin ([793b58 The first group delivers for every origin of a prompt](./793b_decision-log.md#793b58-the-first-group-delivers-for-every-origin-of-a-prompt)); this group adds the filter. A headless [session](../../GLOSSARY.md#session)'s [prompt](./793a_product-spec.md#793a1a-terms) has the origin `sdk`, as does a prompt another program sends with the SDK. Every product row runs a headless session with the opt-in set, so the path of a prompt typed in the terminal (origin `composer`, the variable unset), which is the owner's default setup, is covered by unit tests only until the owner's first dogfood session.
 - **Options:** (a) `composer`, `bridge`, `slack-ping` and `sdk` (the first default, [793b64 The prompts the user sends](./793b_decision-log.md#793b64-the-prompts-the-user-sends)). (b) `composer`, `bridge` and `slack-ping`, so a headless session gets nothing. (c) As (a) for the delivery, and for the judgement `sdk` only when the user switches it on with `ENGRAM_AUTO_CAPTURE_SDK`.
 - **Recommendation:** (c), amended from (a): (b) would leave out the user's own `claude -p` runs, and the tests drive one; a headless run under the real home otherwise writes fiction into the real [vault](../../GLOSSARY.md#vault).
 - **Blocks:** the origin filter, [793d4m Telling the prompts the user sends](./793d_technical-spec.md#793d4m-telling-the-prompts-the-user-sends).
-- **Status:** open; default (c) taken in [793b84 A headless prompt is judged only when the user asks](./793b_decision-log.md#793b84-a-headless-prompt-is-judged-only-when-the-user-asks).
+- **Status:** open; default (c) taken in [793b84 A headless prompt is judged only when the user asks](./793b_decision-log.md#793b84-a-headless-prompt-is-judged-only-when-the-user-asks), and stated in the product spec by [793b117 The headless exception stays as built, and the product spec states it](./793b_decision-log.md#793b117-the-headless-exception-stays-as-built-and-the-product-spec-states-it); the interactive path is confirmed by the owner's first dogfood session.
 
 ## 793c40 Is the window of the judgement the right one?
 
@@ -364,19 +364,11 @@ Withdrawn: answered by the owner's instruction to follow the guides, [793b91 The
 
 ## 793c64 Is the order of the groups a table or a graph?
 
-- **Context:** the plan guide has the dependency graph carry the status of each node and be the source of sequencing; the first version of [793e4 Depth-first order](./793e_implementation-plan.md#793e4-depth-first-order) held a 90-line chain graph of the order.
-- **Options:** (a) The table of [793e4 Depth-first order](./793e_implementation-plan.md#793e4-depth-first-order), with [793e9 Dependency graph](./793e_implementation-plan.md#793e9-dependency-graph) the one dependency graph. (b) A chain graph in [793e4 Depth-first order](./793e_implementation-plan.md#793e4-depth-first-order) as well.
-- **Recommendation:** (a): the table gives the order the groups are worked in, one at a time on one branch, and the guide asks for one graph.
-- **Blocks:** the guide's rules for the graph at promotion.
-- **Status:** open; default (a) taken in [793b96 The order of the groups is a table](./793b_decision-log.md#793b96-the-order-of-the-groups-is-a-table).
+Withdrawn: author choice, [793b96 The order of the groups is a table](./793b_decision-log.md#793b96-the-order-of-the-groups-is-a-table).
 
 ## 793c65 Do the catalog rows keep their three commit columns?
 
-- **Context:** the catalog gives each row three commit columns, which the reduction rule would cut as hashes.
-- **Options:** (a) Keep the columns. (b) Drop them and leave the commits to git history.
-- **Recommendation:** (a): they are the record of step 5 ([793f2 The algorithm](./793f_algorithm.md#793f2-the-algorithm)).
-- **Blocks:** the gate of [793e7 Completion gates](./793e_implementation-plan.md#793e7-completion-gates) that every `Done` row has its three commits.
-- **Status:** open; default (a) taken in [793b97 The commit columns stay](./793b_decision-log.md#793b97-the-commit-columns-stay).
+Withdrawn: author choice, [793b97 The commit columns stay](./793b_decision-log.md#793b97-the-commit-columns-stay).
 
 ## 793c66 Does a requirement with two owning components stay whole?
 
@@ -492,19 +484,11 @@ Withdrawn: answered by the owner's instruction to follow the guides, [793b91 The
 
 ## 793c80 Is a path with a long name of letters and digits redacted in a line?
 
-- **Context:** the line that tells a reason redacts it by shape ([793d4j Redacting credentials](./793d_technical-spec.md#793d4j-redacting-credentials)); a part of a path of 32 or more letters and digits is the shape of a token, so a long name of a directory, such as the temporary directory of a test or a project directory named for a long path, shows as `[redacted]` in a line of [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did), while the cause at the end of the reason stays.
-- **Options:** (a) Accept it: the redaction errs toward hiding. (b) Exempt a run of letters and digits between slashes. (c) Redact only what is named a credential by its context.
-- **Recommendation:** (a): (b) lets a token in a path through, and the loss is the readability of one long name.
-- **Blocks:** nothing.
-- **Status:** open; default (a) is the behaviour of [793b69 Credentials are redacted by shape, and the rest is a known risk](./793b_decision-log.md#793b69-credentials-are-redacted-by-shape-and-the-rest-is-a-known-risk), unchanged.
+Withdrawn: author choice, [793b121 A part of a path of letters and digits is redacted in a line](./793b_decision-log.md#793b121-a-part-of-a-path-of-letters-and-digits-is-redacted-in-a-line).
 
 ## 793c81 Does the judgement call a different lesson about the same subject covered by an earlier note too often?
 
-- **Context:** in 60 runs of [793a3c1c A lesson no earlier note states is written](./793a_product-spec.md#793a3c1-uat-scenarios) at the end of the third group, 5 failed (2 of the first 10, 1 of the next 20, 2 of the last 30) and 17 of 20 passed on the commit before the group, so it is not the group's: the judgement put the lesson of the backup schedule in a `covered` call that names the [note](../../GLOSSARY.md#permanent-note) of the reset (`1.2026-10-17.zorblax-staging-reset.md`), and the record reads `skipped`, with the reason that the [vault](../../GLOSSARY.md#vault) already states it. The display of [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) now shows such a call at the next [prompt](./793a_product-spec.md#793a1a-terms), as a line that says the lesson was left out, and why.
-- **Options:** (a) Accept it: the call is shown, and the lesson is written when it comes up again. (b) Tighten the instructions of the judgement on when a note covers a lesson, a change to the instructions that goes through the trap [harness](../../GLOSSARY.md#harness). (c) Check the call in code against the subject of the lesson.
-- **Recommendation:** (a) until the owner wants the bar raised: it is about one run in eleven, it was the same before the group, and each miss is now visible; (b) is the way to raise it.
-- **Blocks:** nothing.
-- **Status:** open; default (a) is the behavior of the second group, unchanged.
+Withdrawn: author choice, [793b122 A lesson that the judgement calls covered by a note about the same subject is accepted, at the bar](./793b_decision-log.md#793b122-a-lesson-that-the-judgement-calls-covered-by-a-note-about-the-same-subject-is-accepted-at-the-bar); the row sits at the bar of 9 in 10 with two samples below it.
 
 ## 793c82 Does a lesson that is left out keep the slug the model gave it?
 
@@ -545,3 +529,27 @@ Withdrawn: answered by the owner's instruction to follow the guides, [793b91 The
 - **Recommendation:** (a): the data directory holds what the user was not shown yet and nothing else, and the delivery has all it needs; (b) grows with every turn, and (c) needs a clock and a rule for the time.
 - **Blocks:** [793d4k1b A reply with no lesson makes no record](./793d_technical-spec.md#793d4k1-scenarios), [793d4p1m The records that were shown are removed with their marks](./793d_technical-spec.md#793d4p1-scenarios).
 - **Status:** open; default (a) taken in [793b114 A turn with nothing to write leaves no record, and a record is removed once its line was shown](./793b_decision-log.md#793b114-a-turn-with-nothing-to-write-leaves-no-record-and-a-record-is-removed-once-its-line-was-shown).
+
+## 793c87 Is a late write shown when it finishes, or by the next prompt after it finishes?
+
+- **Context:** [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) said that what a write did, when it finishes after the [prompt](./793a_product-spec.md#793a1a-terms) is sent, is shown when it finishes; the lines are built from the records that the delivery of each prompt reads, and nothing logs when a write ends.
+- **Options:** (a) It is shown by the next prompt after it finishes. (b) It is shown when it finishes: the mod logs a line when the write ends.
+- **Recommendation:** (a): the user reads the [session](../../GLOSSARY.md#session) at a prompt, and (b) adds a second path that draws a line, with a call of the host from the timer of the write.
+- **Blocks:** [793a2e1b A write that finishes after the next prompt is shown by the prompt after it finishes](./793a_product-spec.md#793a2e1-uat-scenarios).
+- **Status:** open; default (a) taken in [793b118 A write that finishes late is shown by the next prompt after it finishes](./793b_decision-log.md#793b118-a-write-that-finishes-late-is-shown-by-the-next-prompt-after-it-finishes).
+
+## 793c88 Does the index keep the short versions of the last chunk of a conversation?
+
+- **Context:** the sweep after each [turn](./793a_product-spec.md#793a1a-terms) indexes the [transcript](../../GLOSSARY.md#transcript) as `--transcript` of [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand) does; the last chunk of a transcript grows with each turn until it is full, and the index is append-only by the hash of a chunk's text ([792b18c5 Rebuilding a source's index](../../specs/technical/chunk-index-store.md#792b18c5-rebuilding-a-sources-index)), so each sweep adds the longer version and keeps the shorter, all under one anchor. Measured on the built binary: four short turns, four sweeps, 4 records, all anchored `turn-1`; `engram query` can return several of them.
+- **Options:** (a) As built: the index keeps every version of the last chunk. (b) The sweep indexes only complete chunks: the last chunk waits until the next turn begins, and the newest turn is not findable until then. (c) Re-indexing a transcript replaces its tail, which changes the canonical requirement 792b18c5.
+- **Recommendation:** (a) for this change: the cost is a few kilobytes of versions for each chunk that grows and results that repeat a prefix, bounded by the size of a chunk (1,500 characters); (b) fails [793a2f1a The conversation so far is findable after a turn](./793a_product-spec.md#793a2f1-uat-scenarios), and (c) is the right fix, as a change of its own to the canonical specification.
+- **Blocks:** the canonical requirement [792b18c5 Rebuilding a source's index](../../specs/technical/chunk-index-store.md#792b18c5-rebuilding-a-sources-index), if the owner chooses (c).
+- **Status:** open; default (a) taken in [793b119 The sweep leaves the short versions of the last chunk in the index](./793b_decision-log.md#793b119-the-sweep-leaves-the-short-versions-of-the-last-chunk-in-the-index).
+
+## 793c89 Does the judgement probe stay as an instrument that a target runs, or go?
+
+- **Context:** `dev/eval/auto-judge/` (a probe, its fixtures and its tests, about 630 lines) measures the instructions of the judgement ([793b88 The judgement is measured by a probe of its own](./793b_decision-log.md#793b88-the-judgement-is-measured-by-a-probe-of-its-own)); it is part of no check, and its tests are marked `Done` in [793e6g17 The runs of the judgement rows are tallied, and the probe behind the instructions is kept](./793e_implementation-plan.md#793e6g17-the-runs-of-the-judgement-rows-are-tallied-and-the-probe-behind-the-instructions-is-kept) although no gate runs them, so they can rot unseen.
+- **Options:** (a) Keep it as an instrument, with its tests run by a target of their own (not part of `targ check-full`, which would then need Python). (b) Drop it: delete the directory and its rows, and change the instructions with the live rows alone. (c) Keep it as built, outside every gate.
+- **Recommendation:** (a): the probe is how the instructions were tuned, 60 runs for each variant, and a target keeps its tests from rotting without adding a language to the gates; (b) removes the means to tell a better sentence from noise, and (c) leaves tests that nothing runs.
+- **Blocks:** the merge of `dev/eval/auto-judge/`, code that the branch introduces and no check runs ([793e7 Completion gates](./793e_implementation-plan.md#793e7-completion-gates) asks `targ test` and `targ check-full` to cover the branch).
+- **Status:** open; default (c), as built, taken in [793b120 The judgement probe stays as built until the owner decides](./793b_decision-log.md#793b120-the-judgement-probe-stays-as-built-until-the-owner-decides).

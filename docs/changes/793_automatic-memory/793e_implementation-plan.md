@@ -57,7 +57,7 @@ Every test row goes through one cycle (the owner's step 5, [793f2 The algorithm]
 
 Classifications are the plan guide's: dedicated examples (the guide lists product acceptance scenarios and real dependency behavior tied to a pinned version among them), property-based tests (`rapid`), and injected and impure interaction tests (`imptest`). Suites are the technical guide's: the default suite is pure and deterministic, a test that crosses a local impure boundary carries the `integration` tag, and one that needs a live remote service the `network` tag. A row names its tag; a row with none is in the default suite, and the `integration` rows of the mod's tests ([793d2a1g A session that does not give its ID in time does not hold the prompt](./793d_technical-spec.md#793d2a1-scenarios) and [793d2b Turn capture flow](./793d_technical-spec.md#793d2b-turn-capture-flow)) run the mod under `node` against a stand-in host.
 
-Each scenario in [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec) is run by one Go test named with its ID, driving a real Claude Code [session](../../GLOSSARY.md#session) in an isolated HOME ([793f7 Test isolation](./793f_algorithm.md#793f7-test-isolation)), its steps mirroring the Given, When and Then lines one to one, its run output the record ([793b9 Test execution](./793b_decision-log.md#793b9-test-execution)); each scenario in [793d Automatic Memory - Technical Spec](./793d_technical-spec.md#automatic-memory---technical-spec) by one Go test whose name carries its ID. A conformance check asserts that every scenario ID in either spec has a test, a function declared as `Test<ID>_...`. A test that drives a real session needs a live model, so it carries the `network` tag and fails with a clear reason when `claude` or a login is missing ([793b53 A missing login or Claude Code fails an acceptance test](./793b_decision-log.md#793b53-a-missing-login-or-claude-code-fails-an-acceptance-test)); these tests live in `dev/acceptance` and run with `targ acceptance` (optionally `--run <regular expression>`). Every test or check that runs `engram` or `claude` follows [793f7 Test isolation](./793f_algorithm.md#793f7-test-isolation).
+Each scenario in [793a Automatic Memory - Product Spec](./793a_product-spec.md#automatic-memory---product-spec) is run by one Go test named with its ID, driving a real Claude Code [session](../../GLOSSARY.md#session) in an isolated HOME ([793f7 Test isolation](./793f_algorithm.md#793f7-test-isolation)), its steps mirroring the Given, When and Then lines one to one, its run output the record ([793b9 Test execution](./793b_decision-log.md#793b9-test-execution)); each scenario in [793d Automatic Memory - Technical Spec](./793d_technical-spec.md#automatic-memory---technical-spec) by one Go test whose name carries its ID. A conformance check asserts that every scenario ID in either spec has a test, a function declared as `Test<ID>_...`. A test that drives a real session needs a live model, so it carries the `network` tag and fails with a clear reason when `claude` or a login is missing ([793b53 A missing login or Claude Code fails an acceptance test](./793b_decision-log.md#793b53-a-missing-login-or-claude-code-fails-an-acceptance-test)); these tests live in `dev/acceptance` and run with `targ acceptance` (optionally `--run <regular expression>`). Every test or check that runs `engram` or `claude` follows [793f7 Test isolation](./793f_algorithm.md#793f7-test-isolation). Every product row runs a headless session (`claude -p`), whose [prompts](./793a_product-spec.md#793a1a-terms) have the origin `sdk`, so the machine sets `ENGRAM_AUTO_CAPTURE_SDK=1` for all but [793a2e1f A turn that is not captured is shown with the reason](./793a_product-spec.md#793a2e1-uat-scenarios), which leaves it out ([793b84 A headless prompt is judged only when the user asks](./793b_decision-log.md#793b84-a-headless-prompt-is-judged-only-when-the-user-asks)); the path of a prompt typed in the terminal, with the variable unset, is covered by the unit tests of [793d4m Telling the prompts the user sends](./793d_technical-spec.md#793d4m-telling-the-prompts-the-user-sends) and by the owner's first dogfood session ([793c39 Which origins count as the prompts the user sends?](./793c_open-questions.md#793c39-which-origins-count-as-the-prompts-the-user-sends)).
 
 The first row of a node is its product scenario. Its red commit comes first, before the node's code exists; the technical rows below it are then worked in order, each through its own red, green and refactor; its green and refactor commits come last, when the technical rows are `Done` and the scenario passes.
 
@@ -135,7 +135,7 @@ flowchart TD
     n793e6b13 --> n793e6c3[793e6c3 A write that fails does not break the session<br/>Complete]
     n793e6g10 --> n793e6d1[793e6d1 What was delivered and what was written for the previous turn is in the session by the next prompt<br/>Complete]
     n793e6b11 --> n793e6d1
-    n793e6d1 --> n793e6d2[793e6d2 A write that finishes after the next prompt is shown when it finishes<br/>Complete]
+    n793e6d1 --> n793e6d2[793e6d2 A write that finishes after the next prompt is shown by the prompt after it finishes<br/>Complete]
     n793e6d1 --> n793e6d3[793e6d3 A delivery that could not be done is shown with its reason<br/>Complete]
     n793e6g12 --> n793e6d3
     n793e6d1 --> n793e6d4[793e6d4 A write that failed is shown with its reason<br/>Complete]
@@ -157,8 +157,14 @@ flowchart TD
     n793e6i4 --> n793e6i5[793e6i5 A sweep that is ended at its bound is not run again in the session, and the user is told once<br/>Complete]
     n793e6d5 --> n793e6i5
     n793e6g8 --> n793e6i6[793e6i6 The credentials that are redacted are the shapes the promise names<br/>In progress: 0/2 entries complete]
+    n793e6i1 --> n793e6i7[793e6i7 The documents say what the branch does<br/>In progress: 6/9 entries complete]
+    n793e6i2 --> n793e6i7
+    n793e6i3 --> n793e6i7
+    n793e6i4 --> n793e6i7
+    n793e6i5 --> n793e6i7
+    n793e6i6 --> n793e6i7
     class n793e6i1,n793e6i2,n793e6i3,n793e6i4,n793e6i5 complete
-    class n793e6i6 progress
+    class n793e6i6,n793e6i7 progress
     classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
@@ -236,19 +242,19 @@ Rows are added when step 3 reaches a node, and worked top to bottom, one node at
 | 793d4d1e | Dedicated example | a listing of the vault is not a lookup | Done | d183d346 | 642adbd6 | 642a4c9a |
 | 793d4d1f | Dedicated example | `engram show` prints a note without its file name, so the command's text holds it | Done | d183d346 | 642adbd6 | 642a4c9a |
 | 793d4a1g | Dedicated example | a note the agent fetched by its basename without `.md` is left out, over an in-memory vault and a real temporary session-log directory | Done | d183d346 | 642adbd6 | 642a4c9a |
-| 793d4a1h | Injected and impure interaction (`imptest`) | the lookup runs once, for the vault given, with the prompt's text as message and only phrase (a left-out message passes every test over the real engine); the seam, the lookup as a function, was made first by refactor 8f30df47 | Done | n/a | dcaadbc0 | d18002dd |
+| 793d4a1h | Injected and impure interaction (`imptest`) | the lookup runs once, for the vault given, with the prompt's text as message and only phrase (a left-out message passes every test over the real engine); the seam, the lookup as a function, was made first by refactor 8f30df47; mutation (scratch copy): a lookup given the prompt's text as its phrase and no message fails it | Done | n/a | dcaadbc0 | d18002dd |
 | 793d4a1i | Injected and impure interaction (`imptest`) | `Deliver` gives the lookup the request's text and the session reading the request's session ID; mutation: a `Deliver` that gives either an empty string | Done | n/a | d909ac5d | d18002dd |
-| 793d4f1a | Dedicated example | `ENGRAM_TRANSCRIPT_DIR` names the records before `CLAUDE_CONFIG_DIR`, through the dispatch of `engram auto deliver` over real temporary directories with the environment stubbed | Done | n/a | 9ca57f87 | 8fa41f48 |
+| 793d4f1a | Dedicated example | `ENGRAM_TRANSCRIPT_DIR` names the records before `CLAUDE_CONFIG_DIR`, through the dispatch of `engram auto deliver` over real temporary directories with the environment stubbed; mutation (scratch copy): `CLAUDE_CONFIG_DIR` read before `ENGRAM_TRANSCRIPT_DIR` fails it | Done | n/a | 9ca57f87 | 8fa41f48 |
 | 793d4f1b | Dedicated example | `CLAUDE_CONFIG_DIR/projects` names them when `ENGRAM_TRANSCRIPT_DIR` does not, and the home's `.claude/projects` is then not read; the place was checked with a real headless session | Done | 9ca57f87 | a2616081 | 8fa41f48 |
-| 793d4f1c | Dedicated example | the home's `.claude/projects` when neither variable is set, which no test had run | Done | n/a | 9ca57f87 | 8fa41f48 |
+| 793d4f1c | Dedicated example | the home's `.claude/projects` when neither variable is set, which no test had run; mutation (scratch copy): no default directory when neither variable is set fails it | Done | n/a | 9ca57f87 | 8fa41f48 |
 | 793d4f1d | Dedicated example | with no home directory the records directory is empty and the delivery read `<session>.jsonl` from the working directory | Done | b4358c93 | 9755ff6d | b7451101 |
 
 #### 793e6a5 A prompt that matches no note arrives with nothing
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2b1d | Dedicated example, product acceptance (`network`) | staged with a conversation that only the [agent](./793a_product-spec.md#793a1a-terms)'s own lookup finds, which a delivery that searched the chunk index would deliver | Done | n/a | e6ce415b | 2f90f045 |
-| 793d4a1f | Dedicated example | the lookup reads [notes](../../GLOSSARY.md#permanent-note) only; the chunk-index lister fails the test if called | Done | n/a | be188b04 | 615f328c |
+| 793a2b1d | Dedicated example, product acceptance (`network`) | staged with a conversation that only the [agent](./793a_product-spec.md#793a1a-terms)'s own lookup finds, which a delivery that searched the chunk index would deliver; mutation (scratch copy): a delivery that also delivers the [notes](../../GLOSSARY.md#permanent-note) that only the explore half picked fails it | Done | n/a | e6ce415b | 2f90f045 |
+| 793d4a1f | Dedicated example | the lookup reads [notes](../../GLOSSARY.md#permanent-note) only; the chunk-index lister fails the test if called; mutation (scratch copy): a lookup that is given a directory of chunk indexes fails it | Done | n/a | be188b04 | 615f328c |
 
 #### 793e6a6 A slow lookup does not hold a prompt for more than 8 seconds
 
@@ -281,14 +287,14 @@ Takes [793a2a1e A vault that does not exist is not created](./793a_product-spec.
 | 793a2a1c | Dedicated example, product acceptance (`network`) | a real [session](../../GLOSSARY.md#session) after the dry run shows that nothing was installed | Done | c8342310 | 6628b251 | c45fb971 |
 | 793d4b1e | Dedicated example | the report data tells a mod directory from a [skill](../../GLOSSARY.md#skill) directory | Done | e47a17b1 | 3123a3c3 | 49fd7aa0 |
 | 793d4b1f | Dedicated example | the report's rows: the source printed for a mod | Done | 318651db | 6628b251 | a758cadc |
-| 793d4b1g | Dedicated example | the dry run's promise for the new input: the mod is planned and reported, none of it written | Done | n/a | 545345f1 | c45fb971 |
+| 793d4b1g | Dedicated example | the dry run's promise for the new input: the mod is planned and reported, none of it written; mutation (scratch copy): a dry run that applies the sync of the engram root fails it | Done | n/a | 545345f1 | c45fb971 |
 
 #### 793e6a10 A second update still delivers each note once
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2a1b | Dedicated example, product acceptance (`network`) | two real updates, then one real [prompt](./793a_product-spec.md#793a1a-terms); only a second real update shows a doubled hook | Done | n/a | 8bf1f893 | d206b5c9 |
-| 793d4b1h | Dedicated example | idempotence: two runs leave the same files and links, and the second report lists the mod once | Done | n/a | c6df6865 | d206b5c9 |
+| 793a2a1b | Dedicated example, product acceptance (`network`) | two real updates, then one real [prompt](./793a_product-spec.md#793a1a-terms); only a second real update shows a doubled hook; mutation (scratch copy): a second update that leaves the mod's hooks module empty fails it | Done | n/a | 8bf1f893 | d206b5c9 |
+| 793d4b1h | Dedicated example | idempotence: two runs leave the same files and links, and the second report lists the mod once; mutation (scratch copy): a second update that adds a file to the engram root fails it | Done | n/a | c6df6865 | d206b5c9 |
 
 #### 793e6a11 The conformance check of the first group
 
@@ -441,8 +447,8 @@ Extends the delivery's exemption from the [vault](../../GLOSSARY.md#vault)'s fir
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 793a2a1g | Dedicated example, product acceptance (`network`) | a machine whose vault was removed (the test waits for both [turns](./793a_product-spec.md#793a1a-terms)' records and a settling time); passed when written, as the learn path fails at the missing vault's lock; mutation: a writing wired inside the first-use step | 10 of 10 | Done | n/a | 415a79ab | d156945f |
-| 793d4e1b | Dedicated example | the judgement command over a path with no vault: no vault afterwards, no creation line |  | Done | n/a | 415a79ab | d156945f |
-| 793d4e1c | Dedicated example | the writing command over a path with no vault, with a lesson in the reply: no vault, no [note](../../GLOSSARY.md#permanent-note), nothing printed, no creation line |  | Done | n/a | 415a79ab | d156945f |
+| 793d4e1b | Dedicated example | the judgement command over a path with no vault: no vault afterwards, no creation line; mutation (scratch copy): the judgement wired inside the first-use step fails it |  | Done | n/a | 415a79ab | d156945f |
+| 793d4e1c | Dedicated example | the writing command over a path with no vault, with a lesson in the reply: no vault, no [note](../../GLOSSARY.md#permanent-note), nothing printed, no creation line; mutation (scratch copy): the writing wired inside the first-use step fails it |  | Done | n/a | 415a79ab | d156945f |
 
 #### 793e6b14 Automatic memory's work starts no session of its own
 
@@ -617,7 +623,7 @@ Review finding 18: only one side of [793a3c Nothing the vault already says is wr
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a3c1c | Dedicated example, product acceptance (`network`) | the other side of the cover: a different lesson about the same subject; passed when written; mutation (scratch copy): an instruction that a nearest [note](../../GLOSSARY.md#permanent-note) on the same subject covers the lesson (the row passed 1 of 6 runs) | 10 of 10; 55 of 60 at the end of the third group, 17 of 20 on the commit before it: the judgement called the backup lesson covered by the note about the reset in 5 runs ([793c81 Does the judgement call a different lesson about the same subject covered by an earlier note too often?](./793c_open-questions.md#793c81-does-the-judgement-call-a-different-lesson-about-the-same-subject-covered-by-an-earlier-note-too-often)) | Done | n/a | 228d02b4 | f5f9a637 |
+| 793a3c1c | Dedicated example, product acceptance (`network`) | the other side of the cover: a different lesson about the same subject; passed when written; mutation (scratch copy): an instruction that a nearest [note](../../GLOSSARY.md#permanent-note) on the same subject covers the lesson (the row passed 1 of 6 runs) | 80 of 90 in three batches: 55 of 60 at the end of the third group, 17 of 20 on the commit before it and 8 of 10 in a later batch, the last two under the bar of 9 in 10 (10 of 10 when the row was written); in the misses the judgement called the backup lesson covered by the note about the reset ([793b122 A lesson that the judgement calls covered by a note about the same subject is accepted, at the bar](./793b_decision-log.md#793b122-a-lesson-that-the-judgement-calls-covered-by-a-note-about-the-same-subject-is-accepted-at-the-bar)) | Done | n/a | 228d02b4 | f5f9a637 |
 
 #### 793e6g16 A turn that a background task's notification starts is not judged
 
@@ -731,7 +737,7 @@ Builds what the other nodes read: the lines that tell what [automatic memory](./
 | 793d4c1a (amended) | Property-based (`rapid`) with named examples | the properties of the block, with lines told among hostile text | the properties of [793d4c1a A note cannot reshape the block](./793d_technical-spec.md#793d4c1-scenarios), with any lines told: one more line for each, after the notes, each beginning with an asterisk and a space | | Done | 300fbc46 | 34ec6b9e | 09fa0808 |
 | 793d4a1i (amended) | Injected and impure interaction (`imptest`) | the reading of what the session was not told is given the request's session ID | | | Done | 300fbc46 | 34ec6b9e | 09fa0808 |
 
-#### 793e6d2 A write that finishes after the next prompt is shown when it finishes
+#### 793e6d2 A write that finishes after the next prompt is shown by the prompt after it finishes
 
 Adds no component: the delivery reads the records at every [prompt](./793a_product-spec.md#793a1a-terms).
 
@@ -852,7 +858,7 @@ Review findings G3-5, G3-10 and P-3: a test that bounds less than its scenario s
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793a2d1c (amended) | Dedicated example, product acceptance (`network`) | the result of the second turn is awaited from the moment the test sends the prompt, and must come within 20 seconds, where the arrival test passed a reply held for 21; passed when written; no scratch mod I could write holds the reply without the arrival (a loop on `$.process.spawn` in the timer held neither, and a mod that holds the result of the event held both, the second prompt reaching the model after a minute), so the bound is the scenario's own | Done | n/a | 53959d30 | d7452c13 |
+| 793a2d1c (amended) | Dedicated example, product acceptance (`network`) | the result of the second turn is awaited from the moment the test sends the prompt, and must come within 20 seconds, where the arrival test passed a reply held for 21; passed when written; mutation (scratch copy): a mod that awaits the jobs inside the event holds the second prompt for the minute they take, and fails the arrival and the reply bounds both; none I could write holds the reply without the arrival, so the reply bound is the scenario's own | Done | n/a | 53959d30 | d7452c13 |
 | 793a2d1a (amended) | Dedicated example, product acceptance (`network`) | the hold is measured from the moment the test sends the prompt, as in the row above, and not from the prompt's row, which a hold before the row is written misses; the first prompt of a [session](../../GLOSSARY.md#session) takes up the start of the process, so the prompt measured is the second; passed when written; mutation (scratch copy): a mod that waits 20 seconds for the delivery fails it | Done | n/a | 53959d30 | d7452c13 |
 | 793d2a1c (amended) | Dedicated example, real dependency (`network`) | the stand-in `engram` also records a run of `auto write`, and there is none; passed when written; mutation (scratch copy): a mod that reports an empty output as a failure fails it | Done | n/a | 53959d30 | d7452c13 |
 | 793d2a1f (amended) | Dedicated example, real dependency (`network`) | the same for the output that is not a block; passed when written; mutation (scratch copy): a mod that reports it as a failure fails it | Done | n/a | 53959d30 | d7452c13 |
@@ -946,6 +952,22 @@ Review finding B-2 ([793b116 The promise names the shapes the redaction catches,
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 793d4j1a (amended) | Property-based (`rapid`) | one probe for each prefix and each shape of a recognised credential, with its parts from their lower bound up; passed when written; mutation (scratch copy): a lower bound of 17 for the prefixes `sk`, `pk` and `rk` fails the probes of those six prefixes | for each shape of a [recognised credential](./793a_product-spec.md#793a1a-terms), whatever text surrounds it: the secret is not in the redacted text, and the name of an assignment is | | Green-all | n/a | | |
 | 793d4j1b (amended) | Dedicated example | the forms the promise leaves out, and each shape one character short of its lower bound, are left as they were: 36 letters, 36 digits, three parts joined by dots that do not begin `eyJ`, and a commit's 40 hexadecimal digits; passed when written; mutation (scratch copy): a rule for a long run that needs no letter and digit fails it | | | Green-all | n/a | | |
+
+#### 793e6i7 The documents say what the branch does
+
+Review findings B-1, B-6, B-8, B-10 to B-14 and the [note](../../GLOSSARY.md#permanent-note) on the flakiness of [793a3c1c A lesson no earlier note states is written](./793a_product-spec.md#793a3c1-uat-scenarios) change no behavior and have no test: a document has no red, and its refactor is the reading of the diff for what could be cut. The rows are named by finding and share the commit that makes the change.
+
+| Finding | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| B-1 | Documentation | [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) and [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) state that a headless [session](../../GLOSSARY.md#session) is judged and swept only when the user asks, [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) names the [turn](./793a_product-spec.md#793a1a-terms) left out, [793e2 Test methods](#793e2-test-methods) says the product rows run with the opt-in, and [793c39 Which origins count as the prompts the user sends?](./793c_open-questions.md#793c39-which-origins-count-as-the-prompts-the-user-sends) keeps the interactive path for the first dogfood session | Done | n/a | | n/a |
+| B-6 | Documentation | [793c88 Does the index keep the short versions of the last chunk of a conversation?](./793c_open-questions.md#793c88-does-the-index-keep-the-short-versions-of-the-last-chunk-of-a-conversation) states the duplicates with the measure, and [793b119 The sweep leaves the short versions of the last chunk in the index](./793b_decision-log.md#793b119-the-sweep-leaves-the-short-versions-of-the-last-chunk-in-the-index) records that today's behavior stays | Done | n/a | | n/a |
+| B-8 | Documentation | [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) says a late write is shown by the next [prompt](./793a_product-spec.md#793a1a-terms) after it finishes ([793b118 A write that finishes late is shown by the next prompt after it finishes](./793b_decision-log.md#793b118-a-write-that-finishes-late-is-shown-by-the-next-prompt-after-it-finishes)) | Done | n/a | | n/a |
+| B-10 | Documentation | the rows with neither a red commit nor a mutation state the mutation that fails them, each run in a scratch copy, and the row of [793d4p1j A mark that cannot be written does not fail the command](./793d_technical-spec.md#793d4p1-scenarios) has its refactor commit | Not started | | | |
+| B-11 | Documentation | one word for each thing across the change: the [transcript](../../GLOSSARY.md#transcript) of a session, and the records of what [automatic memory](./793a_product-spec.md#793a1a-terms) did; the Terms list and the term mod move to the glossary at promotion | Not started | | | |
+| B-12 | Documentation | the questions that blocked nothing, or only this plan, are decisions of the log | Done | n/a | | n/a |
+| B-13 | Documentation | `README.md` and `AGENTS.md` describe the shipped behavior in a sentence or two | Not started | | | |
+| B-14 | Documentation | [793c89 Does the judgement probe stay as an instrument that a target runs, or go?](./793c_open-questions.md#793c89-does-the-judgement-probe-stay-as-an-instrument-that-a-target-runs-or-go) asks the owner | Done | n/a | | n/a |
+| Flakiness | Documentation | the row of [793a3c1c A lesson no earlier note states is written](./793a_product-spec.md#793a3c1-uat-scenarios) shows the pooled tally and the samples under the bar of [793b86 The acceptance run takes a count](./793b_decision-log.md#793b86-the-acceptance-run-takes-a-count) | Done | n/a | | n/a |
 
 ### 793e6f The delivery merges the parent vault
 
