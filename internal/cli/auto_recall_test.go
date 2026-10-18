@@ -209,6 +209,53 @@ func Test855d4b1f_Recall_NothingMatchedPrintsNothing(t *testing.T) {
 	g.Expect(out.String()).To(BeEmpty())
 }
 
+func Test855d4b1l_Recall_TheCandidatesAreInTheOrderOfTheirScoresAndNothingThatFitsPrintsNothing(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a chunk that scores higher than a note comes first", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		payload := payloadOf(
+			noteItem("1.2026-10-17.zorblax-staging-reset.md", "direct", "2026-10-17", resetSituation, resetBody),
+			strings.Replace(chunkItem("/sessions/earlier.jsonl#turn-3", "direct"), "score: 0.5", "score: 0.95", 1))
+
+		var out bytes.Buffer
+
+		err := cli.RunAutoRecall(context.Background(), cli.AutoRecallArgs{VaultPath: "/a/vault"},
+			cli.AutoRecallDeps{
+				Stdin: recallInput("glance", "staging resets"), Query: payloadQuery(payload),
+				ReadChunks: chunksRead(chunk.Record{Source: "/sessions/earlier.jsonl", Anchor: "turn-3", Text: "USER: x."}),
+			}, &out)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		lines := candidateLines(t, out.Bytes())
+
+		g.Expect(lines).To(HaveLen(2))
+
+		if len(lines) == 2 {
+			g.Expect(lines[0]).To(HavePrefix("- /sessions/earlier.jsonl#turn-3 "))
+		}
+	})
+
+	t.Run("a note of more than 60,000 characters alone prints nothing", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		var out bytes.Buffer
+
+		err := cli.RunAutoRecall(context.Background(), cli.AutoRecallArgs{VaultPath: "/a/vault"},
+			cli.AutoRecallDeps{
+				Stdin: recallInput("glance", "staging resets"), ReadChunks: chunksRead(),
+				Query: payloadQuery(payloadOf(noteItem("1.2026-10-17.zorblax-long.md", "direct", "2026-10-17",
+					resetSituation, strings.Repeat("long ", 13000)))),
+			}, &out)
+
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(out.String()).To(BeEmpty())
+	})
+}
+
 func Test855d4b1g_Recall_TheRequestIsForTheMidTierAndHoldsTheVerdictsTheWindowAndTheDated(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

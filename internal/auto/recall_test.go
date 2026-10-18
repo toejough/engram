@@ -82,6 +82,17 @@ func Test855d4b1l_Recall_TheCandidatesAreHeldToACountAndABudget(t *testing.T) {
 		g.Expect(idsOf(step.Carry.Candidates)).To(Equal(idsOf(matched[:30])))
 	})
 
+	t.Run("named example: 32 notes and 12 passages are 20 notes and 10 passages", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		matched := candidatesOfKinds(32, 12)
+		step := auto.Recall(recallOf("glance"), matched)
+
+		g.Expect(step.Carry.Candidates).To(HaveLen(30))
+		g.Expect(passagesIn(step.Carry.Candidates)).To(Equal(10))
+	})
+
 	rapid.Check(t, func(rt *rapid.T) {
 		// a matched set of many short candidates meets the cap on the count, and one of a few long candidates meets the
 		// budget of text, so that neither run holds more text than the test needs
@@ -115,8 +126,8 @@ func Test855d4b1l_Recall_TheCandidatesAreHeldToACountAndABudget(t *testing.T) {
 			rt.Fatalf("%d candidates", len(lines))
 		}
 
-		if !slices.Equal(idsOf(step.Carry.Candidates), idsOf(matched[:len(lines)])) {
-			rt.Fatalf("the candidates are not the first %d of the matched set", len(lines))
+		if !isSubsequence(idsOf(step.Carry.Candidates), idsOf(matched)) {
+			rt.Fatalf("the candidates are not in the order of the matched set: %v", idsOf(step.Carry.Candidates))
 		}
 
 		total := 0
@@ -130,6 +141,76 @@ func Test855d4b1l_Recall_TheCandidatesAreHeldToACountAndABudget(t *testing.T) {
 			rt.Fatalf("%d characters of text", total)
 		}
 	})
+}
+
+// Test855d4b1l_Recall_AMixedMatchedSetKeepsAFloorOfPassages proves the floor of passages under the cap (855b59).
+func Test855d4b1l_Recall_AMixedMatchedSetKeepsAFloorOfPassages(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		notes, passages := rapid.IntRange(0, 45).Draw(rt, "notes"), rapid.IntRange(0, 45).Draw(rt, "passages")
+		matched := rapid.Permutation(candidatesOfKinds(notes, passages)).Draw(rt, "order")
+
+		held := auto.Recall(recallOf("glance"), matched).Carry.Candidates
+
+		if len(held) != min(auto.MaxCandidates, notes+passages) {
+			rt.Fatalf("%d candidates of %d notes and %d passages", len(held), notes, passages)
+		}
+
+		if got := passagesIn(held); got < min(10, passages) {
+			rt.Fatalf("%d passages of %d notes and %d passages", got, notes, passages)
+		}
+
+		if got := len(held) - passagesIn(held); got < min(20, notes) {
+			rt.Fatalf("%d notes of %d notes and %d passages", got, notes, passages)
+		}
+
+		if !isSubsequence(idsOf(held), idsOf(matched)) {
+			rt.Fatalf("the candidates are not in the order of the matched set: %v", idsOf(held))
+		}
+	})
+}
+
+// candidatesOfKinds returns short notes and then short passages, with IDs that tell them apart.
+func candidatesOfKinds(notes, passages int) []auto.Candidate {
+	matched := make([]auto.Candidate, 0, notes+passages)
+
+	for index := range notes {
+		matched = append(matched, auto.Candidate{
+			ID: "n" + strconv.Itoa(index) + ".md", Kind: auto.KindNote, Date: "2026-10-17", Situation: "s", Text: "short",
+		})
+	}
+
+	for index := range passages {
+		matched = append(matched, auto.Candidate{
+			ID: "c" + strconv.Itoa(index) + "#turn-1", Kind: auto.KindPassage, Date: "2026-10-14", Text: "short",
+		})
+	}
+
+	return matched
+}
+
+// isSubsequence reports whether the IDs are some of the matched IDs, in the order of the matched IDs.
+func isSubsequence(ids, matched []string) bool {
+	next := 0
+
+	for _, id := range ids {
+		found := slices.Index(matched[next:], id)
+		if found < 0 {
+			return false
+		}
+
+		next += found + 1
+	}
+
+	return true
+}
+
+// passagesIn counts the passages among candidates.
+func passagesIn(candidates []auto.Candidate) int {
+	return len(slices.DeleteFunc(slices.Clone(candidates), func(candidate auto.Candidate) bool {
+		return candidate.Kind != auto.KindPassage
+	}))
 }
 
 // idsOf returns the IDs of candidates, in their order.
