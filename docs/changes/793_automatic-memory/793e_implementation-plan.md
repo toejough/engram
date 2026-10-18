@@ -78,7 +78,7 @@ The groups, in the order of the catalog ([793b28 Depth-first order](./793b_decis
 | [793e6c Never in the way](#793e6c-never-in-the-way) | the rest of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), without the clause about its own sessions | none | Complete |
 | [793e6d The user can see what it did](#793e6d-the-user-can-see-what-it-did) | [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) | none | Complete |
 | [793e6h The fixes of the review round of the third group](#793e6h-the-fixes-of-the-review-round-of-the-third-group) | the defects the third group's one review round found in [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) and [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), and in their technical requirements | none | Complete |
-| [793e6i The fixes of the review of the whole branch](#793e6i-the-fixes-of-the-review-of-the-whole-branch) | the defects the one review round of the whole branch found in [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did), [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), their technical requirements and the documents | none | In progress: 5/7 nodes complete |
+| [793e6i The fixes of the review of the whole branch](#793e6i-the-fixes-of-the-review-of-the-whole-branch) | the defects the one review round of the whole branch found in [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did), [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), their technical requirements and the documents | none | Complete |
 | [793e6f The delivery merges the parent vault](#793e6f-the-delivery-merges-the-parent-vault) | the clause of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) that the [notes](../../GLOSSARY.md#permanent-note) are those `engram query` returns, for a [vault](../../GLOSSARY.md#vault) that has a parent ([793c34 Does the delivery merge the parent vault, as `engram query` does?](./793c_open-questions.md#793c34-does-the-delivery-merge-the-parent-vault-as-engram-query-does)) | none | Blocked by: [793c34 Does the delivery merge the parent vault, as `engram query` does?](./793c_open-questions.md#793c34-does-the-delivery-merge-the-parent-vault-as-engram-query-does) |
 
 ## 793e9 Dependency graph
@@ -156,15 +156,14 @@ flowchart TD
     n793e6i3 --> n793e6i4[793e6i4 A turn with nothing to write leaves no record, and the records that were shown are removed<br/>Complete]
     n793e6i4 --> n793e6i5[793e6i5 A sweep that is ended at its bound is not run again in the session, and the user is told once<br/>Complete]
     n793e6d5 --> n793e6i5
-    n793e6g8 --> n793e6i6[793e6i6 The credentials that are redacted are the shapes the promise names<br/>In progress: 0/2 entries complete]
-    n793e6i1 --> n793e6i7[793e6i7 The documents say what the branch does<br/>In progress: 7/9 entries complete]
+    n793e6g8 --> n793e6i6[793e6i6 The credentials that are redacted are the shapes the promise names<br/>Complete]
+    n793e6i1 --> n793e6i7[793e6i7 The documents say what the branch does<br/>Complete]
     n793e6i2 --> n793e6i7
     n793e6i3 --> n793e6i7
     n793e6i4 --> n793e6i7
     n793e6i5 --> n793e6i7
     n793e6i6 --> n793e6i7
-    class n793e6i1,n793e6i2,n793e6i3,n793e6i4,n793e6i5 complete
-    class n793e6i6,n793e6i7 progress
+    class n793e6i1,n793e6i2,n793e6i3,n793e6i4,n793e6i5,n793e6i6,n793e6i7 complete
     classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
@@ -810,7 +809,7 @@ Review finding G3-1, the blocker ([793b105 What is shown, and how](./793b_decisi
 | 793d4p1g (amended) | Dedicated example | the directory of records through the dispatch of `engram auto deliver`, with the flag and without it, on standard error | | | Done | a2deed27 | d0f7f9f8 | 8af1fbcd |
 | 793d4p1h | Dedicated example | the line of a note delivered, over a vault of one note | | | Done | a2deed27 | d0f7f9f8 | 8af1fbcd |
 | 793d4p1i | Property-based (`rapid`) | the form of every line printed, whatever the texts of notes and records hold | whatever the texts hold: each line printed on standard error is one line, holds no control or format character and no white space but a space, and there is one for each note delivered and for each record shown, five at most | | Done | a2deed27 | d0f7f9f8 | 8af1fbcd |
-| 793d4p1j | Dedicated example | a place for the marks that refuses every write: the lines are printed and the command succeeds; passed when written, since the command ignores the failure of a mark; mutation (scratch copy): a command that fails when a mark cannot be written fails it | | | Done | n/a | 1105c330 | n/a |
+| 793d4p1j | Dedicated example | a place for the marks that refuses every write: the lines are printed and the command succeeds; passed when written, since the command ignores the failure of a mark; mutation (scratch copy): a command that fails when a mark cannot be written fails it | | | Done | n/a | 1105c330 | 69e24dbe |
 
 | Finding | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -889,7 +888,7 @@ Review finding B-9 ([793b111 The mark of a note written automatically is looked 
 | Gherkin | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 793d4c1c (amended) | Dedicated example | the source the earlier mod wrote, `captured from the conversation; written automatically (session s1, turn 3)`, over a note on disk | | Done | de9bc0d7 | c9ce9998 | 27eb7424 |
-| 793d4c1a (amended) | Property-based (`rapid`) | the sources of the earlier mod's form among the hostile ones; passed when written, the code being right and the property wrong; mutation (scratch copy): a check of the words at the start of the source fails it | the properties of [793d4c1a A note cannot reshape the block](./793d_technical-spec.md#793d4c1-scenarios), with the line of a note marked if and only if its source holds the words `written automatically` anywhere in it | Done | n/a | 007f22a1 | |
+| 793d4c1a (amended) | Property-based (`rapid`) | the sources of the earlier mod's form among the hostile ones; passed when written, the code being right and the property wrong; mutation (scratch copy): a check of the words at the start of the source fails it | the properties of [793d4c1a A note cannot reshape the block](./793d_technical-spec.md#793d4c1-scenarios), with the line of a note marked if and only if its source holds the words `written automatically` anywhere in it | Done | n/a | 007f22a1 | 69e24dbe |
 
 #### 793e6i2 The warnings of the lookup go to the debug log, not to the user
 
@@ -897,7 +896,7 @@ Review finding B-5 ([793b112 The warnings of the lookup go to the debug log](./7
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793d4p1k | Dedicated example | `engram auto deliver` dispatched over a [vault](../../GLOSSARY.md#vault) of two notes, the embedding of one of another model, with a debug log: standard error holds the line of the note delivered and nothing else, and the log holds the warning | Done | 14029428 | fd1c7650 | |
+| 793d4p1k | Dedicated example | `engram auto deliver` dispatched over a [vault](../../GLOSSARY.md#vault) of two notes, the embedding of one of another model, with a debug log: standard error holds the line of the note delivered and nothing else, and the log holds the warning | Done | 14029428 | fd1c7650 | c6628500 |
 
 #### 793e6i3 One line is shown for each of what was delivered, written, left out and failed
 
@@ -950,8 +949,8 @@ Review finding B-2 ([793b116 The promise names the shapes the redaction catches,
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793d4j1a (amended) | Property-based (`rapid`) | one probe for each prefix and each shape of a recognised credential, with its parts from their lower bound up; passed when written; mutation (scratch copy): a lower bound of 17 for the prefixes `sk`, `pk` and `rk` fails the probes of those six prefixes | for each shape of a [recognised credential](./793a_product-spec.md#793a1a-terms), whatever text surrounds it: the secret is not in the redacted text, and the name of an assignment is | | Green-all | n/a | | |
-| 793d4j1b (amended) | Dedicated example | the forms the promise leaves out, and each shape one character short of its lower bound, are left as they were: 36 letters, 36 digits, three parts joined by dots that do not begin `eyJ`, and a commit's 40 hexadecimal digits; passed when written; mutation (scratch copy): a rule for a long run that needs no letter and digit fails it | | | Green-all | n/a | | |
+| 793d4j1a (amended) | Property-based (`rapid`) | one probe for each prefix and each shape of a recognised credential, with its parts from their lower bound up; passed when written; mutation (scratch copy): a lower bound of 17 for the prefixes `sk`, `pk` and `rk` fails the probes of those six prefixes | for each shape of a [recognised credential](./793a_product-spec.md#793a1a-terms), whatever text surrounds it: the secret is not in the redacted text, and the name of an assignment is | | Done | n/a | 78cebe00 | 69e24dbe |
+| 793d4j1b (amended) | Dedicated example | the forms the promise leaves out, and each shape one character short of its lower bound, are left as they were: 36 letters, 36 digits, three parts joined by dots that do not begin `eyJ`, and a commit's 40 hexadecimal digits; passed when written; mutation (scratch copy): a rule for a long run that needs no letter and digit fails it | | | Done | n/a | 78cebe00 | 69e24dbe |
 
 #### 793e6i7 The documents say what the branch does
 
@@ -962,10 +961,10 @@ Review findings B-1, B-6, B-8, B-10 to B-14 and the [note](../../GLOSSARY.md#per
 | B-1 | Documentation | [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent) and [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) state that a headless [session](../../GLOSSARY.md#session) is judged and swept only when the user asks, [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) names the [turn](./793a_product-spec.md#793a1a-terms) left out, [793e2 Test methods](#793e2-test-methods) says the product rows run with the opt-in, and [793c39 Which origins count as the prompts the user sends?](./793c_open-questions.md#793c39-which-origins-count-as-the-prompts-the-user-sends) keeps the interactive path for the first dogfood session | Done | n/a | 40a8f05b | n/a |
 | B-6 | Documentation | [793c88 Does the index keep the short versions of the last chunk of a conversation?](./793c_open-questions.md#793c88-does-the-index-keep-the-short-versions-of-the-last-chunk-of-a-conversation) states the duplicates with the measure, and [793b119 The sweep leaves the short versions of the last chunk in the index](./793b_decision-log.md#793b119-the-sweep-leaves-the-short-versions-of-the-last-chunk-in-the-index) records that today's behavior stays | Done | n/a | 40a8f05b | n/a |
 | B-8 | Documentation | [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) says a late write is shown by the next [prompt](./793a_product-spec.md#793a1a-terms) after it finishes ([793b118 A write that finishes late is shown by the next prompt after it finishes](./793b_decision-log.md#793b118-a-write-that-finishes-late-is-shown-by-the-next-prompt-after-it-finishes)) | Done | n/a | 40a8f05b | n/a |
-| B-10 | Documentation | the rows with neither a red commit nor a mutation state the mutation that fails them, each run in a scratch copy, and the row of [793d4p1j A mark that cannot be written does not fail the command](./793d_technical-spec.md#793d4p1-scenarios) has its refactor commit | Not started | | | |
-| B-11 | Documentation | one word for each thing across the change: the [transcript](../../GLOSSARY.md#transcript) of a session, and the records of what [automatic memory](./793a_product-spec.md#793a1a-terms) did; the Terms list and the term mod move to the glossary at promotion ([793b124 A transcript is the session's, a record is a file automatic memory writes](./793b_decision-log.md#793b124-a-transcript-is-the-sessions-a-record-is-a-file-automatic-memory-writes)) | Done | n/a | | n/a |
+| B-10 | Documentation | the rows with neither a red commit nor a mutation state the mutation that fails them, each run in a scratch copy, and the row of [793d4p1j A mark that cannot be written does not fail the command](./793d_technical-spec.md#793d4p1-scenarios) has its refactor commit | Done | n/a | 40a8f05b | 69e24dbe |
+| B-11 | Documentation | one word for each thing across the change: the [transcript](../../GLOSSARY.md#transcript) of a session, and the records of what [automatic memory](./793a_product-spec.md#793a1a-terms) did; the Terms list and the term mod move to the glossary at promotion ([793b124 A transcript is the session's, a record is a file automatic memory writes](./793b_decision-log.md#793b124-a-transcript-is-the-sessions-a-record-is-a-file-automatic-memory-writes)) | Done | n/a | a8175f74 | n/a |
 | B-12 | Documentation | the questions that blocked nothing, or only this plan, are decisions of the log | Done | n/a | 40a8f05b | n/a |
-| B-13 | Documentation | `README.md` and `AGENTS.md` describe the shipped behavior in a sentence or two: the four `engram auto` entries are one, the [`engram update`](../../GLOSSARY.md#engram-update) line names the mods, the layout line covers the whole package, the lines are at most four, and `targ check-full` needs `node` | Done | n/a | | n/a |
+| B-13 | Documentation | `README.md` and `AGENTS.md` describe the shipped behavior in a sentence or two: the four `engram auto` entries are one, the [`engram update`](../../GLOSSARY.md#engram-update) line names the mods, the layout line covers the whole package, the lines are at most four, and `targ check-full` needs `node` | Done | n/a | 5cb00537 | n/a |
 | B-14 | Documentation | [793c89 Does the judgement probe stay as an instrument that a target runs, or go?](./793c_open-questions.md#793c89-does-the-judgement-probe-stay-as-an-instrument-that-a-target-runs-or-go) asks the owner | Done | n/a | 40a8f05b | n/a |
 | Flakiness | Documentation | the row of [793a3c1c A lesson no earlier note states is written](./793a_product-spec.md#793a3c1-uat-scenarios) shows the pooled tally and the samples under the bar of [793b86 The acceptance run takes a count](./793b_decision-log.md#793b86-the-acceptance-run-takes-a-count) | Done | n/a | 40a8f05b | n/a |
 
