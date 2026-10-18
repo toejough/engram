@@ -300,9 +300,10 @@ func Test855d4b1g_Recall_TheRequestIsForTheMidTierAndHoldsTheVerdictsTheWindowAn
 	g.Expect(step.Carry.Window).To(Equal("User: Prepare a test run."))
 	g.Expect(step.Carry.Candidates).To(Equal([]map[string]any{
 		{"id": "1.2026-10-17.zorblax-staging-reset.md", "kind": "note", "type": "fact", "date": "2026-10-17",
-			"situation": resetSituation, "text": resetBody, "parent": false, "pending": false},
+			"situation": resetSituation, "text": resetBody, "parent": false, "pending": false, "source": "a session"},
 		{"id": "2.2026-10-12.zorblax-backup-window.md", "kind": "note", "type": "fact", "date": "2026-10-12",
-			"situation": "backing up Zorblax", "text": "Back up at 02:00.", "parent": true, "pending": false},
+			"situation": "backing up Zorblax", "text": "Back up at 02:00.", "parent": true, "pending": false,
+			"source": "a session"},
 		{"id": "/sessions/earlier.jsonl#turn-3", "kind": "passage", "type": "", "date": "2026-10-14", "situation": "",
 			"text": "USER: the staging resets on Sunday.", "parent": false, "pending": false},
 	}))

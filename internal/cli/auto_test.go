@@ -328,7 +328,7 @@ func Test793d4e1a_Targets_AutoDeliverCreatesNoVault(t *testing.T) {
 			d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
 			d.Getenv = func(string) string { return "" }
 			d.UserHomeDir = func() (string, error) { return home, nil }
-			d.Stdin = userPrompt("anything", "")
+			d.Stdin = requestJSON(withoutReply(deliveryFields("", resetCandidate())))
 			d.Stdout = &stdout
 		})
 
@@ -462,7 +462,7 @@ func Test793d4f1d_Targets_NoRecordIsReadWhenNoDirectoryCanBeFound(t *testing.T) 
 		d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
 		d.Getenv = func(string) string { return "" }
 		d.UserHomeDir = func() (string, error) { return "", errNoHome }
-		d.Stdin = userPrompt("When is the Zorblax staging database reset?", sessionID)
+		d.Stdin = deliveryRequest(sessionID, resetCandidate(), backupCandidate())
 		d.Stdout = &stdout
 		d.FS = recordsReadFS{EdgeFS: d.FS, reads: &reads}
 	})
@@ -565,7 +565,7 @@ func deliverBy(t *testing.T, vault, home string, environment map[string]string) 
 		d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
 		d.Getenv = func(name string) string { return environment[name] }
 		d.UserHomeDir = func() (string, error) { return home, nil }
-		d.Stdin = userPrompt("When is the Zorblax staging database reset?", sessionID)
+		d.Stdin = deliveryRequest(sessionID, resetCandidate(), backupCandidate())
 		d.Stdout = &stdout
 	})
 

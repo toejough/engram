@@ -73,15 +73,20 @@ func activityText(kind string, records []Record) string {
 	return squeezed(records[0].At.Format(activityClock)+" "+phrase, shownLimit)
 }
 
-// deliveredLine is the line that tells the notes delivered with a prompt, cut in its middle where it is long.
-func deliveredLine(notes []Note) string {
-	names := make([]string, 0, len(notes))
+// deliveredLine is the line that tells the notes and the passages delivered, cut in its middle where it is long
+// (855d8a): the notes, then the passages, joined by `and`.
+func deliveredLine(notes, passages []Candidate) string {
+	parts := make([]string, 0, 2)
 
-	for _, note := range notes {
-		names = append(names, oneLine(note.Path))
+	if len(notes) > 0 {
+		parts = append(parts, "the "+noteWord(len(notes))+" "+idsOf(notes))
 	}
 
-	return squeezed("delivered the "+noteWord(len(notes))+" "+strings.Join(names, ", "), shownLimit)
+	if len(passages) > 0 {
+		parts = append(parts, "the "+passageWord(len(passages))+" "+idsOf(passages))
+	}
+
+	return squeezed("delivered "+strings.Join(parts, " and "), shownLimit)
 }
 
 // filesOf returns the file of each record.
@@ -95,6 +100,17 @@ func filesOf(records []Record) []string {
 	return files
 }
 
+// idsOf is the ID of each candidate, written as one line, separated by commas.
+func idsOf(candidates []Candidate) string {
+	ids := make([]string, 0, len(candidates))
+
+	for _, candidate := range candidates {
+		ids = append(ids, oneLine(candidate.ID))
+	}
+
+	return strings.Join(ids, ", ")
+}
+
 // noteWord is note, or notes when there are several.
 func noteWord(count int) string {
 	if count == 1 {
@@ -102,6 +118,15 @@ func noteWord(count int) string {
 	}
 
 	return "notes"
+}
+
+// passageWord is passage, or passages when there are several.
+func passageWord(count int) string {
+	if count == 1 {
+		return "passage"
+	}
+
+	return "passages"
 }
 
 // partText is what a record adds to the line of its kind: the file name of the note written, or the reason, with the

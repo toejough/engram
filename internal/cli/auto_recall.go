@@ -112,7 +112,7 @@ func candidatesOf(
 			candidates = append(candidates, auto.Candidate{
 				ID: item.Path, Kind: auto.KindNote, Type: item.Kind, Date: fields.Created, Situation: fields.Situation,
 				Text:   strings.TrimSpace(body),
-				Parent: item.FromParent != nil && *item.FromParent, Pending: fields.Pending,
+				Parent: item.FromParent != nil && *item.FromParent, Pending: fields.Pending, Source: fields.Source,
 			})
 
 			continue
