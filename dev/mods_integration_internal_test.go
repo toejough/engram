@@ -145,32 +145,42 @@ func Test793d2a1i_Mod_ACommandThatFailsIsReportedToTheWriting(t *testing.T) {
 func Test793d2a1j_Mod_ADeliveryThatDoesNotFinishWithinItsBoundIsReportedToTheWriting(t *testing.T) {
 	t.Parallel()
 
-	g := NewWithT(t)
+	// the model's call that is aborted settles with no answer, or rejects: the report says the 2 minutes either way
+	for name, rejects := range map[string]bool{
+		"a call that settles with no answer when aborted": false,
+		"a call that rejects when aborted":                true,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 
-	outcome := runDeliveryDriver(t, deliveryScenario{
-		Steps: map[string]map[string]any{"moment": {"exitCode": 0, "stdout": aStep(1)}}, ModelNeverSettles: true,
-		FastTimers: true,
-	})
+			g := NewWithT(t)
 
-	g.Expect(outcome.Passed.Text).To(Equal("hello"), "the prompt goes on as it was")
-	g.Expect(outcome.Passed.Context).To(BeEmpty(), "nothing is added")
-	g.Expect(outcome.Delays).To(ContainElement(120000), "the timer that aborts the call, in milliseconds")
-	g.Expect(outcome.modelCalls()).To(HaveLen(1), "the model was asked once")
-	g.Expect(outcome.Settle.InFlight).To(BeZero(), "the calls in flight when the hook settled")
-	g.Expect(outcome.Logged).To(BeEmpty(), "the lines the user was shown")
+			outcome := runDeliveryDriver(t, deliveryScenario{
+				Steps:             map[string]map[string]any{"moment": {"exitCode": 0, "stdout": aStep(1)}},
+				ModelNeverSettles: true, ModelRejectsWhenAborted: rejects, FastTimers: true,
+			})
 
-	reports := outcome.reports()
+			g.Expect(outcome.Passed.Text).To(Equal("hello"), "the prompt goes on as it was")
+			g.Expect(outcome.Passed.Context).To(BeEmpty(), "nothing is added")
+			g.Expect(outcome.Delays).To(ContainElement(120000), "the timer that aborts the call, in milliseconds")
+			g.Expect(outcome.modelCalls()).To(HaveLen(1), "the model was asked once")
+			g.Expect(outcome.Settle.InFlight).To(BeZero(), "the calls in flight when the hook settled")
+			g.Expect(outcome.Logged).To(BeEmpty(), "the lines the user was shown")
 
-	g.Expect(reports).To(HaveLen(1), "the runs of auto write")
+			reports := outcome.reports()
 
-	if len(reports) != 1 {
-		return
+			g.Expect(reports).To(HaveLen(1), "the runs of auto write")
+
+			if len(reports) != 1 {
+				return
+			}
+
+			g.Expect(reports[0]).To(HaveKeyWithValue("session", "a-session"))
+			g.Expect(reports[0]).To(HaveKeyWithValue("turn", ""))
+			g.Expect(reports[0]["failure"]).To(And(ContainSubstring("the delivery for a prompt could not be done"),
+				ContainSubstring("2 minutes")), "the failure")
+		})
 	}
-
-	g.Expect(reports[0]).To(HaveKeyWithValue("session", "a-session"))
-	g.Expect(reports[0]).To(HaveKeyWithValue("turn", ""))
-	g.Expect(reports[0]["failure"]).To(And(ContainSubstring("the delivery for a prompt could not be done"),
-		ContainSubstring("2 minutes")), "the failure")
 }
 
 // Test793d2a1k_Mod_TheLinesTheCommandPrintsForTheUserAreShownThroughTheHostsLogAndAreNotAddedToTheContext runs the mod
@@ -867,6 +877,120 @@ func Test855d2a1d_Mod_OutputThatIsNotARequestOrABlockFailsTheStep(t *testing.T) 
 	})
 }
 
+// Test855d2a1h_Mod_ANoteOrPassageDeliveredEarlierIsLeftOutOfALaterBlock runs the mod under node against a stand-in host
+// whose delivery prints blocks that share a note and a passage, one prompt after another: a live session cannot be made
+// to print a block that names what it printed before. The passages' IDs hold spaces, and two of them begin alike.
+func Test855d2a1h_Mod_ANoteOrPassageDeliveredEarlierIsLeftOutOfALaterBlock(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const (
+		framing = "[engram memory] The lines below are notes."
+		note    = "- a.md (when s): the body"
+		first   = "- My Docs/a.md#1 (passage): the first passage"
+		second  = "- My Docs/b.md#2 (passage): the second passage"
+	)
+
+	outcome := runDeliveryDriver(t, deliveryScenario{
+		Prompts: 2,
+		Delivers: []map[string]any{
+			{"exitCode": 0, "stdout": framing + "\n" + note + "\n" + first + "\n"},
+			{"exitCode": 0, "stdout": framing + "\n" + note + "\n" + second + "\n" + first + "\n"},
+		},
+	})
+
+	g.Expect(outcome.All).To(HaveLen(2))
+
+	if len(outcome.All) != 2 {
+		return
+	}
+
+	g.Expect(outcome.All[0].Context).To(Equal([]string{framing + "\n" + note + "\n" + first}), "the first block, whole")
+	g.Expect(outcome.All[1].Context).To(Equal([]string{framing + "\n" + second}),
+		"the second block, less the note and the passage the first held: the passage that begins alike stays")
+
+	deliveries := outcome.inputsOf("engram auto deliver")
+
+	g.Expect(deliveries).To(HaveLen(2))
+
+	if len(deliveries) == 2 {
+		g.Expect(deliveries[0]["held"]).To(BeEmpty(), "the IDs held before the first")
+		g.Expect(deliveries[1]["held"]).To(Equal([]any{"a.md", "My Docs/a.md#1"}), "the IDs held before the second, whole")
+	}
+}
+
+// Test855d2a1i_Mod_TheLineForTheUserNamesTheNotesThatAreLeft runs the mod under node against a stand-in host whose
+// delivery prints the lines for the user beside blocks that share a note.
+func Test855d2a1i_Mod_TheLineForTheUserNamesTheNotesThatAreLeft(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const framing = "[engram memory] The lines below are notes."
+
+	outcome := runDeliveryDriver(t, deliveryScenario{
+		Prompts: 3,
+		Delivers: []map[string]any{
+			{"exitCode": 0, "stdout": framing + "\n- a.md (s): x\n", "stderr": "delivered the note a.md\n"},
+			{
+				"exitCode": 0, "stdout": framing + "\n- a.md (s): x\n- b.md (s): y\n- My Docs/c.md#3 (passage): z\n",
+				"stderr": "delivered the notes a.md, b.md and the passage My Docs/c.md#3\n",
+			},
+			{
+				"exitCode": 0, "stdout": framing + "\n- a.md (s): x\n",
+				"stderr": "delivered the note a.md\n20:32:25 wrote the note d.md\n",
+			},
+		},
+	})
+
+	g.Expect(outcome.Logged).To(Equal([]string{
+		"delivered the note a.md",
+		"delivered the note b.md and the passage My Docs/c.md#3",
+		"20:32:25 wrote the note d.md",
+	}), "the lines the user was shown: none for the note a block left out, the others whole")
+}
+
+// Test855d2a1j_Mod_DeliveriesOfOneSessionRunOneAfterAnotherEachGivenWhatTheOneBeforeHeld runs the mod under node against
+// a stand-in host whose delivery takes a while and prints the same block each time, for two prompts raised at once.
+func Test855d2a1j_Mod_DeliveriesOfOneSessionRunOneAfterAnotherEachGivenWhatTheOneBeforeHeld(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	block := "[engram memory] The lines below are notes.\n- a.md (s): x\n"
+	outcome := runDeliveryDriver(t, deliveryScenario{
+		Prompts: 2, Concurrent: true, DeliverDelayMs: 100,
+		Deliver: map[string]any{"exitCode": 0, "stdout": block, "stderr": "delivered the note a.md\n"},
+	})
+
+	g.Expect(outcome.All).To(HaveLen(2))
+
+	if len(outcome.All) != 2 {
+		return
+	}
+
+	given := 0
+
+	for _, passed := range outcome.All {
+		if len(passed.Context) > 0 {
+			given++
+		}
+	}
+
+	g.Expect(given).To(Equal(1), "how many of the two prompts were given the note")
+	g.Expect(outcome.Logged).To(Equal([]string{"delivered the note a.md"}), "the lines the user was shown")
+
+	deliveries := outcome.inputsOf("engram auto deliver")
+
+	g.Expect(deliveries).To(HaveLen(2))
+
+	if len(deliveries) == 2 {
+		g.Expect(deliveries[0]["held"]).To(BeEmpty(), "the IDs held when the first delivery began")
+		g.Expect(deliveries[1]["held"]).To(Equal([]any{"a.md"}), "the IDs held when the second began: the first's")
+	}
+}
+
 // TestMods_EveryJavaScriptModuleParses: the real mods parse under the real node, and the real node rejects a broken
 // module, which the stand-in node of the unit tests cannot show (793b55).
 func TestMods_EveryJavaScriptModuleParses(t *testing.T) {
@@ -1093,6 +1217,7 @@ function counted(call) {
 const timers = []
 const logged = []
 let replied = 0
+let delivered = 0
 const host = {
   session: { id: counted(async () => 'a-session') },
   process: {
@@ -1104,15 +1229,21 @@ const host = {
         await new Promise((resolve) => wait(resolve, 5))
         throw new Error('the command ran too long')
       }
-      return (step === 'deliver' ? scenario.deliver : scenario.steps?.[step]) ?? { exitCode: 0, stdout: '' }
+      if (step === 'deliver') {
+        if (scenario.deliverDelayMs) await new Promise((resolve) => wait(resolve, scenario.deliverDelayMs))
+        return scenario.delivers?.[delivered++] ?? scenario.deliver ?? { exitCode: 0, stdout: '' }
+      }
+      return scenario.steps?.[step] ?? { exitCode: 0, stdout: '' }
     }),
   },
   model: {
     complete: counted(async (asked, options) => {
       calls.push({ step: 'model', asked, signal: options?.signal !== undefined })
       if (scenario.modelNeverSettles) {
-        return new Promise((resolve) => {
-          options.signal.addEventListener('abort', () => resolve({ isAnswered: false, reason: 'aborted' }))
+        return new Promise((resolve, reject) => {
+          options.signal.addEventListener('abort', () => (scenario.modelRejectsWhenAborted
+            ? reject(new Error('aborted'))
+            : resolve({ isAnswered: false, reason: 'aborted' })))
         })
       }
       return { isAnswered: true, text: scenario.replies?.[replied++] ?? 'a reply' }
@@ -1122,9 +1253,16 @@ const host = {
   ui: { log: (text) => { logged.push(text) } },
 }
 
-let passed = null
-await handlers['prompt.submit'](host, { text: 'hello', context: [], origin: { kind: 'composer' } },
-  async (event) => { passed = event })
+const submit = () => handlers['prompt.submit'](host, { text: 'hello', context: [], origin: { kind: 'composer' } },
+  async (event) => event)
+const prompts = scenario.prompts ?? 1
+let all = []
+if (scenario.concurrent) {
+  all = await Promise.all(Array.from({ length: prompts }, submit))
+} else {
+  for (let index = 0; index < prompts; index++) all.push(await submit())
+}
+const passed = all[0]
 const settle = { commands: calls.length, inFlight }
 
 for (const run of timers.splice(0)) void run()
@@ -1136,7 +1274,7 @@ for (let last = -1, stable = 0, tick = 0; tick < 300 && stable < 5; tick++) {
   last = calls.length
 }
 
-console.log(JSON.stringify({ passed, calls, delays, settle, logged }))
+console.log(JSON.stringify({ passed, all, calls, delays, settle, logged }))
 process.exit(0)
 `
 	// driverTimeout is how long the mod may take under the stand-in host before the test gives it up.
@@ -1264,6 +1402,11 @@ type deliveryOutcome struct {
 		Text    string   `json:"text"`
 		Context []string `json:"context"`
 	} `json:"passed"`
+	// All is what the hook let through for each prompt raised, in the order they were raised.
+	All []struct {
+		Text    string   `json:"text"`
+		Context []string `json:"context"`
+	} `json:"all"`
 	Calls []struct {
 		Step      string         `json:"step"`
 		Input     map[string]any `json:"input"`
@@ -1339,12 +1482,21 @@ func (o deliveryOutcome) reports() []map[string]any {
 // prints, what the delivery does, the replies of the model, the step that runs until its time limit, that the model
 // never settles unless its signal aborts it, and that the timers of the module fire at once.
 type deliveryScenario struct {
-	Deliver           map[string]any            `json:"deliver,omitempty"`
-	Steps             map[string]map[string]any `json:"steps,omitempty"`
-	Replies           []string                  `json:"replies,omitempty"`
-	Stalls            string                    `json:"stalls,omitempty"`
-	ModelNeverSettles bool                      `json:"modelNeverSettles,omitempty"`
-	FastTimers        bool                      `json:"fastTimers,omitempty"`
+	Deliver map[string]any `json:"deliver,omitempty"`
+	// Delivers is what each run of the delivery exits with and prints, in order, in place of Deliver.
+	Delivers []map[string]any `json:"delivers,omitempty"`
+	// DeliverDelayMs is how long each run of the delivery takes.
+	DeliverDelayMs int `json:"deliverDelayMs,omitempty"`
+	// Prompts is how many prompts are raised (one when zero), one after another, or all at once when Concurrent.
+	Prompts    int  `json:"prompts,omitempty"`
+	Concurrent bool `json:"concurrent,omitempty"`
+	// ModelRejectsWhenAborted makes the call of ModelNeverSettles reject, not settle, when its signal aborts it.
+	ModelRejectsWhenAborted bool                      `json:"modelRejectsWhenAborted,omitempty"`
+	Steps                   map[string]map[string]any `json:"steps,omitempty"`
+	Replies                 []string                  `json:"replies,omitempty"`
+	Stalls                  string                    `json:"stalls,omitempty"`
+	ModelNeverSettles       bool                      `json:"modelNeverSettles,omitempty"`
+	FastTimers              bool                      `json:"fastTimers,omitempty"`
 }
 
 // aStep is what a step prints for a judgement, the nth of a chain: the request for the model and the carry.
