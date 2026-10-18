@@ -83,9 +83,9 @@ const (
 //go:embed prompts/place.txt
 var placeInstructions string
 
-// seenLines writes the seen notes, one line each, in the form of a line of a block: a file name as it is, since a name is
-// no credential (855b69), the situation and the body written as one line and redacted, and the body cut to the limit of
-// a note (855d4h).
+// seenLines writes the seen notes, one line each, in the form of a line of a block: a file name as it is, since a name
+// is no credential (855b69), the situation and the body written as one line and redacted, and the body cut to the
+// limit of a note (855d4h).
 func seenLines(notes []Note) string {
 	lines := make([]string, 0, len(notes))
 

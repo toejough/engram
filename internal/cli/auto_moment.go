@@ -34,9 +34,9 @@ type AutoMomentDeps struct {
 type RecordRead func(dir, session string) []byte
 
 // RunAutoMoment reads a moment from standard input and prints the request for the model that judges it, and the carry
-// for the next step, or nothing when the prompt is not one the user sends, or, at the end of a turn, when the turn is a
-// headless one that the user did not ask to capture, which a record tells (855d4a, 855d4m). The record of the session is
-// read once, and a session with no record is judged without conversation lines.
+// for the next step, or nothing when the prompt is not one the user sends, or, at the end of a turn, when the turn is
+// a headless one that the user did not ask to capture, which a record tells (855d4a, 855d4m). The record of the
+// session is read once, and a session with no record is judged without conversation lines.
 func RunAutoMoment(ctx context.Context, args AutoMomentArgs, deps AutoMomentDeps, stdout io.Writer) error {
 	var input auto.MomentInput
 

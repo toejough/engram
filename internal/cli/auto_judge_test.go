@@ -102,39 +102,6 @@ func Test793d4g1d_RunAutoJudge_AnInputThatIsNotAJSONObjectFailsTheCommand(t *tes
 	g.Expect(out.String()).To(BeEmpty())
 }
 
-func Test855d4g1d_Judge_AJudgementThatPrintsNothingLogsIt(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	sessions := t.TempDir()
-	record := `{"type":"user","message":{"role":"user","content":"Thanks, that settles it."}}` + "\n"
-	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
-
-	var logged, out bytes.Buffer
-
-	ctx := debuglog.WithLogger(context.Background(),
-		debuglog.New(&logged, "engram", func() time.Time { return recordedAt }))
-
-	err := cli.RunAutoJudge(ctx, cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: sessions},
-		cli.AutoJudgeDeps{
-			Stdin: strings.NewReader(`{"origin":"composer","session":"` + sessionID +
-				`","reply":"{\"learn\":false}","answer":"You are welcome."}`),
-			Query:    queryOver(newQueryDeps(newInMemoryFS())),
-			ReadDir:  os.ReadDir,
-			ReadFile: os.ReadFile,
-		}, &out)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(out.String()).To(BeEmpty())
-
-	lines := strings.Split(strings.TrimSpace(logged.String()), "\n")
-
-	g.Expect(lines).To(HaveLen(1), "a line for the judgement")
-
-	if len(lines) == 1 {
-		g.Expect(lines[0]).To(HaveSuffix("[engram] auto.judge: session=" + sessionID + " nothing"))
-	}
-}
-
 func Test793d4g1h_RunAutoJudge_TheNearestNotesAreInTheRequest(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -391,6 +358,44 @@ func Test793d4g1x_RunAutoJudge_AVaultThatDoesNotExistFailsTheCommand(t *testing.
 	g.Expect(looked).To(BeFalse(), "the lookup was not run")
 }
 
+func Test855d4g1d_Judge_AJudgementThatPrintsNothingLogsIt(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	sessions := t.TempDir()
+	record := `{"type":"user","message":{"role":"user","content":"Thanks, that settles it."}}` + "\n"
+	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
+
+	var logged, out bytes.Buffer
+
+	ctx := debuglog.WithLogger(context.Background(),
+		debuglog.New(&logged, "engram", func() time.Time { return recordedAt }))
+
+	err := cli.RunAutoJudge(ctx, cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: sessions},
+		cli.AutoJudgeDeps{
+			Stdin: strings.NewReader(`{"origin":"composer","session":"` + sessionID +
+				`","reply":"{\"learn\":false}","answer":"You are welcome."}`),
+			Query:    queryOver(newQueryDeps(newInMemoryFS())),
+			ReadDir:  os.ReadDir,
+			ReadFile: os.ReadFile,
+		}, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(out.String()).To(BeEmpty())
+
+	lines := strings.Split(strings.TrimSpace(logged.String()), "\n")
+
+	g.Expect(lines).To(HaveLen(1), "a line for the judgement")
+
+	if len(lines) == 1 {
+		g.Expect(lines[0]).To(HaveSuffix("[engram] auto.judge: session=" + sessionID + " nothing"))
+	}
+}
+
+// unexported constants.
+const (
+	learnTrue = `"reply":"{\"learn\":true}",`
+)
+
 // judgedRequest is the request that the judgement prints: the fields of it that the tests read.
 type judgedRequest struct {
 	System string `json:"system"`
@@ -432,10 +437,6 @@ func judged(t *testing.T, record, input string) judgedRequest {
 
 	return step.Request
 }
-
-// learnTrue is the field that carries the reply of the learn-moment judgement to the judgement of a turn: the turn is
-// a learn moment.
-const learnTrue = `"reply":"{\"learn\":true}",`
 
 // turnInput is the JSON object the memory mod hands to the judgement for a turn of a prompt of the composer that the
 // learn-moment judgement found to be a learn moment.

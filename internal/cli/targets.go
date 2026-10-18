@@ -157,6 +157,29 @@ func amendResituateTargets(
 	}
 }
 
+// autoLearnTargets returns the steps of the learn chain that come before the writing: the judgement and the placement.
+func autoLearnTargets(
+	deps Deps,
+	withLog func(context.Context) context.Context,
+	errHandler func(error),
+	paths func(vault, sessions string) (string, string),
+) []any {
+	return []any{
+		targ.Targ(func(ctx context.Context, a AutoJudgeArgs) {
+			a.VaultPath, a.SessionsDir = paths(a.VaultPath, a.SessionsDir)
+
+			errHandler(RunAutoJudge(withLog(ctx), a, newAutoJudgeDeps(deps), deps.Stdout))
+		}).Name("judge").Description(
+			"Print the request for the model that judges a turn (the automatic-memory mod runs this after each turn)"),
+		targ.Targ(func(ctx context.Context, a AutoPlaceArgs) {
+			a.VaultPath, a.SessionsDir = paths(a.VaultPath, a.SessionsDir)
+
+			errHandler(RunAutoPlace(withLog(ctx), a, newAutoPlaceDeps(deps), deps.Stdout))
+		}).Name("place").Description(
+			"Print the request for the model that places the lessons of a turn (the mod runs this after a judgement)"),
+	}
+}
+
 // autoRecallTargets returns the steps of the recall chain that come before the delivery: the moment, the phrases and
 // the recall.
 func autoRecallTargets(
@@ -219,47 +242,36 @@ func autoTargets(
 	}
 
 	return []any{
-		targ.Group("auto", slices.Concat(autoRecallTargets(deps, withLog, errHandler, home, recordsDir), []any{
-			targ.Targ(func(ctx context.Context, a AutoDeliverArgs) {
-				a.VaultPath, a.SessionsDir = paths(a.VaultPath, a.SessionsDir)
-				a.RecordsDir = recordsDir(a.RecordsDir)
+		targ.Group("auto", slices.Concat(autoRecallTargets(deps, withLog, errHandler, home, recordsDir),
+			autoLearnTargets(deps, withLog, errHandler, paths), []any{
+				targ.Targ(func(ctx context.Context, a AutoDeliverArgs) {
+					a.VaultPath, a.SessionsDir = paths(a.VaultPath, a.SessionsDir)
+					a.RecordsDir = recordsDir(a.RecordsDir)
 
-				errHandler(RunAutoDeliver(withLog(ctx), a, newAutoDeliverDeps(deps), deps.Stdout, deps.Stderr))
-			}).Name("deliver").Description(
-				"Print the block of the notes that bear on a prompt (the automatic-memory mod runs this for each prompt)"),
-			targ.Targ(func(ctx context.Context, a AutoJudgeArgs) {
-				a.VaultPath, a.SessionsDir = paths(a.VaultPath, a.SessionsDir)
+					errHandler(RunAutoDeliver(withLog(ctx), a, newAutoDeliverDeps(deps), deps.Stdout, deps.Stderr))
+				}).Name("deliver").Description(
+					"Print the block of the notes that bear on a prompt (the automatic-memory mod runs this for each prompt)"),
+				targ.Targ(func(ctx context.Context, a AutoSweepArgs) {
+					if a.SessionsDir == "" {
+						a.SessionsDir = sessionsDirOf(deps.Getenv, deps.UserHomeDir)
+					}
 
-				errHandler(RunAutoJudge(withLog(ctx), a, newAutoJudgeDeps(deps), deps.Stdout))
-			}).Name("judge").Description(
-				"Print the request for the model that judges a turn (the automatic-memory mod runs this after each turn)"),
-			targ.Targ(func(ctx context.Context, a AutoPlaceArgs) {
-				a.VaultPath, a.SessionsDir = paths(a.VaultPath, a.SessionsDir)
+					a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
+					a.RecordsDir = recordsDir(a.RecordsDir)
 
-				errHandler(RunAutoPlace(withLog(ctx), a, newAutoPlaceDeps(deps), deps.Stdout))
-			}).Name("place").Description(
-				"Print the request for the model that places the lessons of a turn (the automatic-memory mod runs this after a judgement)"),
-			targ.Targ(func(ctx context.Context, a AutoSweepArgs) {
-				if a.SessionsDir == "" {
-					a.SessionsDir = sessionsDirOf(deps.Getenv, deps.UserHomeDir)
-				}
+					errHandler(RunAutoSweep(withLog(ctx), a, newAutoSweepDeps(deps)))
+				}).Name("sweep").Description(
+					"Index the record of a session in the chunk index (the automatic-memory mod runs this after each turn)"),
+				targ.Targ(func(ctx context.Context, a AutoWriteArgs) {
+					a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
+					a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
 
-				a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
-				a.RecordsDir = recordsDir(a.RecordsDir)
+					a.RecordsDir = recordsDir(a.RecordsDir)
 
-				errHandler(RunAutoSweep(withLog(ctx), a, newAutoSweepDeps(deps)))
-			}).Name("sweep").Description(
-				"Index the record of a session in the chunk index (the automatic-memory mod runs this after each turn)"),
-			targ.Targ(func(ctx context.Context, a AutoWriteArgs) {
-				a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
-				a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
-
-				a.RecordsDir = recordsDir(a.RecordsDir)
-
-				errHandler(RunAutoWrite(withLog(ctx), a, newAutoWriteDeps(deps), deps.Stdout))
-			}).Name("write").Description(
-				"Write the lessons of the model's reply as notes (the automatic-memory mod runs this after each judgement)"),
-		})...),
+					errHandler(RunAutoWrite(withLog(ctx), a, newAutoWriteDeps(deps), deps.Stdout))
+				}).Name("write").Description(
+					"Write the lessons of the model's reply as notes (the automatic-memory mod runs this after each judgement)"),
+			})...),
 	}
 }
 

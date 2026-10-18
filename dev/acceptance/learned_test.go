@@ -140,8 +140,8 @@ func Test855a2c1a_ASubPointOfANoteTheSessionHoldsContinues(t *testing.T) {
 	machine := newMachine(t)
 
 	var (
-		ci   string
-		chat *conversation
+		makeCI string
+		chat   *conversation
 	)
 
 	step(t, "Given the user has run engram update, a vault holding a note that says the project is built with make "+
@@ -149,7 +149,7 @@ func Test855a2c1a_ASubPointOfANoteTheSessionHoldsContinues(t *testing.T) {
 		func() {
 			machine.hasRunUpdate()
 
-			ci = machine.learnsFact(buildWithMakeCI)
+			makeCI = machine.learnsFact(buildWithMakeCI)
 			chat = machine.startSession("zorblax").converse()
 
 			g.Expect(chat.tell(askPlanTheBuild).blocks()).To(HaveLen(1), "the note arrived with the prompt")
@@ -164,8 +164,8 @@ func Test855a2c1a_ASubPointOfANoteTheSessionHoldsContinues(t *testing.T) {
 		func() {
 			added := machine.awaitAutomaticNote(chat.turnEnds, "that states the lint step", "LINT_STRICT")
 
-			g.Expect(idOf(added)).To(HavePrefix(idOf(ci)), "the ID of "+added)
-			g.Expect(idOf(added)).NotTo(Equal(idOf(ci)), "the ID of "+added)
+			g.Expect(idOf(added)).To(HavePrefix(idOf(makeCI)), "the ID of "+added)
+			g.Expect(idOf(added)).NotTo(Equal(idOf(makeCI)), "the ID of "+added)
 		})
 }
 
@@ -288,12 +288,12 @@ const (
 	// askPlanTheBuild is a recall moment that the buildWithMakeCI note applies to (855a2c1a).
 	askPlanTheBuild = "Plan how to build the Zorblax project for release, and say which command you would run. " +
 		"Reply with one short sentence."
-	// askToFormatPython is a recall moment that the formatPythonWithBlack note applies to (855a2c1b).
-	askToFormatPython = "I am about to commit a Python file in the Zorblax project. Say how it should be formatted " +
-		"first. Reply with one short sentence."
 	// askToForcePush makes the agent say that it force-pushed a branch: the history of 855a2b1a and 855a2b1b.
 	askToForcePush = "Reply with exactly this sentence and nothing else: I pushed the branch " + forcePushedBranch +
 		" with git push --force origin " + forcePushedBranch + "."
+	// askToFormatPython is a recall moment that the formatPythonWithBlack note applies to (855a2c1b).
+	askToFormatPython = "I am about to commit a Python file in the Zorblax project. Say how it should be formatted " +
+		"first. Reply with one short sentence."
 	// askToReleaseInOrder states a procedure and has the agent say its three commands in order (855a2b1c).
 	askToReleaseInOrder = "Releasing the Zorblax project is always: run make ci, then tag with git tag vX.Y.Z, then " +
 		"push the tag with git push origin vX.Y.Z. Say those three commands in that order, one to a line, and run none " +
@@ -347,6 +347,21 @@ var (
 	}
 )
 
+// noteOf returns the note of the machine's vault with a file name.
+func (m *machine) noteOf(name string) vaultNote {
+	m.t.Helper()
+
+	for _, note := range m.notes() {
+		if note.name == name {
+			return note
+		}
+	}
+
+	m.t.Fatalf("no note %s in the vault: %v", name, m.noteNames())
+
+	return vaultNote{}
+}
+
 // idOf is the Luhmann ID a note's file name begins with.
 func idOf(name string) string {
 	id, _, _ := strings.Cut(name, ".")
@@ -362,19 +377,4 @@ func parentOf(id string) string {
 	}
 
 	return strings.Join(slices.Clone(segments[:len(segments)-1]), "")
-}
-
-// noteOf returns the note of the machine's vault with a file name.
-func (m *machine) noteOf(name string) vaultNote {
-	m.t.Helper()
-
-	for _, note := range m.notes() {
-		if note.name == name {
-			return note
-		}
-	}
-
-	m.t.Fatalf("no note %s in the vault: %v", name, m.noteNames())
-
-	return vaultNote{}
 }

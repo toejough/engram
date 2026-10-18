@@ -7,6 +7,12 @@ import (
 	"strings"
 )
 
+// Exported constants.
+const (
+	// CueTurnEnd is the cue of a turn that ended, the learn moment (855d4a).
+	CueTurnEnd = "turn-end"
+)
+
 // Carry is what a step hands the next one with a request, and the mod reads no part of (855d1b).
 type Carry struct {
 	Cue    string `json:"cue,omitempty"`
@@ -36,12 +42,6 @@ type Step struct {
 	// Write tells the mod that a write follows the delivery: a deep recall's.
 	Write bool `json:"write,omitempty"`
 }
-
-// Exported constants.
-const (
-	// CueTurnEnd is the cue of a turn that ended, the learn moment (855d4a).
-	CueTurnEnd = "turn-end"
-)
 
 // Moment returns the request that judges whether a moment is one for recall, or, at the end of a turn, one for learn
 // (855d4a): the conversation lines before it and the line of the moment, as the window of a judgement of a turn is
@@ -82,8 +82,8 @@ var learnMomentInstructions string
 //go:embed prompts/moment_recall.txt
 var recallMoment string
 
-// learnMoment is the request that judges whether a turn that ended is a learn moment (855d4a): the window of the turn, as
-// the judgement of the turn builds it, which a turn of many tool calls could not be judged without.
+// learnMoment is the request that judges whether a turn that ended is a learn moment (855d4a): the window of the turn,
+// as the judgement of the turn builds it, which a turn of many tool calls could not be judged without.
 func learnMoment(messages []message, last int, input MomentInput) Step {
 	start, finish := 0, 0
 	if last >= 0 {

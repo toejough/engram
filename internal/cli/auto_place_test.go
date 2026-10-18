@@ -78,8 +78,9 @@ func Test855d4h1c_Place_ASessionThatHasSeenNoNoteAndAReplyWithNoWholeLessonPrint
 	})
 
 	for name, reply := range map[string]string{
-		"an empty list":               `[]`,
-		"a lesson that lacks a field": `[{"kind":"fact","slug":"staging-reset","situation":"s","subject":"x","predicate":"y"}]`,
+		"an empty list": `[]`,
+		"a lesson that lacks a field": `[{"kind":"fact","slug":"staging-reset","situation":"s","subject":"x",` +
+			`"predicate":"y"}]`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -141,12 +142,27 @@ func Test855d4h1e_Place_AReplyThatIsNotAListFailsTheCommand(t *testing.T) {
 	}
 }
 
-// twoLessons is the reply of the lessons judgement for a turn that holds a feedback lesson and a fact lesson.
-const twoLessons = `[{"kind":"feedback","slug":"format-before-commit","situation":"committing a Python file",` +
-	`"covered":null,"behavior":"left trailing whitespace","impact":"the lint check failed",` +
-	`"action":"run the formatter before committing"},{"kind":"fact","slug":"staging-reset",` +
-	`"situation":"testing on the staging database","covered":null,"subject":"the staging database",` +
-	`"predicate":"is reset every","object":"Sunday night"}]`
+// unexported constants.
+const (
+	twoLessons = `[{"kind":"feedback","slug":"format-before-commit","situation":"committing a Python file",` +
+		`"covered":null,"behavior":"left trailing whitespace","impact":"the lint check failed",` +
+		`"action":"run the formatter before committing"},{"kind":"fact","slug":"staging-reset",` +
+		`"situation":"testing on the staging database","covered":null,"subject":"the staging database",` +
+		`"predicate":"is reset every","object":"Sunday night"}]`
+)
+
+// placedStep is the request the placement prints, with the fields of it that the tests read.
+type placedStep struct {
+	Request struct {
+		Model     string `json:"model"`
+		System    string `json:"system"`
+		Prompt    string `json:"prompt"`
+		TimeoutMs int    `json:"timeoutMs"`
+	} `json:"request"`
+	Carry struct {
+		Seen []string `json:"seen"`
+	} `json:"carry"`
+}
 
 // placeInput is the JSON object the memory mod hands to the placement: the session, the turn, the reply of the lessons
 // judgement and its carry.
@@ -179,19 +195,6 @@ func placed(t *testing.T, vault, sessions string, stdin *strings.Reader) placedS
 	g.Expect(json.Unmarshal(out.Bytes(), &step)).To(Succeed(), "the output is one JSON object: %q", out.String())
 
 	return step
-}
-
-// placedStep is the request the placement prints, with the fields of it that the tests read.
-type placedStep struct {
-	Request struct {
-		Model     string `json:"model"`
-		System    string `json:"system"`
-		Prompt    string `json:"prompt"`
-		TimeoutMs int    `json:"timeoutMs"`
-	} `json:"request"`
-	Carry struct {
-		Seen []string `json:"seen"`
-	} `json:"carry"`
 }
 
 // recordDelivering writes the record of a session in which a note arrived with a prompt, and returns the directory of

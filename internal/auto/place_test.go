@@ -1,6 +1,8 @@
 package auto_test
 
 import (
+	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -66,32 +68,8 @@ func Test855d4h1f_Place_ASeenNoteCannotReshapeTheRequestOrHoldACredential(t *tes
 				rt.Fatalf("a lesson and seen notes were placed nothing")
 			}
 
-			prompt := step.Request.Prompt
-
-			if len(notesOf(prompt)) != len(notes) {
-				rt.Fatalf("%d notes are %d lines: %q", len(notes), len(notesOf(prompt)), prompt)
-			}
-
-			for _, secret := range []string{first.secret, second.secret} {
-				if strings.Contains(prompt, secret) {
-					rt.Fatalf("the request holds the secret %q: %q", secret, prompt)
-				}
-			}
-
-			if counts := tagCounts(prompt); counts[2] != 1 || counts[3] != 1 || counts[0] != 0 || counts[1] != 0 {
-				rt.Fatalf("the tags of the prompt are %v: %q", counts, prompt)
-			}
-
-			for _, line := range notesOf(prompt) {
-				_, body, _ := strings.Cut(line, "): ")
-
-				if utf8.RuneCountInString(strings.ReplaceAll(body, "&lt;", "<")) > 400 {
-					rt.Fatalf("a body of more than 400 characters: %q", line)
-				}
-
-				if strings.Contains(strings.ReplaceAll(line, "&lt;", ""), "<") {
-					rt.Fatalf("a line holds the character that opens a tag: %q", line)
-				}
+			if problem := placeProblem(step.Request.Prompt, len(notes), first.secret, second.secret); problem != "" {
+				rt.Fatalf("%s: %q", problem, step.Request.Prompt)
 			}
 		})
 	})
@@ -103,4 +81,35 @@ func placeLessons(seen ...auto.Note) (auto.Step, bool) {
 		Kind: "fact", Slug: "staging-reset", Situation: "testing on the staging database",
 		Subject: "the staging database", Predicate: "is reset every", Object: "Sunday night",
 	}}, seen)
+}
+
+// placeProblem tells what is wrong with the prompt of a placement for some seen notes, or nothing: each note is one line
+// of the section, no secret is in it, its tags open and close once, and no line holds the character that opens a tag
+// or a body of more than 400 characters.
+func placeProblem(prompt string, notes int, secrets ...string) string {
+	if len(notesOf(prompt)) != notes {
+		return fmt.Sprintf("%d notes are %d lines", notes, len(notesOf(prompt)))
+	}
+
+	if slices.ContainsFunc(secrets, func(secret string) bool { return strings.Contains(prompt, secret) }) {
+		return "the request holds a secret"
+	}
+
+	if counts := tagCounts(prompt); counts[2] != 1 || counts[3] != 1 || counts[0] != 0 || counts[1] != 0 {
+		return fmt.Sprintf("the tags of the prompt are %v", counts)
+	}
+
+	for _, line := range notesOf(prompt) {
+		_, body, _ := strings.Cut(line, "): ")
+
+		if utf8.RuneCountInString(strings.ReplaceAll(body, "&lt;", "<")) > 400 {
+			return "a body of more than 400 characters"
+		}
+
+		if strings.Contains(strings.ReplaceAll(line, "&lt;", ""), "<") {
+			return "a line holds the character that opens a tag"
+		}
+	}
+
+	return ""
 }

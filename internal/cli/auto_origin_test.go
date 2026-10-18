@@ -218,12 +218,6 @@ func momentOf(origin, cue string) io.Reader {
 // noActivation is an activation that marks nothing, for a test that does not look at the vault.
 func noActivation(context.Context, string, auto.Candidate) {}
 
-// originRequest is the JSON object that the memory mod hands to a command: the field given, the session of the record
-// recordOfAPrompt writes, and the origin.
-func originRequest(origin, field, value string) io.Reader {
-	return requestOf(map[string]string{field: value, "session": sessionID, "origin": origin})
-}
-
 // readRecordFile reads the record of a session from a directory of records, or nothing.
 func readRecordFile(dir, session string) []byte {
 	record, err := os.ReadFile(filepath.Join(dir, session+".jsonl"))

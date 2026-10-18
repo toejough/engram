@@ -31,7 +31,7 @@ type Lesson struct {
 	Subject   string `json:"subject"`
 	Predicate string `json:"predicate"`
 	Object    string `json:"object"`
-	DoneWhen  string `json:"done_when"`
+	DoneWhen  string `json:"done_when"` //nolint:tagliatelle // the name the learn skill gives the field of a runbook
 	Body      string `json:"body"`
 }
 

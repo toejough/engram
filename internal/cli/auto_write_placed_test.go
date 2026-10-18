@@ -179,7 +179,9 @@ func writeLearning(t *testing.T, input writeInput, expected []cli.LearnArgs) str
 	var out bytes.Buffer
 
 	go func() {
-		done <- cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", VaultName: "personal", RecordsDir: "/data/auto"},
+		args := cli.AutoWriteArgs{VaultPath: "/vault", VaultName: "personal", RecordsDir: "/data/auto"}
+
+		done <- cli.RunAutoWrite(context.Background(), args,
 			cli.AutoWriteDeps{
 				Stdin: strings.NewReader(string(stdin)), Learn: learn, Now: func() time.Time { return recordedAt },
 				WriteRecord: records.write,

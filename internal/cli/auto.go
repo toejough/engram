@@ -290,11 +290,11 @@ func RunAutoWrite(ctx context.Context, args AutoWriteArgs, deps AutoWriteDeps, s
 
 // unexported constants.
 const (
-	// the permissions of a record and of the directory of the records of a session
-	recordDirPerm fs.FileMode = 0o750
 	// minSiblingSegments is how many segments the ID of a note has at least to have a sibling: a note at the top has
 	// none, and a sibling of it is another note at the top.
 	minSiblingSegments = 2
+	// the permissions of a record and of the directory of the records of a session
+	recordDirPerm fs.FileMode = 0o750
 	// recordFileExt ends the name of the file of a record.
 	recordFileExt              = ".json"
 	recordFilePerm fs.FileMode = 0o600
@@ -611,6 +611,38 @@ func payloadItems(payload []byte) ([]queryItem, error) {
 	return parsed.Items, nil
 }
 
+// placementsOf reads the placement a writing was given, and records that it was not used when it is no list
+// (855d4i): the lessons are then written at the top.
+func placementsOf(reply auto.Reply, results *outcomes) []auto.Placement {
+	if strings.TrimSpace(reply.Placement) == "" {
+		return []auto.Placement{}
+	}
+
+	placements, placementErr := auto.ParsePlacements(reply.Placement)
+	if placementErr != nil {
+		results.add(auto.RecordSkipped, "", "", "the placement was not used: "+placementErr.Error())
+
+		return []auto.Placement{}
+	}
+
+	return placements
+}
+
+// positionOf is the position and the target's Luhmann ID that the learn path is given for a placement: the top, when
+// the target's file name has no ID, or when the lesson is a sibling of a note at the top, which is another note at the
+// top.
+func positionOf(placed auto.Placed) (string, string) {
+	id, hasID := luhmann.FromBasename(strings.TrimSuffix(placed.Target, ".md"))
+	segments, parseErr := luhmann.ParseID(id)
+
+	if placed.Position == auto.PositionTop || !hasID || parseErr != nil ||
+		(placed.Position == auto.PositionSibling && len(segments) < minSiblingSegments) {
+		return positionTop, ""
+	}
+
+	return placed.Position, id
+}
+
 // pruneShown removes the records of a session whose line was shown, each with its mark, and then the directory of the
 // session when nothing is left in it, so that the records do not pile up (793d4p). A record without a mark stays, and
 // so does a file that is no record; what cannot be removed is the end of it.
@@ -630,20 +662,6 @@ func pruneShown(deps AutoDeliverDeps, dir, session string) {
 	}
 
 	_ = deps.Remove(sessionDir)
-}
-
-// positionOf is the position and the target's Luhmann ID that the learn path is given for a placement: the top, when the
-// target's file name has no ID, or when the lesson is a sibling of a note at the top, which is another note at the top.
-func positionOf(placed auto.Placed) (string, string) {
-	id, hasID := luhmann.FromBasename(strings.TrimSuffix(placed.Target, ".md"))
-	segments, parseErr := luhmann.ParseID(id)
-
-	if placed.Position == auto.PositionTop || !hasID || parseErr != nil ||
-		(placed.Position == auto.PositionSibling && len(segments) < minSiblingSegments) {
-		return positionTop, ""
-	}
-
-	return placed.Position, id
 }
 
 // recordCandidates lists the files that may hold the record of a session: <ID>.jsonl in the session-log directory
@@ -755,17 +773,6 @@ func recordsOf(deps AutoDeliverDeps, dir, session string) []auto.Record {
 	return records
 }
 
-// supersedesOf is the `--supersedes` flags of the learn path for the notes a lesson supersedes.
-func supersedesOf(ties []auto.Supersession) []string {
-	var flags []string
-
-	for _, tie := range ties {
-		flags = append(flags, tie.Note+"|"+tie.Type+"|"+tie.Claim)
-	}
-
-	return flags
-}
-
 // sessionsDirOf is where the records of sessions are read from when --sessions is not given (793d4f): the directory
 // ENGRAM_TRANSCRIPT_DIR names when it is set, else the projects directory of CLAUDE_CONFIG_DIR when that is set, where
 // Claude Code writes the records of a session started with it, else the home's .claude/projects.
@@ -791,6 +798,21 @@ func shownRecords(entries []fs.DirEntry) map[string]bool {
 	return shown
 }
 
+// supersedesOf is the `--supersedes` flags of the learn path for the notes a lesson supersedes.
+func supersedesOf(ties []auto.Supersession) []string {
+	if len(ties) == 0 {
+		return nil
+	}
+
+	flags := make([]string, 0, len(ties))
+
+	for _, tie := range ties {
+		flags = append(flags, tie.Note+"|"+tie.Type+"|"+tie.Claim)
+	}
+
+	return flags
+}
+
 // sweepEndedMark returns the path of the mark of a session whose sweep was ended, or nothing when there is no directory
 // of records or the session's ID is not a plain file name.
 func sweepEndedMark(dir, session string) string {
@@ -799,21 +821,6 @@ func sweepEndedMark(dir, session string) string {
 	}
 
 	return filepath.Join(dir, session, sweepEndedFile)
-}
-
-// placementsOf reads the placement a writing was given, and records that it was not used when it is no list (855d4i): the
-// lessons are then written at the top.
-func placementsOf(reply auto.Reply, results *outcomes) []auto.Placement {
-	if strings.TrimSpace(reply.Placement) == "" {
-		return nil
-	}
-
-	placements, placementErr := auto.ParsePlacements(reply.Placement)
-	if placementErr != nil {
-		results.add(auto.RecordSkipped, "", "", "the placement was not used: "+placementErr.Error())
-	}
-
-	return placements
 }
 
 // writeLessons writes the lessons of a reply through the learn path and adds what became of the reply, of each lesson

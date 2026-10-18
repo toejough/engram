@@ -72,7 +72,7 @@ func PlacedAt(placements []Placement, slug string, seen []string) Placed {
 	}
 
 	for _, tie := range placement.Supersedes {
-		if slices.Contains(seen, tie.Note) && slices.Contains(supersedesTypes, tie.Type) && !isBlank(tie.Claim) {
+		if slices.Contains(seen, tie.Note) && isSupersedesType(tie.Type) && !isBlank(tie.Claim) {
 			placed.Supersedes = append(placed.Supersedes,
 				Supersession{Note: tie.Note, Type: tie.Type, Claim: oneRedacted(tie.Claim)})
 		}
@@ -81,8 +81,7 @@ func PlacedAt(placements []Placement, slug string, seen []string) Placed {
 	return placed
 }
 
-// unexported variables.
-var (
-	// supersedesTypes are the types of tie a lesson has with the note it supersedes (792a15h).
-	supersedesTypes = []string{"updates", "narrows", "refutes"}
-)
+// isSupersedesType reports whether a type is one of the ties a lesson has with the note it supersedes (792a15h).
+func isSupersedesType(tie string) bool {
+	return tie == "updates" || tie == "narrows" || tie == "refutes"
+}

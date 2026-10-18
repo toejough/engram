@@ -56,70 +56,6 @@ func Test793d4g1a_Judge_TheRequestHoldsTheInstructionsTheContextAndTheTurn(t *te
 	g.Expect(step.Carry).To(Equal(auto.Carry{}), "a carry that holds nothing")
 }
 
-func Test855d4g1a_Judge_ATurnThatIsNotALearnMomentIsJudgedNothing(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	record := userPrompt("Thanks, that settles it.")
-
-	_, found, err := judgeStep(record, "You are welcome.", `{"learn":false}`, nil)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(found).To(BeFalse(), "a turn that is no learn moment is judged nothing")
-
-	step, found, err := judgeStep(record, "You are welcome.", learnTrue, nil)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(found).To(BeTrue(), "a learn moment is judged")
-	g.Expect(step.Request.Prompt).NotTo(BeEmpty())
-}
-
-func Test855d4g1b_Judge_AFencedReplyIsReadAndAReplyThatIsNotAMomentReplyFails(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	record := userPrompt("No - build with make zorblax-build.")
-
-	_, found, err := judgeStep(record, "Understood.", "```json\n{\"learn\":true}\n```", nil)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(found).To(BeTrue(), "a fenced reply is read")
-
-	for name, reply := range map[string]string{
-		"not JSON":                      "yes, this is a learn moment",
-		"an object with no learn field": `{"depth":"glance"}`,
-		"a learn field that is no flag": `{"learn":"yes"}`,
-		"an empty reply":                "",
-	} {
-		_, found, err := judgeStep(record, "Understood.", reply, nil)
-
-		g.Expect(err).To(MatchError(auto.ErrLearnReply), name)
-		g.Expect(err).To(MatchError(ContainSubstring("learn-moment judgement")), name)
-		g.Expect(found).To(BeFalse(), name)
-	}
-}
-
-func Test855d4g1c_Judge_TheInstructionsNameTheFourKindsAndTheRunbook(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	record := userPrompt("Zorblax releases are always make ci, then git tag, then git push origin the tag.")
-
-	request, found := judge(t, record, "Understood.", nil)
-
-	g.Expect(found).To(BeTrue())
-
-	system := strings.ToLower(request.System)
-
-	g.Expect(system).To(And(ContainSubstring("correction"), ContainSubstring("request by the user to remember"),
-		ContainSubstring("reversal"), ContainSubstring("approach confirmed")), "the four kinds")
-	g.Expect(system).To(And(ContainSubstring("runbook"), ContainSubstring("situation"), ContainSubstring("done_when"),
-		ContainSubstring("numbered")), "the runbook and its fields")
-	g.Expect(system).To(ContainSubstring("going forward"), "the runbook replaces the fact for a request to do it so")
-	g.Expect(request.System).NotTo(ContainSubstring("Zorblax"), "nothing of the transcript")
-	g.Expect(request.System).NotTo(ContainSubstring("git tag"), "nothing of the transcript")
-}
-
 func Test793d4g1b_Judge_TheFinalTextIsAddedWhenTheRecordLacksIt(t *testing.T) {
 	t.Parallel()
 
@@ -549,6 +485,70 @@ func Test793d4j1c_Judge_TheRequestHoldsNoCredentialOfTheTurn(t *testing.T) {
 			}
 		}
 	})
+}
+
+func Test855d4g1a_Judge_ATurnThatIsNotALearnMomentIsJudgedNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	record := userPrompt("Thanks, that settles it.")
+
+	_, found, err := judgeStep(record, "You are welcome.", `{"learn":false}`, nil)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(found).To(BeFalse(), "a turn that is no learn moment is judged nothing")
+
+	step, found, err := judgeStep(record, "You are welcome.", learnTrue, nil)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(found).To(BeTrue(), "a learn moment is judged")
+	g.Expect(step.Request.Prompt).NotTo(BeEmpty())
+}
+
+func Test855d4g1b_Judge_AFencedReplyIsReadAndAReplyThatIsNotAMomentReplyFails(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	record := userPrompt("No - build with make zorblax-build.")
+
+	_, found, err := judgeStep(record, "Understood.", "```json\n{\"learn\":true}\n```", nil)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(found).To(BeTrue(), "a fenced reply is read")
+
+	for name, reply := range map[string]string{
+		"not JSON":                      "yes, this is a learn moment",
+		"an object with no learn field": `{"depth":"glance"}`,
+		"a learn field that is no flag": `{"learn":"yes"}`,
+		"an empty reply":                "",
+	} {
+		_, found, err := judgeStep(record, "Understood.", reply, nil)
+
+		g.Expect(err).To(MatchError(auto.ErrLearnReply), name)
+		g.Expect(err).To(MatchError(ContainSubstring("learn-moment judgement")), name)
+		g.Expect(found).To(BeFalse(), name)
+	}
+}
+
+func Test855d4g1c_Judge_TheInstructionsNameTheFourKindsAndTheRunbook(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	record := userPrompt("Zorblax releases are always make ci, then git tag, then git push origin the tag.")
+
+	request, found := judge(t, record, "Understood.", nil)
+
+	g.Expect(found).To(BeTrue())
+
+	system := strings.ToLower(request.System)
+
+	g.Expect(system).To(And(ContainSubstring("correction"), ContainSubstring("request by the user to remember"),
+		ContainSubstring("reversal"), ContainSubstring("approach confirmed")), "the four kinds")
+	g.Expect(system).To(And(ContainSubstring("runbook"), ContainSubstring("situation"), ContainSubstring("done_when"),
+		ContainSubstring("numbered")), "the runbook and its fields")
+	g.Expect(system).To(ContainSubstring("going forward"), "the runbook replaces the fact for a request to do it so")
+	g.Expect(request.System).NotTo(ContainSubstring("Zorblax"), "nothing of the transcript")
+	g.Expect(request.System).NotTo(ContainSubstring("git tag"), "nothing of the transcript")
 }
 
 // unexported constants.

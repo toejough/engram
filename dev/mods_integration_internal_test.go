@@ -383,7 +383,7 @@ func Test793d2b1f_Mod_ATurnOfASubagentIsNotCaptured(t *testing.T) {
 	outcome := runCaptureDriver(t, scenario)
 
 	g.Expect(outcome.Returned.Text).To(Equal("Understood."), "the event's result is given back")
-	g.Expect(outcome.Calls).To(BeEmpty(), "neither the moment, the judgement, the placement, the model nor the writing was asked")
+	g.Expect(outcome.Calls).To(BeEmpty(), "nothing was asked: no step, no model and no writing")
 }
 
 func Test793d2b1g_Mod_TheJudgementReceivesTheTextTheTurnBeganWith(t *testing.T) {
@@ -486,10 +486,12 @@ func Test793d2b1j_Mod_AStageThatStallsIsEndedAtItsBoundAndReported(t *testing.T)
 		want     []string
 		reported string
 	}{
-		"the moment":                        {"moment", []string{moment, report}, "engram auto moment"},
-		"the model's call of the moment":    {"model1", []string{moment, askedMoment, report}, "model call"},
-		"the judgement":                     {"judge", []string{moment, askedMoment, judge, report}, "engram auto judge"},
-		"the model's call of the judgement": {"model2", []string{moment, askedMoment, judge, askedJudge, report}, "model call"},
+		"the moment":                     {"moment", []string{moment, report}, "engram auto moment"},
+		"the model's call of the moment": {"model1", []string{moment, askedMoment, report}, "model call"},
+		"the judgement":                  {"judge", []string{moment, askedMoment, judge, report}, "engram auto judge"},
+		"the model's call of the judgement": {
+			"model2", []string{moment, askedMoment, judge, askedJudge, report}, "model call",
+		},
 		"the placement": {
 			"place", []string{moment, askedMoment, judge, askedJudge, place, report}, "engram auto place",
 		},
@@ -606,23 +608,6 @@ func Test793d2b1m_Mod_ALongFailureIsReportedWhole(t *testing.T) {
 	g.Expect(isText).To(BeTrue(), "the failure is text")
 	g.Expect(utf8.RuneCountInString(failure)).To(BeNumerically(">", 1000), "the failure as reported")
 	g.Expect(failure).To(Equal("engram auto moment exited with 1: "+line), "the failure, from the step to the cause")
-}
-
-func Test855d2b1a_Mod_APlacementThatPrintsNothingLeavesTheLessonsToBeWrittenAtTheTop(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	scenario := printingChain()
-	scenario.Place = map[string]any{"exitCode": 0, "stdout": ""}
-
-	outcome := runCaptureDriver(t, scenario)
-
-	g.Expect(outcome.modelCalls()).To(HaveLen(2), "the model was asked twice")
-
-	writes := outcome.inputsOf("engram auto write")
-
-	g.Expect(writes).To(Equal([]map[string]any{{"session": "a-session", "turn": "a-turn", "reply": "LESSONS"}}),
-		"the reply to the lessons request, and no carry and no placement reply: the placement printed neither")
 }
 
 func Test793d2c1a_Mod_SweepsTheConversationAfterATurnApartFromTheCapture(t *testing.T) {
@@ -1048,6 +1033,23 @@ func Test855d2a1j_Mod_DeliveriesOfOneSessionRunOneAfterAnotherEachGivenWhatTheOn
 	}
 }
 
+func Test855d2b1a_Mod_APlacementThatPrintsNothingLeavesTheLessonsToBeWrittenAtTheTop(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scenario := printingChain()
+	scenario.Place = map[string]any{"exitCode": 0, "stdout": ""}
+
+	outcome := runCaptureDriver(t, scenario)
+
+	g.Expect(outcome.modelCalls()).To(HaveLen(2), "the model was asked twice")
+
+	writes := outcome.inputsOf("engram auto write")
+
+	g.Expect(writes).To(Equal([]map[string]any{{"session": "a-session", "turn": "a-turn", "reply": "LESSONS"}}),
+		"the reply to the lessons request, and no carry and no placement reply: the placement printed neither")
+}
+
 // TestMods_EveryJavaScriptModuleParses: the real mods parse under the real node, and the real node rejects a broken
 // module, which the stand-in node of the unit tests cannot show (793b55).
 func TestMods_EveryJavaScriptModuleParses(t *testing.T) {
@@ -1383,6 +1385,15 @@ console.log(JSON.stringify({ passed, delays, ran: ran.length }))
 		`"timeoutMs":15000},"carry":{"seen":["1.2026-10-17.a-note.md"]}}` + "\n"
 )
 
+// unexported variables.
+var (
+	modelCallsBefore = map[string][]map[string]any{
+		"moment": nil,
+		"judge":  {requestOfMoment()},
+		"place":  {requestOfMoment(), requestOfJudgement()},
+	}
+)
+
 // captureOutcome is what captureDriver printed.
 type captureOutcome struct {
 	Returned struct {
@@ -1467,11 +1478,11 @@ func (o captureOutcome) stepsAndLimits() []string {
 	return steps
 }
 
-// captureScenario is how the stand-in host of captureDriver behaves: its moment, judgement and placement, its model, the
-// result of each call of it when they differ, and its sweep, the origin of the prompt the turn begins with (composer
-// when empty), the text of the prompt (hello when empty), the subagent that ran the turn, if one did, and a script of
-// prompts raised, turns started and turns completed, in the order given, which stands in place of the one prompt and
-// the one turn. A step the scenario does not give prints nothing.
+// captureScenario is how the stand-in host of captureDriver behaves: its moment, judgement and placement, its model,
+// the result of each call of it when they differ, and its sweep, the origin of the prompt the turn begins with
+// (composer when empty), the text of the prompt (hello when empty), the subagent that ran the turn, if one did, and a
+// script of prompts raised, turns started and turns completed, in the order given, which stands in place of the one
+// prompt and the one turn. A step the scenario does not give prints nothing.
 type captureScenario struct {
 	Moment map[string]any `json:"moment,omitempty"`
 	Judge  map[string]any `json:"judge,omitempty"`
@@ -1605,52 +1616,6 @@ type deliveryScenario struct {
 	FastTimers              bool                      `json:"fastTimers,omitempty"`
 }
 
-// modelCallsBefore is the requests the model was asked for before the step that fails, by the step: the moment's has
-// none before it, the judgement's has the moment's, and the placement's has those two.
-var modelCallsBefore = map[string][]map[string]any{
-	"moment": nil,
-	"judge":  {requestOfMoment()},
-	"place":  {requestOfMoment(), requestOfJudgement()},
-}
-
-// printingChain is a capture whose moment, judgement and placement each print a request, and whose model answers each in
-// turn, with LEARN, LESSONS and PLACEMENT.
-func printingChain() captureScenario {
-	return captureScenario{
-		Moment: map[string]any{"exitCode": 0, "stdout": momentPrinted},
-		Judge:  map[string]any{"exitCode": 0, "stdout": judgePrinted},
-		Place:  map[string]any{"exitCode": 0, "stdout": placePrinted},
-		Models: []map[string]any{
-			{"isAnswered": true, "text": "LEARN"}, {"isAnswered": true, "text": "LESSONS"},
-			{"isAnswered": true, "text": "PLACEMENT"},
-		},
-	}
-}
-
-// momentInput is what the moment is given for a turn of the stand-in's session, that began with a text and an origin.
-func momentInput(text, origin string) map[string]any {
-	return map[string]any{
-		"session": "a-session", "turn": "a-turn", "text": text, "answer": "Understood.", "origin": origin,
-		"cue": "turn-end",
-	}
-}
-
-// requestOfJudgement is the request of judgePrinted as the driver decodes it.
-func requestOfJudgement() map[string]any {
-	return map[string]any{
-		"model": "sonnet", "system": "THE INSTRUCTIONS", "prompt": "THE PROMPT", "maxTokens": float64(3000),
-		"timeoutMs": float64(30000),
-	}
-}
-
-// requestOfMoment is the request of momentPrinted as the driver decodes it.
-func requestOfMoment() map[string]any {
-	return map[string]any{
-		"model": "haiku", "effort": "low", "system": "THE MOMENT", "prompt": "THE WINDOW", "maxTokens": float64(200),
-		"timeoutMs": float64(10000),
-	}
-}
-
 // aStep is what a step prints for a judgement, the nth of a chain: the request for the model and the carry.
 func aStep(n int) string {
 	return fmt.Sprintf(`{"request":{"model":"sonnet","system":"S%d","prompt":"P%d","maxTokens":100},`+
@@ -1692,6 +1657,44 @@ func modulesOf(t *testing.T, dir string) map[string]string {
 	}
 
 	return modules
+}
+
+// momentInput is what the moment is given for a turn of the stand-in's session, that began with a text and an origin.
+func momentInput(text, origin string) map[string]any {
+	return map[string]any{
+		"session": "a-session", "turn": "a-turn", "text": text, "answer": "Understood.", "origin": origin,
+		"cue": "turn-end",
+	}
+}
+
+// printingChain is a capture whose moment, judgement and placement each print a request, and whose model answers each
+// in turn, with LEARN, LESSONS and PLACEMENT.
+func printingChain() captureScenario {
+	return captureScenario{
+		Moment: map[string]any{"exitCode": 0, "stdout": momentPrinted},
+		Judge:  map[string]any{"exitCode": 0, "stdout": judgePrinted},
+		Place:  map[string]any{"exitCode": 0, "stdout": placePrinted},
+		Models: []map[string]any{
+			{"isAnswered": true, "text": "LEARN"}, {"isAnswered": true, "text": "LESSONS"},
+			{"isAnswered": true, "text": "PLACEMENT"},
+		},
+	}
+}
+
+// requestOfJudgement is the request of judgePrinted as the driver decodes it.
+func requestOfJudgement() map[string]any {
+	return map[string]any{
+		"model": "sonnet", "system": "THE INSTRUCTIONS", "prompt": "THE PROMPT", "maxTokens": float64(3000),
+		"timeoutMs": float64(30000),
+	}
+}
+
+// requestOfMoment is the request of momentPrinted as the driver decodes it.
+func requestOfMoment() map[string]any {
+	return map[string]any{
+		"model": "haiku", "effort": "low", "system": "THE MOMENT", "prompt": "THE WINDOW", "maxTokens": float64(200),
+		"timeoutMs": float64(10000),
+	}
 }
 
 // requestOfStep is the request of aStep as the driver decodes it.

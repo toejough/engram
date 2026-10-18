@@ -540,10 +540,17 @@ func (m *machine) jobsTake(wait time.Duration) {
 	dir := filepath.Join(m.root, "jobs")
 	engram := filepath.Join(m.gobin, engramBinaryName)
 
-	m.wrapsEngram(dir, "#!/bin/sh\ncase \"$1 $2\" in\n\"auto moment\")\nin=$(cat)\ncase \"$in\" in\n*'\"cue\":\"turn-end\"'*) ;;\n"+
+	m.wrapsEngram(dir, "#!/bin/sh\ncase \"$1 $2\" in\n\"auto moment\")\nin=$(cat)\n"+
+		"case \"$in\" in\n*'\"cue\":\"turn-end\"'*) ;;\n"+
 		"*) printf '%s' \"$in\" | '"+engram+"' \"$@\"; exit $? ;;\nesac\n: > '"+dir+"/started-moment'\nexec sleep "+
 		strconv.Itoa(int(wait.Seconds()))+"\n;;\n\"auto judge\"|\"auto place\"|\"auto write\"|\"auto sweep\")\n: > '"+dir+
 		"/started-'\"$2\"\nexec sleep "+strconv.Itoa(int(wait.Seconds()))+"\n;;\nesac\nexec '"+engram+"' \"$@\"\n")
+}
+
+// judgedLogged returns how many turns of a session were judged: the captures that ended at the judgement or at the
+// writing.
+func (m *machine) judgedLogged(session string) int {
+	return m.linesLogged(session, "auto.judge", "auto.write")
 }
 
 // learnsFact writes a fact into the vault and returns the file name of the note.
@@ -580,6 +587,22 @@ func (m *machine) learnsFeedback(note feedback) string {
 	return m.noteNamed(note.slug)
 }
 
+// linesLogged returns how many lines of the debug log of the machine are of the commands given for a session.
+func (m *machine) linesLogged(session string, commands ...string) int {
+	data, err := os.ReadFile(filepath.Join(m.root, debugLogName))
+	if err != nil {
+		return 0
+	}
+
+	count := 0
+
+	for _, command := range commands {
+		count += strings.Count(string(data), command+": session="+session+" ")
+	}
+
+	return count
+}
+
 // lookupStarted reports whether the slow lookup was started.
 func (m *machine) lookupStarted() bool {
 	_, err := os.Stat(filepath.Join(m.root, "slow", "started"))
@@ -596,6 +619,11 @@ func (m *machine) lookupTakes(wait time.Duration) {
 
 	m.wrapsEngram(dir, "#!/bin/sh\n: > '"+filepath.Join(dir, "started")+"'\nsleep "+strconv.Itoa(int(wait.Seconds()))+
 		"\nexec '"+filepath.Join(m.gobin, engramBinaryName)+"' \"$@\"\n")
+}
+
+// momentsLogged returns how many turns of a session ended at the moment, which printed nothing for the turn.
+func (m *machine) momentsLogged(session string) int {
+	return m.linesLogged(session, "auto.moment")
 }
 
 // mustSucceed fails the test when a command exited non-zero.
@@ -928,38 +956,22 @@ func (m *machine) writesLogged(session string) int {
 	return m.linesLogged(session, "auto.moment", "auto.judge", "auto.write")
 }
 
-// judgedLogged returns how many turns of a session were judged: the captures that ended at the judgement or at the
-// writing.
-func (m *machine) judgedLogged(session string) int {
-	return m.linesLogged(session, "auto.judge", "auto.write")
-}
-
-// momentsLogged returns how many turns of a session ended at the moment, which printed nothing for the turn.
-func (m *machine) momentsLogged(session string) int {
-	return m.linesLogged(session, "auto.moment")
-}
-
-// linesLogged returns how many lines of the debug log of the machine are of the commands given for a session.
-func (m *machine) linesLogged(session string, commands ...string) int {
-	data, err := os.ReadFile(filepath.Join(m.root, debugLogName))
-	if err != nil {
-		return 0
-	}
-
-	count := 0
-
-	for _, command := range commands {
-		count += strings.Count(string(data), command+": session="+session+" ")
-	}
-
-	return count
-}
-
 // vaultNote is a note of the vault as its file holds it.
 type vaultNote struct {
 	name    string
 	text    string
 	written time.Time // when the file was last written
+}
+
+// field returns the value of a line of the note's front matter, or nothing when it has none.
+func (n vaultNote) field(name string) string {
+	for line := range strings.SplitSeq(n.text, "\n") {
+		if value, found := strings.CutPrefix(line, name+": "); found {
+			return value
+		}
+	}
+
+	return ""
 }
 
 // source returns the value of the line of the note's front matter that says where the note came from.
@@ -984,17 +996,6 @@ func (n vaultNote) states(words ...string) bool {
 	}
 
 	return true
-}
-
-// field returns the value of a line of the note's front matter, or nothing when it has none.
-func (n vaultNote) field(name string) string {
-	for line := range strings.SplitSeq(n.text, "\n") {
-		if value, found := strings.CutPrefix(line, name+": "); found {
-			return value
-		}
-	}
-
-	return ""
 }
 
 // chunkHolding reports whether a payload of engram query has an item of the kind chunk that holds every word, whatever

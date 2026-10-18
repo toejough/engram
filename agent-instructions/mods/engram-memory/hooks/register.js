@@ -1,8 +1,8 @@
 // Automatic memory: the notes and passages of the vault that apply to a prompt arrive beside it (855a3b), and after the
 // turn the lessons it holds become notes (793a2c) and its conversation is indexed (793a2f). The logic is in the engram
-// binary (`engram auto moment`, `phrases`, `recall`, `deliver`, `judge`, `write` and `sweep`); this module routes to
-// it, asks the model for the requests the steps print, puts the block the delivery prints beside the prompt, and shows
-// the user the lines it prints for the user, through the host's log (855d2a).
+// binary (`engram auto moment`, `phrases`, `recall`, `deliver`, `judge`, `place`, `write` and `sweep`); this module
+// routes to it, asks the model for the requests the steps print, puts the block the delivery prints beside the prompt,
+// and shows the user the lines it prints for the user, through the host's log (855d2a).
 
 // Each wait of the flow of a prompt, a step or a model call, has 2 minutes of its own (855a3c): a wait that is only slow
 // is waited for, and one that has not answered by then has stalled, and the flow steps aside.
