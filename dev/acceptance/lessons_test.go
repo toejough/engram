@@ -381,9 +381,10 @@ func Test793a3a1a_AWrittenNoteIsDeliveredWithLaterPrompts(t *testing.T) {
 
 	var inSession, inNewSession *turn
 
-	step(t, "When the user sends a prompt that the note bears on, in that session and then in a new session", func() {
-		inSession = chat.tell(askHowToBuild)
-		inNewSession = machine.startSession("zorblax").send(askHowToBuild)
+	step(t, "When the user sends a prompt that is a recall moment and that the note applies to, in that session and "+
+		"then in a new session", func() {
+		inSession = chat.tell(askPlanBuild)
+		inNewSession = machine.startSession("zorblax").send(askPlanBuild)
 	})
 
 	step(t, "Then each of the two prompts arrives with the note", func() {
@@ -545,6 +546,8 @@ const (
 		"Answer with a guess, then a plan, then a friendly remark. Do not read or run anything."
 	// askHowToBuild is a question the agent cannot answer from anything but a guess: the project is made up.
 	askHowToBuild = "How do I build the Zorblax project? Answer in one line."
+	// askPlanBuild is a recall moment that the note of correctTheBuild applies to.
+	askPlanBuild = "Plan how to build the Zorblax project for release. Reply with one short sentence."
 	// askToGuessAndRead makes the agent state a guess, read a file whose content it cannot guess, and say that the guess
 	// was wrong.
 	askToGuessAndRead = "Before you read anything, say in one sentence which port the Zorblax service listens on, " +

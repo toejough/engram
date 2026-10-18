@@ -77,8 +77,9 @@ func Test793a2d1d_ThePromptAndTheReplyAreAsTheyWere(t *testing.T) {
 
 	var asked *turn
 
-	step(t, "When the user sends a prompt that the note bears on, typed with extra spaces and a line break", func() {
-		asked = chat.tell(askHowToBuildSpaced)
+	step(t, "When the user sends a prompt that is a recall moment and that the note applies to, typed with extra "+
+		"spaces and a line break", func() {
+		asked = chat.tell(askPlanBuildSpaced)
 	})
 
 	step(t, "Then the prompt in the conversation is exactly as the user typed it, and the reply is exactly the "+
@@ -87,7 +88,7 @@ func Test793a2d1d_ThePromptAndTheReplyAreAsTheyWere(t *testing.T) {
 
 		text, isPrompt := asked.rows[0].promptText()
 		g.Expect(isPrompt).To(BeTrue())
-		g.Expect(text).To(Equal(askHowToBuildSpaced), "the prompt in the conversation")
+		g.Expect(text).To(Equal(askPlanBuildSpaced), "the prompt in the conversation")
 
 		g.Expect(asked.reply).NotTo(BeEmpty(), "the agent answered")
 		g.Expect(asked.finalText()).To(Equal(asked.reply), "the agent's text in the conversation, and the reply")
@@ -136,9 +137,9 @@ func Test793a2d1e_AWriteThatFailsDoesNotBreakTheSession(t *testing.T) {
 
 // unexported constants.
 const (
-	// askHowToBuildSpaced is askHowToBuild typed with extra spaces and a line break, which nothing has a reason to
+	// askPlanBuildSpaced is askPlanBuild typed with extra spaces and a line break, which nothing has a reason to
 	// change.
-	askHowToBuildSpaced = "How  do I build   the Zorblax project?\nAnswer in one line."
+	askPlanBuildSpaced = "Plan   how to build the Zorblax  project for release.\nReply with one short sentence."
 	// askSomethingElse is a prompt that no note bears on.
 	askSomethingElse = "What is 17 plus 25? Reply with the number only."
 	// jobStartWait is how long the work after a turn has to start.

@@ -113,24 +113,23 @@ func Test793a2e1c_ADeliveryThatCouldNotBeDoneIsShownWithItsReason(t *testing.T) 
 
 	var chat *conversation
 
-	step(t, "Given the user has run engram update, a vault holding a note that says when the staging database is "+
-		"reset, and a lookup that takes 20 seconds", func() {
+	step(t, "Given the user has run engram update, and a vault holding a note that says when the staging database is "+
+		"reset, which cannot be read", func() {
 		machine.hasRunUpdate()
 		machine.learnsFact(stagingReset)
-		machine.deliveryTakes(slowLookup)
+		machine.vaultCannotBeRead()
 
 		chat = machine.startSession("zorblax").converse()
 	})
 
 	var first, second *turn
 
-	step(t, "When the user sends a prompt asking when the staging database is reset, the lookup becomes quick again, "+
-		"and the user sends another prompt", func() {
-		first = chat.tell(askStagingReset)
+	step(t, "When the user sends a prompt to prepare a test run against the staging database tonight, the vault "+
+		"becomes readable again, and the user sends another prompt", func() {
+		first = chat.tell(askPrepareRun)
 
-		g.Expect(machine.deliveryStarted()).To(BeTrue(), "the slow delivery was run")
 		machine.awaitRecordOfKind(chat.session.id, chat.turnEnds, "failed")
-		machine.deliveryIsQuick()
+		machine.vaultCanBeRead()
 
 		second = chat.tell(askSomethingElse)
 	})
@@ -142,8 +141,7 @@ func Test793a2e1c_ADeliveryThatCouldNotBeDoneIsShownWithItsReason(t *testing.T) 
 		t.Logf("the lines shown with the second prompt: %q", second.shown)
 
 		g.Expect(second.shown).To(ConsistOf(And(ContainSubstring("failed:"),
-			ContainSubstring("the delivery for a prompt could not be done"),
-			Or(ContainSubstring("within 7000 ms"), ContainSubstring("ended")))),
+			ContainSubstring("the delivery for a prompt could not be done"), ContainSubstring("auto recall"))),
 			"the lines shown with the second prompt")
 
 		holdNone(g, second.shown, first, second)
@@ -269,7 +267,7 @@ func Test793a2e1g_TheNotesDeliveredWithAPromptAreOneLine(t *testing.T) {
 		chat       *conversation
 	)
 
-	step(t, "Given the user has run engram update, and a vault holding three notes that bear on a prompt about the "+
+	step(t, "Given the user has run engram update, and a vault holding three notes that apply to a prompt about the "+
 		"staging database and a note about formatting Python files", func() {
 		machine.hasRunUpdate()
 
@@ -282,8 +280,8 @@ func Test793a2e1g_TheNotesDeliveredWithAPromptAreOneLine(t *testing.T) {
 
 	var asked *turn
 
-	step(t, "When the user sends a prompt asking what there is to know about the staging database", func() {
-		asked = chat.tell(askStagingEverything)
+	step(t, "When the user sends a prompt to prepare a test run against the staging database tonight", func() {
+		asked = chat.tell(askPrepareRun)
 	})
 
 	step(t, "Then the session shows one line that names the three notes, and no other line about the delivery", func() {
@@ -321,8 +319,6 @@ const (
 	// same database.
 	askResetAndRememberBackup = "When is the Zorblax staging database reset? Also remember that it is backed up " +
 		"every Monday at 05:00 UTC. Reply with one short sentence."
-	// askStagingEverything is a prompt that the three notes about the staging database bear on.
-	askStagingEverything = "What is there to know about the Zorblax staging database? Reply with one short sentence."
 	// slowWrite is how long the write takes in the scenario of a write that finishes after the next prompt.
 	slowWrite = 12 * time.Second
 )

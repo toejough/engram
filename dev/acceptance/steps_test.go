@@ -16,6 +16,20 @@ import (
 
 // unexported constants.
 const (
+	// askParseConnection is a prompt that the stagingReset note shares words with and does not apply to (855a3b1b).
+	askParseConnection = "Write a function that parses the Zorblax staging database connection string from a config " +
+		"file, and reply with only its name."
+	// askPlanFreeze is a prompt that the passage of freezeConversation applies to (855a3b1e).
+	askPlanFreeze = "Plan the Zorblax staging deploys of next month so that they avoid the production cutover " +
+		"freeze. Reply with one short sentence."
+	// askPlanMigration is a prompt that the stagingReset and migrationBackup notes apply to and the formatPython note
+	// does not (855a3b1d).
+	askPlanMigration = "Plan a migration of the Zorblax staging database for tonight. Reply with one short sentence."
+	// askPrepareRun is a recall moment that the stagingReset note applies to (855b10): a task of more than one step.
+	askPrepareRun = "Prepare a test run against the Zorblax staging database tonight. Reply with one short sentence."
+	// askPrepareSecondRun is another prompt that the stagingReset note applies to.
+	askPrepareSecondRun = "Prepare a second test run against the Zorblax staging database tonight. " +
+		"Reply with one short sentence."
 	// askStagingQuery makes the agent look the stagingReset note up itself, with a command that names no word of the
 	// note's situation.
 	askStagingQuery = "Run this shell command and tell me how many items it returned: " +
@@ -25,6 +39,8 @@ const (
 	askStagingReset = "When is the Zorblax staging database reset?"
 	// askStagingResetDay is another prompt that the stagingReset note answers.
 	askStagingResetDay = "What day of the week is the Zorblax staging database reset on?"
+	// askThanks is a prompt that is no recall moment, and that the stagingReset note shares words with (855a3b1a).
+	askThanks = "Thanks, that settles when the Zorblax staging database is reset."
 	// captureBound is how long after a turn ends the vault must hold the notes of its lessons (793a2c).
 	captureBound = 2 * time.Minute
 	// capturePoll is how often the vault is looked at while a note is awaited.
@@ -33,11 +49,19 @@ const (
 	claudeSettings = `{"permissions":{"allow":["Bash(engram:*)"]}}`
 	// debugLogName is the file in the machine's directory that every engram command run on it writes its debug log to.
 	debugLogName = "engram-debug.log"
+	// freezeConversation is an earlier conversation that states the freeze askPlanFreeze is about (855a3b1e).
+	freezeConversation = "In an earlier session the user said that the production cutover is frozen on the last " +
+		"Friday of every month, and that no deploy of any kind may go out on that day."
+	// unrelatedConversation is an earlier conversation that has nothing to do with the staging database (793a2b1d).
+	unrelatedConversation = "In an earlier session the user said that the office coffee machine is descaled every " +
+		"second Tuesday, and asked who holds the key to the supplies cupboard."
 	// earlierConversation is a conversation that answers askStagingReset.
 	earlierConversation = "In an earlier session the user said that the Zorblax staging database is reset every " +
 		"Sunday at 03:40 UTC, and asked when the staging database is reset."
 	learnSource = "acceptance test"
 	modName     = "engram-memory"
+	// neverEnds is how long a step that never exits sleeps: far past any bound.
+	neverEnds = 24 * time.Hour
 	// ownTurnSettle is how long the test of a turn of the session's own waits for a record of that turn that would
 	// come: three times the longest capture of the live runs (793b85).
 	ownTurnSettle = 20 * time.Second
@@ -56,6 +80,14 @@ var (
 		impact:    "the lint check failed",
 		action:    "run black on the file before committing",
 	}
+	// migrationBackup is a note about the same database that applies to a migration of it only (855a3b1d).
+	migrationBackup = fact{
+		slug:      "zorblax-migration-backup",
+		situation: "migrating the Zorblax staging database",
+		subject:   "a migration of the Zorblax staging database",
+		predicate: "is preceded by",
+		object:    "a backup taken with the make zorblax-backup command",
+	}
 	// stagingBackup is a second note about the same database, which bears on the same prompt.
 	stagingBackup = fact{
 		slug:      "zorblax-staging-backup",
@@ -63,6 +95,22 @@ var (
 		subject:   "the Zorblax staging database",
 		predicate: "is backed up every",
 		object:    "Monday at 05:00 UTC",
+	}
+	// stagingHoliday is a note about the same database that applies to the same prompts as stagingReset (793a2b1c).
+	stagingHoliday = fact{
+		slug:      "zorblax-staging-holiday",
+		situation: "testing against the Zorblax staging database",
+		subject:   "the reset of the Zorblax staging database",
+		predicate: "is skipped on",
+		object:    "public holidays",
+	}
+	// stagingMonday is a note that reverses stagingReset: the reset moved (855a3b1c).
+	stagingMonday = fact{
+		slug:      "zorblax-staging-monday",
+		situation: "testing against the Zorblax staging database",
+		subject:   "the Zorblax staging database",
+		predicate: "is reset every",
+		object:    "Monday at 03:40 UTC and not on Sunday",
 	}
 	stagingReset = fact{
 		slug:      "zorblax-staging-reset",
@@ -276,36 +324,53 @@ func (m *machine) chunksCannotBeWritten() {
 	m.t.Cleanup(func() { _ = os.Chmod(m.chunks, dirPerm) })
 }
 
-// deliveryIsQuick takes away the file that keeps the delivery of deliveryTakes slow.
-func (m *machine) deliveryIsQuick() {
+// stepIsQuick takes away the file that keeps the step of stepTakes slow.
+func (m *machine) stepIsQuick() {
 	m.t.Helper()
 
-	err := os.Remove(filepath.Join(m.root, "slow-delivery", "slow"))
+	err := os.Remove(filepath.Join(m.root, "slow-step", "slow"))
 	if err != nil {
-		m.t.Fatalf("making the delivery quick: %v", err)
+		m.t.Fatalf("making the step quick: %v", err)
 	}
 }
 
-// deliveryStarted reports whether the slow delivery of deliveryTakes was started.
-func (m *machine) deliveryStarted() bool {
-	_, err := os.Stat(filepath.Join(m.root, "slow-delivery", "started"))
+// stepNeverEnds makes a step of `engram auto` never exit, for as long as the file slow is in the wrapper's directory:
+// a real model call cannot be made to hang, so the step that stands in front of the first one does (855a3c1a).
+func (m *machine) stepNeverEnds(step string) {
+	m.t.Helper()
+
+	m.stepWraps(step, "exec sleep "+strconv.Itoa(int(neverEnds.Seconds())))
+}
+
+// stepStarted reports whether the slow step of stepTakes or stepNeverEnds was started.
+func (m *machine) stepStarted() bool {
+	_, err := os.Stat(filepath.Join(m.root, "slow-step", "started"))
 
 	return err == nil
 }
 
-// deliveryTakes makes the delivery take the given time for as long as the file slow is in the wrapper's directory:
-// engram on the PATH notes that the delivery started and waits, and runs the machine's own engram for anything else.
-// The wait replaces the process, so that ending the delivery ends all of it.
-func (m *machine) deliveryTakes(wait time.Duration) {
+// stepTakes makes a step of `engram auto` (moment, phrases, recall or deliver) take the given time for as long as the
+// file slow is in the wrapper's directory: engram on the PATH notes that the step started and waits, and runs the
+// machine's own engram for anything else. The wait replaces the process, so that ending the step ends all of it. A real
+// model cannot be made slow, so the delay stands in front of the first step of the chain (793a2d1a).
+func (m *machine) stepTakes(step string, wait time.Duration) {
 	m.t.Helper()
 
-	dir := filepath.Join(m.root, "slow-delivery")
+	m.stepWraps(step, "exec sleep "+strconv.Itoa(int(wait.Seconds())))
+}
+
+// stepWraps puts an engram on the PATH that notes that a step started and then does the action, while the file slow is
+// there, and runs the machine's own engram otherwise.
+func (m *machine) stepWraps(step, action string) {
+	m.t.Helper()
+
+	dir := filepath.Join(m.root, "slow-step")
 	mkdirAll(m.t, dir)
 	writeFile(m.t, filepath.Join(dir, "slow"), "")
 
-	m.wrapsEngram(dir, "#!/bin/sh\ncase \"$1 $2\" in\n\"auto deliver\")\nif [ -e '"+filepath.Join(dir, "slow")+
-		"' ]; then\n: > '"+filepath.Join(dir, "started")+"'\nexec sleep "+strconv.Itoa(int(wait.Seconds()))+
-		"\nfi\n;;\nesac\nexec '"+filepath.Join(m.gobin, engramBinaryName)+"' \"$@\"\n")
+	m.wrapsEngram(dir, "#!/bin/sh\ncase \"$1 $2\" in\n\"auto "+step+"\")\nif [ -e '"+filepath.Join(dir, "slow")+
+		"' ]; then\n: > '"+filepath.Join(dir, "started")+"'\n"+action+"\nfi\n;;\nesac\nexec '"+
+		filepath.Join(m.gobin, engramBinaryName)+"' \"$@\"\n")
 }
 
 // hasClaudeCode installs Claude Code's directory on the machine, with the one permission the scenarios need.
@@ -724,6 +789,29 @@ func (m *machine) standInReported() bool {
 	_, err := os.Stat(filepath.Join(m.root, "stand-in", "write"))
 
 	return err == nil
+}
+
+// vaultCannotBeRead takes the right to read the machine's vault away until vaultCanBeRead gives it back or the test
+// ends.
+func (m *machine) vaultCannotBeRead() {
+	m.t.Helper()
+
+	err := os.Chmod(m.vault, 0)
+	if err != nil {
+		m.t.Fatalf("making the vault unreadable: %v", err)
+	}
+
+	m.t.Cleanup(func() { _ = os.Chmod(m.vault, dirPerm) })
+}
+
+// vaultCanBeRead gives the right to read the machine's vault back.
+func (m *machine) vaultCanBeRead() {
+	m.t.Helper()
+
+	err := os.Chmod(m.vault, dirPerm)
+	if err != nil {
+		m.t.Fatalf("making the vault readable: %v", err)
+	}
 }
 
 // vaultCannotBeWritten takes the right to create a file in the machine's vault away; reading it still works.

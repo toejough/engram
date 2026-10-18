@@ -33,8 +33,8 @@ func Test793a2a1a_NextSessionHasMemoryAfterOneEngramUpdate(t *testing.T) {
 	var sent *turn
 
 	step(t, "And starts a Claude Code session in a project other than the one engram update was run in, "+
-		"and sends a prompt asking when the staging database is reset", func() {
-		sent = machine.startSession("another-project").send(askStagingReset)
+		"and sends a prompt to prepare a test run against the staging database tonight", func() {
+		sent = machine.startSession("another-project").send(askPrepareRun)
 		t.Logf("the agent replied %q (cost $%.4f)", sent.reply, sent.cost)
 	})
 
@@ -72,10 +72,11 @@ func Test793a2a1b_ASecondUpdateStillDeliversEachNoteOnce(t *testing.T) {
 
 	var sent *turn
 
-	step(t, "And starts a session and sends a prompt asking when the staging database is reset", func() {
-		sent = machine.startSession("a-project").send(askStagingReset)
-		t.Logf("the agent replied %q (cost $%.4f)", sent.reply, sent.cost)
-	})
+	step(t, "And starts a session and sends a prompt to prepare a test run against the staging database tonight",
+		func() {
+			sent = machine.startSession("a-project").send(askPrepareRun)
+			t.Logf("the agent replied %q (cost $%.4f)", sent.reply, sent.cost)
+		})
 
 	step(t, "Then the note is in the agent's context once", func() {
 		g.Expect(sent.blocks()).To(HaveLen(1), "blocks automatic memory delivered with the prompt")
@@ -210,8 +211,8 @@ func Test793a2b1a_TheNotesThatBearOnAPromptArriveWithIt(t *testing.T) {
 
 	var sent *turn
 
-	step(t, "When the user sends a prompt asking when the staging database is reset", func() {
-		sent = machine.startSession("a-project").send(askStagingReset)
+	step(t, "When the user sends a prompt to prepare a test run against the staging database tonight", func() {
+		sent = machine.startSession("a-project").send(askPrepareRun)
 		t.Logf("the agent replied %q (cost $%.4f)", sent.reply, sent.cost)
 	})
 
@@ -226,7 +227,7 @@ func Test793a2b1a_TheNotesThatBearOnAPromptArriveWithIt(t *testing.T) {
 
 		text, isPrompt := sent.rows[0].promptText()
 		g.Expect(isPrompt).To(BeTrue())
-		g.Expect(text).To(Equal(askStagingReset))
+		g.Expect(text).To(Equal(askPrepareRun))
 	})
 }
 
@@ -242,7 +243,7 @@ func Test793a2b1b_ANoteDeliveredEarlierInTheSessionIsNotDeliveredAgain(t *testin
 		chat        *conversation
 	)
 
-	step(t, "Given a session in which a prompt asking when the staging database is reset "+
+	step(t, "Given a session in which a prompt to prepare a test run against the staging database tonight "+
 		"arrived with the staging note", func() {
 		machine.hasEngram()
 		machine.hasClaudeCode()
@@ -253,7 +254,7 @@ func Test793a2b1b_ANoteDeliveredEarlierInTheSessionIsNotDeliveredAgain(t *testin
 		// session wrote while it was open, as a user's next prompt does
 		inSession = machine.startSession("a-project")
 		chat = inSession.converse()
-		first := chat.say(askStagingReset)
+		first := chat.say(askPrepareRun)
 
 		g.Expect(first.blocks()).To(HaveLen(1), "blocks automatic memory delivered with the first prompt")
 		g.Expect(first.blocks()[0]).To(ContainSubstring(stagingNote))
@@ -261,10 +262,11 @@ func Test793a2b1b_ANoteDeliveredEarlierInTheSessionIsNotDeliveredAgain(t *testin
 
 	var second *turn
 
-	step(t, "When the user sends another prompt about the staging database reset", func() {
-		second = chat.say(askStagingResetDay)
-		t.Logf("the agent replied %q (cost $%.4f)", second.reply, second.cost)
-	})
+	step(t, "When the user sends another prompt to prepare a second test run against the staging database tonight",
+		func() {
+			second = chat.say(askPrepareSecondRun)
+			t.Logf("the agent replied %q (cost $%.4f)", second.reply, second.cost)
+		})
 
 	step(t, "Then the second prompt arrives with nothing from the vault, "+
 		"and the staging note is in the agent's context once", func() {
@@ -280,13 +282,13 @@ func Test793a2b1c_ANoteTheAgentLookedUpItselfIsNotDelivered(t *testing.T) {
 	machine := newMachine(t)
 
 	var (
-		stagingNote, backupNote string
+		stagingNote, holidayNote string
 		inSession               *session
 	)
 
 	step(t, "Given a session in which, before the user ran engram update, "+
 		"the agent looked up the staging note itself with engram query, "+
-		"and a vault that has gained another note about the staging database since", func() {
+		"and a vault that has gained another note since, which says the reset is skipped on public holidays", func() {
 		machine.hasEngram()
 		machine.hasClaudeCode()
 		stagingNote = machine.learnsFact(stagingReset)
@@ -297,16 +299,16 @@ func Test793a2b1c_ANoteTheAgentLookedUpItselfIsNotDelivered(t *testing.T) {
 		g.Expect(first.toolResultsNaming(stagingNote)).To(BeTrue(), "the agent's own lookup printed the note")
 		g.Expect(first.blocks()).To(BeEmpty(), "the mod was not installed yet")
 
-		backupNote = machine.learnsFact(stagingBackup)
+		holidayNote = machine.learnsFact(stagingHoliday)
 	})
 
 	var second *turn
 
 	step(t, "When the user runs engram update, resumes that session, "+
-		"and sends a prompt asking when the staging database is reset", func() {
+		"and sends a prompt to prepare a test run against the staging database tonight", func() {
 		machine.mustSucceed(machine.update(), "engram update")
 
-		second = inSession.send(askStagingReset)
+		second = inSession.send(askPrepareRun)
 		t.Logf("the agent replied %q (cost $%.4f)", second.reply, second.cost)
 	})
 
@@ -314,7 +316,7 @@ func Test793a2b1c_ANoteTheAgentLookedUpItselfIsNotDelivered(t *testing.T) {
 		blocks := second.blocks()
 
 		g.Expect(blocks).To(HaveLen(1), "blocks automatic memory delivered with the prompt")
-		g.Expect(blocks[0]).To(ContainSubstring(backupNote))
+		g.Expect(blocks[0]).To(ContainSubstring(holidayNote))
 		g.Expect(blocks[0]).NotTo(ContainSubstring(stagingNote))
 	})
 }
@@ -326,21 +328,21 @@ func Test793a2b1d_APromptThatMatchesNoNoteArrivesWithNothing(t *testing.T) {
 	machine := newMachine(t)
 
 	step(t, "Given the user has run engram update, a vault whose notes have nothing to do with the prompt, "+
-		"and a searchable conversation that does", func() {
+		"and a searchable conversation that has nothing to do with it either", func() {
 		machine.hasEngram()
 		machine.hasClaudeCode()
 		machine.learnsFeedback(formatPython)
-		machine.hasConversation(earlierConversation)
+		machine.hasConversation(unrelatedConversation)
 		machine.mustSucceed(machine.update(), "engram update")
 
-		lookup := machine.engram("query", "--text", askStagingReset, "--phrase", askStagingReset)
-		g.Expect(lookup.stdout).To(ContainSubstring("kind: chunk"), "the agent's own lookup finds the conversation")
+		lookup := machine.engram("query", "--text", askPrepareRun, "--phrase", askPrepareRun)
+		g.Expect(lookup.stdout).To(ContainSubstring("kind: chunk"), "the lookup matches the conversation by its words")
 	})
 
 	var sent *turn
 
 	step(t, "When the user sends the prompt", func() {
-		sent = machine.startSession("a-project").send(askStagingReset)
+		sent = machine.startSession("a-project").send(askPrepareRun)
 		t.Logf("the agent replied %q (cost $%.4f)", sent.reply, sent.cost)
 	})
 
@@ -350,44 +352,45 @@ func Test793a2b1d_APromptThatMatchesNoNoteArrivesWithNothing(t *testing.T) {
 	})
 }
 
-func Test793a2d1a_ASlowLookupDoesNotHoldAPromptForMoreThan8Seconds(t *testing.T) {
+func Test793a2d1a_ASlowJudgementHoldsThePromptUntilItHasTheNotes(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 	machine := newMachine(t)
 
-	var chat *conversation
+	var (
+		stagingNote string
+		chat        *conversation
+	)
 
-	step(t, "Given the user has run engram update, and a lookup that takes 20 seconds", func() {
+	step(t, "Given the user has run engram update, a vault holding a note that says when the staging database is "+
+		"reset, and a judgement that takes 20 seconds", func() {
 		machine.hasEngram()
 		machine.hasClaudeCode()
-		machine.learnsFact(stagingReset)
+		stagingNote = machine.learnsFact(stagingReset)
 		machine.mustSucceed(machine.update(), "engram update")
-		machine.deliveryTakes(slowLookup)
+		machine.stepTakes("moment", slowJudgement)
 
-		// the first prompt of a session takes up the start of the process: the prompt that is measured is the second
 		chat = machine.startSession("a-project").converse()
-		chat.tell(askSomethingElse)
 	})
 
 	var sent *turn
 
-	step(t, "When the user sends a prompt", func() {
-		sent = chat.tell(askStagingReset)
+	step(t, "When the user sends a prompt to prepare a test run against the staging database tonight", func() {
+		sent = chat.tell(askPrepareRun)
 		t.Logf("the prompt reached the model %s after it was sent; the agent replied %q", sent.reached(), sent.reply)
 	})
 
-	step(t, "Then the prompt reaches the agent within 8 seconds, as the user typed it and with nothing from the vault, "+
-		"and the agent answers it", func() {
-		g.Expect(machine.deliveryStarted()).To(BeTrue(), "the slow lookup was run")
-		g.Expect(sent.reached()).To(BeNumerically("<", holdLimit), "how long the prompt waited")
-		g.Expect(sent.reached()).To(BeNumerically(">", holdLimit/2), "the prompt did wait for the lookup")
+	step(t, "Then the prompt reaches the agent after the judgement finished, as the user typed it and with the "+
+		"staging note, and the agent answers it", func() {
+		g.Expect(machine.stepStarted()).To(BeTrue(), "the slow judgement was run")
+		g.Expect(sent.reached()).To(BeNumerically(">=", slowJudgement), "the prompt did wait for the judgement")
 
 		text, isPrompt := sent.rows[0].promptText()
 		g.Expect(isPrompt).To(BeTrue())
-		g.Expect(text).To(Equal(askStagingReset))
+		g.Expect(text).To(Equal(askPrepareRun))
 
-		g.Expect(sent.blocks()).To(BeEmpty(), "blocks automatic memory delivered with the prompt")
+		g.Expect(sent.blocks()).To(ConsistOf(ContainSubstring(stagingNote)), "blocks automatic memory delivered")
 		g.Expect(sent.reply).NotTo(BeEmpty(), "the agent answered")
 	})
 }
@@ -396,6 +399,8 @@ func Test793a2d1a_ASlowLookupDoesNotHoldAPromptForMoreThan8Seconds(t *testing.T)
 const (
 	// holdLimit is the longest a prompt may be held (793a2d).
 	holdLimit = 8 * time.Second
+	// slowJudgement is a judgement that takes longer than the hold of 793 did.
+	slowJudgement = 20 * time.Second
 	// slowLookup is a lookup that takes longer than the hold.
 	slowLookup = 20 * time.Second
 )
