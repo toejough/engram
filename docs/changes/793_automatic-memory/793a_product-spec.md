@@ -194,7 +194,7 @@ Scenario: 793a2d1e A write that fails does not break the session
 
 ### 793a2e The user can see what it did
 
-Requirement: 793a2e When [automatic memory](#793a1a-terms) delivered a [note](../../GLOSSARY.md#permanent-note), wrote one or could not do a delivery, a write or a [sweep](#793a1a-terms), the user MUST be able to see in the [session](../../GLOSSARY.md#session), by the time the user sends the next [prompt](#793a1a-terms), without going to the [vault](../../GLOSSARY.md#vault), what it delivered for the previous prompt, what it wrote from the previous [turn](#793a1a-terms), and each delivery, write or sweep it could not do, with the reason. What a write did, and what a write or a sweep could not do, when it finishes after that prompt is sent, MUST be shown when it finishes.
+Requirement: 793a2e When [automatic memory](#793a1a-terms) delivered a [note](../../GLOSSARY.md#permanent-note), wrote one or could not do a delivery, a write or a [sweep](#793a1a-terms), the user MUST be able to see in the [session](../../GLOSSARY.md#session), by the time the user sends the next [prompt](#793a1a-terms), without going to the [vault](../../GLOSSARY.md#vault), what it delivered for the previous prompt, what it wrote from the previous [turn](#793a1a-terms), and each delivery, write or sweep it could not do, with the reason. What a write did, and what a write or a sweep could not do, when it finishes after that prompt is sent, MUST be shown when it finishes. At a prompt the session MUST show at most four lines about what automatic memory did: one for the notes delivered, one for the notes written, one for what was left out and one for what failed, each cut where it is long.
 
 #### 793a2e1 UAT Scenarios
 
@@ -228,6 +228,11 @@ Scenario: 793a2e1f A turn that is not captured is shown with the reason
   Given the user has run engram update, and headless prompts are captured only when the user asks
   When the user corrects the agent in a headless session, and sends another prompt
   Then the session shows, with the second prompt, a line that says the turn was not captured, with the reason
+
+Scenario: 793a2e1g The notes delivered with a prompt are one line
+  Given the user has run engram update, and a vault holding three notes that bear on a prompt about the staging database and a note about formatting Python files
+  When the user sends a prompt asking what there is to know about the staging database
+  Then the session shows one line that names the three notes, and no other line about the delivery
 ```
 
 ## 793a3 Added: Interactions

@@ -444,11 +444,11 @@ Withdrawn: answered by the owner's instruction to follow the guides, [793b91 The
 
 ## 793c74 Is what was delivered shown to the user?
 
-- **Context:** [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) asks that the user see what was delivered for the previous [prompt](./793a_product-spec.md#793a1a-terms); the block of a delivery is in the context, which the user never sees.
-- **Options:** (a) A line for each [note](../../GLOSSARY.md#permanent-note) delivered, shown when it is delivered. (b) Nothing: the block is the display, as built before. (c) One line at the next prompt, with a count or the names.
-- **Recommendation:** (a): the user sees it at once, and it needs no record or mark; (b) shows the user nothing, and (c) states the note later and needs a record of the delivery.
-- **Blocks:** [793a2e1a What was delivered and what was written for the previous turn is in the session by the next prompt](./793a_product-spec.md#793a2e1-uat-scenarios).
-- **Status:** open; default (a) taken in [793b105 What is shown, and how](./793b_decision-log.md#793b105-what-is-shown-and-how).
+- **Context:** [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) asks that the user see what was delivered for the previous [prompt](./793a_product-spec.md#793a1a-terms); the block of a delivery is in the context, which the user never sees. The lookup returns up to 20 [notes](../../GLOSSARY.md#permanent-note) ([793c3 Is the volume of delivered notes limited?](#793c3-is-the-volume-of-delivered-notes-limited)), and a line for each made 20 lines at a prompt.
+- **Options:** (a) One line that names the notes delivered, shown when they are delivered. (b) A line for each note delivered, shown when it is delivered, as built before. (c) Nothing: the block is the display, as built before that. (d) One line at the next prompt, with a count or the names.
+- **Recommendation:** (a): the user sees at once which notes arrived, in one line whatever their number, and it needs no record or mark; (b) shows 20 lines for 20 notes, (c) shows the user nothing, and (d) states the notes later and needs a record of the delivery.
+- **Blocks:** [793a2e1a What was delivered and what was written for the previous turn is in the session by the next prompt](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1g The notes delivered with a prompt are one line](./793a_product-spec.md#793a2e1-uat-scenarios).
+- **Status:** open; default (b) was taken in [793b105 What is shown, and how](./793b_decision-log.md#793b105-what-is-shown-and-how), and (a) replaces it in [793b113 One line is shown for each of what was delivered, written, left out and failed](./793b_decision-log.md#793b113-one-line-is-shown-for-each-of-what-was-delivered-written-left-out-and-failed).
 
 ## 793c75 Should the line for a delivery that could not be done name the prompt?
 

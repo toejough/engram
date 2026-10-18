@@ -896,9 +896,9 @@ Scenario: 793d4n1f Two sweeps at once index both records
 
 ### 793d4p Telling what automatic memory did
 
-Requirement: 793d4p The `prompt-delivery` MUST print on standard error the lines that show the user what [automatic memory](./793a_product-spec.md#793a1a-terms) did, one to a line and none when it has nothing to show, and nothing else (a warning of the lookup, such as a [note](../../GLOSSARY.md#permanent-note) whose embedding is of another model, goes to the debug log that `ENGRAM_DEBUG_LOG` names, so that it is not shown at every [prompt](./793a_product-spec.md#793a1a-terms)): first a line for each [note](../../GLOSSARY.md#permanent-note) it delivered, `delivered the note` and its file name, in the order of the block ([793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt)), then a line for each record of the kind `written`, `skipped` or `failed` that [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did) makes for the [session](../../GLOSSARY.md#session) of the request, read from the directory its `--records` flag names, else `auto` in the engram data directory, that it has not shown, oldest first and at most 5; the others wait for the next [prompt](./793a_product-spec.md#793a1a-terms). A line of a record is the time of the record (`15:04:05`) and: for `written`, `wrote the note` and its file name; for `skipped`, `left out the lesson` and its slug, or `left out`, then a colon and the reason; for `failed`, `failed:`, then `writing` and its slug and a colon when it has a slug, and the reason. A reason is written as one line, redacted ([793d4j Redacting credentials](#793d4j-redacting-credentials)) and, when it is longer than 240 characters, cut in its middle so that both ends stay; every line is one line of single spaces with no control or format character. After printing the lines it MUST mark each record whose line it printed by an empty file beside the record, named for it with the suffix `.told`, so that a line is shown once; a record with a mark makes no line, nor does a record of another session, of the kind `nothing`, or that cannot be read, nor a directory that cannot be read, and a mark that cannot be written is the end of it. The lines are no part of the block ([793d4c Framing the notes of a block as data](#793d4c-framing-the-notes-of-a-block-as-data)).
+Requirement: 793d4p The `prompt-delivery` MUST print on standard error the lines that show the user what [automatic memory](./793a_product-spec.md#793a1a-terms) did, one to a line, at most four, one for each of four kinds in the order below and none for a kind with nothing to show, and nothing else (a warning of the lookup, such as a [note](../../GLOSSARY.md#permanent-note) whose embedding is of another model, goes to the debug log that `ENGRAM_DEBUG_LOG` names, so that it is not shown at every [prompt](./793a_product-spec.md#793a1a-terms)). The line of the notes it delivered is `delivered the note` and its file name, or `delivered the notes` and the file names separated by commas, in the order of the block ([793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt)). The other three lines tell the records of the kinds `written`, `skipped` and `failed` that [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did) makes for the [session](../../GLOSSARY.md#session) of the request, read from the directory its `--records` flag names, else `auto` in the engram data directory, that it has not shown, oldest first, each line beginning with the time (`15:04:05`) of the oldest of its records: for `written`, `wrote the note` and its file name, or `wrote the notes` and the file names separated by commas; for `skipped`, `left out:` and, for each record, `the lesson` and its slug and a colon when it has a slug, then the reason, the records separated by semicolons; for `failed`, `failed:` and, for each record, `writing` and its slug and a colon when it has a slug, then the reason, separated by semicolons. A reason is written as one line and redacted ([793d4j Redacting credentials](#793d4j-redacting-credentials)); a line is cut in its middle, so that both ends stay, when it is longer than 240 characters; every line is one line of single spaces with no control or format character. After printing the lines it MUST mark each record that a line it printed tells, also one that the cut left out of the text of the line, by an empty file beside the record, named for it with the suffix `.told`, so that a line is shown once; a record with a mark makes no line, nor does a record of another session, of the kind `nothing`, or that cannot be read, nor a directory that cannot be read, and a mark that cannot be written is the end of it. The lines are no part of the block ([793d4c Framing the notes of a block as data](#793d4c-framing-the-notes-of-a-block-as-data)).
 
-Owner: `prompt-delivery`. Supports: [793a2e1a What was delivered and what was written for the previous turn is in the session by the next prompt](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1b A write that finishes after the next prompt is shown when it finishes](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1c A delivery that could not be done is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1d A write that failed is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1e A sweep that failed is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1f A turn that is not captured is shown with the reason](./793a_product-spec.md#793a2e1-uat-scenarios).
+Owner: `prompt-delivery`. Supports: [793a2e1a What was delivered and what was written for the previous turn is in the session by the next prompt](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1b A write that finishes after the next prompt is shown when it finishes](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1c A delivery that could not be done is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1d A write that failed is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1e A sweep that failed is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1f A turn that is not captured is shown with the reason](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1g The notes delivered with a prompt are one line](./793a_product-spec.md#793a2e1-uat-scenarios).
 
 #### 793d4p1 Scenarios
 
@@ -906,7 +906,7 @@ Owner: `prompt-delivery`. Supports: [793a2e1a What was delivered and what was wr
 Scenario: 793d4p1a A record that was not shown becomes a line
   Given the records of a session of the kinds written, skipped with a slug, skipped without one, failed without a slug and failed with one, and none of them shown
   When the delivery is given a prompt of that session
-  Then it prints on standard error a line for each, oldest first, each beginning with the time of its record and saying what became of it
+  Then it prints on standard error one line for the written, one for the left out and one for the failed, each beginning with the time of the oldest of its records and saying what became of them
 
 Scenario: 793d4p1b A record of the kind nothing makes no line
   Given the records of a session of the kind nothing only
@@ -921,12 +921,12 @@ Scenario: 793d4p1c A line that was shown is not shown again
 Scenario: 793d4p1d A reason is one line, redacted and cut in its middle
   Given a failed record whose reason holds line breaks, a credential and more than 240 characters
   When the delivery is given a prompt of its session
-  Then its line holds the reason as one line without the credential, at most 240 characters of it, and both ends of it
+  Then its line is one line without the credential, at most 240 characters, and holds both ends of the text
 
-Scenario: 793d4p1e At most five lines are shown at once
-  Given the records of a session that make seven lines
+Scenario: 793d4p1e One line is shown for each kind of record
+  Given the records of a session of seven written, two left out and two failed, none of them shown
   When the delivery is given a prompt of that session, and then another
-  Then the first prompt prints five lines and the second the other two
+  Then the first prompt prints three lines, one for each kind, the first of at most 240 characters with the first and the last of the seven file names, and the second prompt prints no line
 
 Scenario: 793d4p1f The records of another session, a record that cannot be read and a missing directory make no line
   Given a directory of records that holds the records of another session and a file that is not a record, and a session with no directory of its own
@@ -946,7 +946,7 @@ Scenario: 793d4p1h A note delivered is shown as a line
 Scenario: 793d4p1i A line shown is one line whatever the texts hold
   Given notes and records whose texts hold line breaks, control and format characters and lines that read as other lines, however they are mixed
   When the delivery is given a prompt of that session
-  Then each line printed on standard error is one line of single spaces with no control or format character, and there is a line for each note delivered and for each record shown
+  Then each line printed on standard error is one line of single spaces with no control or format character, of at most 240 characters, and there is a line for each of the four kinds that has something to tell and no other
 
 Scenario: 793d4p1j A mark that cannot be written does not fail the command
   Given the records of a session, and a place for the marks that cannot be written
@@ -957,6 +957,11 @@ Scenario: 793d4p1k A warning of the lookup is no line for the user
   Given a vault holding a note that bears on a prompt and a note whose embedding is of another model, and a debug log
   When the delivery is given the prompt
   Then standard error holds the line of the note delivered and nothing else, and the debug log holds the warning of the lookup
+
+Scenario: 793d4p1l The notes delivered are one line
+  Given a vault holding two notes that bear on a prompt
+  When the delivery is given the prompt
+  Then it prints the block with a line for each note on standard output, and on standard error one line that names the two notes
 ```
 
 ## 793d5 Product-scenario mapping
@@ -1444,6 +1449,19 @@ Scenario: 793a2e1f A turn that is not captured is shown with the reason
 ```
 
 Realized by [793d4m Telling the prompts the user sends](#793d4m-telling-the-prompts-the-user-sends) (the judgement records a headless [turn](./793a_product-spec.md#793a1a-terms) it leaves out as skipped, with the reason) and [793d4p Telling what automatic memory did](#793d4p-telling-what-automatic-memory-did) (the delivery of the next [prompt](./793a_product-spec.md#793a1a-terms) prints its line, which [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow) shows).
+
+### 793d5zl Mapping of 793a2e1g
+
+The product scenario [793a2e1g The notes delivered with a prompt are one line](./793a_product-spec.md#793a2e1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2e1g The notes delivered with a prompt are one line
+  Given the user has run engram update, and a vault holding three notes that bear on a prompt about the staging database and a note about formatting Python files
+  When the user sends a prompt asking what there is to know about the staging database
+  Then the session shows one line that names the three notes, and no other line about the delivery
+```
+
+Realized by [793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt) (the lookup finds the three [notes](../../GLOSSARY.md#permanent-note)) and [793d4p Telling what automatic memory did](#793d4p-telling-what-automatic-memory-did) (the delivery prints one line that names the notes it delivered, whatever their number), shown by [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow).
 
 ## 793d6 Recommended impact
 
