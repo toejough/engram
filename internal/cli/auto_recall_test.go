@@ -61,7 +61,7 @@ func Test855d4b1a_Recall_ThePhrasesAreLookedUpOnceAsPhrasesOfTheirOwn(t *testing
 			go func() {
 				queryCalls.ArgsShould(match.BeAny, Equal(cli.QueryArgs{
 					Phrases: phrases[:want.phrase], VaultPath: "/a/vault", ChunksDir: "/a/chunks",
-					LazyChunks: true, RecentFill: -1, Limit: 30,
+					LazyChunks: true, RecentFill: -1, Limit: 60,
 				}), match.BeAny).Return(nil)
 				close(asked)
 			}()
