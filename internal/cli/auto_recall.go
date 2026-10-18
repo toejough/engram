@@ -37,10 +37,15 @@ func RunAutoRecall(ctx context.Context, args AutoRecallArgs, deps AutoRecallDeps
 		return fmt.Errorf("auto recall: reading the reply: %w", decodeErr)
 	}
 
+	phrases, phrasesErr := auto.PhrasesOf(input.Reply, input.Carry.Depth)
+	if phrasesErr != nil {
+		return fmt.Errorf("auto recall: %w", phrasesErr)
+	}
+
 	var payload bytes.Buffer
 
 	queryErr := deps.Query(ctx, QueryArgs{
-		Phrases: auto.PhrasesOf(input.Reply, input.Carry.Depth), VaultPath: args.VaultPath, ChunksDir: args.ChunksDir,
+		Phrases: phrases, VaultPath: args.VaultPath, ChunksDir: args.ChunksDir,
 		LazyChunks: true, RecentFill: -1, Limit: maxCandidates,
 	}, &payload)
 	if queryErr != nil {
