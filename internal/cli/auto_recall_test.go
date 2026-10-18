@@ -217,6 +217,72 @@ func Test855d4b1f_Recall_NothingMatchedPrintsNothing(t *testing.T) {
 	g.Expect(out.String()).To(BeEmpty())
 }
 
+func Test855d4b1g_Recall_TheRequestIsForTheMidTierAndHoldsTheVerdictsTheWindowAndTheDated(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	payload := payloadOf(
+		noteItem("1.2026-10-17.zorblax-staging-reset.md", "direct", "2026-10-17", resetSituation, resetBody),
+		fromParent(noteItem("2.2026-10-12.zorblax-backup-window.md", "direct", "2026-10-12", "backing up Zorblax", "Back up at 02:00.")),
+		chunkItem("/sessions/earlier.jsonl#turn-3", "direct"),
+	)
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoRecall(context.Background(), cli.AutoRecallArgs{VaultPath: "/a/vault"},
+		cli.AutoRecallDeps{
+			Stdin: recallInput("glance", "staging resets"), Query: payloadQuery(payload),
+			ReadChunks: chunksRead(chunk.Record{
+				Source: "/sessions/earlier.jsonl", Anchor: "turn-3", Text: "USER: the staging resets on Sunday.",
+				IngestedAt: time.Date(2026, 10, 14, 9, 30, 0, 0, time.UTC),
+			}),
+		}, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(out.String()).To(HavePrefix(`{"request":`), "the mod knows a request by its first characters")
+	g.Expect(out.String()).NotTo(ContainSubstring(`"timeoutMs"`), "no time limit")
+	g.Expect(out.String()).NotTo(ContainSubstring(`"write"`), "a glance writes nothing")
+
+	var step struct {
+		Request struct {
+			Model, Effort, System, Prompt string
+			MaxTokens                     int
+		}
+		Carry struct {
+			Cue, Depth, Window string
+			Candidates         []map[string]any
+		}
+	}
+
+	g.Expect(json.Unmarshal(out.Bytes(), &step)).To(Succeed())
+	g.Expect(step.Request.Model).To(Equal("sonnet"))
+	g.Expect(step.Request.Effort).To(BeEmpty())
+	g.Expect(step.Request.MaxTokens).To(BeNumerically(">", 0))
+	g.Expect(step.Request.System).To(And(ContainSubstring("covered"), ContainSubstring("near"),
+		ContainSubstring("evidence"), ContainSubstring("unrelated")), "the four verdicts")
+	g.Expect(step.Request.System).To(ContainSubstring("later date"), "the newer as the later date that reverses")
+	g.Expect(step.Request.System).To(ContainSubstring(`{"candidates":[`), "the reply shape")
+	g.Expect(step.Request.System).NotTo(Or(ContainSubstring("zorblax"), ContainSubstring("Zorblax"),
+		ContainSubstring("USER:")), "none of the candidates")
+	g.Expect(step.Request.System).NotTo(Or(ContainSubstring(`"lessons"`), ContainSubstring("fields")), "a glance asks for no lesson")
+	g.Expect(step.Request.Prompt).To(HavePrefix("<window>\nUser: Prepare a test run.\n</window>\n<candidates>\n"))
+	g.Expect(candidateLines(t, out.Bytes())).To(Equal([]string{
+		"- 1.2026-10-17.zorblax-staging-reset.md (2026-10-17; " + resetSituation + "): " + resetBody,
+		"- 2.2026-10-12.zorblax-backup-window.md (2026-10-12; backing up Zorblax): Back up at 02:00.",
+		"- /sessions/earlier.jsonl#turn-3 (2026-10-14; passage): USER: the staging resets on Sunday.",
+	}))
+	g.Expect(step.Carry.Cue).To(Equal("prompt"))
+	g.Expect(step.Carry.Depth).To(Equal("glance"))
+	g.Expect(step.Carry.Window).To(Equal("User: Prepare a test run."))
+	g.Expect(step.Carry.Candidates).To(Equal([]map[string]any{
+		{"id": "1.2026-10-17.zorblax-staging-reset.md", "kind": "note", "date": "2026-10-17", "situation": resetSituation,
+			"text": resetBody, "parent": false, "pending": false},
+		{"id": "2.2026-10-12.zorblax-backup-window.md", "kind": "note", "date": "2026-10-12",
+			"situation": "backing up Zorblax", "text": "Back up at 02:00.", "parent": true, "pending": false},
+		{"id": "/sessions/earlier.jsonl#turn-3", "kind": "passage", "date": "2026-10-14", "situation": "",
+			"text": "USER: the staging resets on Sunday.", "parent": false, "pending": false},
+	}))
+}
+
 // recallInput is the JSON object that the memory mod hands to the recall: the reply of the phrases judgement, a list of
 // phrases, and the carry of the step before, of a depth.
 func recallInput(depth string, phrases ...string) io.Reader {
@@ -292,4 +358,9 @@ func payloadQuery(payload string) cli.QueryRun {
 
 		return err
 	}
+}
+
+// fromParent marks an item of the payload of the lookup as one from the parent vault.
+func fromParent(item string) string {
+	return item + "    from_parent: true\n"
 }
