@@ -161,3 +161,39 @@ The lookup is given the phrases and no message: a message is matched against the
 ## 855b40 A ledger of what was delivered, if the transcript lacks it
 
 Whether the [transcript](../../GLOSSARY.md#transcript) records a block delivered within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) is a hypothesis the plan measures first, before the flow that depends on it is built ([855d7a Hypotheses and their measurements](855d_technical-spec.md#855d7a-added-hypotheses-and-their-measurements)). If it does not, `deliver` keeps for each [session](../../GLOSSARY.md#session) a record of what it delivered that is never removed, and [793d4d Telling what a session holds](../793_automatic-memory/793d_technical-spec.md#793d4d-telling-what-a-session-holds) reads it. Rejected: delivering a [note](../../GLOSSARY.md#permanent-note) again within a turn, which the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) holds already. Decided by: Author (default; owner may override).
+
+## 855b41 The plan has a row for each scenario and a node for each catalog section
+
+Every scenario of [855a Judged Automatic Memory - Product Spec](./855a_product-spec.md#judged-automatic-memory---product-spec) and [855d Judged Automatic Memory - Technical Spec](./855d_technical-spec.md#judged-automatic-memory---technical-spec) that this change adds, replaces or restates has a catalog row; a scenario tested at two boundaries has a row for each. The rows that share a component are one catalog section, and the section is the node of the dependency graph, as in [793e9 Dependency graph](../793_automatic-memory/793e_implementation-plan.md#793e9-dependency-graph). Rejected: a graph node for each row, which adds about 100 nodes and no information. Decided by: Author (default; owner may override).
+
+## 855b42 The order of the groups
+
+The gates first, because the ledger and the before-tool promise hang on them ([855b40 A ledger of what was delivered, if the transcript lacks it](./855b_decision-log.md#855b40-a-ledger-of-what-was-delivered-if-the-transcript-lacks-it), [855c4 Does the before-tool cue promise the note before the call or before the next action?](./855c_open-questions.md#855c4-does-the-before-tool-cue-promise-the-note-before-the-call-or-before-the-next-action)); then the recall chain in the order of the owner's step table ([855b8 The starting step table](./855b_decision-log.md#855b8-the-starting-step-table)) up to delivery and its scenarios; then the learn chain, which reads what the [session](../../GLOSSARY.md#session) holds and rewrites the mod's capture flow; then the write of a deep delivery, which reuses the writer of the learn chain; then the cues within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms), which reuse the flow of the [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) chain and need the answer of the gates; then the remaining hypotheses, which need the whole chain. Rejected: the cues within a turn before the learn chain, which would build on a premise the gates may refute. Decided by: Author (default; owner may override).
+
+## 855b43 A group's product rows are red first and green last
+
+As in [793e2 Test methods](../793_automatic-memory/793e_implementation-plan.md#793e2-test-methods): the red commit of a product row comes before the first technical row of its group, and its green and refactor commits after the last. The product rows are the last node of their group in the catalog and in the graph, since an arrow means that its head reuses what its tail built. Rejected: the product rows at the top of the catalog, which the graph cannot show. Decided by: Author (default; owner may override).
+
+## 855b44 The status of a row
+
+A row starts `Planned`, the guide's `Not started` under the name the planning brief gives it, then `Red`, `Green-all` and `Done`, with the commit columns of [793b13 Departure: one refactor pass, and extra catalog columns](../793_automatic-memory/793b_decision-log.md#793b13-departure-one-refactor-pass-and-extra-catalog-columns). A measurement row whose hypothesis a number refutes ends `Refuted`; a conditional work row that is not needed ends `Not needed`. The guide's vocabulary is `Not started`, so the name is a departure for the owner to confirm. Decided by: Author (default; owner may override, shown at the walkthrough).
+
+## 855b45 The conformance check follows the removals at once and reads 855 at the end
+
+The specs of 793 still hold the scenarios that [855d Judged Automatic Memory - Technical Spec](./855d_technical-spec.md#judged-automatic-memory---technical-spec) removes, and their tests are deleted in the third group, so the first node of that group teaches the check to skip a scenario that a Removed operation of [855d Judged Automatic Memory - Technical Spec](./855d_technical-spec.md#judged-automatic-memory---technical-spec) names. The scenarios of 855 join the check in the last node, when every one has a test: joined earlier, the check fails `targ check-full` from the first commit. Rejected: joining at the start with a list of exemptions that each node shortens. Decided by: Author (default; owner may override).
+
+## 855b46 The gate is measured with a probe mod the test installs
+
+The two hypotheses of the gates are about the host, and the mod of this change does not exist when they must be answered ([855d7a Hypotheses and their measurements](./855d_technical-spec.md#855d7a-added-hypotheses-and-their-measurements)). The test links a probe, a fixture that nothing ships, into the isolated machine's [skills](../../GLOSSARY.md#skill) directory and reads what the host recorded. Rejected: measuring in the real mod after the cues within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) are built, which builds on an unmeasured premise. Decided by: Author (default; owner may override).
+
+## 855b47 Rewritten, adapted and deleted tests of 793
+
+A replaced scenario of 793 keeps the name of its test; the test is rewritten in place, and its red is the rewrite failing against the code before it. A scenario of 793 that stays but whose test only gives the command new input has a work row that names the tests and the mutation that fails them, and no red of its own. The test of a removed scenario is deleted in a commit of its own. Rejected: new names for replaced tests, which the conformance check and the history key on the ID. Decided by: Author (default; owner may override).
+
+## 855b48 A measurement row asserts a record and its bound
+
+The red of a measurement row is the run before its recorder exists, and its green the recorded run within the bound. A hypothesis that a number refutes ends the row `Refuted` with the numbers in this log, and the owner decides whether it changes a bound or a design; none of the bounds is a promise ([855d7a Hypotheses and their measurements](./855d_technical-spec.md#855d7a-added-hypotheses-and-their-measurements)). Rejected: a measurement that only logs and cannot fail. Decided by: Author (default; owner may override).
+
+## 855b49 Tests are scoped per step, and the full suite runs at the end of a group
+
+Each step runs its unit tests and the acceptance rows it touches; `targ check-full`, `targ test` and the full `targ acceptance` run at the end of a group, and the judgement rows are tallied in 10 runs against the bar of 9 ([793b86 The acceptance run takes a count](../793_automatic-memory/793b_decision-log.md#793b86-the-acceptance-run-takes-a-count)). Rejected: the heavy runs at every step. Decided by: Owner (2026-10-16), carried to this plan.
