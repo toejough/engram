@@ -808,6 +808,11 @@ Scenario: 793d4k1f A directory of records that cannot be made, and a record that
   When engram auto write is dispatched with each
   Then the note is written and the command succeeds with each
 
+Scenario: 793d4k1i A failure that is reported and cannot be recorded fails the command
+  Given a failure in place of a reply, and a place for the records that cannot be written
+  When the lessons are written
+  Then the command fails with the failure as its reason
+
 Scenario: 793d4k1j A reason is written as one line, redacted, and cut in its middle
   Given a failure in place of a reply, of more than 300 characters, with a line break, a credential that straddles the place where it is cut, and the cause at its end
   When the lessons are written
