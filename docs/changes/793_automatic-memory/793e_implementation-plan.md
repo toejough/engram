@@ -34,6 +34,12 @@ Added by the third group ([793e6e The conversation becomes searchable memory](#7
 - `internal/auto/judge.go`, `internal/cli/auto.go`, `internal/cli/targets.go`: the judgement records the headless [turn](./793a_product-spec.md#793a1a-terms) it leaves out as `skipped`, with the writer of records it shares with `write` ([793b109 A headless turn that is not captured is recorded by the judgement](./793b_decision-log.md#793b109-a-headless-turn-that-is-not-captured-is-recorded-by-the-judgement)).
 - `dev/acceptance/sweep_test.go`, `dev/acceptance/never_test.go`, `dev/acceptance/activity_test.go`, `dev/mods_integration_internal_test.go`, `dev/auto_sweep_integration_internal_test.go`: the scenario test, the stand-in host's tests of the job, and the tests over the real binary, which the dev integration suite runs because the integration gate of `internal/` runs only tests named for it.
 
+Added by the fixes of the review round of the third group ([793e6h The fixes of the review round of the third group](#793e6h-the-fixes-of-the-review-round-of-the-third-group)):
+
+- `internal/auto/auto.go`, `internal/auto/activity.go`, `internal/cli/auto.go`, `internal/cli/targets.go`: the delivery prints the block on standard output and the lines for the user on standard error, and marks the records it showed ([793b105 What is shown, and how](./793b_decision-log.md#793b105-what-is-shown-and-how)).
+- `agent-instructions/mods/engram-memory/hooks/register.js`: the lines of standard error are logged with `$.ui.log` ([793d2a Prompt delivery flow](./793d_technical-spec.md#793d2a-prompt-delivery-flow)).
+- `dev/acceptance/activity_test.go`, `dev/acceptance/session_test.go`: the rows of [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) read the `ui_log` events of the running session.
+
 ## 793e2 Test methods
 
 Every test row goes through one cycle (the owner's step 5, [793f2 The algorithm](./793f_algorithm.md#793f2-the-algorithm)): write the test; red: run it, confirm it fails for the expected reason, commit; green: make it pass with the minimum change, the whole suite passing, commit; refactor: minimize the code the branch introduces without obscuring its function and purpose, commit.
@@ -772,6 +778,10 @@ Review finding G3-1, the blocker ([793b105 What is shown, and how](./793b_decisi
 | 793d4p1g (amended) | Dedicated example | the directory of records through the dispatch of `engram auto deliver`, with the flag and without it, on standard error | | | Done | a2deed27 | d0f7f9f8 | |
 | 793d4p1h | Dedicated example | the line of a note delivered, over a vault of one note | | | Done | a2deed27 | d0f7f9f8 | |
 | 793d4p1i | Property-based (`rapid`) | the form of every line printed, whatever the texts of notes and records hold | whatever the texts hold: each line printed on standard error is one line, holds no control or format character and no white space but a space, and there is one for each note delivered and for each record shown, five at most | | Done | a2deed27 | d0f7f9f8 | |
+
+| Finding | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| G3-1, README and AGENTS | Documentation | `README.md` and `AGENTS.md` say that Claude Code shows the user the lines, and that the agent reads none | Done | n/a | | n/a |
 
 ### 793e6f The delivery merges the parent vault
 
