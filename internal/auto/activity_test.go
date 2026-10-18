@@ -21,14 +21,18 @@ func Test793d4p1a_ActivityLines_ARecordThatWasNotToldBecomesALine(t *testing.T) 
 			r.Slug, r.Reason = "zorblax-build", "the vault already states it: 1.2026-10-17.zorblax-build.md"
 		}),
 		recordAt(2, auto.RecordSkipped, func(r *auto.Record) { r.Reason = "the reply is not a list of lessons" }),
-		recordAt(3, auto.RecordFailed, func(r *auto.Record) { r.Reason = "learn: writing x: permission denied" }),
+		recordAt(3, auto.RecordFailed, func(r *auto.Record) { r.Reason = "the model call failed: timed out" }),
+		recordAt(4, auto.RecordFailed, func(r *auto.Record) {
+			r.Slug, r.Reason = "zorblax-build", "learn: acquiring lock: permission denied"
+		}),
 	}, nil)
 
 	g.Expect(lines).To(Equal([]string{
 		"20:32:25 wrote the note 2.2026-10-17.zorblax-backup.md",
 		"20:32:26 left out the lesson zorblax-build: the vault already states it: 1.2026-10-17.zorblax-build.md",
 		"20:32:27 left out: the reply is not a list of lessons",
-		"20:32:28 failed: learn: writing x: permission denied",
+		"20:32:28 failed: the model call failed: timed out",
+		"20:32:29 failed: writing zorblax-build: learn: acquiring lock: permission denied",
 	}))
 }
 

@@ -719,7 +719,7 @@ Adds no component: the record of the failed write is read like any other, and it
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 793a2e1d | Dedicated example, product acceptance (`network`) | a judgement row; the [vault](../../GLOSSARY.md#vault) is read-only, and the cause of the error is at the end of its reason | | Red | | | |
-| 793d4p1a (amended) | Dedicated example | the line of a failed write names the write: a failed record with a slug | | Not started | | | |
+| 793d4p1a (amended) | Dedicated example | the line of a failed write names the write: a failed record with a slug | | Red | | | |
 
 #### 793e6d5 A sweep that failed is shown with its reason
 
