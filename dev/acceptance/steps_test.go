@@ -523,25 +523,27 @@ func (m *machine) installed(dir, name string) []string {
 	return found
 }
 
-// jobStarted reports whether a job of automatic memory after a turn (judge, write or sweep) was started: the slow
-// engram of jobsTake notes each one.
+// jobStarted reports whether a job of automatic memory after a turn (moment, judge, place, write or sweep) was started:
+// the slow engram of jobsTake notes each one.
 func (m *machine) jobStarted(job string) bool {
 	_, err := os.Stat(filepath.Join(m.root, "jobs", "started-"+job))
 
 	return err == nil
 }
 
-// jobsTake makes the work after a turn take the given time: engram on the PATH notes that the judgement, the writing or
-// the sweep started and then waits, and runs the machine's own engram for anything else. The wait replaces the process,
-// so that ending the job ends all of it.
+// jobsTake makes the work after a turn take the given time: engram on the PATH notes that the moment of the turn's end,
+// the judgement, the placement, the writing or the sweep started and then waits, and runs the machine's own engram for
+// anything else, the moment of a prompt included. The wait replaces the process, so that ending the job ends all of it.
 func (m *machine) jobsTake(wait time.Duration) {
 	m.t.Helper()
 
 	dir := filepath.Join(m.root, "jobs")
+	engram := filepath.Join(m.gobin, engramBinaryName)
 
-	m.wrapsEngram(dir, "#!/bin/sh\ncase \"$1 $2\" in\n\"auto judge\"|\"auto write\"|\"auto sweep\")\n: > '"+dir+
-		"/started-'\"$2\"\nexec sleep "+strconv.Itoa(int(wait.Seconds()))+"\n;;\nesac\nexec '"+
-		filepath.Join(m.gobin, engramBinaryName)+"' \"$@\"\n")
+	m.wrapsEngram(dir, "#!/bin/sh\ncase \"$1 $2\" in\n\"auto moment\")\nin=$(cat)\ncase \"$in\" in\n*'\"cue\":\"turn-end\"'*) ;;\n"+
+		"*) printf '%s' \"$in\" | '"+engram+"' \"$@\"; exit $? ;;\nesac\n: > '"+dir+"/started-moment'\nexec sleep "+
+		strconv.Itoa(int(wait.Seconds()))+"\n;;\n\"auto judge\"|\"auto place\"|\"auto write\"|\"auto sweep\")\n: > '"+dir+
+		"/started-'\"$2\"\nexec sleep "+strconv.Itoa(int(wait.Seconds()))+"\n;;\nesac\nexec '"+engram+"' \"$@\"\n")
 }
 
 // learnsFact writes a fact into the vault and returns the file name of the note.
@@ -550,6 +552,18 @@ func (m *machine) learnsFact(note fact) string {
 
 	out := m.engram("learn", "fact", "--slug", note.slug, "--position", "top", "--source", learnSource,
 		"--situation", note.situation, "--subject", note.subject, "--predicate", note.predicate, "--object", note.object)
+	m.mustSucceed(out, "learn fact "+note.slug)
+
+	return m.noteNamed(note.slug)
+}
+
+// learnsFactUnder writes a fact into the vault as the continuation of a note, and returns the file name of the note.
+func (m *machine) learnsFactUnder(parent string, note fact) string {
+	m.t.Helper()
+
+	out := m.engram("learn", "fact", "--slug", note.slug, "--position", "continuation", "--target", idOf(parent),
+		"--source", learnSource, "--situation", note.situation, "--subject", note.subject, "--predicate",
+		note.predicate, "--object", note.object)
 	m.mustSucceed(out, "learn fact "+note.slug)
 
 	return m.noteNamed(note.slug)
@@ -907,15 +921,38 @@ func (m *machine) writeTakes(wait time.Duration) {
 		"' \"$@\"\n")
 }
 
-// writesLogged returns how many times the writing has ended for a session, as the debug log of the machine records it:
-// one line for each run, whatever it recorded.
+// writesLogged returns how many captures have ended for a session, as the debug log of the machine records it: a turn
+// that is no learn moment ends at the moment or at the judgement, which log one line when they print nothing, and any
+// other ends at the writing, which logs one line for each run, whatever it recorded (855b52).
 func (m *machine) writesLogged(session string) int {
+	return m.linesLogged(session, "auto.moment", "auto.judge", "auto.write")
+}
+
+// judgedLogged returns how many turns of a session were judged: the captures that ended at the judgement or at the
+// writing.
+func (m *machine) judgedLogged(session string) int {
+	return m.linesLogged(session, "auto.judge", "auto.write")
+}
+
+// momentsLogged returns how many turns of a session ended at the moment, which printed nothing for the turn.
+func (m *machine) momentsLogged(session string) int {
+	return m.linesLogged(session, "auto.moment")
+}
+
+// linesLogged returns how many lines of the debug log of the machine are of the commands given for a session.
+func (m *machine) linesLogged(session string, commands ...string) int {
 	data, err := os.ReadFile(filepath.Join(m.root, debugLogName))
 	if err != nil {
 		return 0
 	}
 
-	return strings.Count(string(data), "auto.write: session="+session+" ")
+	count := 0
+
+	for _, command := range commands {
+		count += strings.Count(string(data), command+": session="+session+" ")
+	}
+
+	return count
 }
 
 // vaultNote is a note of the vault as its file holds it.
@@ -947,6 +984,17 @@ func (n vaultNote) states(words ...string) bool {
 	}
 
 	return true
+}
+
+// field returns the value of a line of the note's front matter, or nothing when it has none.
+func (n vaultNote) field(name string) string {
+	for line := range strings.SplitSeq(n.text, "\n") {
+		if value, found := strings.CutPrefix(line, name+": "); found {
+			return value
+		}
+	}
+
+	return ""
 }
 
 // chunkHolding reports whether a payload of engram query has an item of the kind chunk that holds every word, whatever

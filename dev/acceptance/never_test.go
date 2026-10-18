@@ -17,20 +17,20 @@ func Test793a2d1c_TheWorkAfterATurnDoesNotHoldTheNextPrompt(t *testing.T) {
 
 	var chat *conversation
 
-	step(t, "Given the user has run engram update, and a judgement, a write and a sweep that each take 60 seconds",
-		func() {
-			machine.hasRunUpdate()
-			machine.jobsTake(slowJob)
+	step(t, "Given the user has run engram update, and a moment, a judgement, a placement, a write and a sweep after a "+
+		"turn that each take 60 seconds", func() {
+		machine.hasRunUpdate()
+		machine.jobsTake(slowJob)
 
-			chat = machine.startSession("zorblax").converse()
-		})
+		chat = machine.startSession("zorblax").converse()
+	})
 
 	var second *turn
 
 	step(t, "When the user sends a prompt, and then another while that work goes on", func() {
 		chat.tell(askHowToBuild)
 
-		g.Eventually(func() bool { return machine.jobStarted("judge") && machine.jobStarted("sweep") }).
+		g.Eventually(func() bool { return machine.jobStarted("moment") && machine.jobStarted("sweep") }).
 			WithTimeout(jobStartWait).WithPolling(capturePoll).Should(BeTrue(), "the work after the turn started")
 
 		second = chat.tell(askSomethingElse)

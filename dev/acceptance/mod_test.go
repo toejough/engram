@@ -258,7 +258,8 @@ func Test793d4m1d_ATurnThatABackgroundTasksNotificationStartsIsNotJudged(t *test
 		machine.awaitSettled(chat.session.id, chat.turnEnds, 1)
 		time.Sleep(ownTurnSettle)
 
-		g.Expect(machine.writesLogged(chat.session.id)).To(Equal(1), "the turns judged")
+		g.Expect(machine.judgedLogged(chat.session.id)).To(Equal(1), "the turns judged")
+		g.Expect(machine.momentsLogged(chat.session.id)).To(Equal(1), "the turns the moment left out")
 		g.Expect(machine.noteNames()).To(BeEmpty(), "the notes of the vault")
 		g.Expect(machine.hookFailures()).To(BeEmpty(), "the mod's hook was skipped")
 	})
