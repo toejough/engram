@@ -191,6 +191,42 @@ func Test793d4p1h_RunAutoDeliver_ANoteDeliveredIsShownAsALine(t *testing.T) {
 	g.Expect(result.shown).To(Equal("delivered the note "+resetNoteName+"\n"), "what the user is shown")
 }
 
+func Test855d4p1b_RunAutoDeliver_ADeliveryWithinATurnReadsMarksAndRemovesNoRecord(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	records := t.TempDir()
+	dir := filepath.Join(records, sessionID)
+	shownFile, newFile := "20261017T203225.000000000Z-0-written.json", "20261017T203226.000000000Z-0-written.json"
+
+	plantActivity(t, dir, shownFile, activityRecordAt(0, sessionID, auto.RecordWritten,
+		func(r *auto.Record) { r.Note = "a.md" }))
+	plantActivity(t, dir, newFile, activityRecordAt(1, sessionID, auto.RecordWritten,
+		func(r *auto.Record) { r.Note = "b.md" }))
+	g.Expect(os.WriteFile(filepath.Join(dir, shownFile+".told"), nil, 0o600)).To(Succeed())
+
+	fields := deliveryFields(sessionID, resetCandidate())
+	fields["cue"] = "before-tool"
+
+	var block, shown bytes.Buffer
+
+	err := cli.RunAutoDeliver(context.Background(),
+		cli.AutoDeliverArgs{VaultPath: t.TempDir(), RecordsDir: records},
+		cli.AutoDeliverDeps{
+			Stdin: requestJSON(fields), Activate: noActivation, ReadDir: os.ReadDir, ReadFile: os.ReadFile,
+			WriteRecord: writeFileExclusively, Remove: os.Remove,
+		}, &block, &shown)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(shown.String()).To(Equal("delivered the note "+resetNoteName+"\n"), "the line of the note only")
+
+	for _, kept := range []string{shownFile, shownFile + ".told", newFile} {
+		g.Expect(filepath.Join(dir, kept)).To(BeAnExistingFile(), kept+" was left as it was")
+	}
+
+	g.Expect(filepath.Join(dir, newFile+".told")).NotTo(BeAnExistingFile(), "a record was marked")
+}
+
 func Test793d4p1j_RunAutoDeliver_AMarkThatCannotBeWrittenDoesNotFailTheCommand(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
