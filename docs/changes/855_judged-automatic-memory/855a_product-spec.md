@@ -101,11 +101,11 @@ Scenario: 855a2e1b A note arrives after a failure the agent cannot explain
   Then before the agent's next action its context holds the make ci note
 ```
 
-The scenario 855a2e1c is replaced by [855a2f 855a2e1c A note arrives before the agent starts building a new approach](#855a2f-modified-855a2e1c-a-note-arrives-before-the-agent-starts-building-a-new-approach).
+The third scenario is replaced by [855a2f 855a2e1c A note arrives before the agent starts building a new approach](#855a2f-modified-855a2e1c-a-note-arrives-before-the-agent-starts-building-a-new-approach).
 
 ### 855a2f Modified: 855a2e1c A note arrives before the agent starts building a new approach
 
-Target: 855a2e1c A [note](../../GLOSSARY.md#permanent-note) arrives before the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) starts building a new approach, in [855a2e1 UAT Scenarios](#855a2e1-uat-scenarios). A note put in front of a call reaches the agent with the call's result, so it arrives before the agent's next action and not before the call ([855b37 The before-tool cue promises the next action](./855b_decision-log.md#855b37-the-before-tool-cue-promises-the-next-action)).
+Target: the third scenario of [855a2e1 UAT Scenarios](#855a2e1-uat-scenarios). A [note](../../GLOSSARY.md#permanent-note) put in front of a call reaches the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) with the call's result, so it arrives before the agent's next action and not before the call ([855b37 The before-tool cue promises the next action](./855b_decision-log.md#855b37-the-before-tool-cue-promises-the-next-action)).
 
 ```gherkin
 Scenario: 855a2e1c A note arrives before the agent starts building a new approach
