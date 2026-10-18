@@ -110,7 +110,7 @@ type Skipped struct {
 func ParseLessons(reply string) ([]Lesson, []Skipped) {
 	lessons, ended, isList := readList(unfenced(reply))
 	if !isList {
-		return nil, []Skipped{{Reason: "the reply is not a list of lessons"}}
+		return nil, []Skipped{{Reason: notAList}}
 	}
 
 	whole := make([]Lesson, 0, len(lessons))
@@ -152,6 +152,8 @@ func SourceFor(session string) string {
 const (
 	kindFact     = "fact"
 	kindFeedback = "feedback"
+	// notAList is the reason recorded for a reply that is no list of lessons (793d4k).
+	notAList = "the reply is not a list of lessons"
 	// recordedReasonLimit is how many characters of a reason a record keeps at most (793d4k).
 	recordedReasonLimit = 300
 	// slugLimit is how many characters a slug has at most (793d4h).

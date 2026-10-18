@@ -56,7 +56,8 @@ func Test855d4h1f_Place_ASeenNoteCannotReshapeTheRequestOrHoldACredential(t *tes
 				notes = append(notes, auto.Note{
 					Path:      "1." + string(rune('a'+index)) + ".md",
 					Situation: tagText().Draw(rt, "situation") + " " + first.text,
-					Body:      tagText().Draw(rt, "body") + " " + second.text + strings.Repeat("x", rapid.IntRange(0, 500).Draw(rt, "pad")),
+					Body: tagText().Draw(rt, "body") + " " + second.text + " " +
+						strings.Repeat("x", rapid.IntRange(0, 500).Draw(rt, "pad")),
 				})
 			}
 
