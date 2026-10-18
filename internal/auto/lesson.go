@@ -137,6 +137,12 @@ func ParseLessons(reply string) ([]Lesson, []Skipped) {
 	return whole, skipped
 }
 
+// RecordedReason is a reason as a record keeps it (793d4k): written as one line, redacted and only then cut in its
+// middle to the bound of a record, so that the step a failure names at its beginning and the cause at its end stay.
+func RecordedReason(reason string) string {
+	return squeezed(oneRedacted(reason), recordedReasonLimit)
+}
+
 // SourceFor is the source of a note written from a turn of a session: it says the note was written automatically
 // (793d4h).
 func SourceFor(session string) string {
@@ -147,6 +153,8 @@ func SourceFor(session string) string {
 const (
 	kindFact     = "fact"
 	kindFeedback = "feedback"
+	// recordedReasonLimit is how many characters of a reason a record keeps at most (793d4k).
+	recordedReasonLimit = 300
 )
 
 // unexported variables.

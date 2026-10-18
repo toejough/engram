@@ -800,9 +800,9 @@ Review finding G3-3 ([793b108 A failure the mod reports is cut in its middle](./
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793d4k1j | Dedicated example | the failure the review used: a credential placed at the cut, 100 characters in; the record holds none of it, one line, at most 300 characters, both ends | | | Red | | | |
-| 793d4k1j | Property-based (`rapid`) | the order of the reduction, over the text around a credential | whatever text surrounds a credential of the shapes of [793d4j Redacting credentials](./793d_technical-spec.md#793d4j-redacting-credentials): the recorded reason is one line of at most 300 characters and holds no part of the credential | | Red | | | |
-| 793d2b1m (amended) | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a failure of 1000 characters reaches the writing whole: the mod cuts nothing | | | Red | | | |
+| 793d4k1j | Dedicated example | the failure the review used: a credential placed at the cut, 100 characters in; the record holds none of it, one line, at most 300 characters, both ends; mutation (scratch copy): a reason cut before it is redacted fails it and the next row | | | Green-all | 4aaf8ddd | | |
+| 793d4k1j | Property-based (`rapid`) | the order of the reduction, over the text around a credential | whatever text surrounds a credential of the shapes of [793d4j Redacting credentials](./793d_technical-spec.md#793d4j-redacting-credentials): the recorded reason is one line of at most 300 characters and holds no part of the credential | | Green-all | 4aaf8ddd | | |
+| 793d2b1m (amended) | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a failure of 1000 characters reaches the writing whole: the mod cuts nothing | | | Green-all | 4aaf8ddd | | |
 
 ### 793e6f The delivery merges the parent vault
 

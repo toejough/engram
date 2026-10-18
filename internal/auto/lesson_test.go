@@ -110,9 +110,10 @@ func Test793d4k1j_RecordedReason_WhateverTextSurroundsACredentialNoPartOfItIsKep
 	rapid.Check(t, func(rt *rapid.T) {
 		found := credentialShape().Draw(rt, "credential")
 		// letters that spell none of the names of a secret, so that the text around the credential changes none of
-		// its shape: the place where the reason is cut is the only thing that varies
-		before := rapid.StringMatching(`[xyz .,\n]{0,400}`).Draw(rt, "before")
-		after := rapid.StringMatching(`[xyz .,\n]{0,400}`).Draw(rt, "after")
+		// its shape: the credential stands where a reason this long is cut, and the text after it is long enough to
+		// make the cut
+		before := filler(rt, "before", 100, 160)
+		after := filler(rt, "after", 200, 400)
 
 		reason := auto.RecordedReason(before + " " + found.text + " " + after)
 
@@ -135,12 +136,23 @@ const (
 	recordedReasonLimit = 300
 )
 
+// filler is text of between low and high characters that spell none of the names of a secret, and holds line breaks.
+func filler(rt *rapid.T, label string, low, high int) string {
+	length := rapid.IntRange(low, high).Draw(rt, label+" length")
+	characters := rapid.SliceOfN(rapid.SampledFrom([]rune("xyz .,\n")), length, length).Draw(rt, label)
+
+	return string(characters)
+}
+
 // holdsPartOf reports whether the text holds the secret or, when it is longer than partLength characters, a part of it
-// of partLength characters.
+// of partLength characters; a secret of white space only is held by no text.
 func holdsPartOf(text, secret string) bool {
 	runes := []rune(strings.TrimSpace(secret))
 
-	if len(runes) <= partLength {
+	switch {
+	case len(runes) == 0:
+		return false
+	case len(runes) <= partLength:
 		return strings.Contains(text, string(runes))
 	}
 

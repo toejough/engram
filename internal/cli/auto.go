@@ -299,7 +299,7 @@ type outcomes struct {
 // add adds the record of one outcome.
 func (o *outcomes) add(kind, note, slug, reason string) {
 	record := o.base
-	record.Kind, record.Note, record.Slug, record.Reason = kind, note, slug, reason
+	record.Kind, record.Note, record.Slug, record.Reason = kind, note, slug, auto.RecordedReason(reason)
 
 	o.records = append(o.records, record)
 }

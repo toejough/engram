@@ -10,9 +10,6 @@ const BOUND_MS = 7000
 // Every block the command prints opens with this (793d4c); anything else is not a block.
 const MARKER = '[engram memory]'
 
-// A failure the writing records is cut in its middle to this many characters (793d2b).
-const FAILURE_MAX = 300
-
 // The bounds of the stages of the capture of a turn (793d2b): the call for the session's ID, `engram auto judge`,
 // `engram auto write` and the run of it that reports a failure. With the 60 seconds that the request of the model holds
 // they are 115 seconds, under the 2 minutes of the product (793a2c).
@@ -206,21 +203,6 @@ function reportDelivery($, session, error) {
   })
 }
 
-// squeezed is the text cut in its middle to max characters, so that both ends stay: the message of an error names its
-// step at its beginning and gives its cause at its end (793d2b).
-function squeezed(text, max) {
-  const characters = Array.from(text)
-
-  if (characters.length <= max) {
-    return text
-  }
-
-  const head = Math.floor((max - 1) / 2)
-  const tail = max - 1 - head
-
-  return `${characters.slice(0, head).join('')}…${characters.slice(characters.length - tail).join('')}`
-}
-
 // requestOf is the request for the model that the judgement printed, or a failure that names the judgement when what it
 // printed is not one, or is not a JSON object (793d2b).
 function requestOf(printed) {
@@ -250,15 +232,15 @@ function originOfStart(text) {
   return taken.length > 0 ? taken[taken.length - 1].origin : ''
 }
 
-// report has the writing record the failure of a step of the capture, or of a delivery, when the session is known
-// (793d4k). A report that fails is the end of it.
+// report has the writing record the failure of a step of the capture, or of a delivery, when the session is known:
+// the failure goes whole, for the writing redacts it and cuts it (793d4k). A report that fails is the end of it.
 async function report($, session, turn, error) {
   if (session === '') {
     return
   }
 
   try {
-    await run($, 'write', { session, turn, failure: squeezed(describe(error), FAILURE_MAX) }, REPORT_BOUND_MS)
+    await run($, 'write', { session, turn, failure: describe(error) }, REPORT_BOUND_MS)
   } catch {
     // nothing more can be done
   }
