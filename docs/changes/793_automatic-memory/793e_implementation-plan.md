@@ -620,7 +620,7 @@ One node for the scenario of [793a2f The conversation becomes searchable memory]
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2f1a | Dedicated example, product acceptance (`network`) | the [agent](./793a_product-spec.md#793a1a-terms) may not run `engram` commands, so the indexing is [automatic memory](./793a_product-spec.md#793a1a-terms)'s; the test asks `engram query` as the user does, and measures the time from the end of the [turn](./793a_product-spec.md#793a1a-terms) to the chunk | | Red | | | |
+| 793a2f1a | Dedicated example, product acceptance (`network`) | the [agent](./793a_product-spec.md#793a1a-terms) may not run `engram` commands, so the indexing is [automatic memory](./793a_product-spec.md#793a1a-terms)'s; the test asks `engram query` as the user does, and measures the time from the end of the [turn](./793a_product-spec.md#793a1a-terms) to the chunk | | Done | | 80d53086 | |
 | 793d4n1a | Injected and impure interaction (`imptest`) | the index is an injected function: the record's path alone, as an explicit [transcript](../../GLOSSARY.md#transcript), is the evidence | | Done | f6802712 | 904f4a38 | |
 | 793d4n1b | Dedicated example | a [session](../../GLOSSARY.md#session) with no record, and none at all, fail naming the session and the directory | | Done | f6802712 | 904f4a38 | |
 | 793d4n1c | Dedicated example | the origins that are swept nothing, and the headless one with and without the flag | | Done | f6802712 | 904f4a38 | |
@@ -630,8 +630,8 @@ One node for the scenario of [793a2f The conversation becomes searchable memory]
 | 793d2c1b | Dedicated example, real dependency (`integration`) | a failing and an ended sweep are reported to the writing as failures naming the sweep | | Done | 57e25307 | 80d53086 | |
 | 793d2c1c | Dedicated example, real dependency (`integration`) | the bounds of the sweep and of the call for the ID, with the timers of the stand-in fired at once | | Done | 57e25307 | 80d53086 | |
 | 793d2c1d | Dedicated example, real dependency (`integration`) | a turn a [subagent](../../GLOSSARY.md#subagent) ran is not swept | | Done | n/a | 57e25307 | |
-| 793d4n1e | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the real `engram` ended with a kill while it embeds: inherited behaviour of the ingest; passed when written; mutation (scratch copy): a lock that a kill leaves behind fails it | | Green-all | n/a | | |
-| 793d4n1f | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | two real sweeps at once: the lost update of #660; passed when written; mutations (scratch copies): no lock, and a lock that a kill leaves behind, fail it | | Green-all | n/a | | |
+| 793d4n1e | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the real `engram` ended with a kill while it embeds: inherited behaviour of the ingest; passed when written; mutation (scratch copy): a lock that a kill leaves behind fails it | | Done | n/a | fdb9bace | |
+| 793d4n1f | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | two real sweeps at once: the lost update of #660; passed when written; mutations (scratch copies): no lock, and a lock that a kill leaves behind, fail it | | Done | n/a | fdb9bace | |
 
 ### 793e6c Never in the way
 
