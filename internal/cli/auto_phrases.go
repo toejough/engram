@@ -34,15 +34,5 @@ func RunAutoPhrases(_ context.Context, deps AutoPhrasesDeps, stdout io.Writer) e
 		return nil
 	}
 
-	encoded, marshalErr := json.Marshal(step)
-	if marshalErr != nil {
-		return fmt.Errorf("auto phrases: encoding the request: %w", marshalErr)
-	}
-
-	_, writeErr := fmt.Fprintln(stdout, string(encoded))
-	if writeErr != nil {
-		return fmt.Errorf("auto phrases: writing the request: %w", writeErr)
-	}
-
-	return nil
+	return printStep(stdout, "auto phrases", step)
 }

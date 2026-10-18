@@ -46,15 +46,5 @@ func RunAutoMoment(ctx context.Context, args AutoMomentArgs, deps AutoMomentDeps
 		return nil
 	}
 
-	encoded, marshalErr := json.Marshal(auto.Moment(deps.ReadRecord(args.SessionsDir, input.Session), input))
-	if marshalErr != nil {
-		return fmt.Errorf("auto moment: encoding the request: %w", marshalErr)
-	}
-
-	_, writeErr := fmt.Fprintln(stdout, string(encoded))
-	if writeErr != nil {
-		return fmt.Errorf("auto moment: writing the request: %w", writeErr)
-	}
-
-	return nil
+	return printStep(stdout, "auto moment", auto.Moment(deps.ReadRecord(args.SessionsDir, input.Session), input))
 }
