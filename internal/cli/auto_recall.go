@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 	"slices"
 
 	"go.yaml.in/yaml/v3"
@@ -56,7 +57,7 @@ func RunAutoRecall(ctx context.Context, args AutoRecallArgs, deps AutoRecallDeps
 		return fmt.Errorf("auto recall: lookup: %w", queryErr)
 	}
 
-	matched, candidatesErr := candidatesOf(payload.Bytes(), args.ChunksDir, deps.ReadChunks)
+	matched, candidatesErr := candidatesOf(payload.Bytes(), input.Session, args.ChunksDir, deps.ReadChunks)
 	if candidatesErr != nil {
 		return fmt.Errorf("auto recall: %w", candidatesErr)
 	}
@@ -66,9 +67,10 @@ func RunAutoRecall(ctx context.Context, args AutoRecallArgs, deps AutoRecallDeps
 
 // candidatesOf reads the notes and the passages that matched out of an `engram query` payload, in the order of the
 // payload: not a note that only the explore half picked, and not a chunk that only the recency channel gave (855d4b).
-// The text of a chunk is read from the chunk index, as `engram show-chunk` does.
+// Nor is a chunk of the session's own transcript. The text of a chunk is read from the chunk index, as `engram
+// show-chunk` does.
 func candidatesOf(
-	payload []byte, chunksDir string, readChunks func(dir string) ([]chunk.Record, error),
+	payload []byte, session, chunksDir string, readChunks func(dir string) ([]chunk.Record, error),
 ) ([]auto.Candidate, error) {
 	var parsed queryPayload
 
@@ -77,7 +79,7 @@ func candidatesOf(
 		return nil, fmt.Errorf("reading the payload: %w", parseErr)
 	}
 
-	var texts map[string]string
+	var records map[string]chunk.Record
 
 	candidates := make([]auto.Candidate, 0, len(parsed.Items))
 
@@ -98,23 +100,40 @@ func candidatesOf(
 			continue
 		}
 
-		if texts == nil {
-			records, readErr := readChunks(chunksDir)
+		if records == nil {
+			var readErr error
+
+			records, readErr = chunkRecordsByID(chunksDir, readChunks)
 			if readErr != nil {
 				return nil, fmt.Errorf("reading the chunks: %w", readErr)
 			}
-
-			texts = make(map[string]string, len(records))
-
-			for _, record := range records {
-				texts[chunkNotePath(record)] = record.Text
-			}
 		}
 
-		candidates = append(candidates, auto.Candidate{ID: item.Path, Kind: auto.KindPassage, Text: texts[item.Path]})
+		record := records[item.Path]
+		if filepath.Base(record.Source) == session+".jsonl" {
+			continue
+		}
+
+		candidates = append(candidates, auto.Candidate{ID: item.Path, Kind: auto.KindPassage, Text: record.Text})
 	}
 
 	return candidates, nil
+}
+
+// chunkRecordsByID reads the records of the chunk index by their IDs.
+func chunkRecordsByID(dir string, read func(dir string) ([]chunk.Record, error)) (map[string]chunk.Record, error) {
+	records, err := read(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	byID := make(map[string]chunk.Record, len(records))
+
+	for _, record := range records {
+		byID[chunkNotePath(record)] = record
+	}
+
+	return byID, nil
 }
 
 // unexported constants.
