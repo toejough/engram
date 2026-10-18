@@ -233,6 +233,38 @@ func (m *machine) awaitSettled(session string, turnEnds time.Time, count int) {
 	time.Sleep(settleTime)
 }
 
+// deliveryIsQuick takes away the file that keeps the delivery of deliveryTakes slow.
+func (m *machine) deliveryIsQuick() {
+	m.t.Helper()
+
+	err := os.Remove(filepath.Join(m.root, "slow-delivery", "slow"))
+	if err != nil {
+		m.t.Fatalf("making the delivery quick: %v", err)
+	}
+}
+
+// deliveryStarted reports whether the slow delivery of deliveryTakes was started.
+func (m *machine) deliveryStarted() bool {
+	_, err := os.Stat(filepath.Join(m.root, "slow-delivery", "started"))
+
+	return err == nil
+}
+
+// deliveryTakes makes the delivery take the given time for as long as the file slow is in the wrapper's directory:
+// engram on the PATH notes that the delivery started and waits, and runs the machine's own engram for anything else.
+// The wait replaces the process, so that ending the delivery ends all of it.
+func (m *machine) deliveryTakes(wait time.Duration) {
+	m.t.Helper()
+
+	dir := filepath.Join(m.root, "slow-delivery")
+	mkdirAll(m.t, dir)
+	writeFile(m.t, filepath.Join(dir, "slow"), "")
+
+	m.wrapsEngram(dir, "#!/bin/sh\ncase \"$1 $2\" in\n\"auto deliver\")\nif [ -e '"+filepath.Join(dir, "slow")+
+		"' ]; then\n: > '"+filepath.Join(dir, "started")+"'\nexec sleep "+strconv.Itoa(int(wait.Seconds()))+
+		"\nfi\n;;\nesac\nexec '"+filepath.Join(m.gobin, engramBinaryName)+"' \"$@\"\n")
+}
+
 // hasClaudeCode installs Claude Code's directory on the machine, with the one permission the scenarios need.
 func (m *machine) hasClaudeCode() {
 	m.t.Helper()

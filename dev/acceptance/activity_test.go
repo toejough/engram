@@ -107,6 +107,50 @@ func Test793a2e1b_AWriteThatFinishesAfterTheNextPromptIsShownWhenItFinishes(t *t
 	})
 }
 
+func Test793a2e1c_ADeliveryThatCouldNotBeDoneIsShownWithItsReason(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var chat *conversation
+
+	step(t, "Given the user has run engram update, a vault holding a note that says when the staging database is "+
+		"reset, and a lookup that takes 20 seconds", func() {
+		machine.hasRunUpdate()
+		machine.learnsFact(stagingReset)
+		machine.deliveryTakes(slowLookup)
+
+		chat = machine.startSession("zorblax").converse()
+	})
+
+	var first, second *turn
+
+	step(t, "When the user sends a prompt asking when the staging database is reset, the lookup becomes quick again, "+
+		"and the user sends another prompt", func() {
+		first = chat.tell(askStagingReset)
+
+		g.Expect(machine.deliveryStarted()).To(BeTrue(), "the slow delivery was run")
+		machine.awaitRecordOfKind(chat.session.id, chat.turnEnds, "failed")
+		machine.deliveryIsQuick()
+
+		second = chat.tell(askSomethingElse)
+	})
+
+	step(t, "Then the second prompt arrives with a line that says the delivery for the first could not be done, with "+
+		"the reason", func() {
+		g.Expect(first.blocks()).To(BeEmpty(), "the blocks of the first prompt")
+		g.Expect(second.blocks()).To(HaveLen(1), "the blocks of the second prompt")
+
+		if len(second.blocks()) == 1 {
+			g.Expect(linesToldBy(second.blocks()[0])).To(ConsistOf(And(ContainSubstring("failed:"),
+				ContainSubstring("the delivery for a prompt could not be done"),
+				Or(ContainSubstring("within 7000 ms"), ContainSubstring("ended")))),
+				"the lines that tell what automatic memory did, with the second prompt")
+		}
+	})
+}
+
 // unexported constants.
 const (
 	// askAnotherThing is a prompt that no note bears on, other than askSomethingElse.
