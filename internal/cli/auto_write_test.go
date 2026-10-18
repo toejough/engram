@@ -607,6 +607,24 @@ func Test793d4k1h_RunAutoWrite_AFailureThatCannotBeRecordedFailsTheCommand(t *te
 	g.Expect(err).To(MatchError(ContainSubstring("the vault is locked")))
 }
 
+func Test793d4k1i_RunAutoWrite_AFailureThatIsReportedAndCannotBeRecordedFailsTheCommand(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", RecordsDir: "/data/auto"},
+		cli.AutoWriteDeps{
+			Stdin: strings.NewReader(`{"session":"` + sessionID + `","turn":"` + turnID +
+				`","failure":"the judgement exited with 1"}`),
+			Learn:       learnInto(map[string]string{}),
+			Now:         func() time.Time { return recordedAt },
+			WriteRecord: func(string, []byte) error { return errors.New("the disk is full") },
+		}, &out)
+
+	g.Expect(err).To(MatchError(ContainSubstring("the judgement exited with 1")), "the failure, which would be lost")
+}
+
 func Test793d4k1j_RunAutoWrite_AReasonIsWrittenAsOneLineRedactedAndCutInItsMiddle(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

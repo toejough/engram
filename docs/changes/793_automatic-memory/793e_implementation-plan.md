@@ -134,14 +134,14 @@ flowchart TD
     n793e6h1 --> n793e6h2[793e6h2 The text of a prompt is in no failure<br/>Complete]
     n793e6h1 --> n793e6h3[793e6h3 A failure is written as one line, redacted, and cut by the writing<br/>Complete]
     n793e6h1 --> n793e6h4[793e6h4 A lesson that is left out keeps its slug only when it is one<br/>Complete]
-    n793e6h3 --> n793e6h5[793e6h5 A failure that is reported and cannot be recorded fails the command<br/>Ready]
+    n793e6h3 --> n793e6h5[793e6h5 A failure that is reported and cannot be recorded fails the command<br/>In progress: 0/1 entries complete]
     n793e6a2 --> n793e6f[793e6f The delivery merges the parent vault<br/>Blocked by: 793c34]
     classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
     classDef blocked fill:#eeeeee,stroke:#757575,color:#000,stroke-dasharray:5 5
     class n793e6a1,n793e6a2,n793e6a3,n793e6a4,n793e6a5,n793e6a6,n793e6a7,n793e6a8,n793e6a9,n793e6a10,n793e6a11,n793e6a12,n793e6b1,n793e6b2,n793e6b3,n793e6b4,n793e6b5,n793e6b6,n793e6b7,n793e6b8,n793e6b9,n793e6b10,n793e6b11,n793e6b12,n793e6b13,n793e6b14,n793e6b15,n793e6g1,n793e6g2,n793e6g3,n793e6g4,n793e6g5,n793e6g6,n793e6g7,n793e6g8,n793e6g9,n793e6g10,n793e6g11,n793e6g12,n793e6g13,n793e6g14,n793e6g15,n793e6g16,n793e6g17,n793e6g18,n793e6g19,n793e6e1,n793e6c1,n793e6c2,n793e6c3,n793e6d1,n793e6d2,n793e6d3,n793e6d4,n793e6d5,n793e6d6,n793e6h1,n793e6h2,n793e6h3,n793e6h4 complete
-    class n793e6h5 ready
+    class n793e6h5 progress
     class n793e6f blocked
 ```
 
@@ -821,7 +821,7 @@ Review finding P-1 ([793d4k Recording what automatic memory did](./793d_technica
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793d4k1i | Dedicated example | a failure in place of a reply and a place for the records that cannot be written: the command fails with the failure, so that it is not lost | Not started | | | |
+| 793d4k1i | Dedicated example | a failure in place of a reply and a place for the records that cannot be written: the command fails with the failure, so that it is not lost | Red | | | |
 
 ### 793e6f The delivery merges the parent vault
 
