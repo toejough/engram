@@ -33,20 +33,6 @@ type AutoRecallDeps struct {
 	ReadChunks func(dir string) ([]chunk.Record, error)
 }
 
-// newAutoRecallDeps wires RunAutoRecall from the injected CLI capabilities - pure composition (#700). The lookup is the
-// one of the delivery, whose warnings go to the debug log.
-func newAutoRecallDeps(d Deps) AutoRecallDeps {
-	chunkDeps := newChunkQueryDeps(d)
-
-	return AutoRecallDeps{
-		Stdin: d.Stdin,
-		Query: newAutoDeliverDeps(d).Query,
-		ReadChunks: func(dir string) ([]chunk.Record, error) {
-			return loadChunkRecords(dir, chunkDeps)
-		},
-	}
-}
-
 // RunAutoRecall reads the reply of the phrases judgement from standard input, looks the phrases up and prints the
 // request for the model that judges the candidates.
 func RunAutoRecall(ctx context.Context, args AutoRecallArgs, deps AutoRecallDeps, stdout io.Writer) error {
@@ -173,4 +159,18 @@ func dayOf(indexed time.Time) string {
 	}
 
 	return indexed.UTC().Format(noteDateFormat)
+}
+
+// newAutoRecallDeps wires RunAutoRecall from the injected CLI capabilities - pure composition (#700). The lookup is the
+// one of the delivery, whose warnings go to the debug log.
+func newAutoRecallDeps(d Deps) AutoRecallDeps {
+	chunkDeps := newChunkQueryDeps(d)
+
+	return AutoRecallDeps{
+		Stdin: d.Stdin,
+		Query: newAutoDeliverDeps(d).Query,
+		ReadChunks: func(dir string) ([]chunk.Record, error) {
+			return loadChunkRecords(dir, chunkDeps)
+		},
+	}
 }

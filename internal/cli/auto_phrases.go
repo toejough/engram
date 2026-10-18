@@ -18,11 +18,6 @@ type AutoPhrasesDeps struct {
 	Stdin io.Reader
 }
 
-// newAutoPhrasesDeps wires RunAutoPhrases from the injected CLI capabilities - pure composition (#700).
-func newAutoPhrasesDeps(d Deps) AutoPhrasesDeps {
-	return AutoPhrasesDeps{Stdin: d.Stdin}
-}
-
 // RunAutoPhrases reads the reply of the moment judgement from standard input and prints the request for the model that
 // phrases the lookup, or nothing when the depth is none (855d4v).
 func RunAutoPhrases(_ context.Context, deps AutoPhrasesDeps, stdout io.Writer) error {
@@ -43,4 +38,9 @@ func RunAutoPhrases(_ context.Context, deps AutoPhrasesDeps, stdout io.Writer) e
 	}
 
 	return printStep(stdout, "auto phrases", step)
+}
+
+// newAutoPhrasesDeps wires RunAutoPhrases from the injected CLI capabilities - pure composition (#700).
+func newAutoPhrasesDeps(d Deps) AutoPhrasesDeps {
+	return AutoPhrasesDeps{Stdin: d.Stdin}
 }

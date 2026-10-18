@@ -157,6 +157,37 @@ func amendResituateTargets(
 	}
 }
 
+// autoRecallTargets returns the steps of the recall chain that come before the delivery: the moment, the phrases and
+// the recall.
+func autoRecallTargets(
+	deps Deps,
+	withLog func(context.Context) context.Context,
+	errHandler func(error),
+	home string,
+) []any {
+	return []any{
+		targ.Targ(func(ctx context.Context, a AutoMomentArgs) {
+			if a.SessionsDir == "" {
+				a.SessionsDir = sessionsDirOf(deps.Getenv, deps.UserHomeDir)
+			}
+
+			errHandler(RunAutoMoment(withLog(ctx), a, newAutoMomentDeps(deps), deps.Stdout))
+		}).Name("moment").Description(
+			"Print the request for the model that judges a moment (the automatic-memory mod runs this at each cue)"),
+		targ.Targ(func(ctx context.Context, _ AutoPhrasesArgs) {
+			errHandler(RunAutoPhrases(withLog(ctx), newAutoPhrasesDeps(deps), deps.Stdout))
+		}).Name("phrases").Description(
+			"Print the request for the model that phrases the lookup (the mod runs this at a recall moment)"),
+		targ.Targ(func(ctx context.Context, a AutoRecallArgs) {
+			a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
+
+			errHandler(RunAutoRecall(withLog(ctx), a, newAutoRecallDeps(deps), deps.Stdout))
+		}).Name("recall").Description(
+			"Look the phrases up and print the request that judges the candidates (the mod runs this at a recall moment)"),
+	}
+}
+
 // autoTargets returns the automatic-memory subcommands (the `auto` group): the commands the memory mod runs.
 func autoTargets(
 	deps Deps,
@@ -185,26 +216,7 @@ func autoTargets(
 	}
 
 	return []any{
-		targ.Group("auto",
-			targ.Targ(func(ctx context.Context, a AutoMomentArgs) {
-				if a.SessionsDir == "" {
-					a.SessionsDir = sessionsDirOf(deps.Getenv, deps.UserHomeDir)
-				}
-
-				errHandler(RunAutoMoment(withLog(ctx), a, newAutoMomentDeps(deps), deps.Stdout))
-			}).Name("moment").Description(
-				"Print the request for the model that judges a moment (the automatic-memory mod runs this at each cue)"),
-			targ.Targ(func(ctx context.Context, _ AutoPhrasesArgs) {
-				errHandler(RunAutoPhrases(withLog(ctx), newAutoPhrasesDeps(deps), deps.Stdout))
-			}).Name("phrases").Description(
-				"Print the request for the model that phrases the lookup (the automatic-memory mod runs this at a recall moment)"),
-			targ.Targ(func(ctx context.Context, a AutoRecallArgs) {
-				a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
-				a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
-
-				errHandler(RunAutoRecall(withLog(ctx), a, newAutoRecallDeps(deps), deps.Stdout))
-			}).Name("recall").Description(
-				"Look the phrases up and print the request for the model that judges the candidates (the automatic-memory mod runs this at a recall moment)"),
+		targ.Group("auto", slices.Concat(autoRecallTargets(deps, withLog, errHandler, home), []any{
 			targ.Targ(func(ctx context.Context, a AutoDeliverArgs) {
 				a.VaultPath, a.SessionsDir = paths(a.VaultPath, a.SessionsDir)
 				a.RecordsDir = recordsDir(a.RecordsDir)
@@ -239,7 +251,7 @@ func autoTargets(
 				errHandler(RunAutoWrite(withLog(ctx), a, newAutoWriteDeps(deps), deps.Stdout))
 			}).Name("write").Description(
 				"Write the lessons of the model's reply as notes (the automatic-memory mod runs this after each judgement)"),
-		),
+		})...),
 	}
 }
 
