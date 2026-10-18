@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -36,3 +37,21 @@ func Test855d4v1c_Phrases_ADepthOfNoneLooksNothingUp(t *testing.T) {
 		})
 	}
 }
+
+func Test855d4v1c_Phrases_ARequestThatCannotBeWrittenFailsTheCommand(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.RunAutoPhrases(context.Background(), cli.AutoPhrasesDeps{
+		Stdin: strings.NewReader(`{"session":"` + sessionID + `","cue":"prompt","reply":"{\"depth\":\"glance\"}",` +
+			`"carry":{"cue":"prompt","window":"User: Prepare a test run."}}`),
+	}, failingWriter{})
+
+	g.Expect(err).To(MatchError(ContainSubstring("auto phrases: writing the request: the pipe is closed")))
+}
+
+// failingWriter is a standard output that cannot be written.
+type failingWriter struct{}
+
+// Write fails.
+func (failingWriter) Write([]byte) (int, error) { return 0, errors.New("the pipe is closed") }
