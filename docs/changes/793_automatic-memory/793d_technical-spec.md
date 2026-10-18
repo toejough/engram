@@ -720,7 +720,7 @@ Scenario: 793d4h1i A lesson left out keeps its slug only when it is one
 
 ### 793d4j Redacting credentials
 
-Requirement: 793d4j The `turn-judgement` MUST redact every text of the [turn](./793a_product-spec.md#793a1a-terms) shaped as a credential before cutting or joining it and before the model sees it, and the `lesson-writing` every field of a lesson before writing it, so that no [note](../../GLOSSARY.md#permanent-note) holds a credential that appeared in the turn. Each text is first written as one line (control and format characters dropped), then redacted, then cut, so that a credential split by characters that are not shown is whole when redacted. The shapes: a private key block; a JSON web token; a key or token that opens with its issuer's prefix (`sk-`, `pk-`, `rk-`, `ghp_`, `gho_`, `ghs_`, `ghu_`, `ghr_`, `github_pat_`, `npm_`, `glpat-`, `AKIA`, `ASIA`, `AIza`, `xoxa-`, `xoxb-`, `xoxp-`, `xoxr-`, `xoxs-`); a `Bearer` or `Basic` credential of 12 characters or more; the user and password of a URL; the value of an `Authorization` header; the value given by `=`, `:` or `is`, with up to six words of the sentence between, to a name holding `key`, `token`, `secret`, `password`, `passwd`, `pwd`, `credential` or `private-key` in any case with anything around the word (`accessKey`, `x-api-key`, `DB_PASSWORD`); a run of 32 or more letters, digits, `+`, `_` and `=` that holds both a letter and a digit and is not a commit's 40 hexadecimal digits. It becomes `[redacted]`, the name of an assignment kept. A secret of another shape (a password a sentence gives without `is` or `:`, a token split over two lines) is not redacted.
+Requirement: 793d4j The `turn-judgement` MUST redact every text of the [turn](./793a_product-spec.md#793a1a-terms) shaped as a [recognised credential](./793a_product-spec.md#793a1a-terms) before cutting or joining it and before the model sees it, and the `lesson-writing` every field of a lesson before writing it, so that no [note](../../GLOSSARY.md#permanent-note) holds a recognised credential that appeared in the turn. Each text is first written as one line (control and format characters dropped), then redacted, then cut, so that a credential split by characters that are not shown is whole when redacted. A credential becomes `[redacted]`, the name of an assignment kept. A secret of another shape (a password a sentence gives without `is` or `:`, a token split over two lines, a run of 40 hexadecimal digits, a run of letters only or of digits only, a token of three parts joined by dots that does not begin `eyJ`) is not redacted.
 
 Owner: `turn-judgement` and `lesson-writing`. Supports: [793a2c1g A credential in the turn is not in the note](./793a_product-spec.md#793a2c1-uat-scenarios).
 
@@ -728,14 +728,14 @@ Owner: `turn-judgement` and `lesson-writing`. Supports: [793a2c1g A credential i
 
 ```gherkin
 Scenario: 793d4j1a No text shaped as a credential survives
-  Given any text with a credential of each of the shapes, among any other text
+  Given, for each shape of a recognised credential, texts of the shape with each part at its lower bound and above, among any other text
   When the text is redacted
   Then the credential is not in the text, and the text around it is as it was
 
 Scenario: 793d4j1b The name of an assignment is kept, and a text that is not a credential is not touched
-  Given the names password, api_key and secret_token given values, a commit ID of 40 hexadecimal digits, a long word of letters only, and a sentence
+  Given the names password, api_key and secret_token given values, a commit ID of 40 hexadecimal digits, a run of 36 letters, a run of 36 digits, a token of three parts joined by dots that does not begin eyJ, each shape one character short of its lower bound, and a sentence
   When the text is redacted
-  Then each name is kept and its value is redacted, and the commit ID, the word and the sentence are as they were
+  Then each name is kept and its value is redacted, and the commit ID, the runs, the token, the shapes one character short and the sentence are as they were
 
 Scenario: 793d4j1c The request holds no credential of the turn
   Given a record whose prompts and replies hold credentials of every shape

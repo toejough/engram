@@ -49,6 +49,7 @@ Added by the fixes of the review of the whole branch ([793e6i The fixes of the r
 - `dev/acceptance/steps_test.go`: the machine writes a debug log, and the tests of an absence wait for the writes it records.
 - `internal/cli/auto.go`, `internal/cli/targets.go`: the sweep gives up for a session whose sweep was ended, and the command takes the directory of the records ([793b115 A sweep that is ended at its bound is not run again in the session](./793b_decision-log.md#793b115-a-sweep-that-is-ended-at-its-bound-is-not-run-again-in-the-session)).
 - `agent-instructions/mods/engram-memory/hooks/register.js`: a sweep that is ended is run once more, as ended.
+- `internal/auto/redact_test.go`: the property of the redaction has a probe for each shape of a recognised credential ([793b116 The promise names the shapes the redaction catches, with their prefixes and lengths](./793b_decision-log.md#793b116-the-promise-names-the-shapes-the-redaction-catches-with-their-prefixes-and-lengths)).
 
 ## 793e2 Test methods
 
@@ -155,7 +156,9 @@ flowchart TD
     n793e6i3 --> n793e6i4[793e6i4 A turn with nothing to write leaves no record, and the records that were shown are removed<br/>Complete]
     n793e6i4 --> n793e6i5[793e6i5 A sweep that is ended at its bound is not run again in the session, and the user is told once<br/>Complete]
     n793e6d5 --> n793e6i5
+    n793e6g8 --> n793e6i6[793e6i6 The credentials that are redacted are the shapes the promise names<br/>Ready]
     class n793e6i1,n793e6i2,n793e6i3,n793e6i4,n793e6i5 complete
+    class n793e6i6 ready
     classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
@@ -928,12 +931,21 @@ Review finding B-3 ([793b115 A sweep that is ended at its bound is not run again
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2f1b | Dedicated example, product acceptance (`network`) | another process holds the lock of the chunk index for the whole test, as the closing sweep of the [agent](./793a_product-spec.md#793a1a-terms) does on a large backlog, so that the sweep waits and is ended at its bound; the second prompt shows one line that names `[engram ingest](../../GLOSSARY.md#engram-ingest-subcommand) --auto`, and the third, after the time of a sweep has passed again, none | | 3 of 3 | Done | c83de9f8 | 85893150 | |
-| 793d4n1g | Dedicated example | the file of the mark is written once and the error names what to run, over an injected writer of files and an index that must not run | | | Done | c83de9f8 | 85893150 | |
-| 793d4n1h | Dedicated example | a [session](../../GLOSSARY.md#session) with the mark is swept nothing, over an injected index that must not run | | | Done | c83de9f8 | 85893150 | |
-| 793d2c1e | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the stand-in host ends the first run and fails the second, as the host does, which a live [session](../../GLOSSARY.md#session) shows only after 90 seconds | | | Done | c83de9f8 | 85893150 | |
-| 793d2c1f | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a second run that succeeds is not reported | | | Done | c83de9f8 | 85893150 | |
-| 793d2c1c (amended) | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the bounds of the sweep, of the run as ended and of the report, with the timers of the stand-in fired at once | | | Done | c83de9f8 | 85893150 | |
+| 793a2f1b | Dedicated example, product acceptance (`network`) | another process holds the lock of the chunk index for the whole test, as the closing sweep of the [agent](./793a_product-spec.md#793a1a-terms) does on a large backlog, so that the sweep waits and is ended at its bound; the second prompt shows one line that names `[engram ingest](../../GLOSSARY.md#engram-ingest-subcommand) --auto`, and the third, after the time of a sweep has passed again, none | | 3 of 3 | Done | c83de9f8 | 85893150 | b4c240d3 |
+| 793d4n1g | Dedicated example | the file of the mark is written once and the error names what to run, over an injected writer of files and an index that must not run | | | Done | c83de9f8 | 85893150 | b4c240d3 |
+| 793d4n1h | Dedicated example | a [session](../../GLOSSARY.md#session) with the mark is swept nothing, over an injected index that must not run | | | Done | c83de9f8 | 85893150 | b4c240d3 |
+| 793d2c1e | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the stand-in host ends the first run and fails the second, as the host does, which a live [session](../../GLOSSARY.md#session) shows only after 90 seconds | | | Done | c83de9f8 | 85893150 | b4c240d3 |
+| 793d2c1f | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a second run that succeeds is not reported | | | Done | c83de9f8 | 85893150 | b4c240d3 |
+| 793d2c1c (amended) | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the bounds of the sweep, of the run as ended and of the report, with the timers of the stand-in fired at once | | | Done | c83de9f8 | 85893150 | b4c240d3 |
+
+#### 793e6i6 The credentials that are redacted are the shapes the promise names
+
+Review finding B-2 ([793b116 The promise names the shapes the redaction catches, with their prefixes and lengths](./793b_decision-log.md#793b116-the-promise-names-the-shapes-the-redaction-catches-with-their-prefixes-and-lengths), [793c49 Should the promise that a note holds no credential stay absolute?](./793c_open-questions.md#793c49-should-the-promise-that-a-note-holds-no-credential-stay-absolute)): the promise named a token of three parts and a run of letters and digits where the redaction needs `eyJ` and a letter and a digit. The redaction is not changed, so the rows pass when written and say what fails them.
+
+| Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 793d4j1a (amended) | Property-based (`rapid`) | one probe for each prefix and each shape of a recognised credential, with its parts from their lower bound up; passed when written; mutation (scratch copy): a lower bound of 17 for the prefixes `sk`, `pk` and `rk` fails the probes of those six prefixes | for each shape of a [recognised credential](./793a_product-spec.md#793a1a-terms), whatever text surrounds it: the secret is not in the redacted text, and the name of an assignment is | | Not started | | | |
+| 793d4j1b (amended) | Dedicated example | the forms the promise leaves out, and each shape one character short of its lower bound, are left as they were: 36 letters, 36 digits, three parts joined by dots that do not begin `eyJ`, and a commit's 40 hexadecimal digits; passed when written; mutation (scratch copy): a rule for a long run that needs no letter and digit fails it | | | Not started | | | |
 
 ### 793e6f The delivery merges the parent vault
 
