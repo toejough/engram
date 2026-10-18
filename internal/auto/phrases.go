@@ -3,9 +3,13 @@ package auto
 import (
 	_ "embed" // the instructions of the judgement are a text file of the package
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 )
+
+// ErrMomentReply is the failure of a step that is given a reply of the moment judgement that is not a depth (855d4v).
+var ErrMomentReply = errors.New(`the reply of the moment judgement is not {"depth": none, glance or deep}`)
 
 // PhrasesInput is the reply of the moment judgement and its carry, as the memory mod hands them over (855d4v).
 type PhrasesInput struct {

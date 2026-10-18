@@ -64,3 +64,39 @@ func Test855d4v1b_Phrases_TheNumberOfPhrasesFollowsTheDepth(t *testing.T) {
 		})
 	}
 }
+
+func Test855d4v1d_Phrases_AFencedReplyIsReadAndAReplyThatIsNotAMomentReplyFails(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a reply of depth glance in a code fence", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		step, found, err := auto.Phrases(auto.PhrasesInput{
+			Cue: "prompt", Reply: "```json\n{\"depth\":\"glance\"}\n```", Carry: auto.Carry{Window: "User: x"},
+		})
+
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(found).To(BeTrue())
+		g.Expect(step.Carry.Depth).To(Equal("glance"))
+	})
+
+	for name, reply := range map[string]string{
+		"text that is not JSON": "I would say glance.", "an empty reply": "", "a list": `["glance"]`,
+		"an object with no depth": `{"phrases":["a"]}`, "a depth of none of the three": `{"depth":"maybe"}`,
+		"a depth that is not text": `{"depth":3}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			_, found, err := auto.Phrases(auto.PhrasesInput{
+				Cue: "prompt", Reply: reply, Carry: auto.Carry{Window: "User: x"},
+			})
+
+			g.Expect(err).To(MatchError(auto.ErrMomentReply))
+			g.Expect(err).To(MatchError(ContainSubstring("moment judgement")))
+			g.Expect(found).To(BeFalse())
+		})
+	}
+}
