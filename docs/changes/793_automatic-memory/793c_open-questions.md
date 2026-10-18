@@ -460,9 +460,9 @@ Withdrawn: answered by the owner's instruction to follow the guides, [793b91 The
 
 ## 793c76 Is a failure the mod reports cut in its middle?
 
-- **Context:** the mod reports a failed step to the writing as a sentence of up to 300 characters; the message of an error names its step at its beginning and gives its cause at its end, and a path in between can fill the 300 characters (the failed sweep of [793a2e1e A sweep that failed is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios) lost its cause).
-- **Options:** (a) Cut it in its middle, so that both ends stay. (b) Cut it to its first characters, as built before. (c) Do not cut it.
-- **Recommendation:** (a): (b) loses the cause, and (c) puts no bound on a record.
+- **Context:** the mod reports a failed step to the writing as a sentence, which a record keeps; the message of an error names its step at its beginning and gives its cause at its end, and a path in between can fill any bound (the failed sweep of [793a2e1e A sweep that failed is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios) lost its cause). A cut made before the redaction left part of a credential at the cut.
+- **Options:** (a) The mod sends it whole, and the writing writes it as one line, redacts it and cuts it in its middle. (b) The mod cuts it in its middle, as built before. (c) Cut it to its first characters, or not at all.
+- **Recommendation:** (a): both ends stay, the order of the redaction is the writing's alone, and the mod holds no logic; (b) cuts before the redaction, and (c) loses the cause or puts no bound on a record.
 - **Blocks:** [793a2e1e A sweep that failed is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios).
 - **Status:** open; default (a) taken in [793b108 A failure the mod reports is cut in its middle](./793b_decision-log.md#793b108-a-failure-the-mod-reports-is-cut-in-its-middle).
 
