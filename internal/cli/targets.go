@@ -165,7 +165,7 @@ func autoTargets(
 ) []any {
 	home := homeOrEmpty(deps)
 
-	// no first-use step in any of the three: a prompt or a turn must not create the vault the user removed (793d4e);
+	// no first-use step in any of the four: a prompt or a turn must not create the vault the user removed (793d4e);
 	// paths is the vault and the directory of the records of sessions that the delivery and the judgement read
 	paths := func(vault, sessions string) (string, string) {
 		if sessions == "" {
@@ -175,14 +175,20 @@ func autoTargets(
 		return resolveVault(vault, home, deps.Getenv), sessions
 	}
 
+	// recordsDir is where the records of what automatic memory did are: the writing makes them, the delivery reads them
+	recordsDir := func(flag string) string {
+		if flag != "" {
+			return flag
+		}
+
+		return filepath.Join(DataDirFromHome(home, deps.Getenv), "auto")
+	}
+
 	return []any{
 		targ.Group("auto",
 			targ.Targ(func(ctx context.Context, a AutoDeliverArgs) {
 				a.VaultPath, a.SessionsDir = paths(a.VaultPath, a.SessionsDir)
-
-				if a.RecordsDir == "" {
-					a.RecordsDir = filepath.Join(DataDirFromHome(home, deps.Getenv), "auto")
-				}
+				a.RecordsDir = recordsDir(a.RecordsDir)
 
 				errHandler(RunAutoDeliver(withLog(ctx), a, newAutoDeliverDeps(deps), deps.Stdout))
 			}).Name("deliver").Description(
@@ -207,9 +213,7 @@ func autoTargets(
 				a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
 				a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
 
-				if a.RecordsDir == "" {
-					a.RecordsDir = filepath.Join(DataDirFromHome(home, deps.Getenv), "auto")
-				}
+				a.RecordsDir = recordsDir(a.RecordsDir)
 
 				errHandler(RunAutoWrite(withLog(ctx), a, newAutoWriteDeps(deps), deps.Stdout))
 			}).Name("write").Description(
