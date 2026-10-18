@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -64,11 +65,12 @@ func RunAutoRecall(ctx context.Context, args AutoRecallArgs, deps AutoRecallDeps
 		return fmt.Errorf("auto recall: %w", candidatesErr)
 	}
 
-	if len(matched) == 0 {
+	step, found := auto.Recall(input, matched)
+	if !found {
 		return nil
 	}
 
-	return printStep(stdout, "auto recall", auto.Recall(input, matched))
+	return printStep(stdout, "auto recall", step)
 }
 
 // candidatesOf reads the notes and the passages that matched out of an `engram query` payload, in the order of the
@@ -88,6 +90,9 @@ func candidatesOf(
 	var records map[string]chunk.Record
 
 	candidates := make([]auto.Candidate, 0, len(parsed.Items))
+
+	// the candidates are in the order of their scores, and the payload lists the notes before the chunks (855b59)
+	slices.SortStableFunc(parsed.Items, func(left, right queryItem) int { return cmp.Compare(right.Score, left.Score) })
 
 	for _, item := range parsed.Items {
 		if slices.Equal(item.Provenances, []string{provenanceExplore}) ||

@@ -23,7 +23,7 @@ func Test855d4b1i_Recall_ACandidateCannotReshapeTheRequestOrHoldACredential(t *t
 		note := strings.Repeat("a note word ", 40)
 		passage := strings.Repeat("a chunk word ", 100)
 
-		step := auto.Recall(recallOf("glance"), []auto.Candidate{
+		step, _ := auto.Recall(recallOf("glance"), []auto.Candidate{
 			{ID: "n1.md", Kind: auto.KindNote, Date: "2026-10-17", Situation: "s", Text: note},
 			{ID: "c1#turn-1", Kind: auto.KindPassage, Date: "2026-10-14", Text: passage},
 		})
@@ -59,7 +59,7 @@ func Test855d4b1l_Recall_TheCandidatesAreHeldToACountAndABudget(t *testing.T) {
 			})
 		}
 
-		step := auto.Recall(recallOf("glance"), matched)
+		step, _ := auto.Recall(recallOf("glance"), matched)
 
 		g.Expect(candidatesOf(step.Request.Prompt)).To(HaveLen(20))
 		g.Expect(idsOf(step.Carry.Candidates)).To(Equal(idsOf(matched[:20])))
@@ -76,10 +76,22 @@ func Test855d4b1l_Recall_TheCandidatesAreHeldToACountAndABudget(t *testing.T) {
 			})
 		}
 
-		step := auto.Recall(recallOf("glance"), matched)
+		step, _ := auto.Recall(recallOf("glance"), matched)
 
 		g.Expect(candidatesOf(step.Request.Prompt)).To(HaveLen(30))
 		g.Expect(idsOf(step.Carry.Candidates)).To(Equal(idsOf(matched[:30])))
+	})
+
+	t.Run("named example: a note of more than 60,000 characters leaves no candidate", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		step, found := auto.Recall(recallOf("glance"), []auto.Candidate{{
+			ID: "n1.md", Kind: auto.KindNote, Date: "2026-10-17", Situation: "s", Text: strings.Repeat("abcdefgh ", 7000),
+		}})
+
+		g.Expect(found).To(BeFalse())
+		g.Expect(step.Carry.Candidates).To(BeEmpty())
 	})
 
 	t.Run("named example: 32 notes and 12 passages are 20 notes and 10 passages", func(t *testing.T) {
@@ -87,7 +99,7 @@ func Test855d4b1l_Recall_TheCandidatesAreHeldToACountAndABudget(t *testing.T) {
 		g := NewWithT(t)
 
 		matched := candidatesOfKinds(32, 12)
-		step := auto.Recall(recallOf("glance"), matched)
+		step, _ := auto.Recall(recallOf("glance"), matched)
 
 		g.Expect(step.Carry.Candidates).To(HaveLen(30))
 		g.Expect(passagesIn(step.Carry.Candidates)).To(Equal(10))
@@ -119,8 +131,12 @@ func Test855d4b1l_Recall_TheCandidatesAreHeldToACountAndABudget(t *testing.T) {
 			matched = append(matched, candidate)
 		}
 
-		step := auto.Recall(recallOf("glance"), matched)
+		step, found := auto.Recall(recallOf("glance"), matched)
 		lines := candidatesOf(step.Request.Prompt)
+
+		if found != (len(step.Carry.Candidates) > 0) {
+			rt.Fatalf("found is %v for %d candidates", found, len(step.Carry.Candidates))
+		}
 
 		if len(lines) > 30 {
 			rt.Fatalf("%d candidates", len(lines))
@@ -151,7 +167,8 @@ func Test855d4b1l_Recall_AMixedMatchedSetKeepsAFloorOfPassages(t *testing.T) {
 		notes, passages := rapid.IntRange(0, 45).Draw(rt, "notes"), rapid.IntRange(0, 45).Draw(rt, "passages")
 		matched := rapid.Permutation(candidatesOfKinds(notes, passages)).Draw(rt, "order")
 
-		held := auto.Recall(recallOf("glance"), matched).Carry.Candidates
+		step, _ := auto.Recall(recallOf("glance"), matched)
+		held := step.Carry.Candidates
 
 		if len(held) != min(auto.MaxCandidates, notes+passages) {
 			rt.Fatalf("%d candidates of %d notes and %d passages", len(held), notes, passages)
@@ -243,7 +260,7 @@ func checkRecallIsSafe(rt *rapid.T) {
 	padding := rapid.IntRange(0, 400).Draw(rt, "padding")
 	passageText := tagText().Draw(rt, "passage") + " " + second.text + strings.Repeat(" word", padding)
 
-	step := auto.Recall(recallOf("deep"), []auto.Candidate{
+	step, _ := auto.Recall(recallOf("deep"), []auto.Candidate{
 		{ID: "n1.md", Kind: auto.KindNote, Date: "2026-10-17", Situation: tagText().Draw(rt, "situation"), Text: noteText},
 		{ID: "c1#turn-1", Kind: auto.KindPassage, Date: "2026-10-14", Text: passageText},
 	})
