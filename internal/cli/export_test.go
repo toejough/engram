@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/toejough/engram/internal/auto"
 	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/embed"
 	"github.com/toejough/engram/internal/update"
@@ -126,7 +127,6 @@ var (
 	ExportHashChanged                      = hashChanged
 	ExportHashEqual                        = hashEqual
 	ExportHashUnknown                      = hashUnknown
-	ExportHeldText                         = heldText
 	ExportIDAndDateFromNoteFilename        = idAndDateFromNoteFilename
 	ExportIndexPathFor                     = indexPathFor
 	ExportInitVaultFromFS                  = initVaultFromFS
@@ -582,6 +582,12 @@ func ExportFrontmatterDocTypes() []reflect.Type {
 }
 
 // Exported functions.
+
+// ExportHeldText returns the text of what a session's agent holds of the vault, as the delivery reads it from the
+// session's record (793d4d).
+func ExportHeldText(deps AutoDeliverDeps, dir, session string) string {
+	return auto.HeldText(recordOf(deps.ReadDir, deps.ReadFile, dir, session))
+}
 
 // ExportIndexFileName exposes sourceSlug-based index naming so tests can
 // locate a source's chunk index file.

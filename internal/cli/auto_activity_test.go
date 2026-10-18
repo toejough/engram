@@ -16,25 +16,49 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+func Test793d4p1c_RunAutoDeliver_ALineTheSessionWasToldInItsRecordIsNotToldAgain(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	records, sessions := t.TempDir(), t.TempDir()
+	dir := filepath.Join(records, sessionID)
+
+	plantActivity(t, dir, "20261017T203225.000000000Z-0-written.json", activityRecordAt(0, sessionID,
+		auto.RecordWritten, func(r *auto.Record) { r.Note = "a.md" }))
+	plantActivity(t, dir, "20261017T203226.000000000Z-0-written.json", activityRecordAt(1, sessionID,
+		auto.RecordWritten, func(r *auto.Record) { r.Note = "b.md" }))
+
+	// the record of the session holds a block delivered earlier, with the line of the first record
+	plantTold(t, sessions, "* 20:32:25 wrote the note a.md")
+
+	out, err := deliverOver(t, records, sessions, sessionID)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(told(out)).To(Equal([]string{"* 20:32:26 wrote the note b.md"}))
+}
+
 func Test793d4p1f_RunAutoDeliver_TheRecordsOfAnotherSessionAnUnreadableRecordAndAMissingDirectoryMakeNoLine(
 	t *testing.T,
 ) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	records := t.TempDir()
+	records, beside := t.TempDir(), t.TempDir()
 	mine := filepath.Join(records, sessionID)
 	theirs := filepath.Join(records, otherSessionID)
 
 	// the directory of the session: two records of its own, a record of another session, a file that is not JSON, a
-	// file that is not a record, and a directory with the name of a record
+	// file of a record's content that is not named as a record is, and a directory with the name of a record
 	plantActivity(t, mine, "20261017T203225.000000000Z-0-written.json", activityRecordAt(0, sessionID, auto.RecordWritten,
 		func(r *auto.Record) { r.Note = "a.md" }))
 	plantActivity(t, mine, "20261017T203226.000000000Z-0-written.json", activityRecordAt(1, otherSessionID,
 		auto.RecordWritten, func(r *auto.Record) { r.Note = "intruder.md" }))
 	g.Expect(os.WriteFile(filepath.Join(mine, "20261017T203227.000000000Z-0-written.json"), []byte("{ not json"),
 		0o600)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(mine, "notes.txt"), []byte("not a record"), 0o600)).To(Succeed())
+	notRecord, marshalErr := json.Marshal(activityRecordAt(2, sessionID, auto.RecordWritten,
+		func(r *auto.Record) { r.Note = "not-a-record.md" }))
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+	g.Expect(os.WriteFile(filepath.Join(mine, "notes.txt"), notRecord, 0o600)).To(Succeed())
 	g.Expect(os.Mkdir(filepath.Join(mine, "20261017T203228.000000000Z-0-written.json"), 0o750)).To(Succeed())
 	plantActivity(t, mine, "20261017T203229.000000000Z-0-skipped.json", activityRecordAt(4, sessionID,
 		auto.RecordSkipped, func(r *auto.Record) {
@@ -42,12 +66,16 @@ func Test793d4p1f_RunAutoDeliver_TheRecordsOfAnotherSessionAnUnreadableRecordAnd
 			r.Reason = "the vault already states it"
 		}))
 
-	// the other session has its own directory, and a third has none
+	// the other session has its own directory, a third has none, and a fourth is named by a path to a directory beside
+	// the records, which holds a record that claims to be the session's
+	aside := "../" + filepath.Base(beside)
+	plantActivity(t, beside, "20261017T203231.000000000Z-0-written.json", activityRecordAt(6, aside,
+		auto.RecordWritten, func(r *auto.Record) { r.Note = "aside.md" }))
 	plantActivity(t, theirs, "20261017T203230.000000000Z-0-failed.json", activityRecordAt(5, otherSessionID,
 		auto.RecordFailed, func(r *auto.Record) { r.Reason = "the other session's failure" }))
 
 	shown := func(session string) []string {
-		out, err := deliverOver(t, records, session)
+		out, err := deliverOver(t, records, "", session)
 		g.Expect(err).NotTo(HaveOccurred(), "the delivery for "+session)
 		g.Expect(out).To(ContainSubstring(resetNoteName), "the note for "+session)
 
@@ -61,6 +89,7 @@ func Test793d4p1f_RunAutoDeliver_TheRecordsOfAnotherSessionAnUnreadableRecordAnd
 	g.Expect(shown(otherSessionID)).To(Equal([]string{"* 20:32:30 failed: the other session's failure"}),
 		"the lines of the other session")
 	g.Expect(shown(thirdSessionID)).To(BeEmpty(), "the lines of a session with no directory")
+	g.Expect(shown(aside)).To(BeEmpty(), "the lines of a session named by a path")
 }
 
 func Test793d4p1g_Targets_TheRecordsAreReadFromTheDirectoryTheFlagNamesElseFromTheEngramDataDirectory(
@@ -107,9 +136,9 @@ func activityRecordAt(index int, session, kind string, fill func(*auto.Record)) 
 	return record
 }
 
-// deliverOver runs the delivery for a prompt of a session, over the vault of one note and the directory of records that
-// it is given, and returns what it prints.
-func deliverOver(t *testing.T, records, session string) (string, error) {
+// deliverOver runs the delivery for a prompt of a session, over the vault of one note and the directories of records of
+// what automatic memory did and of sessions that it is given, and returns what it prints.
+func deliverOver(t *testing.T, records, sessions, session string) (string, error) {
 	t.Helper()
 
 	memFS := newInMemoryFS()
@@ -118,7 +147,8 @@ func deliverOver(t *testing.T, records, session string) (string, error) {
 
 	var out bytes.Buffer
 
-	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault, RecordsDir: records},
+	err := cli.RunAutoDeliver(context.Background(),
+		cli.AutoDeliverArgs{VaultPath: vault, SessionsDir: sessions, RecordsDir: records},
 		cli.AutoDeliverDeps{
 			Stdin:    userPrompt("When is the Zorblax staging database reset?", session),
 			Query:    queryOver(newQueryDeps(memFS)),
@@ -171,11 +201,30 @@ func plantActivity(t *testing.T, dir, name string, record auto.Record) {
 	}
 }
 
+// plantTold writes the record of the session in a directory: a block delivered beside a prompt, which holds the lines
+// that tell what automatic memory did.
+func plantTold(t *testing.T, dir string, lines ...string) {
+	t.Helper()
+
+	block, marshalErr := json.Marshal("[engram memory] The lines below are notes.\n" + strings.Join(lines, "\n"))
+	if marshalErr != nil {
+		t.Fatalf("encoding the block: %v", marshalErr)
+	}
+
+	record := `{"type":"attachment","attachment":{"type":"hook_additional_context","hookName":"prompt.submit",` +
+		`"content":[` + string(block) + `]}}` + "\n"
+
+	writeErr := os.WriteFile(filepath.Join(dir, sessionID+".jsonl"), []byte(record), 0o600)
+	if writeErr != nil {
+		t.Fatalf("writing the record: %v", writeErr)
+	}
+}
+
 // told returns the lines of a block that tell what automatic memory did, as they were printed.
 func told(block string) []string {
 	var lines []string
 
-	for _, line := range strings.Split(block, "\n") {
+	for line := range strings.SplitSeq(block, "\n") {
 		if strings.HasPrefix(line, "* ") {
 			lines = append(lines, line)
 		}

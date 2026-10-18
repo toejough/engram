@@ -22,6 +22,7 @@ import (
 type AutoDeliverArgs struct {
 	VaultPath   string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
 	SessionsDir string `targ:"flag,name=sessions,desc=directory of recorded sessions (default ENGRAM_TRANSCRIPT_DIR then CLAUDE_CONFIG_DIR/projects then ~/.claude/projects)"` //nolint:lll // single unbreakable struct-tag string
+	RecordsDir  string `targ:"flag,name=records,desc=directory of the records of what automatic memory did (default $XDG_DATA_HOME/engram/auto)"`                              //nolint:lll // single unbreakable struct-tag string
 }
 
 // AutoDeliverDeps holds injected dependencies for RunAutoDeliver.
@@ -110,16 +111,18 @@ func RunAutoDeliver(ctx context.Context, args AutoDeliverArgs, deps AutoDeliverD
 		return nil
 	}
 
+	// the record of the session is read once: it says what the agent holds and which lines it was told (793d4d)
+	record := recordOf(deps.ReadDir, deps.ReadFile, args.SessionsDir, request.Session)
+
 	block, err := auto.Deliver(ctx, request,
 		func(ctx context.Context, text string) ([]auto.Note, error) {
 			return lookUpNotes(ctx, args.VaultPath, text, deps.Query)
 		},
-		func(session string) string {
-			return heldText(deps, args.SessionsDir, session)
+		func(string) string {
+			return auto.HeldText(record)
 		},
-		func(string) []string {
-			// the lines that tell what automatic memory did are wired by the tests of 793d4p1f and 793d4p1g
-			return nil
+		func(session string) []string {
+			return auto.ActivityLines(recordsOf(deps, args.RecordsDir, session), auto.ToldLines(record))
 		})
 	if err != nil {
 		return fmt.Errorf("auto deliver: %w", err)
@@ -235,7 +238,9 @@ func RunAutoWrite(ctx context.Context, args AutoWriteArgs, deps AutoWriteDeps, s
 // unexported constants.
 const (
 	// the permissions of a record and of the directory of the records of a session
-	recordDirPerm  fs.FileMode = 0o750
+	recordDirPerm fs.FileMode = 0o750
+	// recordFileExt ends the name of the file of a record.
+	recordFileExt              = ".json"
 	recordFilePerm fs.FileMode = 0o600
 	// recordTimeFormat writes the time a record was made at in the name of its file: it sorts as the time does.
 	recordTimeFormat = "20060102T150405.000000000Z"
@@ -299,12 +304,6 @@ func findRecord(
 	}
 
 	return nil
-}
-
-// heldText returns the text of what a session's agent holds of the vault (793d4d). A record that cannot be read holds
-// nothing, so a prompt is delivered a note it may already hold rather than none.
-func heldText(deps AutoDeliverDeps, dir, session string) string {
-	return auto.HeldText(recordOf(deps.ReadDir, deps.ReadFile, dir, session))
 }
 
 // isPlainName reports whether an ID is a plain file name: it names no directory, so it cannot name a file outside the
@@ -486,6 +485,36 @@ func recordPathOf(
 	return ""
 }
 
+// recordsOf returns the records of what automatic memory did for a session, oldest first: those of the files of the
+// session's directory in the directory of records, in the order of their names, which sort as the time they were made
+// does (793d4k). A directory that cannot be listed, a file that cannot be read or that is no record, and a record of
+// another session leave nothing (793d4p).
+func recordsOf(deps AutoDeliverDeps, dir, session string) []auto.Record {
+	if dir == "" || !isPlainName(session) {
+		return nil
+	}
+
+	// a directory that cannot be listed has no records
+	entries, _ := deps.ReadDir(filepath.Join(dir, session))
+	records := make([]auto.Record, 0, len(entries))
+
+	for _, entry := range entries {
+		if filepath.Ext(entry.Name()) != recordFileExt {
+			continue
+		}
+
+		data, readErr := deps.ReadFile(filepath.Join(dir, session, entry.Name()))
+
+		var record auto.Record
+
+		if readErr == nil && json.Unmarshal(data, &record) == nil && record.Session == session {
+			records = append(records, record)
+		}
+	}
+
+	return records
+}
+
 // sessionsDirOf is where the records of sessions are read from when --sessions is not given (793d4f): the directory
 // ENGRAM_TRANSCRIPT_DIR names when it is set, else the projects directory of CLAUDE_CONFIG_DIR when that is set, where
 // Claude Code writes the records of a session started with it, else the home's .claude/projects.
@@ -576,7 +605,7 @@ func writeRecords(deps AutoWriteDeps, dir string, records []auto.Record) bool {
 		}
 
 		data, marshalErr := json.Marshal(record)
-		name := fmt.Sprintf("%s-%d-%s.json", record.At.UTC().Format(recordTimeFormat), index, record.Kind)
+		name := fmt.Sprintf("%s-%d-%s%s", record.At.UTC().Format(recordTimeFormat), index, record.Kind, recordFileExt)
 
 		// a record that cannot be encoded or written leaves the others to be written, and the result false
 		written = marshalErr == nil && deps.WriteRecord(filepath.Join(dir, record.Session, name), data) == nil && written

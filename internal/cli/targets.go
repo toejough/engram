@@ -180,6 +180,10 @@ func autoTargets(
 			targ.Targ(func(ctx context.Context, a AutoDeliverArgs) {
 				a.VaultPath, a.SessionsDir = paths(a.VaultPath, a.SessionsDir)
 
+				if a.RecordsDir == "" {
+					a.RecordsDir = filepath.Join(DataDirFromHome(home, deps.Getenv), "auto")
+				}
+
 				errHandler(RunAutoDeliver(withLog(ctx), a, newAutoDeliverDeps(deps), deps.Stdout))
 			}).Name("deliver").Description(
 				"Print the block of the notes that bear on a prompt (the automatic-memory mod runs this for each prompt)"),
