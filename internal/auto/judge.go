@@ -29,6 +29,7 @@ type Judgement struct {
 // began with and the origin of the prompt it began with (793d4g).
 type TurnEnd struct {
 	Session string `json:"session"`
+	Turn    string `json:"turn"`
 	Answer  string `json:"answer"`
 	Text    string `json:"text"`
 	Origin  string `json:"origin"`

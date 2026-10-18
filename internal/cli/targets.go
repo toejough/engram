@@ -195,8 +195,9 @@ func autoTargets(
 				"Print the block of the notes that bear on a prompt (the automatic-memory mod runs this for each prompt)"),
 			targ.Targ(func(ctx context.Context, a AutoJudgeArgs) {
 				a.VaultPath, a.SessionsDir = paths(a.VaultPath, a.SessionsDir)
+				a.RecordsDir = recordsDir(a.RecordsDir)
 
-				errHandler(RunAutoJudge(withLog(ctx), a, newAutoDeliverDeps(deps), deps.Stdout))
+				errHandler(RunAutoJudge(withLog(ctx), a, newAutoJudgeDeps(deps), deps.Stdout))
 			}).Name("judge").Description(
 				"Print the request for the model that judges a turn (the automatic-memory mod runs this after each turn)"),
 			targ.Targ(func(ctx context.Context, a AutoSweepArgs) {

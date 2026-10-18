@@ -42,11 +42,26 @@ type AutoJudgeArgs struct {
 	VaultPath   string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
 	SessionsDir string `targ:"flag,name=sessions,desc=directory of recorded sessions (default ENGRAM_TRANSCRIPT_DIR then CLAUDE_CONFIG_DIR/projects then ~/.claude/projects)"`                            //nolint:lll // single unbreakable struct-tag string
 	CaptureSDK  bool   `targ:"flag,name=capture-sdk,env=ENGRAM_AUTO_CAPTURE_SDK,desc=judge the turns of headless prompts (origin sdk) too; off by default so a script run with claude -p writes no note"` //nolint:lll // single unbreakable struct-tag string
+	RecordsDir  string `targ:"flag,name=records,desc=directory of the records of what automatic memory did (default $XDG_DATA_HOME/engram/auto)"`                                                         //nolint:lll // single unbreakable struct-tag string
 }
 
-// AutoJudgeDeps holds injected dependencies for RunAutoJudge: those of the delivery, whose standard input carries the
-// turn that ended, one JSON object with the session's ID and the turn's final text.
-type AutoJudgeDeps = AutoDeliverDeps
+// AutoJudgeDeps holds injected dependencies for RunAutoJudge: those of the delivery, because the judgement looks up
+// notes and reads the record of a session as the delivery does, and those of the writing of a record of a turn it
+// leaves out.
+type AutoJudgeDeps struct {
+	// Stdin carries the turn that ended: one JSON object with the session's ID, the turn's ID, the turn's final text and
+	// the origin of its prompt.
+	Stdin io.Reader
+	// Query runs the lookup of notes, the one `engram query` runs, and prints its payload.
+	Query QueryRun
+	// ReadDir and ReadFile read the session-log directory, where Claude Code keeps the record of each session.
+	ReadDir  func(path string) ([]fs.DirEntry, error)
+	ReadFile func(path string) ([]byte, error)
+	// Now is the time a record is made at.
+	Now func() time.Time
+	// WriteRecord writes one record, a file of its own, and makes its directory.
+	WriteRecord func(path string, data []byte) error
+}
 
 // AutoSweepArgs holds parsed flags for `engram auto sweep`: where the records of sessions and the chunk index are, and
 // the switch for the turns of headless prompts that the judgement has too.
@@ -148,6 +163,10 @@ func RunAutoJudge(ctx context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, s
 	}
 
 	if !auto.Judged(turn.Origin, args.CaptureSDK) {
+		if auto.SkippedHeadless(turn.Origin, args.CaptureSDK) {
+			recordLeftOut(deps, args.RecordsDir, turn)
+		}
+
 		return nil
 	}
 
@@ -228,7 +247,7 @@ func RunAutoWrite(ctx context.Context, args AutoWriteArgs, deps AutoWriteDeps, s
 	results := outcomes{base: auto.Record{At: deps.Now(), Session: reply.Session, Turn: reply.Turn}}
 	failures := writeLessons(ctx, args, deps, reply, &results, stdout)
 
-	if writeRecords(deps, args.RecordsDir, results.records) {
+	if writeRecords(deps.WriteRecord, args.RecordsDir, results.records) {
 		return nil
 	}
 
@@ -362,6 +381,20 @@ func newAutoDeliverDeps(d Deps) AutoDeliverDeps {
 	}
 }
 
+// newAutoJudgeDeps wires RunAutoJudge from the injected CLI capabilities - pure composition (#700).
+func newAutoJudgeDeps(d Deps) AutoJudgeDeps {
+	deliverDeps := newAutoDeliverDeps(d)
+
+	return AutoJudgeDeps{
+		Stdin:       deliverDeps.Stdin,
+		Query:       deliverDeps.Query,
+		ReadDir:     deliverDeps.ReadDir,
+		ReadFile:    deliverDeps.ReadFile,
+		Now:         d.Now,
+		WriteRecord: recordWriterFrom(d),
+	}
+}
+
 // newAutoSweepDeps wires RunAutoSweep from the injected CLI capabilities - pure composition (#700).
 func newAutoSweepDeps(d Deps) AutoSweepDeps {
 	ingestDeps := newIngestDeps(d)
@@ -389,21 +422,9 @@ func newAutoWriteDeps(d Deps) AutoWriteDeps {
 
 			return strings.TrimSpace(printed.String()), err
 		},
-		Now:        d.Now,
-		NoteExists: fileExistsFrom(d),
-		WriteRecord: func(path string, data []byte) error {
-			mkdirErr := d.FS.MkdirAll(filepath.Dir(path), recordDirPerm)
-			if mkdirErr != nil {
-				return fmt.Errorf("making the directory of the record %s: %w", path, mkdirErr)
-			}
-
-			writeErr := d.FS.WriteFileExcl(path, data, recordFilePerm)
-			if writeErr != nil {
-				return fmt.Errorf("writing the record %s: %w", path, writeErr)
-			}
-
-			return nil
-		},
+		Now:         d.Now,
+		NoteExists:  fileExistsFrom(d),
+		WriteRecord: recordWriterFrom(d),
 	}
 }
 
@@ -455,6 +476,15 @@ func recordCandidates(readDir func(path string) ([]fs.DirEntry, error), dir, ses
 	return candidates
 }
 
+// recordLeftOut records that the judgement left a headless turn out, and why (793d4m). A record that cannot be written
+// is the end of it, as it is for the writing (793d4k).
+func recordLeftOut(deps AutoJudgeDeps, dir string, turn auto.TurnEnd) {
+	results := outcomes{base: auto.Record{At: deps.Now(), Session: turn.Session, Turn: turn.Turn}}
+	results.add(auto.RecordSkipped, "", "", auto.HeadlessSkipReason)
+
+	_ = writeRecords(deps.WriteRecord, dir, results.records)
+}
+
 // recordOf returns the record of a session, or nothing. A session whose ID is not a plain file name has none: its ID
 // would otherwise name a file outside the directory (793d4d). Nor does a session when there is no directory of records
 // (793d4f): the file name alone would name a file of the working directory.
@@ -483,6 +513,24 @@ func recordPathOf(
 	}
 
 	return ""
+}
+
+// recordWriterFrom returns the writing of one record through the injected file system: a file of its own, in a
+// directory that is made.
+func recordWriterFrom(d Deps) func(path string, data []byte) error {
+	return func(path string, data []byte) error {
+		mkdirErr := d.FS.MkdirAll(filepath.Dir(path), recordDirPerm)
+		if mkdirErr != nil {
+			return fmt.Errorf("making the directory of the record %s: %w", path, mkdirErr)
+		}
+
+		writeErr := d.FS.WriteFileExcl(path, data, recordFilePerm)
+		if writeErr != nil {
+			return fmt.Errorf("writing the record %s: %w", path, writeErr)
+		}
+
+		return nil
+	}
 }
 
 // recordsOf returns the records of what automatic memory did for a session, oldest first: those of the files of the
@@ -592,7 +640,7 @@ func writeLessons(
 // writeRecords writes each record as a file of its own in the directory of its session, named for the time it was made,
 // its place among the records of the reply and its kind, and reports whether every record was written. A record that
 // cannot be written is left out (793d4k).
-func writeRecords(deps AutoWriteDeps, dir string, records []auto.Record) bool {
+func writeRecords(write func(path string, data []byte) error, dir string, records []auto.Record) bool {
 	if dir == "" {
 		return len(records) == 0
 	}
@@ -608,7 +656,7 @@ func writeRecords(deps AutoWriteDeps, dir string, records []auto.Record) bool {
 		name := fmt.Sprintf("%s-%d-%s%s", record.At.UTC().Format(recordTimeFormat), index, record.Kind, recordFileExt)
 
 		// a record that cannot be encoded or written leaves the others to be written, and the result false
-		written = marshalErr == nil && deps.WriteRecord(filepath.Join(dir, record.Session, name), data) == nil && written
+		written = marshalErr == nil && write(filepath.Join(dir, record.Session, name), data) == nil && written
 	}
 
 	return written

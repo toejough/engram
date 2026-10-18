@@ -10,6 +10,13 @@ import (
 	"unicode"
 )
 
+// Exported constants.
+const (
+	// HeadlessSkipReason is what the record of a headless turn that is left out says (793d4m).
+	HeadlessSkipReason = "the turn was not captured: " +
+		"headless prompts are captured only when ENGRAM_AUTO_CAPTURE_SDK is set"
+)
+
 // Held tells what a session's agent already holds of the vault, as the text of the session-context returns it (793d4d).
 type Held func(session string) string
 
@@ -50,6 +57,12 @@ func Deliver(ctx context.Context, request Request, lookup Lookup, held Held, act
 // that of the headless host's own turn, which is judged only when the user switched that on.
 func Judged(origin string, headless bool) bool {
 	return UserSent(origin) && (headless || origin != originHeadless)
+}
+
+// SkippedHeadless reports whether the turn of a prompt of an origin is left out only because the user did not switch on
+// capturing the turns of headless prompts (793d4m): a turn the user sends that is not judged.
+func SkippedHeadless(origin string, headless bool) bool {
+	return UserSent(origin) && !Judged(origin, headless)
 }
 
 // UserSent reports whether a prompt of an origin is one the user sends (793d4m): typed at the terminal, sent from the
