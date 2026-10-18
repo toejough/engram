@@ -1,6 +1,7 @@
 package auto_test
 
 import (
+	"encoding/json"
 	"slices"
 	"strconv"
 	"strings"
@@ -157,6 +158,54 @@ func Test855d4b1l_Recall_TheCandidatesAreHeldToACountAndABudget(t *testing.T) {
 			rt.Fatalf("%d characters of text", total)
 		}
 	})
+}
+
+func Test855d4b1h_Recall_TheLimitOnTheReplyHoldsADeepReplyForTheMostCandidatesWithFieldsAndLessons(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// the reply shape of 855d4b1h at its largest: 20 notes judged near, with 3 chunks, 3 fields and a newer note, 10
+	// passages, and 6 lessons that supersede a note, each with 3 chunks
+	const chunkID = "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11" +
+		".jsonl#turn-123"
+
+	const noteID = "123.2026-10-17.zorblax-staging-database-is-reset-every-sunday-at-0340-utc.md"
+
+	chunks := []string{chunkID, chunkID, chunkID}
+	entries := make([]map[string]any, 0, auto.MaxCandidates)
+
+	for index := range auto.MaxCandidates {
+		entry := map[string]any{"id": chunkID, "verdict": "evidence"}
+
+		if index < 20 {
+			entry = map[string]any{
+				"id": noteID, "verdict": "near", "newer": noteID, "chunks": chunks,
+				"fields": map[string]string{
+					"subject": "the Zorblax staging database and its reset", "predicate": "is reset every",
+					"object": "Sunday at 03:40 UTC, so test runs are scheduled after that",
+				},
+			}
+		}
+
+		entries = append(entries, entry)
+	}
+
+	lesson := map[string]any{
+		"kind": "fact", "slug": "zorblax-staging-reset", "covered": nil, "chunks": chunks,
+		"situation": "scheduling a test run against the Zorblax staging database",
+		"subject":   "the Zorblax staging database", "predicate": "is reset every", "object": "Sunday at 03:40 UTC",
+		"supersedes": noteID, "type": "updates", "claim": "the reset moved from Saturday to Sunday",
+	}
+
+	reply, err := json.Marshal(map[string]any{"candidates": entries, "lessons": slices.Repeat([]any{lesson}, 6)})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// a token holds 3 characters of such a reply at the least
+	const charactersPerToken = 3
+
+	step, _ := auto.Recall(recallOf("deep"), candidatesOfKinds(1, 0))
+
+	g.Expect(step.Request.MaxTokens).To(BeNumerically(">=", len(reply)/charactersPerToken))
 }
 
 // Test855d4b1l_Recall_AMixedMatchedSetKeepsAFloorOfPassages proves the floor of passages under the cap (855b59).
