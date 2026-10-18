@@ -167,7 +167,6 @@ var (
 	ExportNoteContainsAnyRemoval     = noteContainsAnyRemoval
 	ExportNoteHasPendingMarker       = noteHasPendingMarker
 	ExportNotesMissingIdentityFields = notesMissingIdentityFields
-	ExportNotesOf                    = notesOf
 	ExportOldVocabFilesPresent       = oldVocabFilesPresent
 	ExportParentBase                 = parentBase
 	ExportParseCreatedFromNote       = parseCreatedFromNote

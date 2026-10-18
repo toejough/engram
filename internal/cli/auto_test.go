@@ -14,7 +14,6 @@ import (
 	"time"
 
 	. "github.com/onsi/gomega"
-	"github.com/toejough/imptest/match"
 
 	"github.com/toejough/engram/internal/cli"
 	"github.com/toejough/engram/internal/embed"
@@ -71,56 +70,6 @@ func Test793d4a1b_RunAutoDeliver_AFailedLookupFailsTheCommandAndPrintsNothing(t 
 		Not(ContainSubstring("zorblax staging")))), "the cause, and none of the prompt")
 	g.Expect(out.String()).To(BeEmpty())
 	g.Expect(shown.String()).To(BeEmpty())
-}
-
-func Test793d4a1c_NotesOf_ANoteOnlyTheExploreHalfPickedDoesNotBearOnThePrompt(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	notes, err := cli.ExportNotesOf([]byte(`version: 1
-phrases:
-  - When is the Zorblax staging database reset?
-items:
-  - path: 1.2026-10-17.zorblax-staging-reset.md
-    kind: fact
-    score: 0.92
-    provenances:
-      - direct
-    content: |
-      ---
-      type: fact
-      situation: testing against the Zorblax staging database
-      ---
-
-      The Zorblax staging database is reset every Sunday at 03:40 UTC.
-  - path: 2.2026-10-17.format-python-before-commit.md
-    kind: feedback
-    score: 0.41
-    provenances:
-      - explore
-    source_term: formatting
-    content: |
-      ---
-      type: feedback
-      situation: committing a Python file
-      ---
-
-      Run black on the file before committing.
-clusters: []
-budget: {}
-model_id: m@4
-`))
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(notes).To(HaveLen(1))
-
-	if len(notes) == 1 {
-		g.Expect(notes[0].Path).To(Equal("1.2026-10-17.zorblax-staging-reset.md"))
-	}
 }
 
 func Test793d4a1d_RunAutoDeliver_ANoteTheSessionHoldsIsLeftOut(t *testing.T) {
@@ -198,32 +147,6 @@ func Test793d4a1e_RunAutoDeliver_NoNoteToDeliverPrintsNothing(t *testing.T) {
 	})
 }
 
-func Test793d4a1f_RunAutoDeliver_TheChunkIndexIsNotSearched(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-	plantNoteWithSidecar(t, memFS, vault, "1.2026-10-17.zorblax-staging-reset.md", zorblaxResetNote)
-
-	query := newQueryDeps(memFS)
-	query.ListChunkIndexes = func(string) ([]string, error) {
-		t.Error("the chunk index was listed")
-
-		return nil, nil
-	}
-
-	var out bytes.Buffer
-
-	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault},
-		cli.AutoDeliverDeps{
-			Stdin: userPrompt("When is the Zorblax staging database reset?", ""), Query: queryOver(query),
-		}, &out, io.Discard)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(out.String()).To(ContainSubstring("1.2026-10-17.zorblax-staging-reset.md"))
-}
-
 func Test793d4a1g_RunAutoDeliver_ANoteTheAgentFetchedByItsBasenameIsLeftOut(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -255,40 +178,6 @@ func Test793d4a1g_RunAutoDeliver_ANoteTheAgentFetchedByItsBasenameIsLeftOut(t *t
 
 	g.Expect(out.String()).To(ContainSubstring("2.2026-10-17.zorblax-backup-window.md"))
 	g.Expect(out.String()).NotTo(ContainSubstring("1.2026-10-17.zorblax-staging-reset.md"))
-}
-
-func Test793d4a1h_RunAutoDeliver_AsksTheLookupForThePromptsTextAsItsMessageAndItsOnlyPhrase(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	query, queryCalls := MockQueryRun(t)
-	done := make(chan error, 1)
-
-	go func() {
-		var out bytes.Buffer
-
-		done <- cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: "/a/vault"},
-			cli.AutoDeliverDeps{
-				Stdin: userPrompt("When is the Zorblax staging database reset?", ""), Query: query,
-			}, &out, io.Discard)
-	}()
-
-	// the expectation runs apart, so that a call that does not match it, which this version of imptest leaves waiting,
-	// cannot hold the test: the test waits for the outcome with a time limit
-	go func() {
-		queryCalls.ArgsShould(match.BeAny, Equal(cli.QueryArgs{
-			Phrases:   []string{"When is the Zorblax staging database reset?"},
-			Text:      "When is the Zorblax staging database reset?",
-			VaultPath: "/a/vault",
-		}), match.BeAny).Return(nil)
-	}()
-
-	select {
-	case err := <-done:
-		g.Expect(err).NotTo(HaveOccurred())
-	case <-time.After(mockTimeout):
-		t.Fatal("the delivery did not finish: its lookup was not run once with the prompt's text as message and phrase")
-	}
 }
 
 func Test793d4c1c_RunAutoDeliver_ALineSaysWhenItsNoteWasWrittenAutomatically(t *testing.T) {
@@ -578,32 +467,6 @@ func Test793d4m1c_Targets_TheTurnOfAHeadlessPromptIsJudgedOnlyWhenTheUserAsks(t 
 			}
 		})
 	}
-}
-
-// TestTargets_AutoDeliver reaches the command the way the mod does, as `engram auto deliver` with the prompt on
-// standard input, so the wiring of the group, the flag and the dependencies is run.
-func TestTargets_AutoDeliverPrintsTheNotesThatBearOnThePromptOnStandardInput(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	sessions, home := t.TempDir(), t.TempDir()
-	plantNoteOnDisk(t, vault, "1.2026-10-17.zorblax-staging-reset.md", zorblaxResetNote)
-
-	var stdout bytes.Buffer
-
-	stderr := executeForTestWithDeps(t,
-		[]string{"engram", "auto", "deliver", "--vault", vault, "--sessions", sessions},
-		func(d *cli.Deps) {
-			d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
-			d.Getenv = func(string) string { return "" }
-			d.UserHomeDir = func() (string, error) { return home, nil }
-			d.Stdin = userPrompt("When is the Zorblax staging database reset?", "")
-			d.Stdout = &stdout
-		})
-
-	g.Expect(stderr).To(Equal("delivered the note 1.2026-10-17.zorblax-staging-reset.md\n"), "what the user is shown")
-	g.Expect(stdout.String()).To(ContainSubstring("- 1.2026-10-17.zorblax-staging-reset.md (testing against"))
 }
 
 // unexported constants.

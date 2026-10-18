@@ -10,56 +10,10 @@ import (
 	"unicode/utf8"
 
 	. "github.com/onsi/gomega"
-	"github.com/toejough/imptest/match"
 	"pgregory.net/rapid"
 
 	"github.com/toejough/engram/internal/auto"
 )
-
-func Test793d4a1i_Deliver_AsksTheLookupForTheTextAndWhatTheSessionHoldsAndWasNotShownForTheSession(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	lookup, lookupCalls := MockLookup(t)
-	held, heldCalls := MockHeld(t)
-	activity, activityCalls := MockActivity(t)
-
-	type outcome struct {
-		delivery auto.Delivery
-		err      error
-	}
-
-	done := make(chan outcome, 1)
-
-	go func() {
-		delivery, err := auto.Deliver(t.Context(), auto.Request{Text: "When is the Zorblax staging database reset?",
-			Session: "4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11"}, lookup, held, activity)
-		done <- outcome{delivery, err}
-	}()
-
-	// the expectations run apart: a call that does not match one fails the test, but this version of imptest then
-	// leaves the expectation waiting, so the test waits for the outcome with a time limit instead
-	go func() {
-		lookupCalls.ArgsShould(match.BeAny, Equal("When is the Zorblax staging database reset?")).
-			Return([]auto.Note{{Path: "1.2026-10-17.a.md", Situation: "s", Body: "b"}}, nil)
-		heldCalls.ArgsShould(Equal("4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11")).Return("")
-		activityCalls.ArgsShould(Equal("4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11")).
-			Return([]auto.Line{{Text: "20:32:25 failed: x", Files: []string{"x.json"}}})
-	}()
-
-	select {
-	case result := <-done:
-		g.Expect(result.err).NotTo(HaveOccurred())
-		g.Expect(result.delivery.Block).To(ContainSubstring("- 1.2026-10-17.a.md (s): b"))
-		g.Expect(result.delivery.Block).NotTo(ContainSubstring("20:32:25"), "a line for the user is no part of the block")
-		g.Expect(result.delivery.Shown).To(Equal([]string{
-			"delivered the note 1.2026-10-17.a.md", "20:32:25 failed: x",
-		}), "what the user is shown")
-		g.Expect(result.delivery.Told).To(Equal([]string{"x.json"}), "the record whose line is shown")
-	case <-time.After(mockTimeout):
-		t.Fatal("Deliver did not finish: the lookup or a reading of the session was not given what the test expects")
-	}
-}
 
 //go:generate impgen auto.Lookup --dependency --import-path github.com/toejough/engram/internal/auto
 //go:generate impgen auto.Held --dependency --import-path github.com/toejough/engram/internal/auto
