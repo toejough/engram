@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -26,7 +27,10 @@ func Phrases(input PhrasesInput) (Step, bool, error) {
 		Depth string `json:"depth"`
 	}
 
-	_ = json.Unmarshal([]byte(unfenced(input.Reply)), &reply)
+	readErr := json.Unmarshal([]byte(unfenced(input.Reply)), &reply)
+	if readErr != nil || !slices.Contains([]string{"none", "glance", "deep"}, reply.Depth) {
+		return Step{}, false, ErrMomentReply
+	}
 
 	if reply.Depth == "none" {
 		return Step{}, false, nil
