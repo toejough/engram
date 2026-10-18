@@ -57,9 +57,11 @@ func Test793d4p1d_ActivityLines_AReasonIsOneLineRedactedAndCutInItsMiddle(t *tes
 	t.Parallel()
 	g := NewWithT(t)
 
-	// the credential is built here, as the tests of the redaction build theirs
+	// the credential is built here, as the tests of the redaction build theirs; it begins before the place where the
+	// reason is cut and ends after it, so that a reason cut before it is redacted leaves part of the credential. The
+	// sentence names no secret, so that the redaction does not take the cause for a value
 	token := "ghp" + "_" + strings.Repeat("a1", 18)
-	reason := "learn: writing " + strings.Repeat("x", 150) + "\nthe token " + token + " leaked\n" +
+	reason := "learn: writing " + strings.Repeat("x", 80) + "\nthe value " + token + " leaked\n" +
 		strings.Repeat("y", 150) + ": permission denied"
 
 	lines := auto.ActivityLines([]auto.Record{
@@ -76,7 +78,7 @@ func Test793d4p1d_ActivityLines_AReasonIsOneLineRedactedAndCutInItsMiddle(t *tes
 	shown := strings.TrimPrefix(line, "20:32:25 failed: ")
 
 	g.Expect(line).NotTo(ContainSubstring("\n"), "the line is one line")
-	g.Expect(line).NotTo(ContainSubstring(token), "the credential")
+	g.Expect(line).NotTo(ContainSubstring("ghp_"), "the credential, or part of it")
 	g.Expect(utf8.RuneCountInString(shown)).To(BeNumerically("<=", 240), "the reason as shown")
 	g.Expect(shown).To(HavePrefix("learn: writing xxx"), "the beginning of the reason")
 	g.Expect(shown).To(HaveSuffix("yyy: permission denied"), "the end of the reason, which holds the cause")

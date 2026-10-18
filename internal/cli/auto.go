@@ -116,6 +116,10 @@ func RunAutoDeliver(ctx context.Context, args AutoDeliverArgs, deps AutoDeliverD
 		},
 		func(session string) string {
 			return heldText(deps, args.SessionsDir, session)
+		},
+		func(string) []string {
+			// the lines that tell what automatic memory did are wired by the tests of 793d4p1f and 793d4p1g
+			return nil
 		})
 	if err != nil {
 		return fmt.Errorf("auto deliver: %w", err)

@@ -2,6 +2,7 @@ package auto_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -122,37 +123,27 @@ func Test793d4c1a_Deliver_ANoteCannotReshapeTheBlock(t *testing.T) {
 			told := rapid.SliceOfN(hostileText(framing), 0, maxNotes).Draw(rt, "told")
 
 			block := blockWith(rt, notes, told)
-			lines := linesOf(block)
 
-			if !strings.HasSuffix(block, "\n") || strings.HasSuffix(block, "\n\n") {
-				rt.Fatalf("the block does not end with one line feed: %q", block)
-			}
-
-			if len(lines) != len(notes)+len(told)+1 {
-				rt.Fatalf("%d notes and %d lines told made %d lines: %q", len(notes), len(told), len(lines), block)
-			}
-
-			if lines[0] != framing {
-				rt.Fatalf("the first line is %q, not the framing line", lines[0])
-			}
-
-			if framingLines(lines) != 1 {
-				rt.Fatalf("%d lines begin as the framing line: %q", framingLines(lines), block)
-			}
-
-			for index, line := range lines[1 : len(notes)+1] {
-				if problem := lineProblem(line, notes[index]); problem != "" {
-					rt.Fatalf("the line %q of a note %+v: %s", line, notes[index], problem)
-				}
-			}
-
-			for _, line := range lines[len(notes)+1:] {
-				if !strings.HasPrefix(line, "* ") || strings.ContainsFunc(line, isLoose) {
-					rt.Fatalf("the line %q told does not begin with an asterisk and a space, or is loose", line)
-				}
+			if problem := shapeProblem(block, notes, told, framing); problem != "" {
+				rt.Fatalf("%s: %q", problem, block)
 			}
 		})
 	})
+}
+
+func Test793d4c1b_Deliver_ANoteCannotHideTextInFormatCharacters(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// a zero-width joiner and space, a bidirectional override and isolate, a byte-order mark and a soft hyphen
+	lines := linesOf(blockOf(t, []auto.Note{{
+		Path:      "1.2026-10-17.a\u200dnote.md",
+		Situation: "zero\u200bwidth and bidi\u202eover and mark\ufeffs",
+		Body:      "soft\u00adhyphen between\u200b words\u2066",
+	}}))
+
+	g.Expect(lines).To(HaveLen(2))
+	g.Expect(lines[1]).To(Equal("- 1.2026-10-17.anote.md (zerowidth and bidiover and marks): softhyphen between words"))
 }
 
 func Test793d4c1d_Deliver_ALineThatTellsWhatAutomaticMemoryDidCannotReshapeTheBlock(t *testing.T) {
@@ -196,21 +187,6 @@ func Test793d4c1d_Deliver_ALineThatTellsWhatAutomaticMemoryDidCannotReshapeTheBl
 	})
 }
 
-func Test793d4c1b_Deliver_ANoteCannotHideTextInFormatCharacters(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// a zero-width joiner and space, a bidirectional override and isolate, a byte-order mark and a soft hyphen
-	lines := linesOf(blockOf(t, []auto.Note{{
-		Path:      "1.2026-10-17.a\u200dnote.md",
-		Situation: "zero\u200bwidth and bidi\u202eover and mark\ufeffs",
-		Body:      "soft\u00adhyphen between\u200b words\u2066",
-	}}))
-
-	g.Expect(lines).To(HaveLen(2))
-	g.Expect(lines[1]).To(Equal("- 1.2026-10-17.anote.md (zerowidth and bidiover and marks): softhyphen between words"))
-}
-
 // unexported constants.
 const (
 	maxNotes    = 6
@@ -218,6 +194,19 @@ const (
 	// sourceMark is text that only a source holds in the tests of the block.
 	sourceMark = "SRC-MARK"
 )
+
+// activityProblem tells what is wrong with the line that tells what automatic memory did, or nothing when it is right:
+// it begins with an asterisk and a space, and holds no control or format character and no white space but a space.
+func activityProblem(line string) string {
+	switch {
+	case !strings.HasPrefix(line, "* "):
+		return "it does not begin with an asterisk and a space"
+	case strings.ContainsFunc(line, isLoose):
+		return "it holds a control or format character or a white space other than a space"
+	default:
+		return ""
+	}
+}
 
 // blockOf makes the block of the notes a lookup found.
 func blockOf(t interface {
@@ -310,6 +299,44 @@ func lineProblem(line string, note auto.Note) string {
 // linesOf splits a block into its lines.
 func linesOf(block string) []string {
 	return strings.Split(strings.TrimSuffix(block, "\n"), "\n")
+}
+
+// linesProblem tells what is wrong with the lines that follow the framing line, or nothing when they are right: those
+// of the notes, in order, and then those told.
+func linesProblem(lines []string, notes []auto.Note) string {
+	for index, line := range lines[:len(notes)] {
+		if problem := lineProblem(line, notes[index]); problem != "" {
+			return fmt.Sprintf("the line %q of a note %+v: %s", line, notes[index], problem)
+		}
+	}
+
+	for _, line := range lines[len(notes):] {
+		if problem := activityProblem(line); problem != "" {
+			return fmt.Sprintf("the line %q told: %s", line, problem)
+		}
+	}
+
+	return ""
+}
+
+// shapeProblem tells what is wrong with the shape of a block, or nothing when it is right: it ends with one line feed,
+// opens with the framing line and holds it once, and has one line for each note and then one for each line told, each
+// of the form of its kind.
+func shapeProblem(block string, notes []auto.Note, told []string, framing string) string {
+	lines := linesOf(block)
+
+	switch {
+	case !strings.HasSuffix(block, "\n") || strings.HasSuffix(block, "\n\n"):
+		return "the block does not end with one line feed"
+	case len(lines) != len(notes)+len(told)+1:
+		return fmt.Sprintf("%d notes and %d lines told made %d lines", len(notes), len(told), len(lines))
+	case lines[0] != framing:
+		return fmt.Sprintf("the first line is %q, not the framing line", lines[0])
+	case framingLines(lines) != 1:
+		return fmt.Sprintf("%d lines begin as the framing line", framingLines(lines))
+	default:
+		return linesProblem(lines[1:], notes)
+	}
 }
 
 // sourceText generates the source of a note: hostile text, or a source that says the note was written automatically,

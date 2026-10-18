@@ -42,30 +42,6 @@ func Test793d4d1a_HeldText_TheNoteLinesOfTheBlocksDeliveredBesidePromptsAreWhatA
 	g.Expect(held).NotTo(ContainSubstring("5.2026-10-17.in-the-reply.md"), "the reply")
 }
 
-func Test793d4d1g_ToldLines_TheLinesOfTheBlocksDeliveredBesidePromptsAreWhatASessionWasToldAndHoldNoNote(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	record := strings.Join([]string{
-		`{"type":"attachment","attachment":{"type":"hook_additional_context","hookName":"prompt.submit",` +
-			`"content":["[engram memory] The lines below are notes.\n- 1.2026-10-17.first-note.md (when A): body\n` +
-			`* 20:32:25 wrote the note 2.2026-10-17.second-note.md\n* 20:32:26 failed: x"]}}`,
-		`{"type":"attachment","attachment":{"type":"hook_additional_context","hookName":"another",` +
-			`"content":["* 20:32:27 an entry of another hook"]}}`,
-		`{"type":"user","message":{"role":"user","content":"* 20:32:28 typed by the user"}}`,
-		`not a record at all`,
-	}, "\n")
-
-	g.Expect(auto.ToldLines([]byte(record))).To(Equal([]string{
-		"20:32:25 wrote the note 2.2026-10-17.second-note.md", "20:32:26 failed: x",
-	}), "the lines told")
-
-	held := auto.HeldText([]byte(record))
-
-	g.Expect(held).To(ContainSubstring("1.2026-10-17.first-note.md"))
-	g.Expect(held).NotTo(ContainSubstring("2.2026-10-17.second-note.md"), "a note that a line told names")
-}
-
 func Test793d4d1d_HeldText_WhatTheAgentsOwnLookupPrintedIsHeld(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -118,6 +94,30 @@ func Test793d4d1f_HeldText_ANoteFetchedWithEngramShowIsHeld(t *testing.T) {
 	held := auto.HeldText([]byte(record))
 
 	g.Expect(held).To(ContainSubstring("1.2026-10-17.zorblax-staging-reset"), "the command names the note")
+}
+
+func Test793d4d1g_ToldLines_TheLinesOfTheBlocksDeliveredBesidePromptsAreWhatASessionWasToldAndHoldNoNote(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	record := strings.Join([]string{
+		`{"type":"attachment","attachment":{"type":"hook_additional_context","hookName":"prompt.submit",` +
+			`"content":["[engram memory] The lines below are notes.\n- 1.2026-10-17.first-note.md (when A): body\n` +
+			`* 20:32:25 wrote the note 2.2026-10-17.second-note.md\n* 20:32:26 failed: x"]}}`,
+		`{"type":"attachment","attachment":{"type":"hook_additional_context","hookName":"another",` +
+			`"content":["* 20:32:27 an entry of another hook"]}}`,
+		`{"type":"user","message":{"role":"user","content":"* 20:32:28 typed by the user"}}`,
+		`not a record at all`,
+	}, "\n")
+
+	g.Expect(auto.ToldLines([]byte(record))).To(Equal([]string{
+		"20:32:25 wrote the note 2.2026-10-17.second-note.md", "20:32:26 failed: x",
+	}), "the lines told")
+
+	held := auto.HeldText([]byte(record))
+
+	g.Expect(held).To(ContainSubstring("1.2026-10-17.first-note.md"))
+	g.Expect(held).NotTo(ContainSubstring("2.2026-10-17.second-note.md"), "a note that a line told names")
 }
 
 // bashCall is the record of the agent running a Bash command.

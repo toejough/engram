@@ -138,23 +138,6 @@ func (c *conversation) readResults(stdout io.Reader) {
 	close(c.results)
 }
 
-// shownByTheMod returns the notices the host printed for automatic memory's mod, such as the text it changed a reply
-// to.
-func (c *conversation) shownByTheMod() []string {
-	c.noticesLock.Lock()
-	defer c.noticesLock.Unlock()
-
-	var shown []string
-
-	for _, notice := range c.notices {
-		if strings.Contains(notice, modName) {
-			shown = append(shown, notice)
-		}
-	}
-
-	return shown
-}
-
 // say sends one prompt to the running session and returns what the session's record holds of it once the model has
 // answered: the record is read while the process runs, as the next prompt's hooks read it.
 func (c *conversation) say(prompt string) *turn {
@@ -192,6 +175,23 @@ func (c *conversation) say(prompt string) *turn {
 
 		return nil
 	}
+}
+
+// shownByTheMod returns the notices the host printed for automatic memory's mod, such as the text it changed a reply
+// to.
+func (c *conversation) shownByTheMod() []string {
+	c.noticesLock.Lock()
+	defer c.noticesLock.Unlock()
+
+	var shown []string
+
+	for _, notice := range c.notices {
+		if strings.Contains(notice, modName) {
+			shown = append(shown, notice)
+		}
+	}
+
+	return shown
 }
 
 // tell sends one prompt as say does, and logs the agent's reply: the record of the step.
