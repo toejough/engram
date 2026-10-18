@@ -9,8 +9,17 @@ import (
 	"strings"
 )
 
-// ErrMomentReply is the failure of a step that is given a reply of the moment judgement that is not a depth (855d4v).
-var ErrMomentReply = errors.New(`the reply of the moment judgement is not {"depth": none, glance or deep}`)
+// Exported constants.
+const (
+	DepthDeep   = "deep"
+	DepthGlance = "glance"
+	DepthNone   = "none"
+)
+
+// Exported variables.
+var (
+	ErrMomentReply = errors.New(`the reply of the moment judgement is not {"depth": none, glance or deep}`)
+)
 
 // PhrasesInput is the reply of the moment judgement and its carry, as the memory mod hands them over (855d4v).
 type PhrasesInput struct {
@@ -28,11 +37,11 @@ func Phrases(input PhrasesInput) (Step, bool, error) {
 	}
 
 	readErr := json.Unmarshal([]byte(unfenced(input.Reply)), &reply)
-	if readErr != nil || !slices.Contains([]string{"none", "glance", "deep"}, reply.Depth) {
+	if readErr != nil || !slices.Contains([]string{DepthNone, DepthGlance, DepthDeep}, reply.Depth) {
 		return Step{}, false, ErrMomentReply
 	}
 
-	if reply.Depth == "none" {
+	if reply.Depth == DepthNone {
 		return Step{}, false, nil
 	}
 
@@ -59,7 +68,7 @@ var phraseInstructions string
 
 // countFor is the sentence of the instructions that asks for the phrases of a depth.
 func countFor(depth string) string {
-	if depth == "glance" {
+	if depth == DepthGlance {
 		return glanceCount
 	}
 
