@@ -36,7 +36,7 @@ func Test793d4a1a_RunAutoDeliver_PrintsTheNotesThatBearOnThePromptAsOneBlock(t *
 		cli.AutoDeliverDeps{
 			Stdin: userPrompt("When is the Zorblax staging database reset?", ""),
 			Query: queryOver(newQueryDeps(memFS)),
-		}, &out)
+		}, &out, io.Discard)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -62,7 +62,7 @@ func Test793d4a1b_RunAutoDeliver_AFailedLookupFailsTheCommandAndPrintsNothing(t 
 	var out bytes.Buffer
 
 	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: t.TempDir()},
-		cli.AutoDeliverDeps{Stdin: userPrompt("anything", ""), Query: queryOver(query)}, &out)
+		cli.AutoDeliverDeps{Stdin: userPrompt("anything", ""), Query: queryOver(query)}, &out, io.Discard)
 
 	g.Expect(err).To(MatchError(ContainSubstring("embedder down")))
 	g.Expect(out.String()).To(BeEmpty())
@@ -141,7 +141,7 @@ func Test793d4a1d_RunAutoDeliver_ANoteTheSessionHoldsIsLeftOut(t *testing.T) {
 			Query:    queryOver(newQueryDeps(memFS)),
 			ReadDir:  os.ReadDir,
 			ReadFile: os.ReadFile,
-		}, &out)
+		}, &out, io.Discard)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	g.Expect(out.String()).To(ContainSubstring("2.2026-10-17.zorblax-backup-window.md"))
@@ -161,7 +161,7 @@ func Test793d4a1e_RunAutoDeliver_NoNoteToDeliverPrintsNothing(t *testing.T) {
 			cli.AutoDeliverDeps{
 				Stdin: userPrompt("anything", sessionID),
 				Query: queryOver(newQueryDeps(newInMemoryFS())), ReadDir: os.ReadDir, ReadFile: os.ReadFile,
-			}, &out)
+			}, &out, io.Discard)
 
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(out.String()).To(BeEmpty())
@@ -186,7 +186,7 @@ func Test793d4a1e_RunAutoDeliver_NoNoteToDeliverPrintsNothing(t *testing.T) {
 			cli.AutoDeliverDeps{
 				Stdin: userPrompt("When is the Zorblax staging database reset?", sessionID),
 				Query: queryOver(newQueryDeps(memFS)), ReadDir: os.ReadDir, ReadFile: os.ReadFile,
-			}, &out)
+			}, &out, io.Discard)
 
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(out.String()).To(BeEmpty())
@@ -213,7 +213,7 @@ func Test793d4a1f_RunAutoDeliver_TheChunkIndexIsNotSearched(t *testing.T) {
 	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault},
 		cli.AutoDeliverDeps{
 			Stdin: userPrompt("When is the Zorblax staging database reset?", ""), Query: queryOver(query),
-		}, &out)
+		}, &out, io.Discard)
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(out.String()).To(ContainSubstring("1.2026-10-17.zorblax-staging-reset.md"))
@@ -245,7 +245,7 @@ func Test793d4a1g_RunAutoDeliver_ANoteTheAgentFetchedByItsBasenameIsLeftOut(t *t
 			Query:    queryOver(newQueryDeps(memFS)),
 			ReadDir:  os.ReadDir,
 			ReadFile: os.ReadFile,
-		}, &out)
+		}, &out, io.Discard)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	g.Expect(out.String()).To(ContainSubstring("2.2026-10-17.zorblax-backup-window.md"))
@@ -265,7 +265,7 @@ func Test793d4a1h_RunAutoDeliver_AsksTheLookupForThePromptsTextAsItsMessageAndIt
 		done <- cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: "/a/vault"},
 			cli.AutoDeliverDeps{
 				Stdin: userPrompt("When is the Zorblax staging database reset?", ""), Query: query,
-			}, &out)
+			}, &out, io.Discard)
 	}()
 
 	// the expectation runs apart, so that a call that does not match it, which this version of imptest leaves waiting,
@@ -311,7 +311,7 @@ func Test793d4c1c_RunAutoDeliver_ALineSaysWhenItsNoteWasWrittenAutomatically(t *
 				cli.AutoDeliverDeps{
 					Stdin: userPrompt("When is the Zorblax staging database reset?", ""),
 					Query: queryOver(newQueryDeps(memFS)),
-				}, &out)
+				}, &out, io.Discard)
 			g.Expect(err).NotTo(HaveOccurred())
 
 			lines := strings.Split(strings.TrimSpace(out.String()), "\n")
@@ -526,7 +526,7 @@ func Test793d4f1d_Targets_NoRecordIsReadWhenNoDirectoryCanBeFound(t *testing.T) 
 		d.FS = recordsReadFS{EdgeFS: d.FS, reads: &reads}
 	})
 
-	g.Expect(stderr).To(BeEmpty())
+	g.Expect(notOnlyDelivered(stderr)).To(BeEmpty(), "what the delivery printed to standard error, but the note lines")
 	g.Expect(reads).To(BeEmpty(), "records read")
 	g.Expect(stdout.String()).To(ContainSubstring(resetNoteName))
 	g.Expect(stdout.String()).To(ContainSubstring(backupNoteName))
@@ -594,7 +594,7 @@ func TestTargets_AutoDeliverPrintsTheNotesThatBearOnThePromptOnStandardInput(t *
 			d.Stdout = &stdout
 		})
 
-	g.Expect(stderr).To(BeEmpty())
+	g.Expect(stderr).To(Equal("delivered the note 1.2026-10-17.zorblax-staging-reset.md\n"), "what the user is shown")
 	g.Expect(stdout.String()).To(ContainSubstring("- 1.2026-10-17.zorblax-staging-reset.md (testing against"))
 }
 
@@ -653,11 +653,24 @@ func deliverBy(t *testing.T, vault, home string, environment map[string]string) 
 		d.Stdin = userPrompt("When is the Zorblax staging database reset?", sessionID)
 		d.Stdout = &stdout
 	})
-	if stderr != "" {
-		t.Fatalf("the dispatch printed to standard error: %s", stderr)
+
+	if problem := notOnlyDelivered(stderr); problem != "" {
+		t.Fatalf("the dispatch printed to standard error: %s", problem)
 	}
 
 	return stdout.String()
+}
+
+// notOnlyDelivered returns the first line of what a delivery printed to standard error that is not the line of a note
+// delivered, or nothing when all are.
+func notOnlyDelivered(stderr string) string {
+	for line := range strings.SplitSeq(stderr, "\n") {
+		if line != "" && !strings.HasPrefix(line, "delivered the note ") {
+			return line
+		}
+	}
+
+	return ""
 }
 
 // plantNoteOnDisk writes a note and its embedding sidecar into a vault directory.

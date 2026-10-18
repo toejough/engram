@@ -1,6 +1,7 @@
 package auto_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -11,7 +12,7 @@ import (
 	"github.com/toejough/engram/internal/auto"
 )
 
-func Test793d4p1a_ActivityLines_ARecordThatWasNotToldBecomesALine(t *testing.T) {
+func Test793d4p1a_ActivityLines_ARecordThatWasNotShownBecomesALine(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -25,36 +26,25 @@ func Test793d4p1a_ActivityLines_ARecordThatWasNotToldBecomesALine(t *testing.T) 
 		recordAt(4, auto.RecordFailed, func(r *auto.Record) {
 			r.Slug, r.Reason = "zorblax-build", "learn: acquiring lock: permission denied"
 		}),
-	}, nil)
+	})
 
-	g.Expect(lines).To(Equal([]string{
+	g.Expect(textsOf(lines)).To(Equal([]string{
 		"20:32:25 wrote the note 2.2026-10-17.zorblax-backup.md",
 		"20:32:26 left out the lesson zorblax-build: the vault already states it: 1.2026-10-17.zorblax-build.md",
 		"20:32:27 left out: the reply is not a list of lessons",
 		"20:32:28 failed: the model call failed: timed out",
 		"20:32:29 failed: writing zorblax-build: learn: acquiring lock: permission denied",
 	}))
+	g.Expect(filesOf(lines)).To(Equal([]string{
+		"record-0.json", "record-1.json", "record-2.json", "record-3.json", "record-4.json",
+	}), "the record that each line tells")
 }
 
 func Test793d4p1b_ActivityLines_ARecordOfTheKindNothingMakesNoLine(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	g.Expect(auto.ActivityLines([]auto.Record{recordAt(0, auto.RecordNothing, nil)}, nil)).To(BeEmpty())
-}
-
-func Test793d4p1c_ActivityLines_ALineTheSessionWasToldIsNotToldAgain(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	records := []auto.Record{
-		recordAt(0, auto.RecordWritten, func(r *auto.Record) { r.Note = "a.md" }),
-		recordAt(1, auto.RecordWritten, func(r *auto.Record) { r.Note = "b.md" }),
-	}
-
-	g.Expect(auto.ActivityLines(records, []string{"20:32:25 wrote the note a.md"})).To(Equal([]string{
-		"20:32:26 wrote the note b.md",
-	}))
+	g.Expect(auto.ActivityLines([]auto.Record{recordAt(0, auto.RecordNothing, nil)})).To(BeEmpty())
 }
 
 func Test793d4p1d_ActivityLines_AReasonIsOneLineRedactedAndCutInItsMiddle(t *testing.T) {
@@ -70,7 +60,7 @@ func Test793d4p1d_ActivityLines_AReasonIsOneLineRedactedAndCutInItsMiddle(t *tes
 
 	lines := auto.ActivityLines([]auto.Record{
 		recordAt(0, auto.RecordFailed, func(r *auto.Record) { r.Reason = reason }),
-	}, nil)
+	})
 
 	g.Expect(lines).To(HaveLen(1))
 
@@ -78,7 +68,7 @@ func Test793d4p1d_ActivityLines_AReasonIsOneLineRedactedAndCutInItsMiddle(t *tes
 		return
 	}
 
-	line := lines[0]
+	line := lines[0].Text
 	shown := strings.TrimPrefix(line, "20:32:25 failed: ")
 
 	g.Expect(line).NotTo(ContainSubstring("\n"), "the line is one line")
@@ -88,7 +78,7 @@ func Test793d4p1d_ActivityLines_AReasonIsOneLineRedactedAndCutInItsMiddle(t *tes
 	g.Expect(shown).To(HaveSuffix("yyy: permission denied"), "the end of the reason, which holds the cause")
 }
 
-func Test793d4p1e_ActivityLines_AtMostFiveLinesAreToldAtOnce(t *testing.T) {
+func Test793d4p1e_ActivityLines_AtMostFiveLinesAreShownAtOnce(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -99,12 +89,10 @@ func Test793d4p1e_ActivityLines_AtMostFiveLinesAreToldAtOnce(t *testing.T) {
 		records = append(records, recordAt(index, auto.RecordWritten, func(r *auto.Record) { r.Note = note + ".md" }))
 	}
 
-	first := auto.ActivityLines(records, nil)
-
-	g.Expect(first).To(HaveLen(5), "the lines of the first block")
-	g.Expect(auto.ActivityLines(records, first)).To(Equal([]string{
-		"20:32:30 wrote the note f.md", "20:32:31 wrote the note g.md",
-	}), "the lines of the second block")
+	g.Expect(textsOf(auto.ActivityLines(records))).To(Equal([]string{
+		"20:32:25 wrote the note a.md", "20:32:26 wrote the note b.md", "20:32:27 wrote the note c.md",
+		"20:32:28 wrote the note d.md", "20:32:29 wrote the note e.md",
+	}), "the lines of one delivery; the rest wait for the next")
 }
 
 // recordAt makes a record of a kind, made a second after the one at the index before it, and lets the test fill it.
@@ -115,6 +103,7 @@ func recordAt(index int, kind string, fill func(*auto.Record)) auto.Record {
 		Session: "4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11",
 		Turn:    "a-turn",
 		Kind:    kind,
+		File:    fmt.Sprintf("record-%d.json", index),
 	}
 
 	if fill != nil {
@@ -122,4 +111,26 @@ func recordAt(index int, kind string, fill func(*auto.Record)) auto.Record {
 	}
 
 	return record
+}
+
+// filesOf returns the file of the record that each line tells.
+func filesOf(lines []auto.Line) []string {
+	files := make([]string, 0, len(lines))
+
+	for _, line := range lines {
+		files = append(files, line.File)
+	}
+
+	return files
+}
+
+// textsOf returns the text of each line.
+func textsOf(lines []auto.Line) []string {
+	texts := make([]string, 0, len(lines))
+
+	for _, line := range lines {
+		texts = append(texts, line.Text)
+	}
+
+	return texts
 }

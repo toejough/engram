@@ -751,27 +751,27 @@ Review finding G3-1, the blocker ([793b105 What is shown, and how](./793b_decisi
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2e1a | Dedicated example, product acceptance (`network`) | a judgement row, as the lesson is the model's; the earlier prompt asks and asks to remember in one; the line that names the staging [note](../../GLOSSARY.md#permanent-note) comes with the earlier prompt, the line that names the note written with the next, and no entry of the context holds a line | | | Not started | | | |
-| 793a2e1b | Dedicated example, product acceptance (`network`) | a judgement row; an `engram` on the path waits 12 seconds before the write; the events of the second prompt hold no line about the write, those of the third the line that names the note | | | Not started | | | |
-| 793a2e1c | Dedicated example, product acceptance (`network`) | an `engram` on the path takes 20 seconds for the delivery while a file is there; the events of the second prompt hold the line that says the delivery could not be done, and the context of the second prompt holds nothing | | | Not started | | | |
-| 793a2e1d | Dedicated example, product acceptance (`network`) | a judgement row; the [vault](../../GLOSSARY.md#vault) is read-only, and the cause of the error is at the end of the line | | | Not started | | | |
-| 793a2e1e | Dedicated example, product acceptance (`network`) | the directory of the chunk index is made read-only | | | Not started | | | |
-| 793a2e1f | Dedicated example, product acceptance (`network`) | the machine does not set the variable that switches on the capture of headless prompts | | | Not started | | | |
-| 793a2d1e (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the context of the second prompt holds nothing about the failed write, where it held the line of the failure | | | Not started | | | |
+| 793a2e1a | Dedicated example, product acceptance (`network`) | a judgement row, as the lesson is the model's; the earlier prompt asks and asks to remember in one; the line that names the staging [note](../../GLOSSARY.md#permanent-note) comes with the earlier prompt, the line that names the note written with the next, and no entry of the context holds a line | | | Red | 33850cbb | | |
+| 793a2e1b | Dedicated example, product acceptance (`network`) | a judgement row; an `engram` on the path waits 12 seconds before the write; the events of the second prompt hold no line about the write, those of the third the line that names the note | | | Red | 33850cbb | | |
+| 793a2e1c | Dedicated example, product acceptance (`network`) | an `engram` on the path takes 20 seconds for the delivery while a file is there; the events of the second prompt hold the line that says the delivery could not be done, and the context of the second prompt holds nothing | | | Red | 33850cbb | | |
+| 793a2e1d | Dedicated example, product acceptance (`network`) | a judgement row; the [vault](../../GLOSSARY.md#vault) is read-only, and the cause of the error is at the end of the line | | | Red | 33850cbb | | |
+| 793a2e1e | Dedicated example, product acceptance (`network`) | the directory of the chunk index is made read-only | | | Red | 33850cbb | | |
+| 793a2e1f | Dedicated example, product acceptance (`network`) | the machine does not set the variable that switches on the capture of headless prompts | | | Red | 33850cbb | | |
+| 793a2d1e (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the context of the second prompt holds nothing about the failed write, where it held the line of the failure | | | Red | 33850cbb | | |
 | 793d2a1k | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the stand-in host records the calls of the host's log, which a live session shows only as events: two lines, in order, and neither in the context | | | Not started | | | |
 | 793d2a1i (amended) | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a command that fails shows no line | | | Not started | | | |
 | 793d2a1j (amended) | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a delivery that does not finish within its bound shows no line | | | Not started | | | |
-| 793d4a1i (amended) | Injected and impure interaction (`imptest`) | the reading of what the session was not shown is given the request's session ID | | | Not started | | | |
-| 793d4c1a (amended) | Property-based (`rapid`) with named examples | the block holds the framing line and the notes only, and the framing line says nothing of an asterisk | the properties of [793d4c1a A note cannot reshape the block](./793d_technical-spec.md#793d4c1-scenarios), with no line told: the framing line first and nowhere else, and exactly one line for each note | | Not started | | | |
-| 793d4p1a (amended) | Dedicated example | the line of each kind of record, over records of the real form, printed on standard error | | | Not started | | | |
-| 793d4p1b (amended) | Dedicated example | a record of the kind nothing says nothing on either stream | | | Not started | | | |
-| 793d4p1c (amended) | Dedicated example | a mark beside a record keeps its line out, and the lines printed are marked: two deliveries over a record on disk | | | Not started | | | |
-| 793d4p1d (amended) | Dedicated example | the form of a reason in the line printed: one line, redacted, both ends kept | | | Not started | | | |
-| 793d4p1e (amended) | Dedicated example | the bound of five lines, and the rest at the next prompt, by marks | | | Not started | | | |
-| 793d4p1f (amended) | Dedicated example | the boundaries of the reading of records, over a real temporary directory, with a mark beside a record | | | Not started | | | |
-| 793d4p1g (amended) | Dedicated example | the directory of records through the dispatch of `engram auto deliver`, with the flag and without it, on standard error | | | Not started | | | |
-| 793d4p1h | Dedicated example | the line of a note delivered, over a vault of one note | | | Not started | | | |
-| 793d4p1i | Property-based (`rapid`) | the form of every line printed, whatever the texts of notes and records hold | whatever the texts hold: each line printed on standard error is one line, holds no control or format character and no white space but a space, and there is one for each note delivered and for each record shown, five at most | | Not started | | | |
+| 793d4a1i (amended) | Injected and impure interaction (`imptest`) | the reading of what the session was not shown is given the request's session ID | | | Red | | | |
+| 793d4c1a (amended) | Property-based (`rapid`) with named examples | the block holds the framing line and the notes only, and the framing line says nothing of an asterisk | the properties of [793d4c1a A note cannot reshape the block](./793d_technical-spec.md#793d4c1-scenarios), with no line told: the framing line first and nowhere else, and exactly one line for each note | | Red | | | |
+| 793d4p1a (amended) | Dedicated example | the line of each kind of record, over records of the real form, printed on standard error | | | Red | | | |
+| 793d4p1b (amended) | Dedicated example | a record of the kind nothing says nothing on either stream | | | Red | | | |
+| 793d4p1c (amended) | Dedicated example | a mark beside a record keeps its line out, and the lines printed are marked: two deliveries over a record on disk | | | Red | | | |
+| 793d4p1d (amended) | Dedicated example | the form of a reason in the line printed: one line, redacted, both ends kept | | | Red | | | |
+| 793d4p1e (amended) | Dedicated example | the bound of five lines, and the rest at the next prompt, by marks | | | Red | | | |
+| 793d4p1f (amended) | Dedicated example | the boundaries of the reading of records, over a real temporary directory, with a mark beside a record | | | Red | | | |
+| 793d4p1g (amended) | Dedicated example | the directory of records through the dispatch of `engram auto deliver`, with the flag and without it, on standard error | | | Red | | | |
+| 793d4p1h | Dedicated example | the line of a note delivered, over a vault of one note | | | Red | | | |
+| 793d4p1i | Property-based (`rapid`) | the form of every line printed, whatever the texts of notes and records hold | whatever the texts hold: each line printed on standard error is one line, holds no control or format character and no white space but a space, and there is one for each note delivered and for each record shown, five at most | | Red | | | |
 
 ### 793e6f The delivery merges the parent vault
 

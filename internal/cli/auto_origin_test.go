@@ -34,7 +34,7 @@ func Test793d4m1a_Auto_APromptOfAnOriginTheUserSendsIsDeliveredForAndItsTurnIsJu
 				cli.AutoDeliverDeps{
 					Stdin: originRequest(origin, "text", "When is the Zorblax staging database reset?"),
 					Query: queryOver(newQueryDeps(memFS)),
-				}, &delivered)
+				}, &delivered, io.Discard)
 			g.Expect(deliverErr).NotTo(HaveOccurred())
 			g.Expect(delivered.String()).To(HavePrefix("[engram memory]"), "the block of the note")
 
@@ -75,7 +75,7 @@ func Test793d4m1b_Auto_APromptOfAnyOtherOriginIsDeliveredNothingAndItsTurnIsJudg
 				Query:    lookup,
 				ReadDir:  os.ReadDir,
 				ReadFile: os.ReadFile,
-			}, &delivered)
+			}, &delivered, io.Discard)
 		judgeErr := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: "/vault", SessionsDir: sessions},
 			cli.AutoJudgeDeps{
 				Stdin:    originRequest(origin, "answer", "On Sundays."),
