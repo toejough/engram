@@ -388,7 +388,7 @@ Withdrawn: answered by the owner's instruction to follow the guides, [793b91 The
 
 ## 793c67 Do the default-suite tests that cross the real filesystem keep their tag?
 
-- **Context:** seven rows of [793e Automatic Memory - Implementation Plan](./793e_implementation-plan.md#automatic-memory---implementation-plan) are in the default suite and run over a real temporary directory, which the technical guide reserves for the `integration` tag ([793b99 Default-suite tests that cross the filesystem](./793b_decision-log.md#793b99-default-suite-tests-that-cross-the-filesystem)).
+- **Context:** eighteen rows of [793e Automatic Memory - Implementation Plan](./793e_implementation-plan.md#automatic-memory---implementation-plan) are in the default suite and run over a real temporary directory, which the technical guide reserves for the `integration` tag ([793b99 Default-suite tests that cross the filesystem](./793b_decision-log.md#793b99-default-suite-tests-that-cross-the-filesystem)).
 - **Options:** (a) Deferred, not changed in this change. (b) Tag them `integration`. (c) Inject the filesystem so that they are pure.
 - **Recommendation:** (a): they pass in `targ test`, which a tag would take them out of.
 - **Blocks:** the guide's rule that the default suite holds only pure tests, at promotion.
@@ -412,10 +412,10 @@ Withdrawn: answered by the owner's instruction to follow the guides, [793b91 The
 
 ## 793c70 Is a sweep that is ended at its bound retried at every turn?
 
-- **Context:** a first sweep of a long history that was never indexed takes 0.42 s a chunk (264 s for 625), longer than the 90 seconds of the bound, and the ingest keeps no partial index, so the sweep is ended and reported and the next [turn](./793a_product-spec.md#793a1a-terms) starts it again, spending up to 90 seconds of the machine each time until the [agent](./793a_product-spec.md#793a1a-terms)'s closing sweep or [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand) indexes the history.
-- **Options:** (a) Retry at every turn, as built. (b) Give up for the [session](../../GLOSSARY.md#session) once a sweep is ended. (c) Make the ingest keep what it has embedded when it is ended.
-- **Recommendation:** (a) until it is seen: it concerns only a long session that was never indexed, and (c) changes the canonical ingest.
-- **Blocks:** nothing.
+- **Context:** a first sweep of a long history that was never indexed takes 0.42 s a chunk (264 s for 625 chunks; 78.6 s at about 415% of a CPU for a record of 300 [turns](./793a_product-spec.md#793a1a-terms)), longer than the 90 seconds of the bound, and the ingest writes the index of a source only when it has embedded all of it, so a sweep that is ended keeps nothing: it is reported, and the next [turn](./793a_product-spec.md#793a1a-terms) starts it again from the beginning, spending up to 90 seconds of the machine each time. Until the [agent](./793a_product-spec.md#793a1a-terms)'s closing sweep or [engram ingest](../../GLOSSARY.md#engram-ingest-subcommand) with `--auto` indexes the history, [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) fails at every turn of that [session](../../GLOSSARY.md#session).
+- **Options:** (a) Retry at every turn, as built. (b) Give up for the session once a sweep is ended. (c) Make the ingest keep what it has embedded when it is ended. (d) The sweep gives the ingest a deadline under its bound, and the ingest persists what it embedded, append-only by chunk hash, so that each sweep goes on where the last stopped and the history is indexed in a few turns.
+- **Recommendation:** (d): it converges, where (a) leaves a long record unsearchable for as long as its sweeps are ended; (c) and (d) change the canonical ingest, so neither is built here and the owner decides.
+- **Blocks:** [793a2f1a The conversation so far is findable after a turn](./793a_product-spec.md#793a2f1-uat-scenarios) for a long record that was never indexed: it fails at every turn until an ingest with `--auto` has run.
 - **Status:** open; default (a) taken in [793b100 The sweep indexes the session's record after every turn](./793b_decision-log.md#793b100-the-sweep-indexes-the-sessions-record-after-every-turn).
 
 ## 793c71 How is the work after a turn kept from holding the next prompt?
@@ -513,3 +513,11 @@ Withdrawn: answered by the owner's instruction to follow the guides, [793b91 The
 - **Recommendation:** (a): the line names the lesson when it can, and a slug that is not one cannot reach it; (b) shows any text the model writes, and (c) loses the name of the lesson in the common case.
 - **Blocks:** [793d4h1i A lesson left out keeps its slug only when it is one](./793d_technical-spec.md#793d4h1-scenarios).
 - **Status:** open; default (a) taken in [793b110 A lesson that is left out keeps its slug only when it is one](./793b_decision-log.md#793b110-a-lesson-that-is-left-out-keeps-its-slug-only-when-it-is-one).
+
+## 793c83 Is the sweep among what the user sees?
+
+- **Context:** [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) names the [sweep](./793a_product-spec.md#793a1a-terms) with the delivery and the write; a sweep that cannot run leaves the conversation unfindable by `engram query` with no sign, against [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory).
+- **Options:** (a) A sweep that cannot run is shown with its reason, and one that succeeds says nothing. (b) The sweep is left out of [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did): the user finds out when a query misses what the conversation said.
+- **Recommendation:** (a): without it the promise of [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) fails without a sign, and a success is no news ([793b106 Two records the display needs](./793b_decision-log.md#793b106-two-records-the-display-needs)).
+- **Blocks:** [793a2e1e A sweep that failed is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios).
+- **Status:** open; default (a) taken in [793b104 The sweep is among what the user sees](./793b_decision-log.md#793b104-the-sweep-is-among-what-the-user-sees).

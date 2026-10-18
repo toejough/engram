@@ -66,7 +66,7 @@ The groups, in the order of the catalog ([793b28 Depth-first order](./793b_decis
 | [793e6e The conversation becomes searchable memory](#793e6e-the-conversation-becomes-searchable-memory) | [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) | none | Complete |
 | [793e6c Never in the way](#793e6c-never-in-the-way) | the rest of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), without the clause about its own sessions | none | Complete |
 | [793e6d The user can see what it did](#793e6d-the-user-can-see-what-it-did) | [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) | none | Complete |
-| [793e6h The fixes of the review round of the third group](#793e6h-the-fixes-of-the-review-round-of-the-third-group) | the defects the third group's one review round found in [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) and [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), and in their technical requirements | none | Complete |
+| [793e6h The fixes of the review round of the third group](#793e6h-the-fixes-of-the-review-round-of-the-third-group) | the defects the third group's one review round found in [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) and [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), and in their technical requirements | none | In progress: 36/42 entries complete |
 | [793e6f The delivery merges the parent vault](#793e6f-the-delivery-merges-the-parent-vault) | the clause of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) that the [notes](../../GLOSSARY.md#permanent-note) are those `engram query` returns, for a [vault](../../GLOSSARY.md#vault) that has a parent ([793c34 Does the delivery merge the parent vault, as `engram query` does?](./793c_open-questions.md#793c34-does-the-delivery-merge-the-parent-vault-as-engram-query-does)) | none | Blocked by: [793c34 Does the delivery merge the parent vault, as `engram query` does?](./793c_open-questions.md#793c34-does-the-delivery-merge-the-parent-vault-as-engram-query-does) |
 
 ## 793e9 Dependency graph
@@ -136,12 +136,14 @@ flowchart TD
     n793e6h1 --> n793e6h4[793e6h4 A lesson that is left out keeps its slug only when it is one<br/>Complete]
     n793e6h3 --> n793e6h5[793e6h5 A failure that is reported and cannot be recorded fails the command<br/>Complete]
     n793e6h1 --> n793e6h6[793e6h6 The tests say what the scenarios say<br/>Complete]
+    n793e6h1 --> n793e6h7[793e6h7 The documents say what the group does<br/>Ready]
     n793e6a2 --> n793e6f[793e6f The delivery merges the parent vault<br/>Blocked by: 793c34]
     classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
     classDef blocked fill:#eeeeee,stroke:#757575,color:#000,stroke-dasharray:5 5
     class n793e6a1,n793e6a2,n793e6a3,n793e6a4,n793e6a5,n793e6a6,n793e6a7,n793e6a8,n793e6a9,n793e6a10,n793e6a11,n793e6a12,n793e6b1,n793e6b2,n793e6b3,n793e6b4,n793e6b5,n793e6b6,n793e6b7,n793e6b8,n793e6b9,n793e6b10,n793e6b11,n793e6b12,n793e6b13,n793e6b14,n793e6b15,n793e6g1,n793e6g2,n793e6g3,n793e6g4,n793e6g5,n793e6g6,n793e6g7,n793e6g8,n793e6g9,n793e6g10,n793e6g11,n793e6g12,n793e6g13,n793e6g14,n793e6g15,n793e6g16,n793e6g17,n793e6g18,n793e6g19,n793e6e1,n793e6c1,n793e6c2,n793e6c3,n793e6d1,n793e6d2,n793e6d3,n793e6d4,n793e6d5,n793e6d6,n793e6h1,n793e6h2,n793e6h3,n793e6h4,n793e6h5,n793e6h6 complete
+    class n793e6h7 ready
     class n793e6f blocked
 ```
 
@@ -655,7 +657,7 @@ One node for the scenario of [793a2f The conversation becomes searchable memory]
 | 793d2c1a | Dedicated example, real dependency (`integration`) | the stand-in host does not answer the judgement until the driver lets it, which a live [session](../../GLOSSARY.md#session) cannot show | | Done | 57e25307 | 80d53086 | 660ae8d5 |
 | 793d2c1b | Dedicated example, real dependency (`integration`) | a failing and an ended sweep are reported to the writing as failures naming the sweep | | Done | 57e25307 | 80d53086 | 660ae8d5 |
 | 793d2c1c | Dedicated example, real dependency (`integration`) | the bounds of the sweep and of the call for the ID, with the timers of the stand-in fired at once | | Done | 57e25307 | 80d53086 | 660ae8d5 |
-| 793d2c1d | Dedicated example, real dependency (`integration`) | a turn a [subagent](../../GLOSSARY.md#subagent) ran is not swept | | Done | n/a | 57e25307 | 660ae8d5 |
+| 793d2c1d | Dedicated example, real dependency (`integration`) | a turn a [subagent](../../GLOSSARY.md#subagent) ran is not swept; passed when written, in the red commit of [793d2c1a The mod sweeps the conversation after a turn, apart from the capture](./793d_technical-spec.md#793d2c1-scenarios), as no sweep was run at all; mutation (scratch copy): a mod that sweeps the turn of a subagent fails it | | Done | n/a | 80d53086 | 660ae8d5 |
 | 793d4n1e | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the real `engram` ended with a kill while it embeds: inherited behaviour of the ingest; passed when written; mutation (scratch copy): a lock that a kill leaves behind fails it | | Done | n/a | fdb9bace | 44e62c88 |
 | 793d4n1f | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | two real sweeps at once: the lost update of #660; passed when written; mutations (scratch copies): no lock, and a lock that a kill leaves behind, fail it | | Done | n/a | fdb9bace | 44e62c88 |
 
@@ -835,6 +837,19 @@ Review findings G3-5, G3-10 and P-3: a test that bounds less than its scenario s
 | 793d2a1f (amended) | Dedicated example, real dependency (`network`) | the same for the output that is not a block; mutation (scratch copy): a mod that reports it as a failure fails it | Done | n/a | 53959d30 | |
 | 793d2a1c | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the stand-in host records every command the mod runs: a delivery that prints nothing is no failure, so `auto write` is never run; passed when written; mutation (scratch copy): a mod that reports an empty output as a failure fails it | Done | n/a | 53959d30 | |
 | 793d2a1f | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the same for a delivery that prints what is not a block; mutation (scratch copy): a mod that reports it as a failure fails it | Done | n/a | 53959d30 | |
+
+#### 793e6h7 The documents say what the group does
+
+Review findings G3-4, G3-6, G3-7, G3-8, G3-11 and P-4 change no behavior and have no test: a document has no red, and its refactor is the reading of the diff for what could be cut. The rows are named by finding and share the commit that makes the change.
+
+| Finding | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| G3-4 | Documentation | [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) says what a write did, and what a write or a sweep could not do, when it finishes after the [prompt](./793a_product-spec.md#793a1a-terms) is sent: a sweep that succeeds says nothing ([793b106 Two records the display needs](./793b_decision-log.md#793b106-two-records-the-display-needs)) | Not started | | | |
+| G3-6 | Documentation | [793c70 Is a sweep that is ended at its bound retried at every turn?](./793c_open-questions.md#793c70-is-a-sweep-that-is-ended-at-its-bound-retried-at-every-turn) states that a long record that was never indexed is not searchable while every sweep is ended, the cost measured (264 seconds for 625 chunks, 78.6 seconds at about 415% of a CPU for a record of 300 [turns](./793a_product-spec.md#793a1a-terms)), and the option that converges, not built; [793d6 Recommended impact](./793d_technical-spec.md#793d6-recommended-impact) states the embedding cost | Not started | | | |
+| G3-7 | Documentation | the row [793d2c1d A turn of a subagent is not swept](./793d_technical-spec.md#793d2c1-scenarios) says it passed when written and what fails it, and cites the commit that builds what it tests | Not started | | | |
+| G3-8 | Documentation | [793c83 Is the sweep among what the user sees?](./793c_open-questions.md#793c83-is-the-sweep-among-what-the-user-sees) is the question of [793b104 The sweep is among what the user sees](./793b_decision-log.md#793b104-the-sweep-is-among-what-the-user-sees) | Not started | | | |
+| G3-11 | Documentation | [793b99 Default-suite tests that cross the filesystem](./793b_decision-log.md#793b99-default-suite-tests-that-cross-the-filesystem) and [793c67 Do the default-suite tests that cross the real filesystem keep their tag?](./793c_open-questions.md#793c67-do-the-default-suite-tests-that-cross-the-real-filesystem-keep-their-tag) list the eleven rows of the third group that cross the real file system in the default suite | Not started | | | |
+| P-4 | Documentation | a comment line of the mod of 121 characters is wrapped, in the commit that changed its comments | Not started | | | |
 
 ### 793e6f The delivery merges the parent vault
 
