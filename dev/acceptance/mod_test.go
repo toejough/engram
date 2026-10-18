@@ -19,7 +19,7 @@ func Test793d2a1a_Mod_AddsTheBlockBesideThePrompt(t *testing.T) {
 	step(t, "Given a session with the mod installed, and an engram whose auto deliver prints a block", func() {
 		machine.hasClaudeCode()
 		machine.hasMod()
-		machine.hasStandInEngram(standInBlock, 0, 0)
+		machine.hasStandInEngram(standInBlock, 0)
 	})
 
 	var sent *turn
@@ -56,7 +56,7 @@ func Test793d2a1b_Mod_GivesTheCommandTheSessionsID(t *testing.T) {
 	step(t, "Given a session with the mod installed, and an engram whose auto deliver prints a block", func() {
 		machine.hasClaudeCode()
 		machine.hasMod()
-		machine.hasStandInEngram(standInBlock, 0, 0)
+		machine.hasStandInEngram(standInBlock, 0)
 		inSession = machine.startSession("a-project")
 	})
 
@@ -80,7 +80,7 @@ func Test793d2a1c_Mod_AnEmptyOutputAddsNothing(t *testing.T) {
 	step(t, "Given a session with the mod installed, and an engram whose auto deliver prints nothing", func() {
 		machine.hasClaudeCode()
 		machine.hasMod()
-		machine.hasStandInEngram("", 0, 0)
+		machine.hasStandInEngram("", 0)
 	})
 
 	var sent *turn
@@ -112,7 +112,7 @@ func Test793d2a1d_Mod_ASlowJudgementIsWaitedFor(t *testing.T) {
 		"print a request each and whose auto deliver prints a block, the first of them after 20 seconds", func() {
 		machine.hasClaudeCode()
 		machine.hasMod()
-		machine.hasStandInEngram(standInBlock, 0, 0)
+		machine.hasStandInEngram(standInBlock, 0)
 		machine.standInSays("moment", standInRequest, slowJudgement)
 		machine.standInSays("phrases", standInRequest, 0)
 		machine.standInSays("recall", standInRequest, 0)
@@ -148,7 +148,7 @@ func Test793d2a1e_Mod_AFailedCommandAddsNothing(t *testing.T) {
 		func() {
 			machine.hasClaudeCode()
 			machine.hasMod()
-			machine.hasStandInEngram(standInBlock, 0, 1)
+			machine.hasStandInEngram(standInBlock, 1)
 		})
 
 	var sent *turn
@@ -182,7 +182,7 @@ func Test793d2a1f_Mod_OutputThatIsNotABlockAddsNothing(t *testing.T) {
 		"with [engram memory] and exits with 0", func() {
 		machine.hasClaudeCode()
 		machine.hasMod()
-		machine.hasStandInEngram(standInNotABlock, 0, 0)
+		machine.hasStandInEngram(standInNotABlock, 0)
 	})
 
 	var sent *turn
@@ -216,7 +216,7 @@ func Test793d2a1h_Mod_GivesTheCommandThePromptsOrigin(t *testing.T) {
 	step(t, "Given a session with the mod installed, and an engram whose auto deliver prints a block", func() {
 		machine.hasClaudeCode()
 		machine.hasMod()
-		machine.hasStandInEngram(standInBlock, 0, 0)
+		machine.hasStandInEngram(standInBlock, 0)
 	})
 
 	step(t, "When a prompt is sent from a headless session, with claude -p", func() {
@@ -273,10 +273,10 @@ const (
 	promptHello = "hello there"
 	// standInBlock is what the stand-in engram prints for any prompt.
 	standInBlock = "[engram memory] A block from a stand-in engram.\n- a.md (s): b\n"
-	// standInRequest is what the stand-in engram prints for a step of the chain that needs a judgement: a request that a
-	// real model answers in a word, and a carry.
-	standInRequest = `{"request":{"model":"haiku","system":"Reply with the single word ok.","prompt":"ok","maxTokens":16},` +
-		`"carry":{"cue":"prompt","depth":"glance","window":"w"}}` + "\n"
 	// standInNotABlock is what an engram that does not know the command prints: not a block.
 	standInNotABlock = "Unknown command: auto\nusage: engram <command> [flags]\n"
+	// standInRequest is what the stand-in engram prints for a step of the chain that needs a judgement: a request that a
+	// real model answers in a word, and a carry.
+	standInRequest = `{"request":{"model":"haiku","system":"Reply with the word ok.","prompt":"ok","maxTokens":16},` +
+		`"carry":{"cue":"prompt","depth":"glance","window":"w"}}` + "\n"
 )

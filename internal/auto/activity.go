@@ -46,6 +46,8 @@ const (
 	activityClock = "15:04:05"
 	// bothEnds is the number of ends of a text that a cut in its middle keeps.
 	bothEnds = 2
+	// deliveredParts is how many parts the line of what was delivered has at most: the notes and the passages.
+	deliveredParts = 2
 	// shownLimit is how many characters a line shown to the user holds at most (793d4p).
 	shownLimit = 240
 )
@@ -76,7 +78,7 @@ func activityText(kind string, records []Record) string {
 // deliveredLine is the line that tells the notes and the passages delivered, cut in its middle where it is long
 // (855d8a): the notes, then the passages, joined by `and`.
 func deliveredLine(notes, passages []Candidate) string {
-	parts := make([]string, 0, 2)
+	parts := make([]string, 0, deliveredParts)
 
 	if len(notes) > 0 {
 		parts = append(parts, "the "+noteWord(len(notes))+" "+idsOf(notes))

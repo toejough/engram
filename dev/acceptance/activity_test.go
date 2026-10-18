@@ -317,8 +317,8 @@ const (
 	askAnotherThing = "What is 9 times 6? Reply with the number only."
 	// askResetAndRememberBackup asks what the stagingReset note answers, and asks to remember a second lesson about the
 	// same database.
-	askResetAndRememberBackup = "When is the Zorblax staging database reset? Also remember that it is backed up " +
-		"every Monday at 05:00 UTC. Reply with one short sentence."
+	askResetAndRememberBackup = "Prepare a test run against the Zorblax staging database tonight. Also remember that " +
+		"it is backed up every Monday at 05:00 UTC. Reply with one short sentence."
 	// slowWrite is how long the write takes in the scenario of a write that finishes after the next prompt.
 	slowWrite = 12 * time.Second
 )

@@ -115,7 +115,7 @@ func Test793d4p1h_Deliver_ANoteDeliveredIsShownAsALine(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	delivery := deliveryOf(t, []auto.Candidate{aNote("1.2026-10-17.a.md")}, nil)
+	delivery := deliveryOf(t, []auto.Candidate{aNote("1.2026-10-17.a.md")})
 
 	g.Expect(delivery.Shown).To(Equal([]string{"delivered the note 1.2026-10-17.a.md"}), "the line of the note")
 	g.Expect(delivery.Told).To(BeEmpty(), "no record is told by a note")
@@ -160,7 +160,7 @@ func Test793d4p1l_Deliver_TheNotesDeliveredAreOneLine(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	delivery := deliveryOf(t, []auto.Candidate{aNote("1.2026-10-17.a.md"), aNote("2.2026-10-17.b.md")}, nil)
+	delivery := deliveryOf(t, []auto.Candidate{aNote("1.2026-10-17.a.md"), aNote("2.2026-10-17.b.md")})
 
 	g.Expect(delivery.Shown).To(Equal([]string{"delivered the notes 1.2026-10-17.a.md, 2.2026-10-17.b.md"}),
 		"one line for the notes of the block, in its order")
@@ -283,7 +283,7 @@ func Test855d4c1e_Deliver_APassageIsCutTo1200Characters(t *testing.T) {
 	g := NewWithT(t)
 
 	text := strings.Repeat("a", 1000) + strings.Repeat("b", 1000)
-	delivery := deliveryOf(t, []auto.Candidate{aPassage("/chunks/s.jsonl#c1", text)}, nil)
+	delivery := deliveryOf(t, []auto.Candidate{aPassage("/chunks/s.jsonl#c1", text)})
 
 	g.Expect(delivery.Block).To(HaveSuffix("(passage): " + text[:1200] + "\n"))
 }
@@ -373,13 +373,13 @@ func Test855d4p1a_Lines_ThePassagesDeliveredAreNamedInTheLine(t *testing.T) {
 
 	delivery := deliveryOf(t, []auto.Candidate{
 		aNote("1.2026-10-17.a.md"), aPassage("/chunks/s.jsonl#c1", "x"), aPassage("/chunks/s.jsonl#c2", "y"),
-	}, nil)
+	})
 
 	g.Expect(delivery.Shown).To(Equal([]string{
 		"delivered the note 1.2026-10-17.a.md and the passages /chunks/s.jsonl#c1, /chunks/s.jsonl#c2",
 	}), "the note and the passages, in one line")
 
-	one := deliveryOf(t, []auto.Candidate{aPassage("/chunks/s.jsonl#c1", "x")}, nil)
+	one := deliveryOf(t, []auto.Candidate{aPassage("/chunks/s.jsonl#c1", "x")})
 
 	g.Expect(one.Shown).To(Equal([]string{"delivered the passage /chunks/s.jsonl#c1"}), "one passage alone")
 }
@@ -458,7 +458,7 @@ func blockOf(t interface {
 ) string {
 	t.Helper()
 
-	return deliveryOf(t, candidates, nil).Block
+	return deliveryOf(t, candidates).Block
 }
 
 // deliver makes the delivery for a request, over the text a session holds and the lines that tell what automatic memory
@@ -475,16 +475,16 @@ func deliver(t *testing.T, request auto.Request, held string, lines []auto.Line)
 	return delivery
 }
 
-// deliveryOf makes the delivery of the candidates a reply delivers and the lines that tell what automatic memory did.
+// deliveryOf makes the delivery of the candidates a reply delivers.
 func deliveryOf(t interface {
 	Helper()
 	Fatalf(format string, args ...any)
-}, candidates []auto.Candidate, lines []auto.Line,
+}, candidates []auto.Candidate,
 ) auto.Delivery {
 	t.Helper()
 
 	delivery, err := auto.Deliver(context.Background(), requestFor(candidates), func(string) string { return "" },
-		func(string) []auto.Line { return lines }, func(context.Context, auto.Candidate) {})
+		func(string) []auto.Line { return nil }, func(context.Context, auto.Candidate) {})
 	if err != nil {
 		t.Fatalf("delivering: %v", err)
 	}

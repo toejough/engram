@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -120,7 +121,7 @@ func Test793d2a1i_Mod_ACommandThatFailsIsReportedToTheWriting(t *testing.T) {
 
 	g.Expect(outcome.Passed.Text).To(Equal("hello"), "the prompt goes on as it was")
 	g.Expect(outcome.Passed.Context).To(BeEmpty(), "nothing is added")
-	g.Expect(outcome.Settle.Commands).To(Equal(2), "the commands the hook had run when it settled: the moment and the delivery")
+	g.Expect(outcome.Settle.Commands).To(Equal(2), "the commands run when the hook settled: the moment, the delivery")
 	g.Expect(outcome.Settle.InFlight).To(BeZero(), "the calls in flight when the hook settled")
 	g.Expect(outcome.Logged).To(BeEmpty(), "the lines the user was shown")
 
@@ -736,13 +737,9 @@ func Test855d2a1a_Mod_TheStepsRunInOrderEachGivenTheReplyAndTheCarryBefore(t *te
 	base := map[string]any{"session": "a-session", "origin": "composer", "cue": "prompt", "held": []any{}}
 	input := func(extra map[string]any) map[string]any {
 		fields := map[string]any{}
-		for key, value := range base {
-			fields[key] = value
-		}
 
-		for key, value := range extra {
-			fields[key] = value
-		}
+		maps.Copy(fields, base)
+		maps.Copy(fields, extra)
 
 		return fields
 	}
@@ -1076,6 +1073,7 @@ const scenario = JSON.parse(process.env.SCENARIO)
 const calls = []
 const delays = []
 const wait = globalThis.setTimeout
+// the timers of the module are recorded, and fire at once when the scenario says so
 globalThis.setTimeout = (callback, delay, ...rest) => {
   delays.push(delay)
   return scenario.fastTimers ? wait(callback, 0) : wait(callback, delay, ...rest)
@@ -1360,11 +1358,6 @@ func carryOfStep(n int) map[string]any {
 	return map[string]any{"cue": "prompt", "depth": "glance", "window": fmt.Sprintf("W%d", n)}
 }
 
-// requestOfStep is the request of aStep as the driver decodes it.
-func requestOfStep(n int) map[string]any {
-	return map[string]any{"model": "sonnet", "system": fmt.Sprintf("S%d", n), "prompt": fmt.Sprintf("P%d", n), "maxTokens": float64(100)}
-}
-
 // modulesOf reads every JavaScript file below a directory, by its path relative to the directory.
 func modulesOf(t *testing.T, dir string) map[string]string {
 	t.Helper()
@@ -1395,6 +1388,13 @@ func modulesOf(t *testing.T, dir string) map[string]string {
 	}
 
 	return modules
+}
+
+// requestOfStep is the request of aStep as the driver decodes it.
+func requestOfStep(n int) map[string]any {
+	return map[string]any{
+		"model": "sonnet", "system": fmt.Sprintf("S%d", n), "prompt": fmt.Sprintf("P%d", n), "maxTokens": float64(100),
+	}
 }
 
 // runCaptureDriver runs the capture driver against the mod of the source, and reads what it printed.

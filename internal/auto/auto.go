@@ -137,12 +137,6 @@ const (
 	originHeadless = "sdk"
 )
 
-// unexported variables.
-var (
-	// deliveringVerdicts are the verdicts of the candidate judgement that deliver a candidate (855d8b): all but unrelated.
-	deliveringVerdicts = []string{"covered", "near", "evidence"}
-)
-
 // verdict is the entry of the reply of the candidate judgement for a candidate: its ID, its verdict, and the candidate
 // that reverses it, if one does (855d4c).
 type verdict struct {
@@ -167,28 +161,10 @@ func chosenOf(request Request, held Held) ([]Candidate, error) {
 		return nil, ErrCandidatesReply
 	}
 
-	ids := make([]string, 0, 2*len(request.Carry.Candidates))
-
-	for _, candidate := range request.Carry.Candidates {
-		ids = append(ids, candidate.ID, oneRedacted(candidate.ID))
-	}
-
 	delivered := make([]Candidate, 0, len(request.Carry.Candidates))
 
 	for _, candidate := range request.Carry.Candidates {
-		// the request showed the ID redacted, as it shows every field (793d4j), and the model gives it back so
-		shown := oneRedacted(candidate.ID)
-		index := slices.IndexFunc(*reply.Candidates, func(entry verdict) bool {
-			return entry.ID == candidate.ID || entry.ID == shown
-		})
-		if index < 0 {
-			continue
-		}
-
-		entry := (*reply.Candidates)[index]
-		reversed := entry.Newer != "" && slices.Contains(ids, entry.Newer)
-
-		if slices.Contains(deliveringVerdicts, entry.Verdict) && !reversed && !slices.Contains(request.Held, candidate.ID) {
+		if delivers(request, *reply.Candidates, candidate) {
 			delivered = append(delivered, candidate)
 		}
 	}
@@ -202,6 +178,30 @@ func chosenOf(request Request, held Held) ([]Candidate, error) {
 	return slices.DeleteFunc(delivered, func(candidate Candidate) bool { return namedIn(heldText, candidate.ID) }), nil
 }
 
+// delivers reports whether the verdicts deliver a candidate: it has a verdict that is not unrelated, no candidate of the
+// carry reverses it, and the mod has not delivered it (855d4c). The request showed the ID redacted, as it shows every
+// field (793d4j), and the model gives it back so.
+func delivers(request Request, verdicts []verdict, candidate Candidate) bool {
+	shown := oneRedacted(candidate.ID)
+	index := slices.IndexFunc(verdicts, func(entry verdict) bool { return entry.ID == candidate.ID || entry.ID == shown })
+
+	if index < 0 || slices.Contains(request.Held, candidate.ID) {
+		return false
+	}
+
+	newer := verdicts[index].Newer
+	reversed := newer != "" && slices.ContainsFunc(request.Carry.Candidates, func(other Candidate) bool {
+		return newer == other.ID || newer == oneRedacted(other.ID)
+	})
+
+	switch verdicts[index].Verdict {
+	case "covered", "near", "evidence":
+		return !reversed
+	default:
+		return false
+	}
+}
+
 // markOf is the words that end the line of a note that was written automatically, with the space before them, and
 // nothing for any other note (793d4c): the words may stand anywhere in the source, as the earlier mod wrote them.
 func markOf(note Candidate) string {
@@ -212,8 +212,8 @@ func markOf(note Candidate) string {
 	return ""
 }
 
-// namedIn reports whether the text names a note by its basename, its file name without the suffix `.md`, or a passage by
-// its chunk ID (793d4a, 855d4c).
+// namedIn reports whether the text names a note by its basename, its file name without the suffix `.md`, or a passage
+// by its chunk ID (793d4a, 855d4c).
 func namedIn(text, id string) bool {
 	basename := strings.TrimSuffix(id, ".md")
 

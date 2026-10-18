@@ -24,7 +24,8 @@ const (
 		"freeze. Reply with one short sentence."
 	// askPlanMigration is a prompt that the stagingReset and migrationBackup notes apply to and the formatPython note
 	// does not (855a3b1d).
-	askPlanMigration = "Plan a migration of the Zorblax staging database for tonight. Reply with one short sentence."
+	askPlanMigration = "Plan a migration of the Zorblax staging database for tonight, around whatever is scheduled " +
+		"on that database. Reply with one short sentence."
 	// askPrepareRun is a recall moment that the stagingReset note applies to (855b10): a task of more than one step.
 	askPrepareRun = "Prepare a test run against the Zorblax staging database tonight. Reply with one short sentence."
 	// askPrepareSecondRun is another prompt that the stagingReset note applies to.
@@ -47,9 +48,6 @@ const (
 	claudeSettings = `{"permissions":{"allow":["Bash(engram:*)"]}}`
 	// debugLogName is the file in the machine's directory that every engram command run on it writes its debug log to.
 	debugLogName = "engram-debug.log"
-	// earlierConversation is a conversation that answers askStagingReset.
-	earlierConversation = "In an earlier session the user said that the Zorblax staging database is reset every " +
-		"Sunday at 03:40 UTC, and asked when the staging database is reset."
 	// freezeConversation is an earlier conversation that states the freeze askPlanFreeze is about (855a3b1e).
 	freezeConversation = "In an earlier session the user said that the production cutover is frozen on the last " +
 		"Friday of every month, and that no deploy of any kind may go out on that day."
@@ -374,12 +372,11 @@ func (m *machine) hasRunUpdate(agentMayRun ...string) {
 }
 
 // hasStandInEngram puts a stand-in for engram first on the machine's PATH: for the delivery it records its arguments
-// and standard input, waits as long as it is told to, prints the text it is given and exits with the status it is
-// given; for the writing it notes that it was run; for the steps of the chain before the delivery (moment, phrases and
+// and standard input, prints the text it is given and exits with the status it is given; for the writing it notes that it was run; for the steps of the chain before the delivery (moment, phrases and
 // recall) it records its standard input, and prints and waits as standInSays and standInWaits say, nothing by default,
 // so that the chain ends at the delivery; for any other command it reads its input and exits with 0, so that what the
 // mod reports or does after a turn replaces nothing the delivery recorded.
-func (m *machine) hasStandInEngram(block string, wait time.Duration, status int) {
+func (m *machine) hasStandInEngram(block string, status int) {
 	m.t.Helper()
 
 	dir := filepath.Join(m.root, "stand-in")
@@ -387,7 +384,7 @@ func (m *machine) hasStandInEngram(block string, wait time.Duration, status int)
 	writeFile(m.t, filepath.Join(dir, "block"), block)
 
 	script := "#!/bin/sh\nd='" + dir + "'\ncase \"$1 $2\" in\n\"auto deliver\")\nprintf '%s\\n' \"$*\" > \"$d/args\"\n" +
-		"cat > \"$d/stdin\"\nsleep " + strconv.Itoa(int(wait.Seconds())) + "\ncat \"$d/block\"\nexit " + strconv.Itoa(status) +
+		"cat > \"$d/stdin\"\ncat \"$d/block\"\nexit " + strconv.Itoa(status) +
 		"\n;;\n\"auto write\")\ncat > \"$d/write\"\nexit 0\n;;\n\"auto moment\"|\"auto phrases\"|\"auto recall\")\n" +
 		"cat > \"$d/$2.stdin\"\nif [ -e \"$d/$2.wait\" ]; then sleep \"$(cat \"$d/$2.wait\")\"; fi\n" +
 		"if [ -e \"$d/$2.out\" ]; then cat \"$d/$2.out\"; fi\nexit 0\n;;\nesac\ncat > /dev/null\nexit 0\n"
@@ -400,16 +397,6 @@ func (m *machine) hasStandInEngram(block string, wait time.Duration, status int)
 	if err != nil {
 		m.t.Fatalf("making the stand-in executable: %v", err)
 	}
-}
-
-// standInSays makes the stand-in engram print the text for a step of the chain before the delivery (moment, phrases or
-// recall), after it has waited for the time given.
-func (m *machine) standInSays(step, text string, wait time.Duration) {
-	m.t.Helper()
-
-	dir := filepath.Join(m.root, "stand-in")
-	writeFile(m.t, filepath.Join(dir, step+".out"), text)
-	writeFile(m.t, filepath.Join(dir, step+".wait"), strconv.Itoa(int(wait.Seconds())))
 }
 
 // hasVault reports whether a vault exists at the machine's vault path.
@@ -753,6 +740,16 @@ func (m *machine) standInReported() bool {
 	return err == nil
 }
 
+// standInSays makes the stand-in engram print the text for a step of the chain before the delivery (moment, phrases or
+// recall), after it has waited for the time given.
+func (m *machine) standInSays(step, text string, wait time.Duration) {
+	m.t.Helper()
+
+	dir := filepath.Join(m.root, "stand-in")
+	writeFile(m.t, filepath.Join(dir, step+".out"), text)
+	writeFile(m.t, filepath.Join(dir, step+".wait"), strconv.Itoa(int(wait.Seconds())))
+}
+
 // stepIsQuick takes away the file that keeps the step of stepTakes slow.
 func (m *machine) stepIsQuick() {
 	m.t.Helper()
@@ -780,16 +777,16 @@ func (m *machine) stepStarted() bool {
 
 // stepTakes makes a step of `engram auto` (moment, phrases, recall or deliver) take the given time for as long as the
 // file slow is in the wrapper's directory: engram on the PATH notes that the step started and waits, and runs the
-// machine's own engram for anything else. The wait replaces the process, so that ending the step ends all of it. A real
+// machine's own engram for anything else, the step itself after the wait. A real
 // model cannot be made slow, so the delay stands in front of the first step of the chain (793a2d1a).
 func (m *machine) stepTakes(step string, wait time.Duration) {
 	m.t.Helper()
 
-	m.stepWraps(step, "exec sleep "+strconv.Itoa(int(wait.Seconds())))
+	m.stepWraps(step, "sleep "+strconv.Itoa(int(wait.Seconds())))
 }
 
 // stepWraps puts an engram on the PATH that notes that a step started and then does the action, while the file slow is
-// there, and runs the machine's own engram otherwise.
+// there, and then runs the machine's own engram.
 func (m *machine) stepWraps(step, action string) {
 	m.t.Helper()
 

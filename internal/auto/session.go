@@ -10,7 +10,7 @@ import (
 // HeldText returns the text of what a session's agent holds of the vault, from the session's record (793d4d, 855d4e):
 // the file name on each note line and the chunk ID on each passage line of the blocks delivered beside prompts, which
 // the record keeps as `hook_additional_context` attachments, and the command and the result of each lookup or save the
-// agent ran itself, a Bash command that runs one of lookupCommands, whose result is the `tool_result` block that carries
+// agent ran itself, a Bash command that runs a lookup or a save, whose result is the `tool_result` block that carries
 // the ID of the command's `tool_use`.
 func HeldText(record []byte) string {
 	held := holdings{lookups: map[string]string{}}
@@ -31,13 +31,6 @@ const (
 	// deliveredType is the type of the attachment that a session's record keeps for the context a hook put beside a
 	// prompt.
 	deliveredType = "hook_additional_context"
-)
-
-// unexported variables.
-var (
-	// lookupCommands are the commands of the agent whose text and result a session holds: the lookups of the vault and
-	// of the chunk index, and the notes it saved or amended (855d4e).
-	lookupCommands = []string{"engram query", "engram show", "engram learn", "engram amend"}
 )
 
 // contentBlock is a block of the content of a message: a tool the agent called, or the result of one.
@@ -160,7 +153,10 @@ func lookupOf(block contentBlock) string {
 		return ""
 	}
 
-	if !slices.ContainsFunc(lookupCommands, func(lookup string) bool { return strings.Contains(input.Command, lookup) }) {
+	// the commands of the agent whose text and result a session holds: the lookups of the vault and of the chunk index,
+	// and the notes it saved or amended (855d4e)
+	lookups := []string{"engram query", "engram show", "engram learn", "engram amend"}
+	if !slices.ContainsFunc(lookups, func(lookup string) bool { return strings.Contains(input.Command, lookup) }) {
 		return ""
 	}
 

@@ -385,7 +385,9 @@ func deliverOverRemoving(t *testing.T, records, session string, remove func(path
 func deliverWith(t *testing.T, args []string, home string, environment map[string]string) shownBy {
 	t.Helper()
 
-	return deliverWithRequest(t, args, home, environment, userPrompt("When is the Zorblax staging database reset?", sessionID))
+	request := userPrompt("When is the Zorblax staging database reset?", sessionID)
+
+	return deliverWithRequest(t, args, home, environment, request)
 }
 
 // deliverWithRequest is deliverWith for the request given.

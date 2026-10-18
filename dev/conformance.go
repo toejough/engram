@@ -52,9 +52,10 @@ func exceptIDs(ids, exempt []string) []string {
 // removedScenarioIDs returns the IDs of the scenarios of 793 that a Removed operation of a spec names, each in the
 // heading `### <ID of the operation> Removed: <ID of the scenario> <title>` (855b45).
 func removedScenarioIDs(spec string) []string {
-	var ids []string
+	matches := removedHeading.FindAllStringSubmatch(spec, -1)
+	ids := make([]string, 0, len(matches))
 
-	for _, match := range removedHeading.FindAllStringSubmatch(spec, -1) {
+	for _, match := range matches {
 		ids = append(ids, match[1])
 	}
 
