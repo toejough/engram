@@ -268,6 +268,11 @@ func RunAutoWrite(ctx context.Context, args AutoWriteArgs, deps AutoWriteDeps, s
 		return nil
 	}
 
+	// a failure the mod reports is lost with its record: the command fails with it (793d4k)
+	if reply.Failure != "" {
+		failures = append(failures, fmt.Errorf("%w: %s", errFailureNotRecorded, auto.RecordedReason(reply.Failure)))
+	}
+
 	return errors.Join(failures...)
 }
 
@@ -286,6 +291,8 @@ const (
 
 // unexported variables.
 var (
+	// errFailureNotRecorded begins the failure of a writing whose record of a failure it was told cannot be written.
+	errFailureNotRecorded = errors.New("the failure could not be recorded")
 	// errNoRecord begins the failure of a judgement or a sweep that finds no record of its session.
 	errNoRecord = errors.New("no record of session")
 )

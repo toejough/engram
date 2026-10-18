@@ -821,7 +821,7 @@ Review finding P-1 ([793d4k Recording what automatic memory did](./793d_technica
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793d4k1i | Dedicated example | a failure in place of a reply and a place for the records that cannot be written: the command fails with the failure, so that it is not lost | Red | | | |
+| 793d4k1i | Dedicated example | a failure in place of a reply and a place for the records that cannot be written: the command fails with the failure, so that it is not lost | Green-all | 92a37932 | | |
 
 ### 793e6f The delivery merges the parent vault
 
