@@ -682,7 +682,7 @@ Builds what the other nodes read: the lines that tell what [automatic memory](./
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2e1a | Dedicated example, product acceptance (`network`) | a judgement row, as the lesson is the model's; the earlier [prompt](./793a_product-spec.md#793a1a-terms) asks and asks to remember in one, so that its block and its write are of one [turn](./793a_product-spec.md#793a1a-terms) | | | Not started | | | |
+| 793a2e1a | Dedicated example, product acceptance (`network`) | a judgement row, as the lesson is the model's; the earlier [prompt](./793a_product-spec.md#793a1a-terms) asks and asks to remember in one, so that its block and its write are of one [turn](./793a_product-spec.md#793a1a-terms) | | | Red | | | |
 | 793d4p1a | Dedicated example | the line of each kind of record, over records of the real form | | | Not started | | | |
 | 793d4p1b | Dedicated example | a record of the kind nothing says nothing, so a turn with nothing to report adds no block | | | Not started | | | |
 | 793d4p1c | Dedicated example | a line told once, over a record of the session of the real form | | | Not started | | | |
