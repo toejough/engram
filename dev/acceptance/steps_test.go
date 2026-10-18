@@ -586,6 +586,18 @@ func (m *machine) standInCalled() (string, map[string]string) {
 	return strings.TrimSpace(string(args)), request
 }
 
+// vaultCannotBeWritten takes the right to create a file in the machine's vault away; reading it still works.
+func (m *machine) vaultCannotBeWritten() {
+	m.t.Helper()
+
+	err := os.Chmod(m.vault, 0o500)
+	if err != nil {
+		m.t.Fatalf("making the vault read-only: %v", err)
+	}
+
+	m.t.Cleanup(func() { _ = os.Chmod(m.vault, dirPerm) })
+}
+
 // vaultIsRemoved removes the machine's vault, which an engram command or `engram update` created.
 func (m *machine) vaultIsRemoved() {
 	m.t.Helper()

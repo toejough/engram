@@ -663,7 +663,7 @@ Adds no component: the writing records a failure once and succeeds, and the mod 
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2d1e | Dedicated example, product acceptance (`network`) | a judgement row, as the correction must become a lesson; the [vault](../../GLOSSARY.md#vault) is made read-only and the test waits for the record of the failed write | | Not started | | | |
+| 793a2d1e | Dedicated example, product acceptance (`network`) | a judgement row, as the correction must become a lesson; the [vault](../../GLOSSARY.md#vault) is made read-only and the test waits for the record of the failed write; passed when written; mutation (scratch copy): a writing that records nothing for a lesson it cannot write fails it (no record comes); a mod that does not catch the failure does not, as the host passes a rejected timer by | | Green-all | n/a | | |
 
 ### 793e6d The user can see what it did
 

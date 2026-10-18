@@ -94,6 +94,44 @@ func Test793a2d1d_ThePromptAndTheReplyAreAsTheyWere(t *testing.T) {
 	})
 }
 
+func Test793a2d1e_AWriteThatFailsDoesNotBreakTheSession(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var chat *conversation
+
+	step(t, "Given the user has run engram update, and a vault that cannot be written", func() {
+		machine.hasRunUpdate()
+		machine.vaultCannotBeWritten()
+
+		chat = machine.startSession("zorblax").converse()
+	})
+
+	var second *turn
+
+	step(t, "When the user corrects the agent in a prompt, the turn ends, and the user sends another prompt", func() {
+		chat.tell(askHowToBuild)
+		chat.tell(correctTheBuild)
+
+		kinds := machine.awaitRecords(chat.session.id, chat.turnEnds, 2)
+		g.Expect(kinds[len(kinds)-1]).To(Equal("failed"), "what became of the correction: the write failed")
+
+		second = chat.tell(askSomethingElse)
+	})
+
+	step(t, "Then the agent answers the second prompt as typed, and the vault holds no new note", func() {
+		text, isPrompt := second.rows[0].promptText()
+		g.Expect(isPrompt).To(BeTrue())
+		g.Expect(text).To(Equal(askSomethingElse))
+
+		g.Expect(second.reply).NotTo(BeEmpty(), "the agent answered")
+		g.Expect(machine.noteNames()).To(BeEmpty(), "the notes of the vault")
+		g.Expect(machine.hookFailures()).To(BeEmpty(), "the mod's hook was skipped")
+	})
+}
+
 // unexported constants.
 const (
 	// askHowToBuildSpaced is askHowToBuild typed with extra spaces and a line break, which nothing has a reason to
