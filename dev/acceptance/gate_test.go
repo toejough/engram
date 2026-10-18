@@ -85,6 +85,9 @@ func Test855d7a1h_Gate_AContextPutAtAToolCallArrivesWithItsResult(t *testing.T) 
 		t.Logf("the items of the model's request that follows the tool call, in order: %v", order)
 
 		g.Expect(order).NotTo(BeEmpty(), "the items of the model's request that follows the tool call")
+		g.Expect(order).NotTo(ContainElement("unknown"), "items of the request that no row of the record holds")
+		g.Expect(chat.session.earlierItems()).NotTo(ContainElement(kindBlock),
+			"the items of the requests before the tool's result: none holds the block")
 
 		result := slices.Index(order, kindToolResult)
 		block := slices.Index(order, kindBlock)
@@ -156,14 +159,31 @@ func (m *machine) hasProbe() {
 type requestLog struct {
 	messages map[string]transcriptRow
 	requests map[string][]string
-	follows  string // the ID of the first request after the first tool result
+	follows  string   // the ID of the first request after the first tool result
+	before   []string // the IDs of the requests before the first tool result
 }
 
 // kinds returns the kinds of the items, in order, of the request that follows the first tool result.
 func (l requestLog) kinds() []string {
+	return l.kindsOf(l.follows)
+}
+
+// earlier returns the kinds of the items of the requests made before the one that follows the first tool result.
+func (l requestLog) earlier() []string {
+	var items []string
+
+	for _, id := range l.before {
+		items = append(items, l.kindsOf(id)...)
+	}
+
+	return items
+}
+
+// kindsOf returns the kinds of the items, in order, of one request.
+func (l requestLog) kindsOf(id string) []string {
 	var order []string
 
-	for _, hash := range l.requests[l.follows] {
+	for _, hash := range l.requests[id] {
 		message, found := l.messages[hash]
 		if !found {
 			order = append(order, "unknown")
@@ -200,6 +220,11 @@ func (s *session) requestOrder() []string {
 	return readRequests(s.rows()).kinds()
 }
 
+// earlierItems returns the kinds of the items of the model's requests made before the first tool result.
+func (s *session) earlierItems() []string {
+	return readRequests(s.rows()).earlier()
+}
+
 // eventKind tells what a row shows the host did, or "" when the row shows nothing around a tool call.
 func (r transcriptRow) eventKind() (string, string) {
 	switch {
@@ -210,10 +235,12 @@ func (r transcriptRow) eventKind() (string, string) {
 	case r.Type == "assistant" || r.Type == "user":
 		kinds := r.itemKinds()
 
-		for _, kind := range []string{kindToolCall, kindToolResult} {
-			if slices.Contains(kinds, kind) {
-				return kind, ""
-			}
+		if slices.Contains(kinds, kindToolCall) {
+			return kindToolCall, r.toolName()
+		}
+
+		if slices.Contains(kinds, kindToolResult) {
+			return kindToolResult, ""
 		}
 
 		if r.Type == "assistant" {
@@ -222,6 +249,26 @@ func (r transcriptRow) eventKind() (string, string) {
 	}
 
 	return "", ""
+}
+
+// toolName returns the name of the first tool the message of a row calls.
+func (r transcriptRow) toolName() string {
+	var blocks []struct {
+		Type string `json:"type"`
+		Name string `json:"name"`
+	}
+
+	if json.Unmarshal(r.Message.Content, &blocks) != nil {
+		return ""
+	}
+
+	for _, block := range blocks {
+		if block.Type == "tool_use" {
+			return block.Name
+		}
+	}
+
+	return ""
 }
 
 // itemKinds returns the kind of each item of the message a row holds: a tool call, a tool result, a block that begins
@@ -338,7 +385,10 @@ func readRequests(rows []transcriptRow) requestLog {
 			kept := log.requests[row.Base]
 			log.requests[row.ID] = slices.Concat(kept[:min(row.Keep, len(kept))], row.Tail)
 
-			if resulted && log.follows == "" {
+			switch {
+			case !resulted:
+				log.before = append(log.before, row.ID)
+			case log.follows == "":
 				log.follows = row.ID
 			}
 		case row.Message.Role != "":
