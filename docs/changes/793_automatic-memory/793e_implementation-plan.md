@@ -656,7 +656,7 @@ The mod started the work after a [turn](./793a_product-spec.md#793a1a-terms) ins
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2d1c | Dedicated example, product acceptance (`network`) | an `engram` on the path records the start of each job after a turn and takes 60 seconds, and the second prompt is sent while they go on; the wait is measured from the moment the test sends the prompt, since the row of the prompt in the record is written when the host enters it | | Done | fa8cbb50 | a9a37192 | 6fdc6c35 |
+| 793a2d1c | Dedicated example, product acceptance (`network`) | an `engram` on the path records the start of each job after a turn and takes 60 seconds, and the second prompt is sent while they go on; the wait is measured from the moment the test sends the prompt, since the row of the prompt in the record is written when the host enters it | 3 of 3 | Done | fa8cbb50 | a9a37192 | 6fdc6c35 |
 | 793d2b1l | Dedicated example, real dependency (`integration`) | the stand-in host counts the calls in flight when the hook of an event settles, which a live [session](../../GLOSSARY.md#session) cannot show | | Done | d7e443d3 | a9a37192 | 6fdc6c35 |
 
 #### 793e6c2 The prompt and the reply are as they were
@@ -665,7 +665,7 @@ Adds no component: the mod gives the [prompt](./793a_product-spec.md#793a1a-term
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2d1d | Dedicated example, product acceptance (`network`) | a judgement row, as the [note](../../GLOSSARY.md#permanent-note) is the model's; the reply in the record is compared with the result of the run, and a text that a mod has the host show beneath a reply, which the host prints as a notice, fails it; passed when written; mutations (scratch copies): a mod that appends to the prompt, and one that appends to the reply, each fail it | | Done | n/a | ba768e43 | 308f79db |
+| 793a2d1d | Dedicated example, product acceptance (`network`) | a judgement row, as the [note](../../GLOSSARY.md#permanent-note) is the model's; the reply in the record is compared with the result of the run, and a text that a mod has the host show beneath a reply, which the host prints as a notice, fails it; passed when written; mutations (scratch copies): a mod that appends to the prompt, and one that appends to the reply, each fail it | 10 of 10 | Done | n/a | ba768e43 | 308f79db |
 
 #### 793e6c3 A write that fails does not break the session
 
@@ -673,7 +673,7 @@ Adds no component: the writing records a failure once and succeeds, and the mod 
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2d1e | Dedicated example, product acceptance (`network`) | a judgement row, as the correction must become a lesson; the [vault](../../GLOSSARY.md#vault) is made read-only and the test waits for the record of the failed write; passed when written; mutation (scratch copy): a writing that records nothing for a lesson it cannot write fails it (no record comes); a mod that does not catch the failure does not, as the host passes a rejected timer by | | Done | n/a | 60c7f2f9 | 308f79db |
+| 793a2d1e | Dedicated example, product acceptance (`network`) | a judgement row, as the correction must become a lesson; the [vault](../../GLOSSARY.md#vault) is made read-only and the test waits for the record of the failed write; passed when written; mutation (scratch copy): a writing that records nothing for a lesson it cannot write fails it (no record comes); a mod that does not catch the failure does not, as the host passes a rejected timer by | 10 of 10 | Done | n/a | 60c7f2f9 | 308f79db |
 
 ### 793e6d The user can see what it did
 
@@ -685,7 +685,7 @@ Builds what the other nodes read: the lines that tell what [automatic memory](./
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2e1a | Dedicated example, product acceptance (`network`) | a judgement row, as the lesson is the model's; the earlier [prompt](./793a_product-spec.md#793a1a-terms) asks and asks to remember in one, so that its block and its write are of one [turn](./793a_product-spec.md#793a1a-terms) | | | Done | ea2ff3f3 | bda89737 | 49bc97d3 |
+| 793a2e1a | Dedicated example, product acceptance (`network`) | a judgement row, as the lesson is the model's; the earlier [prompt](./793a_product-spec.md#793a1a-terms) asks and asks to remember in one, so that its block and its write are of one [turn](./793a_product-spec.md#793a1a-terms) | | 10 of 10; 9 of 10 before the check of the lines allowed a second note (run 8: the judgement wrote two notes for the turn) | Done | ea2ff3f3 | bda89737 | 49bc97d3 |
 | 793d4p1a | Dedicated example | the line of each kind of record, over records of the real form | | | Done | 300fbc46 | 34ec6b9e | 09fa0808 |
 | 793d4p1b | Dedicated example | a record of the kind nothing says nothing, so a turn with nothing to report adds no block | | | Done | 300fbc46 | 34ec6b9e | 09fa0808 |
 | 793d4p1c | Dedicated example | a line told once, over a record of the session of the real form; also through `RunAutoDeliver`, over a record on disk, as mutation (scratch copy): the lines told ignored fails only that one | | | Done | 300fbc46 | 34ec6b9e | 09fa0808 |
@@ -704,13 +704,13 @@ Adds no component: the delivery reads the records at every [prompt](./793a_produ
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2e1b | Dedicated example, product acceptance (`network`) | a judgement row; an `engram` on the path waits 12 seconds before the write and then runs it; passed when written; mutation (scratch copy): the mod awaiting the capture inside the [turn](./793a_product-spec.md#793a1a-terms)'s event holds the second prompt until the write ended, so that it arrives with the line, which fails it | | Done | n/a | 23b2fb54 | a14cd337 |
+| 793a2e1b | Dedicated example, product acceptance (`network`) | a judgement row; an `engram` on the path waits 12 seconds before the write and then runs it; passed when written; mutation (scratch copy): the mod awaiting the capture inside the [turn](./793a_product-spec.md#793a1a-terms)'s event holds the second prompt until the write ended, so that it arrives with the line, which fails it | 10 of 10 | Done | n/a | 23b2fb54 | a14cd337 |
 
 #### 793e6d3 A delivery that could not be done is shown with its reason
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2e1c | Dedicated example, product acceptance (`network`) | an `engram` on the path that takes 20 seconds for the delivery while a file is there, and is quick again once the test removes it | | Done | f6223c54 | e9853b3a | f482ab22 |
+| 793a2e1c | Dedicated example, product acceptance (`network`) | an `engram` on the path that takes 20 seconds for the delivery while a file is there, and is quick again once the test removes it | 3 of 3 | Done | f6223c54 | e9853b3a | f482ab22 |
 | 793d2a1i | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the stand-in host counts the calls in flight when the hook settles: a report started inside the hook would hold the next [prompt](./793a_product-spec.md#793a1a-terms), which a live [session](../../GLOSSARY.md#session) shows only as time; mutation (scratch copy): the report started inside the hook fails it, and the next row | | Done | e718fb70 | e9853b3a | f482ab22 |
 | 793d2a1j | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the bound of the delivery, with the timer of the stand-in fired at once | | Done | e718fb70 | e9853b3a | f482ab22 |
 | 793d2a1e (amended) | Dedicated example, real dependency (`network`) | the stand-in `engram` records the calls of the delivery only, so that the report of the failed delivery, which it also receives, does not replace what it recorded; red, attributed: run in a scratch state with the new mod and the old stand-in, it failed with `auto write` where `auto deliver` was expected, and the other rows of the mod passed | | Done | n/a | e9853b3a | f482ab22 |
@@ -721,7 +721,7 @@ Adds no component: the record of the failed write is read like any other, and it
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2e1d | Dedicated example, product acceptance (`network`) | a judgement row; the [vault](../../GLOSSARY.md#vault) is read-only, and the cause of the error is at the end of its reason | | Done | 413ab62b | c4557ea3 | 8ea8392d |
+| 793a2e1d | Dedicated example, product acceptance (`network`) | a judgement row; the [vault](../../GLOSSARY.md#vault) is read-only, and the cause of the error is at the end of its reason | 10 of 10 | Done | 413ab62b | c4557ea3 | 8ea8392d |
 | 793d4p1a (amended) | Dedicated example | the line of a failed write names the write: a failed record with a slug | | Done | ca947110 | c4557ea3 | 8ea8392d |
 
 #### 793e6d5 A sweep that failed is shown with its reason
@@ -730,14 +730,14 @@ Adds no component: the mod reports a failed sweep to the writing, and cuts a lon
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2e1e | Dedicated example, product acceptance (`network`) | the directory of the chunk index is made read-only | | Done | 9e74a0b8 | 187a3451 | 8d96bfec |
+| 793a2e1e | Dedicated example, product acceptance (`network`) | the directory of the chunk index is made read-only | 3 of 3 | Done | 9e74a0b8 | 187a3451 | 8d96bfec |
 | 793d2b1m | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a failure of the length of a real one, a path in its middle, under the stand-in host | | Done | e9c98e07 | 187a3451 | 8d96bfec |
 
 #### 793e6d6 A turn that is not captured is shown with the reason
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2e1f | Dedicated example, product acceptance (`network`) | the machine does not set the variable that switches on the capture of headless [prompts](./793a_product-spec.md#793a1a-terms) | | Done | 50474b95 | 6e3f2e04 | 2a5820e1 |
+| 793a2e1f | Dedicated example, product acceptance (`network`) | the machine does not set the variable that switches on the capture of headless [prompts](./793a_product-spec.md#793a1a-terms) | 3 of 3 | Done | 50474b95 | 6e3f2e04 | 2a5820e1 |
 | 793d4m1e | Dedicated example | the judgement records the headless [turn](./793a_product-spec.md#793a1a-terms) it leaves out, and no other, through an injected writer of records, and through the dispatch over a real home; mutations (scratch copies): a record for any origin, a record also with the flag, no default directory of records and a failure when the record cannot be written each fail it | | Done | 13d58b47 | 6e3f2e04 | 2a5820e1 |
 
 ### 793e6f The delivery merges the parent vault
