@@ -197,6 +197,22 @@ func Test855d4c1b_Deliver_ACandidateTheCarryDoesNotHoldIsNotDelivered(t *testing
 	g.Expect(linesOf(delivery.Block)).To(HaveLen(2), "the framing line and the one note")
 }
 
+func Test855d4c1b_Deliver_ACandidateWhoseIDTheRequestShowedRedactedIsDeliveredByItsRedactedID(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// a path whose directory name reads as a token: the candidate line of the request shows it redacted
+	id := "/var/folders/wt/aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3/conversations/an-earlier-session.md#preamble"
+	request := requestFor([]auto.Candidate{aPassage(id, "the cutover is frozen")})
+	request.Reply = `{"candidates":[{"id":"` + auto.Redact(id) + `","verdict":"evidence"}]}`
+
+	g.Expect(auto.Redact(id)).NotTo(Equal(id), "the ID of the test reads as a token")
+
+	delivery := deliver(t, request, "", nil)
+
+	g.Expect(delivery.Block).To(ContainSubstring("the cutover is frozen"))
+}
+
 func Test855d4c1c_Deliver_APassageTheSessionHoldsIsLeftOut(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
