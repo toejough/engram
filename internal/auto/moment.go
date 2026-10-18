@@ -16,17 +16,6 @@ type Carry struct {
 	Candidates []Candidate `json:"candidates,omitempty"`
 }
 
-// ModelRequest is the request of a call of the model that a step prints: the fields the host's model call takes
-// (855d1b). The effort is the cheap tier's only, and the time limit a capture's.
-type ModelRequest struct {
-	Model     string `json:"model"`
-	Effort    string `json:"effort,omitempty"`
-	System    string `json:"system"`
-	Prompt    string `json:"prompt"`
-	MaxTokens int    `json:"maxTokens"`
-	TimeoutMs int    `json:"timeoutMs,omitempty"`
-}
-
 // MomentInput is a moment, as the memory mod hands it over (855d4a).
 type MomentInput struct {
 	Session string `json:"session"`

@@ -278,6 +278,33 @@ func Test855d4b1g_Recall_TheRequestIsForTheMidTierAndHoldsTheVerdictsTheWindowAn
 	}))
 }
 
+func Test855d4b1h_Recall_ADeepRequestAlsoAsksForTheLessonsAndTheRevisions(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoRecall(context.Background(), cli.AutoRecallArgs{VaultPath: "/a/vault"},
+		cli.AutoRecallDeps{
+			Stdin: recallInput("deep", "staging resets"), ReadChunks: chunksRead(),
+			Query: payloadQuery(payloadOf(
+				noteItem("1.2026-10-17.zorblax-staging-reset.md", "direct", "2026-10-17", resetSituation, resetBody))),
+		}, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var step struct {
+		Request struct {
+			System string `json:"system"`
+		} `json:"request"`
+		Write bool `json:"write"`
+	}
+
+	g.Expect(json.Unmarshal(out.Bytes(), &step)).To(Succeed())
+	g.Expect(step.Request.System).To(And(ContainSubstring(`"lessons"`), ContainSubstring(`"fields"`),
+		ContainSubstring(`"chunks"`)), "the lessons the evidence shows and the fields to revise")
+	g.Expect(step.Write).To(BeTrue(), "the output holds write true at deep")
+}
+
 // unexported constants.
 const (
 	resetBody      = "The Zorblax staging database is reset every Sunday at 03:40 UTC."
@@ -339,33 +366,6 @@ func payloadQuery(payload string) cli.QueryRun {
 
 		return err
 	}
-}
-
-func Test855d4b1h_Recall_ADeepRequestAlsoAsksForTheLessonsAndTheRevisions(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var out bytes.Buffer
-
-	err := cli.RunAutoRecall(context.Background(), cli.AutoRecallArgs{VaultPath: "/a/vault"},
-		cli.AutoRecallDeps{
-			Stdin: recallInput("deep", "staging resets"), ReadChunks: chunksRead(),
-			Query: payloadQuery(payloadOf(
-				noteItem("1.2026-10-17.zorblax-staging-reset.md", "direct", "2026-10-17", resetSituation, resetBody))),
-		}, &out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var step struct {
-		Request struct {
-			System string `json:"system"`
-		} `json:"request"`
-		Write bool `json:"write"`
-	}
-
-	g.Expect(json.Unmarshal(out.Bytes(), &step)).To(Succeed())
-	g.Expect(step.Request.System).To(And(ContainSubstring(`"lessons"`), ContainSubstring(`"fields"`),
-		ContainSubstring(`"chunks"`)), "the lessons the evidence shows and the fields to revise")
-	g.Expect(step.Write).To(BeTrue(), "the output holds write true at deep")
 }
 
 // recallInput is the JSON object that the memory mod hands to the recall: the reply of the phrases judgement, a list of
