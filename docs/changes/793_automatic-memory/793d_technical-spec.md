@@ -874,7 +874,7 @@ Scenario: 793d4n1f Two sweeps at once index both records
 
 ### 793d4p Telling what automatic memory did
 
-Requirement: 793d4p The `prompt-delivery` MUST read the records that [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did) makes for the [session](../../GLOSSARY.md#session) of the request from the directory its `--records` flag names, else `auto` in the engram data directory, and print, after the lines of the [notes](../../GLOSSARY.md#permanent-note) of the block, one line for each record of the kind `written`, `skipped` or `failed` that is not among the lines that [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) says the session was told, oldest first and at most 5; the others wait for the next [prompt](./793a_product-spec.md#793a1a-terms). A line begins with an asterisk and a space, the time of the record (`15:04:05`) and: for `written`, `wrote the note` and its file name; for `skipped`, `left out the lesson` and its slug, or `left out`, then a colon and the reason; for `failed`, `failed:` and the reason. A reason is written as one line, redacted ([793d4j Redacting credentials](#793d4j-redacting-credentials)) and, when it is longer than 240 characters, cut in its middle so that both ends stay. A record of another session, of the kind `nothing`, or that cannot be read makes no line, nor does a directory that cannot be read. The block opens with the framing line of [793d4c Framing the notes of a block as data](#793d4c-framing-the-notes-of-a-block-as-data) when it holds a note, a line or both; the delivery prints nothing when it holds neither.
+Requirement: 793d4p The `prompt-delivery` MUST read the records that [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did) makes for the [session](../../GLOSSARY.md#session) of the request from the directory its `--records` flag names, else `auto` in the engram data directory, and print, after the lines of the [notes](../../GLOSSARY.md#permanent-note) of the block, one line for each record of the kind `written`, `skipped` or `failed` that is not among the lines that [793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds) says the session was told, oldest first and at most 5; the others wait for the next [prompt](./793a_product-spec.md#793a1a-terms). A line begins with an asterisk and a space, the time of the record (`15:04:05`) and: for `written`, `wrote the note` and its file name; for `skipped`, `left out the lesson` and its slug, or `left out`, then a colon and the reason; for `failed`, `failed:`, then `writing` and its slug and a colon when it has a slug, and the reason. A reason is written as one line, redacted ([793d4j Redacting credentials](#793d4j-redacting-credentials)) and, when it is longer than 240 characters, cut in its middle so that both ends stay. A record of another session, of the kind `nothing`, or that cannot be read makes no line, nor does a directory that cannot be read. The block opens with the framing line of [793d4c Framing the notes of a block as data](#793d4c-framing-the-notes-of-a-block-as-data) when it holds a note, a line or both; the delivery prints nothing when it holds neither.
 
 Owner: `prompt-delivery`. Supports: [793a2e1a What was delivered and what was written for the previous turn is in the session by the next prompt](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1b A write that finishes after the next prompt is shown when it finishes](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1c A delivery that could not be done is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1d A write that failed is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1e A sweep that failed is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1f A turn that is not captured is shown with the reason](./793a_product-spec.md#793a2e1-uat-scenarios).
 
@@ -882,7 +882,7 @@ Owner: `prompt-delivery`. Supports: [793a2e1a What was delivered and what was wr
 
 ```gherkin
 Scenario: 793d4p1a A record that was not told becomes a line
-  Given the records of a session of the kinds written, skipped with a slug, skipped without one and failed, and a session that was told none
+  Given the records of a session of the kinds written, skipped with a slug, skipped without one, failed without a slug and failed with one, and a session that was told none
   When the delivery is given a prompt of that session
   Then the block ends with a line for each, oldest first, each beginning with an asterisk and a space and the time of its record, and saying what became of it
 
@@ -1363,6 +1363,19 @@ Scenario: 793a2e1c A delivery that could not be done is shown with its reason
 ```
 
 Realized by [793d2a Prompt delivery flow](#793d2a-prompt-delivery-flow) (the mod ends the delivery at its bound, lets the [prompt](./793a_product-spec.md#793a1a-terms) go on and reports the failure to the writing, from a timer), [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did) (the writing records it as a failure) and [793d4p Telling what automatic memory did](#793d4p-telling-what-automatic-memory-did) (the block of the next prompt carries its line).
+
+### 793d5zi Mapping of 793a2e1d
+
+The product scenario [793a2e1d A write that failed is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios), restated in full at its first mapping location:
+
+```gherkin
+Scenario: 793a2e1d A write that failed is shown with its reason
+  Given the user has run engram update, and a vault that cannot be written
+  When the user corrects the agent in a prompt, the turn ends, and the user sends another prompt
+  Then the second prompt arrives with a line that says the write failed, with the reason
+```
+
+Realized by [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did) (a lesson that cannot be written is recorded as failed, with its slug and the cause) and [793d4p Telling what automatic memory did](#793d4p-telling-what-automatic-memory-did) (the line says `writing` and the slug, and the reason is cut in its middle, so that the cause at its end stays).
 
 ## 793d6 Recommended impact
 
