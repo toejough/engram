@@ -74,9 +74,10 @@ func Test855d4b1i_Recall_ACandidateCannotReshapeTheRequestOrHoldACredential(t *t
 			}
 		}
 
+		// the cut comes before the escape, which writes a < as four characters
 		_, text, _ := strings.Cut(lines[1], "(2026-10-14; passage): ")
-		if utf8.RuneCountInString(text) > 1200 {
-			rt.Fatalf("a chunk of %d characters is in the request", utf8.RuneCountInString(text))
+		if length := utf8.RuneCountInString(strings.ReplaceAll(text, "&lt;", "<")); length > 1200 {
+			rt.Fatalf("a chunk of %d characters is in the request", length)
 		}
 	})
 }

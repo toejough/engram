@@ -89,6 +89,9 @@ const (
 	// candidatesShape is the prompt of the request: the window and the section of candidates, each between its tags.
 	candidatesShape = "<window>\n%s\n</window>\n<candidates>\n%s\n</candidates>"
 	deepPhrases     = 10
+	// passageLimit is how many characters of a chunk a candidate line holds at most: a stretch of conversation is
+	// longer than a note's lines (855b33).
+	passageLimit = 1200
 	glancePhrases   = 3
 	recallMaxTokens = 4000
 	recallModel     = "sonnet"
@@ -108,9 +111,9 @@ var deepInstructions string
 // candidateLine is the line of a candidate: its ID, its situation or the word passage, and its text, written as one
 // line and redacted (855d8b, 793d4j).
 func candidateLine(candidate Candidate) string {
-	about := candidate.Situation
+	about, text := candidate.Situation, oneRedacted(candidate.Text)
 	if candidate.Kind == KindPassage {
-		about = KindPassage
+		about, text = KindPassage, clipped(text, passageLimit)
 	}
 
 	date := candidate.Date
@@ -119,7 +122,7 @@ func candidateLine(candidate Candidate) string {
 	}
 
 	return escaped("- " + oneRedacted(candidate.ID) + " (" + oneRedacted(date) + "; " + oneRedacted(about) +
-		"): " + oneRedacted(candidate.Text))
+		"): " + text)
 }
 
 // phraseLimit is how many phrases the lookup is run for at a depth.
