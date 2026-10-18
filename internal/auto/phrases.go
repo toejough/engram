@@ -46,7 +46,7 @@ func Phrases(input PhrasesInput) (Step, bool, error) {
 
 	return Step{
 		Request: ModelRequest{
-			Model: phrasesModel, System: strings.Replace(phraseInstructions, "{{count}}", countFor(reply.Depth), 1),
+			Model: midTier, System: strings.Replace(phraseInstructions, "{{count}}", countFor(reply.Depth), 1),
 			Prompt: fmt.Sprintf(windowShape, escaped(input.Carry.Window)), MaxTokens: phrasesMaxTokens,
 		},
 		Carry: Carry{Cue: input.Carry.Cue, Depth: reply.Depth, Window: input.Carry.Window},
@@ -59,7 +59,6 @@ const (
 	deepCount        = "Write exactly 10 short queryable phrases, one for each of these ten angles"
 	glanceCount      = "Write about 3 short queryable phrases, from the angles below that fit the moment best"
 	phrasesMaxTokens = 1000
-	phrasesModel     = "sonnet"
 )
 
 //go:embed prompts/phrases.txt

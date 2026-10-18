@@ -129,6 +129,7 @@ var (
 	ExportHashUnknown                      = hashUnknown
 	ExportIDAndDateFromNoteFilename        = idAndDateFromNoteFilename
 	ExportIndexPathFor                     = indexPathFor
+	ExportIndexReader                      = indexReader
 	ExportInitVaultFromFS                  = initVaultFromFS
 	ExportInitializeVault                  = initializeVault
 	ExportIsQAQuestionFilename             = isQAQuestionFilename

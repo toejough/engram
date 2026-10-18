@@ -2,7 +2,6 @@ package cli
 
 import (
 	"bytes"
-	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,8 +10,6 @@ import (
 	"slices"
 	"strings"
 	"time"
-
-	"go.yaml.in/yaml/v3"
 
 	"github.com/toejough/engram/internal/auto"
 	"github.com/toejough/engram/internal/chunk"
@@ -73,6 +70,18 @@ func RunAutoRecall(ctx context.Context, args AutoRecallArgs, deps AutoRecallDeps
 	return printStep(stdout, "auto recall", step)
 }
 
+// byScore orders the items by their scores, the highest first.
+func byScore(left, right queryItem) int {
+	switch {
+	case left.Score > right.Score:
+		return -1
+	case left.Score < right.Score:
+		return 1
+	default:
+		return 0
+	}
+}
+
 // candidatesOf reads the notes and the passages that matched out of an `engram query` payload, in the order of the
 // payload: not a note that only the explore half picked, and not a chunk that only the recency channel gave (855d4b).
 // Nor is a chunk of the session's own transcript. The text of a chunk is read from the index file of its source, as
@@ -80,28 +89,25 @@ func RunAutoRecall(ctx context.Context, args AutoRecallArgs, deps AutoRecallDeps
 func candidatesOf(
 	payload []byte, session, chunksDir string, readChunks func(dir, source string) ([]chunk.Record, error),
 ) ([]auto.Candidate, error) {
-	var parsed queryPayload
-
-	parseErr := yaml.Unmarshal(payload, &parsed)
-	if parseErr != nil {
-		return nil, fmt.Errorf("reading the payload: %w", parseErr)
+	items, itemsErr := payloadItems(payload)
+	if itemsErr != nil {
+		return nil, itemsErr
 	}
 
 	// the candidates are in the order of their scores, and the payload lists the notes before the chunks (855b59)
-	slices.SortStableFunc(parsed.Items, func(left, right queryItem) int { return cmp.Compare(right.Score, left.Score) })
+	slices.SortStableFunc(items, byScore)
 
 	bySource := make(map[string]map[string]chunk.Record)
-	candidates := make([]auto.Candidate, 0, len(parsed.Items))
+	candidates := make([]auto.Candidate, 0, len(items))
 
-	for _, item := range parsed.Items {
+	for _, item := range items {
 		if slices.Equal(item.Provenances, []string{provenanceExplore}) ||
 			slices.Equal(item.Provenances, []string{provenanceRecent}) {
 			continue
 		}
 
 		if item.Kind != chunkItemKind {
-			frontmatter, body, _ := splitFrontmatterAndBody(item.Content)
-			fields := noteFieldsOf([]byte(frontmatter))
+			fields, body := noteOf(item)
 
 			candidates = append(candidates, auto.Candidate{
 				ID: item.Path, Kind: auto.KindNote, Type: item.Kind, Date: fields.Created, Situation: fields.Situation,
@@ -165,29 +171,31 @@ func dayOf(indexed time.Time) string {
 	return indexed.UTC().Format(noteDateFormat)
 }
 
-// readIndexFile reads the records of one index file of the chunk index.
-func readIndexFile(path string, readFile func(string) ([]byte, error)) ([]chunk.Record, error) {
-	data, err := readFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("reading %s: %w", path, err)
-	}
+// indexReader returns the reading of the index file of a source in a directory of chunk indexes.
+func indexReader(readFile func(string) ([]byte, error)) func(dir, source string) ([]chunk.Record, error) {
+	return func(dir, source string) ([]chunk.Record, error) {
+		path := indexPathFor(dir, source)
 
-	records, decodeErr := chunk.DecodeRecords(data)
-	if decodeErr != nil {
-		return nil, fmt.Errorf("%s: %w", path, decodeErr)
-	}
+		data, err := readFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("reading %s: %w", path, err)
+		}
 
-	return records, nil
+		records, decodeErr := chunk.DecodeRecords(data)
+		if decodeErr != nil {
+			return nil, fmt.Errorf("%s: %w", path, decodeErr)
+		}
+
+		return records, nil
+	}
 }
 
 // newAutoRecallDeps wires RunAutoRecall from the injected CLI capabilities - pure composition (#700). The lookup is the
 // one of the delivery, whose warnings go to the debug log.
 func newAutoRecallDeps(d Deps) AutoRecallDeps {
 	return AutoRecallDeps{
-		Stdin: d.Stdin,
-		Query: newAutoDeliverDeps(d).Query,
-		ReadChunks: func(dir, source string) ([]chunk.Record, error) {
-			return readIndexFile(indexPathFor(dir, source), d.FS.ReadFile)
-		},
+		Stdin:      d.Stdin,
+		Query:      newAutoDeliverDeps(d).Query,
+		ReadChunks: indexReader(d.FS.ReadFile),
 	}
 }

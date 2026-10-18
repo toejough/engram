@@ -42,7 +42,7 @@ func Moment(record []byte, input MomentInput) Step {
 
 	return Step{
 		Request: ModelRequest{
-			Model: momentModel, Effort: momentEffort, System: recallMoment,
+			Model: cheapTier, Effort: momentEffort, System: recallMoment,
 			Prompt: fmt.Sprintf(windowShape, window), MaxTokens: momentMaxTokens,
 		},
 		Carry: Carry{Cue: input.Cue, Window: window},
@@ -53,7 +53,6 @@ func Moment(record []byte, input MomentInput) Step {
 const (
 	momentEffort    = "low"
 	momentMaxTokens = 200
-	momentModel     = "haiku"
 	// windowShape is the prompt of a request that holds the window only: the window between its tags.
 	windowShape = "<window>\n%s\n</window>"
 )

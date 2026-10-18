@@ -61,7 +61,7 @@ func Judge(ctx context.Context, record []byte, end TurnEnd, lookup Lookup) (Judg
 	window := slices.Concat(before, []string{divider}, turn)
 
 	return Judgement{
-		Model: judgeModel, Effort: judgeEffort, System: instructions,
+		Model: cheapTier, Effort: judgeEffort, System: instructions,
 		Prompt:    fmt.Sprintf(promptShape, strings.Join(window, "\n"), noteLines(notes)),
 		MaxTokens: judgeMaxTokens, TimeoutMs: judgeTimeoutMs,
 	}, true, nil
@@ -78,7 +78,6 @@ const (
 	divider        = "--- the turn ---"
 	judgeEffort    = "low"
 	judgeMaxTokens = 1500
-	judgeModel     = "haiku"
 	judgeTimeoutMs = 60000
 	// leftOut stands in the turn for the lines of its middle that the window could not hold.
 	leftOut = "--- some of the turn is left out ---"

@@ -159,6 +159,81 @@ func Test855d4b1c_Recall_AReplyThatIsNotAPhrasesReplyFailsTheCommand(t *testing.
 	}
 }
 
+func Test855d4b1d_Recall_ANoteWithNoFrontMatterIsACandidateWholeAndTheIndexReaderReadsOneFile(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a note with no front matter is a candidate whole", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		var out bytes.Buffer
+
+		item := "  - path: 1.bare.md\n    kind: fact\n    score: 0.9\n    provenances: [direct]\n" +
+			"    content: just a body\n"
+
+		err := cli.RunAutoRecall(context.Background(), cli.AutoRecallArgs{VaultPath: "/a/vault"},
+			cli.AutoRecallDeps{
+				Stdin: recallInput("glance", "staging resets"), Query: payloadQuery(payloadOf(item)), ReadChunks: chunksRead(),
+			}, &out)
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(candidateLines(t, out.Bytes())).To(Equal([]string{"- 1.bare.md (undated; fact): just a body"}))
+	})
+
+	t.Run("the index reader reads the file of a source and fails on a missing or corrupt one", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		dir := t.TempDir()
+		records := []chunk.Record{{Source: "/sessions/earlier.jsonl", Anchor: "turn-3", Text: "USER: a."}}
+		encoded, encodeErr := chunk.EncodeRecords(records)
+		g.Expect(encodeErr).NotTo(HaveOccurred())
+		g.Expect(os.WriteFile(cli.ExportIndexPathFor(dir, "/sessions/earlier.jsonl"), encoded, 0o600)).To(Succeed())
+		corrupt := cli.ExportIndexPathFor(dir, "/sessions/corrupt.jsonl")
+		g.Expect(os.WriteFile(corrupt, []byte("{not json"), 0o600)).To(Succeed())
+
+		read := cli.ExportIndexReader(os.ReadFile)
+
+		got, err := read(dir, "/sessions/earlier.jsonl")
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(got).To(HaveLen(1))
+
+		_, missingErr := read(dir, "/sessions/missing.jsonl")
+		g.Expect(missingErr).To(MatchError(ContainSubstring("reading")))
+
+		_, corruptErr := read(dir, "/sessions/corrupt.jsonl")
+		g.Expect(corruptErr).To(HaveOccurred())
+	})
+}
+
+func Test855d4b1d_Recall_OnlyTheIndexFilesOfTheSourcesThatMatchedAreRead(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	own := "/home/joe/.claude/projects/-home-joe-zorblax/" + sessionID + ".jsonl"
+	payload := payloadOf(
+		chunkItem("/sessions/earlier.jsonl#turn-3", "direct"), chunkItem("/sessions/earlier.jsonl#turn-5", "direct"),
+		chunkItem("/sessions/another.jsonl#turn-1", "direct"), chunkItem(own+"#turn-2", "direct"))
+	records := chunksRead(
+		chunk.Record{Source: "/sessions/earlier.jsonl", Anchor: "turn-3", Text: "USER: a."},
+		chunk.Record{Source: "/sessions/earlier.jsonl", Anchor: "turn-5", Text: "USER: b."},
+		chunk.Record{Source: "/sessions/another.jsonl", Anchor: "turn-1", Text: "USER: c."})
+
+	var read []string
+
+	err := cli.RunAutoRecall(context.Background(), cli.AutoRecallArgs{VaultPath: "/a/vault", ChunksDir: "/a/chunks"},
+		cli.AutoRecallDeps{
+			Stdin: recallInput("glance", "staging resets"), Query: payloadQuery(payload),
+			ReadChunks: func(dir, source string) ([]chunk.Record, error) {
+				read = append(read, dir+" "+source)
+
+				return records(dir, source)
+			},
+		}, io.Discard)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(read).To(Equal([]string{"/a/chunks /sessions/earlier.jsonl", "/a/chunks /sessions/another.jsonl"}),
+		"each matched source once, and not the session's own")
+}
+
 func Test855d4b1d_Recall_TheNotesAndPassagesThatMatchedBecomeCandidatesTheExplorePicksAndTheNewestChunks(
 	t *testing.T,
 ) {
@@ -193,35 +268,6 @@ func Test855d4b1d_Recall_TheNotesAndPassagesThatMatchedBecomeCandidatesTheExplor
 		g.Expect(lines[1]).To(Equal(
 			"- /sessions/earlier.jsonl#turn-3 (undated; passage): USER: the staging resets on Sunday."))
 	}
-}
-
-func Test855d4b1d_Recall_OnlyTheIndexFilesOfTheSourcesThatMatchedAreRead(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	own := "/home/joe/.claude/projects/-home-joe-zorblax/" + sessionID + ".jsonl"
-	payload := payloadOf(
-		chunkItem("/sessions/earlier.jsonl#turn-3", "direct"), chunkItem("/sessions/earlier.jsonl#turn-5", "direct"),
-		chunkItem("/sessions/another.jsonl#turn-1", "direct"), chunkItem(own+"#turn-2", "direct"))
-	records := chunksRead(
-		chunk.Record{Source: "/sessions/earlier.jsonl", Anchor: "turn-3", Text: "USER: a."},
-		chunk.Record{Source: "/sessions/earlier.jsonl", Anchor: "turn-5", Text: "USER: b."},
-		chunk.Record{Source: "/sessions/another.jsonl", Anchor: "turn-1", Text: "USER: c."})
-
-	var read []string
-
-	err := cli.RunAutoRecall(context.Background(), cli.AutoRecallArgs{VaultPath: "/a/vault", ChunksDir: "/a/chunks"},
-		cli.AutoRecallDeps{
-			Stdin: recallInput("glance", "staging resets"), Query: payloadQuery(payload),
-			ReadChunks: func(dir, source string) ([]chunk.Record, error) {
-				read = append(read, dir+" "+source)
-
-				return records(dir, source)
-			},
-		}, io.Discard)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(read).To(Equal([]string{"/a/chunks /sessions/earlier.jsonl", "/a/chunks /sessions/another.jsonl"}),
-		"each matched source once, and not the session's own")
 }
 
 func Test855d4b1e_Recall_AChunkOfTheSessionsOwnTranscriptIsNotACandidate(t *testing.T) {
@@ -260,53 +306,6 @@ func Test855d4b1f_Recall_NothingMatchedPrintsNothing(t *testing.T) {
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(out.String()).To(BeEmpty())
-}
-
-func Test855d4b1l_Recall_TheCandidatesAreInTheOrderOfTheirScoresAndNothingThatFitsPrintsNothing(t *testing.T) {
-	t.Parallel()
-
-	t.Run("a chunk that scores higher than a note comes first", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		payload := payloadOf(
-			noteItem("1.2026-10-17.zorblax-staging-reset.md", "direct", "2026-10-17", resetSituation, resetBody),
-			strings.Replace(chunkItem("/sessions/earlier.jsonl#turn-3", "direct"), "score: 0.5", "score: 0.95", 1))
-
-		var out bytes.Buffer
-
-		err := cli.RunAutoRecall(context.Background(), cli.AutoRecallArgs{VaultPath: "/a/vault"},
-			cli.AutoRecallDeps{
-				Stdin: recallInput("glance", "staging resets"), Query: payloadQuery(payload),
-				ReadChunks: chunksRead(chunk.Record{Source: "/sessions/earlier.jsonl", Anchor: "turn-3", Text: "USER: x."}),
-			}, &out)
-		g.Expect(err).NotTo(HaveOccurred())
-
-		lines := candidateLines(t, out.Bytes())
-
-		g.Expect(lines).To(HaveLen(2))
-
-		if len(lines) == 2 {
-			g.Expect(lines[0]).To(HavePrefix("- /sessions/earlier.jsonl#turn-3 "))
-		}
-	})
-
-	t.Run("a note of more than 60,000 characters alone prints nothing", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		var out bytes.Buffer
-
-		err := cli.RunAutoRecall(context.Background(), cli.AutoRecallArgs{VaultPath: "/a/vault"},
-			cli.AutoRecallDeps{
-				Stdin: recallInput("glance", "staging resets"), ReadChunks: chunksRead(),
-				Query: payloadQuery(payloadOf(noteItem("1.2026-10-17.zorblax-long.md", "direct", "2026-10-17",
-					resetSituation, strings.Repeat("long ", 13000)))),
-			}, &out)
-
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(out.String()).To(BeEmpty())
-	})
 }
 
 func Test855d4b1g_Recall_TheRequestIsForTheMidTierAndHoldsTheVerdictsTheWindowAndTheDated(t *testing.T) {
@@ -467,6 +466,53 @@ func Test855d4b1k_Recall_AWarningOfTheLookupIsNoLineForTheUser(t *testing.T) {
 	g.Expect(stdout.String()).To(ContainSubstring(resetNoteName), "the note that is fit is a candidate")
 	g.Expect(stderr).To(BeEmpty(), "what the user is shown")
 	g.Expect(debug.String()).To(ContainSubstring("dropped 1 sidecar"), "the debug log holds the warning of the lookup")
+}
+
+func Test855d4b1l_Recall_TheCandidatesAreInTheOrderOfTheirScoresAndNothingThatFitsPrintsNothing(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a chunk that scores higher than a note comes first", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		payload := payloadOf(
+			noteItem("1.2026-10-17.zorblax-staging-reset.md", "direct", "2026-10-17", resetSituation, resetBody),
+			strings.Replace(chunkItem("/sessions/earlier.jsonl#turn-3", "direct"), "score: 0.5", "score: 0.95", 1))
+
+		var out bytes.Buffer
+
+		err := cli.RunAutoRecall(context.Background(), cli.AutoRecallArgs{VaultPath: "/a/vault"},
+			cli.AutoRecallDeps{
+				Stdin: recallInput("glance", "staging resets"), Query: payloadQuery(payload),
+				ReadChunks: chunksRead(chunk.Record{Source: "/sessions/earlier.jsonl", Anchor: "turn-3", Text: "USER: x."}),
+			}, &out)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		lines := candidateLines(t, out.Bytes())
+
+		g.Expect(lines).To(HaveLen(2))
+
+		if len(lines) == 2 {
+			g.Expect(lines[0]).To(HavePrefix("- /sessions/earlier.jsonl#turn-3 "))
+		}
+	})
+
+	t.Run("a note of more than 60,000 characters alone prints nothing", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		var out bytes.Buffer
+
+		err := cli.RunAutoRecall(context.Background(), cli.AutoRecallArgs{VaultPath: "/a/vault"},
+			cli.AutoRecallDeps{
+				Stdin: recallInput("glance", "staging resets"), ReadChunks: chunksRead(),
+				Query: payloadQuery(payloadOf(noteItem("1.2026-10-17.zorblax-long.md", "direct", "2026-10-17",
+					resetSituation, strings.Repeat("long ", 13000)))),
+			}, &out)
+
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(out.String()).To(BeEmpty())
+	})
 }
 
 // unexported constants.

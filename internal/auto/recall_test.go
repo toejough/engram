@@ -14,6 +14,54 @@ import (
 	"github.com/toejough/engram/internal/auto"
 )
 
+func Test855d4b1h_Recall_TheLimitOnTheReplyHoldsADeepReplyForTheMostCandidatesWithFieldsAndLessons(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// the reply shape of 855d4b1h at its largest: 20 notes judged near, with 3 chunks, 3 fields and a newer note, 10
+	// passages, and 6 lessons that supersede a note, each with 3 chunks
+	const chunkID = "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11" +
+		".jsonl#turn-123"
+
+	const noteID = "123.2026-10-17.zorblax-staging-database-is-reset-every-sunday-at-0340-utc.md"
+
+	chunks := []string{chunkID, chunkID, chunkID}
+	entries := make([]map[string]any, 0, auto.MaxCandidates)
+
+	for index := range auto.MaxCandidates {
+		entry := map[string]any{"id": chunkID, "verdict": "evidence"}
+
+		if index < 20 {
+			entry = map[string]any{
+				"id": noteID, "verdict": "near", "newer": noteID, "chunks": chunks,
+				"fields": map[string]string{
+					"subject": "the Zorblax staging database and its reset", "predicate": "is reset every",
+					"object": "Sunday at 03:40 UTC, so test runs are scheduled after that",
+				},
+			}
+		}
+
+		entries = append(entries, entry)
+	}
+
+	lesson := map[string]any{
+		"kind": "fact", "slug": "zorblax-staging-reset", "covered": nil, "chunks": chunks,
+		"situation": "scheduling a test run against the Zorblax staging database",
+		"subject":   "the Zorblax staging database", "predicate": "is reset every", "object": "Sunday at 03:40 UTC",
+		"supersedes": noteID, "type": "updates", "claim": "the reset moved from Saturday to Sunday",
+	}
+
+	reply, err := json.Marshal(map[string]any{"candidates": entries, "lessons": slices.Repeat([]any{lesson}, 6)})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// a token holds 3 characters of such a reply at the least
+	const charactersPerToken = 3
+
+	step, _ := auto.Recall(recallOf("deep"), candidatesOfKinds(1, 0))
+
+	g.Expect(step.Request.MaxTokens).To(BeNumerically(">=", len(reply)/charactersPerToken))
+}
+
 func Test855d4b1i_Recall_ACandidateCannotReshapeTheRequestOrHoldACredential(t *testing.T) {
 	t.Parallel()
 
@@ -43,6 +91,35 @@ func Test855d4b1i_Recall_ACandidateCannotReshapeTheRequestOrHoldACredential(t *t
 	})
 
 	rapid.Check(t, checkRecallIsSafe)
+}
+
+// Test855d4b1l_Recall_AMixedMatchedSetKeepsAFloorOfPassages proves the floor of passages under the cap (855b59).
+func Test855d4b1l_Recall_AMixedMatchedSetKeepsAFloorOfPassages(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		notes, passages := rapid.IntRange(0, 45).Draw(rt, "notes"), rapid.IntRange(0, 45).Draw(rt, "passages")
+		matched := rapid.Permutation(candidatesOfKinds(notes, passages)).Draw(rt, "order")
+
+		step, _ := auto.Recall(recallOf("glance"), matched)
+		held := step.Carry.Candidates
+
+		if len(held) != min(auto.MaxCandidates, notes+passages) {
+			rt.Fatalf("%d candidates of %d notes and %d passages", len(held), notes, passages)
+		}
+
+		if got := passagesIn(held); got < min(10, passages) {
+			rt.Fatalf("%d passages of %d notes and %d passages", got, notes, passages)
+		}
+
+		if got := len(held) - passagesIn(held); got < min(20, notes) {
+			rt.Fatalf("%d notes of %d notes and %d passages", got, notes, passages)
+		}
+
+		if !isSubsequence(idsOf(held), idsOf(matched)) {
+			rt.Fatalf("the candidates are not in the order of the matched set: %v", idsOf(held))
+		}
+	})
 }
 
 func Test855d4b1l_Recall_TheCandidatesAreHeldToACountAndABudget(t *testing.T) {
@@ -106,135 +183,15 @@ func Test855d4b1l_Recall_TheCandidatesAreHeldToACountAndABudget(t *testing.T) {
 		g.Expect(passagesIn(step.Carry.Candidates)).To(Equal(10))
 	})
 
-	rapid.Check(t, func(rt *rapid.T) {
-		// a matched set of many short candidates meets the cap on the count, and one of a few long candidates meets the
-		// budget of text, so that neither run holds more text than the test needs
-		long := rapid.Bool().Draw(rt, "long")
-		count, sizes := rapid.IntRange(1, 45).Draw(rt, "count"), []int{0, 1, 5}
-
-		if long {
-			count, sizes = rapid.IntRange(1, 14).Draw(rt, "count"), []int{0, 20, 300, 1000}
-		}
-
-		matched := make([]auto.Candidate, 0, count)
-
-		for index := range count {
-			candidate := auto.Candidate{
-				ID: "n" + strconv.Itoa(index) + ".md", Kind: auto.KindNote, Date: "2026-10-17", Situation: "s",
-			}
-			words := rapid.SampledFrom(sizes).Draw(rt, "words")
-
-			if rapid.Bool().Draw(rt, "is a chunk") {
-				candidate.ID, candidate.Kind = "c"+strconv.Itoa(index)+"#turn-1", auto.KindPassage
-			}
-
-			candidate.Text = strings.Repeat("word ", words)
-			matched = append(matched, candidate)
-		}
-
-		step, found := auto.Recall(recallOf("glance"), matched)
-		lines := candidatesOf(step.Request.Prompt)
-
-		if found != (len(step.Carry.Candidates) > 0) {
-			rt.Fatalf("found is %v for %d candidates", found, len(step.Carry.Candidates))
-		}
-
-		if len(lines) > 30 {
-			rt.Fatalf("%d candidates", len(lines))
-		}
-
-		if !isSubsequence(idsOf(step.Carry.Candidates), idsOf(matched)) {
-			rt.Fatalf("the candidates are not in the order of the matched set: %v", idsOf(step.Carry.Candidates))
-		}
-
-		total := 0
-
-		for _, line := range lines {
-			_, text, _ := strings.Cut(line, "): ")
-			total += utf8.RuneCountInString(text)
-		}
-
-		if total > 60000 {
-			rt.Fatalf("%d characters of text", total)
-		}
-	})
+	rapid.Check(t, checkCandidatesAreHeld)
 }
 
-func Test855d4b1h_Recall_TheLimitOnTheReplyHoldsADeepReplyForTheMostCandidatesWithFieldsAndLessons(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
+// candidatesOf returns the lines of the section of candidates of a prompt: the lines between the tags that hold it.
+func candidatesOf(prompt string) []string {
+	_, rest, _ := strings.Cut(prompt, "<candidates>\n")
+	section, _, _ := strings.Cut(rest, "\n</candidates>")
 
-	// the reply shape of 855d4b1h at its largest: 20 notes judged near, with 3 chunks, 3 fields and a newer note, 10
-	// passages, and 6 lessons that supersede a note, each with 3 chunks
-	const chunkID = "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11" +
-		".jsonl#turn-123"
-
-	const noteID = "123.2026-10-17.zorblax-staging-database-is-reset-every-sunday-at-0340-utc.md"
-
-	chunks := []string{chunkID, chunkID, chunkID}
-	entries := make([]map[string]any, 0, auto.MaxCandidates)
-
-	for index := range auto.MaxCandidates {
-		entry := map[string]any{"id": chunkID, "verdict": "evidence"}
-
-		if index < 20 {
-			entry = map[string]any{
-				"id": noteID, "verdict": "near", "newer": noteID, "chunks": chunks,
-				"fields": map[string]string{
-					"subject": "the Zorblax staging database and its reset", "predicate": "is reset every",
-					"object": "Sunday at 03:40 UTC, so test runs are scheduled after that",
-				},
-			}
-		}
-
-		entries = append(entries, entry)
-	}
-
-	lesson := map[string]any{
-		"kind": "fact", "slug": "zorblax-staging-reset", "covered": nil, "chunks": chunks,
-		"situation": "scheduling a test run against the Zorblax staging database",
-		"subject":   "the Zorblax staging database", "predicate": "is reset every", "object": "Sunday at 03:40 UTC",
-		"supersedes": noteID, "type": "updates", "claim": "the reset moved from Saturday to Sunday",
-	}
-
-	reply, err := json.Marshal(map[string]any{"candidates": entries, "lessons": slices.Repeat([]any{lesson}, 6)})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	// a token holds 3 characters of such a reply at the least
-	const charactersPerToken = 3
-
-	step, _ := auto.Recall(recallOf("deep"), candidatesOfKinds(1, 0))
-
-	g.Expect(step.Request.MaxTokens).To(BeNumerically(">=", len(reply)/charactersPerToken))
-}
-
-// Test855d4b1l_Recall_AMixedMatchedSetKeepsAFloorOfPassages proves the floor of passages under the cap (855b59).
-func Test855d4b1l_Recall_AMixedMatchedSetKeepsAFloorOfPassages(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		notes, passages := rapid.IntRange(0, 45).Draw(rt, "notes"), rapid.IntRange(0, 45).Draw(rt, "passages")
-		matched := rapid.Permutation(candidatesOfKinds(notes, passages)).Draw(rt, "order")
-
-		step, _ := auto.Recall(recallOf("glance"), matched)
-		held := step.Carry.Candidates
-
-		if len(held) != min(auto.MaxCandidates, notes+passages) {
-			rt.Fatalf("%d candidates of %d notes and %d passages", len(held), notes, passages)
-		}
-
-		if got := passagesIn(held); got < min(10, passages) {
-			rt.Fatalf("%d passages of %d notes and %d passages", got, notes, passages)
-		}
-
-		if got := len(held) - passagesIn(held); got < min(20, notes) {
-			rt.Fatalf("%d notes of %d notes and %d passages", got, notes, passages)
-		}
-
-		if !isSubsequence(idsOf(held), idsOf(matched)) {
-			rt.Fatalf("the candidates are not in the order of the matched set: %v", idsOf(held))
-		}
-	})
+	return strings.Split(section, "\n")
 }
 
 // candidatesOfKinds returns short notes and then short passages, with IDs that tell them apart.
@@ -256,46 +213,86 @@ func candidatesOfKinds(notes, passages int) []auto.Candidate {
 	return matched
 }
 
-// isSubsequence reports whether the IDs are some of the matched IDs, in the order of the matched IDs.
-func isSubsequence(ids, matched []string) bool {
-	next := 0
+// checkCandidatesAreHeld fails when a matched set of any size is held to more than 30 candidates, to more than 60,000
+// characters of text, or out of its order.
+func checkCandidatesAreHeld(rt *rapid.T) {
+	rt.Helper()
 
-	for _, id := range ids {
-		found := slices.Index(matched[next:], id)
-		if found < 0 {
-			return false
+	// a matched set of many short candidates meets the cap on the count, and one of a few long candidates meets the
+	// budget of text, so that neither run holds more text than the test needs
+	long := rapid.Bool().Draw(rt, "long")
+	count, sizes := rapid.IntRange(1, 45).Draw(rt, "count"), []int{0, 1, 5}
+
+	if long {
+		count, sizes = rapid.IntRange(1, 14).Draw(rt, "count"), []int{0, 20, 300, 1000}
+	}
+
+	matched := make([]auto.Candidate, 0, count)
+
+	for index := range count {
+		candidate := auto.Candidate{
+			ID: "n" + strconv.Itoa(index) + ".md", Kind: auto.KindNote, Date: "2026-10-17", Situation: "s",
+		}
+		words := rapid.SampledFrom(sizes).Draw(rt, "words")
+
+		if rapid.Bool().Draw(rt, "is a chunk") {
+			candidate.ID, candidate.Kind = "c"+strconv.Itoa(index)+"#turn-1", auto.KindPassage
 		}
 
-		next += found + 1
+		candidate.Text = strings.Repeat("word ", words)
+		matched = append(matched, candidate)
 	}
 
-	return true
-}
+	step, found := auto.Recall(recallOf("glance"), matched)
+	lines := candidatesOf(step.Request.Prompt)
 
-// passagesIn counts the passages among candidates.
-func passagesIn(candidates []auto.Candidate) int {
-	return len(slices.DeleteFunc(slices.Clone(candidates), func(candidate auto.Candidate) bool {
-		return candidate.Kind != auto.KindPassage
-	}))
-}
-
-// idsOf returns the IDs of candidates, in their order.
-func idsOf(candidates []auto.Candidate) []string {
-	ids := make([]string, 0, len(candidates))
-
-	for _, candidate := range candidates {
-		ids = append(ids, candidate.ID)
+	if found != (len(step.Carry.Candidates) > 0) {
+		rt.Fatalf("found is %v for %d candidates", found, len(step.Carry.Candidates))
 	}
 
-	return ids
+	if len(lines) > 30 {
+		rt.Fatalf("%d candidates", len(lines))
+	}
+
+	if !isSubsequence(idsOf(step.Carry.Candidates), idsOf(matched)) {
+		rt.Fatalf("the candidates are not in the order of the matched set: %v", idsOf(step.Carry.Candidates))
+	}
+
+	total := 0
+
+	for _, line := range lines {
+		_, text, _ := strings.Cut(line, "): ")
+		total += utf8.RuneCountInString(text)
+	}
+
+	if total > 60000 {
+		rt.Fatalf("%d characters of text", total)
+	}
 }
 
-// candidatesOf returns the lines of the section of candidates of a prompt: the lines between the tags that hold it.
-func candidatesOf(prompt string) []string {
-	_, rest, _ := strings.Cut(prompt, "<candidates>\n")
-	section, _, _ := strings.Cut(rest, "\n</candidates>")
+// checkCarryIsSafe fails when the carry holds a credential or a line break, or holds a chunk cut shorter than the line
+// of it in the request does (855b55): the line holds the chunk to 1,200 characters, and the carry in full.
+func checkCarryIsSafe(rt *rapid.T, held []auto.Candidate, secrets []string, passageLine string) {
+	rt.Helper()
 
-	return strings.Split(section, "\n")
+	for _, candidate := range held {
+		for _, secret := range secrets {
+			if strings.Contains(candidate.Text, secret) || strings.Contains(candidate.Situation, secret) {
+				rt.Fatalf("the carry holds the secret %q: %+v", secret, candidate)
+			}
+		}
+
+		if strings.ContainsAny(candidate.Text+candidate.Situation, "\n\r") {
+			rt.Fatalf("the carry holds a line break: %+v", candidate)
+		}
+	}
+
+	const cutLength = 1200
+
+	carried := utf8.RuneCountInString(held[1].Text)
+	if lined := utf8.RuneCountInString(strings.ReplaceAll(passageLine, "&lt;", "<")); lined != min(carried, cutLength) {
+		rt.Fatalf("the carry holds %d characters of a chunk that the request holds %d of", carried, lined)
+	}
 }
 
 // checkRecallIsSafe asks the recall about a note and a chunk of hostile texts that hold the two credentials, and fails
@@ -350,29 +347,38 @@ func checkRecallIsSafe(rt *rapid.T) {
 	}
 }
 
-// checkCarryIsSafe fails when the carry holds a credential or a line break, or holds a chunk cut shorter than the line
-// of it in the request does (855b55): the line holds the chunk to 1,200 characters, and the carry in full.
-func checkCarryIsSafe(rt *rapid.T, held []auto.Candidate, secrets []string, passageLine string) {
-	rt.Helper()
+// idsOf returns the IDs of candidates, in their order.
+func idsOf(candidates []auto.Candidate) []string {
+	ids := make([]string, 0, len(candidates))
 
-	for _, candidate := range held {
-		for _, secret := range secrets {
-			if strings.Contains(candidate.Text, secret) || strings.Contains(candidate.Situation, secret) {
-				rt.Fatalf("the carry holds the secret %q: %+v", secret, candidate)
-			}
-		}
-
-		if strings.ContainsAny(candidate.Text+candidate.Situation, "\n\r") {
-			rt.Fatalf("the carry holds a line break: %+v", candidate)
-		}
+	for _, candidate := range candidates {
+		ids = append(ids, candidate.ID)
 	}
 
-	const cutLength = 1200
+	return ids
+}
 
-	carried := utf8.RuneCountInString(held[1].Text)
-	if lined := utf8.RuneCountInString(strings.ReplaceAll(passageLine, "&lt;", "<")); lined != min(carried, cutLength) {
-		rt.Fatalf("the carry holds %d characters of a chunk that the request holds %d of", carried, lined)
+// isSubsequence reports whether the IDs are some of the matched IDs, in the order of the matched IDs.
+func isSubsequence(ids, matched []string) bool {
+	next := 0
+
+	for _, id := range ids {
+		found := slices.Index(matched[next:], id)
+		if found < 0 {
+			return false
+		}
+
+		next += found + 1
 	}
+
+	return true
+}
+
+// passagesIn counts the passages among candidates.
+func passagesIn(candidates []auto.Candidate) int {
+	return len(slices.DeleteFunc(slices.Clone(candidates), func(candidate auto.Candidate) bool {
+		return candidate.Kind != auto.KindPassage
+	}))
 }
 
 // recallOf is the reply of the phrases judgement to the recall, with a window and a depth.

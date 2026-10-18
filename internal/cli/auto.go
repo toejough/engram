@@ -545,8 +545,42 @@ func noteFieldsOf(frontmatter []byte) noteFields {
 	return fields
 }
 
+// noteOf reads the fields and the body of the note that an item of the payload holds: the whole content is the body
+// when it holds no front matter.
+func noteOf(item queryItem) (noteFields, string) {
+	frontmatter, body, found := splitFrontmatterAndBody(item.Content)
+	if !found {
+		body = item.Content
+	}
+
+	return noteFieldsOf([]byte(frontmatter)), body
+}
+
 // notesOf reads the notes out of an `engram query` payload.
 func notesOf(payload []byte) ([]auto.Note, error) {
+	items, itemsErr := payloadItems(payload)
+	if itemsErr != nil {
+		return nil, itemsErr
+	}
+
+	notes := make([]auto.Note, 0, len(items))
+
+	for _, item := range items {
+		// an explore pick is sampled from the vocabulary, not matched to the text (793d4a)
+		if slices.Equal(item.Provenances, []string{provenanceExplore}) {
+			continue
+		}
+
+		fields, body := noteOf(item)
+
+		notes = append(notes, auto.Note{Path: item.Path, Situation: fields.Situation, Body: body, Source: fields.Source})
+	}
+
+	return notes, nil
+}
+
+// payloadItems reads the items out of an `engram query` payload.
+func payloadItems(payload []byte) ([]queryItem, error) {
 	var parsed queryPayload
 
 	parseErr := yaml.Unmarshal(payload, &parsed)
@@ -554,25 +588,7 @@ func notesOf(payload []byte) ([]auto.Note, error) {
 		return nil, fmt.Errorf("reading the payload: %w", parseErr)
 	}
 
-	notes := make([]auto.Note, 0, len(parsed.Items))
-
-	for _, item := range parsed.Items {
-		// an explore pick is sampled from the vocabulary, not matched to the text (793d4a)
-		if slices.Equal(item.Provenances, []string{provenanceExplore}) {
-			continue
-		}
-
-		frontmatter, body, found := splitFrontmatterAndBody(item.Content)
-		if !found {
-			body = item.Content
-		}
-
-		situation, source := situationAndSourceOf([]byte(frontmatter))
-
-		notes = append(notes, auto.Note{Path: item.Path, Situation: situation, Body: body, Source: source})
-	}
-
-	return notes, nil
+	return parsed.Items, nil
 }
 
 // pruneShown removes the records of a session whose line was shown, each with its mark, and then the directory of the
@@ -726,14 +742,6 @@ func shownRecords(entries []fs.DirEntry) map[string]bool {
 	}
 
 	return shown
-}
-
-// situationAndSourceOf extracts the situation and the source from the front matter of a note, or nothing when the
-// block does not parse.
-func situationAndSourceOf(frontmatter []byte) (situation, source string) {
-	fields := noteFieldsOf(frontmatter)
-
-	return fields.Situation, fields.Source
 }
 
 // sweepEndedMark returns the path of the mark of a session whose sweep was ended, or nothing when there is no directory

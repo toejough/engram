@@ -10,3 +10,11 @@ type ModelRequest struct {
 	MaxTokens int    `json:"maxTokens"`
 	TimeoutMs int    `json:"timeoutMs,omitempty"`
 }
+
+// unexported constants.
+const (
+	// cheapTier and midTier are the aliases of the models the steps are asked of: the cheap tier judges a moment and a
+	// turn, and the mid tier phrases the lookup and judges the candidates.
+	cheapTier = "haiku"
+	midTier   = "sonnet"
+)

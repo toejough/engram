@@ -20,8 +20,8 @@ const (
 
 // Exported variables.
 var (
-	ErrRecallDepth  = errors.New("the carry of the recall holds no depth of glance or deep")
 	ErrPhrasesReply = errors.New(`the reply of the phrases judgement is not {"phrases": [...]} with a phrase`)
+	ErrRecallDepth  = errors.New("the carry of the recall holds no depth of glance or deep")
 )
 
 // Candidate is a note or a passage the lookup matched, as the candidate judgement is asked about it (855d4b): its ID is
@@ -107,7 +107,7 @@ func Recall(input RecallInput, matched []Candidate) (Step, bool) {
 
 	return Step{
 		Request: ModelRequest{
-			Model: recallModel, System: system,
+			Model: midTier, System: system,
 			Prompt:    fmt.Sprintf(candidatesShape, escaped(input.Carry.Window), strings.Join(lines, "\n")),
 			MaxTokens: recallMaxTokens,
 		},
@@ -123,18 +123,17 @@ const (
 	// candidatesShape is the prompt of the request: the window and the section of candidates, each between its tags.
 	candidatesShape = "<window>\n%s\n</window>\n<candidates>\n%s\n</candidates>"
 	deepPhrases     = 10
+	glancePhrases   = 3
+	// parentMarker stands in the line of a candidate that comes from the parent vault.
+	parentMarker = "parent"
 	// passageFloor is how many of the candidates under the cap are passages at least, when so many matched (855b59).
 	passageFloor = 10
-	// parentMarker stands in the line of a candidate that comes from the parent vault.
-	parentMarker  = "parent"
-	glancePhrases = 3
 	// passageLimit is how many characters of a chunk a candidate line holds at most: a stretch of conversation is
 	// longer than a note's lines (855b33).
 	passageLimit = 1200
 	// recallMaxTokens holds a deep reply for the most candidates with fields and lessons: 21,900 characters at the
 	// most, 7,300 tokens at 3 characters to the token (855b61).
 	recallMaxTokens = 8000
-	recallModel     = "sonnet"
 	// undated stands in the line of a candidate for the date of one that has none: a chunk indexed before the index
 	// kept the time.
 	undated = "undated"
@@ -162,9 +161,7 @@ func candidateLine(candidate Candidate, text string) string {
 	if candidate.Kind == KindPassage {
 		about = append(about, KindPassage)
 	} else {
-		if candidate.Type != "" {
-			about = append(about, oneRedacted(candidate.Type))
-		}
+		about = append(about, oneRedacted(candidate.Type))
 
 		if candidate.Parent {
 			about = append(about, parentMarker)
@@ -173,7 +170,19 @@ func candidateLine(candidate Candidate, text string) string {
 		about = append(about, oneRedacted(candidate.Situation))
 	}
 
+	// a part the candidate has none of is left out
+	about = slices.DeleteFunc(about, func(part string) bool { return part == "" })
+
 	return escaped("- " + oneRedacted(candidate.ID) + " (" + strings.Join(about, "; ") + "): " + text)
+}
+
+// phraseLimit is how many phrases the lookup is run for at a depth.
+func phraseLimit(depth string) int {
+	if depth == DepthGlance {
+		return glancePhrases
+	}
+
+	return deepPhrases
 }
 
 // underCap returns the candidates under the cap on the count, in the order they were matched: the notes fill the cap
@@ -204,13 +213,4 @@ func underCap(matched []Candidate) []Candidate {
 	}
 
 	return kept
-}
-
-// phraseLimit is how many phrases the lookup is run for at a depth.
-func phraseLimit(depth string) int {
-	if depth == DepthGlance {
-		return glancePhrases
-	}
-
-	return deepPhrases
 }
