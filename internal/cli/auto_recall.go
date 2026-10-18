@@ -52,7 +52,7 @@ func RunAutoRecall(ctx context.Context, args AutoRecallArgs, deps AutoRecallDeps
 
 	queryErr := deps.Query(ctx, QueryArgs{
 		Phrases: phrases, VaultPath: args.VaultPath, ChunksDir: args.ChunksDir,
-		LazyChunks: true, RecentFill: -1, Limit: maxCandidates,
+		LazyChunks: true, RecentFill: -1, Limit: auto.MaxCandidates,
 	}, &payload)
 	if queryErr != nil {
 		// a failure is forwarded by the mod and stored: it names none of the prompt (793b107)
@@ -70,12 +70,6 @@ func RunAutoRecall(ctx context.Context, args AutoRecallArgs, deps AutoRecallDeps
 
 	return printStep(stdout, "auto recall", auto.Recall(input, matched))
 }
-
-// unexported constants.
-const (
-	// maxCandidates is how many items the lookup is asked for: the most candidates the judgement holds (855d8b).
-	maxCandidates = 30
-)
 
 // candidatesOf reads the notes and the passages that matched out of an `engram query` payload, in the order of the
 // payload: not a note that only the explore half picked, and not a chunk that only the recency channel gave (855d4b).

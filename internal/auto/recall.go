@@ -7,12 +7,15 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode/utf8"
 )
 
 // Exported constants.
 const (
 	KindNote    = "note"
 	KindPassage = "passage"
+	// MaxCandidates is how many candidates the judgement holds at most (855d8b).
+	MaxCandidates = 30
 )
 
 // Exported variables.
@@ -60,11 +63,22 @@ func PhrasesOf(reply, depth string) ([]string, error) {
 // Recall returns the request that judges the candidates the lookup matched (855d4b): the window of the carry and a
 // line for each candidate.
 func Recall(input RecallInput, matched []Candidate) Step {
-	lines := make([]string, 0, len(matched))
+	lines := make([]string, 0, min(len(matched), MaxCandidates))
+	used := 0
 
 	for _, candidate := range matched {
-		lines = append(lines, candidateLine(candidate))
+		text := candidateText(candidate)
+		used += utf8.RuneCountInString(text)
+
+		// the last of the matched set is dropped first (855d8b)
+		if len(lines) == MaxCandidates || used > candidateBudget {
+			break
+		}
+
+		lines = append(lines, candidateLine(candidate, text))
 	}
+
+	matched = matched[:len(lines)]
 
 	deep := input.Carry.Depth == DepthDeep
 	system := candidateInstructions
@@ -88,6 +102,8 @@ func Recall(input RecallInput, matched []Candidate) Step {
 const (
 	// candidatesShape is the prompt of the request: the window and the section of candidates, each between its tags.
 	candidatesShape = "<window>\n%s\n</window>\n<candidates>\n%s\n</candidates>"
+	// candidateBudget is how many characters of text the candidates hold in all (855d8b).
+	candidateBudget = 60000
 	deepPhrases     = 10
 	glancePhrases   = 3
 	// passageLimit is how many characters of a chunk a candidate line holds at most: a stretch of conversation is
@@ -108,12 +124,12 @@ var candidateInstructions string
 //go:embed prompts/candidates_deep.txt
 var deepInstructions string
 
-// candidateLine is the line of a candidate: its ID, its situation or the word passage, and its text, written as one
-// line and redacted (855d8b, 793d4j).
-func candidateLine(candidate Candidate) string {
-	about, text := candidate.Situation, oneRedacted(candidate.Text)
+// candidateLine is the line of a candidate: its ID, its date, its situation or the word passage, and its text, written
+// as one line and redacted (855d8b, 793d4j).
+func candidateLine(candidate Candidate, text string) string {
+	about := candidate.Situation
 	if candidate.Kind == KindPassage {
-		about, text = KindPassage, clipped(text, passageLimit)
+		about = KindPassage
 	}
 
 	date := candidate.Date
@@ -121,8 +137,18 @@ func candidateLine(candidate Candidate) string {
 		date = undated
 	}
 
-	return escaped("- " + oneRedacted(candidate.ID) + " (" + oneRedacted(date) + "; " + oneRedacted(about) +
-		"): " + text)
+	return escaped("- " + oneRedacted(candidate.ID) + " (" + oneRedacted(date) + "; " + oneRedacted(about) + "): " + text)
+}
+
+// candidateText is the text of a candidate as its line holds it: a note whole, and a chunk cut to passageLimit
+// characters, after the redaction (855b33).
+func candidateText(candidate Candidate) string {
+	text := oneRedacted(candidate.Text)
+	if candidate.Kind == KindPassage {
+		return clipped(text, passageLimit)
+	}
+
+	return text
 }
 
 // phraseLimit is how many phrases the lookup is run for at a depth.
