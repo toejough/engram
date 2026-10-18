@@ -947,6 +947,11 @@ Scenario: 793d4p1i A line shown is one line whatever the texts hold
   Given notes and records whose texts hold line breaks, control and format characters and lines that read as other lines, however they are mixed
   When the delivery is given a prompt of that session
   Then each line printed on standard error is one line of single spaces with no control or format character, and there is a line for each note delivered and for each record shown
+
+Scenario: 793d4p1j A mark that cannot be written does not fail the command
+  Given the records of a session, and a place for the marks that cannot be written
+  When the delivery is given a prompt of that session
+  Then it prints the lines and succeeds
 ```
 
 ## 793d5 Product-scenario mapping
