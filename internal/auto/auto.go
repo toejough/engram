@@ -179,11 +179,10 @@ func chosenOf(request Request, held Held) ([]Candidate, error) {
 }
 
 // delivers reports whether the verdicts deliver a candidate: it has a verdict that is not unrelated, no candidate of
-// the carry reverses it, and the mod has not delivered it (855d4c). The request showed the ID redacted, as it shows
-// every field (793d4j), and the model gives it back so.
+// the carry reverses it, and the mod has not delivered it (855d4c). The reply names a candidate by its ID as the carry
+// holds it: an ID is no credential, so the request showed it as it is (855b69).
 func delivers(request Request, verdicts []verdict, candidate Candidate) bool {
-	shown := oneRedacted(candidate.ID)
-	index := slices.IndexFunc(verdicts, func(entry verdict) bool { return entry.ID == candidate.ID || entry.ID == shown })
+	index := slices.IndexFunc(verdicts, func(entry verdict) bool { return entry.ID == candidate.ID })
 
 	if index < 0 || slices.Contains(request.Held, candidate.ID) {
 		return false
@@ -191,7 +190,7 @@ func delivers(request Request, verdicts []verdict, candidate Candidate) bool {
 
 	newer := verdicts[index].Newer
 	reversed := newer != "" && slices.ContainsFunc(request.Carry.Candidates, func(other Candidate) bool {
-		return newer == other.ID || newer == oneRedacted(other.ID)
+		return newer == other.ID
 	})
 
 	switch verdicts[index].Verdict {

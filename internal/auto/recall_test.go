@@ -38,8 +38,7 @@ func Test855d4b1i_Recall_ACandidateCannotReshapeTheRequestOrHoldACredential(t *t
 			g.Expect(lines[1]).To(Equal("- c1#turn-1 (2026-10-14; passage): " + strings.TrimSpace(passage)[:1200]))
 		}
 
-		g.Expect(step.Carry.Candidates[1].Text).To(Equal(strings.TrimSpace(passage)),
-			"the carry holds the chunk in full")
+		g.Expect(step.Carry.Candidates[1].Text).To(Equal(passage), "the carry holds the chunk in full, raw")
 	})
 
 	t.Run("named example: an ID that reads as a token is in the line and the carry as it is", func(t *testing.T) {

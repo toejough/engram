@@ -74,7 +74,8 @@ func PhrasesOf(reply, depth string) ([]string, error) {
 // Recall returns the request that judges the candidates the lookup matched (855d4b): the window of the carry and a
 // line for each candidate, and false when no candidate fits the budget. The matched set is in the order of the scores:
 // the cap on the count keeps a floor of passages, and the budget ends the list at the first candidate that does not fit
-// (855b59). The carry holds each candidate redacted and written as one line, its text not cut (855b55).
+// (855b59). The request shows the situation and the text of a candidate redacted and written as one line, and its ID as
+// it is, since a path is no credential; the carry holds each candidate as it is, raw and not cut (855b55, 855b69).
 func Recall(input RecallInput, matched []Candidate) (Step, bool) {
 	matched = underCap(matched)
 	lines := make([]string, 0, len(matched))
@@ -82,9 +83,10 @@ func Recall(input RecallInput, matched []Candidate) (Step, bool) {
 	used := 0
 
 	for _, candidate := range matched {
-		candidate.Situation = oneRedacted(candidate.Situation)
-		candidate.Text = oneRedacted(candidate.Text)
-		text := candidate.Text
+		shown := candidate
+		shown.Situation = oneRedacted(candidate.Situation)
+		shown.Text = oneRedacted(candidate.Text)
+		text := shown.Text
 
 		if candidate.Kind == KindPassage {
 			text = clipped(text, passageLimit)
@@ -96,7 +98,7 @@ func Recall(input RecallInput, matched []Candidate) (Step, bool) {
 			break
 		}
 
-		lines = append(lines, candidateLine(candidate, text))
+		lines = append(lines, candidateLine(shown, text))
 		held = append(held, candidate)
 	}
 
@@ -155,7 +157,7 @@ var deepInstructions string
 
 // candidateLine is the line of a candidate: its ID, then in parentheses its date, for a note its type and a marker when
 // it comes from the parent vault and its situation, or for a passage the word passage, and then its text, written as
-// one line and redacted (855d8b, 793d4j).
+// one line and redacted; the ID is written as one line and not redacted (855d8b, 793d4j, 855b69).
 func candidateLine(candidate Candidate, text string) string {
 	date := candidate.Date
 	if date == "" {
@@ -179,7 +181,7 @@ func candidateLine(candidate Candidate, text string) string {
 	// a part the candidate has none of is left out
 	about = slices.DeleteFunc(about, func(part string) bool { return part == "" })
 
-	return escaped("- " + oneRedacted(candidate.ID) + " (" + strings.Join(about, "; ") + "): " + text)
+	return escaped("- " + oneLine(candidate.ID) + " (" + strings.Join(about, "; ") + "): " + text)
 }
 
 // phraseLimit is how many phrases the lookup is run for at a depth.
