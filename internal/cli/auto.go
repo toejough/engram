@@ -171,8 +171,11 @@ func RunAutoDeliver(
 		}
 	}
 
-	markShown(deps.WriteRecord, args.RecordsDir, request.Session, delivery.Told)
-	pruneShown(deps, args.RecordsDir, request.Session)
+	// a delivery within a turn shows its line only: the records are read, marked and removed at a prompt (855d4p)
+	if request.Cue == auto.CuePrompt {
+		markShown(deps.WriteRecord, args.RecordsDir, request.Session, delivery.Told)
+		pruneShown(deps, args.RecordsDir, request.Session)
+	}
 
 	return nil
 }
