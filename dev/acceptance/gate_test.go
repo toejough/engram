@@ -125,11 +125,11 @@ const (
 	kindText       = "text"
 	kindToolCall   = "tool call"
 	kindToolResult = "tool result"
+	// probeNote is the note the block of the probe names.
+	probeNote = "probe-note.md"
 	// probeSecondCallHolds is the line the probe shows when, at its second tool call, the session's transcript holds one
 	// block of type hook_additional_context.
 	probeSecondCallHolds = "probe: at the second call the transcript holds 1 hook_additional_context"
-	// probeNote is the note the block of the probe names.
-	probeNote = "probe-note.md"
 )
 
 // hostEvent is one row of the session's record that shows what the host did around a tool call.
@@ -163,20 +163,20 @@ type requestLog struct {
 	before   []string // the IDs of the requests before the first tool result
 }
 
-// kinds returns the kinds of the items, in order, of the request that follows the first tool result.
-func (l requestLog) kinds() []string {
-	return l.kindsOf(l.follows)
-}
-
 // earlier returns the kinds of the items of the requests made before the one that follows the first tool result.
 func (l requestLog) earlier() []string {
-	var items []string
+	items := make([]string, 0, len(l.before))
 
 	for _, id := range l.before {
 		items = append(items, l.kindsOf(id)...)
 	}
 
 	return items
+}
+
+// kinds returns the kinds of the items, in order, of the request that follows the first tool result.
+func (l requestLog) kinds() []string {
+	return l.kindsOf(l.follows)
 }
 
 // kindsOf returns the kinds of the items, in order, of one request.
@@ -195,6 +195,11 @@ func (l requestLog) kindsOf(id string) []string {
 	}
 
 	return order
+}
+
+// earlierItems returns the kinds of the items of the model's requests made before the first tool result.
+func (s *session) earlierItems() []string {
+	return readRequests(s.rows()).earlier()
 }
 
 // hostEvents reads, from the session's record, the type, the order and the time of the rows around a tool call: the
@@ -218,11 +223,6 @@ func (s *session) hostEvents() []hostEvent {
 // requestOrder returns the kinds of the items, in order, of the model's request that follows the first tool result.
 func (s *session) requestOrder() []string {
 	return readRequests(s.rows()).kinds()
-}
-
-// earlierItems returns the kinds of the items of the model's requests made before the first tool result.
-func (s *session) earlierItems() []string {
-	return readRequests(s.rows()).earlier()
 }
 
 // eventKind tells what a row shows the host did, or "" when the row shows nothing around a tool call.
@@ -249,26 +249,6 @@ func (r transcriptRow) eventKind() (string, string) {
 	}
 
 	return "", ""
-}
-
-// toolName returns the name of the first tool the message of a row calls.
-func (r transcriptRow) toolName() string {
-	var blocks []struct {
-		Type string `json:"type"`
-		Name string `json:"name"`
-	}
-
-	if json.Unmarshal(r.Message.Content, &blocks) != nil {
-		return ""
-	}
-
-	for _, block := range blocks {
-		if block.Type == "tool_use" {
-			return block.Name
-		}
-	}
-
-	return ""
 }
 
 // itemKinds returns the kind of each item of the message a row holds: a tool call, a tool result, a block that begins
@@ -305,6 +285,26 @@ func (r transcriptRow) itemKinds() []string {
 	}
 
 	return kinds
+}
+
+// toolName returns the name of the first tool the message of a row calls.
+func (r transcriptRow) toolName() string {
+	var blocks []struct {
+		Type string `json:"type"`
+		Name string `json:"name"`
+	}
+
+	if json.Unmarshal(r.Message.Content, &blocks) != nil {
+		return ""
+	}
+
+	for _, block := range blocks {
+		if block.Type == "tool_use" {
+			return block.Name
+		}
+	}
+
+	return ""
 }
 
 // toolCalls counts the tool calls the agent made in the turn.
