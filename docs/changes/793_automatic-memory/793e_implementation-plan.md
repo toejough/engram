@@ -45,6 +45,8 @@ Added by the fixes of the review of the whole branch ([793e6i The fixes of the r
 - `internal/auto/auto.go`: the mark of a [note](../../GLOSSARY.md#permanent-note) written automatically is looked for anywhere in its source ([793b111 The mark of a note written automatically is looked for anywhere in its source](./793b_decision-log.md#793b111-the-mark-of-a-note-written-automatically-is-looked-for-anywhere-in-its-source)).
 - `internal/cli/auto.go`: the lookup of the commands `deliver` and `judge` warns into the debug log ([793b112 The warnings of the lookup go to the debug log](./793b_decision-log.md#793b112-the-warnings-of-the-lookup-go-to-the-debug-log)).
 - `internal/auto/activity.go`, `internal/auto/auto.go`: one line for each of the notes delivered, the notes written, what was left out and what failed ([793b113 One line is shown for each of what was delivered, written, left out and failed](./793b_decision-log.md#793b113-one-line-is-shown-for-each-of-what-was-delivered-written-left-out-and-failed)).
+- `internal/cli/auto.go`, `internal/cli/targets.go`: the writing makes no record for a reply with no lesson and writes a line to the debug log when it ends, and the delivery removes the records it showed ([793b114 A turn with nothing to write leaves no record, and a record is removed once its line was shown](./793b_decision-log.md#793b114-a-turn-with-nothing-to-write-leaves-no-record-and-a-record-is-removed-once-its-line-was-shown)).
+- `dev/acceptance/steps_test.go`: the machine writes a debug log, and the tests of an absence wait for the writes it records.
 
 ## 793e2 Test methods
 
@@ -148,7 +150,9 @@ flowchart TD
     n793e6g7 --> n793e6i1[793e6i1 A note written by the earlier mod is marked as written automatically<br/>Complete]
     n793e6h1 --> n793e6i2[793e6i2 The warnings of the lookup go to the debug log, not to the user<br/>Complete]
     n793e6h1 --> n793e6i3[793e6i3 One line is shown for each of what was delivered, written, left out and failed<br/>Complete]
+    n793e6i3 --> n793e6i4[793e6i4 A turn with nothing to write leaves no record, and the records that were shown are removed<br/>Ready]
     class n793e6i1,n793e6i2,n793e6i3 complete
+    class n793e6i4 ready
     classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
@@ -873,7 +877,7 @@ Review finding B-9 ([793b111 The mark of a note written automatically is looked 
 | Gherkin | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 793d4c1c (amended) | Dedicated example | the source the earlier mod wrote, `captured from the conversation; written automatically (session s1, turn 3)`, over a note on disk | | Done | de9bc0d7 | c9ce9998 | 27eb7424 |
-| 793d4c1a (amended) | Property-based (`rapid`) | the sources of the earlier mod's form among the hostile ones; passed when written, the code being right and the property wrong; mutation (scratch copy): a check of the words at the start of the source fails it | the properties of [793d4c1a A note cannot reshape the block](./793d_technical-spec.md#793d4c1-scenarios), with the line of a note marked if and only if its source holds the words `written automatically` anywhere in it | Done | n/a | | |
+| 793d4c1a (amended) | Property-based (`rapid`) | the sources of the earlier mod's form among the hostile ones; passed when written, the code being right and the property wrong; mutation (scratch copy): a check of the words at the start of the source fails it | the properties of [793d4c1a A note cannot reshape the block](./793d_technical-spec.md#793d4c1-scenarios), with the line of a note marked if and only if its source holds the words `written automatically` anywhere in it | Done | n/a | 007f22a1 | |
 
 #### 793e6i2 The warnings of the lookup go to the debug log, not to the user
 
@@ -889,13 +893,35 @@ Review finding B-4 ([793b113 One line is shown for each of what was delivered, w
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2e1g | Dedicated example, product acceptance (`network`) | a [vault](../../GLOSSARY.md#vault) of three notes about the staging database and one about formatting Python files; the events of the prompt hold one line that names the three notes and the block holds three lines | | 3 of 3 | Done | 83d00649 | 944f1258 | |
-| 793d4p1a (amended) | Dedicated example | one line for the written, one for the left out and one for the failed, over records of the real form | | | Done | 83d00649 | 944f1258 | |
-| 793d4p1d (amended) | Dedicated example | the line is one line, redacted and cut in its middle; the credential straddles the place of the cut, so that a cut made before the redaction leaves part of it | | | Done | 83d00649 | 944f1258 | |
-| 793d4p1e (amended) | Dedicated example | seven written, two left out and two failed: three lines, the first cut with both ends of its names, every record marked, and no line at the next prompt | | | Done | 83d00649 | 944f1258 | |
-| 793d4p1i (amended) | Property-based (`rapid`) | the form of every line printed, whatever the texts of notes and records hold | whatever the texts hold: each line printed on standard error is one line, holds no control or format character and no white space but a space, has at most 240 characters, and there is a line for each of the four kinds that has something to tell and no other | | Done | 83d00649 | 944f1258 | |
-| 793d4p1l | Dedicated example | two notes delivered over a vault of two notes: one line on standard error, and a line for each note in the block | | | Done | 83d00649 | 944f1258 | |
-| 793d4a1i (amended) | Injected and impure interaction (`imptest`) | the reading of what the [session](../../GLOSSARY.md#session) was not shown returns lines that hold the files of the records they tell | | | Done | 83d00649 | 944f1258 | |
+| 793a2e1g | Dedicated example, product acceptance (`network`) | a [vault](../../GLOSSARY.md#vault) of three notes about the staging database and one about formatting Python files; the events of the prompt hold one line that names the three notes and the block holds three lines | | 3 of 3 | Done | 83d00649 | 944f1258 | 07699f2c |
+| 793d4p1a (amended) | Dedicated example | one line for the written, one for the left out and one for the failed, over records of the real form | | | Done | 83d00649 | 944f1258 | 07699f2c |
+| 793d4p1d (amended) | Dedicated example | the line is one line, redacted and cut in its middle; the credential straddles the place of the cut, so that a cut made before the redaction leaves part of it | | | Done | 83d00649 | 944f1258 | 07699f2c |
+| 793d4p1e (amended) | Dedicated example | seven written, two left out and two failed: three lines, the first cut with both ends of its names, every record marked, and no line at the next prompt | | | Done | 83d00649 | 944f1258 | 07699f2c |
+| 793d4p1i (amended) | Property-based (`rapid`) | the form of every line printed, whatever the texts of notes and records hold | whatever the texts hold: each line printed on standard error is one line, holds no control or format character and no white space but a space, has at most 240 characters, and there is a line for each of the four kinds that has something to tell and no other | | Done | 83d00649 | 944f1258 | 07699f2c |
+| 793d4p1l | Dedicated example | two notes delivered over a vault of two notes: one line on standard error, and a line for each note in the block | | | Done | 83d00649 | 944f1258 | 07699f2c |
+| 793d4a1i (amended) | Injected and impure interaction (`imptest`) | the reading of what the [session](../../GLOSSARY.md#session) was not shown returns lines that hold the files of the records they tell | | | Done | 83d00649 | 944f1258 | 07699f2c |
+
+#### 793e6i4 A turn with nothing to write leaves no record, and the records that were shown are removed
+
+Review finding B-7 ([793b114 A turn with nothing to write leaves no record, and a record is removed once its line was shown](./793b_decision-log.md#793b114-a-turn-with-nothing-to-write-leaves-no-record-and-a-record-is-removed-once-its-line-was-shown), [793c86 Does every turn leave a record, and does a record stay once its line was shown?](./793c_open-questions.md#793c86-does-every-turn-leave-a-record-and-does-a-record-stay-once-its-line-was-shown)): every [turn](./793a_product-spec.md#793a1a-terms) wrote a record, a reply with no lesson one of the kind `nothing`, and nothing was ever removed. The rows of the tests of an absence change their wait, from the record of the kind `nothing` to the line of the debug log, and say so.
+
+| Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 793d4k1b (amended) | Dedicated example | an empty list makes no record and the command succeeds | | | Not started | | | |
+| 793d4k1k | Dedicated example | the line of the debug log of a write that wrote a [note](../../GLOSSARY.md#permanent-note) and of one that wrote none, over an injected log | | | Not started | | | |
+| 793d4p1b (amended) | Dedicated example | a record of the kind `nothing`, as an earlier version made it, makes no line | | | Not started | | | |
+| 793d4p1c (amended) | Dedicated example | the mark keeps a line from being shown again, with a place that cannot remove a record | | | Not started | | | |
+| 793d4p1e (amended) | Dedicated example | the marks of the records of the three lines, with a place that cannot remove a record | | | Not started | | | |
+| 793d4p1m | Dedicated example | the records that were shown and their marks are removed, a file that is no record stays, and the next [prompt](./793a_product-spec.md#793a1a-terms) prints no line | | | Not started | | | |
+| 793d4p1n | Dedicated example | a directory with nothing else in it is removed | | | Not started | | | |
+| 793d4m1d (amended) | Dedicated example, product acceptance (`network`) | the writes of the [session](../../GLOSSARY.md#session) are counted in the debug log: one, that of the user's turn | | | Not started | | | |
+| 793a2c1f (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the test waits for the write of the turn in the debug log and finds no record | | | Not started | | | |
+| 793a2c1h (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the same for two turns | | | Not started | | | |
+| 793a3a1a (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the test waits for the record of the kind `written` and not for two records | | | Not started | | | |
+| 793a3c1b (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the turn leaves a record of the kind `skipped` or none | | | Not started | | | |
+| 793a2d1d (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the test waits for the record of the kind `written` | | | Not started | | | |
+| 793a2d1e (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the test waits for the record of the kind `failed` | | | Not started | | | |
+| 793a2e1d (amended) | Dedicated example, product acceptance (`network`) | a judgement row; the test waits for the record of the kind `failed` | | | Not started | | | |
 
 ### 793e6f The delivery merges the parent vault
 

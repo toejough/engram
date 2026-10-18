@@ -761,7 +761,7 @@ Scenario: 793d4j1i A credential that characters that are not shown split is not 
 
 ### 793d4k Recording what automatic memory did
 
-Requirement: 793d4k The `lesson-writing` MUST record what became of each reply or failure it reads, where the display of [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) can read it: per lesson written, kind `written` with the [note](../../GLOSSARY.md#permanent-note)'s file name; per lesson left out, `skipped` with its slug, when it is one ([793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply)), and the reason; per reply that is not a list, `skipped` with the reason; per reply with no lesson, `nothing`; per failure, `failed` with the failure. A lesson that cannot be written is recorded `failed` and the command then succeeds, so the mod does not report it a second time. A record is a JSON file of its own in a directory named for the [session](../../GLOSSARY.md#session)'s ID under `auto` in the engram data directory, its name opening with the time it was made; it holds the time, the session's ID, the [turn](./793a_product-spec.md#793a1a-terms)'s ID, the kind, the note, the slug and the reason. The reason is written as one line, redacted ([793d4j Redacting credentials](#793d4j-redacting-credentials)) and only then cut in its middle to 300 characters, so that the step a failure names at its beginning and the cause at its end stay. A record that cannot be written does not fail the command unless it records a failure, when the command fails with the reason.
+Requirement: 793d4k The `lesson-writing` MUST record what became of each reply or failure it reads, where the display of [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) can read it: per lesson written, kind `written` with the [note](../../GLOSSARY.md#permanent-note)'s file name; per lesson left out, `skipped` with its slug, when it is one ([793d4h Writing the lessons of a reply](#793d4h-writing-the-lessons-of-a-reply)), and the reason; per reply that is not a list, `skipped` with the reason; per failure, `failed` with the failure; a reply with no lesson makes no record. A lesson that cannot be written is recorded `failed` and the command then succeeds, so the mod does not report it a second time. A record is a JSON file of its own in a directory named for the [session](../../GLOSSARY.md#session)'s ID under `auto` in the engram data directory, its name opening with the time it was made; it holds the time, the session's ID, the [turn](./793a_product-spec.md#793a1a-terms)'s ID, the kind, the note, the slug and the reason. The reason is written as one line, redacted ([793d4j Redacting credentials](#793d4j-redacting-credentials)) and only then cut in its middle to 300 characters, so that the step a failure names at its beginning and the cause at its end stay. A record that cannot be written does not fail the command unless it records a failure, when the command fails with the reason. When it ends it MUST write one line to the debug log that `ENGRAM_DEBUG_LOG` names, with the session's ID, the turn's ID and the number of notes written, lessons left out and failures recorded, so that the end of a write that made no record can be told.
 
 Owner: `lesson-writing`. Supports: [793a2c1f Guesses, plans and chatter produce no note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2c1h A thanks that names no approach produces no note](./793a_product-spec.md#793a2c1-uat-scenarios), [793a2d1e A write that fails does not break the session](./793a_product-spec.md#793a2d1-uat-scenarios).
 
@@ -773,10 +773,10 @@ Scenario: 793d4k1a A lesson that is written is recorded with its note
   When the lessons are written
   Then one record, of the kind written, holds the file name of the note, the session's ID and the turn's ID
 
-Scenario: 793d4k1b A reply with no lesson is recorded as nothing
+Scenario: 793d4k1b A reply with no lesson makes no record
   Given a reply that is an empty list
   When the lessons are written
-  Then one record, of the kind nothing, holds the session's ID and the turn's ID
+  Then no record is made, and the command succeeds
 
 Scenario: 793d4k1c A lesson left out, and a reply that is not a list, are recorded with the reason
   Given a reply that holds a lesson with no slug beside a lesson that is whole, and a reply that is not a list
@@ -817,6 +817,11 @@ Scenario: 793d4k1j A reason is written as one line, redacted, and cut in its mid
   Given a failure in place of a reply, of more than 300 characters, with a line break, a credential that straddles the place where it is cut, and the cause at its end
   When the lessons are written
   Then the record holds the reason as one line without the credential, at most 300 characters of it, with its beginning and its end
+
+Scenario: 793d4k1k A write that ends logs what it did
+  Given a debug log, and a reply that holds one lesson and one that is an empty list
+  When the lessons are written for each
+  Then the log holds a line for each, with the session's ID and the turn's ID, the first with one note written and the second with none
 ```
 
 ### 793d4m Telling the prompts the user sends
@@ -846,7 +851,7 @@ Scenario: 793d4m1c The turn of a headless prompt is judged only when the user as
 Scenario: 793d4m1d A turn that a background task's notification starts is not judged
   Given the user has run engram update, and a session in which the agent may run a sleep command but may not run engram commands
   When the agent starts a task in the background in a turn the user began, and the task's notification starts a turn of its own that the agent answers
-  Then automatic memory has made one record, that of the user's turn, and the vault holds no note
+  Then automatic memory has judged one turn, that of the user's, and the vault holds no note
 
 Scenario: 793d4m1e A headless turn that is not judged is recorded as skipped with the reason
   Given the record of a session whose turn began with a prompt of the origin sdk, a place for the records, and, in turn, an origin the user does not send
@@ -896,7 +901,7 @@ Scenario: 793d4n1f Two sweeps at once index both records
 
 ### 793d4p Telling what automatic memory did
 
-Requirement: 793d4p The `prompt-delivery` MUST print on standard error the lines that show the user what [automatic memory](./793a_product-spec.md#793a1a-terms) did, one to a line, at most four, one for each of four kinds in the order below and none for a kind with nothing to show, and nothing else (a warning of the lookup, such as a [note](../../GLOSSARY.md#permanent-note) whose embedding is of another model, goes to the debug log that `ENGRAM_DEBUG_LOG` names, so that it is not shown at every [prompt](./793a_product-spec.md#793a1a-terms)). The line of the notes it delivered is `delivered the note` and its file name, or `delivered the notes` and the file names separated by commas, in the order of the block ([793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt)). The other three lines tell the records of the kinds `written`, `skipped` and `failed` that [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did) makes for the [session](../../GLOSSARY.md#session) of the request, read from the directory its `--records` flag names, else `auto` in the engram data directory, that it has not shown, oldest first, each line beginning with the time (`15:04:05`) of the oldest of its records: for `written`, `wrote the note` and its file name, or `wrote the notes` and the file names separated by commas; for `skipped`, `left out:` and, for each record, `the lesson` and its slug and a colon when it has a slug, then the reason, the records separated by semicolons; for `failed`, `failed:` and, for each record, `writing` and its slug and a colon when it has a slug, then the reason, separated by semicolons. A reason is written as one line and redacted ([793d4j Redacting credentials](#793d4j-redacting-credentials)); a line is cut in its middle, so that both ends stay, when it is longer than 240 characters; every line is one line of single spaces with no control or format character. After printing the lines it MUST mark each record that a line it printed tells, also one that the cut left out of the text of the line, by an empty file beside the record, named for it with the suffix `.told`, so that a line is shown once; a record with a mark makes no line, nor does a record of another session, of the kind `nothing`, or that cannot be read, nor a directory that cannot be read, and a mark that cannot be written is the end of it. The lines are no part of the block ([793d4c Framing the notes of a block as data](#793d4c-framing-the-notes-of-a-block-as-data)).
+Requirement: 793d4p The `prompt-delivery` MUST print on standard error the lines that show the user what [automatic memory](./793a_product-spec.md#793a1a-terms) did, one to a line, at most four, one for each of four kinds in the order below and none for a kind with nothing to show, and nothing else (a warning of the lookup, such as a [note](../../GLOSSARY.md#permanent-note) whose embedding is of another model, goes to the debug log that `ENGRAM_DEBUG_LOG` names, so that it is not shown at every [prompt](./793a_product-spec.md#793a1a-terms)). The line of the notes it delivered is `delivered the note` and its file name, or `delivered the notes` and the file names separated by commas, in the order of the block ([793d4a Delivering the notes that bear on a prompt](#793d4a-delivering-the-notes-that-bear-on-a-prompt)). The other three lines tell the records of the kinds `written`, `skipped` and `failed` that [793d4k Recording what automatic memory did](#793d4k-recording-what-automatic-memory-did) makes for the [session](../../GLOSSARY.md#session) of the request, read from the directory its `--records` flag names, else `auto` in the engram data directory, that it has not shown, oldest first, each line beginning with the time (`15:04:05`) of the oldest of its records: for `written`, `wrote the note` and its file name, or `wrote the notes` and the file names separated by commas; for `skipped`, `left out:` and, for each record, `the lesson` and its slug and a colon when it has a slug, then the reason, the records separated by semicolons; for `failed`, `failed:` and, for each record, `writing` and its slug and a colon when it has a slug, then the reason, separated by semicolons. A reason is written as one line and redacted ([793d4j Redacting credentials](#793d4j-redacting-credentials)); a line is cut in its middle, so that both ends stay, when it is longer than 240 characters; every line is one line of single spaces with no control or format character. After printing the lines it MUST mark each record that a line it printed tells, also one that the cut left out of the text of the line, by an empty file beside the record, named for it with the suffix `.told`, so that a line is shown once; a record with a mark makes no line, nor does a record of another session, of a kind that tells nothing, or that cannot be read, nor a directory that cannot be read, and a mark that cannot be written is the end of it. Then it MUST remove each record that has a mark, and the mark, and the directory of the session once nothing is left in it, so that the records do not pile up; what it cannot remove is the end of it. The lines are no part of the block ([793d4c Framing the notes of a block as data](#793d4c-framing-the-notes-of-a-block-as-data)).
 
 Owner: `prompt-delivery`. Supports: [793a2e1a What was delivered and what was written for the previous turn is in the session by the next prompt](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1b A write that finishes after the next prompt is shown when it finishes](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1c A delivery that could not be done is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1d A write that failed is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1e A sweep that failed is shown with its reason](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1f A turn that is not captured is shown with the reason](./793a_product-spec.md#793a2e1-uat-scenarios), [793a2e1g The notes delivered with a prompt are one line](./793a_product-spec.md#793a2e1-uat-scenarios).
 
@@ -908,8 +913,8 @@ Scenario: 793d4p1a A record that was not shown becomes a line
   When the delivery is given a prompt of that session
   Then it prints on standard error one line for the written, one for the left out and one for the failed, each beginning with the time of the oldest of its records and saying what became of them
 
-Scenario: 793d4p1b A record of the kind nothing makes no line
-  Given the records of a session of the kind nothing only
+Scenario: 793d4p1b A record of a kind that tells nothing makes no line
+  Given the records of a session of a kind other than written, skipped and failed, as an earlier version made them, only
   When the delivery is given a prompt of that session, and no note bears on it
   Then it prints nothing and succeeds
 
@@ -962,6 +967,16 @@ Scenario: 793d4p1l The notes delivered are one line
   Given a vault holding two notes that bear on a prompt
   When the delivery is given the prompt
   Then it prints the block with a line for each note on standard output, and on standard error one line that names the two notes
+
+Scenario: 793d4p1m The records that were shown are removed with their marks
+  Given the records of a session, a record with a mark among them, and a file in the directory that is no record
+  When the delivery is given a prompt of that session
+  Then the records and their marks are gone, the file that is no record is still there, and the next prompt prints no line
+
+Scenario: 793d4p1n The directory of a session whose records were shown is removed
+  Given the records of a session and nothing else in its directory
+  When the delivery is given a prompt of that session
+  Then the directory of the session is gone, and the next prompt prints no line
 ```
 
 ## 793d5 Product-scenario mapping
