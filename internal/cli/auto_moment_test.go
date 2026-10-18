@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/toejough/engram/internal/cli"
+	"github.com/toejough/engram/internal/debuglog"
 )
 
 //go:generate impgen cli.RecordRead --dependency --import-path github.com/toejough/engram/internal/cli
@@ -107,6 +108,33 @@ func Test855d4a1g_Moment_AnInputThatIsNotAJSONObjectFailsTheCommand(t *testing.T
 
 	g.Expect(err).To(MatchError(ContainSubstring("auto moment: reading the moment")))
 	g.Expect(out.String()).To(BeEmpty())
+}
+
+func Test855d4a1h_Moment_AMomentThatPrintsNothingForTheEndOfATurnLogsIt(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var logged, out bytes.Buffer
+
+	ctx := debuglog.WithLogger(context.Background(),
+		debuglog.New(&logged, "engram", func() time.Time { return recordedAt }))
+
+	err := cli.RunAutoMoment(ctx, cli.AutoMomentArgs{SessionsDir: "/sessions"},
+		cli.AutoMomentDeps{
+			Stdin: strings.NewReader(`{"session":"` + sessionID + `","cue":"turn-end","origin":"task-notification",` +
+				`"turn":"` + turnID + `","text":"a notice","answer":"Understood."}`),
+			ReadRecord: func(string, string) []byte { return nil },
+		}, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(out.String()).To(BeEmpty())
+
+	lines := strings.Split(strings.TrimSpace(logged.String()), "\n")
+
+	g.Expect(lines).To(HaveLen(1), "a line for the moment")
+
+	if len(lines) == 1 {
+		g.Expect(lines[0]).To(HaveSuffix("[engram] auto.moment: session=" + sessionID + " nothing"))
+	}
 }
 
 // momentInput is the JSON object that the memory mod hands to the moment for a prompt of an origin.
