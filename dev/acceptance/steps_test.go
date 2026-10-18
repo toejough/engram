@@ -186,6 +186,23 @@ func (m *machine) awaitRecord(session string, turnEnds time.Time) string {
 	return m.awaitRecords(session, turnEnds, 1)[0]
 }
 
+// awaitRecordOfKind waits until automatic memory has made a record of the kind for a turn of a session. A write has
+// ended when its records exist: they are made last.
+func (m *machine) awaitRecordOfKind(session string, turnEnds time.Time, kind string) {
+	m.t.Helper()
+
+	deadline := turnEnds.Add(captureBound)
+
+	for !slices.Contains(m.recordKinds(session), kind) {
+		if time.Now().After(deadline) {
+			m.t.Fatalf("automatic memory made no record of the kind %s within %s of the last turn's end: %v\n%s", kind,
+				captureBound, m.recordKinds(session), m.hookLog())
+		}
+
+		time.Sleep(capturePoll)
+	}
+}
+
 // awaitRecords waits until automatic memory has made count records of the turns of a session, and returns the kinds of
 // the records, oldest first. A write has ended when its records exist: they are made last.
 func (m *machine) awaitRecords(session string, turnEnds time.Time, count int) []string {
@@ -606,6 +623,28 @@ func (m *machine) vaultIsRemoved() {
 	if err != nil {
 		m.t.Fatalf("removing the vault: %v", err)
 	}
+}
+
+// writeTakes makes the writing of the lessons take the given time: engram on the PATH notes that the writing started
+// and waits, and then runs the machine's own engram, which writes what it was given.
+func (m *machine) writeTakes(wait time.Duration) {
+	m.t.Helper()
+
+	dir := filepath.Join(m.root, "slow-write")
+	mkdirAll(m.t, dir)
+
+	script := "#!/bin/sh\ncase \"$1 $2\" in\n\"auto write\")\n: > '" + dir + "/started'\nsleep " +
+		strconv.Itoa(int(wait.Seconds())) + "\n;;\nesac\nexec '" + filepath.Join(m.gobin, engramBinaryName) +
+		"' \"$@\"\n"
+	path := filepath.Join(dir, engramBinaryName)
+	writeFile(m.t, path, script)
+
+	err := os.Chmod(path, 0o700)
+	if err != nil {
+		m.t.Fatalf("making the slow engram executable: %v", err)
+	}
+
+	m.pathFront = dir
 }
 
 // vaultNote is a note of the vault as its file holds it.

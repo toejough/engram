@@ -5,6 +5,7 @@ package acceptance_test
 import (
 	"strings"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 )
@@ -54,12 +55,68 @@ func Test793a2e1a_WhatWasDeliveredAndWhatWasWrittenForThePreviousTurnIsInTheSess
 	})
 }
 
+func Test793a2e1b_AWriteThatFinishesAfterTheNextPromptIsShownWhenItFinishes(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var chat *conversation
+
+	step(t, "Given the user has run engram update, and a write that takes 12 seconds", func() {
+		machine.hasRunUpdate()
+		machine.writeTakes(slowWrite)
+
+		chat = machine.startSession("zorblax").converse()
+	})
+
+	var (
+		second  *turn
+		third   *turn
+		written string
+	)
+
+	step(t, "When the user corrects the agent in a prompt, sends another before the write finishes, and a third "+
+		"after it finished", func() {
+		chat.tell(askHowToBuild)
+		chat.tell(correctTheBuild)
+
+		g.Expect(machine.recordKinds(chat.session.id)).NotTo(ContainElement("written"),
+			"the write had not finished when the second prompt was sent")
+
+		second = chat.tell(askSomethingElse)
+
+		written = machine.awaitAutomaticNote(chat.turnEnds, "that states the correction", buildTarget)
+		machine.awaitRecordOfKind(chat.session.id, chat.turnEnds, "written")
+
+		third = chat.tell(askAnotherThing)
+	})
+
+	step(t, "Then the second prompt arrives with no line about the write, and the third arrives with a line that "+
+		"names the note written", func() {
+		for _, block := range second.blocks() {
+			g.Expect(linesToldBy(block)).To(BeEmpty(), "the lines that tell what automatic memory did, with the second prompt")
+		}
+
+		g.Expect(third.blocks()).To(HaveLen(1), "the blocks of the third prompt")
+
+		if len(third.blocks()) == 1 {
+			g.Expect(linesToldBy(third.blocks()[0])).To(ConsistOf(And(ContainSubstring("wrote the note"),
+				ContainSubstring(written))), "the lines that tell what automatic memory did, with the third prompt")
+		}
+	})
+}
+
 // unexported constants.
 const (
+	// askAnotherThing is a prompt that no note bears on, other than askSomethingElse.
+	askAnotherThing = "What is 9 times 6? Reply with the number only."
 	// askResetAndRememberBackup asks what the stagingReset note answers, and asks to remember a second lesson about the
 	// same database.
 	askResetAndRememberBackup = "When is the Zorblax staging database reset? Also remember that it is backed up " +
 		"every Monday at 05:00 UTC. Reply with one short sentence."
+	// slowWrite is how long the write takes in the scenario of a write that finishes after the next prompt.
+	slowWrite = 12 * time.Second
 )
 
 // linesToldBy returns the lines of a block that tell what automatic memory did: those that begin with an asterisk.
