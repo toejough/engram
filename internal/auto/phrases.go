@@ -26,7 +26,7 @@ func Phrases(input PhrasesInput) (Step, bool, error) {
 	return Step{
 		Request: ModelRequest{
 			Model: phrasesModel, System: phraseInstructions,
-			Prompt: fmt.Sprintf(momentShape, input.Carry.Window), MaxTokens: phrasesMaxTokens,
+			Prompt: fmt.Sprintf(windowShape, input.Carry.Window), MaxTokens: phrasesMaxTokens,
 		},
 		Carry: Carry{Cue: input.Cue, Depth: reply.Depth, Window: input.Carry.Window},
 	}, true, nil

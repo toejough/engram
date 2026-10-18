@@ -50,7 +50,7 @@ func Moment(record []byte, input MomentInput) Step {
 	return Step{
 		Request: ModelRequest{
 			Model: momentModel, Effort: momentEffort, System: recallMoment,
-			Prompt: fmt.Sprintf(momentShape, window), MaxTokens: momentMaxTokens,
+			Prompt: fmt.Sprintf(windowShape, window), MaxTokens: momentMaxTokens,
 		},
 		Carry: Carry{Cue: input.Cue, Window: window},
 	}
@@ -61,8 +61,8 @@ const (
 	momentEffort    = "low"
 	momentMaxTokens = 200
 	momentModel     = "haiku"
-	// momentShape is the prompt of the request: the window between its tags.
-	momentShape = "<window>\n%s\n</window>"
+	// windowShape is the prompt of a request that holds the window only: the window between its tags.
+	windowShape = "<window>\n%s\n</window>"
 )
 
 //go:embed prompts/moment_recall.txt
