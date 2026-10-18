@@ -14,54 +14,6 @@ import (
 	"github.com/toejough/engram/internal/auto"
 )
 
-func Test855d4b1h_Recall_TheLimitOnTheReplyHoldsADeepReplyForTheMostCandidatesWithFieldsAndLessons(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// the reply shape of 855d4b1h at its largest: 20 notes judged near, with 3 chunks, 3 fields and a newer note, 10
-	// passages, and 6 lessons that supersede a note, each with 3 chunks
-	const chunkID = "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11" +
-		".jsonl#turn-123"
-
-	const noteID = "123.2026-10-17.zorblax-staging-database-is-reset-every-sunday-at-0340-utc.md"
-
-	chunks := []string{chunkID, chunkID, chunkID}
-	entries := make([]map[string]any, 0, auto.MaxCandidates)
-
-	for index := range auto.MaxCandidates {
-		entry := map[string]any{"id": chunkID, "verdict": "evidence"}
-
-		if index < 20 {
-			entry = map[string]any{
-				"id": noteID, "verdict": "near", "newer": noteID, "chunks": chunks,
-				"fields": map[string]string{
-					"subject": "the Zorblax staging database and its reset", "predicate": "is reset every",
-					"object": "Sunday at 03:40 UTC, so test runs are scheduled after that",
-				},
-			}
-		}
-
-		entries = append(entries, entry)
-	}
-
-	lesson := map[string]any{
-		"kind": "fact", "slug": "zorblax-staging-reset", "covered": nil, "chunks": chunks,
-		"situation": "scheduling a test run against the Zorblax staging database",
-		"subject":   "the Zorblax staging database", "predicate": "is reset every", "object": "Sunday at 03:40 UTC",
-		"supersedes": noteID, "type": "updates", "claim": "the reset moved from Saturday to Sunday",
-	}
-
-	reply, err := json.Marshal(map[string]any{"candidates": entries, "lessons": slices.Repeat([]any{lesson}, 6)})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	// a token holds 3 characters of such a reply at the least
-	const charactersPerToken = 3
-
-	step, _ := auto.Recall(recallOf("deep"), candidatesOfKinds(1, 0))
-
-	g.Expect(step.Request.MaxTokens).To(BeNumerically(">=", len(reply)/charactersPerToken))
-}
-
 func Test855d4b1i_Recall_ACandidateCannotReshapeTheRequestOrHoldACredential(t *testing.T) {
 	t.Parallel()
 
@@ -91,35 +43,6 @@ func Test855d4b1i_Recall_ACandidateCannotReshapeTheRequestOrHoldACredential(t *t
 	})
 
 	rapid.Check(t, checkRecallIsSafe)
-}
-
-// Test855d4b1l_Recall_AMixedMatchedSetKeepsAFloorOfPassages proves the floor of passages under the cap (855b59).
-func Test855d4b1l_Recall_AMixedMatchedSetKeepsAFloorOfPassages(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		notes, passages := rapid.IntRange(0, 45).Draw(rt, "notes"), rapid.IntRange(0, 45).Draw(rt, "passages")
-		matched := rapid.Permutation(candidatesOfKinds(notes, passages)).Draw(rt, "order")
-
-		step, _ := auto.Recall(recallOf("glance"), matched)
-		held := step.Carry.Candidates
-
-		if len(held) != min(auto.MaxCandidates, notes+passages) {
-			rt.Fatalf("%d candidates of %d notes and %d passages", len(held), notes, passages)
-		}
-
-		if got := passagesIn(held); got < min(10, passages) {
-			rt.Fatalf("%d passages of %d notes and %d passages", got, notes, passages)
-		}
-
-		if got := len(held) - passagesIn(held); got < min(20, notes) {
-			rt.Fatalf("%d notes of %d notes and %d passages", got, notes, passages)
-		}
-
-		if !isSubsequence(idsOf(held), idsOf(matched)) {
-			rt.Fatalf("the candidates are not in the order of the matched set: %v", idsOf(held))
-		}
-	})
 }
 
 func Test855d4b1l_Recall_TheCandidatesAreHeldToACountAndABudget(t *testing.T) {
@@ -184,6 +107,83 @@ func Test855d4b1l_Recall_TheCandidatesAreHeldToACountAndABudget(t *testing.T) {
 	})
 
 	rapid.Check(t, checkCandidatesAreHeld)
+}
+
+// Test855d4b1m_Recall_AMixedMatchedSetKeepsAFloorOfPassages proves the floor of passages under the cap (855b59).
+func Test855d4b1m_Recall_AMixedMatchedSetKeepsAFloorOfPassages(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		notes, passages := rapid.IntRange(0, 45).Draw(rt, "notes"), rapid.IntRange(0, 45).Draw(rt, "passages")
+		matched := rapid.Permutation(candidatesOfKinds(notes, passages)).Draw(rt, "order")
+
+		step, _ := auto.Recall(recallOf("glance"), matched)
+		held := step.Carry.Candidates
+
+		if len(held) != min(auto.MaxCandidates, notes+passages) {
+			rt.Fatalf("%d candidates of %d notes and %d passages", len(held), notes, passages)
+		}
+
+		if got := passagesIn(held); got < min(10, passages) {
+			rt.Fatalf("%d passages of %d notes and %d passages", got, notes, passages)
+		}
+
+		if got := len(held) - passagesIn(held); got < min(20, notes) {
+			rt.Fatalf("%d notes of %d notes and %d passages", got, notes, passages)
+		}
+
+		if !isSubsequence(idsOf(held), idsOf(matched)) {
+			rt.Fatalf("the candidates are not in the order of the matched set: %v", idsOf(held))
+		}
+	})
+}
+
+func Test855d4b1o_Recall_TheLimitOnTheReplyHoldsADeepReplyForTheMostCandidatesWithFieldsAndLessons(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// the reply shape of 855d4b1h at its largest: 20 notes judged near, with 3 chunks, 3 fields and a newer note, 10
+	// passages, and 6 lessons that supersede a note, each with 3 chunks
+	const chunkID = "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11" +
+		".jsonl#turn-123"
+
+	const noteID = "123.2026-10-17.zorblax-staging-database-is-reset-every-sunday-at-0340-utc.md"
+
+	chunks := []string{chunkID, chunkID, chunkID}
+	entries := make([]map[string]any, 0, auto.MaxCandidates)
+
+	for index := range auto.MaxCandidates {
+		entry := map[string]any{"id": chunkID, "verdict": "evidence"}
+
+		if index < 20 {
+			entry = map[string]any{
+				"id": noteID, "verdict": "near", "newer": noteID, "chunks": chunks,
+				"fields": map[string]string{
+					"subject": "the Zorblax staging database and its reset", "predicate": "is reset every",
+					"object": "Sunday at 03:40 UTC, so test runs are scheduled after that",
+				},
+			}
+		}
+
+		entries = append(entries, entry)
+	}
+
+	lesson := map[string]any{
+		"kind": "fact", "slug": "zorblax-staging-reset", "covered": nil, "chunks": chunks,
+		"situation": "scheduling a test run against the Zorblax staging database",
+		"subject":   "the Zorblax staging database", "predicate": "is reset every", "object": "Sunday at 03:40 UTC",
+		"supersedes": noteID, "type": "updates", "claim": "the reset moved from Saturday to Sunday",
+	}
+
+	reply, err := json.Marshal(map[string]any{"candidates": entries, "lessons": slices.Repeat([]any{lesson}, 6)})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// a token holds 3 characters of such a reply at the least
+	const charactersPerToken = 3
+
+	step, _ := auto.Recall(recallOf("deep"), candidatesOfKinds(1, 0))
+
+	g.Expect(step.Request.MaxTokens).To(BeNumerically(">=", len(reply)/charactersPerToken))
 }
 
 // candidatesOf returns the lines of the section of candidates of a prompt: the lines between the tags that hold it.
