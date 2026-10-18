@@ -22,6 +22,10 @@ const REPORT_BOUND_MS = 15000
 // failure are 110 seconds, under the 2 minutes of the product (793a2f), and the capture's bounds are not extended.
 const SWEEP_BOUND_MS = 90000
 
+// A sweep that is ended is run once more, as ended, so that the command gives up for the session (793d2c): the call
+// for the ID (5), the sweep (90), this run (5) and the report of its failure (15) are 115 seconds, under the 2 minutes.
+const GIVE_UP_BOUND_MS = 5000
+
 // Every request the judgement prints opens with this (793d4g); anything else is not a request.
 const REQUEST = '{"model":'
 
@@ -72,7 +76,7 @@ export function register(on) {
     if (e.agentId === undefined) {
       $.clock.after(0, () => {
         void afterTurn($, e, (session) => captureLessons($, e, turn, session))
-        void afterTurn($, e, (session) => run($, 'sweep', { session, origin: turn.origin }, SWEEP_BOUND_MS))
+        void afterTurn($, e, (session) => sweep($, session, turn.origin))
       })
     }
 
@@ -146,6 +150,20 @@ async function captureLessons($, e, turn, session) {
   const reply = await ask($, requestOf(printed))
 
   await run($, 'write', { session, turn: e.turnId, reply }, WRITE_BOUND_MS)
+}
+
+// sweep indexes the conversation of the session (793d2c). A sweep that is ended at its bound is run once more, as ended:
+// the command gives up for the session and fails once, naming what to run (793d4n), and that failure is reported.
+async function sweep($, session, origin) {
+  try {
+    await run($, 'sweep', { session, origin }, SWEEP_BOUND_MS)
+  } catch (error) {
+    if (!error.ended) {
+      throw error
+    }
+
+    await run($, 'sweep', { session, origin, ended: true }, GIVE_UP_BOUND_MS)
+  }
 }
 
 // describe is the text of a failure.
@@ -256,7 +274,7 @@ async function run($, step, input, timeoutMs) {
   try {
     result = await $.process.run(['engram', 'auto', step], { stdin: JSON.stringify(input), timeoutMs })
   } catch (error) {
-    throw new Error(`${command} was ended or could not run: ${describe(error)}`)
+    throw Object.assign(new Error(`${command} was ended or could not run: ${describe(error)}`), { ended: true })
   }
 
   if (result.exitCode !== 0) {

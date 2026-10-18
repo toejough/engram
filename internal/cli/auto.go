@@ -75,6 +75,7 @@ type AutoJudgeDeps struct {
 type AutoSweepArgs struct {
 	SessionsDir string `targ:"flag,name=sessions,desc=directory of recorded sessions (default ENGRAM_TRANSCRIPT_DIR then CLAUDE_CONFIG_DIR/projects then ~/.claude/projects)"`                             //nolint:lll // single unbreakable struct-tag string
 	ChunksDir   string `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`                                                                                           //nolint:lll // single unbreakable struct-tag string
+	RecordsDir  string `targ:"flag,name=records,desc=directory of the records of what automatic memory did (default $XDG_DATA_HOME/engram/auto)"`                                                          //nolint:lll // single unbreakable struct-tag string
 	CaptureSDK  bool   `targ:"flag,name=capture-sdk,env=ENGRAM_AUTO_CAPTURE_SDK,desc=sweep the turns of headless prompts (origin sdk) too; off by default so a script run with claude -p indexes nothing"` //nolint:lll // single unbreakable struct-tag string
 }
 
@@ -88,6 +89,8 @@ type AutoSweepDeps struct {
 	// whether a file is in it.
 	ReadDir func(path string) ([]fs.DirEntry, error)
 	Exists  func(path string) bool
+	// WriteRecord writes the mark of a session whose sweep was ended, and makes the directory of the session.
+	WriteRecord func(path string, data []byte) error
 }
 
 // AutoWriteArgs holds parsed flags for `engram auto write`.
@@ -232,7 +235,7 @@ func RunAutoJudge(ctx context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, s
 // indexes nothing for a prompt the judgement does not act for, and fails, naming the cause, when the input is not a
 // JSON object, the session has no record or the index fails.
 func RunAutoSweep(ctx context.Context, args AutoSweepArgs, deps AutoSweepDeps) error {
-	var turn auto.TurnEnd
+	var turn sweepTurn
 
 	decodeErr := json.NewDecoder(deps.Stdin).Decode(&turn)
 	if decodeErr != nil {
@@ -241,6 +244,21 @@ func RunAutoSweep(ctx context.Context, args AutoSweepArgs, deps AutoSweepDeps) e
 
 	if !auto.Judged(turn.Origin, args.CaptureSDK) {
 		return nil
+	}
+
+	// a session whose sweep was ended gave up, and the user was told (793d4n)
+	mark := sweepEndedMark(args.RecordsDir, turn.Session)
+	if mark != "" && deps.Exists(mark) {
+		return nil
+	}
+
+	if turn.Ended {
+		// a mark that cannot be written is the end of it: the user is told all the same, and the next sweep tries again
+		if mark != "" {
+			_ = deps.WriteRecord(mark, nil)
+		}
+
+		return fmt.Errorf("auto sweep: %w", errSweepEnded)
 	}
 
 	record := recordPathOf(deps.ReadDir, deps.Exists, args.SessionsDir, turn.Session)
@@ -305,7 +323,21 @@ var (
 	errFailureNotRecorded = errors.New("the failure could not be recorded")
 	// errNoRecord begins the failure of a judgement or a sweep that finds no record of its session.
 	errNoRecord = errors.New("no record of session")
+	// errSweepEnded is the failure of a sweep that the mod ended at its bound, and so tells the user once what to run.
+	errSweepEnded = errors.New("the sweep was ended at its time limit and is not run again in this session; " +
+		"engram ingest --auto indexes the history")
 )
+
+// sweepEndedFile is the mark of a session whose sweep was ended: a file in the directory of the session's records.
+const sweepEndedFile = "sweep.ended"
+
+// sweepTurn is what the memory mod hands the sweep: the turn that ended, and whether the sweep of the session was
+// ended at its bound.
+type sweepTurn struct {
+	auto.TurnEnd
+
+	Ended bool `json:"ended"`
+}
 
 // outcomes is what became of a reply so far, as the records that tell it: base holds what they share.
 type outcomes struct {
@@ -470,8 +502,9 @@ func newAutoSweepDeps(d Deps) AutoSweepDeps {
 		Ingest: func(ctx context.Context, args IngestArgs, stdout io.Writer) error {
 			return RunIngest(ctx, args, ingestDeps, stdout)
 		},
-		ReadDir: d.FS.ReadDir,
-		Exists:  fileExistsFrom(d),
+		ReadDir:     d.FS.ReadDir,
+		Exists:      fileExistsFrom(d),
+		WriteRecord: recordWriterFrom(d),
 	}
 }
 
@@ -522,6 +555,16 @@ func notesOf(payload []byte) ([]auto.Note, error) {
 	}
 
 	return notes, nil
+}
+
+// sweepEndedMark returns the path of the mark of a session whose sweep was ended, or nothing when there is no directory
+// of records or the session's ID is not a plain file name.
+func sweepEndedMark(dir, session string) string {
+	if dir == "" || !isPlainName(session) {
+		return ""
+	}
+
+	return filepath.Join(dir, session, sweepEndedFile)
 }
 
 // recordCandidates lists the files that may hold the record of a session: <ID>.jsonl in the session-log directory

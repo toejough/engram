@@ -206,6 +206,7 @@ func autoTargets(
 				}
 
 				a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
+				a.RecordsDir = recordsDir(a.RecordsDir)
 
 				errHandler(RunAutoSweep(withLog(ctx), a, newAutoSweepDeps(deps)))
 			}).Name("sweep").Description(

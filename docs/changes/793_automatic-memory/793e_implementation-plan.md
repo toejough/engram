@@ -929,12 +929,12 @@ Review finding B-3 ([793b115 A sweep that is ended at its bound is not run again
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2f1b | Dedicated example, product acceptance (`network`) | another process holds the lock of the chunk index for the whole test, as the closing sweep of the [agent](./793a_product-spec.md#793a1a-terms) does on a large backlog, so that the sweep waits and is ended at its bound; the second prompt shows one line that names `[engram ingest](../../GLOSSARY.md#engram-ingest-subcommand) --auto`, and the third, after the time of a sweep has passed again, none | | | Red | | | |
-| 793d4n1g | Dedicated example | the file of the mark is written once and the error names what to run, over an injected writer of files and an index that must not run | | | Red | | | |
-| 793d4n1h | Dedicated example | a [session](../../GLOSSARY.md#session) with the mark is swept nothing, over an injected index that must not run | | | Red | | | |
-| 793d2c1e | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the stand-in host ends the first run and fails the second, as the host does, which a live [session](../../GLOSSARY.md#session) shows only after 90 seconds | | | Red | | | |
-| 793d2c1f | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a second run that succeeds is not reported | | | Red | | | |
-| 793d2c1c (amended) | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the bounds of the sweep, of the run as ended and of the report, with the timers of the stand-in fired at once | | | Red | | | |
+| 793a2f1b | Dedicated example, product acceptance (`network`) | another process holds the lock of the chunk index for the whole test, as the closing sweep of the [agent](./793a_product-spec.md#793a1a-terms) does on a large backlog, so that the sweep waits and is ended at its bound; the second prompt shows one line that names `[engram ingest](../../GLOSSARY.md#engram-ingest-subcommand) --auto`, and the third, after the time of a sweep has passed again, none | | | Green-all | c83de9f8 | | |
+| 793d4n1g | Dedicated example | the file of the mark is written once and the error names what to run, over an injected writer of files and an index that must not run | | | Green-all | c83de9f8 | | |
+| 793d4n1h | Dedicated example | a [session](../../GLOSSARY.md#session) with the mark is swept nothing, over an injected index that must not run | | | Green-all | c83de9f8 | | |
+| 793d2c1e | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the stand-in host ends the first run and fails the second, as the host does, which a live [session](../../GLOSSARY.md#session) shows only after 90 seconds | | | Green-all | c83de9f8 | | |
+| 793d2c1f | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a second run that succeeds is not reported | | | Green-all | c83de9f8 | | |
+| 793d2c1c (amended) | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the bounds of the sweep, of the run as ended and of the report, with the timers of the stand-in fired at once | | | Green-all | c83de9f8 | | |
 
 ### 793e6f The delivery merges the parent vault
 
