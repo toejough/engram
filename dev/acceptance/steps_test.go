@@ -338,19 +338,7 @@ func (m *machine) hasMod() {
 		m.t.Fatalf("finding the module: %v", err)
 	}
 
-	target := filepath.Join(m.claudeDir, "engram", "skills", modName)
-
-	copyErr := copyTree(filepath.Join(root, "agent-instructions", "mods", modName), target)
-	if copyErr != nil {
-		m.t.Fatalf("installing the mod: %v", copyErr)
-	}
-
-	mkdirAll(m.t, filepath.Join(m.claudeDir, "skills"))
-
-	linkErr := os.Symlink(target, filepath.Join(m.claudeDir, "skills", modName))
-	if linkErr != nil {
-		m.t.Fatalf("linking the mod: %v", linkErr)
-	}
+	m.installMod(filepath.Join(root, "agent-instructions", "mods", modName))
 }
 
 // hasPi installs Pi's directory on the machine.
@@ -470,6 +458,26 @@ func (m *machine) indexIsBusy() {
 		_ = syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
 		_ = lock.Close()
 	})
+}
+
+// installMod puts a mod's files in the engram-owned root and a link to them in Claude Code's skills directory, under
+// the name of the mod.
+func (m *machine) installMod(source string) {
+	m.t.Helper()
+
+	target := filepath.Join(m.claudeDir, "engram", "skills", modName)
+
+	copyErr := copyTree(source, target)
+	if copyErr != nil {
+		m.t.Fatalf("installing the mod: %v", copyErr)
+	}
+
+	mkdirAll(m.t, filepath.Join(m.claudeDir, "skills"))
+
+	linkErr := os.Symlink(target, filepath.Join(m.claudeDir, "skills", modName))
+	if linkErr != nil {
+		m.t.Fatalf("linking the mod: %v", linkErr)
+	}
 }
 
 // installed lists the paths below a directory that contain a name, relative to the directory.

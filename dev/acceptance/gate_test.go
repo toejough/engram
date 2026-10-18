@@ -5,22 +5,12 @@ package acceptance_test
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	. "github.com/onsi/gomega"
-)
-
-// unexported constants.
-const (
-	// gatePrompt makes the agent make two tool calls, one after the other.
-	gatePrompt = "Run the shell command `echo one` with the Bash tool and wait for its result, then run the " +
-		"shell command `echo two` with the Bash tool, then say done."
-	// probeNote is the note the block of the probe names.
-	probeNote = "probe-note.md"
 )
 
 func Test855d7a1f_Gate_ABlockDeliveredWithinATurnIsHeld(t *testing.T) {
@@ -54,8 +44,24 @@ func Test855d7a1f_Gate_ABlockDeliveredWithinATurnIsHeld(t *testing.T) {
 	})
 }
 
-// hasProbe installs the probe of the gates in the place of the mod: the files of the fixture in the engram-owned root,
-// and a link to them from Claude Code's skills directory, as hasMod does for the mod (855b46).
+// unexported constants.
+const (
+	// gatePrompt makes the agent make two tool calls, one after the other.
+	gatePrompt = "Run the shell command `echo one` with the Bash tool and wait for its result, then run the " +
+		"shell command `echo two` with the Bash tool, then say done."
+	// probeNote is the note the block of the probe names.
+	probeNote = "probe-note.md"
+)
+
+// hostEvent is one row of the session's record that shows what the host did around a tool call.
+type hostEvent struct {
+	row    int // the index of the row in the record
+	at     time.Time
+	kind   string // tool call, tool result, block, request or reply
+	detail string
+}
+
+// hasProbe installs the probe of the gates in the place of the mod (855b46).
 func (m *machine) hasProbe() {
 	m.t.Helper()
 
@@ -64,27 +70,7 @@ func (m *machine) hasProbe() {
 		m.t.Fatalf("finding the module: %v", err)
 	}
 
-	target := filepath.Join(m.claudeDir, "engram", "skills", modName)
-
-	copyErr := copyTree(filepath.Join(root, "dev", "acceptance", "testdata", "probe"), target)
-	if copyErr != nil {
-		m.t.Fatalf("installing the probe: %v", copyErr)
-	}
-
-	mkdirAll(m.t, filepath.Join(m.claudeDir, "skills"))
-
-	linkErr := os.Symlink(target, filepath.Join(m.claudeDir, "skills", modName))
-	if linkErr != nil {
-		m.t.Fatalf("linking the probe: %v", linkErr)
-	}
-}
-
-// hostEvent is one row of the session's record that shows what the host did around a tool call.
-type hostEvent struct {
-	row    int // the index of the row in the record
-	at     time.Time
-	kind   string // tool call, tool result, block, request or reply
-	detail string
+	m.installMod(filepath.Join(root, "dev", "acceptance", "testdata", "probe"))
 }
 
 // hostEvents reads, from the session's record, the type, the order and the time of the rows around a tool call: the
@@ -137,18 +123,6 @@ func (r transcriptRow) eventKind() (string, string) {
 	return "", ""
 }
 
-// describeEvents writes the events one to a line: the row, the time and the kind.
-func describeEvents(events []hostEvent) string {
-	lines := make([]string, 0, len(events))
-
-	for _, event := range events {
-		lines = append(lines, fmt.Sprintf("row %d  %s  %s %s", event.row, event.at.Format("15:04:05.000"), event.kind,
-			event.detail))
-	}
-
-	return strings.Join(lines, "\n")
-}
-
 // toolCalls counts the tool calls the agent made in the turn.
 func (t *turn) toolCalls() int {
 	count := 0
@@ -160,4 +134,16 @@ func (t *turn) toolCalls() int {
 	}
 
 	return count
+}
+
+// describeEvents writes the events one to a line: the row, the time and the kind.
+func describeEvents(events []hostEvent) string {
+	lines := make([]string, 0, len(events))
+
+	for _, event := range events {
+		lines = append(lines, fmt.Sprintf("row %d  %s  %s %s", event.row, event.at.Format("15:04:05.000"), event.kind,
+			event.detail))
+	}
+
+	return strings.Join(lines, "\n")
 }
