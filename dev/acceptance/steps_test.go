@@ -321,6 +321,13 @@ func (m *machine) chunksCannotBeWritten() {
 	m.t.Cleanup(func() { _ = os.Chmod(m.chunks, dirPerm) })
 }
 
+// deliveryAsked returns the request the delivery was last given, as stepsAreRecorded kept it.
+func (m *machine) deliveryAsked() string {
+	data, _ := os.ReadFile(filepath.Join(m.root, "steps-seen", "deliver.in"))
+
+	return string(data)
+}
+
 // hasClaudeCode installs Claude Code's directory on the machine, with the one permission the scenarios need.
 func (m *machine) hasClaudeCode() {
 	m.t.Helper()
@@ -770,13 +777,6 @@ func (m *machine) stepNeverEnds(step string) {
 	m.stepWraps(step, "exec sleep "+strconv.Itoa(int(neverEnds.Seconds())))
 }
 
-// deliveryAsked returns the request the delivery was last given, as stepsAreRecorded kept it.
-func (m *machine) deliveryAsked() string {
-	data, _ := os.ReadFile(filepath.Join(m.root, "steps-seen", "deliver.in"))
-
-	return string(data)
-}
-
 // stepPrinted returns what the recorded step printed, and whether it ran at all (see stepsAreRecorded).
 func (m *machine) stepPrinted(step string) (string, bool) {
 	m.t.Helper()
@@ -784,21 +784,6 @@ func (m *machine) stepPrinted(step string) (string, bool) {
 	data, err := os.ReadFile(filepath.Join(m.root, "steps-seen", step+".out"))
 
 	return string(data), err == nil
-}
-
-// stepsAreRecorded puts an engram on the PATH that keeps what the moment, the phrases and the recall printed, and runs
-// the machine's own engram for them and for anything else: the debug log says that the moment found nothing, and no
-// log line says what the recall found.
-func (m *machine) stepsAreRecorded() {
-	m.t.Helper()
-
-	dir := filepath.Join(m.root, "steps-seen")
-	engram := filepath.Join(m.gobin, engramBinaryName)
-
-	m.wrapsEngram(dir, "#!/bin/sh\ncase \"$1 $2\" in\n\"auto deliver\")\ncat > '"+dir+"/deliver.in'\n'"+engram+
-		"' \"$@\" < '"+dir+"/deliver.in'\nexit $?\n;;\n\"auto moment\"|\"auto phrases\"|\"auto recall\")\n'"+engram+
-		"' \"$@\" > '"+dir+"/'\"$2\".out\ncode=$?\ncat '"+dir+"/'\"$2\".out\nexit $code\n;;\nesac\nexec '"+engram+
-		"' \"$@\"\n")
 }
 
 // stepStarted reports whether the slow step of stepTakes or stepNeverEnds was started.
@@ -830,6 +815,21 @@ func (m *machine) stepWraps(step, action string) {
 	m.wrapsEngram(dir, "#!/bin/sh\ncase \"$1 $2\" in\n\"auto "+step+"\")\nif [ -e '"+filepath.Join(dir, "slow")+
 		"' ]; then\n: > '"+filepath.Join(dir, "started")+"'\n"+action+"\nfi\n;;\nesac\nexec '"+
 		filepath.Join(m.gobin, engramBinaryName)+"' \"$@\"\n")
+}
+
+// stepsAreRecorded puts an engram on the PATH that keeps what the moment, the phrases and the recall printed, and runs
+// the machine's own engram for them and for anything else: the debug log says that the moment found nothing, and no
+// log line says what the recall found.
+func (m *machine) stepsAreRecorded() {
+	m.t.Helper()
+
+	dir := filepath.Join(m.root, "steps-seen")
+	engram := filepath.Join(m.gobin, engramBinaryName)
+
+	m.wrapsEngram(dir, "#!/bin/sh\ncase \"$1 $2\" in\n\"auto deliver\")\ncat > '"+dir+"/deliver.in'\n'"+engram+
+		"' \"$@\" < '"+dir+"/deliver.in'\nexit $?\n;;\n\"auto moment\"|\"auto phrases\"|\"auto recall\")\n'"+engram+
+		"' \"$@\" > '"+dir+"/'\"$2\".out\ncode=$?\ncat '"+dir+"/'\"$2\".out\nexit $code\n;;\nesac\nexec '"+engram+
+		"' \"$@\"\n")
 }
 
 // vaultCanBeRead gives the right to read the machine's vault back.

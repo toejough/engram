@@ -219,8 +219,8 @@ func namedIn(text, id string) bool {
 	return basename != "" && strings.Contains(text, basename)
 }
 
-// objectOf is the object of a reply: the reply, unfenced, or, when the model reasoned before it, what runs from the last
-// `{"candidates"` on (855d4c).
+// objectOf is the object of a reply: the reply, unfenced, or, when the model reasoned before it, what runs from the
+// last `{"candidates"` on (855d4c).
 func objectOf(reply string) string {
 	text := unfenced(reply)
 
