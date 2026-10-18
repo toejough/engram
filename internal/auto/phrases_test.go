@@ -41,3 +41,26 @@ func Test855d4v1a_Phrases_TheRequestHoldsTheTenAnglesAndTheWindow(t *testing.T) 
 	g.Expect(request.Prompt).To(Equal("<window>\n"+carry.Window+"\n</window>"), "the window of the carry")
 	g.Expect(step.Carry).To(Equal(auto.Carry{Cue: "prompt", Depth: "deep", Window: carry.Window}))
 }
+
+func Test855d4v1b_Phrases_TheNumberOfPhrasesFollowsTheDepth(t *testing.T) {
+	t.Parallel()
+
+	for depth, want := range map[string]struct{ has, hasNot string }{
+		"glance": {has: "about 3 short queryable phrases", hasNot: "exactly 10"},
+		"deep":   {has: "exactly 10 short queryable phrases", hasNot: "about 3"},
+	} {
+		t.Run(depth, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			step, found, err := auto.Phrases(auto.PhrasesInput{
+				Cue: "prompt", Reply: `{"depth":"` + depth + `"}`, Carry: auto.Carry{Cue: "prompt", Window: "User: x"},
+			})
+
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(found).To(BeTrue())
+			g.Expect(step.Request.System).To(ContainSubstring(want.has))
+			g.Expect(step.Request.System).NotTo(ContainSubstring(want.hasNot))
+		})
+	}
+}
