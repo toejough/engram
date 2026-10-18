@@ -114,8 +114,8 @@ flowchart TD
     n793e6b13 --> n793e6c3[793e6c3 A write that fails does not break the session<br/>Complete]
     n793e6g10 --> n793e6d1[793e6d1 What was delivered and what was written for the previous turn is in the session by the next prompt<br/>Complete]
     n793e6b11 --> n793e6d1
-    n793e6d1 --> n793e6d2[793e6d2 A write that finishes after the next prompt is shown when it finishes<br/>Ready]
-    n793e6d1 --> n793e6d3[793e6d3 A delivery that could not be done is shown with its reason<br/>Blocked by: 793e6d2]
+    n793e6d1 --> n793e6d2[793e6d2 A write that finishes after the next prompt is shown when it finishes<br/>Complete]
+    n793e6d1 --> n793e6d3[793e6d3 A delivery that could not be done is shown with its reason<br/>Ready]
     n793e6d1 --> n793e6d4[793e6d4 A write that failed is shown with its reason<br/>Blocked by: 793e6d3]
     n793e6e1 --> n793e6d5[793e6d5 A sweep that failed is shown with its reason<br/>Blocked by: 793e6d4]
     n793e6d1 --> n793e6d6[793e6d6 A turn that is not captured is shown with the reason<br/>Blocked by: 793e6d5]
@@ -124,9 +124,9 @@ flowchart TD
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
     classDef blocked fill:#eeeeee,stroke:#757575,color:#000,stroke-dasharray:5 5
-    class n793e6a1,n793e6a2,n793e6a3,n793e6a4,n793e6a5,n793e6a6,n793e6a7,n793e6a8,n793e6a9,n793e6a10,n793e6a11,n793e6a12,n793e6b1,n793e6b2,n793e6b3,n793e6b4,n793e6b5,n793e6b6,n793e6b7,n793e6b8,n793e6b9,n793e6b10,n793e6b11,n793e6b12,n793e6b13,n793e6b14,n793e6b15,n793e6g1,n793e6g2,n793e6g3,n793e6g4,n793e6g5,n793e6g6,n793e6g7,n793e6g8,n793e6g9,n793e6g10,n793e6g11,n793e6g12,n793e6g13,n793e6g14,n793e6g15,n793e6g16,n793e6g17,n793e6g18,n793e6g19,n793e6e1,n793e6c1,n793e6c2,n793e6c3,n793e6d1 complete
-    class n793e6d2 ready
-    class n793e6d3,n793e6d4,n793e6d5,n793e6d6,n793e6f blocked
+    class n793e6a1,n793e6a2,n793e6a3,n793e6a4,n793e6a5,n793e6a6,n793e6a7,n793e6a8,n793e6a9,n793e6a10,n793e6a11,n793e6a12,n793e6b1,n793e6b2,n793e6b3,n793e6b4,n793e6b5,n793e6b6,n793e6b7,n793e6b8,n793e6b9,n793e6b10,n793e6b11,n793e6b12,n793e6b13,n793e6b14,n793e6b15,n793e6g1,n793e6g2,n793e6g3,n793e6g4,n793e6g5,n793e6g6,n793e6g7,n793e6g8,n793e6g9,n793e6g10,n793e6g11,n793e6g12,n793e6g13,n793e6g14,n793e6g15,n793e6g16,n793e6g17,n793e6g18,n793e6g19,n793e6e1,n793e6c1,n793e6c2,n793e6c3,n793e6d1,n793e6d2 complete
+    class n793e6d3 ready
+    class n793e6d4,n793e6d5,n793e6d6,n793e6f blocked
 ```
 
 Colour follows the status: green `Complete`, blue `Ready`, dashed grey `Blocked by`, yellow `In progress` (none now). A group is `Blocked by` the previous group of the order of [793e4 Depth-first order](#793e4-depth-first-order), which adds no arrow: the order is the rule that a later group needs the previous group's committed result.
@@ -701,7 +701,7 @@ Adds no component: the delivery reads the records at every [prompt](./793a_produ
 
 | Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2e1b | Dedicated example, product acceptance (`network`) | a judgement row; an `engram` on the path waits 12 seconds before the write and then runs it; passed when written; mutation (scratch copy): the mod awaiting the capture inside the turn's event holds the second prompt until the write ended, so that it arrives with the line, which fails it | | Done | n/a | 23b2fb54 | |
+| 793a2e1b | Dedicated example, product acceptance (`network`) | a judgement row; an `engram` on the path waits 12 seconds before the write and then runs it; passed when written; mutation (scratch copy): the mod awaiting the capture inside the turn's event holds the second prompt until the write ended, so that it arrives with the line, which fails it | | Done | n/a | 23b2fb54 | a14cd337 |
 
 #### 793e6d3 A delivery that could not be done is shown with its reason
 
