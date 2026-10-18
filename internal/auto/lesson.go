@@ -31,6 +31,8 @@ type Lesson struct {
 	Subject   string `json:"subject"`
 	Predicate string `json:"predicate"`
 	Object    string `json:"object"`
+	DoneWhen  string `json:"done_when"`
+	Body      string `json:"body"`
 }
 
 // defect returns what is wrong with the lesson, or nothing when it is whole: it has a kind it knows and the fields of
@@ -46,8 +48,11 @@ func (l Lesson) defect() string {
 	case kindFact:
 		names = append(names, "subject", "predicate", "object")
 		values = append(values, l.Subject, l.Predicate, l.Object)
+	case kindRunbook:
+		names = append(names, "done_when", "body")
+		values = append(values, l.DoneWhen, l.Body)
 	default:
-		return fmt.Sprintf("the kind %q is not feedback or fact", l.Kind)
+		return fmt.Sprintf("the kind %q is not feedback, fact or runbook", l.Kind)
 	}
 
 	if !isSlug(l.Slug) {
@@ -69,6 +74,7 @@ func (l Lesson) redacted() Lesson {
 		Kind: l.Kind, Slug: oneRedacted(l.Slug), Situation: oneRedacted(l.Situation), Covered: oneRedacted(l.Covered),
 		Behavior: oneRedacted(l.Behavior), Impact: oneRedacted(l.Impact), Action: oneRedacted(l.Action),
 		Subject: oneRedacted(l.Subject), Predicate: oneRedacted(l.Predicate), Object: oneRedacted(l.Object),
+		DoneWhen: oneRedacted(l.DoneWhen), Body: oneRedacted(l.Body),
 	}
 }
 
@@ -95,6 +101,10 @@ type Reply struct {
 	Turn    string `json:"turn"`
 	Text    string `json:"reply"`
 	Failure string `json:"failure"`
+	// Placement is the reply of the placement judgement, and Carry the placement's carry, which names the notes the
+	// session has seen (855d4i).
+	Placement string `json:"placement"`
+	Carry     Carry  `json:"carry"`
 }
 
 // Skipped is a lesson of a reply that is left out, or the whole reply when it is not a list, with the reason
@@ -152,6 +162,7 @@ func SourceFor(session string) string {
 const (
 	kindFact     = "fact"
 	kindFeedback = "feedback"
+	kindRunbook  = "runbook"
 	// notAList is the reason recorded for a reply that is no list of lessons (793d4k).
 	notAList = "the reply is not a list of lessons"
 	// recordedReasonLimit is how many characters of a reason a record keeps at most (793d4k).

@@ -25,7 +25,8 @@ func Test855d4i1a_Write_ARunbookLessonBecomesARunbookNote(t *testing.T) {
 		Body: "1. run make ci 2. tag with git tag vX.Y.Z 3. push the tag with git push origin vX.Y.Z",
 	}})
 
-	NewWithT(t).Expect(written).To(ContainSubstring(releaseNote), "the path of the note, as the learn path prints it")
+	NewWithT(t).Expect(written).To(ContainSubstring("/vault/release-the-project.md"),
+		"the path of the note, as the learn path prints it")
 }
 
 func Test855d4i1b_Write_ALessonIsWrittenAsAContinuationOrASiblingOfASeenNote(t *testing.T) {
@@ -113,7 +114,6 @@ func Test855d4i1f_Write_APlacementReplyThatIsNotAListIsIgnoredAndRecorded(t *tes
 const (
 	factLessonReply = `[{"kind":"fact","slug":"staging-reset","situation":"testing on the staging database",` +
 		`"covered":null,"subject":"the staging database","predicate":"is reset every","object":"Sunday night"}]`
-	releaseNote        = "1.2026-10-17.release-the-project.md"
 	runbookLessonReply = `[{"kind":"runbook","slug":"release-the-project","situation":"releasing the project",` +
 		`"covered":null,"done_when":"the tag is pushed","body":"1. run make ci 2. tag with git tag vX.Y.Z ` +
 		`3. push the tag with git push origin vX.Y.Z"}]`
@@ -179,7 +179,7 @@ func writeLearning(t *testing.T, input writeInput, expected []cli.LearnArgs) str
 	var out bytes.Buffer
 
 	go func() {
-		done <- cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", VaultName: "personal"},
+		done <- cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", VaultName: "personal", RecordsDir: "/data/auto"},
 			cli.AutoWriteDeps{
 				Stdin: strings.NewReader(string(stdin)), Learn: learn, Now: func() time.Time { return recordedAt },
 				WriteRecord: records.write,

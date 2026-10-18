@@ -18,7 +18,7 @@ func Test793d4h1c_ParseLessons_AReplyThatIsNotAListOfLessonsWritesNothing(t *tes
 		"not JSON":      {reply: "I think there is one lesson here.", reason: "not a list of lessons"},
 		"a JSON object": {reply: `{"kind":"fact"}`, reason: "not a list of lessons"},
 		"no reply":      {reply: ``, reason: "not a list of lessons"},
-		"a lesson of unknown kind": {reply: `[{"kind":"runbook","slug":"a-b","situation":"s","subject":"x",` +
+		"a lesson of unknown kind": {reply: `[{"kind":"qa","slug":"a-b","situation":"s","subject":"x",` +
 			`"predicate":"y","object":"z"}]`, slug: "a-b", reason: "kind"},
 		"a lesson with no slug": {reply: `[{"kind":"fact","slug":"","situation":"s","subject":"x",` +
 			`"predicate":"y","object":"z"}]`, reason: "slug"},

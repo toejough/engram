@@ -17,6 +17,7 @@ import (
 
 	"github.com/toejough/engram/internal/auto"
 	"github.com/toejough/engram/internal/debuglog"
+	"github.com/toejough/engram/internal/luhmann"
 )
 
 // AutoDeliverArgs holds parsed flags for `engram auto deliver`.
@@ -291,6 +292,9 @@ func RunAutoWrite(ctx context.Context, args AutoWriteArgs, deps AutoWriteDeps, s
 const (
 	// the permissions of a record and of the directory of the records of a session
 	recordDirPerm fs.FileMode = 0o750
+	// minSiblingSegments is how many segments the ID of a note has at least to have a sibling: a note at the top has
+	// none, and a sibling of it is another note at the top.
+	minSiblingSegments = 2
 	// recordFileExt ends the name of the file of a record.
 	recordFileExt              = ".json"
 	recordFilePerm fs.FileMode = 0o600
@@ -425,23 +429,29 @@ func isPlainName(name string) bool {
 	return name != "" && name == filepath.Base(name) && name != "." && name != ".."
 }
 
-// learnArgsOfLesson is the write of a lesson through the learn path: a note of its kind at the top of the order, whose
-// source says it was written automatically.
-func learnArgsOfLesson(lesson auto.Lesson, args AutoWriteArgs, session string) LearnArgs {
+// learnArgsOfLesson is the write of a lesson through the learn path: a note of its kind, placed as the placement says,
+// whose source says it was written automatically.
+func learnArgsOfLesson(lesson auto.Lesson, args AutoWriteArgs, session string, placed auto.Placed) LearnArgs {
+	position, target := positionOf(placed)
+
 	return LearnArgs{
-		Type:      lesson.Kind,
-		Slug:      lesson.Slug,
-		Vault:     args.VaultPath,
-		VaultName: args.VaultName,
-		Position:  positionTop,
-		Source:    auto.SourceFor(session),
-		Situation: lesson.Situation,
-		Behavior:  lesson.Behavior,
-		Impact:    lesson.Impact,
-		Action:    lesson.Action,
-		Subject:   lesson.Subject,
-		Predicate: lesson.Predicate,
-		Object:    lesson.Object,
+		Type:       lesson.Kind,
+		Slug:       lesson.Slug,
+		Vault:      args.VaultPath,
+		VaultName:  args.VaultName,
+		Target:     target,
+		Position:   position,
+		Source:     auto.SourceFor(session),
+		Supersedes: supersedesOf(placed.Supersedes),
+		Situation:  lesson.Situation,
+		Behavior:   lesson.Behavior,
+		Impact:     lesson.Impact,
+		Action:     lesson.Action,
+		Subject:    lesson.Subject,
+		Predicate:  lesson.Predicate,
+		Object:     lesson.Object,
+		DoneWhen:   lesson.DoneWhen,
+		Body:       lesson.Body,
 	}
 }
 
@@ -622,6 +632,20 @@ func pruneShown(deps AutoDeliverDeps, dir, session string) {
 	_ = deps.Remove(sessionDir)
 }
 
+// positionOf is the position and the target's Luhmann ID that the learn path is given for a placement: the top, when the
+// target's file name has no ID, or when the lesson is a sibling of a note at the top, which is another note at the top.
+func positionOf(placed auto.Placed) (string, string) {
+	id, hasID := luhmann.FromBasename(strings.TrimSuffix(placed.Target, ".md"))
+	segments, parseErr := luhmann.ParseID(id)
+
+	if placed.Position == auto.PositionTop || !hasID || parseErr != nil ||
+		(placed.Position == auto.PositionSibling && len(segments) < minSiblingSegments) {
+		return positionTop, ""
+	}
+
+	return placed.Position, id
+}
+
 // recordCandidates lists the files that may hold the record of a session: <ID>.jsonl in the session-log directory
 // itself, and in each directory of it.
 func recordCandidates(readDir func(path string) ([]fs.DirEntry, error), dir, session string) []string {
@@ -731,6 +755,17 @@ func recordsOf(deps AutoDeliverDeps, dir, session string) []auto.Record {
 	return records
 }
 
+// supersedesOf is the `--supersedes` flags of the learn path for the notes a lesson supersedes.
+func supersedesOf(ties []auto.Supersession) []string {
+	var flags []string
+
+	for _, tie := range ties {
+		flags = append(flags, tie.Note+"|"+tie.Type+"|"+tie.Claim)
+	}
+
+	return flags
+}
+
 // sessionsDirOf is where the records of sessions are read from when --sessions is not given (793d4f): the directory
 // ENGRAM_TRANSCRIPT_DIR names when it is set, else the projects directory of CLAUDE_CONFIG_DIR when that is set, where
 // Claude Code writes the records of a session started with it, else the home's .claude/projects.
@@ -766,6 +801,21 @@ func sweepEndedMark(dir, session string) string {
 	return filepath.Join(dir, session, sweepEndedFile)
 }
 
+// placementsOf reads the placement a writing was given, and records that it was not used when it is no list (855d4i): the
+// lessons are then written at the top.
+func placementsOf(reply auto.Reply, results *outcomes) []auto.Placement {
+	if strings.TrimSpace(reply.Placement) == "" {
+		return nil
+	}
+
+	placements, placementErr := auto.ParsePlacements(reply.Placement)
+	if placementErr != nil {
+		results.add(auto.RecordSkipped, "", "", "the placement was not used: "+placementErr.Error())
+	}
+
+	return placements
+}
+
 // writeLessons writes the lessons of a reply through the learn path and adds what became of the reply, of each lesson
 // and of each lesson it leaves out to the outcomes. A failure to get a reply holds no lessons.
 func writeLessons(
@@ -783,6 +833,8 @@ func writeLessons(
 		results.add(auto.RecordSkipped, "", left.Slug, left.Reason)
 	}
 
+	placements := placementsOf(reply, results)
+
 	var failures []error
 
 	for _, lesson := range lessons {
@@ -792,7 +844,9 @@ func writeLessons(
 			continue
 		}
 
-		path, learnErr := deps.Learn(ctx, learnArgsOfLesson(lesson, args, reply.Session))
+		placed := auto.PlacedAt(placements, lesson.Slug, reply.Carry.Seen)
+
+		path, learnErr := deps.Learn(ctx, learnArgsOfLesson(lesson, args, reply.Session, placed))
 		if learnErr != nil {
 			failures = append(failures, fmt.Errorf("writing %s: %w", lesson.Slug, learnErr))
 
