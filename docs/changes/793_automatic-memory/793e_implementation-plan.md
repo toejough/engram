@@ -156,9 +156,9 @@ flowchart TD
     n793e6i3 --> n793e6i4[793e6i4 A turn with nothing to write leaves no record, and the records that were shown are removed<br/>Complete]
     n793e6i4 --> n793e6i5[793e6i5 A sweep that is ended at its bound is not run again in the session, and the user is told once<br/>Complete]
     n793e6d5 --> n793e6i5
-    n793e6g8 --> n793e6i6[793e6i6 The credentials that are redacted are the shapes the promise names<br/>Ready]
+    n793e6g8 --> n793e6i6[793e6i6 The credentials that are redacted are the shapes the promise names<br/>In progress: 0/2 entries complete]
     class n793e6i1,n793e6i2,n793e6i3,n793e6i4,n793e6i5 complete
-    class n793e6i6 ready
+    class n793e6i6 progress
     classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
@@ -944,8 +944,8 @@ Review finding B-2 ([793b116 The promise names the shapes the redaction catches,
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793d4j1a (amended) | Property-based (`rapid`) | one probe for each prefix and each shape of a recognised credential, with its parts from their lower bound up; passed when written; mutation (scratch copy): a lower bound of 17 for the prefixes `sk`, `pk` and `rk` fails the probes of those six prefixes | for each shape of a [recognised credential](./793a_product-spec.md#793a1a-terms), whatever text surrounds it: the secret is not in the redacted text, and the name of an assignment is | | Not started | | | |
-| 793d4j1b (amended) | Dedicated example | the forms the promise leaves out, and each shape one character short of its lower bound, are left as they were: 36 letters, 36 digits, three parts joined by dots that do not begin `eyJ`, and a commit's 40 hexadecimal digits; passed when written; mutation (scratch copy): a rule for a long run that needs no letter and digit fails it | | | Not started | | | |
+| 793d4j1a (amended) | Property-based (`rapid`) | one probe for each prefix and each shape of a recognised credential, with its parts from their lower bound up; passed when written; mutation (scratch copy): a lower bound of 17 for the prefixes `sk`, `pk` and `rk` fails the probes of those six prefixes | for each shape of a [recognised credential](./793a_product-spec.md#793a1a-terms), whatever text surrounds it: the secret is not in the redacted text, and the name of an assignment is | | Green-all | n/a | | |
+| 793d4j1b (amended) | Dedicated example | the forms the promise leaves out, and each shape one character short of its lower bound, are left as they were: 36 letters, 36 digits, three parts joined by dots that do not begin `eyJ`, and a commit's 40 hexadecimal digits; passed when written; mutation (scratch copy): a rule for a long run that needs no letter and digit fails it | | | Green-all | n/a | | |
 
 ### 793e6f The delivery merges the parent vault
 
