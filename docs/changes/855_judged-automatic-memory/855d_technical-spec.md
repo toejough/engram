@@ -66,7 +66,7 @@ Not in the type definitions, so hypotheses measured by [855d7a Hypotheses and th
 - **Reply:** a reply that a step reads, a moment reply included (`{"depth":...}`, `{"learn":...}`), is a JSON value, fenced or not; one rule reads them all.
 - **Failed step:** a step that exits with other than 0 or cannot be run, or prints what is neither nothing nor a request (for `deliver`, nor a block), or a model call that gives no text or rejects, or a wait that passes its bound without an answer.
 - **Held:** the IDs of the notes and passages the mod delivered in the session within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) ([855d2c Mid-turn recall flow](#855d2c-added-mid-turn-recall-flow)).
-- **Date:** the day a candidate line carries: for a note the day it was written or last amended, for a chunk the day it was indexed ([855d4b Looking up the candidates for the phrases](#855d4b-added-looking-up-the-candidates-for-the-phrases)).
+- **Date:** the day a candidate line carries: for a note the day it was written (its `created` field), for a chunk the time the index holds, which is the time of the last row of its session for a [transcript](../../GLOSSARY.md#transcript) ([855b56 The date of a note is its created date, and the date of a chunk the time the index holds](855b_decision-log.md#855b56-the-date-of-a-note-is-its-created-date-and-the-date-of-a-chunk-the-time-the-index-holds), [855d4b Looking up the candidates for the phrases](#855d4b-added-looking-up-the-candidates-for-the-phrases)).
 - **Report of a failure:** when the session's ID is known, `engram auto write` with the session's ID, the turn's ID when there is one, and a `failure`, a sentence that names the step and how it failed, run from a timer (`$.clock.after`) so that no call of the host is in flight when the hook settles.
 
 ## 855d2 Recommended sequence diffs
@@ -456,7 +456,7 @@ Scenario: 855d4a1h A moment that prints nothing for the end of a turn logs it
 
 ### 855d4b Added: Looking up the candidates for the phrases
 
-Requirement: 855d4b The `recall-lookup` MUST read one JSON object from standard input: the `session`'s ID, the `cue`, the `reply` of the phrases judgement and its `carry`. The reply is a JSON object with `phrases`, a list of short strings; a reply that is not one, or holds no phrase, MUST fail the command, printing nothing and naming the judgement. It MUST run the lookup of [792b24c5 The matched set](../../specs/technical/query-engine.md#792b24c5-the-matched-set) once, for the [vault](../../GLOSSARY.md#vault), with the first 3 phrases at glance and the first 10 at deep, each as a phrase of its own and with no message ([855b39 The raw prompt is not the lookup's message](855b_decision-log.md#855b39-the-raw-prompt-is-not-the-lookups-message)), and MUST keep the [notes](../../GLOSSARY.md#permanent-note) and the chunks the matched set holds, not the notes picked by the explore half alone ([792b24c16 Delivering the explore half](../../specs/technical/query-engine.md#792b24c16-delivering-the-explore-half)) and not the newest chunks ([792b24c19 The newest chunks](../../specs/technical/query-engine.md#792b24c19-the-newest-chunks)), and not the chunks of the [session](../../GLOSSARY.md#session)'s own [transcript](../../GLOSSARY.md#transcript). When none remain it MUST print nothing and succeed. Otherwise it MUST read the text of each chunk it kept as [`engram show-chunk`](../../GLOSSARY.md#engram-show-chunk-subcommand) does, and print one object `{"request":{...},"carry":{...}}`. The request has `model` of the mid tier, `system`, `prompt` and `maxTokens`, and no `timeoutMs` ([855d2a 793d2a Prompt delivery flow](#855d2a-modified-793d2a-prompt-delivery-flow)). The `system` MUST hold the instructions and nothing of the session: for each candidate a `verdict` ([855d8b The candidates of the lookup](#855d8b-the-candidates-of-the-lookup)); as `newer` the candidate that reverses another because its date is later and it explicitly reverses it; and the reply shape; and, at deep depth, also the `lessons` the evidence shows that no candidate states, in the shape of [855d4i 793d4h Writing the lessons of a reply](#855d4i-modified-793d4h-writing-the-lessons-of-a-reply), and for a near note the `fields` to revise. The `prompt` MUST hold the window of the carry between `<window>` and `</window>` and the candidates between `<candidates>` and `</candidates>`, one line each, redacted ([855d4k 793d4j Redacting credentials](#855d4k-modified-793d4j-redacting-credentials)) and with `<` written `&lt;`, in the format and within the budget of [855d8b The candidates of the lookup](#855d8b-the-candidates-of-the-lookup). The carry holds the cue, the depth, the window and the candidates in full; its output holds `"write":true` at deep depth. It MUST print nothing and fail, naming the cause, when the lookup fails, the cause holding no text of the [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) ([793b107 A delivery that could not be done is reported without the prompt's text](../793_automatic-memory/793b_decision-log.md#793b107-a-delivery-that-could-not-be-done-is-reported-without-the-prompts-text)), and MUST write a warning of the lookup to the debug log and not to standard error.
+Requirement: 855d4b The `recall-lookup` MUST read one JSON object from standard input: the `session`'s ID, the `reply` of the phrases judgement and its `carry`, which holds the cue. The reply is a JSON object with `phrases`, a list of short strings; a reply that is not one, or holds no phrase, MUST fail the command, printing nothing and naming the judgement, and so MUST a carry whose depth is neither `glance` nor `deep`, naming the depth. It MUST run the lookup of [792b24c5 The matched set](../../specs/technical/query-engine.md#792b24c5-the-matched-set) once, for the [vault](../../GLOSSARY.md#vault), with the first 3 phrases at glance and the first 10 at deep, each as a phrase of its own and with no message ([855b39 The raw prompt is not the lookup's message](855b_decision-log.md#855b39-the-raw-prompt-is-not-the-lookups-message)), and MUST keep the [notes](../../GLOSSARY.md#permanent-note) and the chunks the matched set holds, not the notes picked by the explore half alone ([792b24c16 Delivering the explore half](../../specs/technical/query-engine.md#792b24c16-delivering-the-explore-half)) and not the newest chunks ([792b24c19 The newest chunks](../../specs/technical/query-engine.md#792b24c19-the-newest-chunks)), and not the chunks of the [session](../../GLOSSARY.md#session)'s own [transcript](../../GLOSSARY.md#transcript). When none remain, or none fits the budget of [855d8b The candidates of the lookup](#855d8b-the-candidates-of-the-lookup), it MUST print nothing and succeed. Otherwise it MUST read the text of each chunk it kept as [`engram show-chunk`](../../GLOSSARY.md#engram-show-chunk-subcommand) does, from the index file of its source alone, and print one object `{"request":{...},"carry":{...}}`. The request has `model` of the mid tier, `system`, `prompt` and `maxTokens`, and no `timeoutMs` ([855d2a 793d2a Prompt delivery flow](#855d2a-modified-793d2a-prompt-delivery-flow)). The `system` MUST hold the instructions and nothing of the session: for each candidate a `verdict` ([855d8b The candidates of the lookup](#855d8b-the-candidates-of-the-lookup)); as `newer` the candidate that reverses another because its date is later and it explicitly reverses it; and the reply shape; and, at deep depth, also the `lessons` the evidence shows that no candidate states, in the shape of [855d4i 793d4h Writing the lessons of a reply](#855d4i-modified-793d4h-writing-the-lessons-of-a-reply), and for a near note the `fields` to revise. The `prompt` MUST hold the window of the carry, escaped again, between `<window>` and `</window>` and the candidates between `<candidates>` and `</candidates>`, one line each, redacted ([855d4k 793d4j Redacting credentials](#855d4k-modified-793d4j-redacting-credentials)) and with `<` written `&lt;`, in the format and within the budget of [855d8b The candidates of the lookup](#855d8b-the-candidates-of-the-lookup). The carry holds the cue, the depth, the window and the candidates redacted and written as one line, their text not cut; its output holds `"write":true` at deep depth. It MUST print nothing and fail, naming the cause, when the lookup fails, the cause holding no text of the [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) ([793b107 A delivery that could not be done is reported without the prompt's text](../793_automatic-memory/793b_decision-log.md#793b107-a-delivery-that-could-not-be-done-is-reported-without-the-prompts-text)), and MUST write a warning of the lookup to the debug log and not to standard error.
 
 Owner: `recall-lookup` (new; `recall-lookup.md` at promotion). Supports: [855a3b1a A prompt that is not a recall moment arrives with nothing](855a_product-spec.md#855a3b1-uat-scenarios), [855a3b1b A note whose words match but that does not apply is not delivered](855a_product-spec.md#855a3b1-uat-scenarios), [855a3b1c Of two notes that conflict, only the newer is delivered](855a_product-spec.md#855a3b1-uat-scenarios), [855a3b1d The notes that arrive are the notes the recall skill draws on](855a_product-spec.md#855a3b1-uat-scenarios), [855a3b1e A passage of an earlier conversation arrives when it applies](855a_product-spec.md#855a3b1-uat-scenarios), [855a2a1a A glance leaves the vault's notes as they were](855a_product-spec.md#855a2a1-uat-scenarios), [855a2a1b A deep delivery writes the lesson the vault lacks](855a_product-spec.md#855a2a1-uat-scenarios), [793a2b1d A prompt that matches no note arrives with nothing](../793_automatic-memory/793a_product-spec.md#793a2b1-uat-scenarios).
 
@@ -469,9 +469,9 @@ Scenario: 855d4b1a The phrases are looked up once, as phrases of their own
   Then it is run once for each, with the first 3 and the first 10 phrases, each as a phrase of its own, and with no message
 
 Scenario: 855d4b1c A reply that is not a phrases reply fails the command
-  Given replies that are not JSON, that hold no phrases and that hold an empty list, and a fenced reply of one phrase
+  Given replies that are not JSON, that hold no phrases and that hold an empty list, a carry with no depth, and a fenced reply of one phrase
   When the lookup is asked for each
-  Then the fenced one is looked up, and the others print nothing and fail with an error that names the judgement and holds no text of the prompt
+  Then the fenced one is looked up, and the others print nothing and fail with an error that names the judgement (the carry with no depth, the depth) and holds no text of the prompt
 
 Scenario: 855d4b1d The notes and passages that matched become candidates, the explore picks and the newest chunks do not
   Given a lookup whose payload holds a matched note, a matched chunk, a note picked by the explore half alone and a newest chunk
@@ -491,17 +491,17 @@ Scenario: 855d4b1f Nothing matched prints nothing
 Scenario: 855d4b1g The request is for the mid tier and holds the verdicts, the window and the dated candidates
   Given a lookup that returns two notes and a chunk with dates, and a carry with a window
   When the lookup is asked at glance
-  Then the request is for the model sonnet with no time limit, whose system holds the four verdicts, the newer as the later date that reverses and the reply shape and none of the candidates, whose prompt holds the window and a line for each candidate with its date, and whose carry holds the three candidates in full with their dates and no "write":true
+  Then the request is for the model sonnet with no time limit, whose system holds the four verdicts, the rule that a note matching only superseded content is near, the newer as the later date that reverses and the reply shape and none of the candidates, whose prompt holds the window and a line for each candidate with its date, for a note its type, and for one from the parent vault the word parent, and whose carry holds the three candidates in full with their dates and no "write":true
 
 Scenario: 855d4b1h A deep request also asks for the lessons and the revisions
   Given the same lookup
   When the lookup is asked at deep
-  Then the system also holds the lessons and the fields, and the output holds "write":true
+  Then the system also holds the lessons and the fields (those of a runbook too), that a note a newer candidate reverses is near with fields, and the output holds "write":true
 
 Scenario: 855d4b1i A candidate cannot reshape the request or hold a credential
   Given notes and chunks whose texts hold line breaks, the tag that closes the candidates, a credential of every shape, a note of more than 400 characters and a chunk of more than 1,200
   When the lookup is asked
-  Then each candidate is one line of the section, the character that opens a tag is written &lt;, no credential is in the request, the note is whole and the chunk is cut to 1,200 characters
+  Then each candidate is one line of the section, the character that opens a tag is written &lt;, no credential is in the request or the carry, the note is whole and the chunk is cut to 1,200 characters in the request and whole in the carry, and a window that holds a tag cannot close the window of the request
 
 Scenario: 855d4b1j A failed lookup fails the command and prints nothing
   Given a lookup that fails
@@ -517,6 +517,31 @@ Scenario: 855d4b1l The candidates are held to a count and a budget
   Given a lookup that returns 40 notes whose bodies hold 3,000 characters each
   When the lookup is asked
   Then the request lists the first 20 of the matched set whole, and the candidates hold no more than 60,000 characters of text in all
+
+Scenario: 855d4b1m A cap on the count keeps a floor of passages
+  Given a matched set of 32 notes and 12 passages, and any matched set of notes and passages in any order
+  When the lookup is asked
+  Then the request lists 30 candidates, at least 10 of them passages and at least 20 notes when so many matched, in the order of the matched set
+
+Scenario: 855d4b1n The candidates are in the order of their scores, and nothing that fits prints nothing
+  Given a lookup whose payload holds a chunk that scores higher than a note, and one whose only note holds more than 60,000 characters
+  When the lookup is asked
+  Then the request lists the chunk first, and for the long note it prints nothing and succeeds
+
+Scenario: 855d4b1o The limit on the reply holds a deep reply for the most candidates
+  Given the reply of a deep recall for 30 candidates: 20 notes judged near with 3 chunks, 3 fields and a newer note, 10 passages, and 6 lessons that supersede a note
+  When the lookup is asked at deep
+  Then the limit on the reply, at 3 characters to the token, holds the reply
+
+Scenario: 855d4b1p Only the index file of each source that matched is read
+  Given a payload of matched chunks of two sources and a chunk of the session's own transcript
+  When the lookup is asked
+  Then the index file of each of the two sources is read once, and the session's own is not read
+
+Scenario: 855d4b1q A note with no front matter is a candidate whole, and the index reader reports a missing or a corrupt file
+  Given a note whose content holds no front matter, and a directory of index files, one of them corrupt
+  When the lookup is asked and the reader reads the files
+  Then the line holds the whole content, the reader returns the records of a file, and it fails on the missing file and on the corrupt one
 ```
 
 ### 855d4c Modified: 793d4a Delivering the notes that bear on a prompt
@@ -929,7 +954,7 @@ Target: [793d4p1k A warning of the lookup is no line for the user](../793_automa
 
 ### 855d4v Added: Phrasing the lookup
 
-Requirement: 855d4v The `phrase-judgement` MUST read one JSON object from standard input: the `session`'s ID, the `cue`, the `reply` of the moment judgement and its `carry`. It MUST read the reply ([855d1b Terms](#855d1b-terms)) as a JSON object with a `depth` of `none`, `glance` or `deep`, and fail, printing nothing and naming the judgement, when the reply is not one or the depth is none of the three. A depth of `none` MUST print nothing, succeed and look nothing up. Otherwise it MUST print one object `{"request":{...},"carry":{...}}`. The request has `model` of the mid tier, `system`, `prompt` and `maxTokens`, and no `timeoutMs` ([855d2a 793d2a Prompt delivery flow](#855d2a-modified-793d2a-prompt-delivery-flow)). The `system` MUST hold the instructions and nothing of the [session](../../GLOSSARY.md#session): the [recall skill](../../GLOSSARY.md#recall-skill)'s Step 1, one short queryable phrase for each of ten angles (the situation or setting, the user's intent, the current concrete action, the problem or blocker, the candidate approach, the tooling in play, prior related work, an adjacent technique, a failure mode to avoid, the domain), about 3 of them at glance and all 10 at deep, each keyed to the task and not to a fear ("implementing Claude Code hooks", not "common mistakes when writing hooks"), none filtered before the lookup, and the reply shape `{"phrases":[...]}`. The `prompt` MUST hold the window of the carry between `<window>` and `</window>`. The carry holds the cue, the depth and the window. It MUST fail, printing nothing and naming the cause, when the input is not a JSON object.
+Requirement: 855d4v The `phrase-judgement` MUST read one JSON object from standard input: the `session`'s ID, the `reply` of the moment judgement and its `carry`, which holds the cue. It MUST read the reply ([855d1b Terms](#855d1b-terms)) as a JSON object with a `depth` of `none`, `glance` or `deep`, and fail, printing nothing and naming the judgement, when the reply is not one or the depth is none of the three. A depth of `none` MUST print nothing, succeed and look nothing up. Otherwise it MUST print one object `{"request":{...},"carry":{...}}`. The request has `model` of the mid tier, `system`, `prompt` and `maxTokens`, and no `timeoutMs` ([855d2a 793d2a Prompt delivery flow](#855d2a-modified-793d2a-prompt-delivery-flow)). The `system` MUST hold the instructions and nothing of the [session](../../GLOSSARY.md#session): the [recall skill](../../GLOSSARY.md#recall-skill)'s Step 1, one short queryable phrase for each of ten angles (the situation or setting, the user's intent, the current concrete action, the problem or blocker, the candidate approach, the tooling in play, prior related work, an adjacent technique, a failure mode to avoid, the domain), about 3 of them at glance and all 10 at deep, each keyed to the task and not to a fear ("implementing Claude Code hooks", not "common mistakes when writing hooks"), none filtered before the lookup, and the reply shape `{"phrases":[...]}`. The `prompt` MUST hold the window of the carry between `<window>` and `</window>`. The carry holds the cue, the depth and the window. It MUST fail, printing nothing and naming the cause, when the input is not a JSON object.
 
 Owner: `phrase-judgement` (new; `phrase-judgement.md` at promotion). Supports: [855a3b1b A note whose words match but that does not apply is not delivered](855a_product-spec.md#855a3b1-uat-scenarios), [855a3b1d The notes that arrive are the notes the recall skill draws on](855a_product-spec.md#855a3b1-uat-scenarios), [855a3b1e A passage of an earlier conversation arrives when it applies](855a_product-spec.md#855a3b1-uat-scenarios), [855a2a1b A deep delivery writes the lesson the vault lacks](855a_product-spec.md#855a2a1-uat-scenarios).
 
@@ -937,9 +962,9 @@ Owner: `phrase-judgement` (new; `phrase-judgement.md` at promotion). Supports: [
 
 ```gherkin
 Scenario: 855d4v1a The request holds the ten angles and the window
-  Given a reply of depth deep and a carry that holds a window
+  Given a reply of depth deep and a carry that holds a cue and a window, one of them with a tag in it
   When the phrases are asked
-  Then it prints a request for the model sonnet with no time limit, whose system names the ten angles, the keying to the task and the reply shape, whose prompt holds the window, and a carry that holds the cue, the depth and the window
+  Then it prints a request for the model sonnet with no time limit, whose system names the ten angles, the keying to the task and the reply shape, whose prompt holds the window, and a carry that holds the cue of the carry, the depth and the window, the prompt holding the window escaped again
 
 Scenario: 855d4v1b The number of phrases follows the depth
   Given replies of depth glance and of depth deep
@@ -1483,7 +1508,7 @@ Details of mechanism that the requirements above point to, bound for the impleme
 
 ### 855d8b The candidates of the lookup
 
-- Verdicts: `covered`, a [note](../../GLOSSARY.md#permanent-note) that states what applies to the moment; `near`, a note that addresses the same situation and omits a substantive claim; `evidence`, a passage that applies; `unrelated`.
-- Budget: a note whole; a chunk cut to 1,200 characters; at most 30 candidates and 60,000 characters of text in all, the last of the matched set dropped first.
-- Candidate line: `- <file name or chunk ID> (<date>; <situation, or passage>): <body or text>`, written as one line.
-- Carry: for each candidate, its ID, kind, date, situation, full text and whether it came from the parent [vault](../../GLOSSARY.md#vault) or is pending.
+- Verdicts: `covered`, a [note](../../GLOSSARY.md#permanent-note) that states what applies to the moment; `near`, a note that addresses the same situation and omits a substantive claim, or that only matches content a newer candidate reverses ([recall skill](../../GLOSSARY.md#recall-skill) Step 2.5C); `evidence`, a passage that applies; `unrelated`.
+- Budget: the lookup is asked for 60 items; the matched set is in the order of the scores; a note whole; a chunk cut to 1,200 characters; at most 30 candidates, at least 10 of them passages when so many matched, and 60,000 characters of text in all, the list ending at the first candidate that does not fit ([855b59 The cap keeps a floor of passages, and the budget ends the list at the first that does not fit](855b_decision-log.md#855b59-the-cap-keeps-a-floor-of-passages-and-the-budget-ends-the-list-at-the-first-that-does-not-fit)).
+- Candidate line: `- <file name or chunk ID> (<date>; <type>; parent; <situation>): <body>` for a note, `parent` only for one from the parent [vault](../../GLOSSARY.md#vault), and `- <chunk ID> (<date>; passage): <text>` for a chunk, written as one line.
+- Carry: for each candidate, its ID, kind, type, date, situation, full text (redacted and written as one line, not cut) and whether it came from the parent [vault](../../GLOSSARY.md#vault) or is pending.
