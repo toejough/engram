@@ -43,6 +43,7 @@ Added by the fixes of the review round of the third group ([793e6h The fixes of 
 Added by the fixes of the review of the whole branch ([793e6i The fixes of the review of the whole branch](#793e6i-the-fixes-of-the-review-of-the-whole-branch)):
 
 - `internal/auto/auto.go`: the mark of a [note](../../GLOSSARY.md#permanent-note) written automatically is looked for anywhere in its source ([793b111 The mark of a note written automatically is looked for anywhere in its source](./793b_decision-log.md#793b111-the-mark-of-a-note-written-automatically-is-looked-for-anywhere-in-its-source)).
+- `internal/cli/auto.go`: the lookup of the commands `deliver` and `judge` warns into the debug log ([793b112 The warnings of the lookup go to the debug log](./793b_decision-log.md#793b112-the-warnings-of-the-lookup-go-to-the-debug-log)).
 
 ## 793e2 Test methods
 
@@ -71,7 +72,7 @@ The groups, in the order of the catalog ([793b28 Depth-first order](./793b_decis
 | [793e6c Never in the way](#793e6c-never-in-the-way) | the rest of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), without the clause about its own sessions | none | Complete |
 | [793e6d The user can see what it did](#793e6d-the-user-can-see-what-it-did) | [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) | none | Complete |
 | [793e6h The fixes of the review round of the third group](#793e6h-the-fixes-of-the-review-round-of-the-third-group) | the defects the third group's one review round found in [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) and [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), and in their technical requirements | none | Complete |
-| [793e6i The fixes of the review of the whole branch](#793e6i-the-fixes-of-the-review-of-the-whole-branch) | the defects the one review round of the whole branch found in [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did), [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), their technical requirements and the documents | none | Complete |
+| [793e6i The fixes of the review of the whole branch](#793e6i-the-fixes-of-the-review-of-the-whole-branch) | the defects the one review round of the whole branch found in [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did), [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), their technical requirements and the documents | none | In progress: 1/7 nodes complete |
 | [793e6f The delivery merges the parent vault](#793e6f-the-delivery-merges-the-parent-vault) | the clause of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) that the [notes](../../GLOSSARY.md#permanent-note) are those `engram query` returns, for a [vault](../../GLOSSARY.md#vault) that has a parent ([793c34 Does the delivery merge the parent vault, as `engram query` does?](./793c_open-questions.md#793c34-does-the-delivery-merge-the-parent-vault-as-engram-query-does)) | none | Blocked by: [793c34 Does the delivery merge the parent vault, as `engram query` does?](./793c_open-questions.md#793c34-does-the-delivery-merge-the-parent-vault-as-engram-query-does) |
 
 ## 793e9 Dependency graph
@@ -144,7 +145,9 @@ flowchart TD
     n793e6h1 --> n793e6h7[793e6h7 The documents say what the group does<br/>Complete]
     n793e6a2 --> n793e6f[793e6f The delivery merges the parent vault<br/>Blocked by: 793c34]
     n793e6g7 --> n793e6i1[793e6i1 A note written by the earlier mod is marked as written automatically<br/>Complete]
+    n793e6h1 --> n793e6i2[793e6i2 The warnings of the lookup go to the debug log, not to the user<br/>Ready]
     class n793e6i1 complete
+    class n793e6i2 ready
     classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
@@ -868,7 +871,15 @@ Review finding B-9 ([793b111 The mark of a note written automatically is looked 
 
 | Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 793d4c1c (amended) | Dedicated example | the source the earlier mod wrote, `captured from the conversation; written automatically (session s1, turn 3)`, over a note on disk | Done | de9bc0d7 | c9ce9998 | |
+| 793d4c1c (amended) | Dedicated example | the source the earlier mod wrote, `captured from the conversation; written automatically (session s1, turn 3)`, over a note on disk | Done | de9bc0d7 | c9ce9998 | 27eb7424 |
+
+#### 793e6i2 The warnings of the lookup go to the debug log, not to the user
+
+Review finding B-5 ([793b112 The warnings of the lookup go to the debug log](./793b_decision-log.md#793b112-the-warnings-of-the-lookup-go-to-the-debug-log), [793c85 Do the warnings of the lookup reach the user at every prompt?](./793c_open-questions.md#793c85-do-the-warnings-of-the-lookup-reach-the-user-at-every-prompt)): the lookup of the delivery printed its warnings on standard error, which the mod shows to the user line by line, so a [note](../../GLOSSARY.md#permanent-note) whose embedding is of another model made a warning at every [prompt](./793a_product-spec.md#793a1a-terms).
+
+| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| 793d4p1k | Dedicated example | `engram auto deliver` dispatched over a [vault](../../GLOSSARY.md#vault) of two notes, the embedding of one of another model, with a debug log: standard error holds the line of the note delivered and nothing else, and the log holds the warning | Not started | | | |
 
 ### 793e6f The delivery merges the parent vault
 

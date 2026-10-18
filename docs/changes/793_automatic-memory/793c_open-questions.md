@@ -529,3 +529,11 @@ Withdrawn: answered by the owner's instruction to follow the guides, [793b91 The
 - **Recommendation:** (a): the mark tells the [agent](./793a_product-spec.md#793a1a-terms) which notes a person did not write, and (b) hides it for every note already written.
 - **Blocks:** [793d4c1c A note written automatically says so in its line](./793d_technical-spec.md#793d4c1-scenarios).
 - **Status:** open; default (a) taken in [793b111 The mark of a note written automatically is looked for anywhere in its source](./793b_decision-log.md#793b111-the-mark-of-a-note-written-automatically-is-looked-for-anywhere-in-its-source).
+
+## 793c85 Do the warnings of the lookup reach the user at every prompt?
+
+- **Context:** the lookup of the delivery warns when a [note](../../GLOSSARY.md#permanent-note)'s embedding is of another model, and the mod shows every line of the delivery's standard error to the user ([793d4p Telling what automatic memory did](./793d_technical-spec.md#793d4p-telling-what-automatic-memory-did)); a [vault](../../GLOSSARY.md#vault) with one such note shows the warning at every [prompt](./793a_product-spec.md#793a1a-terms).
+- **Options:** (a) The warning goes to the debug log. (b) The user is shown it, as built before. (c) It is discarded.
+- **Recommendation:** (a): the user is told what [automatic memory](./793a_product-spec.md#793a1a-terms) did, not what its lookup thinks of the vault, and the debug log keeps the trace; (b) is noise at every prompt, and (c) leaves none.
+- **Blocks:** [793d4p1k A warning of the lookup is no line for the user](./793d_technical-spec.md#793d4p1-scenarios).
+- **Status:** open; default (a) taken in [793b112 The warnings of the lookup go to the debug log](./793b_decision-log.md#793b112-the-warnings-of-the-lookup-go-to-the-debug-log).
