@@ -14,6 +14,6 @@ The five steps, depth first and the delegation rule are those of [793f2 The algo
 
 ## 855f3 What differs
 
-- The change layers on the unmerged change 793: its product promises that this change replaces are Modified operations of 855a, as step 2 of [793f5 How this change applies it](../793_automatic-memory/793f_algorithm.md#793f5-how-this-change-applies-it) says ([855b9 The change layers on 793 by Modified operations](./855b_decision-log.md#855b9-the-change-layers-on-793-by-modified-operations)).
+- The change layers on the unmerged change 793: its product promises that this change replaces are Modified operations of [855a Judged Automatic Memory - Product Spec](./855a_product-spec.md#judged-automatic-memory---product-spec), as step 2 of [793f5 How this change applies it](../793_automatic-memory/793f_algorithm.md#793f5-how-this-change-applies-it) says ([855b9 The change layers on 793 by Modified operations](./855b_decision-log.md#855b9-the-change-layers-on-793-by-modified-operations)).
 - Steps 1 and 2 are done first for the whole change ([855b3 Steps 1 and 2 only](./855b_decision-log.md#855b3-steps-1-and-2-only)); no technical document exists yet.
 - Before any step of the technical specification relies on the mod's model call or on adding context, it is read in the host's type definitions ([855b21 The mod API is verified before a step relies on it](./855b_decision-log.md#855b21-the-mod-api-is-verified-before-a-step-relies-on-it)).
