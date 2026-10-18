@@ -100,7 +100,7 @@ func candidatesOf(
 			fields := noteFieldsOf([]byte(frontmatter))
 
 			candidates = append(candidates, auto.Candidate{
-				ID: item.Path, Kind: auto.KindNote, Date: fields.Created, Situation: fields.Situation,
+				ID: item.Path, Kind: auto.KindNote, Type: item.Kind, Date: fields.Created, Situation: fields.Situation,
 				Text:   strings.TrimSpace(body),
 				Parent: item.FromParent != nil && *item.FromParent, Pending: fields.Pending,
 			})

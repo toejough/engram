@@ -3,9 +3,9 @@ This is a deep recall, which also grows the vault. Beyond the verdicts:
   candidates that evidence it, when there are any.
 - A note that a newer candidate reverses is near, with fields that state what the newer candidate says, and not covered.
 - For each candidate note judged near, give in its entry "fields" the fields to revise, so that the note states the
-  claim it omits, each a short string: for a fact note any of subject, predicate and object, and for a feedback note any
-  of behavior, impact and action. Revise from all the evidence, the later date winning a conflict. Never revise a note
-  into a restatement of what it already says.
+  claim it omits, each a short string: for a fact note any of subject, predicate and object, for a feedback note any
+  of behavior, impact and action, and for a runbook note any of situation, done_when and body. Revise from all the
+  evidence, the later date winning a conflict. Never revise a note into a restatement of what it already says.
 - In "lessons", list each lesson the evidence of the passages shows that no candidate note states: a rule or a fact,
   and not the story, in the form in which it applies again, keeping the exact names, commands, flags and values it
   depends on. Give each lesson "kind" ("feedback" for a rule about what to do or not to do, "fact" for something that

@@ -28,6 +28,7 @@ var (
 type Candidate struct {
 	ID        string `json:"id"`
 	Kind      string `json:"kind"`
+	Type      string `json:"type"`
 	Date      string `json:"date"`
 	Situation string `json:"situation"`
 	Text      string `json:"text"`
@@ -105,7 +106,9 @@ const (
 	// candidatesShape is the prompt of the request: the window and the section of candidates, each between its tags.
 	candidatesShape = "<window>\n%s\n</window>\n<candidates>\n%s\n</candidates>"
 	deepPhrases     = 10
-	glancePhrases   = 3
+	// parentMarker stands in the line of a candidate that comes from the parent vault.
+	parentMarker  = "parent"
+	glancePhrases = 3
 	// passageLimit is how many characters of a chunk a candidate line holds at most: a stretch of conversation is
 	// longer than a note's lines (855b33).
 	passageLimit    = 1200
@@ -124,20 +127,32 @@ var candidateInstructions string
 //go:embed prompts/candidates_deep.txt
 var deepInstructions string
 
-// candidateLine is the line of a candidate: its ID, its date, its situation or the word passage, and its text, written
-// as one line and redacted (855d8b, 793d4j).
+// candidateLine is the line of a candidate: its ID, then in parentheses its date, for a note its type and a marker when
+// it comes from the parent vault and its situation, or for a passage the word passage, and then its text, written as
+// one line and redacted (855d8b, 793d4j).
 func candidateLine(candidate Candidate, text string) string {
-	about := candidate.Situation
-	if candidate.Kind == KindPassage {
-		about = KindPassage
-	}
-
 	date := candidate.Date
 	if date == "" {
 		date = undated
 	}
 
-	return escaped("- " + oneRedacted(candidate.ID) + " (" + oneRedacted(date) + "; " + oneRedacted(about) + "): " + text)
+	about := []string{oneRedacted(date)}
+
+	if candidate.Kind == KindPassage {
+		about = append(about, KindPassage)
+	} else {
+		if candidate.Type != "" {
+			about = append(about, oneRedacted(candidate.Type))
+		}
+
+		if candidate.Parent {
+			about = append(about, parentMarker)
+		}
+
+		about = append(about, oneRedacted(candidate.Situation))
+	}
+
+	return escaped("- " + oneRedacted(candidate.ID) + " (" + strings.Join(about, "; ") + "): " + text)
 }
 
 // candidateText is the text of a candidate as its line holds it: a note whole, and a chunk cut to passageLimit
