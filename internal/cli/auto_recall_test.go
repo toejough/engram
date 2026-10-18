@@ -201,6 +201,22 @@ func Test855d4b1e_Recall_AChunkOfTheSessionsOwnTranscriptIsNotACandidate(t *test
 	}))
 }
 
+func Test855d4b1f_Recall_NothingMatchedPrintsNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoRecall(context.Background(), cli.AutoRecallArgs{VaultPath: "/a/vault"},
+		cli.AutoRecallDeps{
+			Stdin: recallInput("deep", "staging resets"), Query: payloadQuery(payloadOf()),
+			ReadChunks: chunksRead(),
+		}, &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(out.String()).To(BeEmpty())
+}
+
 // recallInput is the JSON object that the memory mod hands to the recall: the reply of the phrases judgement, a list of
 // phrases, and the carry of the step before, of a depth.
 func recallInput(depth string, phrases ...string) io.Reader {
