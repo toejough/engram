@@ -14,7 +14,6 @@ import (
 // Exported constants.
 const (
 	RecordFailed  = "failed"
-	RecordNothing = "nothing"
 	RecordSkipped = "skipped"
 	RecordWritten = "written"
 )
@@ -74,8 +73,8 @@ func (l Lesson) redacted() Lesson {
 }
 
 // Record is what became of a reply of the model, or of the failure to get one, as the display of what automatic memory
-// did reads it (793d4k): a lesson that was written or left out, a reply with no lesson, or a failure. A lesson has a
-// slug, and a note that was written has a file name.
+// did reads it (793d4k): a lesson that was written or left out, or a failure. A reply with no lesson makes none. A
+// lesson has a slug, and a note that was written has a file name.
 type Record struct {
 	At      time.Time `json:"at"`
 	Session string    `json:"session"`

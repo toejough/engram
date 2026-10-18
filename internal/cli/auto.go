@@ -38,6 +38,9 @@ type AutoDeliverDeps struct {
 	// WriteRecord writes one file of the records of a session, and makes its directory: the mark of a record whose line
 	// was shown.
 	WriteRecord func(path string, data []byte) error
+	// Remove removes a file or an empty directory: a record whose line was shown, its mark, and the directory of the
+	// session once nothing is left in it.
+	Remove func(path string) error
 }
 
 // AutoJudgeArgs holds parsed flags for `engram auto judge`: those of the delivery, because the judgement looks up
@@ -164,6 +167,7 @@ func RunAutoDeliver(
 	}
 
 	markShown(deps.WriteRecord, args.RecordsDir, request.Session, delivery.Told)
+	pruneShown(deps, args.RecordsDir, request.Session)
 
 	return nil
 }
@@ -264,8 +268,13 @@ func RunAutoWrite(ctx context.Context, args AutoWriteArgs, deps AutoWriteDeps, s
 
 	results := outcomes{base: auto.Record{At: deps.Now(), Session: reply.Session, Turn: reply.Turn}}
 	failures := writeLessons(ctx, args, deps, reply, &results, stdout)
+	recorded := writeRecords(deps.WriteRecord, args.RecordsDir, results.records)
 
-	if writeRecords(deps.WriteRecord, args.RecordsDir, results.records) {
+	// a reply with no lesson makes no record, so the end of a write is told by this line (793d4k)
+	debuglog.Log(ctx, "auto.write", "session=%s turn=%s written=%d skipped=%d failed=%d", reply.Session, reply.Turn,
+		results.count(auto.RecordWritten), results.count(auto.RecordSkipped), results.count(auto.RecordFailed))
+
+	if recorded {
 		return nil
 	}
 
@@ -302,6 +311,19 @@ var (
 type outcomes struct {
 	base    auto.Record
 	records []auto.Record
+}
+
+// count is how many records of a kind the outcomes hold.
+func (o *outcomes) count(kind string) int {
+	count := 0
+
+	for _, record := range o.records {
+		if record.Kind == kind {
+			count++
+		}
+	}
+
+	return count
 }
 
 // add adds the record of one outcome.
@@ -421,6 +443,7 @@ func newAutoDeliverDeps(d Deps) AutoDeliverDeps {
 		ReadDir:     d.FS.ReadDir,
 		ReadFile:    d.FS.ReadFile,
 		WriteRecord: recordWriterFrom(d),
+		Remove:      d.FS.Remove,
 	}
 }
 
@@ -517,6 +540,27 @@ func recordCandidates(readDir func(path string) ([]fs.DirEntry, error), dir, ses
 	}
 
 	return candidates
+}
+
+// pruneShown removes the records of a session whose line was shown, each with its mark, and then the directory of the
+// session when nothing is left in it, so that the records do not pile up (793d4p). A record without a mark stays, and so
+// does a file that is no record; what cannot be removed is the end of it.
+func pruneShown(deps AutoDeliverDeps, dir, session string) {
+	if dir == "" || !isPlainName(session) {
+		return
+	}
+
+	sessionDir := filepath.Join(dir, session)
+
+	// a directory that cannot be listed has nothing to remove
+	entries, _ := deps.ReadDir(sessionDir)
+
+	for record := range shownRecords(entries) {
+		_ = deps.Remove(filepath.Join(sessionDir, record))
+		_ = deps.Remove(filepath.Join(sessionDir, record+toldFileExt))
+	}
+
+	_ = deps.Remove(sessionDir)
 }
 
 // recordLeftOut records that the judgement left a headless turn out, and why (793d4m). A record that cannot be written
@@ -663,10 +707,6 @@ func writeLessons(
 
 	for _, left := range skipped {
 		results.add(auto.RecordSkipped, "", left.Slug, left.Reason)
-	}
-
-	if len(lessons) == 0 && len(skipped) == 0 {
-		results.add(auto.RecordNothing, "", "", "")
 	}
 
 	var failures []error
