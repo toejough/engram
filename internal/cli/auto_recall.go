@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"slices"
+
+	"go.yaml.in/yaml/v3"
 
 	"github.com/toejough/engram/internal/auto"
 	"github.com/toejough/engram/internal/chunk"
@@ -29,7 +32,7 @@ type AutoRecallDeps struct {
 
 // RunAutoRecall reads the reply of the phrases judgement from standard input, looks the phrases up and prints the
 // request for the model that judges the candidates.
-func RunAutoRecall(ctx context.Context, args AutoRecallArgs, deps AutoRecallDeps, _ io.Writer) error {
+func RunAutoRecall(ctx context.Context, args AutoRecallArgs, deps AutoRecallDeps, stdout io.Writer) error {
 	var input auto.RecallInput
 
 	decodeErr := json.NewDecoder(deps.Stdin).Decode(&input)
@@ -53,7 +56,65 @@ func RunAutoRecall(ctx context.Context, args AutoRecallArgs, deps AutoRecallDeps
 		return fmt.Errorf("auto recall: lookup: %w", queryErr)
 	}
 
-	return nil
+	matched, candidatesErr := candidatesOf(payload.Bytes(), args.ChunksDir, deps.ReadChunks)
+	if candidatesErr != nil {
+		return fmt.Errorf("auto recall: %w", candidatesErr)
+	}
+
+	return printStep(stdout, "auto recall", auto.Recall(input, matched))
+}
+
+// candidatesOf reads the notes and the passages that matched out of an `engram query` payload, in the order of the
+// payload: not a note that only the explore half picked, and not a chunk that only the recency channel gave (855d4b).
+// The text of a chunk is read from the chunk index, as `engram show-chunk` does.
+func candidatesOf(
+	payload []byte, chunksDir string, readChunks func(dir string) ([]chunk.Record, error),
+) ([]auto.Candidate, error) {
+	var parsed queryPayload
+
+	parseErr := yaml.Unmarshal(payload, &parsed)
+	if parseErr != nil {
+		return nil, fmt.Errorf("reading the payload: %w", parseErr)
+	}
+
+	var texts map[string]string
+
+	candidates := make([]auto.Candidate, 0, len(parsed.Items))
+
+	for _, item := range parsed.Items {
+		if slices.Equal(item.Provenances, []string{provenanceExplore}) ||
+			slices.Equal(item.Provenances, []string{provenanceRecent}) {
+			continue
+		}
+
+		if item.Kind != chunkItemKind {
+			frontmatter, body, _ := splitFrontmatterAndBody(item.Content)
+			situation, _ := situationAndSourceOf([]byte(frontmatter))
+
+			candidates = append(candidates, auto.Candidate{
+				ID: item.Path, Kind: auto.KindNote, Situation: situation, Text: body,
+			})
+
+			continue
+		}
+
+		if texts == nil {
+			records, readErr := readChunks(chunksDir)
+			if readErr != nil {
+				return nil, fmt.Errorf("reading the chunks: %w", readErr)
+			}
+
+			texts = make(map[string]string, len(records))
+
+			for _, record := range records {
+				texts[chunkNotePath(record)] = record.Text
+			}
+		}
+
+		candidates = append(candidates, auto.Candidate{ID: item.Path, Kind: auto.KindPassage, Text: texts[item.Path]})
+	}
+
+	return candidates, nil
 }
 
 // unexported constants.
