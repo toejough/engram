@@ -62,7 +62,7 @@ func Test855d4v1b_Phrases_TheNumberOfPhrasesFollowsTheDepth(t *testing.T) {
 			g := NewWithT(t)
 
 			step, found, err := auto.Phrases(auto.PhrasesInput{
-				Cue: "prompt", Reply: `{"depth":"` + depth + `"}`, Carry: auto.Carry{Cue: "prompt", Window: "User: x"},
+				Reply: `{"depth":"` + depth + `"}`, Carry: auto.Carry{Cue: "prompt", Window: "User: x"},
 			})
 
 			g.Expect(err).NotTo(HaveOccurred())
@@ -81,7 +81,7 @@ func Test855d4v1d_Phrases_AFencedReplyIsReadAndAReplyThatIsNotAMomentReplyFails(
 		g := NewWithT(t)
 
 		step, found, err := auto.Phrases(auto.PhrasesInput{
-			Cue: "prompt", Reply: "```json\n{\"depth\":\"glance\"}\n```", Carry: auto.Carry{Window: "User: x"},
+			Reply: "```json\n{\"depth\":\"glance\"}\n```", Carry: auto.Carry{Window: "User: x"},
 		})
 
 		g.Expect(err).NotTo(HaveOccurred())
@@ -99,7 +99,7 @@ func Test855d4v1d_Phrases_AFencedReplyIsReadAndAReplyThatIsNotAMomentReplyFails(
 			g := NewWithT(t)
 
 			_, found, err := auto.Phrases(auto.PhrasesInput{
-				Cue: "prompt", Reply: reply, Carry: auto.Carry{Window: "User: x"},
+				Reply: reply, Carry: auto.Carry{Window: "User: x"},
 			})
 
 			g.Expect(err).To(MatchError(auto.ErrMomentReply))

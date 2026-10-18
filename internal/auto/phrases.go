@@ -24,7 +24,6 @@ var (
 // PhrasesInput is the reply of the moment judgement and its carry, as the memory mod hands them over (855d4v).
 type PhrasesInput struct {
 	Session string `json:"session"`
-	Cue     string `json:"cue"`
 	Reply   string `json:"reply"`
 	Carry   Carry  `json:"carry"`
 }
@@ -48,9 +47,9 @@ func Phrases(input PhrasesInput) (Step, bool, error) {
 	return Step{
 		Request: ModelRequest{
 			Model: phrasesModel, System: strings.Replace(phraseInstructions, "{{count}}", countFor(reply.Depth), 1),
-			Prompt: fmt.Sprintf(windowShape, input.Carry.Window), MaxTokens: phrasesMaxTokens,
+			Prompt: fmt.Sprintf(windowShape, escaped(input.Carry.Window)), MaxTokens: phrasesMaxTokens,
 		},
-		Carry: Carry{Cue: input.Cue, Depth: reply.Depth, Window: input.Carry.Window},
+		Carry: Carry{Cue: input.Carry.Cue, Depth: reply.Depth, Window: input.Carry.Window},
 	}, true, nil
 }
 

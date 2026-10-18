@@ -16,6 +16,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/toejough/imptest/match"
 
+	"github.com/toejough/engram/internal/auto"
 	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/cli"
 	"github.com/toejough/engram/internal/embed"
@@ -124,6 +125,7 @@ func Test855d4b1c_Recall_AReplyThatIsNotAPhrasesReplyFailsTheCommand(t *testing.
 				},
 			}, &out)
 
+		g.Expect(err).To(MatchError(auto.ErrRecallDepth))
 		g.Expect(err).To(MatchError(ContainSubstring("depth")))
 		g.Expect(out.String()).To(BeEmpty())
 	})

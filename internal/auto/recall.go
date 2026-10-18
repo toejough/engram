@@ -20,6 +20,7 @@ const (
 
 // Exported variables.
 var (
+	ErrRecallDepth  = errors.New("the carry of the recall holds no depth of glance or deep")
 	ErrPhrasesReply = errors.New(`the reply of the phrases judgement is not {"phrases": [...]} with a phrase`)
 )
 
@@ -39,14 +40,17 @@ type Candidate struct {
 // RecallInput is the reply of the phrases judgement and its carry, as the memory mod hands them over (855d4b).
 type RecallInput struct {
 	Session string `json:"session"`
-	Cue     string `json:"cue"`
 	Reply   string `json:"reply"`
 	Carry   Carry  `json:"carry"`
 }
 
 // PhrasesOf returns the phrases of the reply of the phrases judgement that the lookup is run for: the first 3 at
-// glance and the first 10 at deep (855d4b).
+// glance and the first 10 at deep (855d4b). A depth that is neither is an error.
 func PhrasesOf(reply, depth string) ([]string, error) {
+	if depth != DepthGlance && depth != DepthDeep {
+		return nil, ErrRecallDepth
+	}
+
 	var parsed struct {
 		Phrases []string `json:"phrases"`
 	}
@@ -104,10 +108,10 @@ func Recall(input RecallInput, matched []Candidate) (Step, bool) {
 	return Step{
 		Request: ModelRequest{
 			Model: recallModel, System: system,
-			Prompt:    fmt.Sprintf(candidatesShape, input.Carry.Window, strings.Join(lines, "\n")),
+			Prompt:    fmt.Sprintf(candidatesShape, escaped(input.Carry.Window), strings.Join(lines, "\n")),
 			MaxTokens: recallMaxTokens,
 		},
-		Carry: Carry{Cue: input.Cue, Depth: input.Carry.Depth, Window: input.Carry.Window, Candidates: held},
+		Carry: Carry{Cue: input.Carry.Cue, Depth: input.Carry.Depth, Window: input.Carry.Window, Candidates: held},
 		Write: deep,
 	}, true
 }
