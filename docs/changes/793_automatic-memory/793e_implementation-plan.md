@@ -112,9 +112,9 @@ flowchart TD
     n793e6e1 --> n793e6c1
     n793e6b11 --> n793e6c2[793e6c2 The prompt and the reply are as they were<br/>Complete]
     n793e6b13 --> n793e6c3[793e6c3 A write that fails does not break the session<br/>Complete]
-    n793e6g10 --> n793e6d1[793e6d1 What was delivered and what was written for the previous turn is in the session by the next prompt<br/>Ready]
+    n793e6g10 --> n793e6d1[793e6d1 What was delivered and what was written for the previous turn is in the session by the next prompt<br/>Complete]
     n793e6b11 --> n793e6d1
-    n793e6d1 --> n793e6d2[793e6d2 A write that finishes after the next prompt is shown when it finishes<br/>Blocked by: 793e6d1]
+    n793e6d1 --> n793e6d2[793e6d2 A write that finishes after the next prompt is shown when it finishes<br/>Ready]
     n793e6d1 --> n793e6d3[793e6d3 A delivery that could not be done is shown with its reason<br/>Blocked by: 793e6d2]
     n793e6d1 --> n793e6d4[793e6d4 A write that failed is shown with its reason<br/>Blocked by: 793e6d3]
     n793e6e1 --> n793e6d5[793e6d5 A sweep that failed is shown with its reason<br/>Blocked by: 793e6d4]
@@ -124,9 +124,9 @@ flowchart TD
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
     classDef blocked fill:#eeeeee,stroke:#757575,color:#000,stroke-dasharray:5 5
-    class n793e6a1,n793e6a2,n793e6a3,n793e6a4,n793e6a5,n793e6a6,n793e6a7,n793e6a8,n793e6a9,n793e6a10,n793e6a11,n793e6a12,n793e6b1,n793e6b2,n793e6b3,n793e6b4,n793e6b5,n793e6b6,n793e6b7,n793e6b8,n793e6b9,n793e6b10,n793e6b11,n793e6b12,n793e6b13,n793e6b14,n793e6b15,n793e6g1,n793e6g2,n793e6g3,n793e6g4,n793e6g5,n793e6g6,n793e6g7,n793e6g8,n793e6g9,n793e6g10,n793e6g11,n793e6g12,n793e6g13,n793e6g14,n793e6g15,n793e6g16,n793e6g17,n793e6g18,n793e6g19,n793e6e1,n793e6c1,n793e6c2,n793e6c3 complete
-    class n793e6d1 ready
-    class n793e6d2,n793e6d3,n793e6d4,n793e6d5,n793e6d6,n793e6f blocked
+    class n793e6a1,n793e6a2,n793e6a3,n793e6a4,n793e6a5,n793e6a6,n793e6a7,n793e6a8,n793e6a9,n793e6a10,n793e6a11,n793e6a12,n793e6b1,n793e6b2,n793e6b3,n793e6b4,n793e6b5,n793e6b6,n793e6b7,n793e6b8,n793e6b9,n793e6b10,n793e6b11,n793e6b12,n793e6b13,n793e6b14,n793e6b15,n793e6g1,n793e6g2,n793e6g3,n793e6g4,n793e6g5,n793e6g6,n793e6g7,n793e6g8,n793e6g9,n793e6g10,n793e6g11,n793e6g12,n793e6g13,n793e6g14,n793e6g15,n793e6g16,n793e6g17,n793e6g18,n793e6g19,n793e6e1,n793e6c1,n793e6c2,n793e6c3,n793e6d1 complete
+    class n793e6d2 ready
+    class n793e6d3,n793e6d4,n793e6d5,n793e6d6,n793e6f blocked
 ```
 
 Colour follows the status: green `Complete`, blue `Ready`, dashed grey `Blocked by`, yellow `In progress` (none now). A group is `Blocked by` the previous group of the order of [793e4 Depth-first order](#793e4-depth-first-order), which adds no arrow: the order is the rule that a later group needs the previous group's committed result.
@@ -682,18 +682,18 @@ Builds what the other nodes read: the lines that tell what [automatic memory](./
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2e1a | Dedicated example, product acceptance (`network`) | a judgement row, as the lesson is the model's; the earlier [prompt](./793a_product-spec.md#793a1a-terms) asks and asks to remember in one, so that its block and its write are of one [turn](./793a_product-spec.md#793a1a-terms) | | | Done | ea2ff3f3 | bda89737 | |
-| 793d4p1a | Dedicated example | the line of each kind of record, over records of the real form | | | Done | 300fbc46 | 34ec6b9e | |
-| 793d4p1b | Dedicated example | a record of the kind nothing says nothing, so a turn with nothing to report adds no block | | | Done | 300fbc46 | 34ec6b9e | |
-| 793d4p1c | Dedicated example | a line told once, over a record of the session of the real form; also through `RunAutoDeliver`, over a record on disk, as mutation (scratch copy): the lines told ignored fails only that one | | | Done | 300fbc46 | 34ec6b9e | |
-| 793d4p1d | Dedicated example | the form of a reason: one line, redacted, both ends kept; the credential straddles the place of the cut, so that mutation (scratch copy): a cut made before the redaction leaves part of the credential and fails it | | | Done | 300fbc46 | 34ec6b9e | |
-| 793d4p1e | Dedicated example | the bound of five lines, and the rest at the next prompt | | | Done | 300fbc46 | 34ec6b9e | |
-| 793d4p1f | Dedicated example | the boundaries of the reading of records, over a real temporary directory; mutations (scratch copies): no check of the record's session, of the end of the file's name or of the session ID, and the records in reverse order, each fails it | | | Done | 4ba3af90 | bda89737 | |
-| 793d4p1g | Dedicated example | the directory of records through the dispatch of `engram auto deliver`, with the flag and without it; mutation (scratch copy): no default directory fails it | | | Done | 4ba3af90 | bda89737 | |
-| 793d4d1g | Dedicated example | the told lines, and that a [note](../../GLOSSARY.md#permanent-note) a line names is not held | | | Done | 300fbc46 | 34ec6b9e | |
-| 793d4c1d | Dedicated example | the form of a line that tells what the system did | | | Done | 300fbc46 | 34ec6b9e | |
-| 793d4c1a (amended) | Property-based (`rapid`) with named examples | the properties of the block, with lines told among hostile text | the properties of [793d4c1a A note cannot reshape the block](./793d_technical-spec.md#793d4c1-scenarios), with any lines told: one more line for each, after the notes, each beginning with an asterisk and a space | | Done | 300fbc46 | 34ec6b9e | |
-| 793d4a1i (amended) | Injected and impure interaction (`imptest`) | the reading of what the session was not told is given the request's session ID | | | Done | 300fbc46 | 34ec6b9e | |
+| 793a2e1a | Dedicated example, product acceptance (`network`) | a judgement row, as the lesson is the model's; the earlier [prompt](./793a_product-spec.md#793a1a-terms) asks and asks to remember in one, so that its block and its write are of one [turn](./793a_product-spec.md#793a1a-terms) | | | Done | ea2ff3f3 | bda89737 | 49bc97d3 |
+| 793d4p1a | Dedicated example | the line of each kind of record, over records of the real form | | | Done | 300fbc46 | 34ec6b9e | 09fa0808 |
+| 793d4p1b | Dedicated example | a record of the kind nothing says nothing, so a turn with nothing to report adds no block | | | Done | 300fbc46 | 34ec6b9e | 09fa0808 |
+| 793d4p1c | Dedicated example | a line told once, over a record of the session of the real form; also through `RunAutoDeliver`, over a record on disk, as mutation (scratch copy): the lines told ignored fails only that one | | | Done | 300fbc46 | 34ec6b9e | 09fa0808 |
+| 793d4p1d | Dedicated example | the form of a reason: one line, redacted, both ends kept; the credential straddles the place of the cut, so that mutation (scratch copy): a cut made before the redaction leaves part of the credential and fails it | | | Done | 300fbc46 | 34ec6b9e | 09fa0808 |
+| 793d4p1e | Dedicated example | the bound of five lines, and the rest at the next prompt | | | Done | 300fbc46 | 34ec6b9e | 09fa0808 |
+| 793d4p1f | Dedicated example | the boundaries of the reading of records, over a real temporary directory; mutations (scratch copies): no check of the record's session, of the end of the file's name or of the session ID, and the records in reverse order, each fails it | | | Done | 4ba3af90 | bda89737 | 49bc97d3 |
+| 793d4p1g | Dedicated example | the directory of records through the dispatch of `engram auto deliver`, with the flag and without it; mutation (scratch copy): no default directory fails it | | | Done | 4ba3af90 | bda89737 | 49bc97d3 |
+| 793d4d1g | Dedicated example | the told lines, and that a [note](../../GLOSSARY.md#permanent-note) a line names is not held | | | Done | 300fbc46 | 34ec6b9e | 09fa0808 |
+| 793d4c1d | Dedicated example | the form of a line that tells what the system did | | | Done | 300fbc46 | 34ec6b9e | 09fa0808 |
+| 793d4c1a (amended) | Property-based (`rapid`) with named examples | the properties of the block, with lines told among hostile text | the properties of [793d4c1a A note cannot reshape the block](./793d_technical-spec.md#793d4c1-scenarios), with any lines told: one more line for each, after the notes, each beginning with an asterisk and a space | | Done | 300fbc46 | 34ec6b9e | 09fa0808 |
+| 793d4a1i (amended) | Injected and impure interaction (`imptest`) | the reading of what the session was not told is given the request's session ID | | | Done | 300fbc46 | 34ec6b9e | 09fa0808 |
 
 #### 793e6d2 A write that finishes after the next prompt is shown when it finishes
 
