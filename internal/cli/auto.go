@@ -313,6 +313,7 @@ const (
 	recordFilePerm fs.FileMode = 0o600
 	// recordTimeFormat writes the time a record was made at in the name of its file: it sorts as the time does.
 	recordTimeFormat = "20060102T150405.000000000Z"
+	sweepEndedFile   = "sweep.ended"
 	// toldFileExt ends the name of the mark of a record whose line was shown: the name of the record's file, then this.
 	toldFileExt = ".told"
 )
@@ -328,21 +329,18 @@ var (
 		"engram ingest --auto indexes the history")
 )
 
-// sweepEndedFile is the mark of a session whose sweep was ended: a file in the directory of the session's records.
-const sweepEndedFile = "sweep.ended"
-
-// sweepTurn is what the memory mod hands the sweep: the turn that ended, and whether the sweep of the session was
-// ended at its bound.
-type sweepTurn struct {
-	auto.TurnEnd
-
-	Ended bool `json:"ended"`
-}
-
 // outcomes is what became of a reply so far, as the records that tell it: base holds what they share.
 type outcomes struct {
 	base    auto.Record
 	records []auto.Record
+}
+
+// add adds the record of one outcome.
+func (o *outcomes) add(kind, note, slug, reason string) {
+	record := o.base
+	record.Kind, record.Note, record.Slug, record.Reason = kind, note, slug, auto.RecordedReason(reason)
+
+	o.records = append(o.records, record)
 }
 
 // count is how many records of a kind the outcomes hold.
@@ -358,12 +356,12 @@ func (o *outcomes) count(kind string) int {
 	return count
 }
 
-// add adds the record of one outcome.
-func (o *outcomes) add(kind, note, slug, reason string) {
-	record := o.base
-	record.Kind, record.Note, record.Slug, record.Reason = kind, note, slug, auto.RecordedReason(reason)
+// sweepTurn is what the memory mod hands the sweep: the turn that ended, and whether the sweep of the session was
+// ended at its bound.
+type sweepTurn struct {
+	auto.TurnEnd
 
-	o.records = append(o.records, record)
+	Ended bool `json:"ended"`
 }
 
 // coveringNote returns the file name of the note of the vault that a lesson names as covering it, or nothing: only the
@@ -557,34 +555,6 @@ func notesOf(payload []byte) ([]auto.Note, error) {
 	return notes, nil
 }
 
-// sweepEndedMark returns the path of the mark of a session whose sweep was ended, or nothing when there is no directory
-// of records or the session's ID is not a plain file name.
-func sweepEndedMark(dir, session string) string {
-	if dir == "" || !isPlainName(session) {
-		return ""
-	}
-
-	return filepath.Join(dir, session, sweepEndedFile)
-}
-
-// recordCandidates lists the files that may hold the record of a session: <ID>.jsonl in the session-log directory
-// itself, and in each directory of it.
-func recordCandidates(readDir func(path string) ([]fs.DirEntry, error), dir, session string) []string {
-	name := session + ".jsonl"
-	candidates := []string{filepath.Join(dir, name)}
-
-	// a directory that cannot be listed has no project directories to search
-	entries, _ := readDir(dir)
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			candidates = append(candidates, filepath.Join(dir, entry.Name(), name))
-		}
-	}
-
-	return candidates
-}
-
 // pruneShown removes the records of a session whose line was shown, each with its mark, and then the directory of the
 // session when nothing is left in it, so that the records do not pile up (793d4p). A record without a mark stays, and so
 // does a file that is no record; what cannot be removed is the end of it.
@@ -604,6 +574,24 @@ func pruneShown(deps AutoDeliverDeps, dir, session string) {
 	}
 
 	_ = deps.Remove(sessionDir)
+}
+
+// recordCandidates lists the files that may hold the record of a session: <ID>.jsonl in the session-log directory
+// itself, and in each directory of it.
+func recordCandidates(readDir func(path string) ([]fs.DirEntry, error), dir, session string) []string {
+	name := session + ".jsonl"
+	candidates := []string{filepath.Join(dir, name)}
+
+	// a directory that cannot be listed has no project directories to search
+	entries, _ := readDir(dir)
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			candidates = append(candidates, filepath.Join(dir, entry.Name(), name))
+		}
+	}
+
+	return candidates
 }
 
 // recordLeftOut records that the judgement left a headless turn out, and why (793d4m). A record that cannot be written
@@ -733,6 +721,16 @@ func situationAndSourceOf(frontmatter []byte) (situation, source string) {
 	}
 
 	return probe.Situation, probe.Source
+}
+
+// sweepEndedMark returns the path of the mark of a session whose sweep was ended, or nothing when there is no directory
+// of records or the session's ID is not a plain file name.
+func sweepEndedMark(dir, session string) string {
+	if dir == "" || !isPlainName(session) {
+		return ""
+	}
+
+	return filepath.Join(dir, session, sweepEndedFile)
 }
 
 // writeLessons writes the lessons of a reply through the learn path and adds what became of the reply, of each lesson

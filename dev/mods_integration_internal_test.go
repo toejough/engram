@@ -637,6 +637,20 @@ func Test793d2c1c_Mod_ASweepThatStallsIsEndedAtItsBoundAndReported(t *testing.T)
 	})
 }
 
+func Test793d2c1d_Mod_ATurnOfASubagentIsNotSwept(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	outcome := runCaptureDriver(t, captureScenario{
+		Judge: map[string]any{"exitCode": 0, "stdout": requestPrinted},
+		Model: map[string]any{"isAnswered": true, "text": "THE REPLY"},
+		Agent: "a-subagent",
+	})
+
+	g.Expect(outcome.Returned.Text).To(Equal("Understood."), "the event's result is given back")
+	g.Expect(outcome.Sweeps).To(BeEmpty(), "the sweep was never run")
+}
+
 func Test793d2c1e_Mod_ASweepThatIsEndedIsRunOnceMoreAsEnded(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -683,20 +697,6 @@ func Test793d2c1f_Mod_ASweepThatGaveUpBeforeIsNotReportedAgain(t *testing.T) {
 
 	g.Expect(outcome.Sweeps).To(HaveLen(2), "the sweep, and the run as ended")
 	g.Expect(outcome.reports()).To(BeEmpty(), "the reports to the writing")
-}
-
-func Test793d2c1d_Mod_ATurnOfASubagentIsNotSwept(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	outcome := runCaptureDriver(t, captureScenario{
-		Judge: map[string]any{"exitCode": 0, "stdout": requestPrinted},
-		Model: map[string]any{"isAnswered": true, "text": "THE REPLY"},
-		Agent: "a-subagent",
-	})
-
-	g.Expect(outcome.Returned.Text).To(Equal("Understood."), "the event's result is given back")
-	g.Expect(outcome.Sweeps).To(BeEmpty(), "the sweep was never run")
 }
 
 // TestMods_EveryJavaScriptModuleParses: the real mods parse under the real node, and the real node rejects a broken

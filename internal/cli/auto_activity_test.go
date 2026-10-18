@@ -191,54 +191,6 @@ func Test793d4p1h_RunAutoDeliver_ANoteDeliveredIsShownAsALine(t *testing.T) {
 	g.Expect(result.shown).To(Equal("delivered the note "+resetNoteName+"\n"), "what the user is shown")
 }
 
-func Test793d4p1m_RunAutoDeliver_TheRecordsThatWereShownAreRemovedWithTheirMarks(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	records := t.TempDir()
-	dir := filepath.Join(records, sessionID)
-	shownFile, newFile := "20261017T203225.000000000Z-0-written.json", "20261017T203226.000000000Z-0-written.json"
-
-	plantActivity(t, dir, shownFile, activityRecordAt(0, sessionID, auto.RecordWritten,
-		func(r *auto.Record) { r.Note = "a.md" }))
-	plantActivity(t, dir, newFile, activityRecordAt(1, sessionID, auto.RecordWritten,
-		func(r *auto.Record) { r.Note = "b.md" }))
-	g.Expect(os.WriteFile(filepath.Join(dir, shownFile+".told"), nil, 0o600)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(dir, "notes.txt"), []byte("not a record"), 0o600)).To(Succeed())
-
-	first := deliverOver(t, records, sessionID)
-	second := deliverOver(t, records, sessionID)
-
-	g.Expect(first.err).NotTo(HaveOccurred())
-	g.Expect(recordLines(first.shown)).To(Equal([]string{"20:32:26 wrote the note b.md"}), "the lines of the first prompt")
-
-	for _, gone := range []string{shownFile, shownFile + ".told", newFile, newFile + ".told"} {
-		g.Expect(filepath.Join(dir, gone)).NotTo(BeAnExistingFile(), gone+" was shown")
-	}
-
-	g.Expect(filepath.Join(dir, "notes.txt")).To(BeAnExistingFile(), "a file that is no record")
-	g.Expect(recordLines(second.shown)).To(BeEmpty(), "the lines of the second prompt")
-}
-
-func Test793d4p1n_RunAutoDeliver_TheDirectoryOfASessionWhoseRecordsWereShownIsRemoved(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	records := t.TempDir()
-	dir := filepath.Join(records, sessionID)
-
-	plantActivity(t, dir, "20261017T203225.000000000Z-0-written.json", activityRecordAt(0, sessionID,
-		auto.RecordWritten, func(r *auto.Record) { r.Note = "a.md" }))
-
-	first := deliverOver(t, records, sessionID)
-	second := deliverOver(t, records, sessionID)
-
-	g.Expect(first.err).NotTo(HaveOccurred())
-	g.Expect(recordLines(first.shown)).To(Equal([]string{"20:32:25 wrote the note a.md"}), "the lines of the first prompt")
-	g.Expect(dir).NotTo(BeADirectory(), "the directory of the session")
-	g.Expect(recordLines(second.shown)).To(BeEmpty(), "the lines of the second prompt")
-}
-
 func Test793d4p1j_RunAutoDeliver_AMarkThatCannotBeWrittenDoesNotFailTheCommand(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -317,6 +269,54 @@ func Test793d4p1l_Targets_TheNotesDeliveredAreOneLine(t *testing.T) {
 		g.Expect(lines[0]).To(ContainSubstring(resetNoteName))
 		g.Expect(lines[0]).To(ContainSubstring(backupNoteName))
 	}
+}
+
+func Test793d4p1m_RunAutoDeliver_TheRecordsThatWereShownAreRemovedWithTheirMarks(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	records := t.TempDir()
+	dir := filepath.Join(records, sessionID)
+	shownFile, newFile := "20261017T203225.000000000Z-0-written.json", "20261017T203226.000000000Z-0-written.json"
+
+	plantActivity(t, dir, shownFile, activityRecordAt(0, sessionID, auto.RecordWritten,
+		func(r *auto.Record) { r.Note = "a.md" }))
+	plantActivity(t, dir, newFile, activityRecordAt(1, sessionID, auto.RecordWritten,
+		func(r *auto.Record) { r.Note = "b.md" }))
+	g.Expect(os.WriteFile(filepath.Join(dir, shownFile+".told"), nil, 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(dir, "notes.txt"), []byte("not a record"), 0o600)).To(Succeed())
+
+	first := deliverOver(t, records, sessionID)
+	second := deliverOver(t, records, sessionID)
+
+	g.Expect(first.err).NotTo(HaveOccurred())
+	g.Expect(recordLines(first.shown)).To(Equal([]string{"20:32:26 wrote the note b.md"}), "the lines of the first prompt")
+
+	for _, gone := range []string{shownFile, shownFile + ".told", newFile, newFile + ".told"} {
+		g.Expect(filepath.Join(dir, gone)).NotTo(BeAnExistingFile(), gone+" was shown")
+	}
+
+	g.Expect(filepath.Join(dir, "notes.txt")).To(BeAnExistingFile(), "a file that is no record")
+	g.Expect(recordLines(second.shown)).To(BeEmpty(), "the lines of the second prompt")
+}
+
+func Test793d4p1n_RunAutoDeliver_TheDirectoryOfASessionWhoseRecordsWereShownIsRemoved(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	records := t.TempDir()
+	dir := filepath.Join(records, sessionID)
+
+	plantActivity(t, dir, "20261017T203225.000000000Z-0-written.json", activityRecordAt(0, sessionID,
+		auto.RecordWritten, func(r *auto.Record) { r.Note = "a.md" }))
+
+	first := deliverOver(t, records, sessionID)
+	second := deliverOver(t, records, sessionID)
+
+	g.Expect(first.err).NotTo(HaveOccurred())
+	g.Expect(recordLines(first.shown)).To(Equal([]string{"20:32:25 wrote the note a.md"}), "the lines of the first prompt")
+	g.Expect(dir).NotTo(BeADirectory(), "the directory of the session")
+	g.Expect(recordLines(second.shown)).To(BeEmpty(), "the lines of the second prompt")
 }
 
 // unexported constants.

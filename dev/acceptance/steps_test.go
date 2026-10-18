@@ -29,10 +29,10 @@ const (
 	captureBound = 2 * time.Minute
 	// capturePoll is how often the vault is looked at while a note is awaited.
 	capturePoll = 250 * time.Millisecond
-	// debugLogName is the file in the machine's directory that every engram command run on it writes its debug log to.
-	debugLogName = "engram-debug.log"
 	// claudeSettings lets the agent run engram, which the scenarios where it looks a note up itself need.
 	claudeSettings = `{"permissions":{"allow":["Bash(engram:*)"]}}`
+	// debugLogName is the file in the machine's directory that every engram command run on it writes its debug log to.
+	debugLogName = "engram-debug.log"
 	// earlierConversation is a conversation that answers askStagingReset.
 	earlierConversation = "In an earlier session the user said that the Zorblax staging database is reset every " +
 		"Sunday at 03:40 UTC, and asked when the staging database is reset."
@@ -619,17 +619,6 @@ func (m *machine) notes() []vaultNote {
 	return notes
 }
 
-// writesLogged returns how many times the writing has ended for a session, as the debug log of the machine records it:
-// one line for each run, whatever it recorded.
-func (m *machine) writesLogged(session string) int {
-	data, err := os.ReadFile(filepath.Join(m.root, debugLogName))
-	if err != nil {
-		return 0
-	}
-
-	return strings.Count(string(data), "auto.write: session="+session+" ")
-}
-
 // recordKinds returns the kinds of the records that automatic memory made for a session, oldest first: the records are
 // the JSON files of the session's directory in the engram data directory, named for the time they were made.
 func (m *machine) recordKinds(session string) []string {
@@ -779,6 +768,17 @@ func (m *machine) writeTakes(wait time.Duration) {
 	m.wrapsEngram(dir, "#!/bin/sh\ncase \"$1 $2\" in\n\"auto write\")\n: > '"+dir+"/started'\nsleep "+
 		strconv.Itoa(int(wait.Seconds()))+"\n;;\nesac\nexec '"+filepath.Join(m.gobin, engramBinaryName)+
 		"' \"$@\"\n")
+}
+
+// writesLogged returns how many times the writing has ended for a session, as the debug log of the machine records it:
+// one line for each run, whatever it recorded.
+func (m *machine) writesLogged(session string) int {
+	data, err := os.ReadFile(filepath.Join(m.root, debugLogName))
+	if err != nil {
+		return 0
+	}
+
+	return strings.Count(string(data), "auto.write: session="+session+" ")
 }
 
 // vaultNote is a note of the vault as its file holds it.

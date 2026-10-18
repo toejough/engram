@@ -403,42 +403,6 @@ func Test793d4k1b_RunAutoWrite_AReplyWithNoLessonMakesNoRecord(t *testing.T) {
 	g.Expect(records.all()).To(BeEmpty(), "the records of a reply with no lesson")
 }
 
-func Test793d4k1k_RunAutoWrite_AWriteThatEndsLogsWhatItDid(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var logged bytes.Buffer
-
-	ctx := debuglog.WithLogger(context.Background(),
-		debuglog.New(&logged, "engram", func() time.Time { return recordedAt }))
-	lesson := `[{"kind":"fact","slug":"staging-reset","situation":"testing on the staging database",` +
-		`"subject":"the staging database","predicate":"is reset every","object":"Sunday night"}]`
-
-	for _, reply := range []string{lesson, "[]"} {
-		var out bytes.Buffer
-
-		err := cli.RunAutoWrite(ctx, cli.AutoWriteArgs{VaultPath: "/vault", RecordsDir: "/data/auto"},
-			cli.AutoWriteDeps{
-				Stdin:       replyInput(reply),
-				Learn:       learnInto(map[string]string{}),
-				Now:         func() time.Time { return recordedAt },
-				WriteRecord: (&recordedFiles{}).write,
-			}, &out)
-		g.Expect(err).NotTo(HaveOccurred())
-	}
-
-	lines := strings.Split(strings.TrimSpace(logged.String()), "\n")
-
-	g.Expect(lines).To(HaveLen(2), "a line for each write")
-
-	if len(lines) == 2 {
-		g.Expect(lines[0]).To(HaveSuffix("[engram] auto.write: session=" + sessionID + " turn=" + turnID +
-			" written=1 skipped=0 failed=0"))
-		g.Expect(lines[1]).To(HaveSuffix("[engram] auto.write: session=" + sessionID + " turn=" + turnID +
-			" written=0 skipped=0 failed=0"))
-	}
-}
-
 func Test793d4k1c_RunAutoWrite_ALessonLeftOutAndAReplyThatIsNotAListAreRecordedWithTheReason(t *testing.T) {
 	t.Parallel()
 
@@ -696,6 +660,42 @@ func Test793d4k1j_RunAutoWrite_AReasonIsWrittenAsOneLineRedactedAndCutInItsMiddl
 		g.Expect(reason).To(HavePrefix("engram auto judge exited with 1: Error: auto judge: reading xxx"),
 			"the beginning of the reason, which names the step")
 		g.Expect(reason).To(HaveSuffix("yyy: permission denied"), "the end of the reason, which gives the cause")
+	}
+}
+
+func Test793d4k1k_RunAutoWrite_AWriteThatEndsLogsWhatItDid(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var logged bytes.Buffer
+
+	ctx := debuglog.WithLogger(context.Background(),
+		debuglog.New(&logged, "engram", func() time.Time { return recordedAt }))
+	lesson := `[{"kind":"fact","slug":"staging-reset","situation":"testing on the staging database",` +
+		`"subject":"the staging database","predicate":"is reset every","object":"Sunday night"}]`
+
+	for _, reply := range []string{lesson, "[]"} {
+		var out bytes.Buffer
+
+		err := cli.RunAutoWrite(ctx, cli.AutoWriteArgs{VaultPath: "/vault", RecordsDir: "/data/auto"},
+			cli.AutoWriteDeps{
+				Stdin:       replyInput(reply),
+				Learn:       learnInto(map[string]string{}),
+				Now:         func() time.Time { return recordedAt },
+				WriteRecord: (&recordedFiles{}).write,
+			}, &out)
+		g.Expect(err).NotTo(HaveOccurred())
+	}
+
+	lines := strings.Split(strings.TrimSpace(logged.String()), "\n")
+
+	g.Expect(lines).To(HaveLen(2), "a line for each write")
+
+	if len(lines) == 2 {
+		g.Expect(lines[0]).To(HaveSuffix("[engram] auto.write: session=" + sessionID + " turn=" + turnID +
+			" written=1 skipped=0 failed=0"))
+		g.Expect(lines[1]).To(HaveSuffix("[engram] auto.write: session=" + sessionID + " turn=" + turnID +
+			" written=0 skipped=0 failed=0"))
 	}
 }
 

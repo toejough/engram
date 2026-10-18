@@ -53,51 +53,6 @@ func Test793d4e1d_Targets_AutoSweepCreatesNoVault(t *testing.T) {
 	g.Expect(stderr).NotTo(ContainSubstring("created new vault"))
 }
 
-func Test793d4n1g_RunAutoSweep_ASweepThatWasEndedGivesUpForTheSessionAndFailsNamingWhatToRun(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	sessions, records := t.TempDir(), t.TempDir()
-	plantSessionRecord(t, sessions, "a-project")
-
-	endedSweep := func() error {
-		return cli.RunAutoSweep(context.Background(), cli.AutoSweepArgs{SessionsDir: sessions, RecordsDir: records},
-			cli.AutoSweepDeps{
-				Stdin:       strings.NewReader(`{"origin":"composer","session":"` + sessionID + `","ended":true}`),
-				Ingest:      indexNothing(t),
-				ReadDir:     os.ReadDir,
-				Exists:      fileExists,
-				WriteRecord: writeInNewDirectory,
-			})
-	}
-
-	first := endedSweep()
-
-	g.Expect(first).To(MatchError(ContainSubstring("the sweep was ended")))
-	g.Expect(first).To(MatchError(ContainSubstring("engram ingest --auto")))
-	g.Expect(filepath.Join(records, sessionID, "sweep.ended")).To(BeAnExistingFile(), "the mark of the session")
-	g.Expect(endedSweep()).To(Succeed(), "the second run: the user was told")
-}
-
-func Test793d4n1h_RunAutoSweep_ASessionThatGaveUpIsNotSwept(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	sessions, records := t.TempDir(), t.TempDir()
-	plantSessionRecord(t, sessions, "a-project")
-	g.Expect(writeInNewDirectory(filepath.Join(records, sessionID, "sweep.ended"), nil)).To(Succeed())
-
-	err := cli.RunAutoSweep(context.Background(), cli.AutoSweepArgs{SessionsDir: sessions, RecordsDir: records},
-		cli.AutoSweepDeps{
-			Stdin:   strings.NewReader(`{"origin":"composer","session":"` + sessionID + `"}`),
-			Ingest:  indexNothing(t),
-			ReadDir: os.ReadDir,
-			Exists:  fileExists,
-		})
-
-	g.Expect(err).NotTo(HaveOccurred())
-}
-
 func Test793d4n1a_RunAutoSweep_TheRecordOfTheSessionIsIndexedAsTheOneExplicitSource(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -242,22 +197,56 @@ func Test793d4n1d_RunAutoSweep_AFailedIndexAndAnInputThatIsNotAJSONObjectFailThe
 	g.Expect(notJSON).To(MatchError(ContainSubstring("auto sweep: reading the turn")))
 }
 
+func Test793d4n1g_RunAutoSweep_ASweepThatWasEndedGivesUpForTheSessionAndFailsNamingWhatToRun(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	sessions, records := t.TempDir(), t.TempDir()
+	plantSessionRecord(t, sessions, "a-project")
+
+	endedSweep := func() error {
+		return cli.RunAutoSweep(context.Background(), cli.AutoSweepArgs{SessionsDir: sessions, RecordsDir: records},
+			cli.AutoSweepDeps{
+				Stdin:       strings.NewReader(`{"origin":"composer","session":"` + sessionID + `","ended":true}`),
+				Ingest:      indexNothing(t),
+				ReadDir:     os.ReadDir,
+				Exists:      fileExists,
+				WriteRecord: writeInNewDirectory,
+			})
+	}
+
+	first := endedSweep()
+
+	g.Expect(first).To(MatchError(ContainSubstring("the sweep was ended")))
+	g.Expect(first).To(MatchError(ContainSubstring("engram ingest --auto")))
+	g.Expect(filepath.Join(records, sessionID, "sweep.ended")).To(BeAnExistingFile(), "the mark of the session")
+	g.Expect(endedSweep()).To(Succeed(), "the second run: the user was told")
+}
+
+func Test793d4n1h_RunAutoSweep_ASessionThatGaveUpIsNotSwept(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	sessions, records := t.TempDir(), t.TempDir()
+	plantSessionRecord(t, sessions, "a-project")
+	g.Expect(writeInNewDirectory(filepath.Join(records, sessionID, "sweep.ended"), nil)).To(Succeed())
+
+	err := cli.RunAutoSweep(context.Background(), cli.AutoSweepArgs{SessionsDir: sessions, RecordsDir: records},
+		cli.AutoSweepDeps{
+			Stdin:   strings.NewReader(`{"origin":"composer","session":"` + sessionID + `"}`),
+			Ingest:  indexNothing(t),
+			ReadDir: os.ReadDir,
+			Exists:  fileExists,
+		})
+
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
 // fileExists reports whether a file is at the path.
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 
 	return err == nil
-}
-
-// writeInNewDirectory creates a file that must not exist, and the directory it is in, as the file system of the
-// command does.
-func writeInNewDirectory(path string, data []byte) error {
-	mkdirErr := os.MkdirAll(filepath.Dir(path), 0o750)
-	if mkdirErr != nil {
-		return fmt.Errorf("creating the directory of %s: %w", path, mkdirErr)
-	}
-
-	return writeFileExclusively(path, data)
 }
 
 // indexNothing is an index that fails the test when it is run.
@@ -291,4 +280,15 @@ func plantSessionRecord(t *testing.T, sessions, project string) string {
 	}
 
 	return path
+}
+
+// writeInNewDirectory creates a file that must not exist, and the directory it is in, as the file system of the
+// command does.
+func writeInNewDirectory(path string, data []byte) error {
+	mkdirErr := os.MkdirAll(filepath.Dir(path), 0o750)
+	if mkdirErr != nil {
+		return fmt.Errorf("creating the directory of %s: %w", path, mkdirErr)
+	}
+
+	return writeFileExclusively(path, data)
 }

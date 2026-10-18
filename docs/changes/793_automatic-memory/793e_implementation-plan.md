@@ -77,7 +77,7 @@ The groups, in the order of the catalog ([793b28 Depth-first order](./793b_decis
 | [793e6c Never in the way](#793e6c-never-in-the-way) | the rest of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), without the clause about its own sessions | none | Complete |
 | [793e6d The user can see what it did](#793e6d-the-user-can-see-what-it-did) | [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) | none | Complete |
 | [793e6h The fixes of the review round of the third group](#793e6h-the-fixes-of-the-review-round-of-the-third-group) | the defects the third group's one review round found in [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) and [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), and in their technical requirements | none | Complete |
-| [793e6i The fixes of the review of the whole branch](#793e6i-the-fixes-of-the-review-of-the-whole-branch) | the defects the one review round of the whole branch found in [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did), [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), their technical requirements and the documents | none | In progress: 4/7 nodes complete |
+| [793e6i The fixes of the review of the whole branch](#793e6i-the-fixes-of-the-review-of-the-whole-branch) | the defects the one review round of the whole branch found in [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did), [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), their technical requirements and the documents | none | In progress: 5/7 nodes complete |
 | [793e6f The delivery merges the parent vault](#793e6f-the-delivery-merges-the-parent-vault) | the clause of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) that the [notes](../../GLOSSARY.md#permanent-note) are those `engram query` returns, for a [vault](../../GLOSSARY.md#vault) that has a parent ([793c34 Does the delivery merge the parent vault, as `engram query` does?](./793c_open-questions.md#793c34-does-the-delivery-merge-the-parent-vault-as-engram-query-does)) | none | Blocked by: [793c34 Does the delivery merge the parent vault, as `engram query` does?](./793c_open-questions.md#793c34-does-the-delivery-merge-the-parent-vault-as-engram-query-does) |
 
 ## 793e9 Dependency graph
@@ -153,10 +153,9 @@ flowchart TD
     n793e6h1 --> n793e6i2[793e6i2 The warnings of the lookup go to the debug log, not to the user<br/>Complete]
     n793e6h1 --> n793e6i3[793e6i3 One line is shown for each of what was delivered, written, left out and failed<br/>Complete]
     n793e6i3 --> n793e6i4[793e6i4 A turn with nothing to write leaves no record, and the records that were shown are removed<br/>Complete]
-    n793e6i4 --> n793e6i5[793e6i5 A sweep that is ended at its bound is not run again in the session, and the user is told once<br/>In progress: 0/6 entries complete]
+    n793e6i4 --> n793e6i5[793e6i5 A sweep that is ended at its bound is not run again in the session, and the user is told once<br/>Complete]
     n793e6d5 --> n793e6i5
-    class n793e6i1,n793e6i2,n793e6i3,n793e6i4 complete
-    class n793e6i5 progress
+    class n793e6i1,n793e6i2,n793e6i3,n793e6i4,n793e6i5 complete
     classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
@@ -929,12 +928,12 @@ Review finding B-3 ([793b115 A sweep that is ended at its bound is not run again
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2f1b | Dedicated example, product acceptance (`network`) | another process holds the lock of the chunk index for the whole test, as the closing sweep of the [agent](./793a_product-spec.md#793a1a-terms) does on a large backlog, so that the sweep waits and is ended at its bound; the second prompt shows one line that names `[engram ingest](../../GLOSSARY.md#engram-ingest-subcommand) --auto`, and the third, after the time of a sweep has passed again, none | | | Green-all | c83de9f8 | | |
-| 793d4n1g | Dedicated example | the file of the mark is written once and the error names what to run, over an injected writer of files and an index that must not run | | | Green-all | c83de9f8 | | |
-| 793d4n1h | Dedicated example | a [session](../../GLOSSARY.md#session) with the mark is swept nothing, over an injected index that must not run | | | Green-all | c83de9f8 | | |
-| 793d2c1e | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the stand-in host ends the first run and fails the second, as the host does, which a live [session](../../GLOSSARY.md#session) shows only after 90 seconds | | | Green-all | c83de9f8 | | |
-| 793d2c1f | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a second run that succeeds is not reported | | | Green-all | c83de9f8 | | |
-| 793d2c1c (amended) | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the bounds of the sweep, of the run as ended and of the report, with the timers of the stand-in fired at once | | | Green-all | c83de9f8 | | |
+| 793a2f1b | Dedicated example, product acceptance (`network`) | another process holds the lock of the chunk index for the whole test, as the closing sweep of the [agent](./793a_product-spec.md#793a1a-terms) does on a large backlog, so that the sweep waits and is ended at its bound; the second prompt shows one line that names `[engram ingest](../../GLOSSARY.md#engram-ingest-subcommand) --auto`, and the third, after the time of a sweep has passed again, none | | 3 of 3 | Done | c83de9f8 | 85893150 | |
+| 793d4n1g | Dedicated example | the file of the mark is written once and the error names what to run, over an injected writer of files and an index that must not run | | | Done | c83de9f8 | 85893150 | |
+| 793d4n1h | Dedicated example | a [session](../../GLOSSARY.md#session) with the mark is swept nothing, over an injected index that must not run | | | Done | c83de9f8 | 85893150 | |
+| 793d2c1e | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the stand-in host ends the first run and fails the second, as the host does, which a live [session](../../GLOSSARY.md#session) shows only after 90 seconds | | | Done | c83de9f8 | 85893150 | |
+| 793d2c1f | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a second run that succeeds is not reported | | | Done | c83de9f8 | 85893150 | |
+| 793d2c1c (amended) | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the bounds of the sweep, of the run as ended and of the report, with the timers of the stand-in fired at once | | | Done | c83de9f8 | 85893150 | |
 
 ### 793e6f The delivery merges the parent vault
 
