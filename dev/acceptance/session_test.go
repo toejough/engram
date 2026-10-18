@@ -579,10 +579,18 @@ func (s *session) turnOf(prompt, stdout string) *turn {
 type transcriptRow struct {
 	Type      string `json:"type"`
 	Timestamp string `json:"timestamp"`
-	Origin    struct {
+	// the fields of the rows that record a request to the model: a request holds the messages of the request it is
+	// based on, the first Keep of them, then the messages of its Tail, each stored in a row of its own under its hash
+	ID     string   `json:"id"`
+	Base   string   `json:"base"`
+	Keep   int      `json:"keep"`
+	Tail   []string `json:"tail"`
+	Hash   string   `json:"hash"`
+	Origin struct {
 		Kind string `json:"kind"`
 	} `json:"origin"`
 	Message struct {
+		Role    string          `json:"role"`
 		Content json.RawMessage `json:"content"`
 	} `json:"message"`
 	Attachment struct {
