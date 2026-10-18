@@ -186,6 +186,25 @@ func autoTargets(
 
 	return []any{
 		targ.Group("auto",
+			targ.Targ(func(ctx context.Context, a AutoMomentArgs) {
+				if a.SessionsDir == "" {
+					a.SessionsDir = sessionsDirOf(deps.Getenv, deps.UserHomeDir)
+				}
+
+				errHandler(RunAutoMoment(withLog(ctx), a, newAutoMomentDeps(deps), deps.Stdout))
+			}).Name("moment").Description(
+				"Print the request for the model that judges a moment (the automatic-memory mod runs this at each cue)"),
+			targ.Targ(func(ctx context.Context, _ AutoPhrasesArgs) {
+				errHandler(RunAutoPhrases(withLog(ctx), newAutoPhrasesDeps(deps), deps.Stdout))
+			}).Name("phrases").Description(
+				"Print the request for the model that phrases the lookup (the automatic-memory mod runs this at a recall moment)"),
+			targ.Targ(func(ctx context.Context, a AutoRecallArgs) {
+				a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
+				a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
+
+				errHandler(RunAutoRecall(withLog(ctx), a, newAutoRecallDeps(deps), deps.Stdout))
+			}).Name("recall").Description(
+				"Look the phrases up and print the request for the model that judges the candidates (the automatic-memory mod runs this at a recall moment)"),
 			targ.Targ(func(ctx context.Context, a AutoDeliverArgs) {
 				a.VaultPath, a.SessionsDir = paths(a.VaultPath, a.SessionsDir)
 				a.RecordsDir = recordsDir(a.RecordsDir)

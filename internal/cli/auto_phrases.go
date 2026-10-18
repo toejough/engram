@@ -9,10 +9,18 @@ import (
 	"github.com/toejough/engram/internal/auto"
 )
 
+// AutoPhrasesArgs holds parsed flags for `engram auto phrases`: none.
+type AutoPhrasesArgs struct{}
+
 // AutoPhrasesDeps holds injected dependencies for RunAutoPhrases.
 type AutoPhrasesDeps struct {
 	// Stdin carries the reply of the moment judgement and its carry: one JSON object.
 	Stdin io.Reader
+}
+
+// newAutoPhrasesDeps wires RunAutoPhrases from the injected CLI capabilities - pure composition (#700).
+func newAutoPhrasesDeps(d Deps) AutoPhrasesDeps {
+	return AutoPhrasesDeps{Stdin: d.Stdin}
 }
 
 // RunAutoPhrases reads the reply of the moment judgement from standard input and prints the request for the model that

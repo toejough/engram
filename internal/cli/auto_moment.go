@@ -26,6 +26,16 @@ type AutoMomentDeps struct {
 // RecordRead returns the record of a session, which Claude Code keeps in a directory of records, or nothing.
 type RecordRead func(dir, session string) []byte
 
+// newAutoMomentDeps wires RunAutoMoment from the injected CLI capabilities - pure composition (#700).
+func newAutoMomentDeps(d Deps) AutoMomentDeps {
+	return AutoMomentDeps{
+		Stdin: d.Stdin,
+		ReadRecord: func(dir, session string) []byte {
+			return recordOf(d.FS.ReadDir, d.FS.ReadFile, dir, session)
+		},
+	}
+}
+
 // RunAutoMoment reads a moment from standard input and prints the request for the model that judges it, and the carry
 // for the next step, or nothing when the prompt is not one the user sends (855d4a). The record of the session is read
 // once, and a session with no record is judged without conversation lines.
