@@ -14,11 +14,11 @@ import (
 const (
 	KindNote    = "note"
 	KindPassage = "passage"
-	// MaxCandidates is how many candidates the judgement holds at most (855d8b).
-	MaxCandidates = 30
 	// LookupLimit is how many items the lookup is asked for: twice the most candidates, so that the floor of passages
 	// has passages to keep when the notes score higher (855b59).
 	LookupLimit = 2 * MaxCandidates
+	// MaxCandidates is how many candidates the judgement holds at most (855d8b).
+	MaxCandidates = 30
 )
 
 // Exported variables.
