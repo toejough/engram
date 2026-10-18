@@ -161,20 +161,6 @@ func Test793d4p1h_Deliver_ANoteDeliveredIsShownAsALine(t *testing.T) {
 	g.Expect(delivery.Told).To(BeEmpty(), "no record is told by a note")
 }
 
-func Test793d4p1l_Deliver_TheNotesDeliveredAreOneLine(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	delivery := deliveryOf(t, []auto.Note{
-		{Path: "1.2026-10-17.a.md", Situation: "s", Body: "b"},
-		{Path: "2.2026-10-17.b.md", Situation: "s", Body: "b"},
-	}, nil)
-
-	g.Expect(delivery.Shown).To(Equal([]string{"delivered the notes 1.2026-10-17.a.md, 2.2026-10-17.b.md"}),
-		"one line for the notes of the block, in its order")
-	g.Expect(delivery.Told).To(BeEmpty(), "no record is told by a note")
-}
-
 func Test793d4p1i_Deliver_ALineShownIsOneLineWhateverTheTextsHold(t *testing.T) {
 	t.Parallel()
 
@@ -207,6 +193,20 @@ func Test793d4p1i_Deliver_ALineShownIsOneLineWhateverTheTextsHold(t *testing.T) 
 			rt.Fatalf("%s: %q", problem, delivery.Shown)
 		}
 	})
+}
+
+func Test793d4p1l_Deliver_TheNotesDeliveredAreOneLine(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	delivery := deliveryOf(t, []auto.Note{
+		{Path: "1.2026-10-17.a.md", Situation: "s", Body: "b"},
+		{Path: "2.2026-10-17.b.md", Situation: "s", Body: "b"},
+	}, nil)
+
+	g.Expect(delivery.Shown).To(Equal([]string{"delivered the notes 1.2026-10-17.a.md, 2.2026-10-17.b.md"}),
+		"one line for the notes of the block, in its order")
+	g.Expect(delivery.Told).To(BeEmpty(), "no record is told by a note")
 }
 
 // unexported constants.
@@ -373,7 +373,8 @@ func shownProblem(delivery auto.Delivery, delivered bool, records []auto.Record)
 	}
 
 	if len(delivery.Shown) != want {
-		return fmt.Sprintf("%d kinds of record and delivered notes %v made %d lines", len(kinds), delivered, len(delivery.Shown))
+		return fmt.Sprintf("%d kinds of record, and notes delivered %v, made %d lines", len(kinds), delivered,
+			len(delivery.Shown))
 	}
 
 	for _, line := range delivery.Shown {

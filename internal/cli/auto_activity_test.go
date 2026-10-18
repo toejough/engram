@@ -191,27 +191,6 @@ func Test793d4p1h_RunAutoDeliver_ANoteDeliveredIsShownAsALine(t *testing.T) {
 	g.Expect(result.shown).To(Equal("delivered the note "+resetNoteName+"\n"), "what the user is shown")
 }
 
-func Test793d4p1l_Targets_TheNotesDeliveredAreOneLine(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	result := deliverWith(t, []string{"engram", "auto", "deliver", "--vault", plantTwoNotes(t), "--records", t.TempDir()},
-		t.TempDir(), nil)
-
-	g.Expect(result.block).To(ContainSubstring("- "+resetNoteName+" ("), "the block holds the first note")
-	g.Expect(result.block).To(ContainSubstring("- "+backupNoteName+" ("), "the block holds the second note")
-
-	lines := strings.Split(strings.TrimSpace(result.shown), "\n")
-
-	g.Expect(lines).To(HaveLen(1), "what the user is shown")
-
-	if len(lines) == 1 {
-		g.Expect(lines[0]).To(HavePrefix("delivered the notes "))
-		g.Expect(lines[0]).To(ContainSubstring(resetNoteName))
-		g.Expect(lines[0]).To(ContainSubstring(backupNoteName))
-	}
-}
-
 func Test793d4p1j_RunAutoDeliver_AMarkThatCannotBeWrittenDoesNotFailTheCommand(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -268,6 +247,27 @@ func Test793d4p1k_Targets_AWarningOfTheLookupIsNoLineForTheUser(t *testing.T) {
 	g.Expect(stdout.String()).To(ContainSubstring(resetNoteName), "the block holds the note that is fit")
 	g.Expect(stderr).To(Equal("delivered the note "+resetNoteName+"\n"), "what the user is shown")
 	g.Expect(debug.String()).To(ContainSubstring("dropped 1 sidecar"), "the debug log holds the warning of the lookup")
+}
+
+func Test793d4p1l_Targets_TheNotesDeliveredAreOneLine(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	result := deliverWith(t, []string{"engram", "auto", "deliver", "--vault", plantTwoNotes(t), "--records", t.TempDir()},
+		t.TempDir(), nil)
+
+	g.Expect(result.block).To(ContainSubstring("- "+resetNoteName+" ("), "the block holds the first note")
+	g.Expect(result.block).To(ContainSubstring("- "+backupNoteName+" ("), "the block holds the second note")
+
+	lines := strings.Split(strings.TrimSpace(result.shown), "\n")
+
+	g.Expect(lines).To(HaveLen(1), "what the user is shown")
+
+	if len(lines) == 1 {
+		g.Expect(lines[0]).To(HavePrefix("delivered the notes "))
+		g.Expect(lines[0]).To(ContainSubstring(resetNoteName))
+		g.Expect(lines[0]).To(ContainSubstring(backupNoteName))
+	}
 }
 
 // unexported constants.

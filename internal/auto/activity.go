@@ -20,9 +20,10 @@ type Line struct {
 // whose line the user was not shown: one line for each of the kinds written, skipped and failed that has a record, in
 // that order, each line telling all the records of its kind (793d4p). A record of any other kind says nothing.
 func ActivityLines(records []Record) []Line {
-	lines := make([]Line, 0, len(activityKinds))
+	kinds := []string{RecordWritten, RecordSkipped, RecordFailed}
+	lines := make([]Line, 0, len(kinds))
 
-	for _, kind := range activityKinds {
+	for _, kind := range kinds {
 		told := make([]Record, 0, len(records))
 
 		for _, record := range records {
@@ -47,12 +48,6 @@ const (
 	bothEnds = 2
 	// shownLimit is how many characters a line shown to the user holds at most (793d4p).
 	shownLimit = 240
-)
-
-// unexported variables.
-var (
-	// activityKinds are the kinds of record that make a line, in the order of the lines.
-	activityKinds = []string{RecordWritten, RecordSkipped, RecordFailed}
 )
 
 // activityText is the text of the line that tells what the records of a kind say: the time of the oldest, and a phrase

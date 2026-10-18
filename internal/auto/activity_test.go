@@ -109,7 +109,8 @@ func Test793d4p1e_ActivityLines_OneLineIsShownForEachKindOfRecord(t *testing.T) 
 	written := lines[0].Text
 
 	g.Expect(utf8.RuneCountInString(written)).To(BeNumerically("<=", 240), "the line of the written, cut")
-	g.Expect(written).To(HavePrefix("20:32:25 wrote the notes 1.2026-10-17.zorblax-note-0.md, 2.2026-10-17.zorblax-note-1.md"))
+	g.Expect(written).To(HavePrefix("20:32:25 wrote the notes 1.2026-10-17.zorblax-note-0.md, " +
+		"2.2026-10-17.zorblax-note-1.md"))
 	g.Expect(written).To(HaveSuffix("7.2026-10-17.zorblax-note-6.md"), "the first and the last of the file names stay")
 	g.Expect(lines[0].Files).To(HaveLen(7), "every record is told, also those the cut left out of the text")
 	g.Expect(lines[1].Text).To(Equal("20:32:32 left out: the lesson lesson-7: the vault already states it; " +
