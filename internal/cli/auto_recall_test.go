@@ -74,6 +74,74 @@ func Test855d4b1a_Recall_ThePhrasesAreLookedUpOnceAsPhrasesOfTheirOwn(t *testing
 	}
 }
 
+func Test855d4b1c_Recall_AReplyThatIsNotAPhrasesReplyFailsTheCommand(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a fenced reply of one phrase is looked up", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		var asked []cli.QueryArgs
+
+		err := cli.RunAutoRecall(context.Background(), cli.AutoRecallArgs{VaultPath: "/a/vault"},
+			cli.AutoRecallDeps{
+				Stdin: recallInputOfReply("```json\n{\"phrases\":[\"staging resets\"]}\n```"),
+				Query: func(_ context.Context, args cli.QueryArgs, _ io.Writer) error {
+					asked = append(asked, args)
+
+					return nil
+				},
+			}, io.Discard)
+
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(asked).To(HaveLen(1))
+
+		if len(asked) == 1 {
+			g.Expect(asked[0].Phrases).To(Equal([]string{"staging resets"}))
+		}
+	})
+
+	for name, reply := range map[string]string{
+		"text that is not JSON": "the phrases are staging and resets", "an empty reply": "", "an object with no phrases": "{}",
+		"an empty list": `{"phrases":[]}`, "a list of blanks": `{"phrases":["", "  "]}`, "a list": `["staging"]`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			var out bytes.Buffer
+
+			err := cli.RunAutoRecall(context.Background(), cli.AutoRecallArgs{VaultPath: "/a/vault"},
+				cli.AutoRecallDeps{
+					Stdin: recallInputOfReply(reply),
+					Query: func(context.Context, cli.QueryArgs, io.Writer) error {
+						t.Error("the lookup was run for a reply that is no phrases reply")
+
+						return nil
+					},
+				}, &out)
+
+			g.Expect(err).To(MatchError(ContainSubstring("phrases judgement")))
+			g.Expect(err).NotTo(MatchError(ContainSubstring("Prepare a test run")), "the cause holds no text of the prompt")
+			g.Expect(out.String()).To(BeEmpty())
+		})
+	}
+}
+
+// recallInputOfReply is the JSON object that the memory mod hands to the recall, with the reply of the phrases
+// judgement as the model gave it, at glance.
+func recallInputOfReply(reply string) io.Reader {
+	input, err := json.Marshal(map[string]any{
+		"session": sessionID, "cue": "prompt", "reply": reply,
+		"carry": map[string]string{"cue": "prompt", "depth": "glance", "window": "User: Prepare a test run."},
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	return bytes.NewReader(input)
+}
+
 // recallInput is the JSON object that the memory mod hands to the recall: the reply of the phrases judgement, a list of
 // phrases, and the carry of the step before, of a depth.
 func recallInput(depth string, phrases ...string) io.Reader {
