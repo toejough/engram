@@ -4,6 +4,7 @@ package acceptance_test
 
 import (
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 )
@@ -40,8 +41,54 @@ func Test793a2f1a_TheConversationSoFarIsFindableAfterATurn(t *testing.T) {
 	})
 }
 
+func Test793a2f1b_AConversationTooLongToIndexInTimeIsLeftAloneAndTheUserIsToldOnceWhatToRun(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var chat *conversation
+
+	step(t, "Given the user has run engram update, and a conversation that is too long to be indexed within 2 minutes",
+		func() {
+			machine.hasRunUpdate()
+			machine.indexIsBusy()
+
+			chat = machine.startSession("zorblax").converse()
+		})
+
+	var first, second, third *turn
+
+	step(t, "When the user sends a prompt, and 2 minutes after its turn ends sends a second, and 2 minutes after the "+
+		"second turn ends sends a third", func() {
+		first = chat.tell(askSomethingElse)
+
+		time.Sleep(time.Until(chat.turnEnds.Add(captureBound)))
+
+		second = chat.tell(askAnotherThing)
+
+		time.Sleep(time.Until(chat.turnEnds.Add(captureBound)))
+
+		third = chat.tell(askOneMoreThing)
+	})
+
+	step(t, "Then the session shows, with the second prompt, one line that says the conversation could not be indexed "+
+		"in time and that engram ingest --auto indexes it, and shows no line about it with the third", func() {
+		t.Logf("the lines shown with the second prompt: %q", second.shown)
+
+		g.Expect(first.shown).To(BeEmpty(), "the lines shown with the first prompt")
+		g.Expect(second.shown).To(ConsistOf(And(ContainSubstring("failed:"), ContainSubstring("sweep"),
+			ContainSubstring("engram ingest --auto"))), "the lines shown with the second prompt")
+		g.Expect(third.shown).To(BeEmpty(), "the lines shown with the third prompt")
+
+		holdNone(g, second.shown, first, second, third)
+	})
+}
+
 // unexported constants.
 const (
+	// askOneMoreThing is a prompt that no note bears on, other than askSomethingElse and askAnotherThing.
+	askOneMoreThing = "What is 12 times 12? Reply with the number only."
 	// askTheFuseDrawer and askTheRelayLabel are the lookups of the user, which name no word of what was said.
 	askTheFuseDrawer = "which drawer holds the spare fuses of the Zorblax cabinet"
 	askTheRelayLabel = "what label does the Zorblax relay in the east wing carry"

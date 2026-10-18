@@ -622,18 +622,67 @@ func Test793d2c1c_Mod_ASweepThatStallsIsEndedAtItsBoundAndReported(t *testing.T)
 			Judge: map[string]any{"exitCode": 0, "stdout": ""}, Stalls: "sweep",
 		})
 
-		g.Expect(outcome.Sweeps).To(HaveLen(1))
+		g.Expect(outcome.Sweeps).To(HaveLen(2), "the sweep, and the run as ended")
 
 		reports := outcome.stepsAndLimits()
 
 		g.Expect(reports).To(ContainElement("engram auto write: 15000"), "the report of the failure")
 
-		if len(outcome.Sweeps) == 1 {
+		if len(outcome.Sweeps) == 2 {
 			g.Expect(outcome.Sweeps[0].TimeoutMs).To(BeNumerically("==", 90000), "the bound of the sweep")
-			g.Expect(5000+outcome.Sweeps[0].TimeoutMs+15000).To(BeNumerically("<", 120000),
-				"the ID, the sweep and the report together, in milliseconds")
+			g.Expect(outcome.Sweeps[1].TimeoutMs).To(BeNumerically("==", 5000), "the bound of the run as ended")
+			g.Expect(5000+outcome.Sweeps[0].TimeoutMs+outcome.Sweeps[1].TimeoutMs+15000).To(BeNumerically("<", 120000),
+				"the ID, the sweep, the run as ended and the report together, in milliseconds")
 		}
 	})
+}
+
+func Test793d2c1e_Mod_ASweepThatIsEndedIsRunOnceMoreAsEnded(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	outcome := runCaptureDriver(t, captureScenario{
+		Judge: map[string]any{"exitCode": 0, "stdout": ""},
+		Sweep: map[string]any{"rejects": "the command ran for 90000 ms"},
+		SweepEnded: map[string]any{
+			"exitCode": 1, "stdout": "", "stderr": "auto sweep: the sweep was ended at its time limit; run engram ingest --auto\n",
+		},
+	})
+
+	g.Expect(outcome.Sweeps).To(HaveLen(2), "the sweep, and the run as ended")
+
+	if len(outcome.Sweeps) == 2 {
+		g.Expect(outcome.Sweeps[0].Input).To(Equal(map[string]any{"session": "a-session", "origin": "composer"}))
+		g.Expect(outcome.Sweeps[1].Input).To(Equal(map[string]any{
+			"session": "a-session", "origin": "composer", "ended": true,
+		}))
+		g.Expect(outcome.Sweeps[1].TimeoutMs).To(BeNumerically("==", 5000), "the bound of the run as ended")
+	}
+
+	reports := outcome.reports()
+
+	g.Expect(reports).To(HaveLen(1), "the report to the writing")
+
+	if len(reports) == 1 {
+		g.Expect(reports[0]).To(HaveKeyWithValue("session", "a-session"))
+		g.Expect(reports[0]).To(HaveKeyWithValue("turn", "a-turn"))
+		g.Expect(reports[0]["failure"]).To(And(ContainSubstring("engram auto sweep exited with 1"),
+			ContainSubstring("run engram ingest --auto")), "the failure, from the run as ended")
+	}
+}
+
+func Test793d2c1f_Mod_ASweepThatGaveUpBeforeIsNotReportedAgain(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	outcome := runCaptureDriver(t, captureScenario{
+		Judge:      map[string]any{"exitCode": 0, "stdout": ""},
+		Sweep:      map[string]any{"rejects": "the command ran for 90000 ms"},
+		SweepEnded: map[string]any{"exitCode": 0, "stdout": ""},
+	})
+
+	g.Expect(outcome.Sweeps).To(HaveLen(2), "the sweep, and the run as ended")
+	g.Expect(outcome.reports()).To(BeEmpty(), "the reports to the writing")
 }
 
 func Test793d2c1d_Mod_ATurnOfASubagentIsNotSwept(t *testing.T) {
@@ -732,8 +781,9 @@ const host = {
     run: async (argv, init) => {
       if (argv[2] === 'deliver') return { exitCode: 0, stdout: '' }
       if (argv[2] === 'sweep') {
-        sweeps.push({ step: argv.join(' '), input: JSON.parse(init.stdin), timeoutMs: init.timeoutMs,
-          whileJudging: !judgementReleased })
+        const input = JSON.parse(init.stdin)
+        sweeps.push({ step: argv.join(' '), input, timeoutMs: init.timeoutMs, whileJudging: !judgementReleased })
+        if (input.ended && scenario.sweepEnded) return scenario.sweepEnded
         if (scenario.stalls === 'sweep') throw new Error('the command ran too long')
         if (scenario.sweep?.rejects) throw new Error(scenario.sweep.rejects)
         return scenario.sweep ?? { exitCode: 0, stdout: '' }
@@ -1007,13 +1057,15 @@ func (o captureOutcome) stepsAndLimits() []string {
 // that ran the turn, if one did, and a script of prompts raised, turns started and turns completed, in the order given,
 // which stands in place of the one prompt and the one turn.
 type captureScenario struct {
-	Judge  map[string]any   `json:"judge"`
-	Model  map[string]any   `json:"model"`
-	Sweep  map[string]any   `json:"sweep,omitempty"`
-	Origin string           `json:"origin,omitempty"`
-	Agent  string           `json:"agent,omitempty"`
-	Text   string           `json:"text,omitempty"`
-	Script []map[string]any `json:"script,omitempty"`
+	Judge map[string]any `json:"judge"`
+	Model map[string]any `json:"model"`
+	Sweep map[string]any `json:"sweep,omitempty"`
+	// SweepEnded is what the sweep run as ended exits with and prints
+	SweepEnded map[string]any   `json:"sweepEnded,omitempty"`
+	Origin     string           `json:"origin,omitempty"`
+	Agent      string           `json:"agent,omitempty"`
+	Text       string           `json:"text,omitempty"`
+	Script     []map[string]any `json:"script,omitempty"`
 	// Stalls names the stage that stalls: id, judge, model, write or sweep
 	Stalls string `json:"stalls,omitempty"`
 }

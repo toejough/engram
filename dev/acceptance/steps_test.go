@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -446,6 +447,29 @@ func (m *machine) hookLog() string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+// indexIsBusy holds the lock of the machine's chunk index until the test ends, as another ingest does while it works
+// through a large backlog: a sweep then waits for the lock, and is ended at its bound.
+func (m *machine) indexIsBusy() {
+	m.t.Helper()
+
+	mkdirAll(m.t, m.chunks)
+
+	lock, openErr := os.OpenFile(filepath.Join(m.chunks, ".manifest.lock"), os.O_CREATE|os.O_RDWR, filePerm)
+	if openErr != nil {
+		m.t.Fatalf("opening the lock of the chunk index: %v", openErr)
+	}
+
+	lockErr := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX)
+	if lockErr != nil {
+		m.t.Fatalf("taking the lock of the chunk index: %v", lockErr)
+	}
+
+	m.t.Cleanup(func() {
+		_ = syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
+		_ = lock.Close()
+	})
 }
 
 // installed lists the paths below a directory that contain a name, relative to the directory.

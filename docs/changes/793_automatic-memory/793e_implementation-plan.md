@@ -153,10 +153,10 @@ flowchart TD
     n793e6h1 --> n793e6i2[793e6i2 The warnings of the lookup go to the debug log, not to the user<br/>Complete]
     n793e6h1 --> n793e6i3[793e6i3 One line is shown for each of what was delivered, written, left out and failed<br/>Complete]
     n793e6i3 --> n793e6i4[793e6i4 A turn with nothing to write leaves no record, and the records that were shown are removed<br/>Complete]
-    n793e6i4 --> n793e6i5[793e6i5 A sweep that is ended at its bound is not run again in the session, and the user is told once<br/>Ready]
+    n793e6i4 --> n793e6i5[793e6i5 A sweep that is ended at its bound is not run again in the session, and the user is told once<br/>In progress: 0/6 entries complete]
     n793e6d5 --> n793e6i5
     class n793e6i1,n793e6i2,n793e6i3,n793e6i4 complete
-    class n793e6i5 ready
+    class n793e6i5 progress
     classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
@@ -929,12 +929,12 @@ Review finding B-3 ([793b115 A sweep that is ended at its bound is not run again
 
 | Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2f1b | Dedicated example, product acceptance (`network`) | another process holds the lock of the chunk index for the whole test, as the closing sweep of the [agent](./793a_product-spec.md#793a1a-terms) does on a large backlog, so that the sweep waits and is ended at its bound; the second prompt shows one line that names `[engram ingest](../../GLOSSARY.md#engram-ingest-subcommand) --auto`, and the third, after the time of a sweep has passed again, none | | | Not started | | | |
-| 793d4n1g | Dedicated example | the file of the mark is written once and the error names what to run, over an injected writer of files and an index that must not run | | | Not started | | | |
-| 793d4n1h | Dedicated example | a [session](../../GLOSSARY.md#session) with the mark is swept nothing, over an injected index that must not run | | | Not started | | | |
-| 793d2c1e | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the stand-in host ends the first run and fails the second, as the host does, which a live [session](../../GLOSSARY.md#session) shows only after 90 seconds | | | Not started | | | |
-| 793d2c1f | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a second run that succeeds is not reported | | | Not started | | | |
-| 793d2c1c (amended) | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the bounds of the sweep, of the run as ended and of the report, with the timers of the stand-in fired at once | | | Not started | | | |
+| 793a2f1b | Dedicated example, product acceptance (`network`) | another process holds the lock of the chunk index for the whole test, as the closing sweep of the [agent](./793a_product-spec.md#793a1a-terms) does on a large backlog, so that the sweep waits and is ended at its bound; the second prompt shows one line that names `[engram ingest](../../GLOSSARY.md#engram-ingest-subcommand) --auto`, and the third, after the time of a sweep has passed again, none | | | Red | | | |
+| 793d4n1g | Dedicated example | the file of the mark is written once and the error names what to run, over an injected writer of files and an index that must not run | | | Red | | | |
+| 793d4n1h | Dedicated example | a [session](../../GLOSSARY.md#session) with the mark is swept nothing, over an injected index that must not run | | | Red | | | |
+| 793d2c1e | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the stand-in host ends the first run and fails the second, as the host does, which a live [session](../../GLOSSARY.md#session) shows only after 90 seconds | | | Red | | | |
+| 793d2c1f | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | a second run that succeeds is not reported | | | Red | | | |
+| 793d2c1c (amended) | Dedicated example, real dependency (dev integration suite, `targ` and `integration` tags) | the bounds of the sweep, of the run as ended and of the report, with the timers of the stand-in fired at once | | | Red | | | |
 
 ### 793e6f The delivery merges the parent vault
 
