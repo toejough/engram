@@ -373,8 +373,8 @@ func (m *machine) hasRunUpdate(agentMayRun ...string) {
 
 // hasStandInEngram puts a stand-in for engram first on the machine's PATH: for the delivery it records its arguments
 // and standard input, prints the text it is given and exits with the status it is given; for the writing it notes that
-// it was run; for the steps of the chain before the delivery (moment, phrases and recall) it records its standard input,
-// and prints and waits as standInSays says, nothing by default, so that the chain ends at the delivery; for any other
+// it was run; for the steps of the chain before the delivery (moment, phrases and recall) it records its standard
+// input, and prints and waits as standInSays says, nothing by default, so that the chain ends at the delivery; for any other
 // command it reads its input and exits with 0, so that what the mod reports or does after a turn replaces nothing the
 // delivery recorded.
 func (m *machine) hasStandInEngram(block string, status int) {
