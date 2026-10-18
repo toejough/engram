@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -25,16 +26,12 @@ func Test793d4a1a_RunAutoDeliver_PrintsTheNotesThatBearOnThePromptAsOneBlock(t *
 	t.Parallel()
 	g := NewWithT(t)
 
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-	plantNoteWithSidecar(t, memFS, vault, "1.2026-10-17.zorblax-staging-reset.md", zorblaxResetNote)
-
 	var out bytes.Buffer
 
-	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault},
+	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: t.TempDir()},
 		cli.AutoDeliverDeps{
-			Stdin: userPrompt("When is the Zorblax staging database reset?", ""),
-			Query: queryOver(newQueryDeps(memFS)),
+			Stdin:    deliveryRequest(sessionID, resetCandidate(), freezePassage()),
+			Activate: noActivation,
 		}, &out, io.Discard)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -44,43 +41,50 @@ func Test793d4a1a_RunAutoDeliver_PrintsTheNotesThatBearOnThePromptAsOneBlock(t *
 
 	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
 
+	g.Expect(lines).To(HaveLen(3), "the framing line, the note and the passage")
 	g.Expect(lines[0]).To(HavePrefix("[engram memory]"))
 	g.Expect(lines).To(ContainElement("- 1.2026-10-17.zorblax-staging-reset.md " +
 		"(testing against the Zorblax staging database): " +
 		"Information learned: when in testing against the Zorblax staging database, " +
 		"the Zorblax staging database is reset every Sunday at 03:40 UTC."))
+	g.Expect(lines).To(ContainElement("- /chunks/an-earlier-session.jsonl#c3 (passage): " +
+		"the user said the production cutover is frozen on the last Friday of every month"))
 }
 
-func Test793d4a1b_RunAutoDeliver_AFailedLookupFailsTheCommandAndPrintsNothing(t *testing.T) {
+func Test793d4a1b_RunAutoDeliver_AReplyThatIsNotAReplyFailsTheCommandAndPrintsNothing(t *testing.T) {
 	t.Parallel()
-	g := NewWithT(t)
 
-	query := newQueryDeps(newInMemoryFS())
-	query.Embedder = errorEmbedder{}
+	// a word that no redaction by shape takes for a secret, in the prompt the delivery is for
+	const prompt = "how do I deploy zorblax staging, the db pass hunter2-abc"
 
-	var out, shown bytes.Buffer
+	for name, reply := range map[string]string{
+		"text that is not JSON": "I think the first note applies.",
+		"a JSON array":          `[{"id":"1.2026-10-17.zorblax-staging-reset.md","verdict":"covered"}]`,
+		"an object with no candidates": `{"verdicts":[]}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
 
-	// a word that no redaction by shape takes for a secret, in the prompt the lookup is for
-	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: t.TempDir()},
-		cli.AutoDeliverDeps{
-			Stdin: userPrompt("how do I deploy zorblax staging, the db pass hunter2-abc", ""), Query: queryOver(query),
-		}, &out, &shown)
+			var out, shown bytes.Buffer
 
-	g.Expect(err).To(MatchError(And(ContainSubstring("embedder down"), Not(ContainSubstring("hunter2-abc")),
-		Not(ContainSubstring("zorblax staging")))), "the cause, and none of the prompt")
-	g.Expect(out.String()).To(BeEmpty())
-	g.Expect(shown.String()).To(BeEmpty())
+			request := deliveryRequestWith(sessionID, reply, resetCandidate())
+			request["text"] = prompt
+
+			err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: t.TempDir()},
+				cli.AutoDeliverDeps{Stdin: requestJSON(request), Activate: noActivation}, &out, &shown)
+
+			g.Expect(err).To(MatchError(And(ContainSubstring("candidate judgement"), Not(ContainSubstring("hunter2-abc")),
+				Not(ContainSubstring("zorblax staging")))), "the judgement, and none of the prompt")
+			g.Expect(out.String()).To(BeEmpty())
+			g.Expect(shown.String()).To(BeEmpty())
+		})
+	}
 }
 
 func Test793d4a1d_RunAutoDeliver_ANoteTheSessionHoldsIsLeftOut(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-	plantNoteWithSidecar(t, memFS, vault, "1.2026-10-17.zorblax-staging-reset.md", zorblaxResetNote)
-	plantNoteWithSidecar(t, memFS, vault, "2.2026-10-17.zorblax-backup-window.md",
-		strings.NewReplacer("reset", "backed up", "1.", "2.").Replace(zorblaxResetNote))
 
 	sessions := t.TempDir()
 	record := `{"type":"attachment","attachment":{"type":"hook_additional_context","hookName":"prompt.submit",` +
@@ -89,10 +93,10 @@ func Test793d4a1d_RunAutoDeliver_ANoteTheSessionHoldsIsLeftOut(t *testing.T) {
 
 	var out bytes.Buffer
 
-	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault, SessionsDir: sessions},
+	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: t.TempDir(), SessionsDir: sessions},
 		cli.AutoDeliverDeps{
-			Stdin:    userPrompt("When is the Zorblax staging database reset?", sessionID),
-			Query:    queryOver(newQueryDeps(memFS)),
+			Stdin:    deliveryRequest(sessionID, resetCandidate(), backupCandidate()),
+			Activate: noActivation,
 			ReadDir:  os.ReadDir,
 			ReadFile: os.ReadFile,
 		}, &out, io.Discard)
@@ -102,60 +106,105 @@ func Test793d4a1d_RunAutoDeliver_ANoteTheSessionHoldsIsLeftOut(t *testing.T) {
 	g.Expect(out.String()).NotTo(ContainSubstring("1.2026-10-17.zorblax-staging-reset.md"))
 }
 
+func Test855d4c1d_Targets_AutoDeliverMarksTheNotesItDeliversAsUsed(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault, home := t.TempDir(), t.TempDir()
+	plantNoteOnDisk(t, vault, resetNoteName, zorblaxResetNote)
+	plantNoteOnDisk(t, vault, backupNoteName, strings.NewReplacer("reset", "backed up", "1.", "2.").
+		Replace(zorblaxResetNote))
+
+	var stdout bytes.Buffer
+
+	executeForTestWithDeps(t,
+		[]string{"engram", "auto", "deliver", "--vault", vault, "--records", t.TempDir()},
+		func(d *cli.Deps) {
+			d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
+			d.Getenv = func(string) string { return "" }
+			d.UserHomeDir = func() (string, error) { return home, nil }
+			d.Stdin = deliveryRequest(sessionID, resetCandidate())
+			d.Stdout = &stdout
+		})
+
+	g.Expect(stdout.String()).To(ContainSubstring(resetNoteName), "the block holds the note")
+	g.Expect(lastUsed(t, vault, resetNoteName)).NotTo(BeEmpty(), "the note delivered was marked as used")
+	g.Expect(lastUsed(t, vault, backupNoteName)).To(BeEmpty(), "a note that was not delivered was not")
+}
+
+func Test855d4c1f_Deliver_TheDeliveryLooksNothingUp(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	sessions, records, vault, chunks := t.TempDir(), t.TempDir(), t.TempDir(), t.TempDir()
+
+	var touched []string
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoDeliver(context.Background(),
+		cli.AutoDeliverArgs{VaultPath: vault, SessionsDir: sessions, RecordsDir: records},
+		cli.AutoDeliverDeps{
+			Stdin:       deliveryRequest(sessionID, resetCandidate(), freezePassage()),
+			Activate:    noActivation,
+			WriteRecord: writeFileExclusively,
+			Remove:      os.Remove,
+			ReadDir: func(path string) ([]fs.DirEntry, error) {
+				touched = append(touched, path)
+
+				return os.ReadDir(path)
+			},
+			ReadFile: func(path string) ([]byte, error) {
+				touched = append(touched, path)
+
+				return os.ReadFile(path)
+			},
+		}, &out, io.Discard)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(out.String()).To(ContainSubstring(resetNoteName), "the note of the carry is delivered")
+
+	for _, path := range touched {
+		g.Expect(path).NotTo(HavePrefix(vault), "the vault was read")
+		g.Expect(path).NotTo(HavePrefix(chunks), "the chunk index was read")
+	}
+}
+
 func Test793d4a1e_RunAutoDeliver_NoNoteToDeliverPrintsNothing(t *testing.T) {
 	t.Parallel()
 
-	t.Run("no note bears on the prompt", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
+	sessions := t.TempDir()
+	record := `{"type":"attachment","attachment":{"type":"hook_additional_context","hookName":"prompt.submit",` +
+		`"content":["[engram memory] The lines below are notes.\n- 1.2026-10-17.zorblax-staging-reset.md (s): b"]}}` + "\n"
+	g := NewWithT(t)
+	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
 
-		var out bytes.Buffer
+	for name, request := range map[string]map[string]any{
+		"every verdict is unrelated": deliveryRequestWith(sessionID,
+			`{"candidates":[{"id":"1.2026-10-17.zorblax-staging-reset.md","verdict":"unrelated"}]}`, resetCandidate()),
+		"the only note delivered is held": deliveryFields(sessionID, resetCandidate()),
+		"no reply":                        withoutReply(deliveryFields(sessionID, resetCandidate())),
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
 
-		err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: t.TempDir()},
-			cli.AutoDeliverDeps{
-				Stdin: userPrompt("anything", sessionID),
-				Query: queryOver(newQueryDeps(newInMemoryFS())), ReadDir: os.ReadDir, ReadFile: os.ReadFile,
-			}, &out, io.Discard)
+			var out bytes.Buffer
 
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(out.String()).To(BeEmpty())
-	})
+			err := cli.RunAutoDeliver(context.Background(),
+				cli.AutoDeliverArgs{VaultPath: t.TempDir(), SessionsDir: sessions},
+				cli.AutoDeliverDeps{
+					Stdin: requestJSON(request), Activate: noActivation, ReadDir: os.ReadDir, ReadFile: os.ReadFile,
+				}, &out, io.Discard)
 
-	t.Run("the only note that bears on it is held", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		vault := t.TempDir()
-		memFS := newInMemoryFS()
-		plantNoteWithSidecar(t, memFS, vault, "1.2026-10-17.zorblax-staging-reset.md", zorblaxResetNote)
-
-		sessions := t.TempDir()
-		record := `{"type":"attachment","attachment":{"type":"hook_additional_context","hookName":"prompt.submit",` +
-			`"content":["[engram memory] The lines below are notes.\n- 1.2026-10-17.zorblax-staging-reset.md (s): b"]}}` + "\n"
-		g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
-
-		var out bytes.Buffer
-
-		err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault, SessionsDir: sessions},
-			cli.AutoDeliverDeps{
-				Stdin: userPrompt("When is the Zorblax staging database reset?", sessionID),
-				Query: queryOver(newQueryDeps(memFS)), ReadDir: os.ReadDir, ReadFile: os.ReadFile,
-			}, &out, io.Discard)
-
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(out.String()).To(BeEmpty())
-	})
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(out.String()).To(BeEmpty())
+		})
+	}
 }
 
 func Test793d4a1g_RunAutoDeliver_ANoteTheAgentFetchedByItsBasenameIsLeftOut(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-	plantNoteWithSidecar(t, memFS, vault, "1.2026-10-17.zorblax-staging-reset.md", zorblaxResetNote)
-	plantNoteWithSidecar(t, memFS, vault, "2.2026-10-17.zorblax-backup-window.md",
-		strings.NewReplacer("reset", "backed up", "1.", "2.").Replace(zorblaxResetNote))
 
 	// engram show prints the note without its file name, so only the command names it, and by its basename
 	sessions := t.TempDir()
@@ -167,10 +216,10 @@ func Test793d4a1g_RunAutoDeliver_ANoteTheAgentFetchedByItsBasenameIsLeftOut(t *t
 
 	var out bytes.Buffer
 
-	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault, SessionsDir: sessions},
+	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: t.TempDir(), SessionsDir: sessions},
 		cli.AutoDeliverDeps{
-			Stdin:    userPrompt("When is the Zorblax staging database reset?", sessionID),
-			Query:    queryOver(newQueryDeps(memFS)),
+			Stdin:    deliveryRequest(sessionID, resetCandidate(), backupCandidate()),
+			Activate: noActivation,
 			ReadDir:  os.ReadDir,
 			ReadFile: os.ReadFile,
 		}, &out, io.Discard)
@@ -197,18 +246,13 @@ func Test793d4c1c_RunAutoDeliver_ALineSaysWhenItsNoteWasWrittenAutomatically(t *
 			t.Parallel()
 			g := NewWithT(t)
 
-			vault := t.TempDir()
-			memFS := newInMemoryFS()
-			plantNoteWithSidecar(t, memFS, vault, "1.2026-10-17.zorblax-staging-reset.md",
-				strings.Replace(zorblaxResetNote, "source: test", "source: "+test.source, 1))
+			note := resetCandidate()
+			note.Source = test.source
 
 			var out bytes.Buffer
 
-			err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: vault},
-				cli.AutoDeliverDeps{
-					Stdin: userPrompt("When is the Zorblax staging database reset?", ""),
-					Query: queryOver(newQueryDeps(memFS)),
-				}, &out, io.Discard)
+			err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: t.TempDir()},
+				cli.AutoDeliverDeps{Stdin: deliveryRequest("", note), Activate: noActivation}, &out, io.Discard)
 			g.Expect(err).NotTo(HaveOccurred())
 
 			lines := strings.Split(strings.TrimSpace(out.String()), "\n")

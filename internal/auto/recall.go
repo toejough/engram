@@ -38,6 +38,9 @@ type Candidate struct {
 	Text      string `json:"text"`
 	Parent    bool   `json:"parent"`
 	Pending   bool   `json:"pending"`
+	// Source is where a note came from, which the delivery marks a note written automatically by (855d4d); a passage
+	// has none.
+	Source string `json:"source,omitempty"`
 }
 
 // RecallInput is the reply of the phrases judgement and its carry, as the memory mod hands them over (855d4b).

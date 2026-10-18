@@ -28,10 +28,12 @@ type AutoDeliverArgs struct {
 
 // AutoDeliverDeps holds injected dependencies for RunAutoDeliver.
 type AutoDeliverDeps struct {
-	// Stdin carries the request: one JSON object with the prompt's text.
+	// Stdin carries the request: one JSON object with the session, the origin, the cue, the held IDs, the reply of the
+	// candidate judgement and the carry.
 	Stdin io.Reader
-	// Query runs the lookup of notes, the one `engram query` runs, and prints its payload.
-	Query QueryRun
+	// Activate marks a note of the vault delivered as used, or pulls a note of the parent vault down, as `engram
+	// activate` does.
+	Activate func(ctx context.Context, vault string, note auto.Candidate)
 	// ReadDir and ReadFile read the session-log directory, where Claude Code keeps the record of each session.
 	ReadDir  func(path string) ([]fs.DirEntry, error)
 	ReadFile func(path string) ([]byte, error)
@@ -123,9 +125,9 @@ type LearnRun func(ctx context.Context, args LearnArgs) (string, error)
 // QueryRun runs the lookup of `engram query` for the arguments it is given and prints its payload.
 type QueryRun func(ctx context.Context, args QueryArgs, stdout io.Writer) error
 
-// RunAutoDeliver reads a prompt from standard input, prints the block of the notes that bear on it on standard output
-// (793d4a), and prints on standard error the lines that show the user the notes it delivered and what automatic memory
-// did that the user was not shown yet, marking the records whose lines it printed (793d4p).
+// RunAutoDeliver reads a delivery asked for from standard input and prints the block of the candidates the judgement
+// chose on standard output (855d4c), and prints on standard error the lines that show the user what it delivered and
+// what automatic memory did that the user was not shown yet, marking the records whose lines it printed (793d4p).
 func RunAutoDeliver(
 	ctx context.Context, args AutoDeliverArgs, deps AutoDeliverDeps, stdout, stderr io.Writer,
 ) error {
@@ -144,14 +146,14 @@ func RunAutoDeliver(
 	record := recordOf(deps.ReadDir, deps.ReadFile, args.SessionsDir, request.Session)
 
 	delivery, err := auto.Deliver(ctx, request,
-		func(ctx context.Context, text string) ([]auto.Note, error) {
-			return lookUpNotes(ctx, args.VaultPath, text, deps.Query)
-		},
 		func(string) string {
 			return auto.HeldText(record)
 		},
 		func(session string) []auto.Line {
 			return auto.ActivityLines(recordsOf(deps, args.RecordsDir, session))
+		},
+		func(ctx context.Context, note auto.Candidate) {
+			deps.Activate(ctx, args.VaultPath, note)
 		})
 	if err != nil {
 		return fmt.Errorf("auto deliver: %w", err)
@@ -388,6 +390,30 @@ func coveringNote(covered, vault string, exists func(path string) bool) string {
 	return ""
 }
 
+// activationFrom returns the activation of a note delivered: `engram activate` for a note of the vault, and with the
+// parent flag for a note of the parent vault. Its output and its warnings are no line for the user, and a failure is
+// the debug log's: the note is delivered all the same (855d4c).
+func activationFrom(d Deps) func(ctx context.Context, vault string, note auto.Candidate) {
+	quiet := d
+	quiet.Stdout, quiet.Stderr = io.Discard, io.Discard
+	logger := debuglog.New(d.DebugLog, "engram", d.Now)
+
+	return func(ctx context.Context, vault string, note auto.Candidate) {
+		args := ActivateArgs{
+			Vault: vault, Notes: []string{note.ID}, Parent: note.Parent, VaultName: resolveVaultName("", d.Getenv),
+		}
+		deps := newPullingActivateDeps(quiet, args)
+		deps.LogWarning = func(format string, values ...any) {
+			logger.Log("auto.activate", "warning: "+format, values...)
+		}
+
+		activateErr := RunActivate(ctx, args, deps)
+		if activateErr != nil {
+			logger.Log("auto.activate", "note=%s parent=%v: %v", note.ID, note.Parent, activateErr)
+		}
+	}
+}
+
 // fileExistsFrom returns a check that a file is there, through the injected file system.
 func fileExistsFrom(d Deps) func(path string) bool {
 	return func(path string) bool {
@@ -462,26 +488,31 @@ func markShown(write func(path string, data []byte) error, dir, session string, 
 	}
 }
 
-// newAutoDeliverDeps wires RunAutoDeliver and RunAutoJudge from the injected CLI capabilities - pure composition
-// (#700).
+// newAutoDeliverDeps wires RunAutoDeliver from the injected CLI capabilities - pure composition (#700).
 func newAutoDeliverDeps(d Deps) AutoDeliverDeps {
+	return AutoDeliverDeps{
+		Stdin:       d.Stdin,
+		Activate:    activationFrom(d),
+		ReadDir:     d.FS.ReadDir,
+		ReadFile:    d.FS.ReadFile,
+		WriteRecord: recordWriterFrom(d),
+		Remove:      d.FS.Remove,
+	}
+}
+
+// newAutoLookup wires the lookup of notes the judgement and the recall run from the injected CLI capabilities - pure
+// composition (#700): the mod shows every line of standard error to the user, so the warnings of the lookup go to the
+// debug log (793d4p).
+func newAutoLookup(d Deps) QueryRun {
 	queryDeps := newQueryDeps(d)
 
-	// the mod shows every line of standard error to the user, so the warnings of the lookup go to the debug log (793d4p)
 	logger := debuglog.New(d.DebugLog, "engram", d.Now)
 	queryDeps.LogWarning = func(format string, args ...any) {
 		logger.Log("auto.lookup", "warning: "+format, args...)
 	}
 
-	return AutoDeliverDeps{
-		Stdin: d.Stdin,
-		Query: func(ctx context.Context, args QueryArgs, stdout io.Writer) error {
-			return RunQuery(ctx, args, queryDeps, stdout)
-		},
-		ReadDir:     d.FS.ReadDir,
-		ReadFile:    d.FS.ReadFile,
-		WriteRecord: recordWriterFrom(d),
-		Remove:      d.FS.Remove,
+	return func(ctx context.Context, args QueryArgs, stdout io.Writer) error {
+		return RunQuery(ctx, args, queryDeps, stdout)
 	}
 }
 
@@ -491,7 +522,7 @@ func newAutoJudgeDeps(d Deps) AutoJudgeDeps {
 
 	return AutoJudgeDeps{
 		Stdin:       deliverDeps.Stdin,
-		Query:       deliverDeps.Query,
+		Query:       newAutoLookup(d),
 		ReadDir:     deliverDeps.ReadDir,
 		ReadFile:    deliverDeps.ReadFile,
 		Now:         d.Now,

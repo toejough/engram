@@ -191,11 +191,11 @@ func indexReader(readFile func(string) ([]byte, error)) func(dir, source string)
 }
 
 // newAutoRecallDeps wires RunAutoRecall from the injected CLI capabilities - pure composition (#700). The lookup is the
-// one of the delivery, whose warnings go to the debug log.
+// one of the judgement, whose warnings go to the debug log.
 func newAutoRecallDeps(d Deps) AutoRecallDeps {
 	return AutoRecallDeps{
 		Stdin:      d.Stdin,
-		Query:      newAutoDeliverDeps(d).Query,
+		Query:      newAutoLookup(d),
 		ReadChunks: indexReader(d.FS.ReadFile),
 	}
 }

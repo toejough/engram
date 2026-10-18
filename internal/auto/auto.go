@@ -4,7 +4,6 @@ package auto
 
 import (
 	"context"
-	"fmt"
 	"slices"
 	"strings"
 	"unicode"
@@ -42,42 +41,25 @@ type Note struct {
 	Source    string // where the note came from
 }
 
-// Request is a prompt, as the memory mod hands it over: its text, the session it was raised in and its origin.
+// Activate marks a note delivered as used and, for a note of the parent vault, pulls it down as a pending copy, as
+// `engram activate` does (855d4c). A failure is the activation's to report: the note is delivered all the same.
+type Activate func(ctx context.Context, note Candidate)
+
+// Request is a delivery asked for, as the memory mod hands it over (855d4c): the session, the origin of the prompt, the
+// cue, the IDs the mod delivered already, and, when a candidate request was answered, the model's reply and the carry.
 type Request struct {
-	Text    string `json:"text"`
-	Session string `json:"session"`
-	Origin  string `json:"origin"`
+	Session string   `json:"session"`
+	Origin  string   `json:"origin"`
+	Cue     string   `json:"cue"`
+	Held    []string `json:"held"`
+	Reply   string   `json:"reply"`
+	Carry   Carry    `json:"carry"`
 }
 
-// Deliver returns the block of the notes that bear on the prompt and that the session does not hold, and the lines that
-// show the user those notes and what automatic memory did and the user was not shown (793d4a, 793d4p).
-func Deliver(ctx context.Context, request Request, lookup Lookup, held Held, activity Activity) (Delivery, error) {
-	notes, err := lookup(ctx, request.Text)
-	if err != nil {
-		return Delivery{}, fmt.Errorf("looking up the notes: %w", err)
-	}
-
-	heldText := held(request.Session)
-
-	notes = slices.DeleteFunc(notes, func(note Note) bool { return namedIn(heldText, note) })
-
-	lines := activity(request.Session)
-	delivery := Delivery{
-		Block: render(notes),
-		Shown: make([]string, 0, 1+len(lines)),
-		Told:  make([]string, 0, len(lines)),
-	}
-
-	if len(notes) > 0 {
-		delivery.Shown = append(delivery.Shown, oneLine(deliveredLine(notes)))
-	}
-
-	for _, line := range lines {
-		delivery.Shown = append(delivery.Shown, oneLine(line.Text))
-		delivery.Told = append(delivery.Told, line.Files...)
-	}
-
-	return delivery, nil
+// Deliver returns the block of the candidates the judgement chose, and the lines that tell the user what was delivered
+// and what automatic memory did and the user was not shown (855d4c, 793d4p).
+func Deliver(_ context.Context, _ Request, _ Held, _ Activity, _ Activate) (Delivery, error) {
+	return Delivery{}, nil
 }
 
 // Judged reports whether the turn of a prompt of an origin is judged (793d4m): that of a prompt the user sends, except

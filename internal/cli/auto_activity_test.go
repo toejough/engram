@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -204,7 +205,7 @@ func Test793d4p1j_RunAutoDeliver_AMarkThatCannotBeWrittenDoesNotFailTheCommand(t
 	err := cli.RunAutoDeliver(context.Background(), cli.AutoDeliverArgs{VaultPath: t.TempDir(), RecordsDir: records},
 		cli.AutoDeliverDeps{
 			Stdin:       userPrompt("When is the Zorblax staging database reset?", sessionID),
-			Query:       queryOver(newQueryDeps(newInMemoryFS())),
+			Activate:    noActivation,
 			ReadDir:     os.ReadDir,
 			ReadFile:    os.ReadFile,
 			WriteRecord: func(string, []byte) error { return errors.New("the disk is full") },
@@ -219,8 +220,9 @@ func Test793d4p1l_Targets_TheNotesDeliveredAreOneLine(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	result := deliverWith(t, []string{"engram", "auto", "deliver", "--vault", plantTwoNotes(t), "--records", t.TempDir()},
-		t.TempDir(), nil)
+	result := deliverWithRequest(t,
+		[]string{"engram", "auto", "deliver", "--vault", plantTwoNotes(t), "--records", t.TempDir()}, t.TempDir(), nil,
+		deliveryRequest(sessionID, resetCandidate(), backupCandidate()))
 
 	g.Expect(result.block).To(ContainSubstring("- "+resetNoteName+" ("), "the block holds the first note")
 	g.Expect(result.block).To(ContainSubstring("- "+backupNoteName+" ("), "the block holds the second note")
@@ -326,17 +328,13 @@ func deliverOver(t *testing.T, records, session string) shownBy {
 func deliverOverRemoving(t *testing.T, records, session string, remove func(path string) error) shownBy {
 	t.Helper()
 
-	memFS := newInMemoryFS()
-	vault := t.TempDir()
-	plantNoteWithSidecar(t, memFS, vault, resetNoteName, zorblaxResetNote)
-
 	var block, shown bytes.Buffer
 
 	err := cli.RunAutoDeliver(context.Background(),
-		cli.AutoDeliverArgs{VaultPath: vault, RecordsDir: records},
+		cli.AutoDeliverArgs{VaultPath: t.TempDir(), RecordsDir: records},
 		cli.AutoDeliverDeps{
 			Stdin:       userPrompt("When is the Zorblax staging database reset?", session),
-			Query:       queryOver(newQueryDeps(memFS)),
+			Activate:    noActivation,
 			ReadDir:     os.ReadDir,
 			ReadFile:    os.ReadFile,
 			WriteRecord: writeFileExclusively,
@@ -351,13 +349,22 @@ func deliverOverRemoving(t *testing.T, records, session string, remove func(path
 func deliverWith(t *testing.T, args []string, home string, environment map[string]string) shownBy {
 	t.Helper()
 
+	return deliverWithRequest(t, args, home, environment, userPrompt("When is the Zorblax staging database reset?", sessionID))
+}
+
+// deliverWithRequest is deliverWith for the request given.
+func deliverWithRequest(
+	t *testing.T, args []string, home string, environment map[string]string, request io.Reader,
+) shownBy {
+	t.Helper()
+
 	var stdout bytes.Buffer
 
 	stderr := executeForTestWithDeps(t, args, func(d *cli.Deps) {
 		d.Embed = stubEmbedder{modelID: "m@4", dims: 4}
 		d.Getenv = func(name string) string { return environment[name] }
 		d.UserHomeDir = func() (string, error) { return home, nil }
-		d.Stdin = userPrompt("When is the Zorblax staging database reset?", sessionID)
+		d.Stdin = request
 		d.Stdout = &stdout
 	})
 
