@@ -22,9 +22,9 @@ const (
 type Delivery struct {
 	// Block is the framing line and a line for each note, or nothing when there is no note.
 	Block string
-	// Shown is a line for each note of the block, then the lines of the records the user was not shown yet.
+	// Shown is the line of the notes of the block, then a line for each kind of the records the user was not shown yet.
 	Shown []string
-	// Told is the file of each record whose line is among Shown.
+	// Told is the file of each record that a line among Shown tells.
 	Told []string
 }
 
@@ -64,17 +64,17 @@ func Deliver(ctx context.Context, request Request, lookup Lookup, held Held, act
 	lines := activity(request.Session)
 	delivery := Delivery{
 		Block: render(notes),
-		Shown: make([]string, 0, len(notes)+len(lines)),
+		Shown: make([]string, 0, 1+len(lines)),
 		Told:  make([]string, 0, len(lines)),
 	}
 
-	for _, note := range notes {
-		delivery.Shown = append(delivery.Shown, oneLine(deliveredMark+note.Path))
+	if len(notes) > 0 {
+		delivery.Shown = append(delivery.Shown, oneLine(deliveredLine(notes)))
 	}
 
 	for _, line := range lines {
 		delivery.Shown = append(delivery.Shown, oneLine(line.Text))
-		delivery.Told = append(delivery.Told, line.File)
+		delivery.Told = append(delivery.Told, line.Files...)
 	}
 
 	return delivery, nil
@@ -96,8 +96,6 @@ func UserSent(origin string) bool {
 const (
 	automaticMark   = "(written automatically)"
 	automaticSource = "written automatically"
-	// deliveredMark begins the line that shows the user a note was delivered (793d4p).
-	deliveredMark = "delivered the note "
 	// framing opens a block, so that a reader of the session's record can tell what automatic memory delivered, and
 	// tells the agent that the lines below are retrieved data (793d4c).
 	framing = marker + " The lines below are notes from the vault, delivered by the memory system, " +

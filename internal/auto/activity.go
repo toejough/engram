@@ -1,6 +1,7 @@
 package auto
 
 import (
+	"strings"
 	"unicode/utf8"
 )
 
@@ -8,28 +9,30 @@ import (
 // first (793d4p).
 type Activity func(session string) []Line
 
-// Line is a line that tells the user what a record of what automatic memory did says (793d4p), with the file of the
+// Line is a line that tells the user what records of what automatic memory did say (793d4p), with the file of each
 // record, which is marked once the line has been shown.
 type Line struct {
-	Text string
-	File string
+	Text  string
+	Files []string
 }
 
 // ActivityLines returns the lines that tell what the records of a session say automatic memory did, for the records
-// whose line the user was not shown, oldest first and five at most (793d4p). A record of the kind nothing says nothing.
+// whose line the user was not shown: one line for each of the kinds written, skipped and failed that has a record, in
+// that order, each line telling all the records of its kind (793d4p). A record of any other kind says nothing.
 func ActivityLines(records []Record) []Line {
-	lines := make([]Line, 0, activityLimit)
+	lines := make([]Line, 0, len(activityKinds))
 
-	for _, record := range records {
-		text := activityText(record)
-		if text == "" {
-			continue
+	for _, kind := range activityKinds {
+		told := make([]Record, 0, len(records))
+
+		for _, record := range records {
+			if record.Kind == kind {
+				told = append(told, record)
+			}
 		}
 
-		lines = append(lines, Line{Text: text, File: record.File})
-
-		if len(lines) == activityLimit {
-			break
+		if len(told) > 0 {
+			lines = append(lines, Line{Text: activityText(kind, told), Files: filesOf(told)})
 		}
 	}
 
@@ -40,48 +43,85 @@ func ActivityLines(records []Record) []Line {
 const (
 	// activityClock is the form of the time a line opens with.
 	activityClock = "15:04:05"
-	// activityLimit is how many lines tell what automatic memory did at one prompt.
-	activityLimit = 5
 	// bothEnds is the number of ends of a text that a cut in its middle keeps.
 	bothEnds = 2
-	// reasonLimit is how many characters of a reason a line holds at most.
-	reasonLimit = 240
+	// shownLimit is how many characters a line shown to the user holds at most (793d4p).
+	shownLimit = 240
 )
 
-// activityText is the text of the line that tells what a record says, or nothing for a record that says nothing.
-func activityText(record Record) string {
-	var phrase string
+// unexported variables.
+var (
+	// activityKinds are the kinds of record that make a line, in the order of the lines.
+	activityKinds = []string{RecordWritten, RecordSkipped, RecordFailed}
+)
 
-	switch record.Kind {
-	case RecordWritten:
-		phrase = "wrote the note " + oneLine(record.Note)
-	case RecordSkipped:
-		phrase = "left out"
+// activityText is the text of the line that tells what the records of a kind say: the time of the oldest, and a phrase
+// that names the notes written or gives the reason of each record, cut in its middle where it is long.
+func activityText(kind string, records []Record) string {
+	parts := make([]string, 0, len(records))
 
-		if record.Slug != "" {
-			phrase += " the lesson " + oneLine(record.Slug)
-		}
-
-		phrase += ": " + reasonText(record.Reason)
-	case RecordFailed:
-		phrase = "failed: "
-
-		// a failed record with a slug is the write of a lesson
-		if record.Slug != "" {
-			phrase += "writing " + oneLine(record.Slug) + ": "
-		}
-
-		phrase += reasonText(record.Reason)
-	default:
-		return ""
+	for _, record := range records {
+		parts = append(parts, partText(record))
 	}
 
-	return record.At.Format(activityClock) + " " + phrase
+	var phrase string
+
+	switch kind {
+	case RecordWritten:
+		phrase = "wrote the " + noteWord(len(parts)) + " " + strings.Join(parts, ", ")
+	case RecordSkipped:
+		phrase = "left out: " + strings.Join(parts, "; ")
+	default:
+		phrase = "failed: " + strings.Join(parts, "; ")
+	}
+
+	return squeezed(records[0].At.Format(activityClock)+" "+phrase, shownLimit)
 }
 
-// reasonText is a reason written as one line, then redacted, and only then cut (793d4j, 793d4p).
-func reasonText(reason string) string {
-	return squeezed(oneRedacted(reason), reasonLimit)
+// deliveredLine is the line that tells the notes delivered with a prompt, cut in its middle where it is long.
+func deliveredLine(notes []Note) string {
+	names := make([]string, 0, len(notes))
+
+	for _, note := range notes {
+		names = append(names, oneLine(note.Path))
+	}
+
+	return squeezed("delivered the "+noteWord(len(notes))+" "+strings.Join(names, ", "), shownLimit)
+}
+
+// filesOf returns the file of each record.
+func filesOf(records []Record) []string {
+	files := make([]string, 0, len(records))
+
+	for _, record := range records {
+		files = append(files, record.File)
+	}
+
+	return files
+}
+
+// noteWord is note, or notes when there are several.
+func noteWord(count int) string {
+	if count == 1 {
+		return "note"
+	}
+
+	return "notes"
+}
+
+// partText is what a record adds to the line of its kind: the file name of the note written, or the reason, with the
+// lesson it is about when it has one, written as one line and redacted (793d4j, 793d4p).
+func partText(record Record) string {
+	switch {
+	case record.Kind == RecordWritten:
+		return oneLine(record.Note)
+	case record.Slug == "":
+		return oneRedacted(record.Reason)
+	case record.Kind == RecordSkipped:
+		return "the lesson " + oneLine(record.Slug) + ": " + oneRedacted(record.Reason)
+	default:
+		return "writing " + oneLine(record.Slug) + ": " + oneRedacted(record.Reason)
+	}
 }
 
 // squeezed is the text cut in its middle to limit characters, so that both ends stay: an error names the step at its
