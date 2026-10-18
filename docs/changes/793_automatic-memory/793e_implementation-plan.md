@@ -29,7 +29,8 @@ Added by the third group ([793e6e The conversation becomes searchable memory](#7
 
 - `internal/cli/auto.go`, `internal/cli/targets.go`: the command `sweep`, which indexes the session's record with the ingest, wired outside the first-use step ([793b100 The sweep indexes the session's record after every turn](./793b_decision-log.md#793b100-the-sweep-indexes-the-sessions-record-after-every-turn), [793b101 A second sweep waits for the lock of the ingest](./793b_decision-log.md#793b101-a-second-sweep-waits-for-the-lock-of-the-ingest)).
 - `agent-instructions/mods/engram-memory/hooks/register.js`: the job that sweeps after `turn.complete`, apart from the capture ([793b102 The sweep and the capture run apart](./793b_decision-log.md#793b102-the-sweep-and-the-capture-run-apart)), both started from a timer ([793b103 The work after a turn is started from a timer](./793b_decision-log.md#793b103-the-work-after-a-turn-is-started-from-a-timer)).
-- `dev/acceptance/sweep_test.go`, `dev/acceptance/never_test.go`, `dev/mods_integration_internal_test.go`, `dev/auto_sweep_integration_internal_test.go`: the scenario test, the stand-in host's tests of the job, and the tests over the real binary, which the dev integration suite runs because the integration gate of `internal/` runs only tests named for it.
+- `internal/auto/activity.go`, `internal/auto/auto.go`, `internal/auto/session.go`, `internal/cli/auto.go`, `internal/cli/targets.go`: the lines that tell what automatic memory did, from the records, in the block of the delivery, and the lines a session was told ([793b105 What is shown, and how](./793b_decision-log.md#793b105-what-is-shown-and-how)).
+- `dev/acceptance/sweep_test.go`, `dev/acceptance/never_test.go`, `dev/acceptance/activity_test.go`, `dev/mods_integration_internal_test.go`, `dev/auto_sweep_integration_internal_test.go`: the scenario test, the stand-in host's tests of the job, and the tests over the real binary, which the dev integration suite runs because the integration gate of `internal/` runs only tests named for it.
 
 ## 793e2 Test methods
 
@@ -111,15 +112,21 @@ flowchart TD
     n793e6e1 --> n793e6c1
     n793e6b11 --> n793e6c2[793e6c2 The prompt and the reply are as they were<br/>Complete]
     n793e6b13 --> n793e6c3[793e6c3 A write that fails does not break the session<br/>Complete]
-    n793e6g10 --> n793e6d[793e6d The user can see what it did<br/>Ready]
-    n793e6a2 --> n793e6f[793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d]
+    n793e6g10 --> n793e6d1[793e6d1 What was delivered and what was written for the previous turn is in the session by the next prompt<br/>Ready]
+    n793e6b11 --> n793e6d1
+    n793e6d1 --> n793e6d2[793e6d2 A write that finishes after the next prompt is shown when it finishes<br/>Blocked by: 793e6d1]
+    n793e6d1 --> n793e6d3[793e6d3 A delivery that could not be done is shown with its reason<br/>Blocked by: 793e6d2]
+    n793e6d1 --> n793e6d4[793e6d4 A write that failed is shown with its reason<br/>Blocked by: 793e6d3]
+    n793e6e1 --> n793e6d5[793e6d5 A sweep that failed is shown with its reason<br/>Blocked by: 793e6d4]
+    n793e6d1 --> n793e6d6[793e6d6 A turn that is not captured is shown with the reason<br/>Blocked by: 793e6d5]
+    n793e6a2 --> n793e6f[793e6f The delivery merges the parent vault<br/>Blocked by: 793e6d6]
     classDef complete fill:#d8f0dc,stroke:#2e7d32,color:#000
     classDef progress fill:#fff3cd,stroke:#b8860b,color:#000
     classDef ready fill:#dde3f7,stroke:#3949ab,color:#000
     classDef blocked fill:#eeeeee,stroke:#757575,color:#000,stroke-dasharray:5 5
     class n793e6a1,n793e6a2,n793e6a3,n793e6a4,n793e6a5,n793e6a6,n793e6a7,n793e6a8,n793e6a9,n793e6a10,n793e6a11,n793e6a12,n793e6b1,n793e6b2,n793e6b3,n793e6b4,n793e6b5,n793e6b6,n793e6b7,n793e6b8,n793e6b9,n793e6b10,n793e6b11,n793e6b12,n793e6b13,n793e6b14,n793e6b15,n793e6g1,n793e6g2,n793e6g3,n793e6g4,n793e6g5,n793e6g6,n793e6g7,n793e6g8,n793e6g9,n793e6g10,n793e6g11,n793e6g12,n793e6g13,n793e6g14,n793e6g15,n793e6g16,n793e6g17,n793e6g18,n793e6g19,n793e6e1,n793e6c1,n793e6c2,n793e6c3 complete
-    class n793e6d ready
-    class n793e6f blocked
+    class n793e6d1 ready
+    class n793e6d2,n793e6d3,n793e6d4,n793e6d5,n793e6d6,n793e6f blocked
 ```
 
 Colour follows the status: green `Complete`, blue `Ready`, dashed grey `Blocked by`, yellow `In progress` (none now). A group is `Blocked by` the previous group of the order of [793e4 Depth-first order](#793e4-depth-first-order), which adds no arrow: the order is the rule that a later group needs the previous group's committed result.
@@ -667,8 +674,62 @@ Adds no component: the writing records a failure once and succeeds, and the mod 
 
 ### 793e6d The user can see what it did
 
-| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- |
+One node for each of the six scenarios of [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did), in the order below ([793b105 What is shown, and how](./793b_decision-log.md#793b105-what-is-shown-and-how), [793b106 Two records the display needs](./793b_decision-log.md#793b106-two-records-the-display-needs)).
+
+#### 793e6d1 What was delivered and what was written for the previous turn is in the session by the next prompt
+
+Builds what the other nodes read: the lines that tell what [automatic memory](./793a_product-spec.md#793a1a-terms) did, from the records, and the lines the [session](../../GLOSSARY.md#session) was told.
+
+| Gherkin | Classification | Why | Properties | Runs | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 793a2e1a | Dedicated example, product acceptance (`network`) | a judgement row, as the lesson is the model's; the earlier [prompt](./793a_product-spec.md#793a1a-terms) asks and asks to remember in one, so that its block and its write are of one [turn](./793a_product-spec.md#793a1a-terms) | | | Not started | | | |
+| 793d4p1a | Dedicated example | the line of each kind of record, over records of the real form | | | Not started | | | |
+| 793d4p1b | Dedicated example | a record of the kind nothing says nothing, so a turn with nothing to report adds no block | | | Not started | | | |
+| 793d4p1c | Dedicated example | a line told once, over a record of the session of the real form | | | Not started | | | |
+| 793d4p1d | Dedicated example | the form of a reason: one line, redacted, both ends kept | | | Not started | | | |
+| 793d4p1e | Dedicated example | the bound of five lines, and the rest at the next prompt | | | Not started | | | |
+| 793d4p1f | Dedicated example | the boundaries of the reading of records, over a real temporary directory | | | Not started | | | |
+| 793d4p1g | Dedicated example | the directory of records through the dispatch of `engram auto deliver`, with the flag and without it | | | Not started | | | |
+| 793d4d1g | Dedicated example | the told lines, and that a [note](../../GLOSSARY.md#permanent-note) a line names is not held | | | Not started | | | |
+| 793d4c1d | Dedicated example | the form of a line that tells what the system did | | | Not started | | | |
+| 793d4c1a (amended) | Property-based (`rapid`) with named examples | the properties of the block, with lines told among hostile text | the properties of [793d4c1a A note cannot reshape the block](./793d_technical-spec.md#793d4c1-scenarios), with any lines told: one more line for each, after the notes, each beginning with an asterisk and a space | | Not started | | | |
+| 793d4a1i (amended) | Injected and impure interaction (`imptest`) | the reading of what the session was not told is given the request's session ID | | | Not started | | | |
+
+#### 793e6d2 A write that finishes after the next prompt is shown when it finishes
+
+Adds no component: the delivery reads the records at every [prompt](./793a_product-spec.md#793a1a-terms).
+
+| Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793a2e1b | Dedicated example, product acceptance (`network`) | a judgement row; an `engram` on the path waits 12 seconds before the write and then runs it | | Not started | | | |
+
+#### 793e6d3 A delivery that could not be done is shown with its reason
+
+| Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793a2e1c | Dedicated example, product acceptance (`network`) | an `engram` on the path that takes 20 seconds for the delivery while a file is there, and is quick again once the test removes it | | Not started | | | |
+
+#### 793e6d4 A write that failed is shown with its reason
+
+Adds no component: the record of the failed write is read like any other.
+
+| Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793a2e1d | Dedicated example, product acceptance (`network`) | a judgement row; the [vault](../../GLOSSARY.md#vault) is read-only, and the cause of the error is at the end of its reason | | Not started | | | |
+
+#### 793e6d5 A sweep that failed is shown with its reason
+
+Adds no component: the mod reports a failed sweep to the writing.
+
+| Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793a2e1e | Dedicated example, product acceptance (`network`) | the directory of the chunk index is made read-only | | Not started | | | |
+
+#### 793e6d6 A turn that is not captured is shown with the reason
+
+| Gherkin | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793a2e1f | Dedicated example, product acceptance (`network`) | the machine does not set the variable that switches on the capture of headless [prompts](./793a_product-spec.md#793a1a-terms) | | Not started | | | |
 
 ### 793e6f The delivery merges the parent vault
 
