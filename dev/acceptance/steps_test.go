@@ -169,8 +169,8 @@ func (m *machine) awaitNote(turnEnds time.Time, what string, match func(vaultNot
 		}
 
 		if time.Now().After(deadline) {
-			m.t.Fatalf("no note %s was in the vault within %s of the turn's end\nnotes: %v\n%s",
-				what, captureBound, m.noteNames(), m.hookLog())
+			m.t.Fatalf("no note %s was in the vault within %s of the turn's end\nnotes: %v\n%s\n%s",
+				what, captureBound, m.noteNames(), m.recordsText(), m.hookLog())
 		}
 
 		time.Sleep(capturePoll)
@@ -592,6 +592,26 @@ func (m *machine) recordKinds(session string) []string {
 	}
 
 	return kinds
+}
+
+// recordsText returns the records that automatic memory made on the machine, a file after another, for the message of a
+// test that waited for a note or a record and found none: what became of the turns is the cause.
+func (m *machine) recordsText() string {
+	files, _ := filepath.Glob(filepath.Join(m.home, ".local", "share", "engram", "auto", "*", "*.json"))
+
+	slices.Sort(files)
+
+	lines := make([]string, 0, len(files)+1)
+	lines = append(lines, "records:")
+
+	for _, name := range files {
+		data, err := os.ReadFile(name)
+		if err == nil {
+			lines = append(lines, filepath.Base(name)+": "+strings.TrimSpace(string(data)))
+		}
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 // sessionsRecorded returns the IDs of the sessions that Claude Code holds a record of on the machine, sorted: the files
