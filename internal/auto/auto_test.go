@@ -300,7 +300,7 @@ func lineProblem(line string, note auto.Note) string {
 		return "it holds a control or format character or a white space other than a space"
 	case strings.Contains(line, sourceMark):
 		return "it holds text of the source of its note"
-	case marked != strings.HasPrefix(note.Source, "written automatically"):
+	case marked != strings.Contains(note.Source, "written automatically"):
 		return "it is marked as written automatically, or is not, against the source"
 	default:
 		return ""
@@ -394,16 +394,20 @@ func shownProblem(delivery auto.Delivery, delivered bool, records []auto.Record)
 	return ""
 }
 
-// sourceText generates the source of a note: hostile text, or a source that says the note was written automatically,
-// followed by hostile text. It holds sourceMark, so that a line which holds it holds text of the source.
+// sourceText generates the source of a note: hostile text, a source that says the note was written automatically, or one
+// that says it after other text, as the earlier mod wrote it, each followed by hostile text. It holds sourceMark, so that
+// a line which holds it holds text of the source.
 func sourceText(framing string) *rapid.Generator[string] {
 	return rapid.Custom(func(rt *rapid.T) string {
 		source := hostileText(framing).Draw(rt, "source text") + sourceMark
 
-		if rapid.Bool().Draw(rt, "written automatically") {
+		switch rapid.SampledFrom([]string{"written", "earlier mod", "other"}).Draw(rt, "form") {
+		case "written":
 			return "written automatically (session " + source + ")"
+		case "earlier mod":
+			return "captured from the conversation; written automatically (session " + source + ")"
+		default:
+			return source
 		}
-
-		return source
 	})
 }

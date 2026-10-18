@@ -870,9 +870,10 @@ The one review round of the whole branch ([793b33 One agent review round per pha
 
 Review finding B-9 ([793b111 The mark of a note written automatically is looked for anywhere in its source](./793b_decision-log.md#793b111-the-mark-of-a-note-written-automatically-is-looked-for-anywhere-in-its-source), [793c84 Do the notes the earlier mod wrote carry the mark of a note written automatically?](./793c_open-questions.md#793c84-do-the-notes-the-earlier-mod-wrote-carry-the-mark-of-a-note-written-automatically)): the check looked for the words at the start of the source, and the [notes](../../GLOSSARY.md#permanent-note) the earlier mod wrote, already in the owner's [vault](../../GLOSSARY.md#vault), hold them after other text.
 
-| Gherkin | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- |
-| 793d4c1c (amended) | Dedicated example | the source the earlier mod wrote, `captured from the conversation; written automatically (session s1, turn 3)`, over a note on disk | Done | de9bc0d7 | c9ce9998 | 27eb7424 |
+| Gherkin | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793d4c1c (amended) | Dedicated example | the source the earlier mod wrote, `captured from the conversation; written automatically (session s1, turn 3)`, over a note on disk | | Done | de9bc0d7 | c9ce9998 | 27eb7424 |
+| 793d4c1a (amended) | Property-based (`rapid`) | the sources of the earlier mod's form among the hostile ones; passed when written, the code being right and the property wrong; mutation (scratch copy): a check of the words at the start of the source fails it | the properties of [793d4c1a A note cannot reshape the block](./793d_technical-spec.md#793d4c1-scenarios), with the line of a note marked if and only if its source holds the words `written automatically` anywhere in it | Done | n/a | | |
 
 #### 793e6i2 The warnings of the lookup go to the debug log, not to the user
 
