@@ -167,16 +167,20 @@ func chosenOf(request Request, held Held) ([]Candidate, error) {
 		return nil, ErrCandidatesReply
 	}
 
-	ids := make([]string, 0, len(request.Carry.Candidates))
+	ids := make([]string, 0, 2*len(request.Carry.Candidates))
 
 	for _, candidate := range request.Carry.Candidates {
-		ids = append(ids, candidate.ID)
+		ids = append(ids, candidate.ID, oneRedacted(candidate.ID))
 	}
 
 	delivered := make([]Candidate, 0, len(request.Carry.Candidates))
 
 	for _, candidate := range request.Carry.Candidates {
-		index := slices.IndexFunc(*reply.Candidates, func(entry verdict) bool { return entry.ID == candidate.ID })
+		// the request showed the ID redacted, as it shows every field (793d4j), and the model gives it back so
+		shown := oneRedacted(candidate.ID)
+		index := slices.IndexFunc(*reply.Candidates, func(entry verdict) bool {
+			return entry.ID == candidate.ID || entry.ID == shown
+		})
 		if index < 0 {
 			continue
 		}
