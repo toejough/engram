@@ -139,6 +139,34 @@ func (m *machine) hasProbe() {
 	m.installMod(filepath.Join(root, "dev", "acceptance", "testdata", "probe"))
 }
 
+// requestLog is the session's record of its requests to the model. The record holds a request as the messages it keeps
+// of an earlier request and the hashes of the messages it adds. A hash names a row of its own for a message that no
+// other row holds, and the row of the agent's or the tool's message for the rest, so a request is put together from
+// both.
+type requestLog struct {
+	messages map[string]transcriptRow
+	requests map[string][]string
+	follows  string // the ID of the first request after the first tool result
+}
+
+// kinds returns the kinds of the items, in order, of the request that follows the first tool result.
+func (l requestLog) kinds() []string {
+	var order []string
+
+	for _, hash := range l.requests[l.follows] {
+		message, found := l.messages[hash]
+		if !found {
+			order = append(order, "unknown")
+
+			continue
+		}
+
+		order = append(order, message.itemKinds()...)
+	}
+
+	return order
+}
+
 // hostEvents reads, from the session's record, the type, the order and the time of the rows around a tool call: the
 // calls the agent made, their results, the blocks a hook added, the requests to the model and the agent's replies.
 func (s *session) hostEvents() []hostEvent {
@@ -158,80 +186,28 @@ func (s *session) hostEvents() []hostEvent {
 }
 
 // requestOrder returns the kinds of the items, in order, of the model's request that follows the first tool result.
-// The record holds a request as the messages it keeps of an earlier request and the hashes of the messages it adds. A
-// hash names a row of its own for a message that no other row holds, and the row of the agent's or the tool's message
-// for the rest, so the request is put together from both.
 func (s *session) requestOrder() []string {
-	messages := map[string]transcriptRow{}
-	requests := map[string][]string{}
-	resultAt := -1
-
-	var follows string
-
-	for index, row := range s.rows() {
-		kind, _ := row.eventKind()
-
-		switch {
-		case row.Type == "api-request-blob":
-			messages[row.Hash] = row
-		case row.Type == "api-request":
-			kept := requests[row.Base]
-			requests[row.ID] = slices.Concat(kept[:min(row.Keep, len(kept))], row.Tail)
-
-			if resultAt >= 0 && follows == "" {
-				follows = row.ID
-			}
-		case row.Message.Role != "":
-			messages[messageHash(row.Message.Role, row.Message.Content)] = row
-
-			if kind == kindToolResult && resultAt < 0 {
-				resultAt = index
-			}
-		}
-	}
-
-	var order []string
-
-	for _, hash := range requests[follows] {
-		message, found := messages[hash]
-		if !found {
-			order = append(order, "unknown")
-
-			continue
-		}
-
-		order = append(order, message.itemKinds()...)
-	}
-
-	return order
+	return readRequests(s.rows()).kinds()
 }
 
 // eventKind tells what a row shows the host did, or "" when the row shows nothing around a tool call.
 func (r transcriptRow) eventKind() (string, string) {
-	var blocks []struct {
-		Type string `json:"type"`
-		Name string `json:"name"`
-		Text string `json:"text"`
-	}
-
 	switch {
 	case r.Type == "api-request":
 		return kindRequest, ""
 	case r.Type == "attachment" && r.Attachment.Type == "hook_additional_context":
 		return kindBlock, r.Attachment.HookName + " " + r.Attachment.HookEvent
-	case r.Type == "assistant" && json.Unmarshal(r.Message.Content, &blocks) == nil:
-		for _, block := range blocks {
-			if block.Type == "tool_use" {
-				return kindToolCall, block.Name
+	case r.Type == "assistant" || r.Type == "user":
+		kinds := r.itemKinds()
+
+		for _, kind := range []string{kindToolCall, kindToolResult} {
+			if slices.Contains(kinds, kind) {
+				return kind, ""
 			}
 		}
 
-		return kindReply, ""
-	case r.Type == "user" && json.Unmarshal(r.Message.Content, &blocks) == nil:
-		for _, block := range blocks {
-			if block.Type == "tool_result" {
-				return kindToolResult, ""
-			}
+		if r.Type == "assistant" {
+			return kindReply, ""
 		}
 	}
 
@@ -327,11 +303,39 @@ func messageHash(role string, content json.RawMessage) string {
 	encoder := json.NewEncoder(&encoded)
 	encoder.SetEscapeHTML(false)
 
-	if encoder.Encode(map[string]any{"role": role, "content": value}) != nil {
+	encodeErr := encoder.Encode(map[string]any{"role": role, "content": value})
+	if encodeErr != nil {
 		return ""
 	}
 
 	sum := sha256.Sum256(bytes.TrimSuffix(encoded.Bytes(), []byte("\n")))
 
 	return hex.EncodeToString(sum[:])
+}
+
+// readRequests puts together the requests of a record.
+func readRequests(rows []transcriptRow) requestLog {
+	log := requestLog{messages: map[string]transcriptRow{}, requests: map[string][]string{}}
+	resulted := false
+
+	for _, row := range rows {
+		kind, _ := row.eventKind()
+
+		switch {
+		case row.Type == "api-request-blob":
+			log.messages[row.Hash] = row
+		case row.Type == "api-request":
+			kept := log.requests[row.Base]
+			log.requests[row.ID] = slices.Concat(kept[:min(row.Keep, len(kept))], row.Tail)
+
+			if resulted && log.follows == "" {
+				log.follows = row.ID
+			}
+		case row.Message.Role != "":
+			log.messages[messageHash(row.Message.Role, row.Message.Content)] = row
+			resulted = resulted || kind == kindToolResult
+		}
+	}
+
+	return log
 }
