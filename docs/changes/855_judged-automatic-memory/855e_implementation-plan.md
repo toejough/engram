@@ -167,15 +167,15 @@ Not scenarios of the specs: the rows are named by what they build. Both are fixt
 
 #### 855e6a2 A block delivered within a turn is held
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1f | `Test855d7a1f_Gate_ABlockDeliveredWithinATurnIsHeld` | measurement | Measurement, real dependency (`network`) | the [transcript](../../GLOSSARY.md#transcript)'s record of a block added within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) is not in the type definitions ([855d1a Verified host facts](./855d_technical-spec.md#855d1a-verified-host-facts)); red is the run before the probe delivers: no block in the transcript. Confirmed is green; refuted (no record, or more than one) ends the row as `Refuted`, builds the ledger node and records the result in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) | Done | 38a584bf | 7bafa13a | c938317f |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d7a1f | `Test855d7a1f_Gate_ABlockDeliveredWithinATurnIsHeld` | Measurement, real dependency (`network`) | the [transcript](../../GLOSSARY.md#transcript)'s record of a block added within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) is not in the type definitions ([855d1a Verified host facts](./855d_technical-spec.md#855d1a-verified-host-facts)); red is the run before the probe delivers: no block in the transcript. Confirmed is green; refuted (no record, or more than one) ends the row as `Refuted`, builds the ledger node and records the result in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) | Done | 38a584bf | 7bafa13a | c938317f |
 
 #### 855e6a3 A context put at a tool call arrives with its result
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1h | `Test855d7a1h_Gate_AContextPutAtAToolCallArrivesWithItsResult` | measurement | Measurement, real dependency (`network`) | the host's text says the context is read after the tool's result; the row records the order of the result, the block and the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s next message, and the time the block arrived. Refuted (the block precedes the result, or never arrives) ends the row as `Refuted` | Done | 370ef56a | f1ad2d8a | 613d0dcf, 9aec282a |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d7a1h | `Test855d7a1h_Gate_AContextPutAtAToolCallArrivesWithItsResult` | Measurement, real dependency (`network`) | the host's text says the context is read after the tool's result; the row records the order of the result, the block and the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s next message, and the time the block arrived. Refuted (the block precedes the result, or never arrives) ends the row as `Refuted` | Done | 370ef56a | f1ad2d8a | 613d0dcf, 9aec282a |
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
@@ -198,50 +198,50 @@ Proves, through standard input and output over fixtures of a [vault](../../GLOSS
 
 The command `auto moment` with the cue `prompt`; the other cues join in [855e6d1 Judging the learn moment and the lessons](#855e6d1-judging-the-learn-moment-and-the-lessons) and [855e6f1 The tool cues of the moment](#855e6f1-the-tool-cues-of-the-moment).
 
-| Gherkin | Test | Kind | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d4a1a | `Test855d4a1a_Moment_APromptBecomesARequestForTheCheapTier` | unit | Dedicated example | the request's model, effort, system and [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) over a [transcript](../../GLOSSARY.md#transcript) fixture; the instructions are the system and none of them is in the prompt |  | Not started |  |  |  |
-| 855d4a1d | `Test855d4a1d_Moment_APromptAMessageOrAnEventCannotCloseTheWindowOrHoldACredential` | unit | Property-based (`rapid`) with named examples | hostile text is open input, so a property covers the shapes an example would miss; the named example keeps one credential of every shape | for any prompt, message and event texts, with tags, line breaks, control and format characters and a generated recognised credential: the prompt of the request holds each section tag exactly once; no line holds the character that opens a tag except as a tag of the window; none of the generated credentials is in the request; the system holds none of the [session](../../GLOSSARY.md#session)'s text | Not started |  |  |  |
-| 855d4a1e | `Test855d4a1e_Moment_APromptOfAnOriginTheUserDoesNotSendIsJudgedNothing` | unit | Dedicated example | three named origins; the gate is finite |  | Not started |  |  |  |
-| 855d4a1f | `Test855d4a1f_Moment_ASessionWithNoTranscriptIsJudgedWithoutConversationLines` | unit | Dedicated example | the one branch with no transcript: the window holds the prompt's line only |  | Not started |  |  |  |
-| 855d4a1g | `Test855d4a1g_Moment_AnInputThatIsNotAJSONObjectFailsTheCommand` | unit | Dedicated example | the failure branch: input that is not a JSON object prints nothing and fails the command |  | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d4a1a | `Test855d4a1a_Moment_APromptBecomesARequestForTheCheapTier` | Dedicated example | the request's model, effort, system and [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) over a [transcript](../../GLOSSARY.md#transcript) fixture; the instructions are the system and none of them is in the prompt |  | Not started |  |  |  |
+| 855d4a1d | `Test855d4a1d_Moment_APromptAMessageOrAnEventCannotCloseTheWindowOrHoldACredential` | Property-based (`rapid`) with named examples | hostile text is open input, so a property covers the shapes an example would miss; the named example keeps one credential of every shape | for any prompt, message and event texts, with tags, line breaks, control and format characters and a generated recognised credential: the prompt of the request holds each section tag exactly once; no line holds the character that opens a tag except as a tag of the window; none of the generated credentials is in the request; the system holds none of the [session](../../GLOSSARY.md#session)'s text | Not started |  |  |  |
+| 855d4a1e | `Test855d4a1e_Moment_APromptOfAnOriginTheUserDoesNotSendIsJudgedNothing` | Dedicated example | three named origins; the gate is finite |  | Not started |  |  |  |
+| 855d4a1f | `Test855d4a1f_Moment_ASessionWithNoTranscriptIsJudgedWithoutConversationLines` | Dedicated example | the one branch with no transcript: the window holds the prompt's line only |  | Not started |  |  |  |
+| 855d4a1g | `Test855d4a1g_Moment_AnInputThatIsNotAJSONObjectFailsTheCommand` | Dedicated example | the failure branch: input that is not a JSON object prints nothing and fails the command |  | Not started |  |  |  |
 
 #### 855e6b2 Phrasing the lookup
 
 The command `auto phrases`.
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d4v1a | `Test855d4v1a_Phrases_TheRequestHoldsTheTenAnglesAndTheWindow` | unit | Dedicated example | the request's system holds the ten angles and no text of the [session](../../GLOSSARY.md#session); the [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) holds the window | Not started |  |  |  |
-| 855d4v1b | `Test855d4v1b_Phrases_TheNumberOfPhrasesFollowsTheDepth` | unit | Dedicated example | about 3 phrases at glance and 10 at deep: two named depths | Not started |  |  |  |
-| 855d4v1c | `Test855d4v1c_Phrases_ADepthOfNoneLooksNothingUp` | unit | Dedicated example | the branch where a depth of none prints nothing and looks nothing up | Not started |  |  |  |
-| 855d4v1d | `Test855d4v1d_Phrases_AFencedReplyIsReadAndAReplyThatIsNotAMomentReplyFails` | unit | Dedicated example | a fenced reply is read, and a reply that is no moment reply fails the command naming the judgement | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d4v1a | `Test855d4v1a_Phrases_TheRequestHoldsTheTenAnglesAndTheWindow` | Dedicated example | the request's system holds the ten angles and no text of the [session](../../GLOSSARY.md#session); the [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) holds the window | Not started |  |  |  |
+| 855d4v1b | `Test855d4v1b_Phrases_TheNumberOfPhrasesFollowsTheDepth` | Dedicated example | about 3 phrases at glance and 10 at deep: two named depths | Not started |  |  |  |
+| 855d4v1c | `Test855d4v1c_Phrases_ADepthOfNoneLooksNothingUp` | Dedicated example | the branch where a depth of none prints nothing and looks nothing up | Not started |  |  |  |
+| 855d4v1d | `Test855d4v1d_Phrases_AFencedReplyIsReadAndAReplyThatIsNotAMomentReplyFails` | Dedicated example | a fenced reply is read, and a reply that is no moment reply fails the command naming the judgement | Not started |  |  |  |
 
 #### 855e6b3 Looking up the candidates for the phrases
 
 The command `auto recall`: the lookup of the matched set for several phrases, the chunk reader, and the request of the candidate judgement.
 
-| Gherkin | Test | Kind | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d4b1a | `Test855d4b1a_Recall_ThePhrasesAreLookedUpOnceAsPhrasesOfTheirOwn` | unit | Interaction (`imptest`) | the call count and the arguments of the injected lookup: once, the first 3 or 10 phrases each as a phrase of its own, no message |  | Not started |  |  |  |
-| 855d4b1c | `Test855d4b1c_Recall_AReplyThatIsNotAPhrasesReplyFailsTheCommand` | unit | Dedicated example | a reply that is no phrases reply fails the command, printing nothing |  | Not started |  |  |  |
-| 855d4b1d | `Test855d4b1d_Recall_TheNotesAndPassagesThatMatchedBecomeCandidatesTheExplorePicksAndTheNewestChunks` | unit | Dedicated example | which of the lookup's [notes](../../GLOSSARY.md#permanent-note) and chunks become candidates, and which (the explore picks, the newest chunks) do not |  | Not started |  |  |  |
-| 855d4b1e | `Test855d4b1e_Recall_AChunkOfTheSessionsOwnTranscriptIsNotACandidate` | unit | Dedicated example | the [session](../../GLOSSARY.md#session)'s own [transcript](../../GLOSSARY.md#transcript) is never a candidate: a chunk of it and a chunk of another |  | Not started |  |  |  |
-| 855d4b1f | `Test855d4b1f_Recall_NothingMatchedPrintsNothing` | unit | Dedicated example | the branch where nothing matched prints nothing |  | Not started |  |  |  |
-| 855d4b1g | `Test855d4b1g_Recall_TheRequestIsForTheMidTierAndHoldsTheVerdictsTheWindowAndTheDated` | unit | Dedicated example | the request is for the mid tier and holds the verdicts, the window and the dated candidates |  | Not started |  |  |  |
-| 855d4b1h | `Test855d4b1h_Recall_ADeepRequestAlsoAsksForTheLessonsAndTheRevisions` | unit | Dedicated example | the deep request also asks for the lessons and the revisions, and carries the write flag |  | Not started |  |  |  |
-| 855d4b1i | `Test855d4b1i_Recall_ACandidateCannotReshapeTheRequestOrHoldACredential` | unit | Property-based (`rapid`) with named examples | candidate text is open input; the named example holds the 400-character note and the 1,200-character chunk | for any note and chunk texts with line breaks, the closing tag of the candidates and generated recognised credentials: each candidate is one line of the section; the character that opens a tag is written `&lt;`; no generated credential is in the request; a note of any length is whole and a chunk is cut to at most 1,200 characters | Not started |  |  |  |
-| 855d4b1j | `Test855d4b1j_Recall_AFailedLookupFailsTheCommandAndPrintsNothing` | unit | Dedicated example | the failure branch: a failed lookup fails the command and prints nothing |  | Not started |  |  |  |
-| 855d4b1k | `Test855d4b1k_Recall_AWarningOfTheLookupIsNoLineForTheUser` | unit | Dedicated example | a warning of the lookup goes to the debug log; an ordinary buffer for standard error shows it holds none |  | Not started |  |  |  |
-| 855d4b1l | `Test855d4b1l_Recall_TheCandidatesAreHeldToACountAndABudget` | unit | Property-based (`rapid`) with named examples | the count and the budget hold for every size of matched set | for any matched set of notes and chunks of any lengths: at most 30 candidates; at most 60,000 characters of candidate text in all; the candidates are a prefix of the matched set in its order (the last dropped first) | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d4b1a | `Test855d4b1a_Recall_ThePhrasesAreLookedUpOnceAsPhrasesOfTheirOwn` | Interaction (`imptest`) | the call count and the arguments of the injected lookup: once, the first 3 or 10 phrases each as a phrase of its own, no message |  | Not started |  |  |  |
+| 855d4b1c | `Test855d4b1c_Recall_AReplyThatIsNotAPhrasesReplyFailsTheCommand` | Dedicated example | a reply that is no phrases reply fails the command, printing nothing |  | Not started |  |  |  |
+| 855d4b1d | `Test855d4b1d_Recall_TheNotesAndPassagesThatMatchedBecomeCandidatesTheExplorePicksAndTheNewestChunks` | Dedicated example | which of the lookup's [notes](../../GLOSSARY.md#permanent-note) and chunks become candidates, and which (the explore picks, the newest chunks) do not |  | Not started |  |  |  |
+| 855d4b1e | `Test855d4b1e_Recall_AChunkOfTheSessionsOwnTranscriptIsNotACandidate` | Dedicated example | the [session](../../GLOSSARY.md#session)'s own [transcript](../../GLOSSARY.md#transcript) is never a candidate: a chunk of it and a chunk of another |  | Not started |  |  |  |
+| 855d4b1f | `Test855d4b1f_Recall_NothingMatchedPrintsNothing` | Dedicated example | the branch where nothing matched prints nothing |  | Not started |  |  |  |
+| 855d4b1g | `Test855d4b1g_Recall_TheRequestIsForTheMidTierAndHoldsTheVerdictsTheWindowAndTheDated` | Dedicated example | the request is for the mid tier and holds the verdicts, the window and the dated candidates |  | Not started |  |  |  |
+| 855d4b1h | `Test855d4b1h_Recall_ADeepRequestAlsoAsksForTheLessonsAndTheRevisions` | Dedicated example | the deep request also asks for the lessons and the revisions, and carries the write flag |  | Not started |  |  |  |
+| 855d4b1i | `Test855d4b1i_Recall_ACandidateCannotReshapeTheRequestOrHoldACredential` | Property-based (`rapid`) with named examples | candidate text is open input; the named example holds the 400-character note and the 1,200-character chunk | for any note and chunk texts with line breaks, the closing tag of the candidates and generated recognised credentials: each candidate is one line of the section; the character that opens a tag is written `&lt;`; no generated credential is in the request; a note of any length is whole and a chunk is cut to at most 1,200 characters | Not started |  |  |  |
+| 855d4b1j | `Test855d4b1j_Recall_AFailedLookupFailsTheCommandAndPrintsNothing` | Dedicated example | the failure branch: a failed lookup fails the command and prints nothing |  | Not started |  |  |  |
+| 855d4b1k | `Test855d4b1k_Recall_AWarningOfTheLookupIsNoLineForTheUser` | Dedicated example | a warning of the lookup goes to the debug log; an ordinary buffer for standard error shows it holds none |  | Not started |  |  |  |
+| 855d4b1l | `Test855d4b1l_Recall_TheCandidatesAreHeldToACountAndABudget` | Property-based (`rapid`) with named examples | the count and the budget hold for every size of matched set | for any matched set of notes and chunks of any lengths: at most 30 candidates; at most 60,000 characters of candidate text in all; the candidates are a prefix of the matched set in its order (the last dropped first) | Not started |  |  |  |
 
 #### 855e6b4 The three commands create no vault
 
 The row for `auto place` joins it in [855e6d4 The placement command creates no vault](#855e6d4-the-placement-command-creates-no-vault).
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d4f1a | `Test855d4f1a_TargetsMomentPhrasesRecall_TheMomentPhrasesRecallAndPlacementCommandsCreateNoVault` | unit | Dedicated example | a path with no [vault](../../GLOSSARY.md#vault), the three commands dispatched through the real targets: no vault and no creation line afterwards | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d4f1a | `Test855d4f1a_TargetsMomentPhrasesRecall_TheMomentPhrasesRecallAndPlacementCommandsCreateNoVault` | Dedicated example | a path with no [vault](../../GLOSSARY.md#vault), the three commands dispatched through the real targets: no vault and no creation line afterwards | Not started |  |  |  |
 
 ### 855e6c The candidates are judged and delivered with the prompt
 
@@ -251,17 +251,17 @@ Proves the whole [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-te
 
 Not scenarios of the specs: the rows are named by test. The specs of 793 still hold the scenarios that [855d Judged Automatic Memory - Technical Spec](./855d_technical-spec.md#judged-automatic-memory---technical-spec) removes until promotion, and this node comes before the first test is deleted ([855b45 The conformance check follows the removals at once and reads 855 at the end](./855b_decision-log.md#855b45-the-conformance-check-follows-the-removals-at-once-and-reads-855-at-the-end)).
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| none | `TestScenariosWithoutTest_ARemovedScenarioNeedsNoTest` | unit | Dedicated example (dev suite) | the pure reading: a scenario ID named by a Removed operation of [855d Judged Automatic Memory - Technical Spec](./855d_technical-spec.md#judged-automatic-memory---technical-spec) is exempt from having a test, and one no operation names is not | Not started |  |  |  |
-| none | `TestConformance_EveryScenarioOfTheSpecsHasATest` | unit | Dedicated example (dev suite) | the real specs against the real test files still pass after the deletions of this group. Mutation: a check that ignores the removals fails it once the first removed test is deleted | Not started | n/a |  |  |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| none | `TestScenariosWithoutTest_ARemovedScenarioNeedsNoTest` | Dedicated example (dev suite) | the pure reading: a scenario ID named by a Removed operation of [855d Judged Automatic Memory - Technical Spec](./855d_technical-spec.md#judged-automatic-memory---technical-spec) is exempt from having a test, and one no operation names is not | Not started |  |  |  |
+| none | `TestConformance_EveryScenarioOfTheSpecsHasATest` | Dedicated example (dev suite) | the real specs against the real test files still pass after the deletions of this group. Mutation: a check that ignores the removals fails it once the first removed test is deleted | Not started | n/a |  |  |
 
 #### 855e6c2 A session holds the passages delivered to it
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d4e1a | `Test855d4e1a_HeldText_TheChunkIDsOfThePassagesDeliveredAreHeld` | unit | Dedicated example | the chunk IDs of the passages of delivered blocks are what a [session](../../GLOSSARY.md#session) holds, read from a [transcript](../../GLOSSARY.md#transcript) fixture | Not started |  |  |  |
-| 855d4e1b | `Test855d4e1b_HeldText_APassageFetchedWithEngramShowChunkAndANoteTheAgentSavedAreHeld` | unit | Dedicated example | a passage fetched with `engram show-chunk`, and a [note](../../GLOSSARY.md#permanent-note) the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) saved, are held: two named reads of the agent's own commands | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d4e1a | `Test855d4e1a_HeldText_TheChunkIDsOfThePassagesDeliveredAreHeld` | Dedicated example | the chunk IDs of the passages of delivered blocks are what a [session](../../GLOSSARY.md#session) holds, read from a [transcript](../../GLOSSARY.md#transcript) fixture | Not started |  |  |  |
+| 855d4e1b | `Test855d4e1b_HeldText_APassageFetchedWithEngramShowChunkAndANoteTheAgentSavedAreHeld` | Dedicated example | a passage fetched with `engram show-chunk`, and a [note](../../GLOSSARY.md#permanent-note) the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) saved, are held: two named reads of the agent's own commands | Not started |  |  |  |
 
 #### 855e6c3 Delivering the chosen candidates
 
@@ -271,23 +271,23 @@ The command `auto deliver` takes the candidate judgement's reply and the carry, 
 | --- | --- | --- | --- |
 | Adapt the tests of the scenarios 793d4c1a, 793d4c1b and 793d4c1c that call the delivery with the old input (the [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s text) to the new (the cue, the held IDs, the reply and the carry) | Non-test action | their contracts stay, so they have no red of their own; mutation: a delivery that reads the old input fails each of them | Not started |
 
-| Gherkin | Test | Kind | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793d4a1a | `Test793d4a1a_RunAutoDeliver_PrintsTheNotesThatBearOnThePromptAsOneBlock` | unit | Dedicated example | the candidates the judgement chose come back as one block; rewritten from the lookup of the text to the reply and the carry |  | Not started |  |  |  |
-| 793d4a1b | `Test793d4a1b_RunAutoDeliver_AFailedLookupFailsTheCommandAndPrintsNothing` | unit | Dedicated example | the failure branch: a reply that is not a reply fails the command and prints nothing |  | Not started |  |  |  |
-| 793d4a1d | `Test793d4a1d_RunAutoDeliver_ANoteTheSessionHoldsIsLeftOut` | unit | Dedicated example | a [note](../../GLOSSARY.md#permanent-note) the [session](../../GLOSSARY.md#session) holds is left out |  | Not started |  |  |  |
-| 793d4a1e | `Test793d4a1e_RunAutoDeliver_NoNoteToDeliverPrintsNothing` | unit | Dedicated example | no candidate to deliver prints nothing |  | Not started |  |  |  |
-| 793d4a1g | `Test793d4a1g_RunAutoDeliver_ANoteTheAgentFetchedByItsBasenameIsLeftOut` | unit | Dedicated example | a note the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) fetched by its basename is left out |  | Not started |  |  |  |
-| 855d4c1a | `Test855d4c1a_Deliver_OfTwoCandidatesThatConflictOnlyTheNewerIsDelivered` | unit | Dedicated example | of two candidates that conflict, the newer only: the `newer` field against the carry |  | Not started |  |  |  |
-| 855d4c1b | `Test855d4c1b_Deliver_ACandidateTheCarryDoesNotHoldIsNotDelivered` | unit | Dedicated example | an ID the carry does not hold is ignored |  | Not started |  |  |  |
-| 855d4c1c | `Test855d4c1c_Deliver_APassageTheSessionHoldsIsLeftOut` | unit | Dedicated example | a passage the session holds is left out |  | Not started |  |  |  |
-| 855d4c1d | `Test855d4c1d_Deliver_ADeliveredNoteIsMarkedAsUsedAndADeliveredParentNoteIsPulledDown` | unit | Interaction (`imptest`) | the calls to the injected activator: a delivered note is marked as used and a delivered parent note is pulled down, once each |  | Not started |  |  |  |
-| 855d4c1f | `Test855d4c1f_Deliver_TheDeliveryLooksNothingUp` | unit | Interaction (`imptest`) | forbidden calls: the injected lookup and chunk reader receive none |  | Not started |  |  |  |
-| 855d4c1e | `Test855d4c1e_Deliver_APassageIsCutTo1200Characters` | unit | Dedicated example | a passage is cut to 1,200 characters |  | Not started |  |  |  |
-| 855d4c1g | `Test855d4c1g_Deliver_ANoteOrPassageTheModHasDeliveredAlreadyIsLeftOut` | unit | Interaction (`imptest`) | a held ID is left out of the block and its note is not marked as used: a forbidden call |  | Not started |  |  |  |
-| 855d4d1a | `Test855d4d1a_Deliver_APassageCannotReshapeTheBlock` | unit | Property-based (`rapid`) with named examples | passage text is open input as note text was in 793 | for any chunk IDs and texts with line breaks, control and format characters, the framing line and lines that read as other notes, mixed: the framing line is first and nowhere else; there is exactly one line for each passage, each beginning with a dash and a space and holding single spaces and no control or format character | Not started |  |  |  |
-| 793d4m1a | `Test793d4m1a_DeliverOrigin_APromptOfAnOriginTheUserSendsIsJudgedAndDelivered` | unit | Dedicated example | the origin gate of the delivery: the four origins the user sends are delivered for; the rewritten test covers the delivery half only, the moment half is in [855e6d1 Judging the learn moment and the lessons](#855e6d1-judging-the-learn-moment-and-the-lessons) |  | Not started |  |  |  |
-| 793d4m1b | `Test793d4m1b_DeliverOrigin_APromptOfAnyOtherOriginIsJudgedAndDeliveredNothing` | unit | Dedicated example | any other origin, including none, is delivered nothing and looks nothing up |  | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 793d4a1a | `Test793d4a1a_RunAutoDeliver_PrintsTheNotesThatBearOnThePromptAsOneBlock` | Dedicated example | the candidates the judgement chose come back as one block; rewritten from the lookup of the text to the reply and the carry |  | Not started |  |  |  |
+| 793d4a1b | `Test793d4a1b_RunAutoDeliver_AFailedLookupFailsTheCommandAndPrintsNothing` | Dedicated example | the failure branch: a reply that is not a reply fails the command and prints nothing |  | Not started |  |  |  |
+| 793d4a1d | `Test793d4a1d_RunAutoDeliver_ANoteTheSessionHoldsIsLeftOut` | Dedicated example | a [note](../../GLOSSARY.md#permanent-note) the [session](../../GLOSSARY.md#session) holds is left out |  | Not started |  |  |  |
+| 793d4a1e | `Test793d4a1e_RunAutoDeliver_NoNoteToDeliverPrintsNothing` | Dedicated example | no candidate to deliver prints nothing |  | Not started |  |  |  |
+| 793d4a1g | `Test793d4a1g_RunAutoDeliver_ANoteTheAgentFetchedByItsBasenameIsLeftOut` | Dedicated example | a note the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) fetched by its basename is left out |  | Not started |  |  |  |
+| 855d4c1a | `Test855d4c1a_Deliver_OfTwoCandidatesThatConflictOnlyTheNewerIsDelivered` | Dedicated example | of two candidates that conflict, the newer only: the `newer` field against the carry |  | Not started |  |  |  |
+| 855d4c1b | `Test855d4c1b_Deliver_ACandidateTheCarryDoesNotHoldIsNotDelivered` | Dedicated example | an ID the carry does not hold is ignored |  | Not started |  |  |  |
+| 855d4c1c | `Test855d4c1c_Deliver_APassageTheSessionHoldsIsLeftOut` | Dedicated example | a passage the session holds is left out |  | Not started |  |  |  |
+| 855d4c1d | `Test855d4c1d_Deliver_ADeliveredNoteIsMarkedAsUsedAndADeliveredParentNoteIsPulledDown` | Interaction (`imptest`) | the calls to the injected activator: a delivered note is marked as used and a delivered parent note is pulled down, once each |  | Not started |  |  |  |
+| 855d4c1f | `Test855d4c1f_Deliver_TheDeliveryLooksNothingUp` | Interaction (`imptest`) | forbidden calls: the injected lookup and chunk reader receive none |  | Not started |  |  |  |
+| 855d4c1e | `Test855d4c1e_Deliver_APassageIsCutTo1200Characters` | Dedicated example | a passage is cut to 1,200 characters |  | Not started |  |  |  |
+| 855d4c1g | `Test855d4c1g_Deliver_ANoteOrPassageTheModHasDeliveredAlreadyIsLeftOut` | Interaction (`imptest`) | a held ID is left out of the block and its note is not marked as used: a forbidden call |  | Not started |  |  |  |
+| 855d4d1a | `Test855d4d1a_Deliver_APassageCannotReshapeTheBlock` | Property-based (`rapid`) with named examples | passage text is open input as note text was in 793 | for any chunk IDs and texts with line breaks, control and format characters, the framing line and lines that read as other notes, mixed: the framing line is first and nowhere else; there is exactly one line for each passage, each beginning with a dash and a space and holding single spaces and no control or format character | Not started |  |  |  |
+| 793d4m1a | `Test793d4m1a_DeliverOrigin_APromptOfAnOriginTheUserSendsIsJudgedAndDelivered` | Dedicated example | the origin gate of the delivery: the four origins the user sends are delivered for; the rewritten test covers the delivery half only, the moment half is in [855e6d1 Judging the learn moment and the lessons](#855e6d1-judging-the-learn-moment-and-the-lessons) |  | Not started |  |  |  |
+| 793d4m1b | `Test793d4m1b_DeliverOrigin_APromptOfAnyOtherOriginIsJudgedAndDeliveredNothing` | Dedicated example | any other origin, including none, is delivered nothing and looks nothing up |  | Not started |  |  |  |
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
@@ -295,14 +295,14 @@ The command `auto deliver` takes the candidate judgement's reply and the carry, 
 
 #### 855e6c4 The lines that tell the user what was delivered
 
-| Gherkin | Test | Kind | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793d4p1h | `Test793d4p1h_Deliver_ANoteDeliveredIsShownAsALine`, `Test793d4p1h_RunAutoDeliver_ANoteDeliveredIsShownAsALine` | unit | Dedicated example | a [note](../../GLOSSARY.md#permanent-note) delivered is shown as a line; rewritten from the reply and the carry |  | Not started |  |  |  |
-| 793d4p1i | `Test793d4p1i_Deliver_ALineShownIsOneLineWhateverTheTextsHold` | unit | Property-based (`rapid`) with named examples | a line is one line whatever the texts hold | for any notes in a carry, reply and record texts with line breaks, control and format characters and lines that read as other lines: each line printed on standard error is one line of single spaces with no control or format character, of at most 240 characters, and there is one line for each of the four kinds that has something to tell and no other | Not started |  |  |  |
-| 793d4p1l | `Test793d4p1l_Deliver_TheNotesDeliveredAreOneLine`, `Test793d4p1l_Targets_TheNotesDeliveredAreOneLine` | unit | Dedicated example | the notes delivered are one line, naming each |  | Not started |  |  |  |
-| 855d4p1a | `Test855d4p1a_Lines_ThePassagesDeliveredAreNamedInTheLine` | unit | Dedicated example | the passages delivered are named in the line, in the formats of [855d8a Formats of the lines of 793d4p](./855d_technical-spec.md#855d8a-formats-of-the-lines-of-793d4p) |  | Not started |  |  |  |
-| 855d4p1b | `Test855d4p1b_Lines_ADeliveryWithinATurnShowsItsLineOnlyAndTouchesNoRecord` | unit | Interaction (`imptest`) | a delivery within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) shows its line only: no record is marked or removed, a forbidden call on the injected records |  | Not started |  |  |  |
-| 855d4p1c | `Test855d4p1c_Lines_APromptThatIsNotARecallMomentShowsTheRecords` | unit | Dedicated example | a [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) that is not a recall moment gets no block and still shows and marks the records |  | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 793d4p1h | `Test793d4p1h_Deliver_ANoteDeliveredIsShownAsALine`, `Test793d4p1h_RunAutoDeliver_ANoteDeliveredIsShownAsALine` | Dedicated example | a [note](../../GLOSSARY.md#permanent-note) delivered is shown as a line; rewritten from the reply and the carry |  | Not started |  |  |  |
+| 793d4p1i | `Test793d4p1i_Deliver_ALineShownIsOneLineWhateverTheTextsHold` | Property-based (`rapid`) with named examples | a line is one line whatever the texts hold | for any notes in a carry, reply and record texts with line breaks, control and format characters and lines that read as other lines: each line printed on standard error is one line of single spaces with no control or format character, of at most 240 characters, and there is one line for each of the four kinds that has something to tell and no other | Not started |  |  |  |
+| 793d4p1l | `Test793d4p1l_Deliver_TheNotesDeliveredAreOneLine`, `Test793d4p1l_Targets_TheNotesDeliveredAreOneLine` | Dedicated example | the notes delivered are one line, naming each |  | Not started |  |  |  |
+| 855d4p1a | `Test855d4p1a_Lines_ThePassagesDeliveredAreNamedInTheLine` | Dedicated example | the passages delivered are named in the line, in the formats of [855d8a Formats of the lines of 793d4p](./855d_technical-spec.md#855d8a-formats-of-the-lines-of-793d4p) |  | Not started |  |  |  |
+| 855d4p1b | `Test855d4p1b_Lines_ADeliveryWithinATurnShowsItsLineOnlyAndTouchesNoRecord` | Interaction (`imptest`) | a delivery within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) shows its line only: no record is marked or removed, a forbidden call on the injected records |  | Not started |  |  |  |
+| 855d4p1c | `Test855d4p1c_Lines_APromptThatIsNotARecallMomentShowsTheRecords` | Dedicated example | a [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) that is not a recall moment gets no block and still shows and marks the records |  | Not started |  |  |  |
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
@@ -316,36 +316,36 @@ The mod's JavaScript runs the steps in order for each [prompt](../793_automatic-
 | --- | --- | --- | --- |
 | Adapt the stand-in engram of the tests of 793d2a1a, 793d2a1b, 793d2a1c, 793d2a1e, 793d2a1f, 793d2a1h, 793d2a1i and 793d2a1k so that its `moment` prints nothing, which leaves the chain at the `deliver` they fake | Non-test action | the contracts stay and the mod now asks `moment` first; mutation: a mod that skips `moment` fails the adapted tests of the order | Not started |
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793d2a1d | `Test793d2a1d_Mod_ASlowCommandIsEndedAndThePromptContinues` | acceptance | Dedicated example, real dependency (`network`) | a real [session](../../GLOSSARY.md#session) against a stand-in engram and a model that takes 20 seconds: the prompt is held, not stepped aside; rewritten from the bound of 8 seconds | Not started |  |  |  |
-| 793d2a1g | `Test793d2a1g_Mod_ASessionThatDoesNotGiveItsIDInTimeDoesNotHoldThePrompt` | unit | Dedicated example, integration (stand-in host) | a session that does not give its ID in time does not hold the prompt: the 5 seconds of the row | Not started |  |  |  |
-| 793d2a1j | `Test793d2a1j_Mod_ADeliveryThatDoesNotFinishWithinItsBoundIsReportedToTheWriting` | unit | Dedicated example, integration (stand-in host) | a model call that never settles unless its signal aborts it is aborted 2 minutes after it began, and the failure is reported from a timer | Not started |  |  |  |
-| 855d2a1a | `Test855d2a1a_Mod_TheStepsRunInOrderEachGivenTheReplyAndTheCarryBefore` | unit | Dedicated example, integration (stand-in host) | the order of the steps and what each is given: the reply and the carry before it, the limits of the steps | Not started |  |  |  |
-| 855d2a1b | `Test855d2a1b_Mod_AStepThatPrintsNothingLeavesTheLinesToTheDelivery` | unit | Dedicated example, integration (stand-in host) | a step that prints nothing leaves the lines to the delivery: three named stops of the chain | Not started |  |  |  |
-| 855d2a1d | `Test855d2a1d_Mod_OutputThatIsNotARequestOrABlockFailsTheStep` | unit | Dedicated example, integration (stand-in host) | output that is neither a request nor a block fails the step, and one block-less success is no failure | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793d2a1d | `Test793d2a1d_Mod_ASlowCommandIsEndedAndThePromptContinues` | Dedicated example, real dependency (`network`) | a real [session](../../GLOSSARY.md#session) against a stand-in engram and a model that takes 20 seconds: the prompt is held, not stepped aside; rewritten from the bound of 8 seconds | Not started |  |  |  |
+| 793d2a1g | `Test793d2a1g_Mod_ASessionThatDoesNotGiveItsIDInTimeDoesNotHoldThePrompt` | Dedicated example, integration (stand-in host) | a session that does not give its ID in time does not hold the prompt: the 5 seconds of the row | Not started |  |  |  |
+| 793d2a1j | `Test793d2a1j_Mod_ADeliveryThatDoesNotFinishWithinItsBoundIsReportedToTheWriting` | Dedicated example, integration (stand-in host) | a model call that never settles unless its signal aborts it is aborted 2 minutes after it began, and the failure is reported from a timer | Not started |  |  |  |
+| 855d2a1a | `Test855d2a1a_Mod_TheStepsRunInOrderEachGivenTheReplyAndTheCarryBefore` | Dedicated example, integration (stand-in host) | the order of the steps and what each is given: the reply and the carry before it, the limits of the steps | Not started |  |  |  |
+| 855d2a1b | `Test855d2a1b_Mod_AStepThatPrintsNothingLeavesTheLinesToTheDelivery` | Dedicated example, integration (stand-in host) | a step that prints nothing leaves the lines to the delivery: three named stops of the chain | Not started |  |  |  |
+| 855d2a1d | `Test855d2a1d_Mod_OutputThatIsNotARequestOrABlockFailsTheStep` | Dedicated example, integration (stand-in host) | output that is neither a request nor a block fails the step, and one block-less success is no failure | Not started |  |  |  |
 
 #### 855e6c6 The scenarios of the prompt chain
 
 Real [sessions](../../GLOSSARY.md#session) in an isolated HOME ([793f7 Test isolation](../793_automatic-memory/793f_algorithm.md#793f7-test-isolation)). The red commits of these rows come first in the group; the green and refactor commits close it. The pins pass when written and state the mutation that fails them. A stand-in `engram` on the machine's PATH makes the stall of [855a3c1a A judgement that never answers is stepped aside after 2 minutes](./855a_product-spec.md#855a3c1-uat-scenarios), because a real model call cannot be made to hang.
 
-| Gherkin | Test | Kind | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793a2a1a | `Test793a2a1a_NextSessionHasMemoryAfterOneEngramUpdate` | acceptance | Dedicated example, product acceptance (`network`) | a real session after a real [`engram update`](../../GLOSSARY.md#engram-update) shows what reaches the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms); the node that needs the whole chain |  | Not started |  |  |  |
-| 793a2a1b | `Test793a2a1b_ASecondUpdateStillDeliversEachNoteOnce` | acceptance | Dedicated example, product acceptance (`network`) | a second update leaves the [note](../../GLOSSARY.md#permanent-note) delivered once. Mutation: a second update that deploys the mod twice, or a delivery that does not drop what the session holds, fails it |  | Not started | n/a |  |  |
-| 793a2b1a | `Test793a2b1a_TheNotesThatBearOnAPromptArriveWithIt` | acceptance | Dedicated example, product acceptance (`network`) | the staging note and not the formatting note, with the [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) as typed |  | Not started |  |  |  |
-| 793a2b1b | `Test793a2b1b_ANoteDeliveredEarlierInTheSessionIsNotDeliveredAgain` | acceptance | Dedicated example, product acceptance (`network`) | the second prompt arrives with nothing and the note is in the context once. Mutation: a delivery that does not drop what the session holds fails it |  | Not started | n/a |  |  |
-| 793a2b1c | `Test793a2b1c_ANoteTheAgentLookedUpItselfIsNotDelivered` | acceptance | Dedicated example, product acceptance (`network`) | a note the agent looked up before the update is not delivered; the other note is |  | Not started |  |  |  |
-| 793a2b1d | `Test793a2b1d_APromptThatMatchesNoNoteArrivesWithNothing` | acceptance | Dedicated example, product acceptance (`network`) | notes and a conversation that have nothing to do with the prompt: nothing arrives. Mutation: a chain that delivers the nearest candidates whatever the verdict fails it |  | Not started | n/a |  |  |
-| 855a3b1a | `Test855a3b1a_APromptThatIsNotARecallMomentArrivesWithNothing` | acceptance | Dedicated example, product acceptance (`network`) | a prompt that is only thanks is no recall moment |  | Not started |  |  |  |
-| 855a3b1b | `Test855a3b1b_ANoteWhoseWordsMatchButThatDoesNotApplyIsNotDelivered` | acceptance | Dedicated example, product acceptance (`network`) | a note whose words match but that does not apply is not delivered |  | Not started |  |  |  |
-| 855a3b1c | `Test855a3b1c_OfTwoNotesThatConflictOnlyTheNewerIsDelivered` | acceptance | Dedicated example, product acceptance (`network`) | of two notes that conflict, the newer only, with no link between them |  | Not started |  |  |  |
-| 855a3b1d | `Test855a3b1d_TheNotesThatArriveAreTheNotesTheRecallSkillDraws` | acceptance | Dedicated example, product acceptance (`network`) | two sessions on one [vault](../../GLOSSARY.md#vault): the notes that arrive equal the notes the recall [skill](../../GLOSSARY.md#skill) names |  | Not started |  |  |  |
-| 855a3b1e | `Test855a3b1e_APassageOfAnEarlierConversationArrivesWhenItApplies` | acceptance | Dedicated example, product acceptance (`network`) | a passage of an earlier, swept conversation arrives when it applies |  | Not started |  |  |  |
-| 855a3c1a | `Test855a3c1a_AJudgementThatNeverAnswersIsSteppedAsideAfter2Minutes` | acceptance | Dedicated example, product acceptance (`network`) | a step that never answers is stepped aside after 2 minutes: the stand-in engram's `moment` never exits | 1 run | Not started |  |  |  |
-| 793a2d1a | `Test793a2d1a_ASlowLookupDoesNotHoldAPromptForMoreThan8Seconds` | acceptance | Dedicated example, product acceptance (`network`) | a judgement that takes 20 seconds holds the prompt until it has the notes (the stand-in engram delays its `moment`) | 1 run | Not started |  |  |  |
-| 793a2e1c | `Test793a2e1c_ADeliveryThatCouldNotBeDoneIsShownWithItsReason` | acceptance | Dedicated example, product acceptance (`network`) | a delivery that could not be done is shown with its reason by the next prompt: an unreadable vault | 1 run | Not started |  |  |  |
-| 793a2e1g | `Test793a2e1g_TheNotesDeliveredWithAPromptAreOneLine` | acceptance | Dedicated example, product acceptance (`network`) | the notes delivered with a prompt are one line, naming the three |  | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 793a2a1a | `Test793a2a1a_NextSessionHasMemoryAfterOneEngramUpdate` | Dedicated example, product acceptance (`network`) | a real session after a real [`engram update`](../../GLOSSARY.md#engram-update) shows what reaches the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms); the node that needs the whole chain |  | Not started |  |  |  |
+| 793a2a1b | `Test793a2a1b_ASecondUpdateStillDeliversEachNoteOnce` | Dedicated example, product acceptance (`network`) | a second update leaves the [note](../../GLOSSARY.md#permanent-note) delivered once. Mutation: a second update that deploys the mod twice, or a delivery that does not drop what the session holds, fails it |  | Not started | n/a |  |  |
+| 793a2b1a | `Test793a2b1a_TheNotesThatBearOnAPromptArriveWithIt` | Dedicated example, product acceptance (`network`) | the staging note and not the formatting note, with the [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) as typed |  | Not started |  |  |  |
+| 793a2b1b | `Test793a2b1b_ANoteDeliveredEarlierInTheSessionIsNotDeliveredAgain` | Dedicated example, product acceptance (`network`) | the second prompt arrives with nothing and the note is in the context once. Mutation: a delivery that does not drop what the session holds fails it |  | Not started | n/a |  |  |
+| 793a2b1c | `Test793a2b1c_ANoteTheAgentLookedUpItselfIsNotDelivered` | Dedicated example, product acceptance (`network`) | a note the agent looked up before the update is not delivered; the other note is |  | Not started |  |  |  |
+| 793a2b1d | `Test793a2b1d_APromptThatMatchesNoNoteArrivesWithNothing` | Dedicated example, product acceptance (`network`) | notes and a conversation that have nothing to do with the prompt: nothing arrives. Mutation: a chain that delivers the nearest candidates whatever the verdict fails it |  | Not started | n/a |  |  |
+| 855a3b1a | `Test855a3b1a_APromptThatIsNotARecallMomentArrivesWithNothing` | Dedicated example, product acceptance (`network`) | a prompt that is only thanks is no recall moment |  | Not started |  |  |  |
+| 855a3b1b | `Test855a3b1b_ANoteWhoseWordsMatchButThatDoesNotApplyIsNotDelivered` | Dedicated example, product acceptance (`network`) | a note whose words match but that does not apply is not delivered |  | Not started |  |  |  |
+| 855a3b1c | `Test855a3b1c_OfTwoNotesThatConflictOnlyTheNewerIsDelivered` | Dedicated example, product acceptance (`network`) | of two notes that conflict, the newer only, with no link between them |  | Not started |  |  |  |
+| 855a3b1d | `Test855a3b1d_TheNotesThatArriveAreTheNotesTheRecallSkillDraws` | Dedicated example, product acceptance (`network`) | two sessions on one [vault](../../GLOSSARY.md#vault): the notes that arrive equal the notes the recall [skill](../../GLOSSARY.md#skill) names |  | Not started |  |  |  |
+| 855a3b1e | `Test855a3b1e_APassageOfAnEarlierConversationArrivesWhenItApplies` | Dedicated example, product acceptance (`network`) | a passage of an earlier, swept conversation arrives when it applies |  | Not started |  |  |  |
+| 855a3c1a | `Test855a3c1a_AJudgementThatNeverAnswersIsSteppedAsideAfter2Minutes` | Dedicated example, product acceptance (`network`) | a step that never answers is stepped aside after 2 minutes: the stand-in engram's `moment` never exits | 1 run | Not started |  |  |  |
+| 793a2d1a | `Test793a2d1a_ASlowLookupDoesNotHoldAPromptForMoreThan8Seconds` | Dedicated example, product acceptance (`network`) | a judgement that takes 20 seconds holds the prompt until it has the notes (the stand-in engram delays its `moment`) | 1 run | Not started |  |  |  |
+| 793a2e1c | `Test793a2e1c_ADeliveryThatCouldNotBeDoneIsShownWithItsReason` | Dedicated example, product acceptance (`network`) | a delivery that could not be done is shown with its reason by the next prompt: an unreadable vault | 1 run | Not started |  |  |  |
+| 793a2e1g | `Test793a2e1g_TheNotesDeliveredWithAPromptAreOneLine` | Dedicated example, product acceptance (`network`) | the notes delivered with a prompt are one line, naming the three |  | Not started |  |  |  |
 
 ### 855e6d Lessons are judged, placed, tied and written
 
@@ -355,17 +355,17 @@ Proves the learn chain end to end: the learn-moment judgement, the lessons of fo
 
 The command `auto moment` with the cue `turn-end`, the origin gate for headless [turns](../793_automatic-memory/793a_product-spec.md#793a1a-terms), and the command `auto judge`.
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d4a1b | `Test855d4a1b_Moment_ATurnThatEndedBecomesALearnMomentRequest` | unit | Dedicated example | a turn that ended becomes the learn-moment request, with the 10-second limit | Not started |  |  |  |
-| 793d4m1a | `Test793d4m1a_MomentOrigin_APromptOfAnOriginTheUserSendsIsJudgedAndDelivered` | unit | Dedicated example | the moment half of the origin gate: the four origins are judged with both cues | Not started |  |  |  |
-| 793d4m1b | `Test793d4m1b_MomentOrigin_APromptOfAnyOtherOriginIsJudgedAndDeliveredNothing` | unit | Dedicated example | any other origin is judged nothing with each cue | Not started |  |  |  |
-| 793d4m1c | `Test793d4m1c_Targets_TheTurnOfAHeadlessPromptIsJudgedOnlyWhenTheUserAsks` | unit | Dedicated example | a headless turn is judged only with the flag; rewritten from the judgement to the moment | Not started |  |  |  |
-| 793d4m1e | `Test793d4m1e_RunAutoJudge_AHeadlessTurnThatIsNotJudgedIsRecordedAsSkippedWithTheReason`, `Test793d4m1e_Targets_AHeadlessTurnThatIsNotJudgedIsRecordedUnderTheEngramDataDirectory` | unit | Dedicated example | a headless turn left out is recorded as skipped with the reason; rewritten from the judgement to the moment | Not started |  |  |  |
-| 793d4g1a | `Test793d4g1a_Judge_TheRequestHoldsTheInstructionsTheContextAndTheTurn`, `Test793d4g1a_RunAutoJudge_PrintsTheRequestForTheTurnTheRecordEndsWith` | unit | Dedicated example | the request holds the instructions, the context and the turn; rewritten for the reply `{"learn":true}` beside the fields | Not started |  |  |  |
-| 855d4g1a | `Test855d4g1a_Judge_ATurnThatIsNotALearnMomentIsJudgedNothing` | unit | Dedicated example | a turn that is not a learn moment is judged nothing | Not started |  |  |  |
-| 855d4g1b | `Test855d4g1b_Judge_AFencedReplyIsReadAndAReplyThatIsNotAMomentReplyFails` | unit | Dedicated example | a fenced reply is read, and a reply that is no moment reply fails the command naming the judgement | Not started |  |  |  |
-| 855d4g1c | `Test855d4g1c_Judge_TheInstructionsNameTheFourKindsAndTheRunbook` | unit | Dedicated example | the instructions name the four kinds and the runbook, and hold none of the [transcript](../../GLOSSARY.md#transcript) | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d4a1b | `Test855d4a1b_Moment_ATurnThatEndedBecomesALearnMomentRequest` | Dedicated example | a turn that ended becomes the learn-moment request, with the 10-second limit | Not started |  |  |  |
+| 793d4m1a | `Test793d4m1a_MomentOrigin_APromptOfAnOriginTheUserSendsIsJudgedAndDelivered` | Dedicated example | the moment half of the origin gate: the four origins are judged with both cues | Not started |  |  |  |
+| 793d4m1b | `Test793d4m1b_MomentOrigin_APromptOfAnyOtherOriginIsJudgedAndDeliveredNothing` | Dedicated example | any other origin is judged nothing with each cue | Not started |  |  |  |
+| 793d4m1c | `Test793d4m1c_Targets_TheTurnOfAHeadlessPromptIsJudgedOnlyWhenTheUserAsks` | Dedicated example | a headless turn is judged only with the flag; rewritten from the judgement to the moment | Not started |  |  |  |
+| 793d4m1e | `Test793d4m1e_RunAutoJudge_AHeadlessTurnThatIsNotJudgedIsRecordedAsSkippedWithTheReason`, `Test793d4m1e_Targets_AHeadlessTurnThatIsNotJudgedIsRecordedUnderTheEngramDataDirectory` | Dedicated example | a headless turn left out is recorded as skipped with the reason; rewritten from the judgement to the moment | Not started |  |  |  |
+| 793d4g1a | `Test793d4g1a_Judge_TheRequestHoldsTheInstructionsTheContextAndTheTurn`, `Test793d4g1a_RunAutoJudge_PrintsTheRequestForTheTurnTheRecordEndsWith` | Dedicated example | the request holds the instructions, the context and the turn; rewritten for the reply `{"learn":true}` beside the fields | Not started |  |  |  |
+| 855d4g1a | `Test855d4g1a_Judge_ATurnThatIsNotALearnMomentIsJudgedNothing` | Dedicated example | a turn that is not a learn moment is judged nothing | Not started |  |  |  |
+| 855d4g1b | `Test855d4g1b_Judge_AFencedReplyIsReadAndAReplyThatIsNotAMomentReplyFails` | Dedicated example | a fenced reply is read, and a reply that is no moment reply fails the command naming the judgement | Not started |  |  |  |
+| 855d4g1c | `Test855d4g1c_Judge_TheInstructionsNameTheFourKindsAndTheRunbook` | Dedicated example | the instructions name the four kinds and the runbook, and hold none of the [transcript](../../GLOSSARY.md#transcript) | Not started |  |  |  |
 
 | Work | Classification | Why | Status |
 | --- | --- | --- | --- |
@@ -375,68 +375,68 @@ The command `auto moment` with the cue `turn-end`, the origin gate for headless 
 
 The command `auto place`.
 
-| Gherkin | Test | Kind | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d4h1a | `Test855d4h1a_Place_TheLessonsAndTheSeenNotesAreInTheRequest` | unit | Dedicated example | the lessons and the seen [notes](../../GLOSSARY.md#permanent-note) are in the request |  | Not started |  |  |  |
-| 855d4h1b | `Test855d4h1b_Place_ANoteWrittenAutomaticallyInTheSessionIsASeenNote` | unit | Dedicated example | a note written automatically in the [session](../../GLOSSARY.md#session) is a seen note, as one the session delivered is |  | Not started |  |  |  |
-| 855d4h1c | `Test855d4h1c_Place_ASessionThatHasSeenNoNoteAndAReplyWithNoWholeLessonPrintNothing` | unit | Dedicated example | a session that has seen no note, and a reply with no whole lesson, print nothing |  | Not started |  |  |  |
-| 855d4h1e | `Test855d4h1e_Place_AReplyThatIsNotAListFailsTheCommand` | unit | Dedicated example | a reply that is not a list fails the command |  | Not started |  |  |  |
-| 855d4h1f | `Test855d4h1f_Place_ASeenNoteCannotReshapeTheRequestOrHoldACredential` | unit | Property-based (`rapid`) with named examples | seen-note text is open input | for any seen-note situations and bodies with line breaks, the closing tag of the notes and generated recognised credentials: each note is one line of the section; the character that opens a tag is written `&lt;`; no generated credential is in the request; each body is cut to at most 400 characters | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Properties | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d4h1a | `Test855d4h1a_Place_TheLessonsAndTheSeenNotesAreInTheRequest` | Dedicated example | the lessons and the seen [notes](../../GLOSSARY.md#permanent-note) are in the request |  | Not started |  |  |  |
+| 855d4h1b | `Test855d4h1b_Place_ANoteWrittenAutomaticallyInTheSessionIsASeenNote` | Dedicated example | a note written automatically in the [session](../../GLOSSARY.md#session) is a seen note, as one the session delivered is |  | Not started |  |  |  |
+| 855d4h1c | `Test855d4h1c_Place_ASessionThatHasSeenNoNoteAndAReplyWithNoWholeLessonPrintNothing` | Dedicated example | a session that has seen no note, and a reply with no whole lesson, print nothing |  | Not started |  |  |  |
+| 855d4h1e | `Test855d4h1e_Place_AReplyThatIsNotAListFailsTheCommand` | Dedicated example | a reply that is not a list fails the command |  | Not started |  |  |  |
+| 855d4h1f | `Test855d4h1f_Place_ASeenNoteCannotReshapeTheRequestOrHoldACredential` | Property-based (`rapid`) with named examples | seen-note text is open input | for any seen-note situations and bodies with line breaks, the closing tag of the notes and generated recognised credentials: each note is one line of the section; the character that opens a tag is written `&lt;`; no generated credential is in the request; each body is cut to at most 400 characters | Not started |  |  |  |
 
 #### 855e6d3 Writing the placed lessons and the runbooks
 
 The command `auto write` after a capture. The scenarios of 793d4h that stay need no row.
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d4i1a | `Test855d4i1a_Write_ARunbookLessonBecomesARunbookNote` | unit | Interaction (`imptest`) | the arguments of the learn path: a runbook lesson becomes a runbook [note](../../GLOSSARY.md#permanent-note) with its situation, steps and what is true when done | Not started |  |  |  |
-| 855d4i1b | `Test855d4i1b_Write_ALessonIsWrittenAsAContinuationOrASiblingOfASeenNote` | unit | Interaction (`imptest`) | the position and target flags of the learn path: a continuation or a sibling of a seen note | Not started |  |  |  |
-| 855d4i1c | `Test855d4i1c_Write_ALessonIsWrittenAtTheTopWithoutAPlacement` | unit | Interaction (`imptest`) | no placement: the lesson is written at the top, with no position flag | Not started |  |  |  |
-| 855d4i1d | `Test855d4i1d_Write_ATargetOrASupersededNoteTheCarryDoesNotNameIsIgnored` | unit | Dedicated example | a target or a superseded note the carry does not name is ignored | Not started |  |  |  |
-| 855d4i1e | `Test855d4i1e_Write_ASupersessionTiesTheNotes` | unit | Interaction (`imptest`) | a supersession ties the notes: the supersedes arguments of the learn path | Not started |  |  |  |
-| 855d4i1f | `Test855d4i1f_Write_APlacementReplyThatIsNotAListIsIgnoredAndRecorded` | unit | Dedicated example | a placement reply that is not a list is ignored and recorded | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d4i1a | `Test855d4i1a_Write_ARunbookLessonBecomesARunbookNote` | Interaction (`imptest`) | the arguments of the learn path: a runbook lesson becomes a runbook [note](../../GLOSSARY.md#permanent-note) with its situation, steps and what is true when done | Not started |  |  |  |
+| 855d4i1b | `Test855d4i1b_Write_ALessonIsWrittenAsAContinuationOrASiblingOfASeenNote` | Interaction (`imptest`) | the position and target flags of the learn path: a continuation or a sibling of a seen note | Not started |  |  |  |
+| 855d4i1c | `Test855d4i1c_Write_ALessonIsWrittenAtTheTopWithoutAPlacement` | Interaction (`imptest`) | no placement: the lesson is written at the top, with no position flag | Not started |  |  |  |
+| 855d4i1d | `Test855d4i1d_Write_ATargetOrASupersededNoteTheCarryDoesNotNameIsIgnored` | Dedicated example | a target or a superseded note the carry does not name is ignored | Not started |  |  |  |
+| 855d4i1e | `Test855d4i1e_Write_ASupersessionTiesTheNotes` | Interaction (`imptest`) | a supersession ties the notes: the supersedes arguments of the learn path | Not started |  |  |  |
+| 855d4i1f | `Test855d4i1f_Write_APlacementReplyThatIsNotAListIsIgnoredAndRecorded` | Dedicated example | a placement reply that is not a list is ignored and recorded | Not started |  |  |  |
 
 #### 855e6d4 The placement command creates no vault
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d4f1a | `Test855d4f1a_TargetsPlace_TheMomentPhrasesRecallAndPlacementCommandsCreateNoVault` | unit | Dedicated example | the fourth command of the scenario, `auto place`, through the real targets: no [vault](../../GLOSSARY.md#vault) and no creation line | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d4f1a | `Test855d4f1a_TargetsPlace_TheMomentPhrasesRecallAndPlacementCommandsCreateNoVault` | Dedicated example | the fourth command of the scenario, `auto place`, through the real targets: no [vault](../../GLOSSARY.md#vault) and no creation line | Not started |  |  |  |
 
 #### 855e6d5 The capture flow of the mod
 
 The mod runs `moment`, `judge` and `place`, asks the model for each request exactly as printed, and runs `write` with the replies and the carry. The tests of 793d2b1f, 793d2b1l and 793d2b1m stay.
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 793d2b1a | `Test793d2b1a_Mod_JudgesATurnAndGivesTheReplyToTheWriting` | unit | Dedicated example, integration (stand-in host) | the replies and the carry reach the writing; rewritten from one judgement to three steps | Not started |  |  |  |
-| 793d2b1b | `Test793d2b1b_Mod_AJudgementThatPrintsNothingEndsTheCapture` | unit | Dedicated example, integration (stand-in host) | a moment or a judgement that prints nothing ends the capture | Not started |  |  |  |
-| 793d2b1c | `Test793d2b1c_Mod_AStepThatFailsIsReportedToTheWriting` | unit | Dedicated example, integration (stand-in host) | a step that fails is reported to the writing | Not started |  |  |  |
-| 793d2b1d | `Test793d2b1d_Mod_AModelThatDoesNotAnswerIsReportedToTheWriting` | unit | Dedicated example, integration (stand-in host) | a model that does not answer is reported to the writing | Not started |  |  |  |
-| 793d2b1e | `Test793d2b1e_Mod_TheJudgementReceivesTheOriginOfThePromptTheTurnBeganWith` | unit | Dedicated example, integration (stand-in host) | the first step receives the origin of the [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) the [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) began with | Not started |  |  |  |
-| 793d2b1g | `Test793d2b1g_Mod_TheJudgementReceivesTheTextTheTurnBeganWith` | unit | Dedicated example, integration (stand-in host) | the first step receives the text the turn began with | Not started |  |  |  |
-| 793d2b1h | `Test793d2b1h_Mod_ATurnTakesTheOriginAndTheTextOfItsOwnPromptWhenOthersAreWaiting` | unit | Dedicated example, integration (stand-in host) | a turn takes the origin and the text of its own prompt when others are waiting | Not started |  |  |  |
-| 793d2b1i | `Test793d2b1i_Mod_ATurnThatStartsWithNoTextHasNoOrigin` | unit | Dedicated example, integration (stand-in host) | a turn that starts with no text has no origin | Not started |  |  |  |
-| 793d2b1j | `Test793d2b1j_Mod_AStageThatStallsIsEndedAtItsBoundAndReported` | unit | Dedicated example, integration (stand-in host) | a stage that stalls is ended at its row and reported; the rows of [855d2b 793d2b Turn capture flow](./855d_technical-spec.md#855d2b-modified-793d2b-turn-capture-flow) | Not started |  |  |  |
-| 793d2b1k | `Test793d2b1k_Mod_ARequestThatIsNotJSONIsAFailureOfTheJudgement` | unit | Dedicated example, integration (stand-in host) | a request that is not JSON is a failure of the step that printed it | Not started |  |  |  |
-| 855d2b1a | `Test855d2b1a_Mod_APlacementThatPrintsNothingLeavesTheLessonsToBeWrittenAtTheTop` | unit | Dedicated example, integration (stand-in host) | a placement that prints nothing leaves the lessons to be written at the top | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 793d2b1a | `Test793d2b1a_Mod_JudgesATurnAndGivesTheReplyToTheWriting` | Dedicated example, integration (stand-in host) | the replies and the carry reach the writing; rewritten from one judgement to three steps | Not started |  |  |  |
+| 793d2b1b | `Test793d2b1b_Mod_AJudgementThatPrintsNothingEndsTheCapture` | Dedicated example, integration (stand-in host) | a moment or a judgement that prints nothing ends the capture | Not started |  |  |  |
+| 793d2b1c | `Test793d2b1c_Mod_AStepThatFailsIsReportedToTheWriting` | Dedicated example, integration (stand-in host) | a step that fails is reported to the writing | Not started |  |  |  |
+| 793d2b1d | `Test793d2b1d_Mod_AModelThatDoesNotAnswerIsReportedToTheWriting` | Dedicated example, integration (stand-in host) | a model that does not answer is reported to the writing | Not started |  |  |  |
+| 793d2b1e | `Test793d2b1e_Mod_TheJudgementReceivesTheOriginOfThePromptTheTurnBeganWith` | Dedicated example, integration (stand-in host) | the first step receives the origin of the [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) the [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) began with | Not started |  |  |  |
+| 793d2b1g | `Test793d2b1g_Mod_TheJudgementReceivesTheTextTheTurnBeganWith` | Dedicated example, integration (stand-in host) | the first step receives the text the turn began with | Not started |  |  |  |
+| 793d2b1h | `Test793d2b1h_Mod_ATurnTakesTheOriginAndTheTextOfItsOwnPromptWhenOthersAreWaiting` | Dedicated example, integration (stand-in host) | a turn takes the origin and the text of its own prompt when others are waiting | Not started |  |  |  |
+| 793d2b1i | `Test793d2b1i_Mod_ATurnThatStartsWithNoTextHasNoOrigin` | Dedicated example, integration (stand-in host) | a turn that starts with no text has no origin | Not started |  |  |  |
+| 793d2b1j | `Test793d2b1j_Mod_AStageThatStallsIsEndedAtItsBoundAndReported` | Dedicated example, integration (stand-in host) | a stage that stalls is ended at its row and reported; the rows of [855d2b 793d2b Turn capture flow](./855d_technical-spec.md#855d2b-modified-793d2b-turn-capture-flow) | Not started |  |  |  |
+| 793d2b1k | `Test793d2b1k_Mod_ARequestThatIsNotJSONIsAFailureOfTheJudgement` | Dedicated example, integration (stand-in host) | a request that is not JSON is a failure of the step that printed it | Not started |  |  |  |
+| 855d2b1a | `Test855d2b1a_Mod_APlacementThatPrintsNothingLeavesTheLessonsToBeWrittenAtTheTop` | Dedicated example, integration (stand-in host) | a placement that prints nothing leaves the lessons to be written at the top | Not started |  |  |  |
 
 #### 855e6d6 The scenarios of the learn chain
 
 Real [sessions](../../GLOSSARY.md#session) in an isolated HOME. These are judgement rows: each outcome is the model's, tallied in 10 runs against the bar of 9 ([793b86 The acceptance run takes a count](../793_automatic-memory/793b_decision-log.md#793b86-the-acceptance-run-takes-a-count)).
 
-| Gherkin | Test | Kind | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855a2b1a | `Test855a2b1a_ANoteStatesTheRuleAndNotTheStory` | acceptance | Dedicated example, product acceptance (`network`) | the [note](../../GLOSSARY.md#permanent-note) states the rule and the flag, names the situation, and does not tell the story |  | Not started |  |  |  |
-| 855a2b1b | `Test855a2b1b_TheNoteStatesTheLessonTheLearnSkillWrites` | acceptance | Dedicated example, product acceptance (`network`) | two sessions with one history: the note of [automatic memory](../793_automatic-memory/793a_product-spec.md#793a1a-terms) and the note of the learn [skill](../../GLOSSARY.md#skill) state the same rule |  | Not started |  |  |  |
-| 855a2b1c | `Test855a2b1c_AConfirmedProcedureIsWrittenAsARunbook` | acceptance | Dedicated example, product acceptance (`network`) | a confirmed procedure is written as a runbook with its three commands in order |  | Not started |  |  |  |
-| 855a2c1a | `Test855a2c1a_ASubPointOfANoteTheSessionHoldsContinues` | acceptance | Dedicated example, product acceptance (`network`) | a sub-point of a note the session holds continues its ID |  | Not started |  |  |  |
-| 855a2c1b | `Test855a2c1b_TheSameThoughtAtTheSameLevelIsASibling` | acceptance | Dedicated example, product acceptance (`network`) | the same thought at the same level is a sibling |  | Not started |  |  |  |
-| 855a2c1c | `Test855a2c1c_ANoteTheSessionHasNotSeenIsNotATarget` | acceptance | Dedicated example, product acceptance (`network`) | a note the session has not seen is not a target: the new note is at the top |  | Not started |  |  |  |
-| 855a2d1a | `Test855a2d1a_ACorrectingNoteNamesTheNoteItCorrects` | acceptance | Dedicated example, product acceptance (`network`) | a correcting note names the note it corrects, and the old note shows the supersession |  | Not started |  |  |  |
-| 793a2e1a | `Test793a2e1a_WhatWasDeliveredAndWhatWasWrittenForThePreviousTurnIsInTheSessionByTheNextPrompt` | acceptance | Dedicated example, product acceptance (`network`) | the lines of the delivered and the written notes reach the session by the next [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) |  | Not started |  |  |  |
-| 793a3a1a | `Test793a3a1a_AWrittenNoteIsDeliveredWithLaterPrompts` | acceptance | Dedicated example, product acceptance (`network`) | a note that was written is delivered with later prompts, in the session and in a new one |  | Not started |  |  |  |
-| 793a2d1c | `Test793a2d1c_TheWorkAfterATurnDoesNotHoldTheNextPrompt` | acceptance | Dedicated example, product acceptance (`network`) | work after a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) that takes 10 minutes does not hold the next prompt (the stand-in engram delays the steps) | 1 run | Not started |  |  |  |
-| 793a2d1d | `Test793a2d1d_ThePromptAndTheReplyAreAsTheyWere` | acceptance | Dedicated example, product acceptance (`network`) | the prompt and the reply are as they were. Mutation: a mod that edits the prompt's text, or the reply's, fails it |  | Not started | n/a |  |  |
+| Gherkin | Test | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 855a2b1a | `Test855a2b1a_ANoteStatesTheRuleAndNotTheStory` | Dedicated example, product acceptance (`network`) | the [note](../../GLOSSARY.md#permanent-note) states the rule and the flag, names the situation, and does not tell the story |  | Not started |  |  |  |
+| 855a2b1b | `Test855a2b1b_TheNoteStatesTheLessonTheLearnSkillWrites` | Dedicated example, product acceptance (`network`) | two sessions with one history: the note of [automatic memory](../793_automatic-memory/793a_product-spec.md#793a1a-terms) and the note of the learn [skill](../../GLOSSARY.md#skill) state the same rule |  | Not started |  |  |  |
+| 855a2b1c | `Test855a2b1c_AConfirmedProcedureIsWrittenAsARunbook` | Dedicated example, product acceptance (`network`) | a confirmed procedure is written as a runbook with its three commands in order |  | Not started |  |  |  |
+| 855a2c1a | `Test855a2c1a_ASubPointOfANoteTheSessionHoldsContinues` | Dedicated example, product acceptance (`network`) | a sub-point of a note the session holds continues its ID |  | Not started |  |  |  |
+| 855a2c1b | `Test855a2c1b_TheSameThoughtAtTheSameLevelIsASibling` | Dedicated example, product acceptance (`network`) | the same thought at the same level is a sibling |  | Not started |  |  |  |
+| 855a2c1c | `Test855a2c1c_ANoteTheSessionHasNotSeenIsNotATarget` | Dedicated example, product acceptance (`network`) | a note the session has not seen is not a target: the new note is at the top |  | Not started |  |  |  |
+| 855a2d1a | `Test855a2d1a_ACorrectingNoteNamesTheNoteItCorrects` | Dedicated example, product acceptance (`network`) | a correcting note names the note it corrects, and the old note shows the supersession |  | Not started |  |  |  |
+| 793a2e1a | `Test793a2e1a_WhatWasDeliveredAndWhatWasWrittenForThePreviousTurnIsInTheSessionByTheNextPrompt` | Dedicated example, product acceptance (`network`) | the lines of the delivered and the written notes reach the session by the next [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) |  | Not started |  |  |  |
+| 793a3a1a | `Test793a3a1a_AWrittenNoteIsDeliveredWithLaterPrompts` | Dedicated example, product acceptance (`network`) | a note that was written is delivered with later prompts, in the session and in a new one |  | Not started |  |  |  |
+| 793a2d1c | `Test793a2d1c_TheWorkAfterATurnDoesNotHoldTheNextPrompt` | Dedicated example, product acceptance (`network`) | work after a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) that takes 10 minutes does not hold the next prompt (the stand-in engram delays the steps) | 1 run | Not started |  |  |  |
+| 793a2d1d | `Test793a2d1d_ThePromptAndTheReplyAreAsTheyWere` | Dedicated example, product acceptance (`network`) | the prompt and the reply are as they were. Mutation: a mod that edits the prompt's text, or the reply's, fails it |  | Not started | n/a |  |  |
 
 ### 855e6e A deep delivery writes what the recall skill's deep mode writes
 
@@ -446,30 +446,30 @@ Proves the write that follows a deep block: the crystallized lesson, the amended
 
 The command `auto write` after a delivery.
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d4j1b | `Test855d4j1b_WriteDeep_ALessonTheVaultLacksIsCrystallizedWithItsEvidence` | unit | Interaction (`imptest`) | a lesson the [vault](../../GLOSSARY.md#vault) lacks is written at the top through the learn path, with its chunk sources and its supersession | Not started |  |  |  |
-| 855d4j1c | `Test855d4j1c_WriteDeep_ACoveredNoteIsAmendedForProvenanceOnly` | unit | Interaction (`imptest`) | a covered [note](../../GLOSSARY.md#permanent-note) is amended with its chunk sources only, no field changed: the arguments of the amend | Not started |  |  |  |
-| 855d4j1d | `Test855d4j1d_WriteDeep_ANearNoteIsRevisedWithTheFieldsTheJudgementNames` | unit | Interaction (`imptest`) | a near note is revised with the fields the judgement names | Not started |  |  |  |
-| 855d4j1e | `Test855d4j1e_WriteDeep_ANoteOfTheParentVaultAndAPendingCopyAreNotAmended` | unit | Dedicated example | a note of the parent vault and a pending copy are not amended | Not started |  |  |  |
-| 855d4j1f | `Test855d4j1f_WriteDeep_AnIDTheCarryDoesNotHoldIsIgnored` | unit | Dedicated example | an ID the carry does not hold is ignored | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d4j1b | `Test855d4j1b_WriteDeep_ALessonTheVaultLacksIsCrystallizedWithItsEvidence` | Interaction (`imptest`) | a lesson the [vault](../../GLOSSARY.md#vault) lacks is written at the top through the learn path, with its chunk sources and its supersession | Not started |  |  |  |
+| 855d4j1c | `Test855d4j1c_WriteDeep_ACoveredNoteIsAmendedForProvenanceOnly` | Interaction (`imptest`) | a covered [note](../../GLOSSARY.md#permanent-note) is amended with its chunk sources only, no field changed: the arguments of the amend | Not started |  |  |  |
+| 855d4j1d | `Test855d4j1d_WriteDeep_ANearNoteIsRevisedWithTheFieldsTheJudgementNames` | Interaction (`imptest`) | a near note is revised with the fields the judgement names | Not started |  |  |  |
+| 855d4j1e | `Test855d4j1e_WriteDeep_ANoteOfTheParentVaultAndAPendingCopyAreNotAmended` | Dedicated example | a note of the parent vault and a pending copy are not amended | Not started |  |  |  |
+| 855d4j1f | `Test855d4j1f_WriteDeep_AnIDTheCarryDoesNotHoldIsIgnored` | Dedicated example | an ID the carry does not hold is ignored | Not started |  |  |  |
 
 #### 855e6e2 The mod's write after a deep block
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d2a1e | `Test855d2a1e_Mod_AModelThatDoesNotAnswerAndAWriteThatFailsAreReported` | unit | Dedicated example, integration (stand-in host) | a model that does not answer and a write that fails are reported: two named branches | Not started |  |  |  |
-| 855d2a1f | `Test855d2a1f_Mod_ADeepDeliveryWritesAfterTheBlockFromATimer` | unit | Dedicated example, integration (stand-in host) | a deep delivery writes after the block, from a timer, with no call of the host in flight | Not started |  |  |  |
-| 855d2a1g | `Test855d2a1g_Mod_AGlanceWritesNothing` | unit | Dedicated example, integration (stand-in host) | a glance writes nothing. Mutation: a mod that runs `write` for every delivery fails it | Not started | n/a |  |  |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d2a1e | `Test855d2a1e_Mod_AModelThatDoesNotAnswerAndAWriteThatFailsAreReported` | Dedicated example, integration (stand-in host) | a model that does not answer and a write that fails are reported: two named branches | Not started |  |  |  |
+| 855d2a1f | `Test855d2a1f_Mod_ADeepDeliveryWritesAfterTheBlockFromATimer` | Dedicated example, integration (stand-in host) | a deep delivery writes after the block, from a timer, with no call of the host in flight | Not started |  |  |  |
+| 855d2a1g | `Test855d2a1g_Mod_AGlanceWritesNothing` | Dedicated example, integration (stand-in host) | a glance writes nothing. Mutation: a mod that runs `write` for every delivery fails it | Not started | n/a |  |  |
 
 #### 855e6e3 The scenarios of the depth
 
 Judgement rows, tallied in 10 runs.
 
-| Gherkin | Test | Kind | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855a2a1a | `Test855a2a1a_AGlanceLeavesTheVaultsNotesAsThey` | acceptance | Dedicated example, product acceptance (`network`) | a glance leaves the [vault](../../GLOSSARY.md#vault)'s [notes](../../GLOSSARY.md#permanent-note) as they were. Mutation: a glance that runs the deep write adds a note and fails it |  | Not started | n/a |  |  |
-| 855a2a1b | `Test855a2a1b_ADeepDeliveryWritesTheLessonTheVaultLacks` | acceptance | Dedicated example, product acceptance (`network`) | a deep delivery writes the lesson the vault lacks from a passage of an earlier conversation, and says it was written automatically |  | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 855a2a1a | `Test855a2a1a_AGlanceLeavesTheVaultsNotesAsThey` | Dedicated example, product acceptance (`network`) | a glance leaves the [vault](../../GLOSSARY.md#vault)'s [notes](../../GLOSSARY.md#permanent-note) as they were. Mutation: a glance that runs the deep write adds a note and fails it |  | Not started | n/a |  |  |
+| 855a2a1b | `Test855a2a1b_ADeepDeliveryWritesTheLessonTheVaultLacks` | Dedicated example, product acceptance (`network`) | a deep delivery writes the lesson the vault lacks from a passage of an earlier conversation, and says it was written automatically |  | Not started |  |  |  |
 
 ### 855e6f Recall moments within a turn
 
@@ -477,41 +477,41 @@ Proves the three cues of a [turn](../793_automatic-memory/793a_product-spec.md#7
 
 #### 855e6f1 The tool cues of the moment
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d4a1c | `Test855d4a1c_Moment_EachToolCuePutsItsEventInTheWindow` | unit | Dedicated example | each tool cue puts its event in the window: the call, the error, the calls of a batch with their responses | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d4a1c | `Test855d4a1c_Moment_EachToolCuePutsItsEventInTheWindow` | Dedicated example | each tool cue puts its event in the window: the call, the error, the calls of a batch with their responses | Not started |  |  |  |
 
 #### 855e6f2 A block delivered within a turn is held
 
 Built on the [transcript](../../GLOSSARY.md#transcript) when [855d7a1f A block delivered within a turn is held](./855d_technical-spec.md#855d7a1-scenarios) is confirmed, else on the ledger of [855e6a4 The ledger of what was delivered, if the transcript lacks it](#855e6a4-the-ledger-of-what-was-delivered-if-the-transcript-lacks-it).
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d4e1c | `Test855d4e1c_HeldText_ABlockDeliveredWithinATurnIsHeld` | unit | Dedicated example | the file names of a block that an event within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) added are held, read from a transcript fixture. Mutation: a reader that takes only the blocks that precede the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s first reply fails it | Not started | n/a |  |  |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d4e1c | `Test855d4e1c_HeldText_ABlockDeliveredWithinATurnIsHeld` | Dedicated example | the file names of a block that an event within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) added are held, read from a transcript fixture. Mutation: a reader that takes only the blocks that precede the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s first reply fails it | Not started | n/a |  |  |
 
 #### 855e6f3 The mid-turn flow of the mod
 
 The mod handles `tool.call`, `classic.PostToolUseFailure` and `classic.PostToolBatch`.
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d2c1a | `Test855d2c1a_Mod_ANoteArrivesWithTheCallAfterAFailureAndAfterABatch` | unit | Dedicated example, integration (stand-in host) | the three events: each cue, its event, the block in the result's context or as additional context, the line shown | Not started |  |  |  |
-| 855d2c1d | `Test855d2c1d_Mod_TheSessionsIDOfACallAboutToRunComesFromTheHost` | unit | Dedicated example, integration (stand-in host) | the [session](../../GLOSSARY.md#session)'s ID of a call about to run comes from the host | Not started |  |  |  |
-| 855d2c1e | `Test855d2c1e_Mod_ASubagentsLoopIsLeftAlone` | unit | Dedicated example, integration (stand-in host) | a [subagent](../../GLOSSARY.md#subagent)'s loop is left alone: no step, no model call | Not started |  |  |  |
-| 855d2c1f | `Test855d2c1f_Mod_AMomentThatIsNotOneAnswersTheEvent` | unit | Dedicated example, integration (stand-in host) | a moment that is not one answers the event as it was | Not started |  |  |  |
-| 855d2c1g | `Test855d2c1g_Mod_AFailedOrStalledStepAnswersTheEventAsItWasAndIsReported` | unit | Dedicated example, integration (stand-in host) | a failed or stalled step answers the event as it was and is reported | Not started |  |  |  |
-| 855d2c1h | `Test855d2c1h_Mod_ChainsOfOneSessionRunAtOnceAndANoteIsDeliveredOnce` | unit | Dedicated example, integration (stand-in host) | chains of one session run at once and a [note](../../GLOSSARY.md#permanent-note) is delivered once: the delivered-ID set | Not started |  |  |  |
-| 855d2c1k | `Test855d2c1k_Mod_AUsersInterruptAndABatchOfFailuresJudgedAlreadyAreLeftAlone` | unit | Dedicated example, integration (stand-in host) | a user's interrupt and a batch of failures judged already are left alone | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d2c1a | `Test855d2c1a_Mod_ANoteArrivesWithTheCallAfterAFailureAndAfterABatch` | Dedicated example, integration (stand-in host) | the three events: each cue, its event, the block in the result's context or as additional context, the line shown | Not started |  |  |  |
+| 855d2c1d | `Test855d2c1d_Mod_TheSessionsIDOfACallAboutToRunComesFromTheHost` | Dedicated example, integration (stand-in host) | the [session](../../GLOSSARY.md#session)'s ID of a call about to run comes from the host | Not started |  |  |  |
+| 855d2c1e | `Test855d2c1e_Mod_ASubagentsLoopIsLeftAlone` | Dedicated example, integration (stand-in host) | a [subagent](../../GLOSSARY.md#subagent)'s loop is left alone: no step, no model call | Not started |  |  |  |
+| 855d2c1f | `Test855d2c1f_Mod_AMomentThatIsNotOneAnswersTheEvent` | Dedicated example, integration (stand-in host) | a moment that is not one answers the event as it was | Not started |  |  |  |
+| 855d2c1g | `Test855d2c1g_Mod_AFailedOrStalledStepAnswersTheEventAsItWasAndIsReported` | Dedicated example, integration (stand-in host) | a failed or stalled step answers the event as it was and is reported | Not started |  |  |  |
+| 855d2c1h | `Test855d2c1h_Mod_ChainsOfOneSessionRunAtOnceAndANoteIsDeliveredOnce` | Dedicated example, integration (stand-in host) | chains of one session run at once and a [note](../../GLOSSARY.md#permanent-note) is delivered once: the delivered-ID set | Not started |  |  |  |
+| 855d2c1k | `Test855d2c1k_Mod_AUsersInterruptAndABatchOfFailuresJudgedAlreadyAreLeftAlone` | Dedicated example, integration (stand-in host) | a user's interrupt and a batch of failures judged already are left alone | Not started |  |  |  |
 
 #### 855e6f4 The scenarios of the turn
 
 Judgement rows, tallied in 10 runs.
 
-| Gherkin | Test | Kind | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855a2e1a | `Test855a2e1a_ANoteArrivesBeforeTheAgentDeclaresItsWorkDone` | acceptance | Dedicated example, product acceptance (`network`) | a [note](../../GLOSSARY.md#permanent-note) arrives before the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) declares its work done |  | Not started |  |  |  |
-| 855a2e1b | `Test855a2e1b_ANoteArrivesAfterAFailureTheAgentCannotExplain` | acceptance | Dedicated example, product acceptance (`network`) | a note arrives after a failure the agent cannot explain |  | Not started |  |  |  |
-| 855a2e1c | `Test855a2e1c_ANoteArrivesBeforeTheAgentStartsBuildingANewApproach` | acceptance | Dedicated example, product acceptance (`network`) | a note arrives before the agent's next action when it is about to start building a new approach |  | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 855a2e1a | `Test855a2e1a_ANoteArrivesBeforeTheAgentDeclaresItsWorkDone` | Dedicated example, product acceptance (`network`) | a [note](../../GLOSSARY.md#permanent-note) arrives before the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) declares its work done |  | Not started |  |  |  |
+| 855a2e1b | `Test855a2e1b_ANoteArrivesAfterAFailureTheAgentCannotExplain` | Dedicated example, product acceptance (`network`) | a note arrives after a failure the agent cannot explain |  | Not started |  |  |  |
+| 855a2e1c | `Test855a2e1c_ANoteArrivesBeforeTheAgentStartsBuildingANewApproach` | Dedicated example, product acceptance (`network`) | a note arrives before the agent's next action when it is about to start building a new approach |  | Not started |  |  |  |
 
 ### 855e6g The remaining hypotheses are measured
 
@@ -519,54 +519,54 @@ Measures the seven hypotheses of [855d7a Hypotheses and their measurements](./85
 
 #### 855e6g1 A recall chain is timed
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1a | `Test855d7a1a_Hyp_ARecallChainIsTimed` | measurement | Measurement, real dependency (`network`) | 20 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms): the depth chosen and the time of each step, each model call and the chain against the 2 minutes; records the numbers and asserts its record and its bound; red is the run before the recorder exists (no record); a refuted bound ends the row `Refuted` with the numbers in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) ([855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)) | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d7a1a | `Test855d7a1a_Hyp_ARecallChainIsTimed` | Measurement, real dependency (`network`) | 20 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms): the depth chosen and the time of each step, each model call and the chain against the 2 minutes; records the numbers and asserts its record and its bound; red is the run before the recorder exists (no record); a refuted bound ends the row `Refuted` with the numbers in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) ([855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)) | Not started |  |  |  |
 
 #### 855e6g2 A capture is timed against its rows
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1b | `Test855d7a1b_Hyp_ACaptureIsTimedAgainstItsRowsAndThe2Minutes` | measurement | Measurement, real dependency (`network`) | 10 [turns](../793_automatic-memory/793a_product-spec.md#793a1a-terms) that hold a lesson: each step and call against its row, and the time from the end of the turn to the [note](../../GLOSSARY.md#permanent-note) against the 2 minutes; records the numbers and asserts its record and its bound; red is the run before the recorder exists (no record); a refuted bound ends the row `Refuted` with the numbers in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) ([855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)) | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d7a1b | `Test855d7a1b_Hyp_ACaptureIsTimedAgainstItsRowsAndThe2Minutes` | Measurement, real dependency (`network`) | 10 [turns](../793_automatic-memory/793a_product-spec.md#793a1a-terms) that hold a lesson: each step and call against its row, and the time from the end of the turn to the [note](../../GLOSSARY.md#permanent-note) against the 2 minutes; records the numbers and asserts its record and its bound; red is the run before the recorder exists (no record); a refuted bound ends the row `Refuted` with the numbers in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) ([855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)) | Not started |  |  |  |
 
 #### 855e6g3 A deep write is timed
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1d | `Test855d7a1d_Hyp_ADeepWriteIsTimed` | measurement | Measurement, real dependency (`network`) | 10 deep moments: the write that follows the block against its 60 seconds; records the numbers and asserts its record and its bound; red is the run before the recorder exists (no record); a refuted bound ends the row `Refuted` with the numbers in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) ([855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)) | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d7a1d | `Test855d7a1d_Hyp_ADeepWriteIsTimed` | Measurement, real dependency (`network`) | 10 deep moments: the write that follows the block against its 60 seconds; records the numbers and asserts its record and its bound; red is the run before the recorder exists (no record); a refuted bound ends the row `Refuted` with the numbers in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) ([855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)) | Not started |  |  |  |
 
 #### 855e6g4 The chains of a turn's tool calls are timed
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1e | `Test855d7a1e_Hyp_TheChainsOfATurnsToolCallsAreTimed` | measurement | Measurement, real dependency (`network`) | a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) of 10 tool calls with and without the mod: the time added to each call and to the turn against the sum of the times of the chains; records the numbers and asserts its record and its bound; red is the run before the recorder exists (no record); a refuted bound ends the row `Refuted` with the numbers in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) ([855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)) | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d7a1e | `Test855d7a1e_Hyp_TheChainsOfATurnsToolCallsAreTimed` | Measurement, real dependency (`network`) | a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) of 10 tool calls with and without the mod: the time added to each call and to the turn against the sum of the times of the chains; records the numbers and asserts its record and its bound; red is the run before the recorder exists (no record); a refuted bound ends the row `Refuted` with the numbers in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) ([855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)) | Not started |  |  |  |
 
 #### 855e6g5 The phrases find what the recall skill finds
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1g | `Test855d7a1g_Hyp_ThePhrasesFindWhatTheRecallSkillFinds` | measurement | Measurement, real dependency (`network`) | 10 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms): the share of the [notes](../../GLOSSARY.md#permanent-note) the recall [skill](../../GLOSSARY.md#skill) draws on that are among the candidates, against the share the skill's own phrases reach; records the numbers and asserts its record and its bound; red is the run before the recorder exists (no record); a refuted bound ends the row `Refuted` with the numbers in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) ([855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)) | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d7a1g | `Test855d7a1g_Hyp_ThePhrasesFindWhatTheRecallSkillFinds` | Measurement, real dependency (`network`) | 10 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms): the share of the [notes](../../GLOSSARY.md#permanent-note) the recall [skill](../../GLOSSARY.md#skill) draws on that are among the candidates, against the share the skill's own phrases reach; records the numbers and asserts its record and its bound; red is the run before the recorder exists (no record); a refuted bound ends the row `Refuted` with the numbers in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) ([855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)) | Not started |  |  |  |
 
 #### 855e6g6 The cost of the judgements is recorded
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1i | `Test855d7a1i_Hyp_TheCostOfTheJudgementsIsRecorded` | measurement | Measurement, real dependency (`network`) | a [session](../../GLOSSARY.md#session) of 10 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms) with and without the mod: the tokens and cost of the cheap-tier calls, the mid-tier calls and the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s own use, against the agent's own; records the numbers and asserts its record and its bound; red is the run before the recorder exists (no record); a refuted bound ends the row `Refuted` with the numbers in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) ([855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)) | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d7a1i | `Test855d7a1i_Hyp_TheCostOfTheJudgementsIsRecorded` | Measurement, real dependency (`network`) | a [session](../../GLOSSARY.md#session) of 10 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms) with and without the mod: the tokens and cost of the cheap-tier calls, the mid-tier calls and the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s own use, against the agent's own; records the numbers and asserts its record and its bound; red is the run before the recorder exists (no record); a refuted bound ends the row `Refuted` with the numbers in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) ([855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)) | Not started |  |  |  |
 
 #### 855e6g7 The moment judgement's false none is recorded
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1j | `Test855d7a1j_Hyp_TheMomentJudgementsFalseNoneIsRecorded` | measurement | Measurement, real dependency (`network`) | 20 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms) for which the recall [skill](../../GLOSSARY.md#skill) draws on a [note](../../GLOSSARY.md#permanent-note): the share answered none against one half; records the numbers and asserts its record and its bound; red is the run before the recorder exists (no record); a refuted bound ends the row `Refuted` with the numbers in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) ([855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)) | Not started |  |  |  |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d7a1j | `Test855d7a1j_Hyp_TheMomentJudgementsFalseNoneIsRecorded` | Measurement, real dependency (`network`) | 20 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms) for which the recall [skill](../../GLOSSARY.md#skill) draws on a [note](../../GLOSSARY.md#permanent-note): the share answered none against one half; records the numbers and asserts its record and its bound; red is the run before the recorder exists (no record); a refuted bound ends the row `Refuted` with the numbers in [855b Judged Automatic Memory - Decision Log](./855b_decision-log.md#judged-automatic-memory---decision-log) ([855b48 A measurement row asserts a record and its bound](./855b_decision-log.md#855b48-a-measurement-row-asserts-a-record-and-its-bound)) | Not started |  |  |  |
 
 #### 855e6g8 The conformance check reads the specs of 855
 
 Not scenarios of the specs: the rows are named by test. Every scenario of [855a Judged Automatic Memory - Product Spec](./855a_product-spec.md#judged-automatic-memory---product-spec) and [855d Judged Automatic Memory - Technical Spec](./855d_technical-spec.md#judged-automatic-memory---technical-spec) has a test by now ([855b45 The conformance check follows the removals at once and reads 855 at the end](./855b_decision-log.md#855b45-the-conformance-check-follows-the-removals-at-once-and-reads-855-at-the-end)). The check reads this change's specs and moves to the promoted specs or is deleted with the directory ([793b48 The conformance check reads this change's specs and fails when they are gone](../793_automatic-memory/793b_decision-log.md#793b48-the-conformance-check-reads-this-changes-specs-and-fails-when-they-are-gone)).
 
-| Gherkin | Test | Kind | Classification | Why | Status | Red commit | Green commit | Refactor commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| none | `TestScenarioIDs_ReadsTheScenariosOfBothChanges` | unit | Dedicated example (dev suite) | the pure reading: the scenario IDs of a product or technical spec of change 793 or 855, a restated scenario counted once | Not started |  |  |  |
-| none | `TestConformance_EveryScenarioOfTheSpecsHasATest` | unit | Dedicated example (dev suite) | the real specs of both changes against the real test files, `network`-tagged files included. Mutation: a check that reads only the 793 specs does not name a scenario of 855 that has no test | Not started | n/a |  |  |
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| none | `TestScenarioIDs_ReadsTheScenariosOfBothChanges` | Dedicated example (dev suite) | the pure reading: the scenario IDs of a product or technical spec of change 793 or 855, a restated scenario counted once | Not started |  |  |  |
+| none | `TestConformance_EveryScenarioOfTheSpecsHasATest` | Dedicated example (dev suite) | the real specs of both changes against the real test files, `network`-tagged files included. Mutation: a check that reads only the 793 specs does not name a scenario of 855 that has no test | Not started | n/a |  |  |
 
 ## 855e7 Completion gates
 

@@ -164,7 +164,7 @@ Whether the [transcript](../../GLOSSARY.md#transcript) records a block delivered
 
 ## 855b41 The plan has a row for each scenario and a node for each catalog section
 
-Every scenario of [855a Judged Automatic Memory - Product Spec](./855a_product-spec.md#judged-automatic-memory---product-spec) and [855d Judged Automatic Memory - Technical Spec](./855d_technical-spec.md#judged-automatic-memory---technical-spec) that this change adds, replaces or restates has a catalog row; a scenario tested at two boundaries has a row for each. The rows that share a component are one catalog section, and the section is the node of the dependency graph, as in [793e9 Dependency graph](../793_automatic-memory/793e_implementation-plan.md#793e9-dependency-graph). Rejected: a graph node for each row, which adds about 100 nodes and no information. Decided by: Author (default; owner may override).
+Every scenario of [855a Judged Automatic Memory - Product Spec](./855a_product-spec.md#judged-automatic-memory---product-spec) and [855d Judged Automatic Memory - Technical Spec](./855d_technical-spec.md#judged-automatic-memory---technical-spec) that this change adds, replaces or restates has a catalog row; a scenario tested at two boundaries has a row for each (one row for each test, as the plan guide says: 793d4p1h, 793d4p1l, 793d4g1a and 793d4m1e are two rows each). The rows that share a component are one catalog section, and the section is the node of the dependency graph, as in [793e9 Dependency graph](../793_automatic-memory/793e_implementation-plan.md#793e9-dependency-graph). Rejected: a graph node for each row, which adds about 100 nodes and no information. Decided by: Author (default; owner may override).
 
 ## 855b42 The order of the groups
 
@@ -176,7 +176,7 @@ As in [793e2 Test methods](../793_automatic-memory/793e_implementation-plan.md#7
 
 ## 855b44 The status of a row
 
-A row starts `Not started`, as in the plan guide, then `Red`, `Green-all` and `Done`, with the commit columns of [793b13 Departure: one refactor pass, and extra catalog columns](../793_automatic-memory/793b_decision-log.md#793b13-departure-one-refactor-pass-and-extra-catalog-columns). A measurement row whose hypothesis a number refutes ends `Refuted`; a conditional work row that is not needed ends `Not needed`. Decided by: Author (default; owner may override).
+A row starts `Not started`, as in the plan guide, then `Red`, `Green-all` and `Done`, with the commit columns of [793b13 Departure: one refactor pass, and extra catalog columns](../793_automatic-memory/793b_decision-log.md#793b13-departure-one-refactor-pass-and-extra-catalog-columns). A measurement row whose hypothesis a number refutes ends `Refuted`; a conditional work row that is not needed ends `Not needed`. The catalog has no Kind column, since the Classification already says what a test is. `Refuted` and `Not needed` are departures from the guide's statuses, author defaults pending the owner: a measurement that fails its bound has no honest guide status (it is neither red nor done), and a fallback that is not built has none (it was never started and never will be). Decided by: Author (default; owner may override).
 
 ## 855b45 The conformance check follows the removals at once and reads 855 at the end
 
