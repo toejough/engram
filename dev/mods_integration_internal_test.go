@@ -71,6 +71,66 @@ func Test793d2a1g_Mod_ASessionThatDoesNotGiveItsIDInTimeDoesNotHoldThePrompt(t *
 	g.Expect(outcome.Ran).To(BeZero(), "the command was run")
 }
 
+// Test793d2a1i_Mod_ACommandThatFailsIsReportedToTheWriting runs the mod under node against a stand-in host that counts
+// the commands the mod ran when the hook settled: a live session shows a report made inside the hook only as a wait.
+func Test793d2a1i_Mod_ACommandThatFailsIsReportedToTheWriting(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runDeliveryDriver(t, deliveryScenario{Deliver: map[string]any{
+		"exitCode": 1, "stdout": "", "stderr": "auto deliver: looking up: the embedder is not there\nat more\n",
+	}})
+
+	g.Expect(outcome.Passed.Text).To(Equal("hello"), "the prompt goes on as it was")
+	g.Expect(outcome.Passed.Context).To(BeEmpty(), "nothing is added")
+	g.Expect(outcome.Settle.Commands).To(Equal(1), "the commands the hook had run when it settled: the delivery")
+	g.Expect(outcome.Settle.InFlight).To(BeZero(), "the calls in flight when the hook settled")
+
+	reports := outcome.inputsOf("engram auto write")
+
+	g.Expect(reports).To(HaveLen(1), "the runs of auto write")
+
+	if len(reports) != 1 {
+		return
+	}
+
+	g.Expect(reports[0]).To(HaveKeyWithValue("session", "a-session"))
+	g.Expect(reports[0]).To(HaveKeyWithValue("turn", ""))
+	g.Expect(reports[0]["failure"]).To(And(ContainSubstring("the delivery for a prompt could not be done"),
+		ContainSubstring("the embedder is not there")), "the failure")
+}
+
+// Test793d2a1j_Mod_ADeliveryThatDoesNotFinishWithinItsBoundIsReportedToTheWriting runs the mod under node against a
+// stand-in host whose delivery runs until its time limit and whose timers fire at once: a live session cannot be made
+// to pass the bound without waiting for it.
+func Test793d2a1j_Mod_ADeliveryThatDoesNotFinishWithinItsBoundIsReportedToTheWriting(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runDeliveryDriver(t, deliveryScenario{Stalls: true})
+
+	g.Expect(outcome.Passed.Text).To(Equal("hello"), "the prompt goes on as it was")
+	g.Expect(outcome.Passed.Context).To(BeEmpty(), "nothing is added")
+	g.Expect(outcome.Delays).To(Equal([]int{7000}), "the one timer the mod asked for, in milliseconds")
+	g.Expect(outcome.Settle.Commands).To(Equal(1), "the commands the hook had run when it settled: the delivery")
+	g.Expect(outcome.limitOf("engram auto deliver")).To(BeNumerically("==", 7000), "the time limit of the delivery")
+
+	reports := outcome.inputsOf("engram auto write")
+
+	g.Expect(reports).To(HaveLen(1), "the runs of auto write")
+
+	if len(reports) != 1 {
+		return
+	}
+
+	g.Expect(reports[0]).To(HaveKeyWithValue("session", "a-session"))
+	g.Expect(reports[0]).To(HaveKeyWithValue("turn", ""))
+	g.Expect(reports[0]["failure"]).To(And(ContainSubstring("the delivery for a prompt could not be done"),
+		ContainSubstring("7000 ms")), "the failure")
+}
+
 // Test793d2b1a_Mod_JudgesATurnAndGivesTheReplyToTheWriting runs the mod under node against a stand-in host: a live
 // session cannot show what a stand-in records. The stand-in's judgement does not answer until the driver lets it, so a
 // hook that waited for the job would not give the event's result back.
@@ -691,6 +751,68 @@ await settled()
 
 console.log(JSON.stringify({ returned: held ? {} : returned, held, calls, sweeps, delays, settle }))
 `
+	// deliveryDriver runs the prompt.submit hook of the module named by MOD against a host that behaves as SCENARIO says:
+	// its delivery exits with a code and prints a text, or runs until its time limit, when the timers of the module
+	// fire at once and are recorded. The host counts the commands the module has run and the calls in flight when the
+	// hook settles, runs the timers of the module only then, and prints what the hook let through, the commands the
+	// module ran in order with their input and time limit, the delays the timers were asked for, and the count.
+	deliveryDriver = `
+import { pathToFileURL } from 'node:url'
+
+const { register } = await import(pathToFileURL(process.env.MOD).href)
+const handlers = {}
+register((name, handler) => { handlers[name] = handler })
+
+const scenario = JSON.parse(process.env.SCENARIO)
+const calls = []
+const delays = []
+const wait = globalThis.setTimeout
+if (scenario.stalls) {
+  globalThis.setTimeout = (callback, delay) => { delays.push(delay); return wait(callback, 0) }
+}
+
+// the host holds the next event of a mod until the calls its event left in flight settle
+let inFlight = 0
+function counted(call) {
+  return (...args) => {
+    inFlight++
+    const done = () => { inFlight-- }
+    const running = call(...args)
+    Promise.resolve(running).then(done, done)
+    return running
+  }
+}
+const timers = []
+const host = {
+  session: { id: counted(async () => 'a-session') },
+  process: {
+    run: counted(async (argv, init) => {
+      calls.push({ step: argv.join(' '), input: JSON.parse(init.stdin), timeoutMs: init.timeoutMs })
+      if (argv[2] !== 'deliver') return { exitCode: 0, stdout: '' }
+      if (!scenario.stalls) return scenario.deliver
+      await new Promise((resolve) => wait(resolve, 5))
+      throw new Error('the command ran too long')
+    }),
+  },
+  clock: { after: (_milliseconds, run) => { timers.push(run) } },
+}
+
+let passed = null
+await handlers['prompt.submit'](host, { text: 'hello', context: [], origin: { kind: 'composer' } },
+  async (event) => { passed = event })
+const settle = { commands: calls.length, inFlight }
+
+for (const run of timers.splice(0)) void run()
+
+// the report is over when the commands have not changed for 50 ms
+for (let last = -1, stable = 0, tick = 0; tick < 300 && stable < 5; tick++) {
+  await new Promise((resolve) => wait(resolve, 10))
+  stable = calls.length === last ? stable + 1 : 0
+  last = calls.length
+}
+
+console.log(JSON.stringify({ passed, calls, delays, settle }))
+`
 	// driverTimeout is how long the mod may take under the stand-in host before the test gives it up.
 	driverTimeout = 20 * time.Second
 	// hostDriver runs the prompt.submit hook of the module named by MOD against a host whose call for the session's ID
@@ -803,6 +925,55 @@ type captureScenario struct {
 	Stalls string `json:"stalls,omitempty"`
 }
 
+// deliveryOutcome is what deliveryDriver printed.
+type deliveryOutcome struct {
+	Passed struct {
+		Text    string   `json:"text"`
+		Context []string `json:"context"`
+	} `json:"passed"`
+	Calls []struct {
+		Step      string         `json:"step"`
+		Input     map[string]any `json:"input"`
+		TimeoutMs float64        `json:"timeoutMs"`
+	} `json:"calls"`
+	Delays []int `json:"delays"`
+	Settle struct {
+		Commands int `json:"commands"`
+		InFlight int `json:"inFlight"`
+	} `json:"settle"`
+}
+
+// inputsOf returns the inputs of the commands that ran a step, in the order they were run.
+func (o deliveryOutcome) inputsOf(step string) []map[string]any {
+	var inputs []map[string]any
+
+	for _, call := range o.Calls {
+		if call.Step == step {
+			inputs = append(inputs, call.Input)
+		}
+	}
+
+	return inputs
+}
+
+// limitOf returns the time limit the first command that ran a step was given.
+func (o deliveryOutcome) limitOf(step string) float64 {
+	for _, call := range o.Calls {
+		if call.Step == step {
+			return call.TimeoutMs
+		}
+	}
+
+	return 0
+}
+
+// deliveryScenario is how the stand-in host of deliveryDriver behaves: what the delivery exits with and prints, or that
+// it runs until its time limit.
+type deliveryScenario struct {
+	Deliver map[string]any `json:"deliver,omitempty"`
+	Stalls  bool           `json:"stalls,omitempty"`
+}
+
 // modulesOf reads every JavaScript file below a directory, by its path relative to the directory.
 func modulesOf(t *testing.T, dir string) map[string]string {
 	t.Helper()
@@ -835,8 +1006,31 @@ func modulesOf(t *testing.T, dir string) map[string]string {
 	return modules
 }
 
-// runCaptureDriver runs a driver under node against the mod of the source, and reads what it printed.
+// runCaptureDriver runs the capture driver against the mod of the source, and reads what it printed.
 func runCaptureDriver(t *testing.T, scenario captureScenario) captureOutcome {
+	t.Helper()
+
+	var outcome captureOutcome
+
+	runDriver(t, captureDriver, scenario, &outcome)
+
+	return outcome
+}
+
+// runDeliveryDriver runs the delivery driver against the mod of the source, and reads what it printed.
+func runDeliveryDriver(t *testing.T, scenario deliveryScenario) deliveryOutcome {
+	t.Helper()
+
+	var outcome deliveryOutcome
+
+	runDriver(t, deliveryDriver, scenario, &outcome)
+
+	return outcome
+}
+
+// runDriver runs a driver under node against the mod of the source, with a scenario, and reads what it printed into
+// the outcome.
+func runDriver(t *testing.T, driver string, scenario, outcome any) {
 	t.Helper()
 
 	encoded, marshalErr := json.Marshal(scenario)
@@ -866,7 +1060,7 @@ func runCaptureDriver(t *testing.T, scenario captureScenario) captureOutcome {
 	ctx, cancel := context.WithTimeout(t.Context(), driverTimeout)
 	defer cancel()
 
-	command := exec.CommandContext(ctx, node, "--input-type=module", "--eval", captureDriver)
+	command := exec.CommandContext(ctx, node, "--input-type=module", "--eval", driver)
 	command.Env = append(os.Environ(), "MOD="+module, "SCENARIO="+string(encoded))
 
 	out, runErr := command.CombinedOutput()
@@ -874,12 +1068,8 @@ func runCaptureDriver(t *testing.T, scenario captureScenario) captureOutcome {
 		t.Fatalf("the mod did not run under the stand-in host (%v): %s", runErr, out)
 	}
 
-	var outcome captureOutcome
-
-	unmarshalErr := json.Unmarshal(out, &outcome)
+	unmarshalErr := json.Unmarshal(out, outcome)
 	if unmarshalErr != nil {
 		t.Fatalf("the driver printed %q: %v", out, unmarshalErr)
 	}
-
-	return outcome
 }
