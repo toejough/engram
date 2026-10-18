@@ -10,6 +10,7 @@ import (
 // Carry is what a step hands the next one with a request, and the mod reads no part of (855d1b).
 type Carry struct {
 	Cue    string `json:"cue"`
+	Depth  string `json:"depth,omitempty"`
 	Window string `json:"window"`
 }
 
