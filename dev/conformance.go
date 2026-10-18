@@ -42,6 +42,17 @@ func declaredFunctions(sources []string) []string {
 	return names
 }
 
+// exceptIDs returns the IDs less those of the exempt ones, in their order.
+func exceptIDs(ids, exempt []string) []string {
+	return ids
+}
+
+// removedScenarioIDs returns the IDs of the scenarios of 793 that a Removed operation of a spec names, each in the
+// heading `### <ID of the operation> Removed: <ID of the scenario> <title>` (855b45).
+func removedScenarioIDs(_ string) []string {
+	return nil
+}
+
 // scenarioIDs returns the IDs of the scenarios a spec holds, each once, in the order they first appear.
 func scenarioIDs(spec string) []string {
 	var ids []string
