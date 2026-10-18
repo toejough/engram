@@ -1326,7 +1326,7 @@ The product scenario [793a2d1c The work after a turn does not hold the next prom
 Scenario: 793a2d1c The work after a turn does not hold the next prompt
   Given the user has run engram update, and a judgement, a write and a sweep that each take 60 seconds
   When the user sends a prompt, and then another while that work goes on
-  Then the second prompt reaches the agent within 8 seconds, as the user typed it, and the agent answers it
+  Then the second prompt reaches the agent within 8 seconds, as the user typed it, and the agent answers it within 20 seconds
 ```
 
 Realized by [793d2b Turn capture flow](#793d2b-turn-capture-flow) and [793d2c Conversation sweep flow](#793d2c-conversation-sweep-flow): the work is started from a timer, so no call of the host is in flight when the event settles, and the host, which holds the next event of the mod until the calls in flight settle, holds nothing.

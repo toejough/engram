@@ -179,7 +179,7 @@ Scenario: 793a2d1b Automatic memory's work starts no session of its own
 Scenario: 793a2d1c The work after a turn does not hold the next prompt
   Given the user has run engram update, and a judgement, a write and a sweep that each take 60 seconds
   When the user sends a prompt, and then another while that work goes on
-  Then the second prompt reaches the agent within 8 seconds, as the user typed it, and the agent answers it
+  Then the second prompt reaches the agent within 8 seconds, as the user typed it, and the agent answers it within 20 seconds
 
 Scenario: 793a2d1d The prompt and the reply are as they were
   Given the user has run engram update, and a session in which the user's correction became a note
