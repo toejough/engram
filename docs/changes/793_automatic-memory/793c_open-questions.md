@@ -426,27 +426,27 @@ Withdrawn: answered by the owner's instruction to follow the guides, [793b91 The
 - **Blocks:** [793a2d1c The work after a turn does not hold the next prompt](./793a_product-spec.md#793a2d1-uat-scenarios).
 - **Status:** open; default (a) taken in [793b103 The work after a turn is started from a timer](./793b_decision-log.md#793b103-the-work-after-a-turn-is-started-from-a-timer).
 
-## 793c72 Does the user see the block?
+## 793c72 Where does the user see what automatic memory did?
 
-- **Context:** [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) shows what [automatic memory](./793a_product-spec.md#793a1a-terms) did in the block that arrives beside the next [prompt](./793a_product-spec.md#793a1a-terms), as the owner instructed; the documentation of the host's API says the context of a prompt is read by the model and never shown to the user, and the [session](../../GLOSSARY.md#session)'s record holds it.
-- **Options:** (a) The block, as built. (b) A line of `$.ui.log`, which the host draws as a dim line that the model does not read, beside or instead of the block. (c) The [agent](./793a_product-spec.md#793a1a-terms)'s reply ([793c15 Should the activity be shown in the agent's reply, so that it reaches the claude.ai mobile and web view?](./793c_open-questions.md#793c15-should-the-activity-be-shown-in-the-agents-reply-so-that-it-reaches-the-claudeai-mobile-and-web-view), parked).
-- **Recommendation:** (a), as instructed, and (b) if the owner does not see the block in his own view of a session; the tests can read the record only.
+- **Context:** [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) asks that the user see it in the [session](../../GLOSSARY.md#session). The context of a [prompt](./793a_product-spec.md#793a1a-terms), where the block of the delivery goes, is "what the model reads beside the prompt and the user never sees" (the host's type file), so the lines in the block were read by the model only, which was told of every failure against [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way). `$.ui.log` appends one line to the conversation as the user sees it, drawn like a system notice and not sent to the model, and a host that streams JSON receives it as a `ui_log` event, which the tests read (verified on Claude Code 2.1.302).
+- **Options:** (a) A log line of the host for each line, shown by the mod from what the delivery prints on standard error. (b) The block of the delivery, as built before. (c) The [agent](./793a_product-spec.md#793a1a-terms)'s reply ([793c15 Should the activity be shown in the agent's reply, so that it reaches the claude.ai mobile and web view?](#793c15-should-the-activity-be-shown-in-the-agents-reply-so-that-it-reaches-the-claudeai-mobile-and-web-view), parked).
+- **Recommendation:** (a): it is the host's own surface for the user and the model does not read it; (b) is invisible to the user, and (c) reaches the claude.ai view only, written by the agent.
 - **Blocks:** the scenarios of [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did).
 - **Status:** open; default (a) taken in [793b105 What is shown, and how](./793b_decision-log.md#793b105-what-is-shown-and-how).
 
-## 793c73 Is a line shown once, by reading the session's record?
+## 793c73 Is a line shown once, by a mark beside its record?
 
-- **Context:** a line must not be told at every [prompt](./793a_product-spec.md#793a1a-terms) after it, and the delivery keeps no state.
-- **Options:** (a) The lines already delivered are read from the [session](../../GLOSSARY.md#session)'s record, with the text it holds. (b) A marker file for each record shown. (c) A cursor kept by the mod.
-- **Recommendation:** (a): it needs no write on the path of the prompt, and a block the host did not enter is told again; (b) loses a record marked before the host enters the block, and (c) is lost with the process.
-- **Blocks:** [793d4p1c A line the session was told is not told again](./793d_technical-spec.md#793d4p1-scenarios).
+- **Context:** a line must not be shown at every [prompt](./793a_product-spec.md#793a1a-terms) after it, and the host keeps a log line in no record of the [session](../../GLOSSARY.md#session), which is where the lines were read back from when they were in the block.
+- **Options:** (a) The delivery marks each record whose line it printed, by a file beside the record. (b) A cursor kept by the mod, in memory or in the host's store. (c) The lines read back from the session's record, as before.
+- **Recommendation:** (a): the state is a file of the data directory, like the records, and survives a restart and a resumed session; (b) shows a resumed session's history again, or puts state and logic in the mod, and (c) is no longer possible.
+- **Blocks:** [793d4p1c A line that was shown is not shown again](./793d_technical-spec.md#793d4p1-scenarios).
 - **Status:** open; default (a) taken in [793b105 What is shown, and how](./793b_decision-log.md#793b105-what-is-shown-and-how).
 
-## 793c74 Is what was delivered stated again at the next prompt?
+## 793c74 Is what was delivered shown to the user?
 
-- **Context:** [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) asks that the user see what was delivered for the previous [prompt](./793a_product-spec.md#793a1a-terms); its block is in the [session](../../GLOSSARY.md#session) beside that prompt.
-- **Options:** (a) Not stated again: the block of the prompt is the display. (b) One line at the next prompt, with a count or the names of the [notes](../../GLOSSARY.md#permanent-note).
-- **Recommendation:** (a): (b) puts a block beside a prompt that matches nothing, against [793a2b1b A note delivered earlier in the session is not delivered again](./793a_product-spec.md#793a2b1-uat-scenarios), and with names it states the note twice.
+- **Context:** [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) asks that the user see what was delivered for the previous [prompt](./793a_product-spec.md#793a1a-terms); the block of a delivery is in the context, which the user never sees.
+- **Options:** (a) A line for each [note](../../GLOSSARY.md#permanent-note) delivered, shown when it is delivered. (b) Nothing: the block is the display, as built before. (c) One line at the next prompt, with a count or the names.
+- **Recommendation:** (a): the user sees it at once, and it needs no record or mark; (b) shows the user nothing, and (c) states the note later and needs a record of the delivery.
 - **Blocks:** [793a2e1a What was delivered and what was written for the previous turn is in the session by the next prompt](./793a_product-spec.md#793a2e1-uat-scenarios).
 - **Status:** open; default (a) taken in [793b105 What is shown, and how](./793b_decision-log.md#793b105-what-is-shown-and-how).
 

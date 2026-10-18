@@ -189,12 +189,12 @@ Scenario: 793a2d1d The prompt and the reply are as they were
 Scenario: 793a2d1e A write that fails does not break the session
   Given the user has run engram update, and a vault that cannot be written
   When the user corrects the agent in a prompt, the turn ends, and the user sends another prompt
-  Then the agent answers the second prompt as typed, and the vault holds no new note
+  Then the agent answers the second prompt as typed, with nothing about the failed write in its context, and the vault holds no new note
 ```
 
 ### 793a2e The user can see what it did
 
-Requirement: 793a2e When [automatic memory](#793a1a-terms) delivered a [note](../../GLOSSARY.md#permanent-note), wrote one or could not do a delivery, a write or a [sweep](#793a1a-terms), the user MUST be able to see in the [session](../../GLOSSARY.md#session), by the time the user sends the next [prompt](#793a1a-terms), without going to the [vault](../../GLOSSARY.md#vault), what it delivered for the previous prompt, what it wrote from the previous [turn](#793a1a-terms), and each delivery, write or sweep it could not do, with the reason. What a write or a sweep did or could not do, when it finishes after that prompt is sent, MUST be shown when it finishes.
+Requirement: 793a2e When [automatic memory](#793a1a-terms) delivered a [note](../../GLOSSARY.md#permanent-note), wrote one or could not do a delivery, a write or a [sweep](#793a1a-terms), the user MUST be able to see in the [session](../../GLOSSARY.md#session), by the time the user sends the next [prompt](#793a1a-terms), without going to the [vault](../../GLOSSARY.md#vault), what it delivered for the previous prompt, what it wrote from the previous [turn](#793a1a-terms), and each delivery, write or sweep it could not do, with the reason. What a write did, and what a write or a sweep could not do, when it finishes after that prompt is sent, MUST be shown when it finishes.
 
 #### 793a2e1 UAT Scenarios
 
@@ -202,32 +202,32 @@ Requirement: 793a2e When [automatic memory](#793a1a-terms) delivered a [note](..
 Scenario: 793a2e1a What was delivered and what was written for the previous turn is in the session by the next prompt
   Given the user has run engram update, a vault holding a note that says when the staging database is reset, and a session in which the user asked in one prompt when it is reset and to remember that it is backed up every Monday at 05:00 UTC
   When the user sends the next prompt
-  Then the conversation shows the staging note delivered with the earlier prompt, and the next prompt arrives with a line that names the note written from it
+  Then the session shows a line that names the staging note delivered with the earlier prompt, and, with the next prompt, a line that names the note written from it
 
 Scenario: 793a2e1b A write that finishes after the next prompt is shown when it finishes
   Given the user has run engram update, and a write that takes 12 seconds
   When the user corrects the agent in a prompt, sends another before the write finishes, and a third after it finished
-  Then the second prompt arrives with no line about the write, and the third arrives with a line that names the note written
+  Then the session shows no line about the write with the second prompt, and with the third a line that names the note written
 
 Scenario: 793a2e1c A delivery that could not be done is shown with its reason
   Given the user has run engram update, a vault holding a note that says when the staging database is reset, and a lookup that takes 20 seconds
   When the user sends a prompt asking when the staging database is reset, the lookup becomes quick again, and the user sends another prompt
-  Then the second prompt arrives with a line that says the delivery for the first could not be done, with the reason
+  Then the session shows, with the second prompt, a line that says the delivery for the first could not be done, with the reason
 
 Scenario: 793a2e1d A write that failed is shown with its reason
   Given the user has run engram update, and a vault that cannot be written
   When the user corrects the agent in a prompt, the turn ends, and the user sends another prompt
-  Then the second prompt arrives with a line that says the write failed, with the reason
+  Then the session shows, with the second prompt, a line that says the write failed, with the reason
 
 Scenario: 793a2e1e A sweep that failed is shown with its reason
   Given the user has run engram update, and a chunk index that cannot be written
   When the user says something in a prompt, the turn ends, and the user sends another prompt
-  Then the second prompt arrives with a line that says the sweep failed, with the reason
+  Then the session shows, with the second prompt, a line that says the sweep failed, with the reason
 
 Scenario: 793a2e1f A turn that is not captured is shown with the reason
   Given the user has run engram update, and headless prompts are captured only when the user asks
   When the user corrects the agent in a headless session, and sends another prompt
-  Then the second prompt arrives with a line that says the turn was not captured, with the reason
+  Then the session shows, with the second prompt, a line that says the turn was not captured, with the reason
 ```
 
 ## 793a3 Added: Interactions
