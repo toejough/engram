@@ -130,8 +130,10 @@ const (
 	glancePhrases = 3
 	// passageLimit is how many characters of a chunk a candidate line holds at most: a stretch of conversation is
 	// longer than a note's lines (855b33).
-	passageLimit    = 1200
-	recallMaxTokens = 4000
+	passageLimit = 1200
+	// recallMaxTokens holds a deep reply for the most candidates with fields and lessons: 21,900 characters at the
+	// most, 7,300 tokens at 3 characters to the token (855b61).
+	recallMaxTokens = 8000
 	recallModel     = "sonnet"
 	// undated stands in the line of a candidate for the date of one that has none: a chunk indexed before the index
 	// kept the time.
