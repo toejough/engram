@@ -532,7 +532,7 @@ func Test855d4g1b_Judge_AFencedReplyIsReadAndAReplyThatIsNotAMomentReplyFails(t 
 		_, found, err := judgeStep(record, "Understood.", reply, nil)
 
 		g.Expect(err).To(MatchError(auto.ErrLearnReply), name)
-		g.Expect(err).To(MatchError(ContainSubstring("learn-moment judgement")), name)
+		g.Expect(err).To(MatchError(ContainSubstring("learn-moment reply")), name)
 		g.Expect(found).To(BeFalse(), name)
 	}
 }
