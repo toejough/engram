@@ -105,6 +105,9 @@ type Reply struct {
 	// session has seen (855d4i).
 	Placement string `json:"placement"`
 	Carry     Carry  `json:"carry"`
+	// PlacementFailure is why the placement could not be had, when it could not: the lessons are written at the top
+	// (855d2b).
+	PlacementFailure string `json:"placementFailure"`
 }
 
 // Skipped is a lesson of a reply that is left out, or the whole reply when it is not a list, with the reason

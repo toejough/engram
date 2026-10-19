@@ -193,13 +193,19 @@ async function captureLessons($, e, turn, session) {
     return
   }
 
-  const placed = await asked($, 'place', { session, turn: e.turnId, reply: judged.reply, carry: judged.carry },
-    PLACE_BOUND_MS)
   const written = { session, turn: e.turnId, reply: judged.reply }
 
-  if (placed !== null) {
-    written.carry = placed.carry
-    written.placement = placed.reply
+  try {
+    const placed = await asked($, 'place', { session, turn: e.turnId, reply: judged.reply, carry: judged.carry },
+      PLACE_BOUND_MS)
+
+    if (placed !== null) {
+      written.carry = placed.carry
+      written.placement = placed.reply
+    }
+  } catch (error) {
+    // a placement that fails does not fail the capture: the lessons are written at the top and the writing records why
+    written.placementFailure = describe(error)
   }
 
   await run($, 'write', written, WRITE_BOUND_MS)

@@ -611,9 +611,15 @@ func payloadItems(payload []byte) ([]queryItem, error) {
 	return parsed.Items, nil
 }
 
-// placementsOf reads the placement a writing was given, and records that it was not used when it is no list
-// (855d4i): the lessons are then written at the top.
+// placementsOf reads the placement a writing was given, and records that it was not used when it is no list or could
+// not be had (855d4i, 855d2b): the lessons are then written at the top.
 func placementsOf(reply auto.Reply, results *outcomes) []auto.Placement {
+	if reply.PlacementFailure != "" {
+		results.add(auto.RecordSkipped, "", "", "the placement was not used: "+reply.PlacementFailure)
+
+		return []auto.Placement{}
+	}
+
 	if strings.TrimSpace(reply.Placement) == "" {
 		return []auto.Placement{}
 	}
