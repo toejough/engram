@@ -104,11 +104,12 @@ note, no logged discard — the line is a low-bar offer, not a pre-judged lesson
   progress of the work, plans, decisions about the work in hand, branch/worktree/ticket/change names,
   timestamps, findings about this session's own incident, and episodes ("what happened") are not durable;
   raw chunks already hold them. A save request ("remember this") for a durable fact is written; one for
-  status is not.
+  status is not: say that it was not saved to the vault and where it belongs (the change's docs or the
+  project's memory).
 - **Atomic** — one claim per note. A second claim is its own lesson and clears both tests itself, or is
   dropped; it is never folded into the note beside it.
 - The situation names the kind of task or moment that calls for the lesson, with no ticket, issue or
-  change number (such as #855) and no branch name, unless the lesson is about that ticket itself.
+  change number (such as #4417) and no branch name, unless the lesson is about that ticket itself.
 
 Scan THIS session for exactly four kinds of moments. For each note you crystallize, first decide
 its Luhmann placement (below), then include the resulting `position`/`target` in the write-memory
@@ -225,8 +226,9 @@ Rules:
   situation similarity, not by remembering this session.
 - The `--situation` phrase is the retrieval handle: phrase it the way a future task would be
   described ("releasing a Go module", "writing eval harness metrics").
-- One note per distinct principle. An explicit save-request ALWAYS gets its note, immediately —
-  "remember this" means stop and write before anything else.
+- One note per distinct principle. An explicit save-request for a durable lesson ALWAYS gets its note,
+  immediately — "remember this" means stop and write before anything else. A save-request for status gets
+  none (the durable test above): tell the user.
 - If the new lesson CORRECTS, narrows, or refutes an existing vault note, include the superseded note's basename, type, and claim in the handoff.
 - **No moments of any kind → write nothing.** Routine work is already captured by Step 1;
   a session with no corrections, no save-requests, no reversals, and no confirmed approaches is a two-command learn (sweep + report).

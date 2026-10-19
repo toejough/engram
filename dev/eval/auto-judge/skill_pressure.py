@@ -8,10 +8,14 @@ them. The login and the isolation are those of probe.py: every call has a home, 
 
 usage:
   python3 dev/eval/auto-judge/skill_pressure.py --skill learn|recall --skill-file PATH [--runs N] [--out DIR]
-      [--scenario NAME]...
+      [--scenario NAME]... [--arm LABEL --record FILE]
+
+--record appends one JSON line per run to FILE (scenario, arm, model, verdict, the first 400 characters of the reply):
+the compact record that results/ keeps of a run, since the replies of --out are in a scratch directory.
 """
 import argparse
 import concurrent.futures
+import json
 import os
 import re
 import shutil
@@ -24,6 +28,8 @@ sys.path.insert(0, HERE)
 import probe  # noqa: E402
 
 WORKERS = 6
+MODEL = "sonnet"
+EXCERPT = 400
 
 SCENARIOS = {
     "learn-status-and-correction": {
@@ -88,6 +94,42 @@ SCENARIOS = {
         "good": r"$^",
         "badmeans": "wrote a note for the status",
     },
+    "learn-status-tells-user": {
+        "skill": "learn",
+        "prompt": (
+            "You are at the closing learn of a session. Apply Step 2 to the session below. Do not run commands. Reply with "
+            "a JSON list of the notes you would write ([] if none), then a line starting `USER:` with what you say to the "
+            "user about the request.\n\nSession:\n"
+            "User: Please remember that the Zorblax release work is on the branch zorblax/release-9 in the worktree "
+            "zorblax-wt, and that the changelog is the next step.\n"
+            "Agent: Okay.\n"),
+        "bad": r"(?s)\[\s*\{",
+        "good": r"(?is)(?=.*(not|n't) (been )?(save|saved|written|stored|recorded))(?=.*((change|release|plan).{0,24}docs?|project.{0,3} memory))",
+        "badmeans": "wrote a note for the status",
+    },
+    "recall-status-cluster": {
+        "skill": "recall",
+        "prompt": (
+            "You are at Step 2.5C of a deep recall. The cluster has no candidate note. Reply with the line `ACTION: write` "
+            "or `ACTION: skip`, then one sentence of why. Do not run commands.\n\n"
+            "Cluster (chunks of earlier conversations): the Zorblax release work is on the branch zorblax/release-9 in "
+            "the worktree zorblax-wt at commit 4f1c0a9; the changelog is the next step; the release is planned for "
+            "Friday.\n"),
+        "bad": r"ACTION: write",
+        "good": r"ACTION: skip",
+        "badmeans": "crystallized the status of the work into a note",
+    },
+    "recall-status-beside-a-rule": {
+        "skill": "recall",
+        "prompt": (
+            "You are at Step 2.5C of a deep recall. The cluster has no candidate note. Reply with the line `ACTION: skip`, "
+            "or `ACTION: write` followed by the one note you write: its situation and its claim. Do not run commands.\n\n"
+            "Cluster (chunks of earlier conversations): in the Zorblax project a release is tagged only after make "
+            "zorblax-verify passes; the release work is on the branch zorblax/release-9 and ships on Friday.\n"),
+        "bad": r"(?im)^\W*(situation|claim)[^\n]*(zorblax/release-9|friday|branch)",
+        "good": r"(?is)ACTION: write.*zorblax-verify",
+        "badmeans": "folded the status into the note of the rule",
+    },
     "recall-unrelated-claim": {
         "skill": "recall",
         "prompt": (
@@ -129,7 +171,7 @@ def ask_once(system, prompt, login):
     trial = tempfile.mkdtemp(prefix="skill-pressure-")
     try:
         env, cwd = probe.trial_env(trial, login)
-        argv = [probe.CLAUDE, "-p", "--model", "sonnet", "--system-prompt", system, "--tools", "",
+        argv = [probe.CLAUDE, "-p", "--model", MODEL, "--system-prompt", system, "--tools", "",
                 "--disable-slash-commands", "--no-session-persistence"]
         done = subprocess.run(argv, env=env, cwd=cwd, input=prompt, capture_output=True, text=True,
                               timeout=probe.MODEL_TIMEOUT_S)
@@ -152,6 +194,8 @@ def main():
     parser.add_argument("--runs", type=int, default=5)
     parser.add_argument("--out")
     parser.add_argument("--scenario", action="append", default=[])
+    parser.add_argument("--arm", default="")
+    parser.add_argument("--record")
     args = parser.parse_args()
 
     system = skill_text(args.skill_file)
@@ -169,6 +213,15 @@ def main():
             replies[(name, run)] = future.result()
             with open(os.path.join(out, "%s-%d.txt" % (name, run)), "w", encoding="utf-8") as handle:
                 handle.write(replies[(name, run)])
+    if args.record:
+        os.makedirs(os.path.dirname(os.path.abspath(args.record)), exist_ok=True)
+        with open(args.record, "a", encoding="utf-8") as handle:
+            for name, run in jobs:
+                bad, good = score(SCENARIOS[name], replies[(name, run)])
+                handle.write(json.dumps({
+                    "scenario": name, "arm": args.arm, "model": MODEL, "run": run,
+                    "verdict": "bad" if bad else ("kept" if good else "neither"),
+                    "reply": replies[(name, run)][:EXCERPT]}) + "\n")
     for name in names:
         scores = [score(SCENARIOS[name], replies[(name, run)]) for run in range(args.runs)]
         bad = sum(1 for one in scores if one[0])
