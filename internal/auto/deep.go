@@ -48,10 +48,14 @@ func (c Carry) ties(ties Ties, kind, claim string) Ties {
 	for _, tie := range ties {
 		tie.Type, tie.Claim = firstOf(tie.Type, kind), firstOf(tie.Claim, claim)
 
-		if slices.ContainsFunc(c.Candidates, func(one Candidate) bool {
-			return one.ID == strings.TrimSpace(tie.Note) && one.Kind == KindNote
-		}) && isSupersedesType(tie.Type) && !isBlank(tie.Claim) {
-			held = append(held, Supersession{Note: tie.Note, Type: tie.Type, Claim: oneRedacted(tie.Claim)})
+		index := slices.IndexFunc(c.Candidates, func(one Candidate) bool {
+			name := strings.TrimSpace(tie.Note)
+
+			return one.Kind == KindNote && (one.ID == name || one.ID == name+".md")
+		})
+
+		if index >= 0 && isSupersedesType(tie.Type) && !isBlank(tie.Claim) {
+			held = append(held, Supersession{Note: c.Candidates[index].ID, Type: tie.Type, Claim: oneRedacted(tie.Claim)})
 		}
 	}
 
@@ -150,11 +154,11 @@ func (d *DeepWrite) addLessons(list string, carry Carry) {
 // vault or a pending copy is never amended (855b34).
 func ReadDeep(reply string, carry Carry) DeepWrite {
 	var parsed struct {
-		Candidates []json.RawMessage `json:"candidates"`
-		Lessons    json.RawMessage   `json:"lessons"`
+		Candidates *[]json.RawMessage `json:"candidates"`
+		Lessons    json.RawMessage    `json:"lessons"`
 	}
 
-	if json.Unmarshal([]byte(replyValue(reply)), &parsed) != nil {
+	if json.Unmarshal([]byte(replyValue(reply)), &parsed) != nil || parsed.Candidates == nil {
 		return DeepWrite{Skipped: []Skipped{{Reason: notDeepReply}}}
 	}
 
@@ -164,9 +168,9 @@ func ReadDeep(reply string, carry Carry) DeepWrite {
 		deep.addLessons(string(parsed.Lessons), carry)
 	}
 
-	seen := make([]string, 0, len(parsed.Candidates))
+	seen := make([]string, 0, len(*parsed.Candidates))
 
-	for _, raw := range parsed.Candidates {
+	for _, raw := range *parsed.Candidates {
 		deep.addCandidate(raw, carry, &seen)
 	}
 

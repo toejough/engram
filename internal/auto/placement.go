@@ -3,7 +3,6 @@ package auto
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"slices"
 )
 
@@ -47,33 +46,32 @@ type Supersession struct {
 // whose type and claim the lesson holds, or an object or a list of objects that hold their own.
 type Ties []Supersession
 
-// UnmarshalJSON reads a note's file name, a supersession object or a list of them.
+// UnmarshalJSON reads a note's file name, a list of file names, a supersession object or a list of them. A form it does
+// not know is no supersession and no failure: the lesson that holds it is written without one.
 func (t *Ties) UnmarshalJSON(data []byte) error {
 	var name string
 
-	if json.Unmarshal(data, &name) == nil {
-		*t = Ties{{Note: name}}
-
-		return nil
-	}
+	var names []string
 
 	var list []Supersession
 
-	listErr := json.Unmarshal(data, &list)
-	if listErr == nil {
-		*t = list
-
-		return nil
-	}
-
 	var one Supersession
 
-	oneErr := json.Unmarshal(data, &one)
-	if oneErr != nil {
-		return fmt.Errorf("reading the supersession of a lesson: %w", oneErr)
+	switch {
+	case json.Unmarshal(data, &name) == nil:
+		*t = Ties{{Note: name}}
+	case json.Unmarshal(data, &names) == nil:
+		*t = make(Ties, 0, len(names))
+		for _, each := range names {
+			*t = append(*t, Supersession{Note: each})
+		}
+	case json.Unmarshal(data, &list) == nil:
+		*t = list
+	case json.Unmarshal(data, &one) == nil:
+		*t = Ties{one}
+	default:
+		*t = nil
 	}
-
-	*t = Ties{one}
 
 	return nil
 }

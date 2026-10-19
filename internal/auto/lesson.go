@@ -130,14 +130,12 @@ type Skipped struct {
 // lesson that is not whole is left out, and a reply that is not a list holds none, each with the reason. A reply that
 // ends before its list does keeps the lessons before the cut, and the cut is a reason of its own (793d4h).
 func ParseLessons(reply string) ([]Lesson, []Skipped) {
-	lessons, ended, isList := readList(replyValue(reply))
+	lessons, skipped, ended, isList := readList(replyValue(reply))
 	if !isList {
 		return nil, []Skipped{{Reason: notAList}}
 	}
 
 	whole := make([]Lesson, 0, len(lessons))
-
-	var skipped []Skipped
 
 	if !ended {
 		skipped = append(skipped, Skipped{Reason: "the reply was cut before the end of its list"})
@@ -214,22 +212,35 @@ func oneRedacted(text string) string {
 	return Redact(oneLine(text))
 }
 
-// readList reads the lessons of a JSON list one by one, so that the lessons before a cut are kept. ended is false when
-// the text stops before its list does, and isList is false when the text is no list of lessons, or has more after it.
-func readList(text string) (lessons []Lesson, ended, isList bool) {
+// readList reads the lessons of a JSON list one by one, so that the lessons before a cut are kept and an entry whose
+// fields have the wrong type loses only itself: it is skipped, named by its slug or else by its place. ended is false
+// when the text stops before its list does, and isList is false when the text is no list of lessons, or has more after
+// it.
+func readList(text string) (lessons []Lesson, skipped []Skipped, ended, isList bool) {
 	decoder := json.NewDecoder(strings.NewReader(text))
 
 	open, openErr := decoder.Token()
 	if openErr != nil || open != json.Delim('[') {
-		return nil, false, false
+		return nil, nil, false, false
 	}
 
 	for decoder.More() {
+		var entry json.RawMessage
+
+		decodeErr := decoder.Decode(&entry)
+		if decodeErr != nil {
+			return lessons, skipped, false, endsTooSoon(decodeErr, len(text))
+		}
+
 		var lesson Lesson
 
-		decodeErr := decoder.Decode(&lesson)
-		if decodeErr != nil {
-			return lessons, false, endsTooSoon(decodeErr, len(text))
+		if entryErr := json.Unmarshal(entry, &lesson); entryErr != nil {
+			skipped = append(skipped, Skipped{
+				Slug:   shownSlug(lesson.Slug),
+				Reason: fmt.Sprintf("lesson %d has a field of the wrong type", len(lessons)+len(skipped)+1),
+			})
+
+			continue
 		}
 
 		lessons = append(lessons, lesson)
@@ -237,12 +248,12 @@ func readList(text string) (lessons []Lesson, ended, isList bool) {
 
 	_, closeErr := decoder.Token()
 	if closeErr != nil {
-		return lessons, false, endsTooSoon(closeErr, len(text))
+		return lessons, skipped, false, endsTooSoon(closeErr, len(text))
 	}
 
 	_, afterErr := decoder.Token()
 
-	return lessons, true, errors.Is(afterErr, io.EOF)
+	return lessons, skipped, true, errors.Is(afterErr, io.EOF)
 }
 
 // replyValue is the JSON value of a model's reply, the one rule for every reply (855b83): the reply, unfenced, when it
