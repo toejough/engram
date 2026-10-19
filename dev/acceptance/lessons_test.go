@@ -164,6 +164,7 @@ func Test793a2c1d_TheAgentsOwnCorrectionBecomesANote(t *testing.T) {
 	step(t, "Given the user has run engram update, and a session in which the agent may read files "+
 		"but may not run engram commands", func() {
 		machine.hasRunUpdate()
+		machine.stepsAreRecorded()
 
 		inSession := machine.startSession("zorblax")
 		inSession.hasFile("zorblax.conf", "listen_port = 7731\n")
@@ -178,6 +179,13 @@ func Test793a2c1d_TheAgentsOwnCorrectionBecomesANote(t *testing.T) {
 	step(t, "Then within 2 minutes the vault holds a note that states what the file says and says it was written "+
 		"automatically", func() {
 		machine.awaitAutomaticNote(chat.turnEnds, "that states what the file says", "7731")
+
+		// the cost of the judgements of the turn, by cue: the model calls and the characters of their requests (855e6g6)
+		machine.awaitSettled(chat.session.id, chat.turnEnds, 1)
+
+		for cue, cost := range machine.requestCosts() {
+			t.Logf("the cue %s: %d model calls, %d characters in their requests", cue, cost.calls, cost.chars)
+		}
 	})
 }
 
