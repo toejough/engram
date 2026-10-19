@@ -27,7 +27,7 @@ func Test855d7a1b_Hyp_ACaptureIsTimedAgainstItsRowsAndThe2Minutes(t *testing.T) 
 		"hold a lesson", func() {
 		machine.hasMeasuredVault("echo")
 
-		chat = machine.startSession("a-project").converse()
+		chat = machine.startMeasuredSession("a-project").converse()
 		chat.tell(askPrepareRun)
 	})
 

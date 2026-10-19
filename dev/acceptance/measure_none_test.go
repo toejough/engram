@@ -26,7 +26,7 @@ func Test855d7a1j_Hyp_TheMomentJudgementsFalseNoneIsRecorded(t *testing.T) {
 
 	step(t, "When each prompt is sent with automatic memory on", func() {
 		for index, prompt := range noneCandidatePrompts {
-			machine.startSession(fmt.Sprintf("with-%d", index)).send(prompt)
+			machine.startMeasuredSession(fmt.Sprintf("with-%d", index)).send(prompt)
 		}
 
 		arrived = machine.promptRecalls(noneCandidatePrompts)
@@ -39,7 +39,7 @@ func Test855d7a1j_Hyp_TheMomentJudgementsFalseNoneIsRecorded(t *testing.T) {
 		drawn := make([][]string, 0, len(noneCandidatePrompts))
 
 		for index, prompt := range noneCandidatePrompts {
-			skilled := machine.startSession(fmt.Sprintf("skill-%d", index)).send(skillAsk(prompt))
+			skilled := machine.startMeasuredSession(fmt.Sprintf("skill-%d", index)).send(skillAsk(prompt))
 
 			drawn = append(drawn, namedNotes(skilled.reply, machine.noteNames()))
 		}

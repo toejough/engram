@@ -32,9 +32,9 @@ func Test855d7a1e_Hyp_TheChainsOfATurnsToolCallsAreTimed(t *testing.T) {
 		})
 
 	step(t, "When the turn runs with the mod and without it", func() {
-		without = bare.startSession("a-project").converse().tell(tenCalls)
+		without = bare.startMeasuredSession("a-project").converse().tell(tenCalls)
 
-		chat := mod.startSession("a-project").converse()
+		chat := mod.startMeasuredSession("a-project").converse()
 		with = chat.tell(tenCalls)
 
 		mod.awaitSettled(chat.session.id, chat.turnEnds, 1)

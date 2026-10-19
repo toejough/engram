@@ -22,7 +22,7 @@ func Test855d7a1a_Hyp_ARecallChainIsTimed(t *testing.T) {
 	step(t, "Given a real Claude Code session and a vault, and 20 prompts", func() {
 		machine.hasMeasuredVault("echo")
 
-		chat = machine.startSession("a-project").converse()
+		chat = machine.startMeasuredSession("a-project").converse()
 	})
 
 	step(t, "When each is sent", func() {

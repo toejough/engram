@@ -27,7 +27,7 @@ func Test855d7a1d_Hyp_ADeepWriteIsTimed(t *testing.T) {
 		machine.hasMeasuredVault("echo")
 		machine.hasConversations(deepConversations...)
 
-		chat = machine.startSession("a-project").converse()
+		chat = machine.startMeasuredSession("a-project").converse()
 	})
 
 	step(t, "When each is sent", func() {

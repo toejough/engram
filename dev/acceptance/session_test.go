@@ -30,7 +30,6 @@ const (
 	// fakeAPIKey and offlineBaseURL send a prompt to an endpoint that is not there: the prompt's hooks run, the model
 	// is asked and never answers.
 	fakeAPIKey        = "sk-ant-acceptance-not-a-real-key"
-	liveBudgetUSD     = "10"
 	liveModel         = "sonnet"
 	maxLineBytes      = 16 << 20
 	notificationKind  = "task-notification" // the origin of a background task's notification
@@ -41,7 +40,6 @@ const (
 	promptHook        = "prompt.submit" // the hook whose context the record keeps beside the prompt
 	recordFlushWait   = 10 * time.Second
 	resultsBuffered   = 16
-	sessionTimeout    = 30 * time.Minute
 	stopGrace         = 10 * time.Second
 	tokenVariable     = "CLAUDE_CODE_OAUTH_TOKEN"
 	uuidBytes         = 16
@@ -206,8 +204,8 @@ func (c *conversation) say(prompt string) *turn {
 		answered.answered = c.turnEnds
 
 		return answered
-	case <-time.After(sessionTimeout):
-		t.Fatalf("claude did not answer %q within %s", prompt, sessionTimeout)
+	case <-time.After(c.session.limits.timeout):
+		t.Fatalf("claude did not answer %q within %s", prompt, c.session.limits.timeout)
 
 		return nil
 	}
@@ -265,7 +263,18 @@ func (m *machine) startSession(project string) *session {
 	dir := filepath.Join(m.root, "projects", project)
 	mkdirAll(m.t, dir)
 
-	return &session{machine: m, id: newUUID(m.t), project: dir}
+	return &session{machine: m, id: newUUID(m.t), project: dir, limits: liveLimits}
+}
+
+// startMeasuredSession starts a session as startSession does, with the budget and the timeout the measurements need
+// (855b112).
+func (m *machine) startMeasuredSession(project string) *session {
+	m.t.Helper()
+
+	started := m.startSession(project)
+	started.limits = measureLimits
+
+	return started
 }
 
 // session is a Claude Code session in one project of a machine. Its prompts are separate `claude -p` runs that
@@ -275,6 +284,7 @@ type session struct {
 	id      string
 	project string
 	prompts int
+	limits  sessionLimits
 }
 
 // agentRan reports whether the agent ran a shell command in the session whose text holds a word.
@@ -348,7 +358,7 @@ func (s *session) converse() *conversation {
 	token := claudeToken(s.machine.t)
 	args := []string{
 		"-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--model", liveModel,
-		"--max-budget-usd", liveBudgetUSD, "--permission-mode", "default", "--permission-prompts", "none",
+		"--max-budget-usd", s.limits.budgetUSD, "--permission-mode", "default", "--permission-prompts", "none",
 		"--debug-file", filepath.Join(s.machine.root, fmt.Sprintf("claude-debug-%d.log", s.prompts)),
 		"--session-id", s.id,
 	}
@@ -358,7 +368,7 @@ func (s *session) converse() *conversation {
 	env := s.machine.env(tokenVariable + "=" + token)
 	s.machine.assertIsolated(s.project, env)
 
-	ctx, cancel := context.WithTimeout(context.Background(), sessionTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), s.limits.timeout)
 	command := exec.CommandContext(ctx, lookPath("claude"), args...)
 	command.Dir = s.project
 	command.Env = env
@@ -483,7 +493,7 @@ func (s *session) run(prompt string, credentials []string, secret string, offlin
 
 	args := []string{
 		"-p", prompt, "--output-format", "stream-json", "--verbose", "--model", liveModel,
-		"--max-budget-usd", liveBudgetUSD, "--permission-mode", "default", "--permission-prompts", "none",
+		"--max-budget-usd", s.limits.budgetUSD, "--permission-mode", "default", "--permission-prompts", "none",
 		"--debug-file", filepath.Join(s.machine.root, fmt.Sprintf("claude-debug-%d.log", s.prompts)),
 	}
 
@@ -498,7 +508,7 @@ func (s *session) run(prompt string, credentials []string, secret string, offlin
 	env := s.machine.env(credentials...)
 	s.machine.assertIsolated(s.project, env)
 
-	ctx, cancel := context.WithTimeout(context.Background(), sessionTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), s.limits.timeout)
 	defer cancel()
 
 	command := exec.CommandContext(ctx, lookPath("claude"), args...)

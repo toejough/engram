@@ -28,7 +28,7 @@ func Test855d7a1g_Hyp_ThePhrasesFindWhatTheRecallSkillFinds(t *testing.T) {
 
 	step(t, "When each prompt is sent with automatic memory on", func() {
 		for index, prompt := range skillPrompts {
-			machine.startSession(fmt.Sprintf("with-%d", index)).send(prompt)
+			machine.startMeasuredSession(fmt.Sprintf("with-%d", index)).send(prompt)
 		}
 
 		arrived = machine.promptRecalls(skillPrompts)
@@ -43,7 +43,7 @@ func Test855d7a1g_Hyp_ThePhrasesFindWhatTheRecallSkillFinds(t *testing.T) {
 		drawn, amongCandidates, amongSkillsOwn := 0, 0, 0
 
 		for index, prompt := range skillPrompts {
-			skilled := machine.startSession(fmt.Sprintf("skill-%d", index)).send(skillAsk(prompt))
+			skilled := machine.startMeasuredSession(fmt.Sprintf("skill-%d", index)).send(skillAsk(prompt))
 			named := namedNotes(skilled.reply, machine.noteNames())
 			phrases := phrasesOfTurn(skilled)
 			reached := machine.lookupWith(prompt, phrases)

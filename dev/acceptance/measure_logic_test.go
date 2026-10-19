@@ -30,9 +30,8 @@ const (
 
 // unexported variables.
 var (
-	// liveLimits are the limits of every live row of 793 and 855 (stubbed at the values the measurements raised them
-	// to).
-	liveLimits = sessionLimits{budgetUSD: "10", timeout: 30 * time.Minute}
+	// liveLimits are the limits of every live row of 793 and 855 that is not a measurement.
+	liveLimits = sessionLimits{budgetUSD: "2", timeout: 5 * time.Minute}
 	// measureLimits are the limits of the conversations of the measurement rows of 855d7a1 (855b112).
 	measureLimits = sessionLimits{budgetUSD: "10", timeout: 30 * time.Minute}
 	haikuPrice    = price{input: 0.10e-6, output: 0.50e-6, cacheRead: 0.01e-6, cacheWrite: 0.20e-6}

@@ -131,7 +131,7 @@ func (m *machine) runCostSession() []*turn {
 func (m *machine) runCostSessionOnChat() ([]*turn, *conversation) {
 	m.t.Helper()
 
-	project := m.startSession("a-project")
+	project := m.startMeasuredSession("a-project")
 	project.hasFile("Makefile", "ci:\n\t@test \"$$LINT_STRICT\" = 1 || "+
 		"{ echo \"make ci: LINT_STRICT is unset\" >&2; exit 1; }\n\t@echo ci passed\n")
 	project.hasFile("notes.txt", "the first line of the notes\nthe second line\n")
