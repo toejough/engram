@@ -53,16 +53,59 @@ def test_the_fixtures_hold_no_secret_whole_and_no_placeholder_once_loaded():
 
     loaded = probe.load_fixtures()
 
-    assert "{{" not in json.dumps(loaded)
+    assert "{{" not in json.dumps(loaded).replace("{{SESSION}}", "")
     assert any(secret in json.dumps(loaded) for secret in probe.SECRETS.values())
 
 
 def test_every_fixture_has_rows_a_turn_and_an_expectation():
     for name, fixture in probe.load_fixtures().items():
         assert fixture["rows"], name
-        assert fixture["turn"]["text"] and fixture["turn"]["answer"], name
+        assert fixture["turn"]["text"], name
         assert isinstance(fixture["expect"], dict), name
-        assert fixture["rows"][-1].keys() == {"agent"}, name
+        assert fixture.get("stage", "judge") in ("judge", "moment", "deep"), name
+        if fixture.get("stage", "judge") == "judge":
+            assert fixture["turn"]["answer"], name
+            assert fixture["rows"][-1].keys() == {"agent"}, name
+        if fixture.get("stage") == "deep":
+            assert fixture["phrases"] and fixture["passages"], name
+
+
+@pytest.mark.parametrize("reply, expect, kind", [
+    ("[]", {"not_written": True}, "suppressed"),
+    ('[{"slug": "x", "covered": "1.note.md"}]', {"not_written": True}, "suppressed"),
+    ('[{"slug": "x", "covered": null}]', {"not_written": True}, "written (a miss)"),
+    ('[{"action": "run check-full", "situation": "linting"}]', {"lesson": ["check-full"], "absent": ["friday"]}, "lesson"),
+    ('[{"action": "run check-full", "situation": "wait until Friday"}]', {"lesson": ["check-full"], "absent": ["friday"]},
+     "lesson with a word it must lack (a miss)"),
+    ('[{"action": "run it", "situation": "#855 work"}]', {"lesson": ["run"], "situation_lacks": ["855"]},
+     "lesson with a situation that names the work (a miss)"),
+])
+def test_verdict_names_the_bar_of_a_lesson(reply, expect, kind):
+    assert probe.verdict(reply, expect) == kind
+
+
+@pytest.mark.parametrize("reply, expect, kind", [
+    ('{"depth": "glance"}', {"depth": ["none", "glance"]}, "glance"),
+    ('{"depth": "deep"}', {"depth": ["none", "glance"]}, "deep (a miss)"),
+    ("deep", {"depth": ["deep"]}, "invalid"),
+])
+def test_moment_verdict_names_the_depth_against_the_depths_allowed(reply, expect, kind):
+    assert probe.moment_verdict(reply, expect) == kind
+
+
+@pytest.mark.parametrize("reply, expect, kind", [
+    ('{"candidates": [{"id": "n", "verdict": "covered"}], "lessons": []}', {"fields_lack": ["human"]}, "ok"),
+    ('{"candidates": [{"id": "n", "verdict": "near", "fields": {"object": "stamps human"}}]}', {"fields_lack": ["human"]},
+     "revision with a foreign claim (a miss)"),
+    ('{"candidates": [], "lessons": [{"situation": "work on 855"}]}', {"lessons_lack": ["855"]},
+     "lesson with a word it must lack (a miss)"),
+    ('{"candidates": [{"id": "n", "verdict": "near", "fields": {"object": "Sunday 03:40"}}]}',
+     {"fields_have": ["03:40"]}, "ok"),
+    ('{"candidates": [{"id": "n", "verdict": "covered"}]}', {"fields_have": ["03:40"]}, "no revision with the words (a miss)"),
+    ("not json", {}, "invalid"),
+])
+def test_deep_verdict_names_what_a_deep_reply_revises_and_writes(reply, expect, kind):
+    assert probe.deep_verdict(reply, expect) == kind
 
 
 def test_drop_once_removes_one_occurrence_and_refuses_any_other_count():

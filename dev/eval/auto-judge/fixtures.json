@@ -299,5 +299,642 @@
         "03:40"
       ]
     }
+  },
+  "dup-measurement-rows": {
+    "about": "855b117, note 1356/1357/1361: the agent's own correction states again, in other words, the lesson this session already wrote; the prompt is generic, so the lookup does not find the note",
+    "fillers": [
+      [
+        "executing the next step of a plan and reporting back to the user",
+        "the next step of a plan",
+        "is the first row not yet done"
+      ],
+      [
+        "continuing a plan after the user says to go on",
+        "a plan",
+        "is continued from the last committed step"
+      ],
+      [
+        "reporting the result of a step of a plan",
+        "the report of a step",
+        "names the commit"
+      ],
+      [
+        "going on with the next row of the implementation plan",
+        "the implementation plan",
+        "lists its rows in order"
+      ],
+      [
+        "resuming work after the user says to continue",
+        "the resumed work",
+        "starts from the plan"
+      ],
+      [
+        "finishing a step of a plan and starting the next",
+        "a finished step",
+        "is committed first"
+      ],
+      [
+        "carrying out a plan row by row",
+        "a plan row",
+        "has a red, a green and a refactor commit"
+      ],
+      [
+        "reporting back after a step of the plan",
+        "a report",
+        "is one short paragraph"
+      ],
+      [
+        "moving to the next group of the plan",
+        "a group of the plan",
+        "is done when its rows are done"
+      ],
+      [
+        "following the plan the user approved",
+        "the approved plan",
+        "is the order of work"
+      ],
+      [
+        "continuing the execution of a plan",
+        "the execution of a plan",
+        "is depth first"
+      ],
+      [
+        "taking the next task of a plan",
+        "the next task",
+        "is read from the plan file"
+      ],
+      [
+        "answering go on with a step and a report",
+        "a go on",
+        "means do the next step"
+      ],
+      [
+        "closing a step of a plan with a report",
+        "closing a step",
+        "needs the tests green"
+      ]
+    ],
+    "notes": [
+      {
+        "slug": "measurement-rows-assert-recorder-matched-calls",
+        "situation": "writing or reviewing an acceptance row that measures model-call cost, latency or tokens from a recorder",
+        "behavior": "let a measurement row pass when the recorder matched no model calls, so an unmatched call recorded 0 and 0 satisfied every upper bound",
+        "impact": "the row passed vacuously and proved nothing about the measured hypothesis",
+        "action": "make every measurement row fail when a step that printed a model request has no matched call, and assert that meter records exist before checking the bound",
+        "source": "written automatically (session {{SESSION}})"
+      }
+    ],
+    "rows": [
+      {
+        "user": "Let us run the plan for the acceptance rows."
+      },
+      {
+        "agent": "Starting with the first rows."
+      },
+      {
+        "user": "ok, continue with the next step of the plan and report back"
+      },
+      {
+        "agent": "While doing it I found that my cost and latency rows passed vacuously: when the meter matches no model call, cost and tokens are 0 and 0 falls under every upper bound. I changed each measurement row so that it fails if a step that printed a model request has no matched call, and asserts that the meter has records before it checks the bound."
+      }
+    ],
+    "turn": {
+      "text": "ok, continue with the next step of the plan and report back",
+      "answer": "While doing it I found that my cost and latency rows passed vacuously: when the meter matches no model call, cost and tokens are 0 and 0 falls under every upper bound. I changed each measurement row so that it fails if a step that printed a model request has no matched call, and asserts that the meter has records before it checks the bound."
+    },
+    "expect": {
+      "not_written": true
+    }
+  },
+  "dup-bare-cat": {
+    "about": "855b117, note 1360/1363/1369: the agent's own correction states again, in other words, the stdin-cat lesson this session already wrote; the prompt is generic, so the lookup does not find the note",
+    "fillers": [
+      [
+        "executing the next step of a plan and reporting back to the user",
+        "the next step of a plan",
+        "is the first row not yet done"
+      ],
+      [
+        "continuing a plan after the user says to go on",
+        "a plan",
+        "is continued from the last committed step"
+      ],
+      [
+        "reporting the result of a step of a plan",
+        "the report of a step",
+        "names the commit"
+      ],
+      [
+        "going on with the next row of the implementation plan",
+        "the implementation plan",
+        "lists its rows in order"
+      ],
+      [
+        "resuming work after the user says to continue",
+        "the resumed work",
+        "starts from the plan"
+      ],
+      [
+        "finishing a step of a plan and starting the next",
+        "a finished step",
+        "is committed first"
+      ],
+      [
+        "carrying out a plan row by row",
+        "a plan row",
+        "has a red, a green and a refactor commit"
+      ],
+      [
+        "reporting back after a step of the plan",
+        "a report",
+        "is one short paragraph"
+      ],
+      [
+        "moving to the next group of the plan",
+        "a group of the plan",
+        "is done when its rows are done"
+      ],
+      [
+        "following the plan the user approved",
+        "the approved plan",
+        "is the order of work"
+      ],
+      [
+        "continuing the execution of a plan",
+        "the execution of a plan",
+        "is depth first"
+      ],
+      [
+        "taking the next task of a plan",
+        "the next task",
+        "is read from the plan file"
+      ],
+      [
+        "answering go on with a step and a report",
+        "a go on",
+        "means do the next step"
+      ],
+      [
+        "closing a step of a plan with a report",
+        "closing a step",
+        "needs the tests green"
+      ]
+    ],
+    "notes": [
+      {
+        "slug": "background-cat-needs-file-argument",
+        "situation": "running a background shell command in the engram worktree that starts with cat",
+        "behavior": "began a docs-edit command with a bare cat that read stdin and never closed",
+        "impact": "the background shell hung for about six hours and blocked the later commands",
+        "action": "pass an explicit file argument to cat, or avoid cat in background commands",
+        "source": "written automatically (session {{SESSION}})"
+      }
+    ],
+    "rows": [
+      {
+        "user": "Let us run the plan for the acceptance rows."
+      },
+      {
+        "agent": "Starting with the first rows."
+      },
+      {
+        "user": "ok, continue with the next step of the plan and report back"
+      },
+      {
+        "agent": "My earlier docs-edit command hung because it began with a bare cat that read stdin and never closed, so the edit never ran. I now write edit scripts to a file and run the file, and I do not begin a command with a stdin-reading cat."
+      }
+    ],
+    "turn": {
+      "text": "ok, continue with the next step of the plan and report back",
+      "answer": "My earlier docs-edit command hung because it began with a bare cat that read stdin and never closed, so the edit never ran. I now write edit scripts to a file and run the file, and I do not begin a command with a stdin-reading cat."
+    },
+    "expect": {
+      "not_written": true
+    }
+  },
+  "dup-live-budget": {
+    "about": "855b117, note 1358/1362: the agent's own correction states again, in other words, the live-budget lesson this session already wrote; the prompt is generic, so the lookup does not find the note",
+    "fillers": [
+      [
+        "executing the next step of a plan and reporting back to the user",
+        "the next step of a plan",
+        "is the first row not yet done"
+      ],
+      [
+        "continuing a plan after the user says to go on",
+        "a plan",
+        "is continued from the last committed step"
+      ],
+      [
+        "reporting the result of a step of a plan",
+        "the report of a step",
+        "names the commit"
+      ],
+      [
+        "going on with the next row of the implementation plan",
+        "the implementation plan",
+        "lists its rows in order"
+      ],
+      [
+        "resuming work after the user says to continue",
+        "the resumed work",
+        "starts from the plan"
+      ],
+      [
+        "finishing a step of a plan and starting the next",
+        "a finished step",
+        "is committed first"
+      ],
+      [
+        "carrying out a plan row by row",
+        "a plan row",
+        "has a red, a green and a refactor commit"
+      ],
+      [
+        "reporting back after a step of the plan",
+        "a report",
+        "is one short paragraph"
+      ],
+      [
+        "moving to the next group of the plan",
+        "a group of the plan",
+        "is done when its rows are done"
+      ],
+      [
+        "following the plan the user approved",
+        "the approved plan",
+        "is the order of work"
+      ],
+      [
+        "continuing the execution of a plan",
+        "the execution of a plan",
+        "is depth first"
+      ],
+      [
+        "taking the next task of a plan",
+        "the next task",
+        "is read from the plan file"
+      ],
+      [
+        "answering go on with a step and a report",
+        "a go on",
+        "means do the next step"
+      ],
+      [
+        "closing a step of a plan with a report",
+        "closing a step",
+        "needs the tests green"
+      ]
+    ],
+    "notes": [
+      {
+        "slug": "scope-live-budget-timeout-to-measurement-rows",
+        "situation": "changing the shared live-test budget or session timeout in engram builds",
+        "behavior": "raised the shared live budget from $2 to $10 and the session timeout from 5 to 30 minutes for every live row of both changes, without recording it",
+        "impact": "unrecorded change that hid cost and runtime differences from the review",
+        "action": "scope any budget or timeout override to the measurement rows only, and record every such change in the ledger",
+        "source": "written automatically (session {{SESSION}})"
+      }
+    ],
+    "rows": [
+      {
+        "user": "Let us run the plan for the acceptance rows."
+      },
+      {
+        "agent": "Starting with the first rows."
+      },
+      {
+        "user": "ok, continue with the next step of the plan and report back"
+      },
+      {
+        "agent": "I had raised the shared live budget to $10 and the timeout to 30 minutes for every live row without recording it, which was wrong. I now give the raised budget and timeout only to the measurement rows that need them, and record the change in the decision log."
+      }
+    ],
+    "turn": {
+      "text": "ok, continue with the next step of the plan and report back",
+      "answer": "I had raised the shared live budget to $10 and the timeout to 30 minutes for every live row without recording it, which was wrong. I now give the raised budget and timeout only to the measurement rows that need them, and record the change in the decision log."
+    },
+    "expect": {
+      "not_written": true
+    }
+  },
+  "incident-finding": {
+    "about": "855b117, note 1373: a finding about the cause of this session's own incident, with the file and the time of the record, is no durable lesson",
+    "notes": [],
+    "rows": [
+      {
+        "user": "Why does note 1309 hold two unrelated claims?"
+      },
+      {
+        "tool": "Bash",
+        "result": "{\"reason\":\"amended\",\"note\":\"1309.2026-10-18.judged-automatic-memory-is-the-next-change.md\"}"
+      },
+      {
+        "agent": "The cause is the deep recall prompt internal/auto/prompts/candidates_deep.txt: it tells the model to revise a note it judges near, and at 12:13 on 2026-10-18 it replaced the object field of note 1309 (the written record says reason amended), which left the note with two unrelated claims."
+      }
+    ],
+    "turn": {
+      "text": "Why does note 1309 hold two unrelated claims?",
+      "answer": "The cause is the deep recall prompt internal/auto/prompts/candidates_deep.txt: it tells the model to revise a note it judges near, and at 12:13 on 2026-10-18 it replaced the object field of note 1309 (the written record says reason amended), which left the note with two unrelated claims."
+    },
+    "expect": {}
+  },
+  "status-to-remember": {
+    "about": "855b117, note 1309: the user asks to remember the status of the work, a branch and a worktree",
+    "notes": [],
+    "rows": [
+      {
+        "user": "Remember that the judged automatic memory change is on branch feat/judged-automatic-memory in the worktree engram-worktrees/judged-memory, at commit c0caf2a6, and that fix group 2 is next."
+      },
+      {
+        "agent": "Noted: the change is on branch feat/judged-automatic-memory in the worktree engram-worktrees/judged-memory at c0caf2a6, and fix group 2 is next."
+      }
+    ],
+    "turn": {
+      "text": "Remember that the judged automatic memory change is on branch feat/judged-automatic-memory in the worktree engram-worktrees/judged-memory, at commit c0caf2a6, and that fix group 2 is next.",
+      "answer": "Noted: the change is on branch feat/judged-automatic-memory in the worktree engram-worktrees/judged-memory at c0caf2a6, and fix group 2 is next."
+    },
+    "expect": {}
+  },
+  "two-claims": {
+    "about": "855b117: one correction holds a durable rule and a status; only the rule is written",
+    "notes": [],
+    "rows": [
+      {
+        "user": "Run targ check for the Zorblax lint step."
+      },
+      {
+        "tool": "Bash",
+        "result": "ok, but check stops at the first failure"
+      },
+      {
+        "agent": "Ran targ check; it passed."
+      },
+      {
+        "user": "No - in the Zorblax repo you run targ check-full, never targ check, because check stops early and hides the other failures. Also, we are on the release branch until Friday, so do not start the refactor yet."
+      },
+      {
+        "agent": "Understood: Zorblax lint runs with targ check-full, and the refactor waits until after Friday."
+      }
+    ],
+    "turn": {
+      "text": "No - in the Zorblax repo you run targ check-full, never targ check, because check stops early and hides the other failures. Also, we are on the release branch until Friday, so do not start the refactor yet.",
+      "answer": "Understood: Zorblax lint runs with targ check-full, and the refactor waits until after Friday."
+    },
+    "expect": {
+      "lesson": [
+        "check-full"
+      ],
+      "absent": [
+        "friday",
+        "release branch"
+      ]
+    }
+  },
+  "correction-in-ticket-work": {
+    "about": "855b117, notes 1356/1372: a real correction made during work on #855 is written, and its situation names no ticket",
+    "notes": [],
+    "rows": [
+      {
+        "user": "Run the acceptance rows for the #855 measurement hypotheses."
+      },
+      {
+        "agent": "All the measurement rows passed, including cost and latency."
+      },
+      {
+        "user": "No - they passed because the meter recorded nothing: 0 tokens and 0 dollars satisfy every upper bound. In #855 work a measurement row must fail when no model call was matched. Fix the rows that way."
+      },
+      {
+        "agent": "Understood: a measurement row fails when the meter matched no model call."
+      }
+    ],
+    "turn": {
+      "text": "No - they passed because the meter recorded nothing: 0 tokens and 0 dollars satisfy every upper bound. In #855 work a measurement row must fail when no model call was matched. Fix the rows that way.",
+      "answer": "Understood: a measurement row fails when the meter matched no model call."
+    },
+    "expect": {
+      "lesson": [
+        "matched"
+      ],
+      "situation_lacks": [
+        "855"
+      ]
+    }
+  },
+  "deep-amend-unrelated-claim": {
+    "stage": "deep",
+    "about": "855b117, note 1309: passages about another failure of the same channel must not be amended into a note about a decision, and no lesson names the change (the original object is reconstructed)",
+    "notes": [
+      {
+        "slug": "judged-automatic-memory-is-the-next-change",
+        "situation": "planning or building the automatic memory channel of engram after the first dogfood of #793",
+        "subject": "the follow-on change to #793 (owner decision 2026-10-18)",
+        "predicate": "makes the automatic channel follow the recall and learn skill algorithms step by step: a cheap-tier model call decides whether a prompt is a recall moment or a turn a learn moment, a mid-tier call makes the content judgements, and the engine does every mechanical step as an engram auto subcommand; the 8-second prompt hold is dropped",
+        "object": "carried by branch feat/judged-automatic-memory in the worktree engram-worktrees/judged-memory",
+        "source": "probe"
+      }
+    ],
+    "phrases": [
+      "what is next for the automatic memory channel of engram",
+      "the judged automatic memory channel follow-on change"
+    ],
+    "rows": [
+      {
+        "user": "The automatic memory channel captured nothing in my interactive session. Can you look?"
+      },
+      {
+        "agent": "Looking at what the judged channel did with the typed turn."
+      }
+    ],
+    "turn": {
+      "text": "ok, so what's next for the automatic memory channel?"
+    },
+    "passages": [
+      {
+        "id": "/sessions/earlier.jsonl#turn-9",
+        "date": "2026-10-19",
+        "text": "USER: the automatic memory channel wrote no note for my typed turns. AGENT: found it: the judged automatic memory channel's learn side saw no typed turn, because the transcript stamps a typed prompt with the origin kind human and the judgement kept only the kinds of the prompt event. Fixed in 855b114."
+      },
+      {
+        "id": "/sessions/earlier.jsonl#turn-11",
+        "date": "2026-10-19",
+        "text": "USER: and the reply error was unreadable. AGENT: the failure of the learn-moment judgement now holds the first and last 40 characters of the reply."
+      }
+    ],
+    "expect": {
+      "fields_lack": [
+        "human",
+        "stamps",
+        "messagesof",
+        "transcript",
+        "typed"
+      ],
+      "lessons_lack": [
+        "855"
+      ]
+    }
+  },
+  "deep-amend-after-status-question": {
+    "stage": "deep",
+    "about": "855b117, note 1309: the deep recall that a plain status question started must not amend the note either",
+    "notes": [
+      {
+        "slug": "judged-automatic-memory-is-the-next-change",
+        "situation": "planning or building the automatic memory channel of engram after the first dogfood of #793",
+        "subject": "the follow-on change to #793 (owner decision 2026-10-18)",
+        "predicate": "makes the automatic channel follow the recall and learn skill algorithms step by step: a cheap-tier model call decides whether a prompt is a recall moment or a turn a learn moment, a mid-tier call makes the content judgements, and the engine does every mechanical step as an engram auto subcommand; the 8-second prompt hold is dropped",
+        "object": "carried by branch feat/judged-automatic-memory in the worktree engram-worktrees/judged-memory",
+        "source": "probe"
+      }
+    ],
+    "phrases": [
+      "what is next for the automatic memory channel of engram",
+      "the judged automatic memory channel follow-on change"
+    ],
+    "rows": [
+      {
+        "user": "Fix group 1 is done."
+      },
+      {
+        "agent": "Group 1 of the dogfood fixes is committed."
+      }
+    ],
+    "turn": {
+      "text": "what's next?"
+    },
+    "passages": [
+      {
+        "id": "/sessions/earlier.jsonl#turn-9",
+        "date": "2026-10-19",
+        "text": "USER: the automatic memory channel wrote no note for my typed turns. AGENT: found it: the judged automatic memory channel's learn side saw no typed turn, because the transcript stamps a typed prompt with the origin kind human and the judgement kept only the kinds of the prompt event. Fixed in 855b114."
+      },
+      {
+        "id": "/sessions/earlier.jsonl#turn-11",
+        "date": "2026-10-19",
+        "text": "USER: and the reply error was unreadable. AGENT: the failure of the learn-moment judgement now holds the first and last 40 characters of the reply."
+      }
+    ],
+    "expect": {
+      "fields_lack": [
+        "human",
+        "stamps",
+        "messagesof",
+        "transcript",
+        "typed"
+      ],
+      "lessons_lack": [
+        "855"
+      ]
+    }
+  },
+  "deep-sharpen-own-claim": {
+    "stage": "deep",
+    "about": "855b117: a passage that sharpens the very claim of a note still revises it",
+    "notes": [
+      {
+        "slug": "zorblax-staging-reset",
+        "situation": "testing against the Zorblax staging database",
+        "subject": "the Zorblax staging database",
+        "predicate": "is reset every",
+        "object": "Sunday night",
+        "source": "probe"
+      }
+    ],
+    "phrases": [
+      "when the Zorblax staging database is reset",
+      "testing against the Zorblax staging database"
+    ],
+    "rows": [
+      {
+        "user": "Plan a test run against the Zorblax staging database."
+      },
+      {
+        "agent": "I will check when it is reset first."
+      }
+    ],
+    "turn": {
+      "text": "When exactly is the Zorblax staging database reset, so I can plan the test run?"
+    },
+    "passages": [
+      {
+        "id": "/sessions/earlier.jsonl#turn-4",
+        "date": "2026-10-18",
+        "text": "USER: the Zorblax staging database is reset every Sunday at 03:40 UTC, not just Sunday night. AGENT: noted, Sunday at 03:40 UTC."
+      }
+    ],
+    "expect": {
+      "fields_have": [
+        "03:40"
+      ]
+    }
+  },
+  "status-question": {
+    "stage": "moment",
+    "about": "855b117: a plain question of what is next, with no decision in it, is never deep",
+    "notes": [],
+    "rows": [
+      {
+        "user": "Finish the tests for the second fix group."
+      },
+      {
+        "tool": "Bash",
+        "result": "ok github.com/toejough/engram/internal/auto"
+      },
+      {
+        "agent": "The tests for the second fix group pass and are committed."
+      }
+    ],
+    "turn": {
+      "text": "what's next?"
+    },
+    "expect": {
+      "depth": [
+        "none",
+        "glance"
+      ]
+    }
+  },
+  "status-question-where": {
+    "stage": "moment",
+    "about": "855b117: a question of where the change stands, with no decision in it, is never deep",
+    "notes": [],
+    "rows": [
+      {
+        "user": "Fix the duplicate notes."
+      },
+      {
+        "agent": "The duplicate check now sees the notes of the session."
+      }
+    ],
+    "turn": {
+      "text": "where are we on the judged automatic memory change, and what is left?"
+    },
+    "expect": {
+      "depth": [
+        "none",
+        "glance"
+      ]
+    }
+  },
+  "irreversible-decision": {
+    "stage": "moment",
+    "about": "855b117: a weighty, irreversible decision is still deep",
+    "notes": [],
+    "rows": [
+      {
+        "user": "The vault has 1400 notes and the embedder model changed."
+      },
+      {
+        "agent": "The sidecars are stamped with the old model."
+      }
+    ],
+    "turn": {
+      "text": "Delete every sidecar in the production vault and re-embed all 1400 notes with the new model now. There is no backup and it cannot be undone - should we go ahead, and how?"
+    },
+    "expect": {
+      "depth": [
+        "deep"
+      ]
+    }
   }
 }

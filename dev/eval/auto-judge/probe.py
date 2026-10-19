@@ -21,6 +21,13 @@ usage:
   --list      print the fixtures and what each expects, and end
 The variant `current`, the instructions of the binary, always runs first.
 
+A fixture has a "stage": "judge" (the default, the lessons of a turn), "moment" (the depth the cheap tier chooses for a
+prompt: the reply is {"depth": ...}) or "deep" (the candidate judgement of a deep recall over the notes of the fixture
+and its "passages": the reply is the object of the candidates and the lessons). A note of a fixture is a fact, or a
+feedback note when it has a "behavior"; its "source" may hold {{SESSION}}, the session of the trial, so that the note
+reads as written automatically in it (855b117). "fillers" are facts that crowd the lookup as the many notes of a real
+vault do, so that a note of the session is not among the nearest.
+
 Each reply is counted as: none (the reply holds no lesson), lesson (a lesson with the words the fixture expects),
 covered (a lesson whose covered names a note), or one of the misses: a reply that is no list, no lesson where one is
 expected, a lesson without the expected words, a lesson where none is expected, or a note written where the vault
@@ -61,6 +68,28 @@ SECRETS = {
     "{{DEPLOY_TOKEN}}": "gh" + "p_" + "aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3aZ3",
     "{{DEPLOY_PASSWORD}}": "hunter" + "2hunter2",
 }
+
+
+def filler_notes(fillers):
+    """Facts that crowd the lookup, as the many notes of a real vault do: each filler is [situation, subject, object]."""
+    return [{"slug": "filler-%d" % number, "situation": situation, "subject": subject, "predicate": "is",
+             "object": value, "source": "probe"} for number, (situation, subject, value) in enumerate(fillers)]
+
+
+def learn_notes(engram, env, cwd, session, notes):
+    """Write the notes of a fixture to the vault of the trial: a fact, or a feedback note when it has a behavior."""
+    for note in notes:
+        source = note.get("source", "probe").replace("{{SESSION}}", session)
+        common = [engram, "learn"]
+        if "behavior" in note:
+            body = ["feedback", "--behavior", note["behavior"], "--impact", note["impact"], "--action", note["action"]]
+        else:
+            body = ["fact", "--subject", note["subject"], "--predicate", note["predicate"], "--object", note["object"]]
+        arguments = common + body[:1] + ["--slug", note["slug"], "--position", "top", "--source", source,
+                                         "--situation", note["situation"]] + body[1:]
+        done = subprocess.run(arguments, env=env, cwd=cwd, capture_output=True, text=True, timeout=MODEL_TIMEOUT_S)
+        if done.returncode != 0:
+            sys.exit("engram learn failed for %s: %s" % (note["slug"], done.stderr.strip()[:300]))
 
 
 def token():
@@ -139,30 +168,57 @@ def drop_once(system, text):
     return system[:start] + system[end:]
 
 
+def window_of(fixture):
+    """The window of a moment: a line for each row of the conversation, then the prompt (a tool row is a line too)."""
+    lines = []
+    for row in fixture["rows"]:
+        if "user" in row:
+            lines.append("User: " + row["user"])
+        elif "agent" in row:
+            lines.append("Agent: " + row["agent"])
+        elif "tool" in row:
+            lines.append("Agent used " + row["tool"])
+    lines.append("User: " + fixture["turn"]["text"])
+    return "\n".join(lines)
+
+
+def run_engram(engram, arguments, env, cwd, stdin, what):
+    """One run of the engram binary that prints a step; its request, the object the mod asks the model with."""
+    done = subprocess.run([engram] + arguments, env=env, cwd=cwd, input=stdin, capture_output=True, text=True,
+                          timeout=MODEL_TIMEOUT_S)
+    if done.returncode != 0 or not done.stdout.strip():
+        sys.exit("engram %s: exit %d, %s" % (what, done.returncode, done.stderr.strip()[:300]))
+    step = json.loads(done.stdout)
+    return step.get("request", step)
+
+
 def request_for(engram, name, fixture):
     """The request the judgement prints for a fixture, built over a trial of its own."""
     trial = tempfile.mkdtemp(prefix="auto-judge-probe-")
     try:
         env, cwd = trial_env(trial)
         session = str(uuid.uuid4())
-        for note in fixture.get("notes", []):
-            arguments = [engram, "learn", "fact", "--slug", note["slug"], "--position", "top", "--source", "probe",
-                         "--situation", note["situation"], "--subject", note["subject"],
-                         "--predicate", note["predicate"], "--object", note["object"]]
-            done = subprocess.run(arguments, env=env, cwd=cwd, capture_output=True, text=True, timeout=MODEL_TIMEOUT_S)
-            if done.returncode != 0:
-                sys.exit("engram learn failed for %s: %s" % (note["slug"], done.stderr.strip()[:300]))
+        stage = fixture.get("stage", "judge")
+        learn_notes(engram, env, cwd, session, filler_notes(fixture.get("fillers", [])) + fixture.get("notes", []))
         project = os.path.join(trial, "transcripts", "probe")
         os.makedirs(project, exist_ok=True)
         with open(os.path.join(project, session + ".jsonl"), "w", encoding="utf-8") as handle:
             handle.write(record_of(fixture["rows"]))
+        if stage == "moment":
+            moment = json.dumps({"session": session, "cue": "prompt", "origin": "composer",
+                                 "text": fixture["turn"]["text"]})
+            return run_engram(engram, ["auto", "moment"], env, cwd, moment, "auto moment for " + name)
+        if stage == "deep":
+            recall = json.dumps({"session": session, "reply": json.dumps({"phrases": fixture["phrases"]}),
+                                 "carry": {"cue": "prompt", "depth": "deep", "window": window_of(fixture)}})
+            request = run_engram(engram, ["auto", "recall"], env, cwd, recall, "auto recall for " + name)
+            lines = "\n".join("- %s (%s; passage): %s" % (one["id"], one["date"], one["text"])
+                              for one in fixture.get("passages", []))
+            request["prompt"] = request["prompt"].replace("\n</candidates>", "\n" + lines + "\n</candidates>")
+            return request
         turn = json.dumps({"session": session, "turn": "probe", "text": fixture["turn"]["text"],
-                           "answer": fixture["turn"]["answer"], "origin": "composer"})
-        done = subprocess.run([engram, "auto", "judge"], env=env, cwd=cwd, input=turn, capture_output=True,
-                              text=True, timeout=MODEL_TIMEOUT_S)
-        if done.returncode != 0 or not done.stdout.strip():
-            sys.exit("engram auto judge for %s: exit %d, %s" % (name, done.returncode, done.stderr.strip()[:300]))
-        return json.loads(done.stdout)
+                           "answer": fixture["turn"]["answer"], "origin": "composer", "reply": '{"learn":true}'})
+        return run_engram(engram, ["auto", "judge"], env, cwd, turn, "auto judge for " + name)
     finally:
         shutil.rmtree(trial, ignore_errors=True)
 
@@ -172,8 +228,10 @@ def ask(request, system, login):
     trial = tempfile.mkdtemp(prefix="auto-judge-probe-ask-")
     try:
         env, cwd = trial_env(trial, login)
-        argv = [CLAUDE, "-p", "--model", request["model"], "--effort", request["effort"], "--system-prompt", system,
-                "--tools", "", "--disable-slash-commands", "--no-session-persistence"]
+        argv = [CLAUDE, "-p", "--model", request["model"], "--system-prompt", system, "--tools", "",
+                "--disable-slash-commands", "--no-session-persistence"]
+        if request.get("effort"):
+            argv += ["--effort", request["effort"]]
         done = subprocess.run(argv, env=env, cwd=cwd, input=request["prompt"], capture_output=True, text=True,
                               timeout=MODEL_TIMEOUT_S)
         return done.stdout.strip().replace(login, "[redacted]")
@@ -190,6 +248,8 @@ def verdict(reply, expect):
         return "invalid"
     if not isinstance(lessons, list):
         return "invalid"
+    if expect.get("not_written"):
+        return "suppressed" if all(lesson.get("covered") for lesson in lessons) else "written (a miss)"
     if not lessons:
         return "none (a miss)" if expect.get("lesson") or expect.get("covered") else "none"
     if expect.get("covered"):
@@ -198,7 +258,55 @@ def verdict(reply, expect):
         return "lesson (a miss)"
     words = [word.lower() for word in expect["lesson"]]
     held = any(all(word in json.dumps(lesson).lower() for word in words) for lesson in lessons)
-    return "lesson" if held else "lesson without the words (a miss)"
+    if not held:
+        return "lesson without the words (a miss)"
+    if any(word.lower() in json.dumps(lesson).lower() for lesson in lessons for word in expect.get("absent", [])):
+        return "lesson with a word it must lack (a miss)"
+    if any(word.lower() in str(lesson.get("situation", "")).lower() for lesson in lessons
+           for word in expect.get("situation_lacks", [])):
+        return "lesson with a situation that names the work (a miss)"
+    return "lesson"
+
+
+def moment_verdict(reply, expect):
+    """The depth a reply of the moment judgement chooses, against the depths the fixture allows."""
+    text = re.sub(r"^```(?:json)?\s*|\s*```$", "", reply.strip())
+    try:
+        depth = json.loads(text)["depth"]
+    except (ValueError, KeyError, TypeError):
+        return "invalid"
+    return depth if depth in expect["depth"] else depth + " (a miss)"
+
+
+def deep_verdict(reply, expect):
+    """What a reply of a deep recall revises and writes, against what the fixture expects of the revisions and lessons."""
+    text = re.sub(r"^```(?:json)?\s*|\s*```$", "", reply.strip())
+    try:
+        parsed = json.loads(text)
+        candidates = parsed["candidates"]
+        lessons = parsed.get("lessons") or []
+    except (ValueError, KeyError, TypeError):
+        return "invalid"
+    fields = [json.dumps(one.get("fields") or {}).lower() for one in candidates if isinstance(one, dict)]
+    written = json.dumps(lessons).lower()
+    if any(word.lower() in held for held in fields for word in expect.get("fields_lack", [])):
+        return "revision with a foreign claim (a miss)"
+    if any(word.lower() in written for word in expect.get("lessons_lack", [])):
+        return "lesson with a word it must lack (a miss)"
+    if "fields_have" in expect and not any(all(word.lower() in held for word in expect["fields_have"])
+                                           for held in fields):
+        return "no revision with the words (a miss)"
+    return "ok"
+
+
+def verdict_of(fixture, reply):
+    """The verdict of a reply for the stage of its fixture."""
+    stage = fixture.get("stage", "judge")
+    if stage == "moment":
+        return moment_verdict(reply, fixture["expect"])
+    if stage == "deep":
+        return deep_verdict(reply, fixture["expect"])
+    return verdict(reply, fixture["expect"])
 
 
 def variants_of(args):
@@ -223,12 +331,15 @@ def main():
     parser.add_argument("--variant", action="append", default=[])
     parser.add_argument("--without", action="append", default=[])
     parser.add_argument("--list", action="store_true")
+    parser.add_argument("--fixtures", help="a fixtures file other than fixtures.json")
+    parser.add_argument("--dump", help="a directory that keeps the raw reply of every run, for a manual read")
     args = parser.parse_args()
 
-    fixtures = load_fixtures()
+    fixtures = load_fixtures(args.fixtures)
     if args.list:
         for name, fixture in fixtures.items():
-            print("%-22s expects %-34s %s" % (name, json.dumps(fixture["expect"]), fixture["about"]))
+            print("%-22s %-7s expects %-34s %s" % (name, fixture.get("stage", "judge"), json.dumps(fixture["expect"]),
+                                                  fixture["about"]))
         return
     if not args.engram:
         parser.error("--engram is required")
@@ -244,7 +355,14 @@ def main():
         futures = {pool.submit(ask, requests[name], system, login): (name, label) for name, label, system in jobs}
         for future in concurrent.futures.as_completed(futures):
             name, label = futures[future]
-            results.setdefault((name, label), []).append(verdict(future.result(), fixtures[name]["expect"]))
+            reply = future.result()
+            kind = verdict_of(fixtures[name], reply)
+            results.setdefault((name, label), []).append(kind)
+            if args.dump:
+                os.makedirs(args.dump, exist_ok=True)
+                number = len(results[(name, label)])
+                with open(os.path.join(args.dump, "%s.%s.%d.txt" % (name, label, number)), "w", encoding="utf-8") as out:
+                    out.write("VERDICT: %s\n%s\n" % (kind, reply))
 
     print("%-22s %-14s %s" % ("fixture", "variant", "replies of %d runs" % args.runs))
     for name in names:
