@@ -110,21 +110,55 @@ const (
 	windowShape = "<window>\n%s\n</window>"
 )
 
-// compact is the text of a JSON value on one line, or the text as it is when it is not one.
+// compact is the text of a JSON value on one line, redacted after it is decoded: a credential written in the escaped
+// form of JSON is redacted as the text it spells, in every string and key of the value, and the value is written again
+// without escaping the characters of HTML (855b98). A value that is not JSON is returned as it is, for the line to
+// redact.
 func compact(raw json.RawMessage) string {
-	var text string
+	var value any
 
-	if json.Unmarshal(raw, &text) == nil {
-		return text
+	if json.Unmarshal(raw, &value) != nil {
+		return string(raw)
+	}
+
+	if text, isText := value.(string); isText {
+		return Redact(text)
 	}
 
 	var buffer bytes.Buffer
 
-	if json.Compact(&buffer, raw) != nil {
+	encoder := json.NewEncoder(&buffer)
+	encoder.SetEscapeHTML(false)
+
+	if encoder.Encode(redactedValue(value)) != nil {
 		return string(raw)
 	}
 
-	return buffer.String()
+	return strings.TrimSuffix(buffer.String(), "\n")
+}
+
+// redactedValue is a decoded JSON value with every string and every key of an object redacted.
+func redactedValue(value any) any {
+	switch typed := value.(type) {
+	case string:
+		return Redact(typed)
+	case []any:
+		for index, item := range typed {
+			typed[index] = redactedValue(item)
+		}
+
+		return typed
+	case map[string]any:
+		redactedMap := make(map[string]any, len(typed))
+
+		for key, item := range typed {
+			redactedMap[Redact(key)] = redactedValue(item)
+		}
+
+		return redactedMap
+	default:
+		return value
+	}
 }
 
 // eventLines writes the event of a tool cue as the lines of the window that end it (855d4a): the call, with its input;
