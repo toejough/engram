@@ -138,6 +138,33 @@ func Test855d4e1b_HeldText_APassageFetchedWithEngramShowChunkAndANoteTheAgentSav
 	g.Expect(held).NotTo(ContainSubstring("4.2026-10-17.a-file-of-git.md"), "the result of another command")
 }
 
+func Test855d4e1c_HeldText_ABlockDeliveredWithinATurnIsHeld(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	record := strings.Join([]string{
+		`{"type":"user","message":{"role":"user","content":"Tag v1.4.0."}}`,
+		bashCall("t1", "touch tag-v1.4.0"),
+		toolResult("t1", `"done"`),
+		`{"type":"attachment","attachment":{"type":"hook_additional_context","hookName":"tool.call",` +
+			`"hookEvent":"PostToolUse","content":["[engram memory] The lines below are notes.\n` +
+			`- 1.2026-10-18.changelog-note.md (when A): body"]}}`,
+		bashCall("t2", "make ci"),
+		toolResult("t2", `"failed"`),
+		`{"type":"attachment","attachment":{"type":"hook_additional_context","hookName":"classic.PostToolBatch",` +
+			`"hookEvent":"PostToolBatch","content":["[engram memory] The lines below are notes and passages.\n` +
+			`- 2.2026-10-18.make-ci-note.md (when B): body\n- /chunks/an-earlier-session.jsonl#c3 (passage): text"]}}`,
+		`{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Done."}]}}`,
+	}, "\n")
+
+	held := auto.HeldText([]byte(record))
+
+	g.Expect(held).To(ContainSubstring("1.2026-10-18.changelog-note.md"), "the note of a block put at a tool call")
+	g.Expect(held).To(ContainSubstring("2.2026-10-18.make-ci-note.md"), "the note of a block put after a batch")
+	g.Expect(held).To(ContainSubstring("/chunks/an-earlier-session.jsonl#c3"), "the passage of the block of a batch")
+	g.Expect(held).NotTo(ContainSubstring("body"), "the text of a note")
+}
+
 // bashCall is the record of the agent running a Bash command.
 func bashCall(id, command string) string {
 	return `{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"` + id +

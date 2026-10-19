@@ -534,7 +534,7 @@ Built on the [transcript](../../GLOSSARY.md#transcript) when [855d7a1f A block d
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d4e1c | `Test855d4e1c_HeldText_ABlockDeliveredWithinATurnIsHeld` | Dedicated example | the file names of a block that an event within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) added are held, read from a transcript fixture. Mutation: a reader that takes only the blocks that precede the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s first reply fails it | Not started | n/a |  |  |
+| 855d4e1c | `Test855d4e1c_HeldText_ABlockDeliveredWithinATurnIsHeld` | Dedicated example | the file names of a block that an event within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) added are held, read from a transcript fixture. Mutation: a reader that takes only the blocks that precede the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s first reply fails it | Green-all | n/a |  |  |
 
 #### 855e6f3 The mid-turn flow of the mod
 
