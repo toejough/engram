@@ -43,7 +43,7 @@ Scenario: 855a2b1b The note states the lesson the learn skill writes
 
 Scenario: 855a2b1c A confirmed procedure is written as a runbook
   Given the user has run engram update, and a session in which the agent may not run engram commands
-  When the user tells the agent in a prompt that releasing this project is always: run make ci, then tag with git tag vX.Y.Z, then push the tag with git push origin vX.Y.Z, and the agent does these in that order and the user confirms it is the way, and the turn ends
+  When the user tells the agent in a prompt that releasing this project is always: run make ci, then tag with git tag vX.Y.Z, then push the tag with git push origin vX.Y.Z, and the agent says these three commands in that order and runs none of them, and the user confirms it is the way, and the turn ends
   Then within 2 minutes the vault holds a runbook note that names releasing the project as its situation, lists the three commands in that order, and says what is true once they are done
 ```
 
@@ -56,17 +56,17 @@ Requirement: 855a2c A [note](../../GLOSSARY.md#permanent-note) that [automatic m
 ```gherkin
 Scenario: 855a2c1a A sub-point of a note the session holds continues it
   Given the user has run engram update, a vault holding a note that says the project is built with make ci, which runs the lint, test and package steps, and a session in which that note arrived with a prompt
-  When the user tells the agent in a prompt that the lint step of make ci needs LINT_STRICT=1, and the turn ends
+  When the user corrects the agent in a prompt: make ci alone fails, because the lint step of make ci needs LINT_STRICT=1, and the turn ends
   Then within 2 minutes the vault holds a note for it whose ID continues the ID of the make ci note
 
 Scenario: 855a2c1b The same thought at the same level is a sibling
-  Given the user has run engram update, a vault holding a note that says to format Python files with black before committing, and a session in which that note arrived with a prompt
-  When the user tells the agent in a prompt to format Go files with gofmt before committing, and the turn ends
+  Given the user has run engram update, a vault holding a note that says to format Python files with black before committing, which continues a note about something else, and a session in which only the black note arrived with a prompt
+  When the user asks the agent in a prompt to remember to format Go files with gofmt before committing, and the turn ends
   Then within 2 minutes the vault holds a note for it whose ID is a sibling of the ID of the black note
 
 Scenario: 855a2c1c A note the session has not seen is not a target
-  Given the user has run engram update, a vault holding a note that says to format Python files with black before committing, and a session in which no note arrived or was looked up, the prompt below included
-  When the user tells the agent in a prompt to format Go files with gofmt before committing, and the turn ends
+  Given the user has run engram update, a vault holding a note that says to format Python files with black before committing, which continues a note about something else, and a session in which no note arrived or was looked up, the prompt below included
+  When the user asks the agent in a prompt to remember to format Go files with gofmt before committing, and the turn ends
   Then within 2 minutes the vault holds a note for it placed at the top, and its ID continues no other note's and is no other note's sibling
 ```
 
@@ -202,9 +202,9 @@ Target: [793a2d1c The work after a turn does not hold the next prompt](../793_au
 
 ```gherkin
 Scenario: 793a2d1c The work after a turn does not hold the next prompt
-  Given the user has run engram update, and a judgement, a write and a sweep after a turn that each take 10 minutes
+  Given the user has run engram update, and a moment, a judgement, a placement, a write and a sweep after a turn that each take 60 seconds
   When the user sends a prompt, and then another while that work goes on
-  Then the second prompt reaches the agent while that work goes on, as the user typed it, and the agent answers it
+  Then the second prompt reaches the agent within 8 seconds, as the user typed it, and the agent answers it within 20 seconds
 ```
 
 ### 855a3f Modified: 793a3a What is written is delivered later
