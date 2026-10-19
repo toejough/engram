@@ -540,7 +540,17 @@ func shellWords(text string) []string {
 
 // unknownDepths are the depths that a prompt's chain arrived at which are none of none, glance and deep: a prompt with
 // no chain has the depth "" and must not count as not none.
-func unknownDepths(_ []promptRecall) []string { return nil }
+func unknownDepths(arrived []promptRecall) []string {
+	var unknown []string
+
+	for _, recall := range arrived {
+		if !slices.Contains([]string{"none", "glance", "deep"}, recall.depth) {
+			unknown = append(unknown, recall.depth)
+		}
+	}
+
+	return unknown
+}
 
 // unmatchedRequests names each step, as "<cue> <step>", that printed a request and has no model call matched to it: a
 // row that reads the time of a call as zero for such a step would pass with a recorder that saw no call.

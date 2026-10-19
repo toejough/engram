@@ -71,6 +71,7 @@ func Test855d7a1g_Hyp_ThePhrasesFindWhatTheRecallSkillFinds(t *testing.T) {
 		t.Logf("the hypothesis is refuted when %.2f < %.2f: %v (855b109)", ratio(amongCandidates, drawn),
 			ratio(amongSkillsOwn, drawn), ratio(amongCandidates, drawn) < ratio(amongSkillsOwn, drawn))
 
+		g.Expect(unknownDepths(arrived)).To(BeEmpty(), "the depths of the prompts that are none of none, glance and deep")
 		g.Expect(drawn).To(BeNumerically(">", 0), "the notes the skill drew on")
 	})
 }

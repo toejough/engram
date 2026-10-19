@@ -59,6 +59,7 @@ func Test855d7a1j_Hyp_TheMomentJudgementsFalseNoneIsRecorded(t *testing.T) {
 		t.Logf("of %d prompts, %d had a note the skill drew on; the moment judgement answered none for %d of those (%.2f); "+
 			"the bound is one half", len(arrived), withNotes, none, ratio(none, withNotes))
 
+		g.Expect(unknownDepths(arrived)).To(BeEmpty(), "the depths of the prompts that are none of none, glance and deep")
 		g.Expect(withNotes).To(BeNumerically(">", 0), "the prompts for which the skill draws on a note")
 		g.Expect(ratio(none, withNotes)).To(BeNumerically("<=", maxFalseNone), "the share answered none")
 	})
