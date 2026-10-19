@@ -1,6 +1,7 @@
 package auto
 
 import (
+	"bytes"
 	_ "embed" // the instructions of the judgement are a text file of the package
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,12 @@ import (
 
 // Exported constants.
 const (
+	// CueBatchDone is the cue of a batch of tool calls that resolved, before the agent's next message (855d2c).
+	CueBatchDone = "batch-done"
+	// CueBeforeTool is the cue of a tool call about to run (855d2c).
+	CueBeforeTool = "before-tool"
+	// CueFailure is the cue of a tool call that failed (855d2c).
+	CueFailure = "failure"
 	// CueTurnEnd is the cue of a turn that ended, the learn moment (855d4a).
 	CueTurnEnd = "turn-end"
 )
@@ -74,7 +81,14 @@ func Moment(record []byte, input MomentInput) Step {
 	}
 
 	before := linesOf(messages[max(len(messages)-contextLines, 0):])
-	before, turn := fit(before, []string{escaped(userLabel + messageText(input.Text))})
+	turn := []string{escaped(userLabel + messageText(input.Text))}
+
+	if slices.Contains([]string{CueBatchDone, CueBeforeTool, CueFailure}, input.Cue) {
+		before, turn = toolWindow(before, turn[0], eventLines(input.Cue, input.Event))
+	} else {
+		before, turn = fit(before, turn)
+	}
+
 	window := strings.Join(slices.Concat(before, turn), "\n")
 
 	return Step{
@@ -95,6 +109,55 @@ const (
 	// windowShape is the prompt of a request that holds the window only: the window between its tags.
 	windowShape = "<window>\n%s\n</window>"
 )
+
+// compact is the text of a JSON value on one line, or the text as it is when it is not one.
+func compact(raw json.RawMessage) string {
+	var text string
+
+	if json.Unmarshal(raw, &text) == nil {
+		return text
+	}
+
+	var buffer bytes.Buffer
+
+	if json.Compact(&buffer, raw) != nil {
+		return string(raw)
+	}
+
+	return buffer.String()
+}
+
+// eventLines writes the event of a tool cue as the lines of the window that end it (855d4a): the call, with its input;
+// for a failure the error after it; for a batch each call with its response.
+func eventLines(cue string, event ToolEvent) []string {
+	messages := make([]message, 0, 2*len(event.Calls)+2)
+
+	for _, call := range event.Calls {
+		messages = append(messages,
+			message{label: toolLabel, text: call.Tool + " with " + compact(call.Input)},
+			message{label: toolLabel, text: call.Tool + " returned: " + compact(call.Response)})
+	}
+
+	if len(event.Calls) == 0 {
+		messages = append(messages, message{label: toolLabel, text: event.Tool + " with " + compact(event.Input)})
+	}
+
+	if cue == CueFailure {
+		messages = append(messages, message{label: toolLabel, text: event.Tool + " failed: " + event.Error})
+	}
+
+	return linesOf(messages)
+}
+
+// toolWindow is the context and the turn's lines of the window of a tool cue (855b54, 855b97): the last lines of the
+// conversation, the text the turn began with before them when they do not hold it, and the lines of the event.
+func toolWindow(before []string, turnLine string, event []string) ([]string, []string) {
+	if !slices.Contains(before, turnLine) {
+		before = slices.Insert(before, 0, turnLine)
+	}
+
+	return fit(before, event)
+}
 
 //go:embed prompts/moment_learn.txt
 var learnMomentInstructions string

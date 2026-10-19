@@ -114,8 +114,8 @@ func Test855d4a1d_Moment_APromptAMessageOrAnEventCannotCloseTheWindowOrHoldACred
 	}
 }
 
-// checkMomentIsSafe asks the moment for a prompt and a conversation of hostile texts that hold the two credentials, and
-// fails when the request can be closed, reshaped or read with a credential.
+// checkMomentIsSafe asks the moment for a prompt and for each tool cue, with a conversation and an event of hostile
+// texts that hold the two credentials, and fails when a request can be closed, reshaped or read with a credential.
 func checkMomentIsSafe(rt *rapid.T, first, second credential) {
 	rt.Helper()
 
@@ -123,29 +123,36 @@ func checkMomentIsSafe(rt *rapid.T, first, second credential) {
 	message := tagText().Draw(rt, "message")
 	record := userPrompt(jsonText("word "+message+" "+first.text)) + "\n" +
 		assistantText(jsonText("word "+message+" "+second.text))
-
-	step := auto.Moment([]byte(record), auto.MomentInput{
-		Cue: "prompt", Origin: "composer", Text: "zq9x " + prompt + " " + second.text,
-	})
-
-	if counts := tagCounts(step.Request.Prompt); !slices.Equal(counts[:2], []int{1, 1}) {
-		rt.Fatalf("the tags of the window are %v in the prompt %q", counts, step.Request.Prompt)
+	hostile := json.RawMessage(`"` + jsonText("zq9x "+message+" "+first.text) + `"`)
+	event := auto.ToolEvent{
+		Tool: "zq9x" + prompt, Input: hostile, Error: "zq9x " + prompt + " " + second.text,
+		Calls: []auto.ToolCall{{Tool: "Bash", Input: hostile, Response: hostile}},
 	}
 
-	for _, line := range windowOf(step.Request.Prompt) {
-		if strings.Contains(line, "<") {
-			rt.Fatalf("a line of the window holds a <: %q", line)
+	for _, cue := range []string{"prompt", "before-tool", "failure", "batch-done"} {
+		step := auto.Moment([]byte(record), auto.MomentInput{
+			Cue: cue, Origin: "composer", Text: "zq9x " + prompt + " " + second.text, Event: event,
+		})
+
+		if counts := tagCounts(step.Request.Prompt); !slices.Equal(counts[:2], []int{1, 1}) {
+			rt.Fatalf("the tags of the window are %v in the prompt %q (cue %s)", counts, step.Request.Prompt, cue)
 		}
-	}
 
-	for _, secret := range []string{first.secret, second.secret} {
-		if strings.Contains(step.Request.Prompt, secret) {
-			rt.Fatalf("the request holds the secret %q: %q", secret, step.Request.Prompt)
+		for _, line := range windowOf(step.Request.Prompt) {
+			if strings.Contains(line, "<") {
+				rt.Fatalf("a line of the window holds a <: %q (cue %s)", line, cue)
+			}
 		}
-	}
 
-	if strings.Contains(step.Request.System, "zq9x") {
-		rt.Fatalf("the system holds text of the session: %q", step.Request.System)
+		for _, secret := range []string{first.secret, second.secret} {
+			if strings.Contains(step.Request.Prompt, secret) {
+				rt.Fatalf("the request holds the secret %q: %q (cue %s)", secret, step.Request.Prompt, cue)
+			}
+		}
+
+		if strings.Contains(step.Request.System, "zq9x") {
+			rt.Fatalf("the system holds text of the session: %q (cue %s)", step.Request.System, cue)
+		}
 	}
 }
 
@@ -214,6 +221,9 @@ func Test855d4a1c_Moment_EachToolCuePutsItsEventInTheWindow(t *testing.T) {
 			g.Expect(windowOf(step.Request.Prompt)).To(Equal(testCase.want), "the window ends with the line of the event")
 			g.Expect(step.Request.Model).To(Equal("haiku"))
 			g.Expect(step.Request.TimeoutMs).To(BeZero(), "a recall cue has no time limit")
+			g.Expect(step.Request.System).To(And(ContainSubstring("Agent used <tool> with <input>"),
+				ContainSubstring("Agent used <tool> failed: <error>"),
+				ContainSubstring("Agent used <tool> returned: <response>")), "the system tells the lines of an event")
 			g.Expect(step.Carry.Cue).To(Equal(testCase.input.Cue))
 			g.Expect(step.Carry.Window).To(Equal(strings.Join(windowOf(step.Request.Prompt), "\n")))
 		})

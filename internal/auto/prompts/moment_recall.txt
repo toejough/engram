@@ -9,6 +9,14 @@ The rule of recall: it applies after any user request that might entail more tha
 than quick, shallow thinking. It applies as well at these cues: even just chatting about a proposed approach, before the
 agent endorses or ranks it; before the agent declares its work done; after a failure the agent cannot immediately
 explain; and before the agent starts building a new approach.
+The last line of the window may be an event of the agent's own work and not a message of the user. The events are:
+"Agent used <tool> with <input>", the agent is about to run the tool;
+"Agent used <tool> failed: <error>", the tool call failed;
+"Agent used <tool> returned: <response>", a batch of tool calls resolved, and the agent's next message follows.
+Such an event is a recall moment only when it is one of these cues: the agent is about to start building a new approach;
+it has just failed in a way it cannot immediately explain; or the batch completes the work the user asked for, so that
+the agent's next message will declare it done. A routine step of work under way, such as reading a file, listing a
+directory or a command that did what was expected, is none.
 Choose the depth of the recall for the moment:
 - none: the moment is not one for recall, such as a single quick question, a greeting, a short acknowledgement, or a
   request that one tool call or shallow thinking settles;

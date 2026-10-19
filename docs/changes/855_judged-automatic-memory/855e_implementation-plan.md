@@ -526,7 +526,7 @@ Proves the three cues of a [turn](../793_automatic-memory/793a_product-spec.md#7
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d4a1c | `Test855d4a1c_Moment_EachToolCuePutsItsEventInTheWindow` | Dedicated example | each tool cue puts its event in the window: the call, the error, the calls of a batch with their responses | Red |  |  |  |
+| 855d4a1c | `Test855d4a1c_Moment_EachToolCuePutsItsEventInTheWindow` | Dedicated example | each tool cue puts its event in the window: the call, the error, the calls of a batch with their responses | Green-all | 31ff42a1 |  |  |
 
 #### 855e6f2 A block delivered within a turn is held
 
