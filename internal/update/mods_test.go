@@ -116,8 +116,8 @@ func Test793d4b1e_Updater_Run_ReportsTheModAsAMod(t *testing.T) {
 	g.Expect(report.Harnesses).To(HaveLen(1))
 
 	g.Expect(report.Harnesses[0].SkillDirs).To(ConsistOf(
-		update.SkillDirCount{Name: "learn", Files: 1},
-		update.SkillDirCount{Name: "engram-memory", Files: 1, Mod: true},
+		update.SkillDirCount{Name: "learn", Files: 1, Changed: 1},
+		update.SkillDirCount{Name: "engram-memory", Files: 1, Changed: 1, Mod: true},
 	))
 }
 
@@ -134,7 +134,7 @@ func Test793d4b1g_Updater_Run_ADryRunReportsTheModAndWritesNoneOfIt(t *testing.T
 	g.Expect(report.Harnesses[0].Err).NotTo(HaveOccurred())
 
 	g.Expect(report.Harnesses[0].SkillDirs).To(
-		ContainElement(update.SkillDirCount{Name: "engram-memory", Files: 1, Mod: true}))
+		ContainElement(update.SkillDirCount{Name: "engram-memory", Files: 1, Changed: 1, Mod: true}))
 
 	// Not one byte was written anywhere: no file of the mod, no root, no link.
 	g.Expect(fileSystem.written).To(BeEmpty())
@@ -170,6 +170,28 @@ func Test793d4b1h_Updater_Run_ASecondUpdateLeavesTheModAsTheFirstLeftIt(t *testi
 		update.SkillDirCount{Name: "learn", Files: 1},
 		update.SkillDirCount{Name: "engram-memory", Files: 1, Mod: true},
 	))
+}
+
+func Test855d4w1b_Updater_Run_CountsTheFilesOfAModThatThisRunChanged(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	updater, fileSystem := updaterOverCheckoutWithMod()
+
+	_, firstErr := updater.Run(context.Background(), update.Options{})
+	g.Expect(firstErr).NotTo(HaveOccurred())
+
+	fileSystem.files["/repo/agent-instructions/mods/engram-memory/hooks/register.js"] = []byte("the mod, changed")
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+
+	g.Expect(report.Harnesses[0].SkillDirs).To(ConsistOf(
+		update.SkillDirCount{Name: "learn", Files: 1},
+		update.SkillDirCount{Name: "engram-memory", Files: 1, Changed: 1, Mod: true},
+	), "only the mod's file differs from the one deployed")
 }
 
 // updaterOverCheckoutWithMod returns an updater over an in-memory machine with Claude Code and a checkout that holds

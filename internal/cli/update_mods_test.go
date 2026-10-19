@@ -45,7 +45,7 @@ func Test793d4b1f_WriteUpdateReport_ListsAModFromTheModsDirectory(t *testing.T) 
 	g.Expect(out).NotTo(ContainSubstring("agent-instructions/skills/engram-memory/"))
 }
 
-func Test855d4w1a_WriteUpdateReport_TellsThatOpenSessionsReloadTheMod(t *testing.T) {
+func Test855d4w1a_WriteUpdateReport_TellsThatOpenSessionsReloadTheModWhenItsFilesChanged(t *testing.T) {
 	t.Parallel()
 
 	modReport := func(dryRun bool) update.Report {
@@ -57,7 +57,7 @@ func Test855d4w1a_WriteUpdateReport_TellsThatOpenSessionsReloadTheMod(t *testing
 				Name:       update.HarnessClaude,
 				ProbeRoot:  ".claude",
 				SkillsRoot: "/home/joe/.claude/skills",
-				SkillDirs:  []update.SkillDirCount{{Name: "engram-memory", Files: 3, Mod: true}},
+				SkillDirs:  []update.SkillDirCount{{Name: "engram-memory", Files: 3, Changed: 1, Mod: true}},
 			}},
 		}
 	}
@@ -74,6 +74,20 @@ func Test855d4w1a_WriteUpdateReport_TellsThatOpenSessionsReloadTheMod(t *testing
 		g.Expect(cli.ExportWriteUpdateReport(&buffer, modReport(false))).To(Succeed())
 		g.Expect(buffer.String()).To(ContainSubstring(notice))
 		g.Expect(bytes.Count(buffer.Bytes(), []byte("open sessions reload the mod"))).To(Equal(1), "one line")
+	})
+
+	t.Run("a mod whose files did not change says nothing", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+
+		report := modReport(false)
+		report.Harnesses[0].SkillDirs[0].Changed = 0
+
+		var buffer bytes.Buffer
+
+		g.Expect(cli.ExportWriteUpdateReport(&buffer, report)).To(Succeed())
+		g.Expect(buffer.String()).NotTo(ContainSubstring("open sessions reload the mod"))
 	})
 
 	t.Run("a dry run deploys nothing and says nothing", func(t *testing.T) {
