@@ -134,3 +134,16 @@ func checkMomentIsSafe(rt *rapid.T, first, second credential) {
 		rt.Fatalf("the system holds text of the session: %q", step.Request.System)
 	}
 }
+
+func Test855d4a1b_Moment_TheInstructionsCountTheAgentsPlainCorrectionOfItsOwnClaimEvenAfterAGuessItWasAsked(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	step := auto.Moment([]byte(userPrompt("Guess the port, read zorblax.conf and say what it is.")), auto.MomentInput{
+		Session: "4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11", Cue: "turn-end", Origin: "composer", Turn: "a-turn",
+		Text: "Guess the port, read zorblax.conf and say what it is.", Answer: "My guess of 8080 was wrong: it is 7731.",
+	})
+
+	g.Expect(strings.ToLower(step.Request.System)).To(ContainSubstring("plainly corrects its own earlier claim"),
+		"a guess that the agent then corrects from what it read is a lesson, though a guess alone is not")
+}
