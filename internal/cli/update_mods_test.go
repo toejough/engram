@@ -45,7 +45,7 @@ func Test793d4b1f_WriteUpdateReport_ListsAModFromTheModsDirectory(t *testing.T) 
 	g.Expect(out).NotTo(ContainSubstring("agent-instructions/skills/engram-memory/"))
 }
 
-func Test855d4g1h_WriteUpdateReport_TellsThatOpenSessionsMustBeRestartedToLoadTheMod(t *testing.T) {
+func Test855d4w1a_WriteUpdateReport_TellsThatOpenSessionsMustBeRestartedToLoadTheMod(t *testing.T) {
 	t.Parallel()
 
 	modReport := func(dryRun bool) update.Report {
