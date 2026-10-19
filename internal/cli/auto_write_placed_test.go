@@ -78,7 +78,7 @@ func Test855d4i1e_Write_ASupersessionTiesTheNotes(t *testing.T) {
 	t.Parallel()
 
 	args := factLearn("top", "")
-	args.Supersedes = []string{"1.2026-10-17.zorblax-staging-reset.md|updates|the staging database is reset every Sunday"}
+	args.Supersedes = []string{"1.2026-10-17.zorblax-staging-reset|updates|the staging database is reset every Sunday"}
 
 	writeLearning(t, writeInput{
 		reply: factLessonReply, seen: []string{"1.2026-10-17.zorblax-staging-reset.md"},

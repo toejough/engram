@@ -291,9 +291,10 @@ const (
 	// askToForcePush makes the agent say that it force-pushed a branch: the history of 855a2b1a and 855a2b1b.
 	askToForcePush = "Reply with exactly this sentence and nothing else: I pushed the branch " + forcePushedBranch +
 		" with git push --force origin " + forcePushedBranch + "."
-	// askToFormatPython is a recall moment that the formatPythonWithBlack note applies to (855a2c1b).
-	askToFormatPython = "I am about to commit a Python file in the Zorblax project. Say how it should be formatted " +
-		"first. Reply with one short sentence."
+	// askToFormatPython is a recall moment that the formatPythonWithBlack note applies to (855a2c1b): a task of several
+	// steps.
+	askToFormatPython = "Prepare the Python files of the Zorblax project for a commit: format them, run the lint " +
+		"and run the tests. Reply with one short sentence."
 	// askToReleaseInOrder states a procedure and has the agent say its three commands in order (855a2b1c).
 	askToReleaseInOrder = "Releasing the Zorblax project is always: run make ci, then tag with git tag vX.Y.Z, then " +
 		"push the tag with git push origin vX.Y.Z. Say those three commands in that order, one to a line, and run none " +
@@ -312,12 +313,13 @@ const (
 	// leaseFlag is the flag the rule of 855a2b1a names.
 	leaseFlag = "--force-with-lease"
 	// sayTheLintNeedsStrict states a sub-point of the buildWithMakeCI note.
-	sayTheLintNeedsStrict = "The lint step of make ci needs LINT_STRICT=1 set. Reply with one short sentence."
+	sayTheLintNeedsStrict = "No - make ci alone fails: the lint step of make ci needs LINT_STRICT=1 set. " +
+		"Reply with one short sentence."
 	// sayTheResetMoved states what moved the reset of stagingReset.
 	sayTheResetMoved = "Since last week the Zorblax staging database is reset every Monday night and no longer on " +
 		"Sunday night. Reply with one short sentence."
-	// sayToFormatGo states a rule at the level of formatPythonWithBlack.
-	sayToFormatGo = "In the Zorblax project, format Go files with gofmt before committing. " +
+	// sayToFormatGo states a rule at the level of formatPythonWithBlack, as a request to remember it.
+	sayToFormatGo = "Remember this: in the Zorblax project, format Go files with gofmt before committing. " +
 		"Reply with one short sentence."
 )
 
