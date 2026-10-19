@@ -15,6 +15,39 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+func Test855d4g1g_RunAutoJudge_AReplyThatIsEmptyIsStillAFailureAndWritesNoRecord(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	sessions := t.TempDir()
+	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"),
+		[]byte(`{"type":"user","message":{"role":"user","content":"No - build with make zorblax-build."}}`+"\n"),
+		0o600)).To(Succeed())
+
+	written := map[string][]byte{}
+
+	var printed bytes.Buffer
+
+	err := cli.RunAutoJudge(context.Background(),
+		cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: sessions, RecordsDir: "/data/engram/auto"},
+		cli.AutoJudgeDeps{
+			Stdin: bytes.NewReader([]byte(
+				`{"origin":"composer","session":"` + sessionID + `","turn":"a-turn","reply":"","answer":"Understood."}`)),
+			Query:    queryOver(newQueryDeps(newInMemoryFS())),
+			ReadDir:  os.ReadDir,
+			ReadFile: os.ReadFile,
+			Now:      time.Now,
+			WriteRecord: func(path string, data []byte) error {
+				written[path] = data
+
+				return nil
+			},
+		}, &printed)
+
+	g.Expect(err).To(MatchError(auto.ErrLearnReply), "a reply the new mod sent that is no moment reply fails")
+	g.Expect(written).To(BeEmpty())
+}
+
 func Test855d4g1g_RunAutoJudge_ATurnFromAnOlderModIsRecordedAsSkippedAndNotAFailure(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -63,37 +96,4 @@ func Test855d4g1g_RunAutoJudge_ATurnFromAnOlderModIsRecordedAsSkippedAndNotAFail
 		g.Expect(record.Reason).To(Equal(auto.StaleModSkipReason))
 		g.Expect(record.Reason).To(ContainSubstring("restart the session"))
 	}
-}
-
-func Test855d4g1g_RunAutoJudge_AReplyThatIsEmptyIsStillAFailureAndWritesNoRecord(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	sessions := t.TempDir()
-	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"),
-		[]byte(`{"type":"user","message":{"role":"user","content":"No - build with make zorblax-build."}}`+"\n"),
-		0o600)).To(Succeed())
-
-	written := map[string][]byte{}
-
-	var printed bytes.Buffer
-
-	err := cli.RunAutoJudge(context.Background(),
-		cli.AutoJudgeArgs{VaultPath: t.TempDir(), SessionsDir: sessions, RecordsDir: "/data/engram/auto"},
-		cli.AutoJudgeDeps{
-			Stdin: bytes.NewReader([]byte(
-				`{"origin":"composer","session":"` + sessionID + `","turn":"a-turn","reply":"","answer":"Understood."}`)),
-			Query:    queryOver(newQueryDeps(newInMemoryFS())),
-			ReadDir:  os.ReadDir,
-			ReadFile: os.ReadFile,
-			Now:      time.Now,
-			WriteRecord: func(path string, data []byte) error {
-				written[path] = data
-
-				return nil
-			},
-		}, &printed)
-
-	g.Expect(err).To(MatchError(auto.ErrLearnReply), "a reply the new mod sent that is no moment reply fails")
-	g.Expect(written).To(BeEmpty())
 }

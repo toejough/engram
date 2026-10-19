@@ -34,7 +34,8 @@ func Test855d4g1e_RunAutoMomentAndJudge_AnInteractiveSessionsTypedTurnIsInTheWin
 
 	var moment bytes.Buffer
 
-	momentErr := cli.RunAutoMoment(context.Background(), cli.AutoMomentArgs{SessionsDir: sessions, RecordsDir: t.TempDir()},
+	momentErr := cli.RunAutoMoment(context.Background(),
+		cli.AutoMomentArgs{SessionsDir: sessions, RecordsDir: t.TempDir()},
 		cli.AutoMomentDeps{
 			Stdin: bytes.NewReader([]byte(`{"origin":"composer","cue":"turn-end","session":"` + sessionID + `","turn":"t2",` +
 				`"text":"` + typed + `","answer":"Built with make zorblax-build."}`)),

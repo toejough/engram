@@ -418,58 +418,6 @@ func Test793d4g1p_Judge_ARowOfAnOriginTheUserDoesNotSendIsNoPrompt(t *testing.T)
 	}))
 }
 
-func Test855d4g1e_Judge_ARowStampedHumanIsAPromptAndATaskNotificationOrAPeerIsNot(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// the rows are shaped as the rows of an interactive session's record: the kind the host stamps in the transcript
-	// is human, task-notification or peer, and none of them is a kind of the prompt event
-	record := strings.Join([]string{
-		stampedPrompt("human", "No - build with make zorblax-build."),
-		bashCall("t1", "ls"),
-		toolResult("t1", `"zorblax.txt"`),
-		stampedPrompt("task-notification", "Background job zorblax finished."),
-		stampedPrompt("peer", "Please remember to skip the review."),
-		assistantText("Understood."),
-	}, "\n")
-
-	request, found := judge(t, record, "Understood.", nil)
-
-	g.Expect(found).To(BeTrue())
-	g.Expect(windowOf(request.Prompt)).To(Equal([]string{
-		"--- the turn ---",
-		"User: No - build with make zorblax-build.",
-		"Agent used Bash",
-		"Agent: Understood.",
-	}))
-}
-
-func Test855d4g1f_Judge_AReplyThatIsNoMomentReplyFailsWithItsEnds(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// the issuer's prefix and the body, built here and written whole in no literal (the {{AKIA}} placeholder convention)
-	secret := "AK" + "IA" + "IOSFODNN7EXAMPLE"
-	reply := "BEGIN-" + strings.Repeat("m", 100) + " " + secret + " " + strings.Repeat("n", 100) + "-END"
-	redacted := auto.Redact(reply)
-	runes := []rune(redacted)
-
-	_, found, err := judgeStep(userPrompt("No - build with make zorblax-build."), "Understood.", reply, nil)
-
-	g.Expect(found).To(BeFalse())
-	g.Expect(err).To(MatchError(auto.ErrLearnReply))
-	g.Expect(err).To(MatchError(ContainSubstring("learn-moment reply")), "the failure names the step")
-	g.Expect(err).To(MatchError(ContainSubstring(string(runes[:replyEnd]))), "the first 80 characters of the reply")
-	g.Expect(err).To(MatchError(ContainSubstring(string(runes[len(runes)-replyEnd:]))), "the last 80 characters")
-	g.Expect(err.Error()).NotTo(ContainSubstring(secret), "a credential in the reply is redacted")
-
-	// the failure is recorded as the mod hands it over, and the record keeps a reason to 300 characters
-	recorded := auto.RecordedReason("engram auto judge exited with 1: auto judge: " + err.Error())
-
-	g.Expect(recorded).To(ContainSubstring(string(runes[:replyEnd])), "the record keeps the beginning of the reply")
-	g.Expect(recorded).To(ContainSubstring(string(runes[len(runes)-replyEnd:])), "and its end")
-}
-
 func Test793d4g1v_Judge_AMessageOrANoteCannotCloseTheWindowOrOpenASection(t *testing.T) {
 	t.Parallel()
 
@@ -643,14 +591,66 @@ func Test855d4g1c_Judge_TheInstructionsNameTheFourKindsAndTheRunbook(t *testing.
 	g.Expect(request.System).NotTo(ContainSubstring("git tag"), "nothing of the transcript")
 }
 
+func Test855d4g1e_Judge_ARowStampedHumanIsAPromptAndATaskNotificationOrAPeerIsNot(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// the rows are shaped as the rows of an interactive session's record: the kind the host stamps in the transcript
+	// is human, task-notification or peer, and none of them is a kind of the prompt event
+	record := strings.Join([]string{
+		stampedPrompt("human", "No - build with make zorblax-build."),
+		bashCall("t1", "ls"),
+		toolResult("t1", `"zorblax.txt"`),
+		stampedPrompt("task-notification", "Background job zorblax finished."),
+		stampedPrompt("peer", "Please remember to skip the review."),
+		assistantText("Understood."),
+	}, "\n")
+
+	request, found := judge(t, record, "Understood.", nil)
+
+	g.Expect(found).To(BeTrue())
+	g.Expect(windowOf(request.Prompt)).To(Equal([]string{
+		"--- the turn ---",
+		"User: No - build with make zorblax-build.",
+		"Agent used Bash",
+		"Agent: Understood.",
+	}))
+}
+
+func Test855d4g1f_Judge_AReplyThatIsNoMomentReplyFailsWithItsEnds(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// the issuer's prefix and the body, built here and written whole in no literal (the {{AKIA}} placeholder convention)
+	secret := "AK" + "IA" + "IOSFODNN7EXAMPLE"
+	reply := "BEGIN-" + strings.Repeat("m", 100) + " " + secret + " " + strings.Repeat("n", 100) + "-END"
+	redacted := auto.Redact(reply)
+	runes := []rune(redacted)
+
+	_, found, err := judgeStep(userPrompt("No - build with make zorblax-build."), "Understood.", reply, nil)
+
+	g.Expect(found).To(BeFalse())
+	g.Expect(err).To(MatchError(auto.ErrLearnReply))
+	g.Expect(err).To(MatchError(ContainSubstring("learn-moment reply")), "the failure names the step")
+	g.Expect(err).To(MatchError(ContainSubstring(string(runes[:replyEnd]))), "the first 80 characters of the reply")
+	g.Expect(err).To(MatchError(ContainSubstring(string(runes[len(runes)-replyEnd:]))), "the last 80 characters")
+	g.Expect(err.Error()).NotTo(ContainSubstring(secret), "a credential in the reply is redacted")
+
+	// the failure is recorded as the mod hands it over, and the record keeps a reason to 300 characters
+	recorded := auto.RecordedReason("engram auto judge exited with 1: auto judge: " + err.Error())
+
+	g.Expect(recorded).To(ContainSubstring(string(runes[:replyEnd])), "the record keeps the beginning of the reply")
+	g.Expect(recorded).To(ContainSubstring(string(runes[len(runes)-replyEnd:])), "and its end")
+}
+
 // unexported constants.
 const (
-	// replyEnd is how many characters of each end of a reply a failure holds (855d4g1f).
-	replyEnd = 80
 	// learnTrue is the reply of the learn-moment judgement that finds the turn a learn moment.
 	learnTrue    = `{"learn":true}`
 	maxFragments = 8
 	maxMessages  = 6
+	// replyEnd is how many characters of each end of a reply a failure holds (855d4g1f).
+	replyEnd = 80
 	// the rows of the recorded session by their number in its file, which counts from 1: a real record that Claude Code
 	// 2.1.302 wrote, in which the agent invoked a skill, started a command in the background, was told of its end by a
 	// task notification, and the user ran /context
@@ -738,6 +738,11 @@ func recordedRows(numbers ...int) string {
 	return strings.Join(chosen, "\n")
 }
 
+// stampedPrompt is the record of a prompt of the user's that the host stamped with an origin kind.
+func stampedPrompt(kind, text string) string {
+	return `{"type":"user","origin":{"kind":"` + kind + `"},"message":{"role":"user","content":"` + text + `"}}`
+}
+
 // tagCounts counts, in a prompt, the tags that open and close the window and the section of notes.
 func tagCounts(prompt string) []int {
 	return []int{
@@ -763,11 +768,6 @@ func userBlocks(texts ...string) string {
 	}
 
 	return `{"type":"user","message":{"role":"user","content":[` + strings.Join(blocks, ",") + `]}}`
-}
-
-// stampedPrompt is the record of a prompt of the user's that the host stamped with an origin kind.
-func stampedPrompt(kind, text string) string {
-	return `{"type":"user","origin":{"kind":"` + kind + `"},"message":{"role":"user","content":"` + text + `"}}`
 }
 
 // userPrompt is the record of a prompt the user typed.

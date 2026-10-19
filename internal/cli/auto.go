@@ -339,13 +339,6 @@ const (
 	toldFileExt = ".told"
 )
 
-// judgedTurn is the turn `auto judge` reads: the turn that ended, and whether it holds a reply at all (855d4g1g).
-type judgedTurn struct {
-	auto.TurnEnd
-
-	Reply *string `json:"reply"`
-}
-
 // unexported variables.
 var (
 	// errFailureNotRecorded begins the failure of a writing whose record of a failure it was told cannot be written.
@@ -356,6 +349,13 @@ var (
 	errSweepEnded = errors.New("the sweep was ended at its time limit and is not run again in this session; " +
 		"engram ingest --auto indexes the history")
 )
+
+// judgedTurn is the turn `auto judge` reads: the turn that ended, and whether it holds a reply at all (855d4g1g).
+type judgedTurn struct {
+	auto.TurnEnd
+
+	Reply *string `json:"reply"`
+}
 
 // noteFields are the fields of the front matter of a note that automatic memory reads.
 type noteFields struct {

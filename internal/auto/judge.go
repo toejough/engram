@@ -288,13 +288,6 @@ func noteLines(notes []Note) string {
 	return strings.Join(lines, "\n")
 }
 
-// promptKind reports whether a row of the transcript stamped with an origin kind is a prompt the user sent (855d4g1e):
-// the kind `human` that the host stamps on a prompt typed in an interactive session, or a kind of the prompt event
-// ([UserSent]). A task notification and a peer's message are not.
-func promptKind(kind string) bool {
-	return kind == humanKind || UserSent(kind)
-}
-
 // oneLined writes text as one line as oneLine does, with a break of the text's own written ` ⏎ `, so that no message
 // makes a line of its own (793d4g).
 func oneLined(text string) string {
@@ -309,6 +302,13 @@ func oneLined(text string) string {
 	}
 
 	return oneLine(broken.String())
+}
+
+// promptKind reports whether a row of the transcript stamped with an origin kind is a prompt the user sent (855d4g1e):
+// the kind `human` that the host stamps on a prompt typed in an interactive session, or a kind of the prompt event
+// ([UserSent]). A task notification and a peer's message are not.
+func promptKind(kind string) bool {
+	return kind == humanKind || UserSent(kind)
 }
 
 // promptTextOf reads the text of a prompt of the user: the content is a string, or text blocks, each cleaned of the
