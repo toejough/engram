@@ -118,7 +118,7 @@ type Skipped struct {
 // lesson that is not whole is left out, and a reply that is not a list holds none, each with the reason. A reply that
 // ends before its list does keeps the lessons before the cut, and the cut is a reason of its own (793d4h).
 func ParseLessons(reply string) ([]Lesson, []Skipped) {
-	lessons, ended, isList := readList(unfenced(reply))
+	lessons, ended, isList := readList(replyValue(reply))
 	if !isList {
 		return nil, []Skipped{{Reason: notAList}}
 	}
@@ -252,4 +252,25 @@ func unfenced(reply string) string {
 	_, body, _ := strings.Cut(text, "\n")
 
 	return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(body), "```"))
+}
+
+// replyValue is the JSON value of a model's reply, the one rule for every reply (855b83): the reply, unfenced, when it
+// is valid JSON, and otherwise, when the model reasoned before it, the last value that begins with a brace or a bracket
+// and runs to the end of the reply. A reply with no such value, such as a list that was cut off, is the unfenced reply.
+func replyValue(reply string) string {
+	text := unfenced(reply)
+
+	if json.Valid([]byte(text)) {
+		return text
+	}
+
+	ended := strings.TrimSpace(strings.TrimSuffix(text, "```"))
+
+	for at := len(ended) - 1; at >= 0; at-- {
+		if (ended[at] == '{' || ended[at] == '[') && json.Valid([]byte(ended[at:])) {
+			return ended[at:]
+		}
+	}
+
+	return text
 }

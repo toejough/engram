@@ -35,7 +35,7 @@ func Phrases(input PhrasesInput) (Step, bool, error) {
 		Depth string `json:"depth"`
 	}
 
-	readErr := json.Unmarshal([]byte(unfenced(input.Reply)), &reply)
+	readErr := json.Unmarshal([]byte(replyValue(input.Reply)), &reply)
 	if readErr != nil || !slices.Contains([]string{DepthNone, DepthGlance, DepthDeep}, reply.Depth) {
 		return Step{}, false, ErrMomentReply
 	}

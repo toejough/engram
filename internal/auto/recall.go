@@ -61,7 +61,7 @@ func PhrasesOf(reply, depth string) ([]string, error) {
 		Phrases []string `json:"phrases"`
 	}
 
-	readErr := json.Unmarshal([]byte(unfenced(reply)), &parsed)
+	readErr := json.Unmarshal([]byte(replyValue(reply)), &parsed)
 	phrases := slices.DeleteFunc(parsed.Phrases, isBlank)
 
 	if readErr != nil || len(phrases) == 0 {

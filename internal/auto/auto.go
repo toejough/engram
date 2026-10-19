@@ -156,7 +156,7 @@ func chosenOf(request Request, held Held) ([]Candidate, error) {
 		Candidates *[]verdict `json:"candidates"`
 	}
 
-	readErr := json.Unmarshal([]byte(objectOf(request.Reply, "candidates")), &reply)
+	readErr := json.Unmarshal([]byte(replyValue(request.Reply)), &reply)
 	if readErr != nil || reply.Candidates == nil {
 		return nil, ErrCandidatesReply
 	}
@@ -217,23 +217,6 @@ func namedIn(text, id string) bool {
 	basename := strings.TrimSuffix(id, ".md")
 
 	return basename != "" && strings.Contains(text, basename)
-}
-
-// objectOf is the object of a reply that begins with a key: the reply, unfenced, or, when the model reasoned before it,
-// what runs from the last `{"<key>"` on (855d4c, 855d4g).
-func objectOf(reply, key string) string {
-	text := unfenced(reply)
-
-	if json.Valid([]byte(text)) {
-		return text
-	}
-
-	at := strings.LastIndex(text, `{"`+key+`"`)
-	if at < 0 {
-		return text
-	}
-
-	return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(text[at:]), "```"))
 }
 
 // oneLine collapses text to single-spaced text without control or format characters, so that it cannot end its own line
