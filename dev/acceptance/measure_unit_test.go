@@ -157,6 +157,9 @@ func TestTokenUsage_CostsEachKindOfTokenAtItsPrice(t *testing.T) {
 	usage := tokenUsage{Input: 2, Output: 74, CacheRead: 11229, CacheCreate: 6690}
 
 	g.Expect(usage.cost(sonnetPrice)).To(BeNumerically("~", 0.0286269, 1e-9), "the cost the host printed for the turn")
+	g.Expect(usage.all()).To(Equal(17_995), "the four counts, the cache reads and writes with the fresh tokens")
+	g.Expect(tokenUsage{Input: 1, Output: 2, CacheRead: 4, CacheCreate: 8}.all()).To(Equal(15))
+	g.Expect(usage.cost(haikuPrice)).To(BeNumerically("~", 0.00148749, 1e-9), "the same tokens at the cheap tier's price")
 	g.Expect(usage.plus(usage)).To(Equal(tokenUsage{Input: 4, Output: 148, CacheRead: 22458, CacheCreate: 13380}))
 }
 

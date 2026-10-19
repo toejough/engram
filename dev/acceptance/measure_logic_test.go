@@ -175,6 +175,10 @@ type tokenUsage struct {
 	Model       string `json:"model"`
 }
 
+// all is every token the host counted: the fresh input and the output, and the input read from and written to the
+// cache.
+func (u tokenUsage) all() int { return u.Input + u.Output }
+
 // cost is the cost of the tokens at a price, in USD.
 func (u tokenUsage) cost(at price) float64 {
 	return float64(u.Input)*at.input + float64(u.Output)*at.output + float64(u.CacheRead)*at.cacheRead +
