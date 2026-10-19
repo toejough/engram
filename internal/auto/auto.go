@@ -194,7 +194,7 @@ func delivers(request Request, verdicts []verdict, candidate Candidate) bool {
 	})
 
 	switch verdicts[index].Verdict {
-	case "covered", "near", "evidence":
+	case verdictCovered, verdictNear, "evidence":
 		return !reversed
 	default:
 		return false

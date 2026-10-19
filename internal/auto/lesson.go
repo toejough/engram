@@ -44,7 +44,7 @@ type Lesson struct {
 // defect returns what is wrong with the lesson, or nothing when it is whole: it has a kind it knows and the fields of
 // its kind, a slug of 1 to 64 lower-case letters, digits and dashes, and a situation.
 func (l Lesson) defect() string {
-	names := []string{"situation"}
+	names := []string{fieldSituation}
 	values := []string{l.Situation}
 
 	switch l.Kind {

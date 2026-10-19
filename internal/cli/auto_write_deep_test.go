@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -15,6 +16,72 @@ import (
 	"github.com/toejough/engram/internal/auto"
 	"github.com/toejough/engram/internal/cli"
 )
+
+func Test855d4j1_WriteDeep_ALessonTheVaultStatesAndAWriteThatFailsAreRecorded(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	records := &recordedFiles{}
+	reply := deepReply(`[{"id":"`+freezeNote.ID+`","verdict":"covered","chunks":["`+passageA.ID+`"]}]`,
+		`[`+strings.Replace(freezeLesson(`[]`, ""), `"covered":null`, `"covered":"`+freezeNote.ID+`"`, 1)+
+			`,`+strings.Replace(freezeLesson(`[]`, ""), `"production-cutover-freeze"`, `"another"`, 1)+`]`)
+
+	err := cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", RecordsDir: "/data/auto"},
+		cli.AutoWriteDeps{
+			Stdin: deepStdin(deepCarry(freezeNote, passageA), reply),
+			Learn: func(context.Context, cli.LearnArgs) (string, error) { return "", errRefused },
+			Amend: func(context.Context, cli.AmendArgs) error { return errRefused },
+			Now:   func() time.Time { return recordedAt }, WriteRecord: records.write,
+			NoteExists: func(path string) bool { return path == "/vault/"+freezeNote.ID },
+		}, &bytes.Buffer{})
+
+	g.Expect(err).NotTo(HaveOccurred(), "the failures are recorded")
+	g.Expect(records.kinds()).To(ConsistOf("skipped", "failed", "failed"))
+}
+
+func Test855d4j1_WriteDeep_NothingOutsideTheCarryIsWritten(t *testing.T) {
+	t.Parallel()
+
+	pool := []string{passageA.ID, freezeNote.ID, "x.md#1", "2.2026-10-01.other.md", "3.2026-10-01.third.md"}
+
+	rapid.Check(t, func(rt *rapid.T) {
+		pick := func(label string) []string {
+			return rapid.SliceOfN(rapid.SampledFrom(pool), 0, 4).Draw(rt, label)
+		}
+		chunks, noteChunks := pick("lesson chunks"), pick("note chunks")
+		id := rapid.SampledFrom(pool).Draw(rt, "candidate")
+		verdict := rapid.SampledFrom([]string{"covered", "near", "evidence", "unrelated"}).Draw(rt, "verdict")
+		lesson := freezeLesson(quotedList(chunks), rapid.SampledFrom(pool).Draw(rt, "superseded"))
+		reply := deepReply(`[{"id":"`+id+`","verdict":"`+verdict+`","chunks":`+quotedList(noteChunks)+`}]`, `[`+lesson+`]`)
+
+		learned, amended := recordedDeepWrite(rt, reply)
+
+		checkLearned(rt, learned, passagesAmong(chunks))
+
+		judgedToAmend := verdict == "covered" || verdict == "near"
+		wantedAmend := id == freezeNote.ID && judgedToAmend && len(passagesAmong(noteChunks)) > 0
+
+		if wantedAmend != (len(amended) == 1) {
+			rt.Fatalf("%d amends for %s judged %s with the chunks %v", len(amended), id, verdict, noteChunks)
+		}
+
+		for _, args := range amended {
+			if args.Target != freezeNote.ID || !sameSet(args.ChunkSources, passagesAmong(noteChunks)) {
+				rt.Fatalf("the amend %+v is not of the note and the passages of the carry", args)
+			}
+		}
+	})
+}
+
+func Test855d4j1b_WriteDeep_ALessonThatCorrectsANoteOfTheCarryTiesIt(t *testing.T) {
+	t.Parallel()
+
+	deep := deepWriting{carry: deepCarry(freezeNote, passageA), reply: deepReply(`[]`,
+		`[`+freezeLesson(`["`+passageA.ID+`"]`, freezeNote.ID)+`]`), records: &recordedFiles{}}
+
+	deep.run(t, []cli.LearnArgs{freezeLearn([]string{passageA.ID}, []string{"1.2026-10-01.production-cutover|narrows|c"})},
+		nil)
+}
 
 //go:generate impgen cli.AmendRun --dependency --import-path github.com/toejough/engram/internal/cli
 
@@ -37,16 +104,6 @@ func Test855d4j1b_WriteDeep_ALessonTheVaultLacksIsCrystallizedWithItsEvidence(t 
 		g.Expect(record["session"]).To(Equal(sessionID))
 		g.Expect(record["turn"]).To(BeEmpty(), "the run has no turn")
 	}
-}
-
-func Test855d4j1b_WriteDeep_ALessonThatCorrectsANoteOfTheCarryTiesIt(t *testing.T) {
-	t.Parallel()
-
-	deep := deepWriting{carry: deepCarry(freezeNote, passageA), reply: deepReply(`[]`,
-		`[`+freezeLesson(`["`+passageA.ID+`"]`, freezeNote.ID)+`]`), records: &recordedFiles{}}
-
-	deep.run(t, []cli.LearnArgs{freezeLearn([]string{passageA.ID}, []string{"1.2026-10-01.production-cutover|narrows|c"})},
-		nil)
 }
 
 func Test855d4j1c_WriteDeep_ACoveredNoteIsAmendedForProvenanceOnly(t *testing.T) {
@@ -110,12 +167,13 @@ func Test855d4j1e_WriteDeep_ANoteOfTheParentVaultAndAPendingCopyAreNotAmended(t 
 
 	g.Expect(records.kinds()).To(Equal([]string{"skipped", "skipped"}))
 
-	reasons := ""
+	var reasons strings.Builder
+
 	for _, record := range records.all() {
-		reasons += record["reason"].(string) + "\n"
+		reasons.WriteString(fmt.Sprint(record["reason"]) + "\n")
 	}
 
-	g.Expect(reasons).To(And(ContainSubstring(parent.ID), ContainSubstring(pending.ID)))
+	g.Expect(reasons.String()).To(And(ContainSubstring(parent.ID), ContainSubstring(pending.ID)))
 }
 
 func Test855d4j1f_WriteDeep_AnIDTheCarryDoesNotHoldIsIgnored(t *testing.T) {
@@ -134,93 +192,14 @@ func Test855d4j1f_WriteDeep_AnIDTheCarryDoesNotHoldIsIgnored(t *testing.T) {
 	}})
 }
 
-func Test855d4j1_WriteDeep_NothingOutsideTheCarryIsWritten(t *testing.T) {
-	t.Parallel()
-
-	pool := []string{passageA.ID, freezeNote.ID, "x.md#1", "2.2026-10-01.other.md", "3.2026-10-01.third.md"}
-	held := []string{passageA.ID, freezeNote.ID}
-
-	rapid.Check(t, func(rt *rapid.T) {
-		pick := func(label string) []string {
-			return rapid.SliceOfN(rapid.SampledFrom(pool), 0, 4).Draw(rt, label)
-		}
-		chunks, noteChunks := pick("lesson chunks"), pick("note chunks")
-		id := rapid.SampledFrom(pool).Draw(rt, "candidate")
-		supersedes := rapid.SampledFrom(pool).Draw(rt, "superseded")
-		verdict := rapid.SampledFrom([]string{"covered", "near", "evidence", "unrelated"}).Draw(rt, "verdict")
-
-		lesson := freezeLesson(quotedList(chunks), supersedes)
-		reply := deepReply(`[{"id":"`+id+`","verdict":"`+verdict+`","chunks":`+quotedList(noteChunks)+`}]`, `[`+lesson+`]`)
-
-		var learned []cli.LearnArgs
-
-		var amended []cli.AmendArgs
-
-		err := cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", VaultName: "personal"},
-			cli.AutoWriteDeps{
-				Stdin: deepStdin(deepCarry(freezeNote, passageA), reply),
-				Learn: func(_ context.Context, args cli.LearnArgs) (string, error) {
-					learned = append(learned, args)
-
-					return "/vault/x.md", nil
-				},
-				Amend: func(_ context.Context, args cli.AmendArgs) error {
-					amended = append(amended, args)
-
-					return nil
-				},
-				Now: func() time.Time { return recordedAt }, WriteRecord: (&recordedFiles{}).write,
-				NoteExists: func(string) bool { return false },
-			}, &bytes.Buffer{})
-		if err != nil {
-			rt.Fatalf("writing: %v", err)
-		}
-
-		inCarry := func(ids ...string) {
-			for _, one := range ids {
-				if one != "" && !strings.Contains(strings.Join(held, "\n"), one) {
-					rt.Fatalf("%q is not held by the carry", one)
-				}
-			}
-		}
-
-		if len(learned) != 1 {
-			rt.Fatalf("%d notes were written for one whole lesson", len(learned))
-		}
-
-		wanted := heldOf(chunks, held)
-		if !sameSet(learned[0].ChunkSources, wanted) {
-			rt.Fatalf("the lesson has the chunk sources %v, not %v", learned[0].ChunkSources, wanted)
-		}
-
-		wantedAmend := id == freezeNote.ID && (verdict == "covered" || verdict == "near") &&
-			len(heldOf(noteChunks, held)) > 0
-		if wantedAmend != (len(amended) == 1) {
-			rt.Fatalf("%d amends for %s judged %s with the chunks %v", len(amended), id, verdict, noteChunks)
-		}
-
-		for _, args := range learned {
-			inCarry(args.ChunkSources...)
-
-			for _, tie := range args.Supersedes {
-				inCarry(strings.SplitN(tie, "|", 2)[0] + ".md")
-			}
-		}
-
-		for _, args := range amended {
-			inCarry(args.Target)
-			inCarry(args.ChunkSources...)
-		}
-	})
-}
-
-// passageA is a passage of an earlier conversation, and freezeNote a note the carry holds.
+// unexported variables.
 var (
-	passageA = auto.Candidate{ID: "earlier.md#a1", Kind: auto.KindPassage, Text: "the cutover is frozen on the last Friday"}
-	//nolint:gochecknoglobals // a fixture shared by the tests of the deep writing
 	freezeNote = auto.Candidate{
 		ID: "1.2026-10-01.production-cutover.md", Kind: auto.KindNote, Type: "fact", Situation: "planning a cutover",
 		Text: "the production cutover is frozen on Fridays",
+	}
+	passageA = auto.Candidate{
+		ID: "earlier.md#a1", Kind: auto.KindPassage, Text: "the cutover is frozen on the last Friday",
 	}
 )
 
@@ -279,6 +258,27 @@ func (d deepWriting) run(t *testing.T, learns []cli.LearnArgs, amends []cli.Amen
 	}
 }
 
+// checkLearned fails the property when the one note written for a whole lesson has a chunk source or a supersession
+// that the carry does not hold.
+func checkLearned(rt *rapid.T, learned []cli.LearnArgs, wanted []string) {
+	rt.Helper()
+
+	if len(learned) != 1 {
+		rt.Fatalf("%d notes were written for one whole lesson", len(learned))
+	}
+
+	if !sameSet(learned[0].ChunkSources, wanted) {
+		rt.Fatalf("the lesson has the chunk sources %v, not %v", learned[0].ChunkSources, wanted)
+	}
+
+	for _, tie := range learned[0].Supersedes {
+		note, _, _ := strings.Cut(tie, "|")
+		if note+".md" != freezeNote.ID {
+			rt.Fatalf("the lesson supersedes %q, which the carry does not hold", tie)
+		}
+	}
+}
+
 // deepCarry is the carry of a deep recall that holds the candidates.
 func deepCarry(candidates ...auto.Candidate) auto.Carry {
 	return auto.Carry{Cue: "prompt", Depth: auto.DepthDeep, Candidates: candidates}
@@ -299,6 +299,16 @@ func deepStdin(carry auto.Carry, reply string) *strings.Reader {
 	return strings.NewReader(string(encoded))
 }
 
+// freezeLearn is the write of freezeLesson through the learn path.
+func freezeLearn(chunks, supersedes []string) cli.LearnArgs {
+	return cli.LearnArgs{
+		Type: "fact", Slug: "production-cutover-freeze", Vault: "/vault", VaultName: "personal", Position: "top",
+		Source: "written automatically (session " + sessionID + ")", ChunkSources: chunks, Supersedes: supersedes,
+		Situation: "planning a production cutover", Subject: "the production cutover", Predicate: "is frozen on",
+		Object: "the last Friday of every month",
+	}
+}
+
 // freezeLesson is a fact lesson that lists chunks and may supersede a note.
 func freezeLesson(chunks, supersedes string) string {
 	tie := ""
@@ -311,14 +321,17 @@ func freezeLesson(chunks, supersedes string) string {
 		`"object":"the last Friday of every month"}`
 }
 
-// freezeLearn is the write of freezeLesson through the learn path.
-func freezeLearn(chunks, supersedes []string) cli.LearnArgs {
-	return cli.LearnArgs{
-		Type: "fact", Slug: "production-cutover-freeze", Vault: "/vault", VaultName: "personal", Position: "top",
-		Source: "written automatically (session " + sessionID + ")", ChunkSources: chunks, Supersedes: supersedes,
-		Situation: "planning a production cutover", Subject: "the production cutover", Predicate: "is frozen on",
-		Object: "the last Friday of every month",
+// passagesAmong returns the IDs among those given that are the carry's passage.
+func passagesAmong(ids []string) []string {
+	var kept []string
+
+	for _, one := range ids {
+		if one == passageA.ID {
+			kept = append(kept, one)
+		}
 	}
+
+	return kept
 }
 
 // quotedList is a list of strings as JSON writes it.
@@ -331,17 +344,35 @@ func quotedList(items []string) string {
 	return string(encoded)
 }
 
-// heldOf returns the IDs among those given that the carry holds, here the held ones that are passages.
-func heldOf(ids, held []string) []string {
-	var kept []string
+// recordedDeepWrite runs the writing of a deep delivery for the reply, over a carry of freezeNote and passageA, and
+// returns what the learn path and the amend were given.
+func recordedDeepWrite(rt *rapid.T, reply string) ([]cli.LearnArgs, []cli.AmendArgs) {
+	var (
+		learned []cli.LearnArgs
+		amended []cli.AmendArgs
+	)
 
-	for _, one := range ids {
-		if one == passageA.ID && slices.Contains(held, one) {
-			kept = append(kept, one)
-		}
+	err := cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", VaultName: "personal"},
+		cli.AutoWriteDeps{
+			Stdin: deepStdin(deepCarry(freezeNote, passageA), reply),
+			Learn: func(_ context.Context, args cli.LearnArgs) (string, error) {
+				learned = append(learned, args)
+
+				return "/vault/x.md", nil
+			},
+			Amend: func(_ context.Context, args cli.AmendArgs) error {
+				amended = append(amended, args)
+
+				return nil
+			},
+			Now: func() time.Time { return recordedAt }, WriteRecord: (&recordedFiles{}).write,
+			NoteExists: func(string) bool { return false },
+		}, &bytes.Buffer{})
+	if err != nil {
+		rt.Fatalf("writing: %v", err)
 	}
 
-	return kept
+	return learned, amended
 }
 
 // sameSet reports whether two lists hold the same items, whatever the order and the repeats.

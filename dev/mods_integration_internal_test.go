@@ -970,7 +970,7 @@ func Test855d2a1e_Mod_AModelThatDoesNotAnswerAndAWriteThatFailsAreReported(t *te
 				fates[call] = fate
 
 				outcome := runDeliveryDriver(t, deliveryScenario{
-					Steps: steps, Deliver: map[string]any{"exitCode": 0, "stdout": "[engram memory] The lines.\n- a.md (s): b\n"},
+					Steps: steps, Deliver: map[string]any{"exitCode": 0, "stdout": deepBlock + "\n"},
 					ModelFates: fates, FastTimers: true,
 				})
 
@@ -996,11 +996,11 @@ func Test855d2a1e_Mod_AModelThatDoesNotAnswerAndAWriteThatFailsAreReported(t *te
 		g := NewWithT(t)
 
 		outcome := runDeliveryDriver(t, deliveryScenario{
-			Steps: steps, Deliver: map[string]any{"exitCode": 0, "stdout": "[engram memory] The lines.\n- a.md (s): b\n"},
+			Steps: steps, Deliver: map[string]any{"exitCode": 0, "stdout": deepBlock + "\n"},
 			Writes: []map[string]any{{"exitCode": 1, "stdout": "", "stderr": "auto write: the vault is not there\n"}},
 		})
 
-		g.Expect(outcome.Passed.Context).To(Equal([]string{"[engram memory] The lines.\n- a.md (s): b"}), "the block, as context")
+		g.Expect(outcome.Passed.Context).To(Equal([]string{deepBlock}), "the block, as context")
 
 		writes := outcome.reports()
 
@@ -1026,11 +1026,11 @@ func Test855d2a1f_Mod_ADeepDeliveryWritesAfterTheBlockFromATimer(t *testing.T) {
 			"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": aStep(2)},
 			"recall": {"exitCode": 0, "stdout": aDeepStep(3)},
 		},
-		Deliver: map[string]any{"exitCode": 0, "stdout": "[engram memory] The lines.\n- a.md (s): b\n"},
+		Deliver: map[string]any{"exitCode": 0, "stdout": deepBlock + "\n"},
 		Replies: []string{"reply 1", "reply 2", "reply 3"},
 	})
 
-	g.Expect(outcome.Passed.Context).To(Equal([]string{"[engram memory] The lines.\n- a.md (s): b"}), "the block, as context")
+	g.Expect(outcome.Passed.Context).To(Equal([]string{deepBlock}), "the block, as context")
 	g.Expect(outcome.Settle.InFlight).To(BeZero(), "the calls in flight when the hook settled")
 	g.Expect(outcome.Settle.Commands).To(Equal(7), "the calls made when the hook settled: no write among them")
 
@@ -1059,7 +1059,7 @@ func Test855d2a1g_Mod_AGlanceWritesNothing(t *testing.T) {
 			"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": aStep(2)},
 			"recall": {"exitCode": 0, "stdout": aStep(3)},
 		},
-		Deliver: map[string]any{"exitCode": 0, "stdout": "[engram memory] The lines.\n- a.md (s): b\n"},
+		Deliver: map[string]any{"exitCode": 0, "stdout": deepBlock + "\n"},
 	})
 
 	g.Expect(outcome.Passed.Context).To(HaveLen(1), "the block, as context")
@@ -1455,6 +1455,8 @@ await settled()
 
 console.log(JSON.stringify({ returned: held ? {} : returned, held, calls, sweeps, delays, settle }))
 `
+	// deepBlock is the block the delivery prints in the tests of the write after a deep delivery.
+	deepBlock = "[engram memory] The lines.\n- a.md (s): b"
 	// deliveryDriver runs the prompt.submit hook of the module named by MOD against a host that behaves as SCENARIO says:
 	// each step of the chain exits with a code and prints a text (a step that is not named prints nothing), or runs
 	// until its time limit; its model answers with the next of the replies, or never settles unless its signal aborts
@@ -1834,17 +1836,17 @@ type deliveryScenario struct {
 	Writes []map[string]any `json:"writes,omitempty"`
 }
 
-// aStep is what a step prints for a judgement, the nth of a chain: the request for the model and the carry.
-func aStep(n int) string {
-	return fmt.Sprintf(`{"request":{"model":"sonnet","system":"S%d","prompt":"P%d","maxTokens":100},`+
-		`"carry":{"cue":"prompt","depth":"glance","window":"W%d"}}`+"\n", n, n, n)
-}
-
 // aDeepStep is what the recall prints at deep depth, the nth of a chain: the request for the model, the carry and the
 // mark that a write follows the delivery.
 func aDeepStep(n int) string {
 	return fmt.Sprintf(`{"request":{"model":"sonnet","system":"S%d","prompt":"P%d","maxTokens":100},`+
 		`"carry":{"cue":"prompt","depth":"deep","window":"W%d"},"write":true}`+"\n", n, n, n)
+}
+
+// aStep is what a step prints for a judgement, the nth of a chain: the request for the model and the carry.
+func aStep(n int) string {
+	return fmt.Sprintf(`{"request":{"model":"sonnet","system":"S%d","prompt":"P%d","maxTokens":100},`+
+		`"carry":{"cue":"prompt","depth":"glance","window":"W%d"}}`+"\n", n, n, n)
 }
 
 // carryOfDeepStep is the carry of aDeepStep as the driver decodes it.

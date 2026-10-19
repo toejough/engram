@@ -20,6 +20,9 @@ import (
 	"github.com/toejough/engram/internal/luhmann"
 )
 
+// AmendRun amends a note in place, as `engram amend` does.
+type AmendRun func(ctx context.Context, args AmendArgs) error
+
 // AutoDeliverArgs holds parsed flags for `engram auto deliver`.
 type AutoDeliverArgs struct {
 	VaultPath   string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
@@ -112,9 +115,6 @@ type AutoWriteDeps struct {
 	// NoteExists reports whether a file is in the vault.
 	NoteExists func(path string) bool
 }
-
-// AmendRun amends a note in place, as `engram amend` does.
-type AmendRun func(ctx context.Context, args AmendArgs) error
 
 // IngestRun indexes sources in the chunk index, as `engram ingest` does, and prints what it indexed.
 type IngestRun func(ctx context.Context, args IngestArgs, stdout io.Writer) error
@@ -394,6 +394,19 @@ func activationFrom(d Deps) func(ctx context.Context, vault string, note auto.Ca
 		if activateErr != nil {
 			logger.Log("auto.activate", "note=%s parent=%v: %v", note.ID, note.Parent, activateErr)
 		}
+	}
+}
+
+// amendArgsOf is the amend of a note a deep delivery amends: the chunk sources of its evidence and the fields its
+// judgement revises (855d4j).
+func amendArgsOf(amendment auto.Amendment, args AutoWriteArgs) AmendArgs {
+	fields := amendment.Fields
+
+	return AmendArgs{
+		Vault: args.VaultPath, VaultName: args.VaultName, Target: amendment.Note, ChunkSources: amendment.Chunks,
+		ChunksDir: args.ChunksDir, Situation: fields["situation"], Subject: fields["subject"],
+		Predicate: fields["predicate"], Object: fields["object"], Behavior: fields["behavior"], Impact: fields["impact"],
+		Action: fields["action"], DoneWhen: fields["done_when"], Body: fields["body"],
 	}
 }
 
@@ -850,66 +863,6 @@ func sweepEndedMark(dir, session string) string {
 	return filepath.Join(dir, session, sweepEndedFile)
 }
 
-// writeLessons writes the lessons of a reply through the learn path and adds what became of the reply, of each lesson
-// and of each lesson it leaves out to the outcomes. A failure to get a reply holds no lessons.
-func writeLessons(
-	ctx context.Context, args AutoWriteArgs, deps AutoWriteDeps, reply auto.Reply, results *outcomes, stdout io.Writer,
-) []error {
-	if reply.Failure != "" {
-		results.add(auto.RecordFailed, "", "", reply.Failure)
-
-		return nil
-	}
-
-	lessons, skipped := auto.ParseLessons(reply.Text)
-
-	for _, left := range skipped {
-		results.add(auto.RecordSkipped, "", left.Slug, left.Reason)
-	}
-
-	placements := placementsOf(reply, results)
-
-	var failures []error
-
-	for _, lesson := range lessons {
-		if covering := coveringNote(lesson.Covered, args.VaultPath, deps.NoteExists); covering != "" {
-			results.add(auto.RecordSkipped, "", lesson.Slug, "the vault already states it: "+covering)
-
-			continue
-		}
-
-		placed := auto.PlacedAt(placements, lesson.Slug, reply.Carry.Seen)
-
-		path, learnErr := deps.Learn(ctx, learnArgsOfLesson(lesson, args, reply.Session, placed))
-		if learnErr != nil {
-			failures = append(failures, fmt.Errorf("writing %s: %w", lesson.Slug, learnErr))
-
-			results.add(auto.RecordFailed, "", lesson.Slug, learnErr.Error())
-
-			continue
-		}
-
-		_, _ = fmt.Fprintln(stdout, path)
-
-		results.add(auto.RecordWritten, filepath.Base(path), lesson.Slug, "")
-	}
-
-	return failures
-}
-
-// amendArgsOf is the amend of a note a deep delivery amends: the chunk sources of its evidence and the fields its
-// judgement revises (855d4j).
-func amendArgsOf(amendment auto.Amendment, args AutoWriteArgs) AmendArgs {
-	fields := amendment.Fields
-
-	return AmendArgs{
-		Vault: args.VaultPath, VaultName: args.VaultName, Target: amendment.Note, ChunkSources: amendment.Chunks,
-		ChunksDir: args.ChunksDir, Situation: fields["situation"], Subject: fields["subject"],
-		Predicate: fields["predicate"], Object: fields["object"], Behavior: fields["behavior"], Impact: fields["impact"],
-		Action: fields["action"], DoneWhen: fields["done_when"], Body: fields["body"],
-	}
-}
-
 // writeDeep writes what the reply of a deep delivery says to write (855d4j): each lesson at the top through the learn
 // path with the passages that evidence it and the notes it corrects, and the amendment of each note it draws on. What
 // is written, left out or failed is added to the outcomes, with no turn.
@@ -960,6 +913,53 @@ func writeDeep(
 		}
 
 		results.add(auto.RecordWritten, amendment.Note, "", "")
+	}
+
+	return failures
+}
+
+// writeLessons writes the lessons of a reply through the learn path and adds what became of the reply, of each lesson
+// and of each lesson it leaves out to the outcomes. A failure to get a reply holds no lessons.
+func writeLessons(
+	ctx context.Context, args AutoWriteArgs, deps AutoWriteDeps, reply auto.Reply, results *outcomes, stdout io.Writer,
+) []error {
+	if reply.Failure != "" {
+		results.add(auto.RecordFailed, "", "", reply.Failure)
+
+		return nil
+	}
+
+	lessons, skipped := auto.ParseLessons(reply.Text)
+
+	for _, left := range skipped {
+		results.add(auto.RecordSkipped, "", left.Slug, left.Reason)
+	}
+
+	placements := placementsOf(reply, results)
+
+	var failures []error
+
+	for _, lesson := range lessons {
+		if covering := coveringNote(lesson.Covered, args.VaultPath, deps.NoteExists); covering != "" {
+			results.add(auto.RecordSkipped, "", lesson.Slug, "the vault already states it: "+covering)
+
+			continue
+		}
+
+		placed := auto.PlacedAt(placements, lesson.Slug, reply.Carry.Seen)
+
+		path, learnErr := deps.Learn(ctx, learnArgsOfLesson(lesson, args, reply.Session, placed))
+		if learnErr != nil {
+			failures = append(failures, fmt.Errorf("writing %s: %w", lesson.Slug, learnErr))
+
+			results.add(auto.RecordFailed, "", lesson.Slug, learnErr.Error())
+
+			continue
+		}
+
+		_, _ = fmt.Fprintln(stdout, path)
+
+		results.add(auto.RecordWritten, filepath.Base(path), lesson.Slug, "")
 	}
 
 	return failures
