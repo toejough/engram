@@ -86,3 +86,110 @@ func Test855d4j1_ReadDeep_ARunbookLessonIsLeftOutAndSaidSo(t *testing.T) {
 		Slug: "a-run", Reason: "a deep delivery writes facts and feedback only",
 	}))
 }
+
+func Test855d4j1_ReadDeep_ALessonOfAnUnexpectedFieldTypeIsLeftOutAndTheGoodLessonIsKept(t *testing.T) {
+	t.Parallel()
+
+	const good = `{"kind":"fact","slug":"good-one","situation":"s","covered":null,"subject":"x","predicate":"y","object":"z"}`
+
+	carry := auto.Carry{Depth: auto.DepthDeep, Candidates: []auto.Candidate{{ID: "1.old.md", Kind: auto.KindNote}}}
+
+	for name, test := range map[string]struct {
+		fault   string
+		skipped []auto.Skipped
+		ties    auto.Ties
+	}{
+		"chunks as a string": {fault: `,"chunks":"c#1"`, skipped: []auto.Skipped{{Slug: "bad-one"}}},
+		"a list of names":    {fault: `,"supersedes":["1.old.md"]`},
+		"a number":           {fault: `,"supersedes":3`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+			bad := `{"kind":"fact","slug":"bad-one","situation":"s","covered":null,"subject":"x","predicate":"y",` +
+				`"object":"z"` + test.fault + `}`
+			deep := auto.ReadDeep(`{"candidates":[],"lessons":[`+bad+`,`+good+`]}`, carry)
+
+			slugs := make([]string, 0, len(deep.Lessons))
+			for _, lesson := range deep.Lessons {
+				slugs = append(slugs, lesson.Slug)
+			}
+
+			g.Expect(slugs).To(ContainElement("good-one"))
+
+			if len(test.skipped) > 0 {
+				g.Expect(deep.Skipped).To(HaveLen(1))
+
+				if len(deep.Skipped) == 1 {
+					g.Expect(deep.Skipped[0].Slug).To(Equal("bad-one"))
+				}
+			}
+		})
+	}
+}
+
+func Test855d4j1_ReadDeep_ALessonWithNoSlugIsLeftOutByItsPlace(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	deep := auto.ReadDeep(`{"candidates":[],"lessons":[{"kind":"fact","chunks":"c#1"},`+
+		`{"kind":"fact","slug":"good-one","situation":"s","covered":null,"subject":"x","predicate":"y","object":"z"}]}`,
+		auto.Carry{})
+
+	g.Expect(deep.Lessons).To(HaveLen(1))
+	g.Expect(deep.Skipped).To(HaveLen(1))
+
+	if len(deep.Skipped) == 1 {
+		g.Expect(deep.Skipped[0].Reason).To(ContainSubstring("lesson 1"))
+	}
+}
+
+func Test855d4j1_ReadDeep_AListOfNamesIsTheTiesOfThoseNotes(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	carry := auto.Carry{Candidates: []auto.Candidate{{ID: "1.old.md", Kind: auto.KindNote}}}
+	deep := auto.ReadDeep(`{"candidates":[],"lessons":[{"kind":"fact","slug":"good-one","situation":"s","covered":null,`+
+		`"subject":"x","predicate":"y","object":"z","supersedes":["1.old.md"],"type":"updates","claim":"c"}]}`, carry)
+
+	g.Expect(deep.Lessons).To(HaveLen(1))
+
+	if len(deep.Lessons) == 1 {
+		g.Expect(deep.Lessons[0].Supersedes).To(Equal(auto.Ties{{Note: "1.old.md", Type: "updates", Claim: "c"}}))
+	}
+}
+
+func Test855d4j1_ReadDeep_AReplyWithNoCandidatesKeyOrCutShortIsNoDeepReply(t *testing.T) {
+	t.Parallel()
+
+	for name, reply := range map[string]string{
+		"no candidates key": `{"lessons":[]}`,
+		"a cut fragment":    `{"candidates":[{"id":"1.a.md","verd`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+			deep := auto.ReadDeep(reply, auto.Carry{})
+
+			g.Expect(deep.Skipped).To(HaveLen(1))
+		})
+	}
+}
+
+func Test855d4j1_ReadDeep_ASupersessionNamedWithoutItsExtensionOrWithSpacesIsStoredUnderTheNoteID(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	carry := auto.Carry{Candidates: []auto.Candidate{{ID: "1.old.md", Kind: auto.KindNote, Type: "fact"}}}
+	deep := auto.ReadDeep(`{"candidates":[],"lessons":[{"kind":"fact","slug":"good-one","situation":"s",`+
+		`"covered":null,"subject":"x","predicate":"y","object":"z","supersedes":" 1.old ","type":"updates",`+
+		`"claim":"c"}]}`, carry)
+
+	g.Expect(deep.Lessons).To(HaveLen(1))
+
+	if len(deep.Lessons) == 1 {
+		g.Expect(deep.Lessons[0].Supersedes).To(Equal(auto.Ties{{Note: "1.old.md", Type: "updates", Claim: "c"}}))
+	}
+}
