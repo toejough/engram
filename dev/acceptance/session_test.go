@@ -30,7 +30,7 @@ const (
 	// fakeAPIKey and offlineBaseURL send a prompt to an endpoint that is not there: the prompt's hooks run, the model
 	// is asked and never answers.
 	fakeAPIKey        = "sk-ant-acceptance-not-a-real-key"
-	liveBudgetUSD     = "2"
+	liveBudgetUSD     = "10"
 	liveModel         = "sonnet"
 	maxLineBytes      = 16 << 20
 	notificationKind  = "task-notification" // the origin of a background task's notification
@@ -41,7 +41,7 @@ const (
 	promptHook        = "prompt.submit" // the hook whose context the record keeps beside the prompt
 	recordFlushWait   = 10 * time.Second
 	resultsBuffered   = 16
-	sessionTimeout    = 5 * time.Minute
+	sessionTimeout    = 30 * time.Minute
 	stopGrace         = 10 * time.Second
 	tokenVariable     = "CLAUDE_CODE_OAUTH_TOKEN"
 	uuidBytes         = 16
