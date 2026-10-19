@@ -121,6 +121,28 @@ func Test855d4i1f_Write_APlacementReplyThatIsNotAListIsIgnoredAndRecorded(t *tes
 	}
 }
 
+func Test855d4i1g_Write_APlacementThatFailedIsRecordedAndTheLessonsAreWrittenAtTheTop(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	records := &recordedFiles{}
+
+	writeLearning(t, writeInput{
+		reply: factLessonReply, records: records,
+		placementFailure: "engram auto place exited with 1: boom",
+	}, []cli.LearnArgs{factLearn("top", "")})
+
+	g.Expect(records.kinds()).To(ConsistOf("written", "skipped"), "the note, and that the placement was not used")
+
+	for _, record := range records.all() {
+		if record["kind"] == "skipped" {
+			g.Expect(record["reason"]).To(And(ContainSubstring("placement was not used"),
+				ContainSubstring("engram auto place exited with 1")), "the reason")
+			g.Expect(record).NotTo(HaveKey("slug"), "the placement is no lesson")
+		}
+	}
+}
+
 // unexported constants.
 const (
 	factLessonReply = `[{"kind":"fact","slug":"staging-reset","situation":"testing on the staging database",` +
@@ -136,7 +158,9 @@ type writeInput struct {
 	reply     string
 	seen      []string
 	placement string
-	records   *recordedFiles
+	// placementFailure is why the placement could not be had, when it could not (855d2b).
+	placementFailure string
+	records          *recordedFiles
 }
 
 // factLearn is the write of the fact lesson of factLessonReply through the learn path, at a position of the order.
@@ -174,6 +198,10 @@ func writeLearning(t *testing.T, input writeInput, expected []cli.LearnArgs) str
 	fields := map[string]any{"session": sessionID, "turn": turnID, "reply": input.reply}
 	if input.placement != "" {
 		fields["placement"] = input.placement
+	}
+
+	if input.placementFailure != "" {
+		fields["placementFailure"] = input.placementFailure
 	}
 
 	if input.seen != nil {

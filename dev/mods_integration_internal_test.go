@@ -291,7 +291,7 @@ func Test793d2b1c_Mod_AStepThatFailsIsReportedToTheWriting(t *testing.T) {
 		"is ended":                     {"rejects": "the command ran for 20000 ms"},
 	}
 
-	for _, step := range []string{"moment", "judge", "place"} {
+	for _, step := range []string{"moment", "judge"} {
 		for name, failure := range failures {
 			t.Run("a "+step+" that "+name, func(t *testing.T) {
 				t.Parallel()
@@ -328,7 +328,7 @@ func Test793d2b1d_Mod_AModelThatDoesNotAnswerIsReportedToTheWriting(t *testing.T
 		"a reply with no text":         {"isAnswered": false, "reason": "empty-reply"},
 		"a call that the host rejects": {"rejects": "the cap is refused"},
 	} {
-		for call := range 3 {
+		for call := range 2 {
 			t.Run(fmt.Sprintf("%s on the call %d", name, call+1), func(t *testing.T) {
 				t.Parallel()
 				g := NewWithT(t)
@@ -492,12 +492,6 @@ func Test793d2b1j_Mod_AStageThatStallsIsEndedAtItsBoundAndReported(t *testing.T)
 		"the model's call of the judgement": {
 			"model2", []string{moment, askedMoment, judge, askedJudge, report}, "model call",
 		},
-		"the placement": {
-			"place", []string{moment, askedMoment, judge, askedJudge, place, report}, "engram auto place",
-		},
-		"the model's call of the placement": {
-			"model3", []string{moment, askedMoment, judge, askedJudge, place, askedPlace, report}, "model call",
-		},
 		"the writing": {
 			"write", []string{
 				moment, askedMoment, judge, askedJudge, place, askedPlace, "engram auto write: 20000", report,
@@ -518,6 +512,41 @@ func Test793d2b1j_Mod_AStageThatStallsIsEndedAtItsBoundAndReported(t *testing.T)
 			if len(outcome.Calls) > 0 {
 				last := outcome.Calls[len(outcome.Calls)-1]
 				g.Expect(last.Input["failure"]).To(ContainSubstring(stage.reported), "the failure names the stage")
+			}
+		})
+	}
+
+	for name, stage := range map[string]struct {
+		stalls string
+		want   []string
+		failed string
+	}{
+		"the placement": {
+			"place", []string{moment, askedMoment, judge, askedJudge, place, "engram auto write: 20000"},
+			"engram auto place",
+		},
+		"the model's call of the placement": {
+			"model3", []string{
+				moment, askedMoment, judge, askedJudge, place, askedPlace, "engram auto write: 20000",
+			}, "model call",
+		},
+	} {
+		t.Run(name+" is ended at its row and the lessons are written at the top", func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			scenario := printingChain()
+			scenario.Stalls = stage.stalls
+
+			outcome := runCaptureDriver(t, scenario)
+
+			g.Expect(outcome.stepsAndLimits()).To(Equal(stage.want), "the calls the mod made, with their time limits")
+
+			if len(outcome.Calls) > 0 {
+				last := outcome.Calls[len(outcome.Calls)-1]
+				g.Expect(last.Input["placementFailure"]).To(ContainSubstring(stage.failed), "the failure names the stage")
+				g.Expect(last.Input).To(HaveKeyWithValue("reply", "LESSONS"))
+				g.Expect(last.Input).NotTo(HaveKey("failure"), "the capture did not fail")
 			}
 		})
 	}
@@ -548,7 +577,7 @@ func Test793d2b1j_Mod_AStageThatStallsIsEndedAtItsBoundAndReported(t *testing.T)
 func Test793d2b1k_Mod_ARequestThatIsNotJSONIsAFailureOfTheJudgement(t *testing.T) {
 	t.Parallel()
 
-	for _, step := range []string{"moment", "judge", "place"} {
+	for _, step := range []string{"moment", "judge"} {
 		t.Run("a "+step+" that prints a request that is not JSON", func(t *testing.T) {
 			t.Parallel()
 			g := NewWithT(t)
@@ -1048,6 +1077,66 @@ func Test855d2b1a_Mod_APlacementThatPrintsNothingLeavesTheLessonsToBeWrittenAtTh
 
 	g.Expect(writes).To(Equal([]map[string]any{{"session": "a-session", "turn": "a-turn", "reply": "LESSONS"}}),
 		"the reply to the lessons request, and no carry and no placement reply: the placement printed neither")
+}
+
+func Test855d2b1b_Mod_APlacementThatFailsLeavesTheLessonsToBeWrittenAtTheTopAndRecorded(t *testing.T) {
+	t.Parallel()
+
+	failures := map[string]struct {
+		place  map[string]any
+		models []map[string]any
+		calls  int
+	}{
+		"a placement that exits with 1": {place: map[string]any{"exitCode": 1, "stdout": "boom\n"}, calls: 2},
+		"a placement that prints what is not a request": {
+			place: map[string]any{"exitCode": 0, "stdout": "Unknown command: auto\n"}, calls: 2,
+		},
+		"a placement that is ended": {place: map[string]any{"rejects": "the command ran for 20000 ms"}, calls: 2},
+		"a model that answers the placement with an API error": {
+			models: []map[string]any{nil, nil, {"isAnswered": false, "reason": "api-error", "status": 529}}, calls: 3,
+		},
+		"a model that rejects the placement": {
+			models: []map[string]any{nil, nil, {"rejects": "the cap is refused"}}, calls: 3,
+		},
+	}
+
+	for name, failure := range failures {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			scenario := printingChain()
+
+			if failure.place != nil {
+				scenario.Place = failure.place
+			}
+
+			for call, model := range failure.models {
+				if model != nil {
+					scenario.Models[call] = model
+				}
+			}
+
+			outcome := runCaptureDriver(t, scenario)
+
+			g.Expect(outcome.modelCalls()).To(HaveLen(failure.calls), "the model calls made before the placement failed")
+
+			writes := outcome.inputsOf("engram auto write")
+
+			g.Expect(writes).To(HaveLen(1), "the one writing: of the lessons, and not of a failure")
+
+			if len(writes) != 1 {
+				return
+			}
+
+			g.Expect(writes[0]).To(And(HaveKeyWithValue("session", "a-session"), HaveKeyWithValue("turn", "a-turn"),
+				HaveKeyWithValue("reply", "LESSONS")))
+			g.Expect(writes[0]["placementFailure"]).To(ContainSubstring("place"), "the failure names the placement")
+			g.Expect(writes[0]).NotTo(HaveKey("failure"), "the capture did not fail")
+			g.Expect(writes[0]).NotTo(HaveKey("carry"), "no carry: the placement gave none")
+			g.Expect(writes[0]).NotTo(HaveKey("placement"), "no placement reply")
+		})
+	}
 }
 
 // TestMods_EveryJavaScriptModuleParses: the real mods parse under the real node, and the real node rejects a broken
