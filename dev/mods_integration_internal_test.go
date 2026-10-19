@@ -785,6 +785,47 @@ func Test793d2c1f_Mod_ASweepThatGaveUpBeforeIsNotReportedAgain(t *testing.T) {
 	g.Expect(outcome.reports()).To(BeEmpty(), "the reports to the writing")
 }
 
+// Test855b92_Mod_ADeepDeliveryWritesWhenItsDeliveryIsEmptyAndNotWhenItFails runs the mod under node against a stand-in
+// host whose delivery prints nothing, or exits with 1.
+func Test855b92_Mod_ADeepDeliveryWritesWhenItsDeliveryIsEmptyAndNotWhenItFails(t *testing.T) {
+	t.Parallel()
+
+	steps := map[string]map[string]any{
+		"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": aStep(2)},
+		"recall": {"exitCode": 0, "stdout": aDeepStep()},
+	}
+
+	t.Run("an empty delivery", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+		outcome := runDeliveryDriver(t, deliveryScenario{Steps: steps, Deliver: map[string]any{"exitCode": 0, "stdout": ""}})
+
+		g.Expect(outcome.Passed.Context).To(BeEmpty(), "no block")
+
+		writes := outcome.reports()
+
+		g.Expect(writes).To(HaveLen(1), "the write")
+
+		if len(writes) == 1 {
+			g.Expect(writes[0]).To(HaveKey("cue"))
+		}
+	})
+
+	t.Run("a delivery that fails", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+		outcome := runDeliveryDriver(t, deliveryScenario{
+			Steps: steps, Deliver: map[string]any{"exitCode": 1, "stdout": "", "stderr": "auto deliver: no\n"},
+		})
+
+		for _, report := range outcome.reports() {
+			g.Expect(report).NotTo(HaveKey("cue"), "only the report of the failure, no write")
+		}
+	})
+}
+
 // Test855d2a1a_Mod_TheStepsRunInOrderEachGivenTheReplyAndTheCarryBefore runs the mod under node against a stand-in host
 // that records every command the mod runs and every request it asks the model for, in order.
 func Test855d2a1a_Mod_TheStepsRunInOrderEachGivenTheReplyAndTheCarryBefore(t *testing.T) {
@@ -956,7 +997,7 @@ func Test855d2a1e_Mod_AModelThatDoesNotAnswerAndAWriteThatFailsAreReported(t *te
 
 	steps := map[string]map[string]any{
 		"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": aStep(2)},
-		"recall": {"exitCode": 0, "stdout": aDeepStep(3)},
+		"recall": {"exitCode": 0, "stdout": aDeepStep()},
 	}
 
 	for name, fate := range map[string]string{"gives no text": "empty", "rejects the call": "rejects",
@@ -1024,7 +1065,7 @@ func Test855d2a1f_Mod_ADeepDeliveryWritesAfterTheBlockFromATimer(t *testing.T) {
 	outcome := runDeliveryDriver(t, deliveryScenario{
 		Steps: map[string]map[string]any{
 			"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": aStep(2)},
-			"recall": {"exitCode": 0, "stdout": aDeepStep(3)},
+			"recall": {"exitCode": 0, "stdout": aDeepStep()},
 		},
 		Deliver: map[string]any{"exitCode": 0, "stdout": deepBlock + "\n"},
 		Replies: []string{"reply 1", "reply 2", "reply 3"},
@@ -1040,7 +1081,7 @@ func Test855d2a1f_Mod_ADeepDeliveryWritesAfterTheBlockFromATimer(t *testing.T) {
 
 	if len(writes) == 1 {
 		g.Expect(writes[0]).To(Equal(map[string]any{
-			"session": "a-session", "cue": "prompt", "reply": "reply 3", "carry": carryOfDeepStep(3),
+			"session": "a-session", "cue": "prompt", "reply": "reply 3", "carry": carryOfDeepStep(),
 		}), "the session's ID, the cue, the reply to the candidate request and the carry")
 	}
 
@@ -1057,53 +1098,12 @@ func Test855d2a1f_Mod_TwoDeepDeliveriesOfASessionWriteOneAfterTheOther(t *testin
 	outcome := runDeliveryDriver(t, deliveryScenario{
 		Steps: map[string]map[string]any{
 			"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": aStep(2)},
-			"recall": {"exitCode": 0, "stdout": aDeepStep(3)},
+			"recall": {"exitCode": 0, "stdout": aDeepStep()},
 		},
 		Deliver: map[string]any{"exitCode": 0, "stdout": deepBlock + "\n"}, Prompts: 2, WriteDelayMs: 20,
 	})
 
 	g.Expect(outcome.WriteEvents).To(Equal([]string{"start", "end", "start", "end"}), "the writes, one after the other")
-}
-
-// Test855b92_Mod_ADeepDeliveryWritesWhenItsDeliveryIsEmptyAndNotWhenItFails runs the mod under node against a stand-in
-// host whose delivery prints nothing, or exits with 1.
-func Test855b92_Mod_ADeepDeliveryWritesWhenItsDeliveryIsEmptyAndNotWhenItFails(t *testing.T) {
-	t.Parallel()
-
-	steps := map[string]map[string]any{
-		"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": aStep(2)},
-		"recall": {"exitCode": 0, "stdout": aDeepStep(3)},
-	}
-
-	t.Run("an empty delivery", func(t *testing.T) {
-		t.Parallel()
-
-		g := NewWithT(t)
-		outcome := runDeliveryDriver(t, deliveryScenario{Steps: steps, Deliver: map[string]any{"exitCode": 0, "stdout": ""}})
-
-		g.Expect(outcome.Passed.Context).To(BeEmpty(), "no block")
-
-		writes := outcome.reports()
-
-		g.Expect(writes).To(HaveLen(1), "the write")
-
-		if len(writes) == 1 {
-			g.Expect(writes[0]).To(HaveKey("cue"))
-		}
-	})
-
-	t.Run("a delivery that fails", func(t *testing.T) {
-		t.Parallel()
-
-		g := NewWithT(t)
-		outcome := runDeliveryDriver(t, deliveryScenario{
-			Steps: steps, Deliver: map[string]any{"exitCode": 1, "stdout": "", "stderr": "auto deliver: no\n"},
-		})
-
-		for _, report := range outcome.reports() {
-			g.Expect(report).NotTo(HaveKey("cue"), "only the report of the failure, no write")
-		}
-	})
 }
 
 // Test855d2a1g_Mod_AGlanceWritesNothing runs the mod under node against a stand-in host whose recall prints a request
@@ -1906,9 +1906,11 @@ type deliveryScenario struct {
 	WriteDelayMs int `json:"writeDelayMs,omitempty"`
 }
 
-// aDeepStep is what the recall prints at deep depth, the nth of a chain: the request for the model, the carry and the
+// aDeepStep is what the recall prints at deep depth, the third of a chain: the request for the model, the carry and the
 // mark that a write follows the delivery.
-func aDeepStep(n int) string {
+func aDeepStep() string {
+	const n = 3
+
 	return fmt.Sprintf(`{"request":{"model":"sonnet","system":"S%d","prompt":"P%d","maxTokens":100},`+
 		`"carry":{"cue":"prompt","depth":"deep","window":"W%d"},"write":true}`+"\n", n, n, n)
 }
@@ -1920,8 +1922,8 @@ func aStep(n int) string {
 }
 
 // carryOfDeepStep is the carry of aDeepStep as the driver decodes it.
-func carryOfDeepStep(n int) map[string]any {
-	return map[string]any{"cue": "prompt", "depth": "deep", "window": fmt.Sprintf("W%d", n)}
+func carryOfDeepStep() map[string]any {
+	return map[string]any{"cue": "prompt", "depth": "deep", "window": "W3"}
 }
 
 // carryOfStep is the carry of aStep as the driver decodes it.

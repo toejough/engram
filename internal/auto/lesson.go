@@ -236,7 +236,8 @@ func readList(text string) (lessons []Lesson, skipped []Skipped, ended, isList b
 
 		var lesson Lesson
 
-		if entryErr := json.Unmarshal(entry, &lesson); entryErr != nil {
+		entryErr := json.Unmarshal(entry, &lesson)
+		if entryErr != nil {
 			skipped = append(skipped, Skipped{
 				Slug:   shownSlug(lesson.Slug),
 				Reason: fmt.Sprintf("lesson %d has a field of the wrong type", len(lessons)+len(skipped)+1),

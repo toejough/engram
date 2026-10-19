@@ -103,41 +103,6 @@ func Test855a2a1b_ADeepDeliveryWritesTheLessonTheVaultLacks(t *testing.T) {
 	})
 }
 
-// passageIDs returns the IDs of the passages the blocks deliver: each line "- <ID> (passage): <text>".
-func passageIDs(blocks []string) []string {
-	var ids []string
-
-	for _, block := range blocks {
-		for line := range strings.SplitSeq(block, "\n") {
-			if id, _, found := strings.Cut(strings.TrimPrefix(line, "- "), " (passage)"); found && strings.HasPrefix(line, "- ") {
-				ids = append(ids, id)
-			}
-		}
-	}
-
-	return ids
-}
-
-// sourcesOf returns the entries of the list that the "sources:" line of a note's front matter begins.
-func sourcesOf(text string) []string {
-	var sources []string
-
-	listed := false
-
-	for line := range strings.SplitSeq(text, "\n") {
-		switch {
-		case line == "sources:":
-			listed = true
-		case listed && strings.HasPrefix(strings.TrimSpace(line), "- "):
-			sources = append(sources, strings.Trim(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "- ")), `"'`))
-		default:
-			listed = false
-		}
-	}
-
-	return sources
-}
-
 // unexported constants.
 const (
 	// askPlanCutover is a prompt of a decision that cannot be undone, which the passage of freezeConversation applies
@@ -176,4 +141,40 @@ func (m *machine) noteWrittenAfterBlock(name string) time.Duration {
 	m.t.Fatalf("the note %s is gone", name)
 
 	return 0
+}
+
+// passageIDs returns the IDs of the passages the blocks deliver: each line "- <ID> (passage): <text>".
+func passageIDs(blocks []string) []string {
+	var ids []string
+
+	for _, block := range blocks {
+		for line := range strings.SplitSeq(block, "\n") {
+			id, _, found := strings.Cut(strings.TrimPrefix(line, "- "), " (passage)")
+			if found && strings.HasPrefix(line, "- ") {
+				ids = append(ids, id)
+			}
+		}
+	}
+
+	return ids
+}
+
+// sourcesOf returns the entries of the list that the "sources:" line of a note's front matter begins.
+func sourcesOf(text string) []string {
+	var sources []string
+
+	listed := false
+
+	for line := range strings.SplitSeq(text, "\n") {
+		switch {
+		case line == "sources:":
+			listed = true
+		case listed && strings.HasPrefix(strings.TrimSpace(line), "- "):
+			sources = append(sources, strings.Trim(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "- ")), `"'`))
+		default:
+			listed = false
+		}
+	}
+
+	return sources
 }
