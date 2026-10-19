@@ -358,7 +358,7 @@ func (m *machine) hasMod() {
 		m.t.Fatalf("finding the module: %v", err)
 	}
 
-	m.installMod(filepath.Join(root, "agent-instructions", "mods", modName))
+	m.installMod(modName, filepath.Join(root, "agent-instructions", "mods", modName))
 }
 
 // hasPi installs Pi's directory on the machine.
@@ -484,11 +484,11 @@ func (m *machine) indexIsBusy() {
 }
 
 // installMod puts a mod's files in the engram-owned root and a link to them in Claude Code's skills directory, under
-// the name of the mod.
-func (m *machine) installMod(source string) {
+// the given name.
+func (m *machine) installMod(name, source string) {
 	m.t.Helper()
 
-	target := filepath.Join(m.claudeDir, "engram", "skills", modName)
+	target := filepath.Join(m.claudeDir, "engram", "skills", name)
 
 	copyErr := copyTree(source, target)
 	if copyErr != nil {
@@ -497,7 +497,7 @@ func (m *machine) installMod(source string) {
 
 	mkdirAll(m.t, filepath.Join(m.claudeDir, "skills"))
 
-	linkErr := os.Symlink(target, filepath.Join(m.claudeDir, "skills", modName))
+	linkErr := os.Symlink(target, filepath.Join(m.claudeDir, "skills", name))
 	if linkErr != nil {
 		m.t.Fatalf("linking the mod: %v", linkErr)
 	}
@@ -861,7 +861,8 @@ func (m *machine) stepWraps(step, action string) {
 
 // stepsAreRecorded puts an engram on the PATH that keeps what the steps of the flows were given and printed, and runs
 // the machine's own engram for them and for anything else: the debug log says that the moment found nothing, and no
-// log line says what the recall found. Each run keeps its own files, the last of each step is kept under the step's
+// log line says what the recall found. Each run keeps its own files (its input, its output and, when it has exited, an
+// empty file named done), the last of each step is kept under the step's
 // name, because the steps of one turn and the next prompt run at once.
 func (m *machine) stepsAreRecorded() {
 	m.t.Helper()
@@ -871,7 +872,7 @@ func (m *machine) stepsAreRecorded() {
 
 	m.wrapsEngram(dir, "#!/bin/sh\ncase \"$1 $2\" in\n\"auto deliver\"|\"auto write\"|\"auto moment\"|\"auto phrases\"|"+
 		"\"auto recall\"|\"auto judge\"|\"auto place\")\nf='"+dir+"/'\"$2\"-$$\ncat > \"$f.in\"\n'"+engram+
-		"' \"$@\" < \"$f.in\" > \"$f.out\"\ncode=$?\ncat \"$f.out\"\ncp \"$f.out\" '"+dir+"/'\"$2\".out\ncp \"$f.in\" '"+dir+
+		"' \"$@\" < \"$f.in\" > \"$f.out\"\ncode=$?\n: > \"$f.done\"\ncat \"$f.out\"\ncp \"$f.out\" '"+dir+"/'\"$2\".out\ncp \"$f.in\" '"+dir+
 		"/'\"$2\".in\nexit $code\n;;\nesac\nexec '"+engram+"' \"$@\"\n")
 }
 

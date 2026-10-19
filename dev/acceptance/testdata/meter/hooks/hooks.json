@@ -1,0 +1,4 @@
+{
+  "description": "The meter of the measurements of change 855",
+  "modules": ["./register.js"]
+}

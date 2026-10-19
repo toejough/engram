@@ -226,6 +226,13 @@ func (m *machine) path() string {
 func (m *machine) run(dir string, extraEnv []string, name string, args ...string) result {
 	m.t.Helper()
 
+	return m.runWithInput(dir, "", extraEnv, name, args...)
+}
+
+// runWithInput is run with the text the command is given on its standard input.
+func (m *machine) runWithInput(dir, input string, extraEnv []string, name string, args ...string) result {
+	m.t.Helper()
+
 	env := m.env(extraEnv...)
 	m.assertIsolated(dir, env)
 
@@ -235,6 +242,10 @@ func (m *machine) run(dir string, extraEnv []string, name string, args ...string
 	command := exec.CommandContext(ctx, name, args...)
 	command.Dir = dir
 	command.Env = env
+
+	if input != "" {
+		command.Stdin = strings.NewReader(input)
+	}
 
 	var stdout, stderr bytes.Buffer
 

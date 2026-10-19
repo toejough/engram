@@ -579,6 +579,7 @@ func (s *session) turnOf(prompt, stdout string) *turn {
 
 	found := &turn{rows: rows[start:end]}
 	found.reply, found.cost = resultOf(stdout)
+	found.resultLine = stdout
 
 	return found
 }
@@ -696,8 +697,10 @@ type turn struct {
 	rows  []transcriptRow // from the prompt's own row to the row before the next prompt's
 	reply string          // the agent's final text
 	cost  float64         // dollars
-	sent  time.Time       // when the test sent the prompt to the running session; zero for a prompt of its own run
-	shown []string        // the text of the log lines the mod showed the user with the prompt
+	// resultLine is the result event the process printed for the turn, as it printed it
+	resultLine string
+	sent       time.Time // when the test sent the prompt to the running session; zero for a prompt of its own run
+	shown      []string  // the text of the log lines the mod showed the user with the prompt
 	// answered is when the process printed the result of the turn, for a prompt the test sent to the running session
 	answered time.Time
 }

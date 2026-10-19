@@ -149,7 +149,7 @@ func (m *machine) hasProbe() {
 		m.t.Fatalf("finding the module: %v", err)
 	}
 
-	m.installMod(filepath.Join(root, "dev", "acceptance", "testdata", "probe"))
+	m.installMod(modName, filepath.Join(root, "dev", "acceptance", "testdata", "probe"))
 }
 
 // requestLog is the session's record of its requests to the model. The record holds a request as the messages it keeps
