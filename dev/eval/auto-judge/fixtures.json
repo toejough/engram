@@ -936,5 +936,69 @@
         "deep"
       ]
     }
+  },
+  "status-after-weighty-context": {
+    "stage": "moment",
+    "about": "855b117: after a conversation about a weighty change, a question of what is next, with no decision in it, is never deep",
+    "notes": [],
+    "rows": [
+      {
+        "user": "We decided to make the automatic channel follow the recall and learn skills step by step, and to drop the 8-second hold. That changes how every prompt is delivered, and we cannot easily go back."
+      },
+      {
+        "agent": "Understood. The follow-on change replaces the delivery with judged steps; the hold is dropped."
+      },
+      {
+        "user": "Good. Now do the dogfood fixes in order. Fix group 1 first."
+      },
+      {
+        "tool": "Bash",
+        "result": "ok  \tgithub.com/toejough/engram/internal/auto"
+      },
+      {
+        "agent": "Group 1 is committed: typed turns are in the window, a bad reply fails with its ends, and an older mod's turn is skipped."
+      }
+    ],
+    "turn": {
+      "text": "what's next?"
+    },
+    "expect": {
+      "depth": [
+        "none",
+        "glance"
+      ]
+    }
+  },
+  "status-after-weighty-context-2": {
+    "stage": "moment",
+    "about": "855b117: after a conversation about a weighty change, a question of what is next, with no decision in it, is never deep",
+    "notes": [],
+    "rows": [
+      {
+        "user": "We decided to make the automatic channel follow the recall and learn skills step by step, and to drop the 8-second hold. That changes how every prompt is delivered, and we cannot easily go back."
+      },
+      {
+        "agent": "Understood. The follow-on change replaces the delivery with judged steps; the hold is dropped."
+      },
+      {
+        "user": "Good. Now do the dogfood fixes in order. Fix group 1 first."
+      },
+      {
+        "tool": "Bash",
+        "result": "ok  \tgithub.com/toejough/engram/internal/auto"
+      },
+      {
+        "agent": "Group 1 is committed: typed turns are in the window, a bad reply fails with its ends, and an older mod's turn is skipped."
+      }
+    ],
+    "turn": {
+      "text": "ok. status? what is left on the change?"
+    },
+    "expect": {
+      "depth": [
+        "none",
+        "glance"
+      ]
+    }
   }
 }
