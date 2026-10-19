@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -636,11 +637,25 @@ func Test855d4g1f_Judge_AReplyThatIsNoMomentReplyFailsWithItsEnds(t *testing.T) 
 	g.Expect(err).To(MatchError(ContainSubstring(string(runes[len(runes)-replyEnd:]))), "the last 80 characters")
 	g.Expect(err.Error()).NotTo(ContainSubstring(secret), "a credential in the reply is redacted")
 
-	// the failure is recorded as the mod hands it over, and the record keeps a reason to 300 characters
-	recorded := auto.RecordedReason("engram auto judge exited with 1: auto judge: " + err.Error())
+	// the failure is recorded as the mod hands it over, and the line the owner is shown is the activity line of the
+	// record, which keeps no more than 240 characters: both ends of the reply survive in it
+	recorded := auto.RecordedReason("engram auto judge exited with 1: Error: auto judge: " + err.Error())
 
 	g.Expect(recorded).To(ContainSubstring(string(runes[:replyEnd])), "the record keeps the beginning of the reply")
 	g.Expect(recorded).To(ContainSubstring(string(runes[len(runes)-replyEnd:])), "and its end")
+
+	lines := auto.ActivityLines([]auto.Record{{
+		At: time.Date(2026, time.October, 19, 9, 30, 0, 0, time.UTC), Kind: auto.RecordFailed, Reason: recorded,
+	}})
+
+	g.Expect(lines).To(HaveLen(1))
+
+	shown := lines[0].Text
+
+	g.Expect(utf8.RuneCountInString(shown)).To(BeNumerically("<=", shownBound), "the shown line")
+	g.Expect(shown).To(ContainSubstring(string(runes[:replyEnd])), "the shown line has the beginning of the reply")
+	g.Expect(shown).To(ContainSubstring(string(runes[len(runes)-replyEnd:])), "and its end")
+	g.Expect(shown).To(ContainSubstring("learn-moment reply"), "and names the step")
 }
 
 // unexported constants.
@@ -650,7 +665,7 @@ const (
 	maxFragments = 8
 	maxMessages  = 6
 	// replyEnd is how many characters of each end of a reply a failure holds (855d4g1f).
-	replyEnd = 80
+	replyEnd = 40
 	// the rows of the recorded session by their number in its file, which counts from 1: a real record that Claude Code
 	// 2.1.302 wrote, in which the agent invoked a skill, started a command in the background, was told of its end by a
 	// task notification, and the user ran /context
@@ -667,6 +682,8 @@ const (
 	rowSkillBody         = 4
 	rowSkillCall         = 2
 	rowSkillResult       = 3
+	// shownBound is how many characters a line shown to the user holds at most (793d4p).
+	shownBound = 240
 )
 
 //go:embed testdata/session_with_harness_rows.jsonl
