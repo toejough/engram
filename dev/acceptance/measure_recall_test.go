@@ -144,3 +144,6 @@ func chainRows(chains []chain) [][]string {
 func chainsOfCue(chains []chain, cue string) []chain {
 	return slices.DeleteFunc(slices.Clone(chains), func(each chain) bool { return each.steps[0].cue() != cue })
 }
+
+// queryPhrases are the phrases of the engram queries that a shell command runs.
+func queryPhrases(_ string) []string { return nil }
