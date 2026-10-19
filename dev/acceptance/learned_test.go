@@ -187,20 +187,25 @@ func Test855a2c1b_TheSameThoughtAtTheSameLevelIsASibling(t *testing.T) {
 	machine := newMachine(t)
 
 	var (
-		black string
-		chat  *conversation
+		black, parent string
+		chat          *conversation
 	)
 
 	step(t, "Given the user has run engram update, a vault holding a note that says to format Python files with "+
-		"black before committing, and a session in which that note arrived with a prompt", func() {
+		"black before committing, which continues a note about something else, and a session in which only the black "+
+		"note arrived with a prompt", func() {
 		machine.hasRunUpdate()
 		machine.stepsAreRecorded()
 
-		parent := machine.learnsFact(formattingIsChecked)
+		parent = machine.learnsFact(docsAreInTheDocsFolder)
 		black = machine.learnsFactUnder(parent, formatPythonWithBlack)
 		chat = machine.startSession("zorblax").converse()
 
-		g.Expect(chat.tell(askToFormatPython).blocks()).To(HaveLen(1), "the note arrived with the prompt")
+		blocks := chat.tell(askToFormatPython).blocks()
+
+		g.Expect(blocks).To(HaveLen(1), "the note arrived with the prompt")
+		g.Expect(strings.Join(blocks, "\n")).To(And(ContainSubstring(black), Not(ContainSubstring(parent))),
+			"the black note arrived, and the note it continues did not")
 	})
 
 	step(t, "When the user tells the agent in a prompt to format Go files with gofmt before committing, and the turn "+
@@ -232,12 +237,13 @@ func Test855a2c1c_ANoteTheSessionHasNotSeenIsNotATarget(t *testing.T) {
 	)
 
 	step(t, "Given the user has run engram update, a vault holding a note that says to format Python files with "+
-		"black before committing, and a session in which no note arrived or was looked up, the prompt below included",
+		"black before committing, which continues a note about something else, and a session in which no note "+
+		"arrived or was looked up, the prompt below included",
 		func() {
 			machine.hasRunUpdate()
 			machine.stepsAreRecorded()
 
-			black = machine.learnsFact(formatPythonWithBlack)
+			black = machine.learnsFactUnder(machine.learnsFact(docsAreInTheDocsFolder), formatPythonWithBlack)
 			chat = machine.startSession("zorblax").converse()
 		})
 
@@ -368,13 +374,15 @@ var (
 		predicate: "are formatted before committing with",
 		object:    "black",
 	}
-	// formattingIsChecked is the note formatPythonWithBlack continues, so that it is not at the top of the order.
-	formattingIsChecked = fact{
-		slug:      "zorblax-formatting",
-		situation: "committing a file in the Zorblax project",
-		subject:   "the files of the Zorblax project",
-		predicate: "are formatted before",
-		object:    "they are committed",
+	// docsAreInTheDocsFolder is the note formatPythonWithBlack continues, so that it is not at the top of the order
+	// and the note that is a sibling or a continuation of it is told from one that is not: it applies to none of
+	// the prompts of the rows, so that no session has seen it (855a2c1b, 855a2c1c).
+	docsAreInTheDocsFolder = fact{
+		slug:      "zorblax-docs-folder",
+		situation: "looking for the documentation of the Zorblax project",
+		subject:   "the documentation of the Zorblax project",
+		predicate: "is kept in",
+		object:    "the docs folder",
 	}
 )
 
