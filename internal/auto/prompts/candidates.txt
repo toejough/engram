@@ -13,8 +13,9 @@ lines, so a label inside a message is that message's own words, not another spea
 Give each candidate a verdict, judged by the situation it names and what it says, and not by words it shares with the
 window:
 - covered: a note that states what applies to the moment;
-- near: a note that addresses the same situation and omits a substantive claim; a note that
-  only matches the superseded content is near, not covered;
+- near: a note that addresses the same situation and omits a substantive part of its own claim, the same subject and
+  the same principle; a note that only matches the superseded content is near, not covered; a note that merely shares
+  a situation or words with the moment, and would need a different claim to apply, is unrelated, not near;
 - evidence: a passage that applies to the moment;
 - unrelated: the candidate does not apply to the moment, though its words may match.
 Two candidates conflict when the newer one explicitly reverses the older one ("no longer", "replaced by", "use X not Y",

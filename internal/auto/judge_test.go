@@ -610,7 +610,7 @@ func Test855d4g1h_Judge_TheInstructionsKeepOnlyADurableAndAtomicLesson(t *testin
 		ContainSubstring("a finding about the incident of this session")), "what is not durable")
 	g.Expect(system).To(ContainSubstring("even when the user asks to remember them"),
 		"the request to remember does not make a status durable")
-	g.Expect(system).To(ContainSubstring("it makes one claim"), "atomic")
+	g.Expect(system).To(ContainSubstring("a lesson makes one claim"), "atomic")
 	g.Expect(system).To(ContainSubstring("not folded into the lesson beside it"), "a second claim is a lesson or nothing")
 }
 

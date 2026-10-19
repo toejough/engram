@@ -224,7 +224,14 @@ func RunAutoJudge(ctx context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, s
 
 	request, found, judgeErr := auto.Judge(ctx, record, turn.TurnEnd,
 		func(ctx context.Context, text string) ([]auto.Note, error) {
-			return lookUpNotes(ctx, args.VaultPath, text, deps.Query)
+			near, lookupErr := lookUpNotes(ctx, args.VaultPath, text, deps.Query)
+			if lookupErr != nil {
+				return nil, lookupErr
+			}
+
+			written := auto.SeenNotes(vaultNotes(deps.ReadDir, deps.ReadFile, args.VaultPath), "", turn.Session)
+
+			return withWritten(near, written), nil
 		})
 	if judgeErr != nil {
 		return fmt.Errorf("auto judge: %w", judgeErr)
@@ -324,6 +331,8 @@ func RunAutoWrite(ctx context.Context, args AutoWriteArgs, deps AutoWriteDeps, s
 
 // unexported constants.
 const (
+	// maxWrittenNotes is how many of the notes written in the session the judgement is shown at most (855b117).
+	maxWrittenNotes = 20
 	// minSiblingSegments is how many segments the ID of a note has at least to have a sibling: a note at the top has
 	// none, and a sibling of it is another note at the top.
 	minSiblingSegments = 2
@@ -890,6 +899,22 @@ func sweepEndedMark(dir, session string) string {
 	}
 
 	return filepath.Join(dir, session, sweepEndedFile)
+}
+
+// withWritten is the notes nearest to a turn with the notes the session wrote earlier, the last maxWrittenNotes of
+// them, after them: a note that is both is shown once (855b117).
+func withWritten(near, written []auto.Note) []auto.Note {
+	written = written[max(len(written)-maxWrittenNotes, 0):]
+	notes := make([]auto.Note, 0, len(near)+len(written))
+	notes = append(notes, near...)
+
+	for _, note := range written {
+		if !slices.ContainsFunc(near, func(one auto.Note) bool { return one.Path == note.Path }) {
+			notes = append(notes, note)
+		}
+	}
+
+	return notes
 }
 
 // writeDeep writes what the reply of a deep delivery says to write (855d4j): each lesson at the top through the learn

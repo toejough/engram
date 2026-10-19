@@ -24,6 +24,7 @@ Choose the depth of the recall for the moment:
   request that one tool call or shallow thinking settles;
 - glance: the moment is one for recall, and reading the vault is enough;
 - deep: the moment is one for recall, and the decision is weighty or irreversible, or a glance would flag a gap it
-  cannot resolve.
+  cannot resolve. A question about the status or progress of the work or about what comes next, with no decision in it,
+  is never deep: it is none or glance.
 Reply with only the JSON object {"depth":"none"}, {"depth":"glance"} or {"depth":"deep"}, no code fence and no other
 text, and no phrase of any kind.
