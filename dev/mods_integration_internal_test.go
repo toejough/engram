@@ -347,7 +347,8 @@ func Test793d2b1d_Mod_AModelThatDoesNotAnswerIsReportedToTheWriting(t *testing.T
 
 				g.Expect(reports[0]).To(HaveKeyWithValue("turn", "a-turn"))
 				g.Expect(reports[0]).NotTo(HaveKey("reply"))
-				g.Expect(reports[0]["failure"]).To(ContainSubstring("model call"))
+				g.Expect(reports[0]["failure"]).To(ContainSubstring([]string{"moment", "judge"}[call]+": the model call"),
+					"the failure names the step whose request the model was asked for")
 				g.Expect(outcome.modelCalls()).To(HaveLen(call+1), "the calls after the failed one were never made")
 			})
 		}
