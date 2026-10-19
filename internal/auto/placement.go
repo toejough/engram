@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"slices"
+	"strings"
 )
 
 // Exported constants.
@@ -46,7 +47,7 @@ type Supersession struct {
 func ParsePlacements(reply string) ([]Placement, error) {
 	var placements []Placement
 
-	readErr := json.Unmarshal([]byte(unfenced(reply)), &placements)
+	readErr := json.Unmarshal([]byte(placementsOf(reply)), &placements)
 	if readErr != nil {
 		return nil, ErrPlacementReply
 	}
@@ -79,6 +80,26 @@ func PlacedAt(placements []Placement, slug string, seen []string) Placed {
 	}
 
 	return placed
+}
+
+// placementsOf is the list of a placement reply: the reply, unfenced, or, when the model reasoned before it, what runs
+// from the last line that opens a list and ends the reply (855d4i).
+func placementsOf(reply string) string {
+	text := unfenced(reply)
+
+	if json.Valid([]byte(text)) {
+		return text
+	}
+
+	for at := strings.LastIndex(text, "\n["); at >= 0; at = strings.LastIndex(text[:at], "\n[") {
+		candidate := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(text[at:]), "```"))
+
+		if json.Valid([]byte(candidate)) {
+			return candidate
+		}
+	}
+
+	return text
 }
 
 // isSupersedesType reports whether a type is one of the ties a lesson has with the note it supersedes (792a15h).

@@ -76,7 +76,7 @@ func LearnMoment(reply string) (bool, error) {
 		Learn *bool `json:"learn"`
 	}
 
-	readErr := json.Unmarshal([]byte(unfenced(reply)), &parsed)
+	readErr := json.Unmarshal([]byte(objectOf(reply, "learn")), &parsed)
 	if readErr != nil || parsed.Learn == nil {
 		return false, ErrLearnReply
 	}

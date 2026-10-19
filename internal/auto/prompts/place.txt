@@ -15,7 +15,8 @@ Also list, for each lesson, the seen notes that the lesson corrects, narrows or 
 note's file name as "note", a "type" and a "claim": "updates" when the lesson replaces what the note says with a newer
 value or fact, "narrows" when it limits the note to a part of its claim, "refutes" when it shows the note is wrong, and
 the claim of the note that changes, in one short sentence. A lesson that only adds to a note supersedes nothing.
-Reply with only a JSON array, no code fence and no other text, with one object for each lesson, with the keys slug,
+Do not explain or reason in the reply: the first character of the reply is [ and the last is ]. Reply with only a JSON
+array, no code fence and no other text, with one object for each lesson, with the keys slug,
 position, target and supersedes (a list, empty when the lesson supersedes nothing). A shape only, whatever the content:
 [{"slug":"a-slug","position":"continuation","target":"1.2026-01-02.a-note.md","supersedes":[]},
 {"slug":"another-slug","position":"top","target":"","supersedes":[{"note":"2.2026-01-02.an-older-note.md",

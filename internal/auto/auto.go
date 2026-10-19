@@ -156,7 +156,7 @@ func chosenOf(request Request, held Held) ([]Candidate, error) {
 		Candidates *[]verdict `json:"candidates"`
 	}
 
-	readErr := json.Unmarshal([]byte(objectOf(request.Reply)), &reply)
+	readErr := json.Unmarshal([]byte(objectOf(request.Reply, "candidates")), &reply)
 	if readErr != nil || reply.Candidates == nil {
 		return nil, ErrCandidatesReply
 	}
@@ -219,16 +219,16 @@ func namedIn(text, id string) bool {
 	return basename != "" && strings.Contains(text, basename)
 }
 
-// objectOf is the object of a reply: the reply, unfenced, or, when the model reasoned before it, what runs from the
-// last `{"candidates"` on (855d4c).
-func objectOf(reply string) string {
+// objectOf is the object of a reply that begins with a key: the reply, unfenced, or, when the model reasoned before it,
+// what runs from the last `{"<key>"` on (855d4c, 855d4g).
+func objectOf(reply, key string) string {
 	text := unfenced(reply)
 
 	if json.Valid([]byte(text)) {
 		return text
 	}
 
-	at := strings.LastIndex(text, `{"candidates"`)
+	at := strings.LastIndex(text, `{"`+key+`"`)
 	if at < 0 {
 		return text
 	}

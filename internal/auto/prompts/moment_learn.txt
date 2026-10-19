@@ -13,4 +13,4 @@ uncertain choice succeeded with observable evidence. A confirmed approach that i
 for a recurring task is a lesson too. A guess, a plan not yet carried out, chatter, a plain question and its answer, and
 a bare thanks that names no approach are not.
 Reply with only the JSON object {"learn":true} when the turn is a learn moment and {"learn":false} when it is not, no
-code fence and no other text.
+code fence, no explanation and no other text.
