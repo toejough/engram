@@ -289,7 +289,7 @@ The mod adds the IDs of the block of a [prompt](../793_automatic-memory/793a_pro
 
 ## 855b72 Measured on 2026-10-18 on the acceptance fixture: the prompt-side time and the cost
 
-The [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) of 793a2d1a reached the model 27.2 s after it was sent with a step delayed by 20 s, so the chain of one prompt takes about 7 s: the moment (haiku) about 1.4 s, the phrases (sonnet) about 1.3 s, the candidate judgement (sonnet) about 2 s, and the four commands about 0.5 s together (the debug log of the 855a3b1e run). The request sizes of [855b68](#855b68-the-cost-of-a-moment-is-kept-as-built-and-the-request-sizes-are-recorded) stand: about 7,000 to 9,000 input tokens for a prompt at glance. Decided by: Author.
+The [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) of 793a2d1a reached the model 27.2 s after it was sent with a step delayed by 20 s, so the chain of one prompt takes about 7 s: the moment (haiku) about 1.4 s, the phrases (sonnet) about 1.3 s, the candidate judgement (sonnet) about 2 s, and the four commands about 0.5 s together (the debug log of the 855a3b1e run). The request sizes of [855b68 The cost of a moment is kept as built, and the request sizes are recorded](#855b68-the-cost-of-a-moment-is-kept-as-built-and-the-request-sizes-are-recorded) stand: about 7,000 to 9,000 input tokens for a prompt at glance. Decided by: Author.
 
 ## 855b73 The deliveries of a session run one after another
 
@@ -310,3 +310,47 @@ The mid-tier model answered a candidate that does not apply with a paragraph of 
 ## 855b77 Calls within a turn pass the turn's origin, and the carry keeps `write`
 
 The cue of a call within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) (group f) must give the delivery the origin of the [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) that began the turn, or `deliver` prints nothing for it ([855d4c 793d4a Delivering the notes that bear on a prompt](./855d_technical-spec.md#855d4c-modified-793d4a-delivering-the-notes-that-bear-on-a-prompt)). The recall's output keeps `"write":true` at deep depth, and the mod does not act on it yet: the write after the block is group e. Decided by: Author.
+
+## 855b78 The learn-moment window is the window of the turn
+
+For the cue `turn-end` the window of the moment is built as the window of [793d4g Judging a turn](../793_automatic-memory/793d_technical-spec.md#793d4g-judging-a-turn) builds it: the last 6 lines before the turn, the line `--- the turn ---`, the turn's lines and its final text. The last 6 lines and the cue's line ([855b54 The window of the moment is the last 6 lines and the cue's line](#855b54-the-window-of-the-moment-is-the-last-6-lines-and-the-cues-line)) would drop the [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) of a turn of many tool calls, and the cheap tier could not tell a lesson from chatter. Decided by: Author (default; owner may override).
+
+## 855b79 The judgement is not gated by origin, the moment is
+
+[855d4m 793d4m Telling the prompts the user sends](./855d_technical-spec.md#855d4m-modified-793d4m-telling-the-prompts-the-user-sends) names the moment, the delivery and the sweep, so `judge` takes no origin gate and no flag, and a headless [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) that is not captured is recorded by `moment` for the cue `turn-end`. The mod gives `judge` a turn only when `moment` printed a request. Alternative: gate the judgement too, which repeats the moment's gate on a step the moment guards. Decided by: Author (default; owner may override).
+
+## 855b80 A vault that cannot be listed holds no seen note
+
+`place` lists the [vault](../../GLOSSARY.md#vault)'s files and reads the [transcript](../../GLOSSARY.md#transcript) to find the seen [notes](../../GLOSSARY.md#permanent-note), and prints nothing when the vault cannot be listed: the lessons are then written at the top, and the writing reports why it cannot write there. Alternative: fail the command, which reports the same cause twice. Decided by: Author (default; owner may override).
+
+## 855b81 A sibling of a note at the top is written at the top
+
+The learn path refuses `sibling` for a [note](../../GLOSSARY.md#permanent-note) whose ID has one segment ([`engram learn`](../../GLOSSARY.md#engram-learn-subcommand) takes `top` for it), and a sibling of a note at the top is another note at the top. The writing gives the learn path `top` and no target for it. Alternative: record the lesson as failed, which loses a lesson that is whole. Decided by: Author (default; owner may override).
+
+## 855b82 A supersession names the older note by its basename without `.md`
+
+The lookup that shows the newer [note](../../GLOSSARY.md#permanent-note) beside the older finds the older note by its basename, without `.md`, as [855a2d1a A correcting note names the note it corrects](./855a_product-spec.md#855a2d1-uat-scenarios) found in its first run: the note named with `.md` was never shown. The writing trims `.md` from the note in the `--supersedes` flag; the placement names a note by its file name, which the carry holds. Decided by: Author.
+
+## 855b83 The replies of the learn moment and of the placement follow the model's reasoning
+
+The model reasoned in prose before its object or list in runs of 855a2c1b and 855a2d1a, so the learn-moment reply is read as the candidate reply is, from the last `{"learn"` on, and the placement reply from the last line that opens a list and ends the reply ([855b75 The delivery reads the object that follows the model's reasoning](#855b75-the-delivery-reads-the-object-that-follows-the-models-reasoning)); both instructions say that the reply is the object or the list alone. The reply of the phrases and of the depth are group b's and are read as they were. Alternative: strengthen the instructions only. Decided by: Author (default; owner may override).
+
+## 855b84 A placement that prints nothing leaves the writing no carry
+
+[855d2b1a A placement that prints nothing leaves the lessons to be written at the top](./855d_technical-spec.md#855d2b1-scenarios) says the writing receives "the carry of auto place", which a placement that printed nothing has none of. The mod gives the writing the reply to the lessons request alone, and the carry and the reply to the placement when the placement printed a request. Decided by: Author.
+
+## 855b85 The steps of a runbook are one line
+
+A runbook lesson's `body` is written as one line like every field of a lesson ([855d4i 793d4h Writing the lessons of a reply](./855d_technical-spec.md#855d4i-modified-793d4h-writing-the-lessons-of-a-reply)), the steps numbered in it: `1. run make ci 2. tag with git tag vX.Y.Z`. Alternative: keep the breaks of the body, which lets a field make a line of the [note](../../GLOSSARY.md#permanent-note) of its own. Decided by: Author (default; owner may override).
+
+## 855b86 A note that states an older value does not cover its correction
+
+The instructions of the judgement say that a [note](../../GLOSSARY.md#permanent-note) that states an older value, or the opposite, does not cover a lesson that corrects, narrows or refutes it, so that the lesson is listed with `covered` null and can name the note it supersedes; the first run of 855a2d1a left the correction out as covered by the note it corrected. The ceilings of the replies are 3,000 tokens for the lessons (a runbook and its steps) and 1,500 for the placement. Decided by: Author (default; owner may override).
+
+## 855b87 A lesson that is a plain statement is not a learn moment
+
+The rows of the placement tell the lesson as a correction or as a request to remember: a plain statement of a fact that the user was not asked about, or that corrects nothing, is none of the four kinds of the [learn skill](../../GLOSSARY.md#learn-skill), and the cheap tier judged it so in the first run of 855a2c1a. The [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms) of the rows say "No - ..." or "Remember this: ...". Alternative: widen the learn moment to plain statements, which the learn skill does not do. Decided by: Author (default; owner may override).
+
+## 855b88 Measured on 2026-10-19 on the acceptance fixture: the turn to the note
+
+From the end of a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) to the file of its [note](../../GLOSSARY.md#permanent-note), over the 8 notes written by the runs of the learn rows (a fact, a feedback, a runbook and a supersession among them): 2.6, 2.8, 3.0, 3.2, 3.7, 4.0, 4.2 and 7.0 seconds, a median of 3.4 seconds against the 2 minutes of the promise and the 115 seconds of the rows. Decided by: Author.
