@@ -19,7 +19,7 @@ func Test855d4g1e_RunAutoMomentAndJudge_AnInteractiveSessionsTypedTurnIsInTheWin
 	g := NewWithT(t)
 
 	// the excerpt is shaped as the record of an interactive session: its prompts are stamped human, and a notification
-	// of the harness is stamped task-notification
+	// of the harness is stamped task-notification and a message of another session is stamped peer
 	record, readErr := os.ReadFile(filepath.Join("testdata", "interactive_session.jsonl"))
 	g.Expect(readErr).NotTo(HaveOccurred())
 
@@ -53,6 +53,7 @@ func Test855d4g1e_RunAutoMomentAndJudge_AnInteractiveSessionsTypedTurnIsInTheWin
 	g.Expect(momentErr).NotTo(HaveOccurred())
 	g.Expect(moment.String()).To(ContainSubstring(typed), "the moment's window holds the user's text")
 	g.Expect(moment.String()).NotTo(ContainSubstring("Background task"), "a task notification is no prompt")
+	g.Expect(moment.String()).NotTo(ContainSubstring("skip the review"), "a peer's message is no prompt")
 
 	var judged bytes.Buffer
 
@@ -75,4 +76,5 @@ func Test855d4g1e_RunAutoMomentAndJudge_AnInteractiveSessionsTypedTurnIsInTheWin
 	g.Expect(json.Unmarshal(judged.Bytes(), &step)).To(Succeed(), "a learn moment prints the request: %q", judged.String())
 	g.Expect(step.Request.Prompt).To(ContainSubstring("User: "+typed), "the window holds the user's text")
 	g.Expect(step.Request.Prompt).NotTo(ContainSubstring("Background task"))
+	g.Expect(step.Request.Prompt).NotTo(ContainSubstring("skip the review"), "a peer's message is no prompt")
 }

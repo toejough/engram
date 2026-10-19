@@ -24,7 +24,8 @@ func Test855d4g1e_AnInteractiveSessionsTypedTurnIsJudged(t *testing.T) {
 
 	moment := machine.runWithInput(machine.work, input+`,"cue":"turn-end"}`, nil,
 		filepath.Join(machine.gobin, engramBinaryName), "auto", "moment")
-	if moment.exit != 0 || !strings.Contains(moment.stdout, typed) {
+	if moment.exit != 0 || !strings.Contains(moment.stdout, typed) ||
+		strings.Contains(moment.stdout, "skip the review") {
 		t.Fatalf("auto moment (exit %d) holds no typed text: %q, %q", moment.exit, moment.stdout, moment.stderr)
 	}
 
@@ -44,8 +45,11 @@ func Test855d4g1e_AnInteractiveSessionsTypedTurnIsJudged(t *testing.T) {
 		t.Fatalf("auto judge printed no request: %q (%v)", judged.stdout, err)
 	}
 
-	if !strings.Contains(step.Request.Prompt, "User: "+typed) || strings.Contains(step.Request.Prompt, "Background task") {
-		t.Fatalf("the window of the judgement is not the typed turn: %q", step.Request.Prompt)
+	prompt := step.Request.Prompt
+
+	if !strings.Contains(prompt, "User: "+typed) || strings.Contains(prompt, "Background task") ||
+		strings.Contains(prompt, "skip the review") {
+		t.Fatalf("the window of the judgement is not the typed turn: %q", prompt)
 	}
 }
 
