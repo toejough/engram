@@ -13,6 +13,8 @@ import (
 
 // Exported constants.
 const (
+	// ReasonAmended is the reason of the record of a note a deep delivery amended and did not write (855b95).
+	ReasonAmended = "amended"
 	RecordFailed  = "failed"
 	RecordSkipped = "skipped"
 	RecordWritten = "written"

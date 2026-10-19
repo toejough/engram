@@ -158,3 +158,14 @@ func textsOf(lines []auto.Line) []string {
 
 	return texts
 }
+
+func Test793a2e1a_ActivityLines_ANoteThatWasAmendedIsToldAsAmended(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	lines := auto.ActivityLines([]auto.Record{
+		recordAt(0, auto.RecordWritten, func(r *auto.Record) { r.Note, r.Reason = "1.2026-10-17.zorblax.md", auto.ReasonAmended }),
+	})
+
+	g.Expect(textsOf(lines)).To(Equal([]string{"20:32:25 wrote the note 1.2026-10-17.zorblax.md (amended)"}))
+}
