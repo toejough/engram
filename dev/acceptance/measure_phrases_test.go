@@ -6,11 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 	"testing"
-	"unicode"
 
 	. "github.com/onsi/gomega"
 )
@@ -142,116 +140,6 @@ func (m *machine) promptRecalls(prompts []string) []promptRecall {
 	return recalls
 }
 
-// promptRecall is what the chain of a prompt looked up: the depth chosen and the notes among its candidates.
-type promptRecall struct {
-	depth      string
-	candidates []string
-}
-
-// wordSplitter reads the characters of a command line one at a time.
-type wordSplitter struct {
-	words   []string
-	word    strings.Builder
-	quote   rune
-	started bool
-	escaped bool
-}
-
-// end closes the word being read, if there is one.
-func (s *wordSplitter) end() {
-	if s.started {
-		s.words = append(s.words, s.word.String())
-		s.word.Reset()
-
-		s.started = false
-	}
-}
-
-// feed reads one character.
-func (s *wordSplitter) feed(char rune) {
-	switch {
-	case s.escaped:
-		s.word.WriteRune(char)
-
-		s.escaped = false
-	case char == '\\' && s.quote != '\'':
-		s.escaped, s.started = true, true
-	case s.quote != 0:
-		s.feedQuoted(char)
-	default:
-		s.feedPlain(char)
-	}
-}
-
-// feedPlain reads one character outside quotes.
-func (s *wordSplitter) feedPlain(char rune) {
-	switch {
-	case char == '\'' || char == '"':
-		s.quote, s.started = char, true
-	case unicode.IsSpace(char):
-		s.end()
-	default:
-		s.word.WriteRune(char)
-
-		s.started = true
-	}
-}
-
-// feedQuoted reads one character inside quotes.
-func (s *wordSplitter) feedQuoted(char rune) {
-	if char == s.quote {
-		s.quote = 0
-
-		return
-	}
-
-	s.word.WriteRune(char)
-}
-
-// candidateNotes are the file names of the notes among the candidates that a recall step printed.
-func candidateNotes(output string) []string {
-	var printed struct {
-		Carry struct {
-			Candidates []struct {
-				ID   string `json:"id"`
-				Kind string `json:"kind"`
-			} `json:"candidates"`
-		} `json:"carry"`
-	}
-
-	if json.Unmarshal([]byte(output), &printed) != nil {
-		return nil
-	}
-
-	var notes []string
-
-	for _, candidate := range printed.Carry.Candidates {
-		if candidate.Kind == "note" {
-			notes = append(notes, candidate.ID)
-		}
-	}
-
-	return notes
-}
-
-// namedNotes are the notes of the vault, by file name, that a reply names.
-func namedNotes(reply string, vault []string) []string {
-	var named []string
-
-	for _, name := range vault {
-		if strings.Contains(reply, name) {
-			named = append(named, name)
-		}
-	}
-
-	return named
-}
-
-// overlap are the items of the first list that the second holds.
-func overlap(drawn, found []string) []string {
-	return slices.DeleteFunc(slices.Clone(drawn), func(item string) bool { return !slices.Contains(found, item) })
-}
-
 // phrasesOfTurn are the phrases of the engram queries that the agent ran in the turn.
 func phrasesOfTurn(sent *turn) []string {
 	var phrases []string
@@ -265,47 +153,6 @@ func phrasesOfTurn(sent *turn) []string {
 	}
 
 	return phrases
-}
-
-// queryPhrases are the phrases of the engram queries that a shell command runs, each written `--phrase text` or
-// `--phrase=text`.
-func queryPhrases(command string) []string {
-	var phrases []string
-
-	words := shellWords(command)
-
-	for index, word := range words {
-		switch {
-		case word == "--phrase" && index+1 < len(words):
-			phrases = append(phrases, words[index+1])
-		case strings.HasPrefix(word, "--phrase="):
-			phrases = append(phrases, strings.TrimPrefix(word, "--phrase="))
-		}
-	}
-
-	return phrases
-}
-
-// ratio is a share, or zero when there is nothing to share.
-func ratio(part, whole int) float64 {
-	if whole == 0 {
-		return 0
-	}
-
-	return float64(part) / float64(whole)
-}
-
-// shellWords splits a command line into words as a shell does for quotes and backslashes: no expansion is done.
-func shellWords(text string) []string {
-	var splitter wordSplitter
-
-	for _, char := range text {
-		splitter.feed(char)
-	}
-
-	splitter.end()
-
-	return splitter.words
 }
 
 // skillAsk asks, in a session without automatic memory, for the recall skill at its glance mode for a prompt, and for

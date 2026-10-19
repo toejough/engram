@@ -1,5 +1,3 @@
-//go:build network
-
 package acceptance_test
 
 import (

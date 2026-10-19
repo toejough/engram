@@ -87,21 +87,3 @@ var (
 		"Which command restores staging from a backup?",
 	)
 )
-
-// falseNone counts, among the prompts for which the recall skill drew on a note, those for which the moment judgement
-// chose none.
-func falseNone(chains []promptRecall, drawn [][]string) (none, withNotes int) {
-	for index, notes := range drawn {
-		if len(notes) == 0 || index >= len(chains) {
-			continue
-		}
-
-		withNotes++
-
-		if chains[index].depth == "none" {
-			none++
-		}
-	}
-
-	return none, withNotes
-}
