@@ -219,6 +219,7 @@ type HarnessReport struct {
 	GuidanceTargetRel string // home-relative guidance install dir (empty if harness takes no guidance)
 	ImportsFileRel    string // home-relative config file scanned for guidance imports (empty: no import support)
 	SkillDirs         []SkillDirCount
+	changedDirs       map[string]int // files this run changed in each skill dir of the engram root (855d4w1a)
 	GuidanceFiles     []string // basenames of .md files copied into the guidance dir
 	// EngramRoot is the resolved absolute path to this harness's
 	// engram-owned root (792b29c5 Root ownership), maintained by the sync engine below.
@@ -458,6 +459,8 @@ type Report struct {
 type SkillDirCount struct {
 	Name  string // top-level skill dir name, e.g. "learn"
 	Files int    // number of files copied into <skills-root>/<Name>/
+	// Changed is how many of its files this run created, deleted or rewrote with other content (855d4w1a).
+	Changed int
 	Mod   bool   // the directory is a mod of the source, not a skill (793d4b)
 }
 
@@ -632,6 +635,7 @@ func (u *Updater) applyEngramRootSync(
 	}
 
 	rep.EngramSyncDeleted = deletedRelPaths(ops)
+	rep.changedDirs = u.changedSkillDirs(ops)
 
 	prunedDirs, pruneErr := pruneEmptyDirs(root, intended, guidanceManaged, ownership.allowDelete, u.FS)
 	if pruneErr != nil {
@@ -944,6 +948,11 @@ func (u *Updater) applyOps(
 		}
 
 		u.applyForHarness(&rep, spec, home, skillOps, guidanceOps, guidanceManaged, dryRun)
+
+		for index := range rep.SkillDirs {
+			rep.SkillDirs[index].Changed = rep.changedDirs[rep.SkillDirs[index].Name]
+		}
+
 		reports = append(reports, rep)
 	}
 
@@ -1007,6 +1016,36 @@ func (u *Updater) applySkillOps(rep *HarnessReport, name Harness, skillOps []Cop
 
 		rep.SkillDirs = countSkillFile(rep.SkillDirs, copyOp)
 	}
+}
+
+// changedSkillDirs counts, for each skill dir of the engram root, the ops of a plan that change a file in it: one that
+// creates a file, deletes one, or rewrites it with other content than it holds (855d4w1a).
+func (u *Updater) changedSkillDirs(ops []EngramSyncOp) map[string]int {
+	changed := map[string]int{}
+	prefix := engramRootSkillsSubdir + string(filepath.Separator)
+
+	for _, syncOp := range ops {
+		dir, _, found := strings.Cut(strings.TrimPrefix(syncOp.RelPath, prefix), string(filepath.Separator))
+		if !found || !strings.HasPrefix(syncOp.RelPath, prefix) {
+			continue
+		}
+
+		if syncOp.Kind == EngramSyncOverwrite && u.sameContent(syncOp.Src, syncOp.AbsPath) {
+			continue
+		}
+
+		changed[dir]++
+	}
+
+	return changed
+}
+
+// sameContent reports whether two files hold the same bytes; a file that cannot be read is not the same.
+func (u *Updater) sameContent(first, second string) bool {
+	firstData, firstErr := u.FS.ReadFile(first)
+	secondData, secondErr := u.FS.ReadFile(second)
+
+	return firstErr == nil && secondErr == nil && bytes.Equal(firstData, secondData)
 }
 
 // checkLocalDowngrade gates a local-mode install against a provable

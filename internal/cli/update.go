@@ -909,7 +909,7 @@ func writeLuhmannBranchingNotice(buffer *bytes.Buffer, report update.Report) {
 	}
 }
 
-// writeModReloadNotice prints one line for each mod this run deployed: the host reloads a changed mod in a session that
+// writeModReloadNotice prints one line for each mod this run changed: the host reloads a changed mod in a session that
 // is open on its own, a moment after the files change, and a turn that ends in between is left out (855d4w1a). Silent
 // on a dry run, which deploys nothing.
 func writeModReloadNotice(buffer *bytes.Buffer, report update.Report, harness update.HarnessReport) {
@@ -918,7 +918,7 @@ func writeModReloadNotice(buffer *bytes.Buffer, report update.Report, harness up
 	}
 
 	for _, dirCount := range harness.SkillDirs {
-		if dirCount.Mod {
+		if dirCount.Mod && dirCount.Changed > 0 {
 			fmt.Fprintf(buffer,
 				"    open sessions reload the mod %s on their own; restart one that reports the mod as stale\n",
 				dirCount.Name)
