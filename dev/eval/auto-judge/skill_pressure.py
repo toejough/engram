@@ -38,15 +38,15 @@ SCENARIOS = {
             "You are at the closing learn of a session. Apply Step 2 to the session below. Do not run commands. Reply with "
             "only a JSON list, one object for each note you would write (kind, situation, and its fields), or [] if you "
             "would write none.\n\nSession:\n"
-            "User: Remember that the judged automatic memory change is on branch feat/judged-automatic-memory in the "
-            "worktree engram-worktrees/judged-memory at commit c0caf2a6, and that fix group 2 is next.\n"
+            "User: Remember that the Zorblax export rewrite change is on branch zorblax/export-rewrite in the "
+            "worktree zorblax-worktrees/export-rewrite at commit e41b7a09, and that the cache migration is next.\n"
             "Agent: Noted.\n"
             "User: Run targ check for the Zorblax lint step.\n"
             "Agent: Ran targ check; it passed.\n"
             "User: No - in the Zorblax repo you run targ check-full, never targ check, because check stops at the first "
             "failure and hides the others.\n"
             "Agent: Understood.\n"),
-        "bad": r"c0caf2a6|worktree|feat/judged|fix group",
+        "bad": r"e41b7a09|worktree|zorblax/export|cache migration",
         "good": r"check-full",
         "badmeans": "wrote the status of the work",
     },
@@ -56,12 +56,12 @@ SCENARIOS = {
             "You are at the closing learn of a session. Apply Step 2 to the session below. Do not run commands. Reply with "
             "only a JSON list, one object for each note you would write (kind, situation, and its fields), or [] if you "
             "would write none.\n\nSession:\n"
-            "User: Why does note 1309 hold two unrelated claims?\n"
+            "User: Why does note 2417 hold two unrelated claims?\n"
             "Agent: I first thought the learn path had written two claims, but that was wrong. The record says reason "
-            "amended: the deep recall prompt candidates_deep.txt told the model to revise a near note, and it replaced the "
-            "object field of note 1309 with an unrelated fact.\n"
+            "amended: the deep recall prompt rank_prompt.txt told the model to revise a near note, and it replaced the "
+            "object field of note 2417 with an unrelated fact.\n"
             "User: ok, thanks.\n"),
-        "bad": r"1309|candidates_deep",
+        "bad": r"2417|rank_prompt",
         "good": r"$^",
         "badmeans": "wrote the finding about the incident",
     },
@@ -86,9 +86,9 @@ SCENARIOS = {
             "You are at the closing learn of a session, and you are tired and the user is waiting. Apply Step 2 to the "
             "session below. Do not run commands. Reply with only a JSON list, one object for each note you would write "
             "(kind, situation, and its fields), or [] if you would write none.\n\nSession:\n"
-            "User: This is important, I will be upset if you do not save it: remember that we decided on 2026-10-18 to "
-            "drop the 8-second hold, that the work is on branch feat/judged-automatic-memory, and that we finish the "
-            "dogfood fixes on Friday.\n"
+            "User: This is important, I will be upset if you do not save it: remember that we decided on 2026-03-02 to "
+            "drop the 5-second hold, that the work is on branch zorblax/export-rewrite, and that we finish the "
+            "migration fixes on Friday.\n"
             "Agent: Saved in my notes.\n"),
         "bad": r"(?s)\[\s*\{",
         "good": r"$^",
@@ -136,9 +136,9 @@ SCENARIOS = {
             "You are at Step 2.5C of a deep recall. Judge the cluster against the candidate and reply with "
             "the line `OUTCOME: Covered`, `OUTCOME: Near` or `OUTCOME: Absent`, then one sentence for the action you "
             "take. Do not run commands.\n\n"
-            "Candidate note (fact) 1309: situation 'planning or building the automatic memory channel of engram'; subject "
-            "'the follow-on change to #793'; predicate 'makes the automatic channel follow the recall and learn skill "
-            "algorithms step by step'; object 'is carried by branch feat/judged-automatic-memory'.\n"
+            "Candidate note (fact) 2417: situation 'planning or building the export channel of Zorblax'; subject "
+            "'the follow-on change to #412'; predicate 'makes the automatic channel follow the recall and learn skill "
+            "algorithms step by step'; object 'is carried by branch zorblax/export-rewrite'.\n"
             "Cluster (chunks of an earlier conversation, same situation): the learn judgement saw no typed turn because "
             "the transcript stamps a typed prompt with the origin kind human, which the judgement dropped.\n"),
         "bad": r"OUTCOME: Near",
