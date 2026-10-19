@@ -222,7 +222,11 @@ async function asked($, step, input, bound) {
 
   const printed = stepOf(stdout, step)
 
-  return { reply: await ask($, printed.request), carry: printed.carry }
+  try {
+    return { reply: await ask($, printed.request), carry: printed.carry }
+  } catch (error) {
+    throw new Error(`${step}: ${describe(error)}`)
+  }
 }
 
 // sweep indexes the conversation of the session (793d2c).
