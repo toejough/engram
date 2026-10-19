@@ -176,10 +176,16 @@ func (s *wordSplitter) feed(char rune) {
 		s.escaped = false
 	case char == '\\' && s.quote != '\'':
 		s.escaped, s.started = true, true
-	case s.quote != 0 && char == s.quote:
-		s.quote = 0
 	case s.quote != 0:
-		s.word.WriteRune(char)
+		s.feedQuoted(char)
+	default:
+		s.feedPlain(char)
+	}
+}
+
+// feedPlain reads one character outside quotes.
+func (s *wordSplitter) feedPlain(char rune) {
+	switch {
 	case char == '\'' || char == '"':
 		s.quote, s.started = char, true
 	case unicode.IsSpace(char):
@@ -189,6 +195,17 @@ func (s *wordSplitter) feed(char rune) {
 
 		s.started = true
 	}
+}
+
+// feedQuoted reads one character inside quotes.
+func (s *wordSplitter) feedQuoted(char rune) {
+	if char == s.quote {
+		s.quote = 0
+
+		return
+	}
+
+	s.word.WriteRune(char)
 }
 
 // candidateNotes are the file names of the notes among the candidates that a recall step printed.
