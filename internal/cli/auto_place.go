@@ -16,7 +16,7 @@ import (
 // AutoPlaceArgs holds parsed flags for `engram auto place`.
 type AutoPlaceArgs struct {
 	VaultPath   string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
-	SessionsDir string `targ:"flag,name=sessions,desc=sessions dir (ENGRAM_TRANSCRIPT_DIR, else Claude projects dir)"`
+	SessionsDir string `targ:"flag,name=sessions,desc=sessions dir (ENGRAM_TRANSCRIPT_DIR else Claude projects dir)"`
 }
 
 // AutoPlaceDeps holds injected dependencies for RunAutoPlace.

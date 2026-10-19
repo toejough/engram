@@ -13,7 +13,7 @@ import (
 
 // AutoMomentArgs holds parsed flags for `engram auto moment`.
 type AutoMomentArgs struct {
-	SessionsDir string `targ:"flag,name=sessions,desc=sessions dir (ENGRAM_TRANSCRIPT_DIR, else Claude projects dir)"`
+	SessionsDir string `targ:"flag,name=sessions,desc=sessions dir (ENGRAM_TRANSCRIPT_DIR else Claude projects dir)"`
 	CaptureSDK  bool   `targ:"flag,name=capture-sdk,env=ENGRAM_AUTO_CAPTURE_SDK,desc=also judge headless sdk turns"`
 	RecordsDir  string `targ:"flag,name=records,desc=auto-memory records dir (default $XDG_DATA_HOME/engram/auto)"`
 }

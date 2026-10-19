@@ -19,7 +19,7 @@ type LearnQAArgs struct {
 	Question     string   `targ:"flag,name=question,desc=verbatim question text"`
 	Answer       string   `targ:"flag,name=answer,desc=inline answer body (mutually exclusive with --answer-file)"`
 	AnswerFile   string   `targ:"flag,name=answer-file,desc=path to a file whose content is the answer body"`
-	Contributors []string `targ:"flag,name=contributors,desc=contributing note basenames, no .md (repeatable)"`
+	Contributors []string `targ:"flag,name=contributors,desc=contributing note basenames (no .md) (repeatable)"`
 	Certainty    string   `targ:"flag,name=certainty,desc=high|medium|low (default medium)"`
 	Source       string   `targ:"flag,name=source,required,desc=provenance string for the source field (required)"`
 }

@@ -26,7 +26,7 @@ type AmendRun func(ctx context.Context, args AmendArgs) error
 // AutoDeliverArgs holds parsed flags for `engram auto deliver`.
 type AutoDeliverArgs struct {
 	VaultPath   string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
-	SessionsDir string `targ:"flag,name=sessions,desc=sessions dir (ENGRAM_TRANSCRIPT_DIR, else Claude projects dir)"`
+	SessionsDir string `targ:"flag,name=sessions,desc=sessions dir (ENGRAM_TRANSCRIPT_DIR else Claude projects dir)"`
 	RecordsDir  string `targ:"flag,name=records,desc=auto-memory records dir (default $XDG_DATA_HOME/engram/auto)"`
 }
 
@@ -53,7 +53,7 @@ type AutoDeliverDeps struct {
 // notes and reads the record of a session as the delivery does.
 type AutoJudgeArgs struct {
 	VaultPath   string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
-	SessionsDir string `targ:"flag,name=sessions,desc=sessions dir (ENGRAM_TRANSCRIPT_DIR, else Claude projects dir)"`
+	SessionsDir string `targ:"flag,name=sessions,desc=sessions dir (ENGRAM_TRANSCRIPT_DIR else Claude projects dir)"`
 	RecordsDir  string `targ:"flag,name=records,desc=auto-memory records dir (default $XDG_DATA_HOME/engram/auto)"`
 }
 
@@ -78,7 +78,7 @@ type AutoJudgeDeps struct {
 // AutoSweepArgs holds parsed flags for `engram auto sweep`: where the records of sessions and the chunk index are, and
 // the switch for the turns of headless prompts that the judgement has too.
 type AutoSweepArgs struct {
-	SessionsDir string `targ:"flag,name=sessions,desc=sessions dir (ENGRAM_TRANSCRIPT_DIR, else Claude projects dir)"`
+	SessionsDir string `targ:"flag,name=sessions,desc=sessions dir (ENGRAM_TRANSCRIPT_DIR else Claude projects dir)"`
 	ChunksDir   string `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`
 	RecordsDir  string `targ:"flag,name=records,desc=auto-memory records dir (default $XDG_DATA_HOME/engram/auto)"`
 	CaptureSDK  bool   `targ:"flag,name=capture-sdk,env=ENGRAM_AUTO_CAPTURE_SDK,desc=also sweep headless sdk turns"`

@@ -23,10 +23,10 @@ import (
 type RegisterSkillsArgs struct {
 	Vault     string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
 	VaultName string   `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault: field value (default \"personal\")"`
-	SkillsDir []string `targ:"flag,name=skills-dir,desc=preview a skills dir (repeatable; read-only, implies --dry-run)"`
+	SkillsDir []string `targ:"flag,name=skills-dir,desc=preview a skills dir (repeatable; read-only; implies --dry-run)"`
 	DryRun    bool     `targ:"flag,name=dry-run,desc=list offers without prompting or writing"`
-	Accept    []string `targ:"flag,name=accept,desc=accept matching offers: skill key, prefix* or @<scope> (repeatable)"`
-	Decline   []string `targ:"flag,name=decline,desc=decline matching offers: skill key, prefix* or @<scope> (repeatable)"`
+	Accept    []string `targ:"flag,name=accept,desc=accept matching offers: key or prefix* or @<scope> (repeatable)"`
+	Decline   []string `targ:"flag,name=decline,desc=decline matching offers: key or prefix* or @<scope> (repeatable)"`
 	Adopt     []string `targ:"flag,name=adopt,desc=adopt a runbook note for a skill key: <key>=<note-ref> (repeatable)"`
 }
 

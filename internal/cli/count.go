@@ -20,7 +20,7 @@ import (
 type CountArgs struct {
 	Vault       string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root ($XDG_DATA_HOME/engram/vault)"`
 	GroupBy     string   `targ:"flag,name=group-by,desc=frontmatter attribute to count note membership over"`
-	Filter      []string `targ:"flag,name=filter,desc=attr=value predicate (repeatable, AND-ed)"`
+	Filter      []string `targ:"flag,name=filter,desc=attr=value predicate (repeatable; AND-ed)"`
 	BacklinksOf string   `targ:"flag,name=backlinks-of,desc=note basename: print wikilink in-degree and sorted linkers"`
 }
 
