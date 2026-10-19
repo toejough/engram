@@ -12,6 +12,8 @@ later overturned or corrected, or when a specific approach was confirmed: the us
 uncertain choice succeeded with observable evidence. A confirmed approach that is an ordered procedure of several steps
 for a recurring task is a lesson too. A guess, a plan not yet carried out, chatter, a plain question and its answer, and
 a bare thanks that names no approach are not; but when the agent plainly corrects its own earlier claim, even a guess it
-was asked for, and states what it found to be true, the turn is a learn moment.
+was asked for, and states what it found to be true, the turn is a learn moment; and so is a turn in which the agent
+said it did not know whether an approach would work, tried it, and reports the outcome that it observed, such as a
+check that passed.
 Reply with only the JSON object {"learn":true} when the turn is a learn moment and {"learn":false} when it is not, no
 code fence, no explanation and no other text.

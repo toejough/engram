@@ -98,6 +98,19 @@ func Test855d4a1b_Moment_TheInstructionsCountTheAgentsPlainCorrectionOfItsOwnCla
 		"a guess that the agent then corrects from what it read is a lesson, though a guess alone is not")
 }
 
+func Test855d4a1b_Moment_TheInstructionsCountAnUncertainApproachThatSucceededWithEvidence(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	step := auto.Moment([]byte(userPrompt("Say you do not know, run the check, and say if it passed.")), auto.MomentInput{
+		Session: "4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11", Cue: "turn-end", Origin: "composer", Turn: "a-turn",
+		Text: "Say you do not know, run the check, and say if it passed.", Answer: "The check passed.",
+	})
+
+	g.Expect(strings.ToLower(step.Request.System)).To(ContainSubstring("tried it, and reports the outcome that it observed"),
+		"an approach the agent said it did not know would work, that it tried and saw succeed, is a lesson")
+}
+
 func Test855d4a1d_Moment_APromptAMessageOrAnEventCannotCloseTheWindowOrHoldACredential(t *testing.T) {
 	t.Parallel()
 
@@ -225,6 +238,8 @@ func Test855d4a1c_Moment_EachToolCuePutsItsEventInTheWindow(t *testing.T) {
 			g.Expect(step.Request.System).To(And(ContainSubstring("Agent used <tool> with <input>"),
 				ContainSubstring("Agent used <tool> failed: <error>"),
 				ContainSubstring("Agent used <tool> returned: <response>")), "the system tells the lines of an event")
+			g.Expect(step.Request.System).To(ContainSubstring("a tool call that failed is a recall moment"),
+				"a failure is a recall moment unless its cause is plain")
 			g.Expect(step.Carry.Cue).To(Equal(testCase.input.Cue))
 			g.Expect(step.Carry.Window).To(Equal(strings.Join(windowOf(step.Request.Prompt), "\n")))
 		})
