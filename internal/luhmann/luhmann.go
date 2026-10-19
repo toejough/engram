@@ -41,19 +41,6 @@ func FromBasename(basename string) (string, bool) {
 	return candidate, true
 }
 
-// LetterLess reports whether letter segment a sorts before b in Luhmann
-// order: shorter segments first, then lex within equal length (a..z, then
-// aa..az, ba..bz, ..., zz, aaa, ...). Matches the z→aa rollover convention
-// in nextLetter (internal/cli/luhmann.go) and is the single source of truth
-// for letter-segment ordering, shared by Less and by allocator code.
-func LetterLess(a, b string) bool {
-	if len(a) != len(b) {
-		return len(a) < len(b)
-	}
-
-	return a < b
-}
-
 // Less reports whether Luhmann ID a sorts before b: segment by segment, a digit segment by its number (fewer digits
 // first, then lexically) and a letter segment by LetterLess, with an ID that is the start of another first. An ID that
 // cannot be parsed sorts by its text.
@@ -65,7 +52,7 @@ func Less(a, b string) bool {
 		return a < b
 	}
 
-	for index := 0; index < min(len(left), len(right)); index++ {
+	for index := range min(len(left), len(right)) {
 		if left[index] == right[index] {
 			continue
 		}
@@ -82,6 +69,19 @@ func Less(a, b string) bool {
 	}
 
 	return len(left) < len(right)
+}
+
+// LetterLess reports whether letter segment a sorts before b in Luhmann
+// order: shorter segments first, then lex within equal length (a..z, then
+// aa..az, ba..bz, ..., zz, aaa, ...). Matches the z→aa rollover convention
+// in nextLetter (internal/cli/luhmann.go) and is the single source of truth
+// for letter-segment ordering, shared by Less and by allocator code.
+func LetterLess(a, b string) bool {
+	if len(a) != len(b) {
+		return len(a) < len(b)
+	}
+
+	return a < b
 }
 
 // ParseID splits a Luhmann ID into alternating digit/letter segments.

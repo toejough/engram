@@ -79,34 +79,6 @@ func RunAutoRecall(ctx context.Context, args AutoRecallArgs, deps AutoRecallDeps
 	return printStep(stdout, "auto recall", step)
 }
 
-// withWrittenCandidates adds the notes the session wrote earlier to the candidates of a deep judgement, after the last
-// note that matched and before the passages, each once: a lesson the session wrote already is then covered by a
-// candidate, whatever its wording (855b119).
-func withWrittenCandidates(matched []auto.Candidate, written []auto.Note) []auto.Candidate {
-	insertAt := 0
-
-	for index, candidate := range matched {
-		if candidate.Kind == auto.KindNote {
-			insertAt = index + 1
-		}
-	}
-
-	added := make([]auto.Candidate, 0, len(written))
-
-	for _, note := range written {
-		if slices.ContainsFunc(matched, func(one auto.Candidate) bool { return one.ID == note.Path }) {
-			continue
-		}
-
-		added = append(added, auto.Candidate{
-			ID: note.Path, Kind: auto.KindNote, Type: note.Type, Date: note.Created, Situation: note.Situation,
-			Text: strings.TrimSpace(note.Body), Source: note.Source,
-		})
-	}
-
-	return slices.Insert(slices.Clone(matched), insertAt, added...)
-}
-
 // byScore orders the items by their scores, the highest first.
 func byScore(left, right queryItem) int {
 	switch {
@@ -237,4 +209,32 @@ func newAutoRecallDeps(d Deps) AutoRecallDeps {
 		ReadFile:   d.FS.ReadFile,
 		ReadChunks: indexReader(d.FS.ReadFile),
 	}
+}
+
+// withWrittenCandidates adds the notes the session wrote earlier to the candidates of a deep judgement, after the last
+// note that matched and before the passages, each once: a lesson the session wrote already is then covered by a
+// candidate, whatever its wording (855b119).
+func withWrittenCandidates(matched []auto.Candidate, written []auto.Note) []auto.Candidate {
+	insertAt := 0
+
+	for index, candidate := range matched {
+		if candidate.Kind == auto.KindNote {
+			insertAt = index + 1
+		}
+	}
+
+	added := make([]auto.Candidate, 0, len(written))
+
+	for _, note := range written {
+		if slices.ContainsFunc(matched, func(one auto.Candidate) bool { return one.ID == note.Path }) {
+			continue
+		}
+
+		added = append(added, auto.Candidate{
+			ID: note.Path, Kind: auto.KindNote, Type: note.Type, Date: note.Created, Situation: note.Situation,
+			Text: strings.TrimSpace(note.Body), Source: note.Source,
+		})
+	}
+
+	return slices.Insert(slices.Clone(matched), insertAt, added...)
 }

@@ -391,60 +391,6 @@ func Test855d4g1d_Judge_AJudgementThatPrintsNothingLogsIt(t *testing.T) {
 	}
 }
 
-func Test855d4g1j_RunAutoJudge_TheNotesTheSessionWroteAreInTheRequestOnceAndThoseOfOthersAreNot(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	ownNote := strings.Replace(zorblaxResetNote, "source: test",
-		"source: written automatically (session "+sessionID+")", 1)
-	otherNote := strings.NewReplacer("1.", "2.", "source: test", "source: written automatically (session another)").
-		Replace(zorblaxResetNote)
-
-	plantNoteOnDisk(t, vault, "1.2026-10-17.zorblax-staging-reset.md", ownNote)
-	plantNoteOnDisk(t, vault, "2.2026-10-17.zorblax-other-session.md", otherNote)
-
-	sessions := t.TempDir()
-	record := `{"type":"user","message":{"role":"user","content":"Run the tests."}}` + "\n"
-	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
-
-	judged := func(query cli.QueryRun) []string {
-		var out bytes.Buffer
-
-		err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: vault, SessionsDir: sessions},
-			cli.AutoJudgeDeps{Stdin: turnInput(sessionID, "Done."), Query: query, ReadDir: os.ReadDir, ReadFile: os.ReadFile},
-			&out)
-		g.Expect(err).NotTo(HaveOccurred())
-
-		var step struct {
-			Request struct {
-				Prompt string `json:"prompt"`
-			} `json:"request"`
-		}
-
-		g.Expect(json.Unmarshal(out.Bytes(), &step)).To(Succeed())
-
-		_, rest, _ := strings.Cut(step.Request.Prompt, "<notes>\n")
-		section, _, _ := strings.Cut(rest, "\n</notes>")
-
-		return strings.Split(section, "\n")
-	}
-
-	nothingNear := queryOver(newQueryDeps(newInMemoryFS()))
-
-	lines := judged(nothingNear)
-
-	g.Expect(lines).To(HaveLen(1), "the note this session wrote, and not the note another session wrote")
-	g.Expect(lines[0]).To(HavePrefix(
-		"- 1.2026-10-17.zorblax-staging-reset.md (testing against the Zorblax staging database): "))
-
-	memFS := newInMemoryFS()
-	plantNoteWithSidecar(t, memFS, vault, "1.2026-10-17.zorblax-staging-reset.md", ownNote)
-
-	g.Expect(judged(queryOver(newQueryDeps(memFS)))).To(HaveLen(1),
-		"a note both near and written in the session is one line")
-}
-
 func Test855d4g1j_RunAutoJudge_TheLastTwentyNotesTheSessionWroteByCreationFollowTheNearestNotes(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -504,10 +450,14 @@ func Test855d4g1j_RunAutoJudge_TheLastTwentyNotesTheSessionWroteByCreationFollow
 
 	g.Expect(lines[0]).To(HavePrefix("- 30.2026-10-17.zorblax-near.md "), "the nearest notes come first")
 
-	var names []string
+	names := make([]string, 0, len(lines))
 
 	for _, line := range lines[1:] {
 		names = append(names, strings.Fields(line)[1])
+	}
+
+	if len(names) != 20 {
+		return
 	}
 
 	g.Expect(names[0]).To(Equal("3.2026-10-17.zorblax-3.md"), "the oldest of the last 20 by creation")
@@ -515,6 +465,60 @@ func Test855d4g1j_RunAutoJudge_TheLastTwentyNotesTheSessionWroteByCreationFollow
 	g.Expect(names).NotTo(ContainElement("99.2026-10-01.zorblax-99.md"), "the note of the earlier day is the oldest")
 	g.Expect(names).NotTo(ContainElement(ContainSubstring("zorblax-1.md")))
 	g.Expect(names).NotTo(ContainElement(ContainSubstring("zorblax-2.md")))
+}
+
+func Test855d4g1j_RunAutoJudge_TheNotesTheSessionWroteAreInTheRequestOnceAndThoseOfOthersAreNot(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	ownNote := strings.Replace(zorblaxResetNote, "source: test",
+		"source: written automatically (session "+sessionID+")", 1)
+	otherNote := strings.NewReplacer("1.", "2.", "source: test", "source: written automatically (session another)").
+		Replace(zorblaxResetNote)
+
+	plantNoteOnDisk(t, vault, "1.2026-10-17.zorblax-staging-reset.md", ownNote)
+	plantNoteOnDisk(t, vault, "2.2026-10-17.zorblax-other-session.md", otherNote)
+
+	sessions := t.TempDir()
+	record := `{"type":"user","message":{"role":"user","content":"Run the tests."}}` + "\n"
+	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
+
+	judged := func(query cli.QueryRun) []string {
+		var out bytes.Buffer
+
+		err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: vault, SessionsDir: sessions},
+			cli.AutoJudgeDeps{Stdin: turnInput(sessionID, "Done."), Query: query, ReadDir: os.ReadDir, ReadFile: os.ReadFile},
+			&out)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		var step struct {
+			Request struct {
+				Prompt string `json:"prompt"`
+			} `json:"request"`
+		}
+
+		g.Expect(json.Unmarshal(out.Bytes(), &step)).To(Succeed())
+
+		_, rest, _ := strings.Cut(step.Request.Prompt, "<notes>\n")
+		section, _, _ := strings.Cut(rest, "\n</notes>")
+
+		return strings.Split(section, "\n")
+	}
+
+	nothingNear := queryOver(newQueryDeps(newInMemoryFS()))
+
+	lines := judged(nothingNear)
+
+	g.Expect(lines).To(HaveLen(1), "the note this session wrote, and not the note another session wrote")
+	g.Expect(lines[0]).To(HavePrefix(
+		"- 1.2026-10-17.zorblax-staging-reset.md (testing against the Zorblax staging database): "))
+
+	memFS := newInMemoryFS()
+	plantNoteWithSidecar(t, memFS, vault, "1.2026-10-17.zorblax-staging-reset.md", ownNote)
+
+	g.Expect(judged(queryOver(newQueryDeps(memFS)))).To(HaveLen(1),
+		"a note both near and written in the session is one line")
 }
 
 // unexported constants.

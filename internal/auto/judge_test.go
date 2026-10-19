@@ -688,7 +688,8 @@ func Test855d4g1i_Judge_ASituationNamesNoTicketOrChangeNumber(t *testing.T) {
 
 	g.Expect(found).To(BeTrue())
 	g.Expect(flattened(request.System)).To(ContainSubstring(
-		"no ticket, issue or change number (such as #855) and no branch name, unless the lesson is about that ticket itself"))
+		"no ticket, issue or change number (such as #4417) and no branch name, " +
+			"unless the lesson is about that ticket itself"))
 }
 
 func Test855d4g1j_Judge_ALessonWrittenEarlierInTheSessionIsCoveredWhateverItsWording(t *testing.T) {

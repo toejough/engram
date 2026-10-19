@@ -494,6 +494,32 @@ func isPlainName(name string) bool {
 	return name != "" && name == filepath.Base(name) && name != "." && name != ".."
 }
 
+// lastWritten returns the last maxWrittenNotes of the notes a session wrote in the order they were created: by the day
+// the note says, then by its Luhmann ID, and not by the order of the file names of the directory (855d4g1j).
+func lastWritten(written []auto.Note) []auto.Note {
+	ordered := slices.Clone(written)
+
+	slices.SortStableFunc(ordered, func(left, right auto.Note) int {
+		if byDay := strings.Compare(left.Created, right.Created); byDay != 0 {
+			return byDay
+		}
+
+		leftID, _ := luhmann.FromBasename(strings.TrimSuffix(left.Path, ".md"))
+		rightID, _ := luhmann.FromBasename(strings.TrimSuffix(right.Path, ".md"))
+
+		switch {
+		case luhmann.Less(leftID, rightID):
+			return -1
+		case luhmann.Less(rightID, leftID):
+			return 1
+		default:
+			return 0
+		}
+	})
+
+	return ordered[max(len(ordered)-maxWrittenNotes, 0):]
+}
+
 // learnArgsOfLesson is the write of a lesson through the learn path: a note of its kind, placed as the placement says,
 // whose source says it was written automatically.
 func learnArgsOfLesson(lesson auto.Lesson, args AutoWriteArgs, session string, placed auto.Placed) LearnArgs {
@@ -918,38 +944,6 @@ func withWritten(near, written []auto.Note) []auto.Note {
 	return notes
 }
 
-// lastWritten returns the last maxWrittenNotes of the notes a session wrote in the order they were created: by the day
-// the note says, then by its Luhmann ID, and not by the order of the file names of the directory (855d4g1j).
-func lastWritten(written []auto.Note) []auto.Note {
-	ordered := slices.Clone(written)
-
-	slices.SortStableFunc(ordered, func(left, right auto.Note) int {
-		if byDay := strings.Compare(left.Created, right.Created); byDay != 0 {
-			return byDay
-		}
-
-		leftID, _ := luhmann.FromBasename(strings.TrimSuffix(left.Path, ".md"))
-		rightID, _ := luhmann.FromBasename(strings.TrimSuffix(right.Path, ".md"))
-
-		switch {
-		case luhmann.Less(leftID, rightID):
-			return -1
-		case luhmann.Less(rightID, leftID):
-			return 1
-		default:
-			return 0
-		}
-	})
-
-	return ordered[max(len(ordered)-maxWrittenNotes, 0):]
-}
-
-// writtenIn returns the notes of the vault that a session wrote itself, the last maxWrittenNotes of them in the order
-// they were created (855b119).
-func writtenIn(vault []auto.Note, session string) []auto.Note {
-	return lastWritten(auto.SeenNotes(vault, "", session))
-}
-
 // writeDeep writes what the reply of a deep delivery says to write (855d4j): each lesson at the top through the learn
 // path with the passages that evidence it and the notes it corrects, and the amendment of each note it draws on. What
 // is written, left out or failed is added to the outcomes, with no turn.
@@ -1081,4 +1075,10 @@ func writeRecords(write func(path string, data []byte) error, dir string, record
 	}
 
 	return written
+}
+
+// writtenIn returns the notes of the vault that a session wrote itself, the last maxWrittenNotes of them in the order
+// they were created (855b119).
+func writtenIn(vault []auto.Note, session string) []auto.Note {
+	return lastWritten(auto.SeenNotes(vault, "", session))
 }
