@@ -112,6 +112,21 @@ func Test855d4a1b_Moment_TheInstructionsCountTheAgentsPlainCorrectionOfItsOwnCla
 		"a guess that the agent then corrects from what it read is a lesson, though a guess alone is not")
 }
 
+func Test855d4a1b_Moment_TheInstructionsCountARequestToRememberWhateverTheAgentAnswers(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	step := auto.Moment(nil, auto.MomentInput{
+		Session: "4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11", Cue: "turn-end", Origin: "composer", Turn: "a-turn",
+		Text:   "Remember that the Zorblax staging database is reset on Sundays, but do not save it yourself.",
+		Answer: "I did not save it.",
+	})
+
+	g.Expect(strings.Join(strings.Fields(strings.ToLower(step.Request.System)), " ")).To(
+		ContainSubstring("whatever the agent answers, even when it says that it did not save it"),
+		"a request to remember is a learn moment though the agent says it saved nothing (793a2c1i)")
+}
+
 func Test855d4a1c_Moment_EachToolCuePutsItsEventInTheWindow(t *testing.T) {
 	t.Parallel()
 
