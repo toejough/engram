@@ -45,7 +45,7 @@ func Test793d4b1f_WriteUpdateReport_ListsAModFromTheModsDirectory(t *testing.T) 
 	g.Expect(out).NotTo(ContainSubstring("agent-instructions/skills/engram-memory/"))
 }
 
-func Test855d4w1a_WriteUpdateReport_TellsThatOpenSessionsMustBeRestartedToLoadTheMod(t *testing.T) {
+func Test855d4w1a_WriteUpdateReport_TellsThatOpenSessionsReloadTheMod(t *testing.T) {
 	t.Parallel()
 
 	modReport := func(dryRun bool) update.Report {
@@ -62,7 +62,7 @@ func Test855d4w1a_WriteUpdateReport_TellsThatOpenSessionsMustBeRestartedToLoadTh
 		}
 	}
 
-	const notice = "restart open sessions to load the mod engram-memory"
+	const notice = "open sessions reload the mod engram-memory on their own; restart one that reports the mod as stale"
 
 	t.Run("a deployed mod", func(t *testing.T) {
 		t.Parallel()
@@ -73,7 +73,7 @@ func Test855d4w1a_WriteUpdateReport_TellsThatOpenSessionsMustBeRestartedToLoadTh
 
 		g.Expect(cli.ExportWriteUpdateReport(&buffer, modReport(false))).To(Succeed())
 		g.Expect(buffer.String()).To(ContainSubstring(notice))
-		g.Expect(bytes.Count(buffer.Bytes(), []byte("restart open sessions"))).To(Equal(1), "one line")
+		g.Expect(bytes.Count(buffer.Bytes(), []byte("open sessions reload the mod"))).To(Equal(1), "one line")
 	})
 
 	t.Run("a dry run deploys nothing and says nothing", func(t *testing.T) {
@@ -84,7 +84,7 @@ func Test855d4w1a_WriteUpdateReport_TellsThatOpenSessionsMustBeRestartedToLoadTh
 		var buffer bytes.Buffer
 
 		g.Expect(cli.ExportWriteUpdateReport(&buffer, modReport(true))).To(Succeed())
-		g.Expect(buffer.String()).NotTo(ContainSubstring("restart open sessions"))
+		g.Expect(buffer.String()).NotTo(ContainSubstring("open sessions reload the mod"))
 	})
 
 	t.Run("a harness with only skills says nothing", func(t *testing.T) {
@@ -98,6 +98,6 @@ func Test855d4w1a_WriteUpdateReport_TellsThatOpenSessionsMustBeRestartedToLoadTh
 		var buffer bytes.Buffer
 
 		g.Expect(cli.ExportWriteUpdateReport(&buffer, report)).To(Succeed())
-		g.Expect(buffer.String()).NotTo(ContainSubstring("restart open sessions"))
+		g.Expect(buffer.String()).NotTo(ContainSubstring("open sessions reload the mod"))
 	})
 }

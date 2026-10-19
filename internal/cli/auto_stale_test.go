@@ -94,6 +94,7 @@ func Test855d4g1g_RunAutoJudge_ATurnFromAnOlderModIsRecordedAsSkippedAndNotAFail
 		g.Expect(record.Session).To(Equal(sessionID))
 		g.Expect(record.Turn).To(Equal("a-turn"))
 		g.Expect(record.Reason).To(Equal(auto.StaleModSkipReason))
-		g.Expect(record.Reason).To(ContainSubstring("restart the session"))
+		g.Expect(record.Reason).To(Equal("the turn ended while engram update replaced the memory mod"))
+		g.Expect(record.Reason).NotTo(ContainSubstring("restart"), "the host reloads a changed mod on its own")
 	}
 }
