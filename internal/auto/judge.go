@@ -29,9 +29,8 @@ type TurnEnd struct {
 	Answer  string `json:"answer"`
 	Text    string `json:"text"`
 	Origin  string `json:"origin"`
-	// Reply and Carry are the learn-moment judgement's reply and the carry of the moment (855d4g).
+	// Reply is the learn-moment judgement's reply (855d4g); the carry of the moment is read by no part of the judgement.
 	Reply string `json:"reply"`
-	Carry Carry  `json:"carry"`
 }
 
 // Judge returns the request for the model that judges the turn a session's record holds, and false when the reply of
@@ -93,7 +92,7 @@ const (
 	contextLines = 6
 	// divider is the line that ends the context and opens the turn.
 	divider = "--- the turn ---"
-	// judgeMaxTokens is a ceiling and not a spend: the lessons of a turn with a runbook and its steps (855b78).
+	// judgeMaxTokens is a ceiling and not a spend: the lessons of a turn with a runbook and its steps (855b86).
 	judgeMaxTokens = 3000
 	// judgeTimeoutMs is the row of the model call of the lessons judgement (855d2b).
 	judgeTimeoutMs = 30000
