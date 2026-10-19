@@ -118,3 +118,30 @@ func TestMedianAndLongest_ReadAListOfDurations(t *testing.T) {
 	g.Expect(secs(1500 * time.Millisecond)).To(Equal("1.50"))
 	g.Expect(secs(0)).To(Equal("-"))
 }
+
+func TestQueryPhrases_ReadsThePhrasesOfAnEngramQueryWhateverTheirQuoting(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(queryPhrases(`engram query --lazy-chunks --text="a b" --phrase="staging reset schedule" --phrase 'database backup'`)).
+		To(Equal([]string{"staging reset schedule", "database backup"}))
+	g.Expect(queryPhrases(`engram query --phrase=plain --phrase=\"x`)).To(Equal([]string{"plain", `"x`}))
+	g.Expect(queryPhrases(`ls -la`)).To(BeEmpty())
+	g.Expect(shellWords("a  'b c'\td \"e \\\" f\"")).To(Equal([]string{"a", "b c", "d", `e " f`}))
+}
+
+func TestCandidateNotes_ListsTheNotesAmongTheCandidatesOfARecallStep(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	output := `{"request":{},"carry":{"candidates":[{"id":"1.a.md","kind":"note"},{"id":"chunk 1","kind":"chunk"},` +
+		`{"id":"2.b.md","kind":"note"}]}}`
+
+	g.Expect(candidateNotes(output)).To(Equal([]string{"1.a.md", "2.b.md"}))
+	g.Expect(candidateNotes("")).To(BeEmpty())
+	g.Expect(namedNotes("1.a.md\n3.c.md", []string{"1.a.md", "2.b.md", "3.c.md"})).To(Equal([]string{"1.a.md", "3.c.md"}))
+	g.Expect(overlap([]string{"x", "y"}, []string{"y"})).To(Equal([]string{"y"}))
+	g.Expect(ratio(1, 0)).To(BeZero())
+	g.Expect(ratio(1, 4)).To(Equal(0.25))
+}
