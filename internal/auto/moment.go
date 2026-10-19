@@ -2,6 +2,7 @@ package auto
 
 import (
 	_ "embed" // the instructions of the judgement are a text file of the package
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -33,6 +34,25 @@ type MomentInput struct {
 	// Turn and Answer are the turn's ID and final text, for the cue turn-end.
 	Turn   string `json:"turn"`
 	Answer string `json:"answer"`
+	// Event is what a tool cue is about: a tool call about to run, a failure, or a batch of calls with their responses
+	// (855d4a).
+	Event ToolEvent `json:"event"`
+}
+
+// ToolCall is a call of a batch, with the response it resolved with.
+type ToolCall struct {
+	Tool     string          `json:"tool"`
+	Input    json.RawMessage `json:"input"`
+	Response json.RawMessage `json:"response"`
+}
+
+// ToolEvent is the event of a tool cue (855d4a): for before-tool the tool and its input, for failure the tool, its
+// input and the error, and for batch-done the calls with their responses.
+type ToolEvent struct {
+	Tool  string          `json:"tool"`
+	Input json.RawMessage `json:"input"`
+	Error string          `json:"error"`
+	Calls []ToolCall      `json:"calls"`
 }
 
 // Step is what a step prints for a judgement: the request, and the carry for the next step.

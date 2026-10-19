@@ -1,6 +1,7 @@
 package auto_test
 
 import (
+	"encoding/json"
 	"slices"
 	"strings"
 	"testing"
@@ -146,4 +147,87 @@ func checkMomentIsSafe(rt *rapid.T, first, second credential) {
 	if strings.Contains(step.Request.System, "zq9x") {
 		rt.Fatalf("the system holds text of the session: %q", step.Request.System)
 	}
+}
+
+func Test855d4a1c_Moment_EachToolCuePutsItsEventInTheWindow(t *testing.T) {
+	t.Parallel()
+
+	const (
+		turnText = "Tag v1.4.0 and tell me when the release is done."
+		input    = `{"command":"make ci"}`
+	)
+
+	record := strings.Join([]string{
+		userPrompt(turnText),
+		assistantText("Running the build."),
+	}, "\n")
+	turnLine := "User: " + turnText
+	calls := []auto.ToolCall{
+		{Tool: "Bash", Input: json.RawMessage(`{"command":"touch tag-v1.4.0"}`), Response: json.RawMessage(`"tagged"`)},
+		{Tool: "Read", Input: json.RawMessage(`{"file_path":"CHANGELOG.md"}`), Response: json.RawMessage(`{"lines":3}`)},
+	}
+
+	cases := []struct {
+		name  string
+		input auto.MomentInput
+		want  []string
+	}{
+		{
+			name: "before-tool", input: auto.MomentInput{
+				Cue:   "before-tool",
+				Event: auto.ToolEvent{Tool: "Bash", Input: json.RawMessage(input)},
+			},
+			want: []string{turnLine, "Agent: Running the build.", `Agent used Bash with {"command":"make ci"}`},
+		},
+		{
+			name: "failure", input: auto.MomentInput{
+				Cue:   "failure",
+				Event: auto.ToolEvent{Tool: "Bash", Input: json.RawMessage(input), Error: "make: *** [ci] Error 1"},
+			},
+			want: []string{
+				turnLine, "Agent: Running the build.", `Agent used Bash with {"command":"make ci"}`,
+				"Agent used Bash failed: make: *** [ci] Error 1",
+			},
+		},
+		{
+			name:  "batch-done",
+			input: auto.MomentInput{Cue: "batch-done", Event: auto.ToolEvent{Calls: calls}},
+			want: []string{
+				turnLine, "Agent: Running the build.",
+				`Agent used Bash with {"command":"touch tag-v1.4.0"}`, "Agent used Bash returned: tagged",
+				`Agent used Read with {"file_path":"CHANGELOG.md"}`, `Agent used Read returned: {"lines":3}`,
+			},
+		},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			testCase.input.Session = "4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11"
+			testCase.input.Origin = "composer"
+			testCase.input.Text = turnText
+
+			step := auto.Moment([]byte(record), testCase.input)
+
+			g.Expect(windowOf(step.Request.Prompt)).To(Equal(testCase.want), "the window ends with the line of the event")
+			g.Expect(step.Request.Model).To(Equal("haiku"))
+			g.Expect(step.Request.TimeoutMs).To(BeZero(), "a recall cue has no time limit")
+			g.Expect(step.Carry.Cue).To(Equal(testCase.input.Cue))
+			g.Expect(step.Carry.Window).To(Equal(strings.Join(windowOf(step.Request.Prompt), "\n")))
+		})
+	}
+
+	t.Run("a record without the turn's prompt still has its text in the window", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		step := auto.Moment(nil, auto.MomentInput{
+			Cue: "before-tool", Origin: "composer", Text: turnText,
+			Event: auto.ToolEvent{Tool: "Bash", Input: json.RawMessage(input)},
+		})
+
+		g.Expect(windowOf(step.Request.Prompt)).To(Equal([]string{turnLine, `Agent used Bash with {"command":"make ci"}`}))
+	})
 }
