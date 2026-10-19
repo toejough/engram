@@ -99,6 +99,17 @@ kinds and the same quality bar below (confirmed, not hypothesized; a general reu
 a session-specific narrative). A line that doesn't clear the bar is discarded silently — no vault
 note, no logged discard — the line is a low-bar offer, not a pre-judged lesson.
 
+**Every note clears two tests first: durable and atomic.**
+- **Durable** — still true and useful to a future task that has nothing to do with this one. Status or
+  progress of the work, plans, decisions about the work in hand, branch/worktree/ticket/change names,
+  timestamps, findings about this session's own incident, and episodes ("what happened") are not durable;
+  raw chunks already hold them. A save request ("remember this") for a durable fact is written; one for
+  status is not.
+- **Atomic** — one claim per note. A second claim is its own lesson and clears both tests itself, or is
+  dropped; it is never folded into the note beside it.
+- The situation names the kind of task or moment that calls for the lesson, with no ticket, issue or
+  change number (such as #855) and no branch name, unless the lesson is about that ticket itself.
+
 Scan THIS session for exactly four kinds of moments. For each note you crystallize, first decide
 its Luhmann placement (below), then include the resulting `position`/`target` in the write-memory
 handoff alongside the kind-specific fields.
@@ -304,6 +315,9 @@ skill does not invoke either command itself — that is the acting agent's (or u
 | --- | --- |
 | You ran `engram transcript` anything | Step 1's `engram ingest --auto` replaced the whole transcript workflow |
 | You're writing an episode or summarizing the session into a note | Don't — raw chunks already hold it |
+| You're writing a note that holds status, a plan, a branch/worktree/ticket name, a timestamp, an incident finding or "what happened" | Not durable — drop it; the raw chunks hold episodes. Not even a "remember this" makes status durable |
+| One note holds two claims, or you're about to fold a second claim into a note | Atomic — split it: each claim clears both tests alone, or is dropped |
+| The situation of the note names #NNN or a branch | Rewrite it as the kind of task that calls for the lesson |
 | You're writing facts for things nobody asked you to remember | Only corrections, save-requests, reversals, and confirmed approaches crystallize here |
 | You're writing a confirmed-approach note for a routine success or a bare "thanks!" | Kind 4 needs a genuine bet with observable confirmation, or explicit praise of a SPECIFIC behavior — never mere success |
 | You skipped the sweep because "nothing changed" | The sweep IS the check — it costs seconds when nothing changed — skipping because a sweep already ran this session is the prescribed exception |
