@@ -1534,6 +1534,87 @@ func Test855d2c1h_Mod_ChainsOfOneSessionRunAtOnceAndANoteIsDeliveredOnce(t *test
 	g.Expect(given).To(Equal(1), "how many of the two answers hold the block")
 }
 
+// Test855d2c1l_Mod_ADeniedCallKeepsNoBlockAndItsNotesAreDeliveredLater runs the mod under node against a stand-in host
+// whose hooks beneath deny a call, and then raises a prompt.
+func Test855d2c1l_Mod_ADeniedCallKeepsNoBlockAndItsNotesAreDeliveredLater(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runDeliveryDriver(t, toolScenario(deliveryScenario{
+		Delivers: []map[string]any{{"exitCode": 0, "stdout": noteBlock("a.md")}, {"exitCode": 0, "stdout": noteBlock("a.md")}},
+		Events: []eventRaised{
+			{Hook: "tool.call", Event: map[string]any{"tool": "Bash", "tool_use_id": "t1", "command": "rm"},
+				Answer: map[string]any{"deny": "no"}},
+			{Hook: "prompt.submit", Event: map[string]any{"text": "again", "context": []any{}, "origin": map[string]any{
+				"kind": "composer"}}},
+		},
+	}))
+
+	g.Expect(outcome.Answers).To(HaveLen(2))
+
+	if len(outcome.Answers) != 2 {
+		return
+	}
+
+	g.Expect(outcome.Answers[0]).To(Equal(map[string]any{"deny": "no"}), "the denial, and no block")
+	g.Expect(outcome.Answers[1]["context"]).To(Equal([]any{strings.TrimSpace(noteBlock("a.md"))}),
+		"the note, delivered at the later prompt")
+
+	deliveries := outcome.inputsOf("engram auto deliver")
+
+	g.Expect(deliveries).To(HaveLen(2))
+
+	if len(deliveries) == 2 {
+		g.Expect(deliveries[1]["held"]).To(BeEmpty(), "the denied call held nothing")
+	}
+}
+
+// Test855d2c1m_Mod_ADeepDeliveryWithinATurnWritesWithItsCue runs the mod under node against a stand-in host whose recall
+// prints a deep request, for a failure.
+func Test855d2c1m_Mod_ADeepDeliveryWithinATurnWritesWithItsCue(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runDeliveryDriver(t, deliveryScenario{
+		Steps: map[string]map[string]any{
+			"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": aStep(2)},
+			"recall": {"exitCode": 0, "stdout": aDeepStep()},
+		},
+		Replies: []string{"r1", "r2", "r3"},
+		Deliver: map[string]any{"exitCode": 0, "stdout": noteBlock("a.md")},
+		Events:  []eventRaised{failureEvent("a-session", "t1", false)},
+	})
+
+	g.Expect(outcome.Answers).To(Equal([]map[string]any{additionalContextOf("a.md")}), "the block, as additional context")
+	g.Expect(outcome.inputsOf("engram auto write")).To(Equal([]map[string]any{{
+		"session": "a-session", "cue": "failure", "reply": "r3", "carry": carryOfDeepStep(),
+	}}), "the write of the deep delivery: the cue of the event, the reply to the candidates and the carry")
+}
+
+// Test855d2c1n_Mod_ACallRunsWhileItsChainDoes runs the mod under node against a stand-in host whose moment does not
+// finish until the call is let run.
+func Test855d2c1n_Mod_ACallRunsWhileItsChainDoes(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runDeliveryDriver(t, toolScenario(deliveryScenario{
+		MomentAfterNext: true,
+		Deliver:         map[string]any{"exitCode": 0, "stdout": noteBlock("a.md")},
+		Events: []eventRaised{
+			{Hook: "tool.call", Event: map[string]any{"tool": "Bash", "tool_use_id": "t1", "command": "ls"},
+				Answer: map[string]any{"result": "ok"}},
+		},
+	}))
+
+	g.Expect(outcome.NextBeforeMoment).To(BeTrue(), "the call was let run before the moment finished")
+	g.Expect(outcome.Answers).To(Equal([]map[string]any{{
+		"result": "ok", "context": []any{strings.TrimSpace(noteBlock("a.md"))},
+	}}), "the block, once the chain was over")
+}
+
 // Test855d2c1k_Mod_AUsersInterruptAndABatchOfFailuresJudgedAlreadyAreLeftAlone runs the mod under node against a
 // stand-in host that raises an interrupt, a failure and a batch of that failure alone.
 func Test855d2c1k_Mod_AUsersInterruptAndABatchOfFailuresJudgedAlreadyAreLeftAlone(t *testing.T) {
@@ -1806,6 +1887,10 @@ let written = 0
 let setup = false
 let started = 0
 let barrierMet = false
+let nextSeen = false
+let nextBeforeMoment = false
+let nextRaised
+const nextRaisedPromise = new Promise((resolve) => { nextRaised = resolve })
 const arrivals = []
 const writeEvents = []
 const host = {
@@ -1826,6 +1911,12 @@ const host = {
           new Promise((resolve) => wait(resolve, 2000)),
         ])
         barrierMet = started >= scenario.momentBarrier
+      }
+      if (step === 'moment' && scenario.momentAfterNext) {
+        // the moment does not finish until the call is let run: a mod that runs its chain first never gets there, and
+        // the wait ends
+        await Promise.race([nextRaisedPromise, new Promise((resolve) => wait(resolve, 2000))])
+        nextBeforeMoment = nextSeen
       }
       if (step === 'write') {
         const mine = written++
@@ -1878,7 +1969,11 @@ if (scenario.events) {
   setup = false
   // an event no hook of the mod handles is answered by the hooks beneath it
   const raise = (item) => {
-    const next = async () => item.answer ?? {}
+    const next = async (passed) => {
+      nextSeen = true
+      nextRaised()
+      return item.answer ?? (item.hook === 'prompt.submit' ? passed : {})
+    }
     return handlers[item.hook] ? handlers[item.hook](host, item.event, next) : next()
   }
   if (scenario.concurrent) {
@@ -1903,7 +1998,7 @@ for (let last = -1, stable = 0, tick = 0; tick < 300 && stable < 5; tick++) {
   last = calls.length
 }
 
-console.log(JSON.stringify({ passed, all, calls, delays, settle, logged, writeEvents, answers, barrierMet }))
+console.log(JSON.stringify({ passed, all, calls, delays, settle, logged, writeEvents, answers, barrierMet, nextBeforeMoment }))
 process.exit(0)
 `
 	// driverTimeout is how long the mod may take under the stand-in host before the test gives it up.
@@ -2103,6 +2198,8 @@ type deliveryOutcome struct {
 	Answers []map[string]any `json:"answers"`
 	// BarrierMet is whether the moments of the scenario's barrier were all run before any was let answer.
 	BarrierMet bool `json:"barrierMet"`
+	// NextBeforeMoment is whether the call was let run (next(e)) before the moment of the scenario finished.
+	NextBeforeMoment bool `json:"nextBeforeMoment"`
 }
 
 // inputsOf returns the inputs of the runs of a step, in the order they were run.
@@ -2194,6 +2291,8 @@ type deliveryScenario struct {
 	SessionID string `json:"sessionId,omitempty"`
 	// MomentBarrier is how many runs of the moment wait for each other before any is let answer.
 	MomentBarrier int `json:"momentBarrier,omitempty"`
+	// MomentAfterNext makes the moment wait until an event has been let run, up to 2 seconds.
+	MomentAfterNext bool `json:"momentAfterNext,omitempty"`
 }
 
 // eventRaised is an event the stand-in host raises: the hook, the event, and what the hooks beneath answer.
