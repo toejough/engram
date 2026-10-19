@@ -362,3 +362,7 @@ The lessons of a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-term
 ## 855b90 The note is written before its sidecar
 
 A [note](../../GLOSSARY.md#permanent-note) is a file before its sidecar is, so a lookup made while the write embeds does not find it; the gap lasts only while the write embeds, and [793a3a](../793_automatic-memory/793a_product-spec.md) promises the note to a later [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms), not to a lookup made while the write embeds. Alternative, if it ever matters: write the sidecar first. Decided by: Author.
+
+## 855b91 The agent's plain correction of its own claim is a learn moment
+
+793a2c1d failed in two runs of this pass: the cheap tier judged the [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) of a guess that the user asked for and the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) then corrected from what it read as no learn moment, since the instructions left out "a guess", so no [note](../../GLOSSARY.md#permanent-note) was written and the judgement never ran. The instructions of the learn moment count the agent's plain correction of its own earlier claim, even a guess it was asked for, as the lessons judgement already does; a guess alone is still none. Alternative: leave the row to fail and call the guess no lesson, which loses the correction. Decided by: Author (default; owner may override).
