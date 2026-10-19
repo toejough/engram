@@ -77,6 +77,9 @@ func Test855d7a1d_Hyp_ADeepWriteIsTimed(t *testing.T) {
 			t.Logf("%d deep deliveries of the %d prompts sent; the depths chosen: %v; the writes: median %s s, longest %s s",
 				len(chains), sent, depthsOf(machine.chains()), secs(median(took)), secs(longest(took)))
 
+			g.Expect(machine.meterRecords()).NotTo(BeEmpty(), "the model calls the meter recorded")
+			g.Expect(unmatchedRequests(machine.chains())).To(BeEmpty(),
+				"the steps that printed a request and have no model call")
 			g.Expect(writes).To(HaveLen(len(chains)), "the writes that followed the deep blocks")
 			g.Expect(chains).To(HaveLen(deepMoments), "the deep moments")
 			g.Expect(chains).NotTo(BeEmpty(), "the deep deliveries")

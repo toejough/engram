@@ -68,6 +68,8 @@ func Test855d7a1a_Hyp_ARecallChainIsTimed(t *testing.T) {
 			"the longest wait of any step or model call of the session (%d chains of every cue): %s s",
 			depths, secs(median(totals)), secs(longest(totals)), len(chains), secs(longest(waits)))
 
+		g.Expect(machine.meterRecords()).NotTo(BeEmpty(), "the model calls the meter recorded")
+		g.Expect(unmatchedRequests(chains)).To(BeEmpty(), "the steps that printed a request and have no model call")
 		g.Expect(prompted).To(HaveLen(len(recallPrompts)), "the chains of the prompts the meter and the steps recorded")
 		g.Expect(longest(waits)).To(BeNumerically("<", measureBound), "the longest wait of the session")
 	})

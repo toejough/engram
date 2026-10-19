@@ -68,6 +68,8 @@ func Test855d7a1i_Hyp_TheCostOfTheJudgementsIsRecorded(t *testing.T) {
 				"requests with a block", "requests with 2 or more"}, overlapRows(costPrompts, chains, with)))
 
 		g.Expect(own.Output).To(BeNumerically(">", 0), "the agent's own use with the mod")
+		g.Expect(unmatchedRequests(chains)).To(BeEmpty(), "the steps that printed a request and have no model call")
+		g.Expect(cheapTools.calls).To(BeNumerically(">", 0), "the cheap calls of tool calls")
 		g.Expect(cheapTools.usage.Input+cheapTools.usage.Output).To(BeNumerically("<",
 			own.Input+own.Output+own.CacheRead+own.CacheCreate),
 			"the tokens of the cheap calls of tool calls against the agent's")

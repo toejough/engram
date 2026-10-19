@@ -530,5 +530,21 @@ func shellWords(text string) []string {
 	return splitter.words
 }
 
-// unmatchedRequests names each step, as "<cue> <step>", that printed a request and has no model call matched to it.
-func unmatchedRequests(_ []chain) []string { return nil }
+// unmatchedRequests names each step, as "<cue> <step>", that printed a request and has no model call matched to it: a
+// row that reads the time of a call as zero for such a step would pass with a recorder that saw no call.
+func unmatchedRequests(chains []chain) []string {
+	var unmatched []string
+
+	for _, each := range chains {
+		for _, run := range each.steps {
+			_, printed := run.request()
+			_, called := each.calls[run.step]
+
+			if printed && !called {
+				unmatched = append(unmatched, each.steps[0].cue()+" "+run.step)
+			}
+		}
+	}
+
+	return unmatched
+}

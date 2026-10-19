@@ -50,6 +50,9 @@ func Test855d7a1b_Hyp_ACaptureIsTimedAgainstItsRowsAndThe2Minutes(t *testing.T) 
 		captures := chainsOfCue(machine.chains(), cueTurnEnd)
 		ends := meterTurnEnds(machine.meterRecords())
 
+		g.Expect(machine.meterRecords()).NotTo(BeEmpty(), "the model calls the meter recorded")
+		g.Expect(unmatchedRequests(machine.chains())).To(BeEmpty(),
+			"the steps that printed a request and have no model call")
 		g.Expect(captures).To(HaveLen(len(lessonPrompts)+1), "the captures of the first turn and of the 10 turns")
 		g.Expect(ends).To(HaveLen(len(lessonPrompts)+1), "the turns the meter saw end")
 

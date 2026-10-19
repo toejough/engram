@@ -111,6 +111,9 @@ func Test855d7a1e_Hyp_TheChainsOfATurnsToolCallsAreTimed(t *testing.T) {
 			secs(phaseWithout), secs(phaseWith), secs(added), secs(delayed), secs(without.repliedAfter()),
 			secs(with.repliedAfter()), len(chains), secs(sum), len(with.withinTurn()), secs(median(saved)))
 
+		g.Expect(mod.meterRecords()).NotTo(BeEmpty(), "the model calls the meter recorded")
+		g.Expect(unmatchedRequests(mod.chains())).To(BeEmpty(),
+			"the steps that printed a request and have no model call")
 		g.Expect(modSpans).To(HaveLen(len(bareSpans)), "the tool calls with and without the mod")
 		g.Expect(len(modSpans)).To(BeNumerically(">=", tenToolCalls), "the tool calls of the turn")
 		g.Expect(added).To(BeNumerically("<", sum), "the time added to the turn against the sum of the chains")
