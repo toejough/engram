@@ -177,7 +177,11 @@ type tokenUsage struct {
 
 // all is every token the host counted: the fresh input and the output, and the input read from and written to the
 // cache.
-func (u tokenUsage) all() int { return u.Input + u.Output }
+func (u tokenUsage) all() int { return u.Input + u.Output + u.CacheRead + u.CacheCreate }
+
+// fresh is the tokens the model processed anew: the input and the output, and the input written to the cache; the
+// input read from the cache is not.
+func (u tokenUsage) fresh() int { return u.Input + u.Output + u.CacheCreate }
 
 // cost is the cost of the tokens at a price, in USD.
 func (u tokenUsage) cost(at price) float64 {

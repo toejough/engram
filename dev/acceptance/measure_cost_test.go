@@ -49,7 +49,8 @@ func Test855d7a1i_Hyp_TheCostOfTheJudgementsIsRecorded(t *testing.T) {
 		t.Logf("the model calls of the judgements by cue and step (a call is one request of the mod; tokens are the counts "+
 			"the host reported, the cost is at the published price of the alias):\n%s", table([]string{"cue", "step", "model",
 			"calls", "input", "output", "cost USD"}, useRows(uses)))
-		t.Logf("%s", table([]string{"use", "calls", "input", "output", "cache read", "cache write", "all tokens", "cost USD"},
+		t.Logf("%s", table([]string{"use", "calls", "input", "output", "cache read", "cache write", "fresh tokens",
+			"all tokens", "cost USD"},
 			[][]string{
 				usageRow("agent, without the mod", len(without), ownBare, sonnetPrice),
 				usageRow("agent, with the mod", len(with), own, sonnetPrice),
@@ -70,9 +71,8 @@ func Test855d7a1i_Hyp_TheCostOfTheJudgementsIsRecorded(t *testing.T) {
 		g.Expect(own.Output).To(BeNumerically(">", 0), "the agent's own use with the mod")
 		g.Expect(unmatchedRequests(chains)).To(BeEmpty(), "the steps that printed a request and have no model call")
 		g.Expect(cheapTools.calls).To(BeNumerically(">", 0), "the cheap calls of tool calls")
-		g.Expect(cheapTools.usage.Input+cheapTools.usage.Output).To(BeNumerically("<",
-			own.Input+own.Output+own.CacheRead+own.CacheCreate),
-			"the tokens of the cheap calls of tool calls against the agent's")
+		g.Expect(cheapTools.usage.all()).To(BeNumerically("<", own.all()),
+			"the tokens of the cheap calls of tool calls against the agent's, the same four counts on both sides")
 		g.Expect(cheapTools.usage.cost(haikuPrice)).To(BeNumerically("<", own.cost(sonnetPrice)),
 			"the cost of the cheap calls of tool calls against the agent's")
 	})
@@ -268,7 +268,7 @@ func tierUse(uses []callUse, model string, cues []string) callUse {
 func usageRow(name string, calls int, usage tokenUsage, rate price) []string {
 	return []string{
 		name, strconv.Itoa(calls), strconv.Itoa(usage.Input), strconv.Itoa(usage.Output), strconv.Itoa(usage.CacheRead),
-		strconv.Itoa(usage.CacheCreate), strconv.Itoa(usage.Input + usage.Output + usage.CacheRead + usage.CacheCreate),
+		strconv.Itoa(usage.CacheCreate), strconv.Itoa(usage.fresh()), strconv.Itoa(usage.all()),
 		fmt.Sprintf("%.4f", usage.cost(rate)),
 	}
 }
