@@ -30,8 +30,13 @@ const (
 
 // unexported variables.
 var (
-	haikuPrice  = price{input: 0.10e-6, output: 0.50e-6, cacheRead: 0.01e-6, cacheWrite: 0.20e-6}
-	sonnetPrice = price{input: 2e-6, output: 10e-6, cacheRead: 0.10e-6, cacheWrite: 4e-6}
+	// liveLimits are the limits of every live row of 793 and 855 (stubbed at the values the measurements raised them
+	// to).
+	liveLimits = sessionLimits{budgetUSD: "10", timeout: 30 * time.Minute}
+	// measureLimits are the limits of the conversations of the measurement rows of 855d7a1 (855b112).
+	measureLimits = sessionLimits{budgetUSD: "10", timeout: 30 * time.Minute}
+	haikuPrice    = price{input: 0.10e-6, output: 0.50e-6, cacheRead: 0.01e-6, cacheWrite: 0.20e-6}
+	sonnetPrice   = price{input: 2e-6, output: 10e-6, cacheRead: 0.10e-6, cacheWrite: 4e-6}
 )
 
 // chain is the steps of one flow, in order, with the model call that followed each step that printed a request.
@@ -569,4 +574,10 @@ func unmatchedRequests(chains []chain) []string {
 	}
 
 	return unmatched
+}
+
+// sessionLimits are what a live session may spend, and for how long it may run.
+type sessionLimits struct {
+	budgetUSD string
+	timeout   time.Duration
 }

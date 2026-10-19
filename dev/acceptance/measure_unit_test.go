@@ -205,3 +205,12 @@ func TestUnmatchedRequests_NamesTheStepsThatPrintedARequestAndHaveNoModelCall(t 
 	g.Expect(unmatchedRequests(chainsOf(runs, []meterRecord{call}))).To(Equal([]string{"prompt moment"}),
 		"a call that began before the step ended is not the step's call")
 }
+
+func TestSessionLimits_TheMeasurementsRaiseTheirOwnAndTheSharedOnesStayAtThoseOf793(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(liveLimits).To(Equal(sessionLimits{budgetUSD: "2", timeout: 5 * time.Minute}), "the limits of 793's rows")
+	g.Expect(measureLimits).To(Equal(sessionLimits{budgetUSD: "10", timeout: 30 * time.Minute}), "the limits of 855d7a1")
+}
