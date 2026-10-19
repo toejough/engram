@@ -68,6 +68,7 @@ var (
 	// specFiles are the product and technical specs of both changes (855b45).
 	specFiles = []string{
 		filepath.Join(changeDirectory, "793a_product-spec.md"), filepath.Join(changeDirectory, "793d_technical-spec.md"),
+		filepath.Join(judgedDirectory, "855a_product-spec.md"), filepath.Join(judgedDirectory, "855d_technical-spec.md"),
 	}
 )
 
