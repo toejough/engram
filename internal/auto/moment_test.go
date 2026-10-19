@@ -215,7 +215,8 @@ func Test855d4a1d_Moment_ACredentialInEscapedFormInAnEventIsRedacted(t *testing.
 
 	escaped := spelled.String()
 
-	object := json.RawMessage(`{"command":"echo ` + escaped + ` done","note":"` + escaped + `","list":["` + escaped + `",1]}`)
+	object := json.RawMessage(
+		`{"command":"echo ` + escaped + ` done","note":"` + escaped + `","list":["` + escaped + `",1]}`)
 	inputs := map[string]auto.MomentInput{
 		"an object input": {Cue: "before-tool", Event: auto.ToolEvent{Tool: "Bash", Input: object}},
 		"a batch response": {
