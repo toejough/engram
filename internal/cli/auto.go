@@ -197,8 +197,8 @@ func RunAutoJudge(ctx context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, s
 		return fmt.Errorf("auto judge: reading the turn: %w", decodeErr)
 	}
 
-	// a mod of an older engram hands over no reply: its turn is skipped and not failed, and the session needs a restart
-	// (855d4g1g)
+	// a mod of an older engram hands over no reply: its turn is skipped and not failed, for it ended while the update
+	// replaced the mod (855d4g1g)
 	if turn.Reply == nil {
 		results := outcomes{base: auto.Record{At: deps.Now(), Session: turn.Session, Turn: turn.Turn}}
 		results.add(auto.RecordSkipped, "", "", auto.StaleModSkipReason)

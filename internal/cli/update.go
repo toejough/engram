@@ -852,7 +852,7 @@ func writeHarnessSections(buffer *bytes.Buffer, report update.Report) []string {
 		}
 
 		writeSkillRows(buffer, harness, report.Home)
-		writeModRestartNotice(buffer, report, harness)
+		writeModReloadNotice(buffer, report, harness)
 		writeEngramRootNotice(buffer, report, harness)
 		successes = append(successes, string(harness.Name))
 	}
@@ -909,16 +909,19 @@ func writeLuhmannBranchingNotice(buffer *bytes.Buffer, report update.Report) {
 	}
 }
 
-// writeModRestartNotice prints one line for each mod this run deployed: a session that is open loads the mod it began
-// with and keeps it until it is restarted (855d4w1a). Silent on a dry run, which deploys nothing.
-func writeModRestartNotice(buffer *bytes.Buffer, report update.Report, harness update.HarnessReport) {
+// writeModReloadNotice prints one line for each mod this run deployed: the host reloads a changed mod in a session that
+// is open on its own, a moment after the files change, and a turn that ends in between is left out (855d4w1a). Silent
+// on a dry run, which deploys nothing.
+func writeModReloadNotice(buffer *bytes.Buffer, report update.Report, harness update.HarnessReport) {
 	if report.DryRun {
 		return
 	}
 
 	for _, dirCount := range harness.SkillDirs {
 		if dirCount.Mod {
-			fmt.Fprintf(buffer, "    restart open sessions to load the mod %s\n", dirCount.Name)
+			fmt.Fprintf(buffer,
+				"    open sessions reload the mod %s on their own; restart one that reports the mod as stale\n",
+				dirCount.Name)
 		}
 	}
 }
