@@ -82,6 +82,11 @@ func PlacedAt(placements []Placement, slug string, seen []string) Placed {
 	return placed
 }
 
+// isSupersedesType reports whether a type is one of the ties a lesson has with the note it supersedes (792a15h).
+func isSupersedesType(tie string) bool {
+	return tie == "updates" || tie == "narrows" || tie == "refutes"
+}
+
 // placementsOf is the list of a placement reply: the reply, unfenced, or, when the model reasoned before it, what runs
 // from the last line that opens a list and ends the reply (855d4i).
 func placementsOf(reply string) string {
@@ -100,9 +105,4 @@ func placementsOf(reply string) string {
 	}
 
 	return text
-}
-
-// isSupersedesType reports whether a type is one of the ties a lesson has with the note it supersedes (792a15h).
-func isSupersedesType(tie string) bool {
-	return tie == "updates" || tie == "narrows" || tie == "refutes"
 }

@@ -310,8 +310,6 @@ func Test855a2d1a_ACorrectingNoteNamesTheNoteItCorrects(t *testing.T) {
 
 // unexported constants.
 const (
-	// lookupWait is how long the sidecar of a note that was just written has to be there for the lookup.
-	lookupWait = 20 * time.Second
 	// askPlanTheBuild is a recall moment that the buildWithMakeCI note applies to (855a2c1a).
 	askPlanTheBuild = "Plan how to build the Zorblax project for release, and say which command you would run. " +
 		"Reply with one short sentence."
@@ -339,6 +337,8 @@ const (
 	forcePushedBranch = "zorblax-fix-1138"
 	// leaseFlag is the flag the rule of 855a2b1a names.
 	leaseFlag = "--force-with-lease"
+	// lookupWait is how long the sidecar of a note that was just written has to be there for the lookup.
+	lookupWait = 20 * time.Second
 	// sayTheLintNeedsStrict states a sub-point of the buildWithMakeCI note.
 	sayTheLintNeedsStrict = "No - make ci alone fails: the lint step of make ci needs LINT_STRICT=1 set. " +
 		"Reply with one short sentence."
@@ -376,6 +376,16 @@ var (
 	}
 )
 
+// logPlacement logs what the placement printed for the last turn that was placed, and what the writing was given: the
+// reply of the model to it is the writing's placement.
+func (m *machine) logPlacement() {
+	m.t.Helper()
+
+	printed, ran := m.stepPrinted("place")
+	m.t.Logf("the judgement was given %s\nthe placement ran: %v, and printed %s\nthe writing was given %s",
+		m.stepsGiven("judge"), ran, printed, m.stepsGiven("write"))
+}
+
 // noteOf returns the note of the machine's vault with a file name.
 func (m *machine) noteOf(name string) vaultNote {
 	m.t.Helper()
@@ -406,14 +416,4 @@ func parentOf(id string) string {
 	}
 
 	return strings.Join(slices.Clone(segments[:len(segments)-1]), "")
-}
-
-// logPlacement logs what the placement printed for the last turn that was placed, and what the writing was given: the
-// reply of the model to it is the writing's placement.
-func (m *machine) logPlacement() {
-	m.t.Helper()
-
-	printed, ran := m.stepPrinted("place")
-	m.t.Logf("the judgement was given %s\nthe placement ran: %v, and printed %s\nthe writing was given %s",
-		m.stepsGiven("judge"), ran, printed, m.stepsGiven("write"))
 }

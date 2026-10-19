@@ -83,9 +83,9 @@ func placeLessons(seen ...auto.Note) (auto.Step, bool) {
 	}}, seen)
 }
 
-// placeProblem tells what is wrong with the prompt of a placement for some seen notes, or nothing: each note is one line
-// of the section, no secret is in it, its tags open and close once, and no line holds the character that opens a tag
-// or a body of more than 400 characters.
+// placeProblem tells what is wrong with the prompt of a placement for some seen notes, or nothing: each note is one
+// line of the section, no secret is in it, its tags open and close once, and no line holds the character that opens a
+// tag or a body of more than 400 characters.
 func placeProblem(prompt string, notes int, secrets ...string) string {
 	if len(notesOf(prompt)) != notes {
 		return fmt.Sprintf("%d notes are %d lines", notes, len(notesOf(prompt)))

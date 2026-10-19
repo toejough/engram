@@ -828,20 +828,6 @@ func (m *machine) stepPrinted(step string) (string, bool) {
 	return string(data), err == nil
 }
 
-// stepsGiven returns what a step was given, as stepsAreRecorded kept it: the input of each run, one to a line.
-func (m *machine) stepsGiven(step string) string {
-	files, _ := filepath.Glob(filepath.Join(m.root, "steps-seen", step+"-*.in"))
-
-	var seen strings.Builder
-
-	for _, name := range files {
-		data, _ := os.ReadFile(name)
-		seen.WriteString(strings.TrimSpace(string(data)) + "\n")
-	}
-
-	return seen.String()
-}
-
 // stepStarted reports whether the slow step of stepTakes or stepNeverEnds was started.
 func (m *machine) stepStarted() bool {
 	_, err := os.Stat(filepath.Join(m.root, "slow-step", "started"))
@@ -887,6 +873,20 @@ func (m *machine) stepsAreRecorded() {
 		"\"auto recall\"|\"auto judge\"|\"auto place\")\nf='"+dir+"/'\"$2\"-$$\ncat > \"$f.in\"\n'"+engram+
 		"' \"$@\" < \"$f.in\" > \"$f.out\"\ncode=$?\ncat \"$f.out\"\ncp \"$f.out\" '"+dir+"/'\"$2\".out\ncp \"$f.in\" '"+dir+
 		"/'\"$2\".in\nexit $code\n;;\nesac\nexec '"+engram+"' \"$@\"\n")
+}
+
+// stepsGiven returns what a step was given, as stepsAreRecorded kept it: the input of each run, one to a line.
+func (m *machine) stepsGiven(step string) string {
+	files, _ := filepath.Glob(filepath.Join(m.root, "steps-seen", step+"-*.in"))
+
+	var seen strings.Builder
+
+	for _, name := range files {
+		data, _ := os.ReadFile(name)
+		seen.WriteString(strings.TrimSpace(string(data)) + "\n")
+	}
+
+	return seen.String()
 }
 
 // vaultCanBeRead gives the right to read the machine's vault back.
