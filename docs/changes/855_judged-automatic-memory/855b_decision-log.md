@@ -351,6 +351,14 @@ The instructions of the judgement say that a [note](../../GLOSSARY.md#permanent-
 
 The rows of the placement tell the lesson as a correction or as a request to remember: a plain statement of a fact that the user was not asked about, or that corrects nothing, is none of the four kinds of the [learn skill](../../GLOSSARY.md#learn-skill), and the cheap tier judged it so in the first run of 855a2c1a. The [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms) of the rows say "No - ..." or "Remember this: ...". Alternative: widen the learn moment to plain statements, which the learn skill does not do. Decided by: Author (default; owner may override).
 
-## 855b88 Measured on 2026-10-19 on the acceptance fixture: the turn to the note
+## 855b88 Measured on 2026-10-18 on the acceptance fixture: the turn to the note
 
 From the end of a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) to the file of its [note](../../GLOSSARY.md#permanent-note), over the 8 notes written by the runs of the learn rows (a fact, a feedback, a runbook and a supersession among them): 2.6, 2.8, 3.0, 3.2, 3.7, 4.0, 4.2 and 7.0 seconds, a median of 3.4 seconds against the 2 minutes of the promise and the 115 seconds of the rows. Decided by: Author.
+
+## 855b89 A placement that fails does not fail the capture
+
+The lessons of a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) are whole when the placement fails, and the placement only orders them, so the mod writes them at the top as it does when the placement prints nothing and gives the writing a `placementFailure` that says why; the writing records the placement as skipped with that reason, which is the record of a placement reply that is no list. The reason is [855b31 Placement is skipped without a seen note, and an unusable one is ignored](#855b31-placement-is-skipped-without-a-seen-note-and-an-unusable-one-is-ignored): an unusable placement is ignored and the lesson is written at the top. A failure of the moment or of the lessons judgement still fails the capture, since no lesson exists. Alternative: fail the capture and lose the lessons, which the first design did. Decided by: Owner (default, 2026-10-18).
+
+## 855b90 The note is written before its sidecar
+
+A [note](../../GLOSSARY.md#permanent-note) is a file before its sidecar is, so a lookup made while the write embeds does not find it; the gap lasts only while the write embeds, and [793a3a](../793_automatic-memory/793a_product-spec.md) promises the note to a later [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms), not to a lookup made while the write embeds. Alternative, if it ever matters: write the sidecar first. Decided by: Author.
