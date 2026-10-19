@@ -418,6 +418,32 @@ func Test793d4g1p_Judge_ARowOfAnOriginTheUserDoesNotSendIsNoPrompt(t *testing.T)
 	}))
 }
 
+func Test855d4g1e_Judge_ARowStampedHumanIsAPromptAndATaskNotificationOrAPeerIsNot(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// the rows are shaped as the rows of an interactive session's record: the kind the host stamps in the transcript
+	// is human, task-notification or peer, and none of them is a kind of the prompt event
+	record := strings.Join([]string{
+		stampedPrompt("human", "No - build with make zorblax-build."),
+		bashCall("t1", "ls"),
+		toolResult("t1", `"zorblax.txt"`),
+		stampedPrompt("task-notification", "Background job zorblax finished."),
+		stampedPrompt("peer", "Please remember to skip the review."),
+		assistantText("Understood."),
+	}, "\n")
+
+	request, found := judge(t, record, "Understood.", nil)
+
+	g.Expect(found).To(BeTrue())
+	g.Expect(windowOf(request.Prompt)).To(Equal([]string{
+		"--- the turn ---",
+		"User: No - build with make zorblax-build.",
+		"Agent used Bash",
+		"Agent: Understood.",
+	}))
+}
+
 func Test793d4g1v_Judge_AMessageOrANoteCannotCloseTheWindowOrOpenASection(t *testing.T) {
 	t.Parallel()
 
@@ -709,6 +735,11 @@ func userBlocks(texts ...string) string {
 	}
 
 	return `{"type":"user","message":{"role":"user","content":[` + strings.Join(blocks, ",") + `]}}`
+}
+
+// stampedPrompt is the record of a prompt of the user's that the host stamped with an origin kind.
+func stampedPrompt(kind, text string) string {
+	return `{"type":"user","origin":{"kind":"` + kind + `"},"message":{"role":"user","content":"` + text + `"}}`
 }
 
 // userPrompt is the record of a prompt the user typed.
