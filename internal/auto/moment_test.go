@@ -180,11 +180,13 @@ func Test855d4a1c_Moment_EachToolCuePutsItsEventInTheWindow(t *testing.T) {
 			g.Expect(step.Request.System).To(And(ContainSubstring("Agent used <tool> with <input>"),
 				ContainSubstring("Agent used <tool> failed: <error>"),
 				ContainSubstring("Agent used <tool> returned: <response>")), "the system tells the lines of an event")
-			g.Expect(step.Request.System).To(And(
+			words := strings.Join(strings.Fields(step.Request.System), " ")
+
+			g.Expect(words).To(And(
 				ContainSubstring("the tool call failed and the agent cannot immediately explain it"),
 				ContainSubstring("the agent is about to start building a new approach")),
 				"the cues of the recall skill, in its words")
-			g.Expect(step.Request.System).NotTo(Or(ContainSubstring("plain and trivial"), ContainSubstring("begins a change")),
+			g.Expect(words).NotTo(Or(ContainSubstring("plain and trivial"), ContainSubstring("begins a change")),
 				"no wording of the prompt's own")
 			g.Expect(step.Carry.Cue).To(Equal(testCase.input.Cue))
 			g.Expect(step.Carry.Window).To(Equal(strings.Join(windowOf(step.Request.Prompt), "\n")))

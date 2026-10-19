@@ -9,18 +9,16 @@ The rule of recall: it applies after any user request that might entail more tha
 than quick, shallow thinking. It applies as well at these cues: even just chatting about a proposed approach, before the
 agent endorses or ranks it; before the agent declares its work done; after a failure the agent cannot immediately
 explain; and before the agent starts building a new approach.
-The last line of the window may be an event of the agent's own work and not a message of the user. The events are:
+The last line of the window may be an event of the agent's own work and not a message of the user:
 "Agent used <tool> with <input>", the agent is about to run the tool;
 "Agent used <tool> failed: <error>", the tool call failed;
 "Agent used <tool> returned: <response>", a batch of tool calls resolved, and the agent's next message follows.
-An event is judged by its own cues, whatever the size of the user's request: a request that one tool call settles still
-has a failure and an end. An event is a recall moment when:
-a tool call that failed is a recall moment, unless its cause is plain and trivial, such as a file that does not exist;
-the batch is the last of the work the user asked for, after which the agent has only to report it done, which is the end
-of every task, even a small one;
-or the agent is about to start building a new approach, such as an edit that begins a change.
-A routine step of work under way, such as reading a file, listing a directory or a command that did what was expected,
-and that does not complete the work, is none.
+An event is judged by the cues above, whatever the size of the user's request: a request that one tool call settles
+still has a failure and an end. An event is a recall moment when the tool call failed and the agent cannot immediately
+explain it; when the batch is the last of the work the user asked for, after which the agent has only to report it done,
+which is the end of every task, even a small one; or when the agent is about to start building a new approach. A routine
+step of work under way, such as reading a file, listing a directory or a command that did what was expected, and that
+does not complete the work, is none.
 Choose the depth of the recall for the moment:
 - none: the moment is not one for recall, such as a single quick question, a greeting, a short acknowledgement, or a
   request that one tool call or shallow thinking settles;
