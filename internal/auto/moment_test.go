@@ -2,6 +2,7 @@ package auto_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -240,4 +241,48 @@ func Test855d4a1c_Moment_EachToolCuePutsItsEventInTheWindow(t *testing.T) {
 
 		g.Expect(windowOf(step.Request.Prompt)).To(Equal([]string{turnLine, `Agent used Bash with {"command":"make ci"}`}))
 	})
+}
+
+func Test855d4a1d_Moment_ACredentialInEscapedFormInAnEventIsRedacted(t *testing.T) {
+	t.Parallel()
+
+	// the issuer's prefix and the body, built here and written whole in no literal; each character is written as a
+	// unicode escape of the JSON, which the redaction must read decoded (the {{AKIA}} placeholder convention)
+	secret := "AK" + "IA" + "IOSFODNN7EXAMPLE"
+	escaped := ""
+
+	for _, r := range secret {
+		escaped += fmt.Sprintf(`\u%04x`, r)
+	}
+
+	object := json.RawMessage(`{"command":"echo ` + escaped + ` done","note":"` + escaped + `"}`)
+	inputs := map[string]auto.MomentInput{
+		"an object input": {Cue: "before-tool", Event: auto.ToolEvent{Tool: "Bash", Input: object}},
+		"a batch response": {
+			Cue: "batch-done", Event: auto.ToolEvent{Calls: []auto.ToolCall{{Tool: "Bash", Input: object, Response: object}}},
+		},
+		"a string response": {
+			Cue: "batch-done", Event: auto.ToolEvent{Calls: []auto.ToolCall{{Tool: "Bash", Response: json.RawMessage(
+				`"` + escaped + `"`)}}},
+		},
+		"a failure input": {Cue: "failure", Event: auto.ToolEvent{Tool: "Bash", Input: object, Error: "x"}},
+		"a key": {Cue: "before-tool", Event: auto.ToolEvent{Tool: "Bash", Input: json.RawMessage(
+			`{"` + escaped + `":"x"}`)}},
+	}
+
+	for name, input := range inputs {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			input.Origin = "composer"
+			input.Text = "go"
+
+			step := auto.Moment(nil, input)
+
+			g.Expect(step.Request.Prompt).NotTo(ContainSubstring(secret), "the decoded credential")
+			g.Expect(step.Request.Prompt).NotTo(ContainSubstring("EXAMPLE"), "the body of the credential")
+			g.Expect(step.Request.Prompt).NotTo(ContainSubstring(escaped[:12]), "the credential, still escaped")
+		})
+	}
 }
