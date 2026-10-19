@@ -92,6 +92,8 @@ const (
 	contextLines = 6
 	// divider is the line that ends the context and opens the turn.
 	divider = "--- the turn ---"
+	// humanKind is the origin kind the host stamps in the transcript on a prompt the user typed (855d4g1e).
+	humanKind = "human"
 	// judgeMaxTokens is a ceiling and not a spend: the lessons of a turn with a runbook and its steps (855b86).
 	judgeMaxTokens = 3000
 	// judgeTimeoutMs is the row of the model call of the lessons judgement (855d2b).
@@ -249,7 +251,7 @@ func messagesOf(record []byte) ([]message, int) {
 
 		switch row.Type {
 		case "user":
-			if row.IsMeta || (row.Origin.Kind != "" && !UserSent(row.Origin.Kind)) {
+			if row.IsMeta || (row.Origin.Kind != "" && !promptKind(row.Origin.Kind)) {
 				continue
 			}
 
@@ -281,6 +283,13 @@ func noteLines(notes []Note) string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+// promptKind reports whether a row of the transcript stamped with an origin kind is a prompt the user sent (855d4g1e):
+// the kind `human` that the host stamps on a prompt typed in an interactive session, or a kind of the prompt event
+// ([UserSent]). A task notification and a peer's message are not.
+func promptKind(kind string) bool {
+	return kind == humanKind || UserSent(kind)
 }
 
 // oneLined writes text as one line as oneLine does, with a break of the text's own written ` ⏎ `, so that no message
