@@ -164,6 +164,16 @@ func TestTokenUsage_CostsEachKindOfTokenAtItsPrice(t *testing.T) {
 	g.Expect(usage.plus(usage)).To(Equal(tokenUsage{Input: 4, Output: 148, CacheRead: 22458, CacheCreate: 13380}))
 }
 
+func TestUnknownDepths_NamesTheDepthsThatAreNoneOfTheThree(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(unknownDepths([]promptRecall{{depth: "none"}, {depth: "glance"}, {depth: "deep"}})).To(BeEmpty())
+	g.Expect(unknownDepths([]promptRecall{{depth: "none"}, {}, {depth: "later"}})).To(Equal([]string{"", "later"}),
+		"a prompt with no chain arrived with no depth, and is not a prompt judged to be something other than none")
+}
+
 func TestUnmatchedRequests_NamesTheStepsThatPrintedARequestAndHaveNoModelCall(t *testing.T) {
 	t.Parallel()
 
