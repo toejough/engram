@@ -93,7 +93,49 @@ func Test855a2a1b_ADeepDeliveryWritesTheLessonTheVaultLacks(t *testing.T) {
 		t.Logf("the note was written %s after the block was printed", machine.noteWrittenAfterBlock(name))
 
 		g.Expect(machine.stepsGiven("write")).To(ContainSubstring(`"cue":"prompt"`), "the writing of a deep delivery")
+
+		// the note is the deep write's and not the turn capture's when its sources hold a passage that was delivered
+		g.Expect(sourcesOf(machine.noteTexts()[name])).To(ContainElement(BeElementOf(passageIDs(sent.blocks()))),
+			"the chunks the note names as its sources")
+
+		// the capture of the turn and the sidecar have finished before the machine is cleaned up
+		machine.awaitSettled(chat.session.id, chat.turnEnds, 2)
 	})
+}
+
+// passageIDs returns the IDs of the passages the blocks deliver: each line "- <ID> (passage): <text>".
+func passageIDs(blocks []string) []string {
+	var ids []string
+
+	for _, block := range blocks {
+		for line := range strings.SplitSeq(block, "\n") {
+			if id, _, found := strings.Cut(strings.TrimPrefix(line, "- "), " (passage)"); found && strings.HasPrefix(line, "- ") {
+				ids = append(ids, id)
+			}
+		}
+	}
+
+	return ids
+}
+
+// sourcesOf returns the entries of the list that the "sources:" line of a note's front matter begins.
+func sourcesOf(text string) []string {
+	var sources []string
+
+	listed := false
+
+	for line := range strings.SplitSeq(text, "\n") {
+		switch {
+		case line == "sources:":
+			listed = true
+		case listed && strings.HasPrefix(strings.TrimSpace(line), "- "):
+			sources = append(sources, strings.Trim(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "- ")), `"'`))
+		default:
+			listed = false
+		}
+	}
+
+	return sources
 }
 
 // unexported constants.
