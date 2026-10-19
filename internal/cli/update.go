@@ -852,6 +852,7 @@ func writeHarnessSections(buffer *bytes.Buffer, report update.Report) []string {
 		}
 
 		writeSkillRows(buffer, harness, report.Home)
+		writeModRestartNotice(buffer, report, harness)
 		writeEngramRootNotice(buffer, report, harness)
 		successes = append(successes, string(harness.Name))
 	}
@@ -946,6 +947,20 @@ func writeReexecHandoffReport(out io.Writer, report update.Report) error {
 func writeSkillRegistrationErrorHint(buffer *bytes.Buffer, report update.Report) {
 	if report.SkillRegistrationErr != "" {
 		fmt.Fprintf(buffer, "skill registration error: %s\n", report.SkillRegistrationErr)
+	}
+}
+
+// writeModRestartNotice prints one line for each mod this run deployed: a session that is open loads the mod it began
+// with and keeps it until it is restarted (855d4g1h). Silent on a dry run, which deploys nothing.
+func writeModRestartNotice(buffer *bytes.Buffer, report update.Report, harness update.HarnessReport) {
+	if report.DryRun {
+		return
+	}
+
+	for _, dirCount := range harness.SkillDirs {
+		if dirCount.Mod {
+			fmt.Fprintf(buffer, "    restart open sessions to load the mod %s\n", dirCount.Name)
+		}
 	}
 }
 
