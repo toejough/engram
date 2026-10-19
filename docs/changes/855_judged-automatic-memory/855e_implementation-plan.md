@@ -46,6 +46,7 @@ The groups, in the order of the table: the gates, then the prerequisites of each
 | [855e6e A deep delivery writes what the recall skill's deep mode writes](#855e6e-a-deep-delivery-writes-what-the-recall-skills-deep-mode-writes) | [855a2a Delivery writes what its depth writes](./855a_product-spec.md#855a2a-delivery-writes-what-its-depth-writes), [855d4j Writing what a deep delivery writes](./855d_technical-spec.md#855d4j-added-writing-what-a-deep-delivery-writes) | Green-all (each product row run once; the tally of 10 runs is not taken) |
 | [855e6f Recall moments within a turn](#855e6f-recall-moments-within-a-turn) | [855a2e Recall moments within a turn](./855a_product-spec.md#855a2e-recall-moments-within-a-turn), [855d2c Mid-turn recall flow](./855d_technical-spec.md#855d2c-added-mid-turn-recall-flow) | Complete (each product row run once and passed; on the defaults of [855c3 Is every tool call judged, and may the chains run at once?](./855c_open-questions.md#855c3-is-every-tool-call-judged-and-may-the-chains-run-at-once) and [855c4 Does the before-tool cue promise the note before the call or before the next action?](./855c_open-questions.md#855c4-does-the-before-tool-cue-promise-the-note-before-the-call-or-before-the-next-action)) |
 | [855e6g The remaining hypotheses are measured](#855e6g-the-remaining-hypotheses-are-measured) | [855d7a Hypotheses and their measurements](./855d_technical-spec.md#855d7a-added-hypotheses-and-their-measurements) | Complete ([855d7a1g The phrases find what the recall skill finds](./855d_technical-spec.md#855d7a1-scenarios) Refuted; owner answer pending, [855c9 Is the loss of the recall chain against the skill accepted?](./855c_open-questions.md#855c9-is-the-loss-of-the-recall-chain-against-the-skill-accepted)) |
+| [855e6h Dogfood fixes](#855e6h-dogfood-fixes) | [855d4g 793d4g Judging a turn](./855d_technical-spec.md#855d4g-modified-793d4g-judging-a-turn), [855d4w 793d4b Deploying the mods of the source](./855d_technical-spec.md#855d4w-modified-793d4b-deploying-the-mods-of-the-source) | Complete (dogfood of 2026-10-19; [855b114 The user's rows of the transcript are told by the kind human, and the events of prompts by their own origins](./855b_decision-log.md#855b114-the-users-rows-of-the-transcript-are-told-by-the-kind-human-and-the-events-of-prompts-by-their-own-origins), [855b115 A reply that is no moment reply fails with its first and last 80 characters](./855b_decision-log.md#855b115-a-reply-that-is-no-moment-reply-fails-with-its-first-and-last-80-characters), [855b116 A turn from a mod of an older engram is skipped with a reason, and engram update says to restart](./855b_decision-log.md#855b116-a-turn-from-a-mod-of-an-older-engram-is-skipped-with-a-reason-and-engram-update-says-to-restart)) |
 
 ## 855e9 Dependency graph
 
@@ -88,6 +89,10 @@ flowchart TD
     n855e6g6["855e6g6 The cost of the judgements is recorded<br/>Blocked by: 855e6f4, 855e6d6"]
     n855e6g7["855e6g7 The moment judgement's false none is recorded<br/>Blocked by: 855e6c6"]
     n855e6g8["855e6g8 The conformance check reads the specs of 855<br/>Blocked by: 855e6g1, 855e6g2, 855e6g3, 855e6g4, 855e6g5, 855e6g6, 855e6g7, 855e6d4"]
+    n855e6h1["855e6h1 A typed turn of an interactive session is in the window<br/>Complete"]
+    n855e6h2["855e6h2 A reply that is no moment reply fails with its ends<br/>Complete"]
+    n855e6h3["855e6h3 A turn from an older mod is skipped<br/>Complete"]
+    n855e6h4["855e6h4 An update says to restart open sessions<br/>Complete"]
     n855e6a1 --> n855e6a2
     n855e6a1 --> n855e6a3
     n855e6a2 --> n855e6a4
@@ -145,6 +150,10 @@ flowchart TD
     n855e6g6 --> n855e6g8
     n855e6g7 --> n855e6g8
     n855e6d4 --> n855e6g8
+    n855e6d4 --> n855e6h1
+    n855e6d4 --> n855e6h2
+    n855e6d4 --> n855e6h3
+    n855e6a4 --> n855e6h4
 ```
 
 ## 855e5 Node status
@@ -626,6 +635,38 @@ Not scenarios of the specs: the rows are named by test. Every scenario of [855a 
 | none | `TestScenarioIDs_ReadsTheScenariosOfBothChanges` | Dedicated example (dev suite, unit) | the pure reading: the scenario IDs of a product or technical spec of change 793 or 855, a restated scenario counted once | Done | 40b4d52e | 21fa97c8 | 512b116e, 60e3946a |
 | none | `TestConformance_EveryScenarioOfTheSpecsHasATest` | Dedicated example, integration (dev suite, `integration`) | the real specs of both changes against the real test files, `network`-tagged files included. Mutation: a check that reads only the 793 specs does not name a scenario of 855 that has no test (mutation: `TestScenariosWithoutTest_AScenarioOf855IsNamedOnlyWhereItsSpecIsRead`). The first run named [855d2a1k Writes of one session run one after another](./855d_technical-spec.md#855d2a1-scenarios), [855d4j1g A lesson that cannot be read loses only itself](./855d_technical-spec.md#855d4j1-scenarios) and [855d4j1h A carry that is not of depth deep writes nothing](./855d_technical-spec.md#855d4j1-scenarios), whose tests carried the ID of their group; they are renamed in 21fa97c8. Read: 183 scenarios of 793, 117 of 855, 5 removed | Done | n/a (mutation) | 21fa97c8 | 512b116e, 60e3946a |
 | none | `TestConformance_TheSpecsReadAreThoseOfBothChanges` | Dedicated example, integration (dev suite, `integration`) | `specFiles` names the product and the technical spec of each change; dropping those of 855 fails this test and no other ([855b113 The conformance check reads Removed only from the technical spec of 855, and the five removed tests are absent](./855b_decision-log.md#855b113-the-conformance-check-reads-removed-only-from-the-technical-spec-of-855-and-the-five-removed-tests-are-absent)) | Done | 0e6bfb4a | be76f100 | 04f59ae7 |
+
+### 855e6h Dogfood fixes
+
+Three defects the owner's dogfood of 2026-10-19 found in the build: a typed [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) captured nothing, a failed judgement could not be diagnosed, and an open [session](../../GLOSSARY.md#session) kept the mod it began with after an update. 793 tests it changes: none. Each row has its red commit, then its green commit; the replay tests pin the fix at the binary's edge and say the mutation that fails them.
+
+#### 855e6h1 A typed turn of an interactive session is in the window
+
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d4g1e | `Test855d4g1e_Judge_ARowStampedHumanIsAPromptAndATaskNotificationOrAPeerIsNot` | Dedicated example (unit) | rows stamped as an interactive record stamps them: `human` is a [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms), `task-notification` and `peer` are none ([855b114 The user's rows of the transcript are told by the kind human, and the events of prompts by their own origins](./855b_decision-log.md#855b114-the-users-rows-of-the-transcript-are-told-by-the-kind-human-and-the-events-of-prompts-by-their-own-origins)) | Done | 7133fde0 | 44655b7b | 5522402a |
+| 855d4g1e | `Test855d4g1e_RunAutoMomentAndJudge_AnInteractiveSessionsTypedTurnIsInTheWindow` | Dedicated example, integration (unit suite, fixture file) | the record of an interactive [session](../../GLOSSARY.md#session) as a fixture file through `RunAutoMoment` and `RunAutoJudge`: both requests hold the user's text and neither the notification. Red `n/a`; mutation: `judge.go` of 7133fde0 fails it on the moment's window | Done | n/a | 018b6c41 | 5522402a |
+| 855d4g1e | `Test855d4g1e_AnInteractiveSessionsTypedTurnIsJudged` | Acceptance, real binary, no model (`network`) | the installed binary given the same record and real arguments from a working directory outside the [vault](../../GLOSSARY.md#vault). Red `n/a`; mutation: the binary built from 7133fde0 prints a window without the typed text | Done | n/a | 9ecf35b6 | 5522402a |
+
+#### 855e6h2 A reply that is no moment reply fails with its ends
+
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d4g1f | `Test855d4g1f_Judge_AReplyThatIsNoMomentReplyFailsWithItsEnds` | Dedicated example (unit) | a reply of 200 characters with a credential: the error names `learn-moment reply` and holds the first and the last 80 characters, redacted, and `RecordedReason` of the failure as the mod hands it over keeps both ends within 300 characters ([855b115 A reply that is no moment reply fails with its first and last 80 characters](./855b_decision-log.md#855b115-a-reply-that-is-no-moment-reply-fails-with-its-first-and-last-80-characters)) | Done | ff08dfd0 | 5c86bfc6 | 5522402a |
+
+#### 855e6h3 A turn from an older mod is skipped
+
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d4g1g | `Test855d4g1g_RunAutoJudge_ATurnFromAnOlderModIsRecordedAsSkippedAndNotAFailure` | Dedicated example (unit) | no `reply` field in the [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) that a mod deployed by an earlier [`engram update`](../../GLOSSARY.md#engram-update) hands over: nothing printed, success, one record of the kind `skipped` with the reason that says to restart the [session](../../GLOSSARY.md#session) ([855b116 A turn from a mod of an older engram is skipped with a reason, and engram update says to restart](./855b_decision-log.md#855b116-a-turn-from-a-mod-of-an-older-engram-is-skipped-with-a-reason-and-engram-update-says-to-restart)) | Done | fee62a2f | 0bcc116d | 5522402a |
+| 855d4g1g | `Test855d4g1g_RunAutoJudge_AReplyThatIsEmptyIsStillAFailureAndWritesNoRecord` | Dedicated example (unit) | a `reply` that is present and empty is still the failure and writes no record. Red `n/a`; mutation: treating an empty reply as absent fails it | Done | n/a | fee62a2f | 5522402a |
+| 855d4g1g | `Test855d4g1g_ATurnFromAnOlderModIsSkippedAndIsNoFailure` | Acceptance, real binary, no model (`network`) | the installed binary given a turn with no `reply`: exit 0, nothing printed, one `skipped` record under the data directory. Red `n/a`; mutation: the binary built from fee62a2f exits with 1 | Done | n/a | 9ecf35b6 | 5522402a |
+
+#### 855e6h4 An update says to restart open sessions
+
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d4w1a | `Test855d4w1a_WriteUpdateReport_TellsThatOpenSessionsMustBeRestartedToLoadTheMod` | Dedicated example (unit) | the line once for a deployed mod, none on a dry run, none for a [harness](../../GLOSSARY.md#harness) with only [skills](../../GLOSSARY.md#skill) | Done | 99490607 | 36d4d94a | 5522402a |
 
 ## 855e7 Completion gates
 
