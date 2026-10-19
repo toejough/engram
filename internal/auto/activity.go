@@ -126,6 +126,8 @@ func noteWord(count int) string {
 // lesson it is about when it has one, written as one line and redacted (793d4j, 793d4p).
 func partText(record Record) string {
 	switch {
+	case record.Kind == RecordWritten && record.Reason == ReasonAmended:
+		return oneLine(record.Note) + " (amended)"
 	case record.Kind == RecordWritten:
 		return oneLine(record.Note)
 	case record.Slug == "":

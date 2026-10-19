@@ -869,6 +869,12 @@ func sweepEndedMark(dir, session string) string {
 func writeDeep(
 	ctx context.Context, args AutoWriteArgs, deps AutoWriteDeps, reply auto.Reply, results *outcomes, stdout io.Writer,
 ) []error {
+	if reply.Carry.Depth != auto.DepthDeep {
+		results.add(auto.RecordSkipped, "", "", "the carry is not of a deep delivery, so nothing is written")
+
+		return nil
+	}
+
 	deep := auto.ReadDeep(reply.Text, reply.Carry)
 
 	for _, left := range deep.Skipped {
@@ -912,7 +918,7 @@ func writeDeep(
 			continue
 		}
 
-		results.add(auto.RecordWritten, amendment.Note, "", "")
+		results.add(auto.RecordWritten, amendment.Note, "", auto.ReasonAmended)
 	}
 
 	return failures
