@@ -309,6 +309,60 @@ func Test855d4b1g_Recall_TheRequestIsForTheMidTierAndHoldsTheVerdictsTheWindowAn
 	}))
 }
 
+func Test855d4g1j_Recall_ADeepRequestHoldsTheNotesTheSessionWroteAfterTheNotesThatMatchedAndGlanceDoesNot(t *testing.T) {
+	t.Parallel()
+
+	vault := t.TempDir()
+	own := strings.Replace(zorblaxResetNote, "source: test",
+		"source: written automatically (session "+sessionID+")", 1)
+	other := strings.NewReplacer("source: test", "source: written automatically (session another)").
+		Replace(zorblaxResetNote)
+
+	plantNoteOnDisk(t, vault, "2.2026-10-17.zorblax-own.md", own)
+	plantNoteOnDisk(t, vault, "3.2026-10-17.zorblax-other.md", other)
+
+	payload := payloadOf(
+		noteItem("1.2026-10-17.zorblax-staging-reset.md", "direct", "2026-10-17", resetSituation, resetBody),
+		chunkItem("/sessions/earlier.jsonl#turn-3", "direct"),
+	)
+	asked := func(depth string) []string {
+		var out bytes.Buffer
+
+		err := cli.RunAutoRecall(context.Background(), cli.AutoRecallArgs{VaultPath: vault},
+			cli.AutoRecallDeps{
+				Stdin: recallInput(depth, "staging resets"), Query: payloadQuery(payload),
+				ReadDir: os.ReadDir, ReadFile: os.ReadFile,
+				ReadChunks: chunksRead(chunk.Record{
+					Source: "/sessions/earlier.jsonl", Anchor: "turn-3", Text: "USER: the staging resets on Sunday."}),
+			}, &out)
+		NewWithT(t).Expect(err).NotTo(HaveOccurred())
+
+		return candidateLines(t, out.Bytes())
+	}
+
+	t.Run("deep", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		lines := asked("deep")
+
+		g.Expect(lines).To(HaveLen(3), "the matched note, the note the session wrote, and the passage")
+
+		if len(lines) == 3 {
+			g.Expect(lines[0]).To(HavePrefix("- 1.2026-10-17.zorblax-staging-reset.md "))
+			g.Expect(lines[1]).To(HavePrefix("- 2.2026-10-17.zorblax-own.md (2026-10-17; fact; "))
+			g.Expect(lines[2]).To(HavePrefix("- /sessions/earlier.jsonl#turn-3 "))
+		}
+	})
+
+	t.Run("glance", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		g.Expect(asked("glance")).To(HaveLen(2), "the matched note and the passage only")
+	})
+}
+
 func Test855d4b1h_Recall_ADeepRequestAlsoAsksForTheLessonsAndTheRevisions(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

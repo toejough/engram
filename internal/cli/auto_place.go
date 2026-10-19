@@ -93,7 +93,8 @@ func vaultNotes(
 		}
 
 		fields, body := noteOf(queryItem{Content: string(data)})
-		notes = append(notes, auto.Note{Path: name, Situation: fields.Situation, Body: body, Source: fields.Source})
+		notes = append(notes, auto.Note{Path: name, Situation: fields.Situation, Body: body, Source: fields.Source,
+			Created: fields.Created, Type: fields.Type})
 	}
 
 	return notes

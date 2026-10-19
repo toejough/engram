@@ -58,6 +58,8 @@ type Note struct {
 	Situation string // when the note applies
 	Body      string // what the note says, on one line
 	Source    string // where the note came from
+	Created   string // the day the note was created, as the note says it
+	Type      string // fact or feedback
 }
 
 // Request is a delivery asked for, as the memory mod hands it over (855d4c): the session, the origin of the prompt, the

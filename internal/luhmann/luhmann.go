@@ -54,6 +54,36 @@ func LetterLess(a, b string) bool {
 	return a < b
 }
 
+// Less reports whether Luhmann ID a sorts before b: segment by segment, a digit segment by its number (fewer digits
+// first, then lexically) and a letter segment by LetterLess, with an ID that is the start of another first. An ID that
+// cannot be parsed sorts by its text.
+func Less(a, b string) bool {
+	left, leftErr := ParseID(a)
+	right, rightErr := ParseID(b)
+
+	if leftErr != nil || rightErr != nil {
+		return a < b
+	}
+
+	for index := 0; index < min(len(left), len(right)); index++ {
+		if left[index] == right[index] {
+			continue
+		}
+
+		if unicode.IsDigit(rune(left[index][0])) {
+			if len(left[index]) != len(right[index]) {
+				return len(left[index]) < len(right[index])
+			}
+
+			return left[index] < right[index]
+		}
+
+		return LetterLess(left[index], right[index])
+	}
+
+	return len(left) < len(right)
+}
+
 // ParseID splits a Luhmann ID into alternating digit/letter segments.
 // "1a3b" → ["1", "a", "3", "b"]. "12ab3" → ["12", "ab", "3"]. The top-level
 // segment must be digits.

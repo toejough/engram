@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -27,6 +28,9 @@ type AutoRecallDeps struct {
 	Stdin io.Reader
 	// Query runs the lookup of `engram query` and prints its payload.
 	Query QueryRun
+	// ReadDir and ReadFile read the vault, whose notes the session wrote the deep judgement is shown (855b119).
+	ReadDir  func(path string) ([]fs.DirEntry, error)
+	ReadFile func(path string) ([]byte, error)
 	// ReadChunks reads the records of the index file of a source in a directory of chunk indexes.
 	ReadChunks func(dir, source string) ([]chunk.Record, error)
 }
@@ -62,12 +66,45 @@ func RunAutoRecall(ctx context.Context, args AutoRecallArgs, deps AutoRecallDeps
 		return fmt.Errorf("auto recall: %w", candidatesErr)
 	}
 
+	if input.Carry.Depth == auto.DepthDeep && deps.ReadDir != nil && deps.ReadFile != nil {
+		matched = withWrittenCandidates(matched, writtenIn(
+			vaultNotes(deps.ReadDir, deps.ReadFile, args.VaultPath), input.Session))
+	}
+
 	step, found := auto.Recall(input, matched)
 	if !found {
 		return nil
 	}
 
 	return printStep(stdout, "auto recall", step)
+}
+
+// withWrittenCandidates adds the notes the session wrote earlier to the candidates of a deep judgement, after the last
+// note that matched and before the passages, each once: a lesson the session wrote already is then covered by a
+// candidate, whatever its wording (855b119).
+func withWrittenCandidates(matched []auto.Candidate, written []auto.Note) []auto.Candidate {
+	insertAt := 0
+
+	for index, candidate := range matched {
+		if candidate.Kind == auto.KindNote {
+			insertAt = index + 1
+		}
+	}
+
+	added := make([]auto.Candidate, 0, len(written))
+
+	for _, note := range written {
+		if slices.ContainsFunc(matched, func(one auto.Candidate) bool { return one.ID == note.Path }) {
+			continue
+		}
+
+		added = append(added, auto.Candidate{
+			ID: note.Path, Kind: auto.KindNote, Type: note.Type, Date: note.Created, Situation: note.Situation,
+			Text: strings.TrimSpace(note.Body), Source: note.Source,
+		})
+	}
+
+	return slices.Insert(slices.Clone(matched), insertAt, added...)
 }
 
 // byScore orders the items by their scores, the highest first.
@@ -196,6 +233,8 @@ func newAutoRecallDeps(d Deps) AutoRecallDeps {
 	return AutoRecallDeps{
 		Stdin:      d.Stdin,
 		Query:      newAutoLookup(d),
+		ReadDir:    d.FS.ReadDir,
+		ReadFile:   d.FS.ReadFile,
 		ReadChunks: indexReader(d.FS.ReadFile),
 	}
 }

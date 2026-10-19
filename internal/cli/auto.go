@@ -65,7 +65,8 @@ type AutoJudgeDeps struct {
 	Stdin io.Reader
 	// Query runs the lookup of notes, the one `engram query` runs, and prints its payload.
 	Query QueryRun
-	// ReadDir and ReadFile read the session-log directory, where Claude Code keeps the record of each session.
+	// ReadDir and ReadFile read the session-log directory, where Claude Code keeps the record of each session, and the
+	// vault, whose notes the session wrote the judgement is shown (855b119).
 	ReadDir  func(path string) ([]fs.DirEntry, error)
 	ReadFile func(path string) ([]byte, error)
 	// Now is the time a record is made at.
@@ -229,7 +230,7 @@ func RunAutoJudge(ctx context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, s
 				return nil, lookupErr
 			}
 
-			written := auto.SeenNotes(vaultNotes(deps.ReadDir, deps.ReadFile, args.VaultPath), "", turn.Session)
+			written := writtenIn(vaultNotes(deps.ReadDir, deps.ReadFile, args.VaultPath), turn.Session)
 
 			return withWritten(near, written), nil
 		})
@@ -331,7 +332,7 @@ func RunAutoWrite(ctx context.Context, args AutoWriteArgs, deps AutoWriteDeps, s
 
 // unexported constants.
 const (
-	// maxWrittenNotes is how many of the notes written in the session the judgement is shown at most (855b117).
+	// maxWrittenNotes is how many of the notes written in the session the judgement is shown at most (855b119).
 	maxWrittenNotes = 20
 	// minSiblingSegments is how many segments the ID of a note has at least to have a sibling: a note at the top has
 	// none, and a sibling of it is another note at the top.
@@ -368,6 +369,7 @@ type judgedTurn struct {
 
 // noteFields are the fields of the front matter of a note that automatic memory reads.
 type noteFields struct {
+	Type      string `yaml:"type"`
 	Situation string `yaml:"situation"`
 	Source    string `yaml:"source"`
 	Created   string `yaml:"created"`
@@ -902,9 +904,8 @@ func sweepEndedMark(dir, session string) string {
 }
 
 // withWritten is the notes nearest to a turn with the notes the session wrote earlier, the last maxWrittenNotes of
-// them, after them: a note that is both is shown once (855b117).
+// them by creation, after them: a note that is both is shown once (855b119).
 func withWritten(near, written []auto.Note) []auto.Note {
-	written = written[max(len(written)-maxWrittenNotes, 0):]
 	notes := make([]auto.Note, 0, len(near)+len(written))
 	notes = append(notes, near...)
 
@@ -915,6 +916,38 @@ func withWritten(near, written []auto.Note) []auto.Note {
 	}
 
 	return notes
+}
+
+// lastWritten returns the last maxWrittenNotes of the notes a session wrote in the order they were created: by the day
+// the note says, then by its Luhmann ID, and not by the order of the file names of the directory (855d4g1j).
+func lastWritten(written []auto.Note) []auto.Note {
+	ordered := slices.Clone(written)
+
+	slices.SortStableFunc(ordered, func(left, right auto.Note) int {
+		if byDay := strings.Compare(left.Created, right.Created); byDay != 0 {
+			return byDay
+		}
+
+		leftID, _ := luhmann.FromBasename(strings.TrimSuffix(left.Path, ".md"))
+		rightID, _ := luhmann.FromBasename(strings.TrimSuffix(right.Path, ".md"))
+
+		switch {
+		case luhmann.Less(leftID, rightID):
+			return -1
+		case luhmann.Less(rightID, leftID):
+			return 1
+		default:
+			return 0
+		}
+	})
+
+	return ordered[max(len(ordered)-maxWrittenNotes, 0):]
+}
+
+// writtenIn returns the notes of the vault that a session wrote itself, the last maxWrittenNotes of them in the order
+// they were created (855b119).
+func writtenIn(vault []auto.Note, session string) []auto.Note {
+	return lastWritten(auto.SeenNotes(vault, "", session))
 }
 
 // writeDeep writes what the reply of a deep delivery says to write (855d4j): each lesson at the top through the learn

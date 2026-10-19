@@ -137,3 +137,21 @@ func Test792b7c3a1_LetterLess_LuhmannOrder(t *testing.T) {
 	g.Expect(luhmann.LetterLess("aa", "aa")).To(BeFalse())
 	g.Expect(luhmann.LetterLess("aa", "z")).To(BeFalse())
 }
+
+// Test855d4g1j_Less_OrdersByNumberThenLetterSegments pins the order that cuts the notes a session wrote by creation:
+// 9 before 10, 1 before 1a before 1b before 2, and z before aa.
+func Test855d4g1j_Less_OrdersByNumberThenLetterSegments(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(luhmann.Less("9", "10")).To(BeTrue())
+	g.Expect(luhmann.Less("10", "9")).To(BeFalse())
+	g.Expect(luhmann.Less("1", "1a")).To(BeTrue())
+	g.Expect(luhmann.Less("1a", "1b")).To(BeTrue())
+	g.Expect(luhmann.Less("1z", "1aa")).To(BeTrue())
+	g.Expect(luhmann.Less("1b", "2")).To(BeTrue())
+	g.Expect(luhmann.Less("1a2", "1a10")).To(BeTrue())
+	g.Expect(luhmann.Less("1a", "1a")).To(BeFalse())
+	g.Expect(luhmann.Less("a", "b")).To(BeTrue(), "an ID that cannot be parsed sorts by its text")
+}

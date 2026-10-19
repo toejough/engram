@@ -445,6 +445,78 @@ func Test855d4g1j_RunAutoJudge_TheNotesTheSessionWroteAreInTheRequestOnceAndThos
 		"a note both near and written in the session is one line")
 }
 
+func Test855d4g1j_RunAutoJudge_TheLastTwentyNotesTheSessionWroteByCreationFollowTheNearestNotes(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	written := strings.Replace(zorblaxResetNote, "source: test",
+		"source: written automatically (session "+sessionID+")", 1)
+	noteAt := func(id, day string) string {
+		return strings.NewReplacer("luhmann: \"1\"", "luhmann: \""+id+"\"", "2026-10-17", day).Replace(written)
+	}
+
+	// 22 notes of a day, whose IDs sort as text in another order than they were created, and one of an earlier day
+	// whose ID is the highest and whose name is the last of the directory
+	for number := 1; number <= 22; number++ {
+		id := strconv.Itoa(number)
+		plantNoteOnDisk(t, vault, id+".2026-10-17.zorblax-"+id+".md", noteAt(id, "2026-10-17"))
+	}
+
+	plantNoteOnDisk(t, vault, "99.2026-10-01.zorblax-99.md", noteAt("99", "2026-10-01"))
+
+	nearNote := strings.NewReplacer("luhmann: \"1\"", "luhmann: \"30\"").Replace(zorblaxResetNote)
+	plantNoteOnDisk(t, vault, "30.2026-10-17.zorblax-near.md", nearNote)
+
+	sessions := t.TempDir()
+	record := `{"type":"user","message":{"role":"user","content":"Run the tests."}}` + "\n"
+	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
+
+	memFS := newInMemoryFS()
+	plantNoteWithSidecar(t, memFS, vault, "30.2026-10-17.zorblax-near.md", nearNote)
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: vault, SessionsDir: sessions},
+		cli.AutoJudgeDeps{
+			Stdin: turnInput(sessionID, "Done."), Query: queryOver(newQueryDeps(memFS)),
+			ReadDir: os.ReadDir, ReadFile: os.ReadFile,
+		}, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var step struct {
+		Request struct {
+			Prompt string `json:"prompt"`
+		} `json:"request"`
+	}
+
+	g.Expect(json.Unmarshal(out.Bytes(), &step)).To(Succeed())
+
+	_, rest, _ := strings.Cut(step.Request.Prompt, "<notes>\n")
+	section, _, _ := strings.Cut(rest, "\n</notes>")
+	lines := strings.Split(section, "\n")
+
+	g.Expect(lines).To(HaveLen(21), "the nearest note and the last 20 notes the session wrote")
+
+	if len(lines) != 21 {
+		return
+	}
+
+	g.Expect(lines[0]).To(HavePrefix("- 30.2026-10-17.zorblax-near.md "), "the nearest notes come first")
+
+	var names []string
+
+	for _, line := range lines[1:] {
+		names = append(names, strings.Fields(line)[1])
+	}
+
+	g.Expect(names[0]).To(Equal("3.2026-10-17.zorblax-3.md"), "the oldest of the last 20 by creation")
+	g.Expect(names[len(names)-1]).To(Equal("22.2026-10-17.zorblax-22.md"), "the newest, last")
+	g.Expect(names).NotTo(ContainElement("99.2026-10-01.zorblax-99.md"), "the note of the earlier day is the oldest")
+	g.Expect(names).NotTo(ContainElement(ContainSubstring("zorblax-1.md")))
+	g.Expect(names).NotTo(ContainElement(ContainSubstring("zorblax-2.md")))
+}
+
 // unexported constants.
 const (
 	learnTrue = `"reply":"{\"learn\":true}",`
