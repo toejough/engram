@@ -122,6 +122,45 @@ func Test855d4j1c_WriteDeep_ACoveredNoteIsAmendedForProvenanceOnly(t *testing.T)
 	NewWithT(t).Expect(records.kinds()).To(Equal([]string{"written"}))
 }
 
+func Test855d4j1c_WriteDeep_AnAmendedNoteIsRecordedAsAmended(t *testing.T) {
+	t.Parallel()
+
+	records := &recordedFiles{}
+	deep := deepWriting{carry: deepCarry(freezeNote, passageA), reply: deepReply(
+		`[{"id":"`+freezeNote.ID+`","verdict":"covered","chunks":["`+passageA.ID+`"]}]`, `[]`), records: records}
+
+	deep.run(t, nil, []cli.AmendArgs{{
+		Vault: "/vault", VaultName: "personal", Target: freezeNote.ID, ChunkSources: []string{passageA.ID},
+		ChunksDir: "/chunks",
+	}})
+
+	for _, record := range records.all() {
+		NewWithT(t).Expect(record["reason"]).To(Equal("amended"))
+	}
+}
+
+func Test855d4j1_WriteDeep_AGlanceCarryWritesNothingAndSaysWhy(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	records := &recordedFiles{}
+	carry := deepCarry(freezeNote, passageA)
+	carry.Depth = auto.DepthGlance
+
+	err := cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", RecordsDir: "/data/auto"},
+		cli.AutoWriteDeps{
+			Stdin: deepStdin(carry, deepReply(`[{"id":"`+freezeNote.ID+`","verdict":"covered","chunks":["`+passageA.ID+`"]}]`,
+				`[`+freezeLesson(`["`+passageA.ID+`"]`, "")+`]`)),
+			Learn: func(context.Context, cli.LearnArgs) (string, error) { return "", errRefused },
+			Amend: func(context.Context, cli.AmendArgs) error { return errRefused },
+			Now:   func() time.Time { return recordedAt }, WriteRecord: records.write,
+			NoteExists: func(string) bool { return false },
+		}, &bytes.Buffer{})
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(records.kinds()).To(Equal([]string{"skipped"}), "no write was tried, so none failed")
+}
+
 func Test855d4j1d_WriteDeep_ANearNoteIsRevisedWithTheFieldsTheJudgementNames(t *testing.T) {
 	t.Parallel()
 
