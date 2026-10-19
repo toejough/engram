@@ -257,14 +257,16 @@ func Test855d4a1d_Moment_AValueOfASensitiveNameIsRedactedWholeWhateverItHolds(t 
 	value := "{{HUNT}}" + `\"` + tail
 	inner := `{"password":"` + value + `"}`
 	doubled, _ := json.Marshal(inner)
+	listed, _ := json.Marshal([]string{strings.Replace(inner, "password", "token", 1)})
+	inList, _ := json.Marshal(map[string][]string{"list": {strings.Replace(inner, "password", "secret", 1)}})
 
 	inputs := map[string]json.RawMessage{
 		"an object":          json.RawMessage(inner),
 		"a nested object":    json.RawMessage(`{"headers":{"x":[{"api_key":"` + value + `"}]}}`),
 		"a number":           json.RawMessage(`{"pwd":1234567}`),
 		"a string of JSON":   doubled,
-		"an array of JSON":   json.RawMessage(`["{\"token\":\"` + value + `\"}"]`),
-		"a string in a list": json.RawMessage(`{"list":["{\"secret\":\"` + value + `\"}"]}`),
+		"an array of JSON":   listed,
+		"a string in a list": inList,
 	}
 
 	for name, input := range inputs {
@@ -292,7 +294,7 @@ func Test855d4a1d_Moment_AValueOfASensitiveNameIsRedactedWholeWhateverItHolds(t 
 			Event: auto.ToolEvent{Tool: "Bash", Input: json.RawMessage(inner)},
 		})
 
-		g.Expect(windowOf(step.Request.Prompt)).To(ContainElement(`Agent used Bash with {"password":"[redacted]"}`))
+		g.Expect(windowOf(step.Request.Prompt)).To(ContainElement(`Agent used Bash with {"password":[redacted]}`))
 	})
 }
 

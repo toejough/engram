@@ -53,7 +53,9 @@ var (
 	authorization = regexp.MustCompile(`(?i)(\bauthorization["']?[` + space + `]*[:=][` + space + `]*)[^\n\x{23ce}]*`)
 	commitID      = regexp.MustCompile(`^[0-9a-f]{40}$`)
 	longToken     = regexp.MustCompile(`[A-Za-z0-9+_=]{32,}`)
-	urlUserinfo   = regexp.MustCompile(`(?i)\b([a-z][a-z0-9+.-]*://)[^` + space + `:@/]+:[^` + space + `@/]+@`)
+	// sensitiveKey is a whole name that names a secret.
+	sensitiveKey = regexp.MustCompile(`(?i)^` + sensitiveName + `$`)
+	urlUserinfo  = regexp.MustCompile(`(?i)\b([a-z][a-z0-9+.-]*://)[^` + space + `:@/]+:[^` + space + `@/]+@`)
 	// wholeCredential is any of the shapes that are replaced whole: a private key block, a JSON web token, the key or
 	// token of an issuer, a Bearer or Basic credential.
 	wholeCredential = regexp.MustCompile(

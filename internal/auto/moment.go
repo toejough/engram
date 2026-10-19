@@ -121,28 +121,45 @@ var learnMomentInstructions string
 var recallMoment string
 
 // compact is the text of a JSON value on one line, redacted after it is decoded: a credential written in the escaped
-// form of JSON is redacted as the text it spells, in every string and key of the value, and the value is written again
-// without escaping the characters of HTML (855b98). A value that is not JSON is returned as it is, for the line to
-// redact.
+// form of JSON is redacted as the text it spells, in every string and key of the value, the value of a sensitive name
+// is replaced whole, and the value is written again without escaping the characters of HTML (855b98). A value that is
+// not JSON is returned as it is, for the line to redact.
 func compact(raw json.RawMessage) string {
-	var value any
-
-	if json.Unmarshal(raw, &value) != nil {
+	value, isJSON := decoded(string(raw))
+	if !isJSON {
 		return string(raw)
 	}
 
 	if text, isText := value.(string); isText {
-		return Redact(text)
+		return redactedText(text)
 	}
 
+	return encoded(redactedValue(value), string(raw))
+}
+
+// decoded is the value of a text of JSON, numbers kept as written, and whether the text is JSON.
+func decoded(text string) (any, bool) {
+	if !json.Valid([]byte(text)) {
+		return nil, false
+	}
+
+	var value any
+
+	decoder := json.NewDecoder(strings.NewReader(text))
+	decoder.UseNumber()
+
+	return value, decoder.Decode(&value) == nil
+}
+
+// encoded is a decoded value written on one line without escaping the characters of HTML, or the fallback.
+func encoded(value any, fallback string) string {
 	var buffer bytes.Buffer
 
 	encoder := json.NewEncoder(&buffer)
 	encoder.SetEscapeHTML(false)
 
-	encodeErr := encoder.Encode(redactedValue(value))
-	if encodeErr != nil {
-		return string(raw)
+	if encoder.Encode(value) != nil {
+		return fallback
 	}
 
 	return strings.TrimSuffix(buffer.String(), "\n")
@@ -190,11 +207,24 @@ func learnMoment(messages []message, last int, input MomentInput) Step {
 	}
 }
 
-// redactedValue is a decoded JSON value with every string and every key of an object redacted.
+// redactedText is a string of a value redacted: a string that is an object or a list written as JSON (a response that
+// was encoded twice) is decoded once more and redacted as a value, any other string as text.
+func redactedText(text string) string {
+	if trimmed := strings.TrimSpace(text); strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[") {
+		if inner, isJSON := decoded(trimmed); isJSON {
+			return encoded(redactedValue(inner), Redact(text))
+		}
+	}
+
+	return Redact(text)
+}
+
+// redactedValue is a decoded JSON value with every string and every key of an object redacted, and the scalar value of
+// a key that names a secret replaced whole.
 func redactedValue(value any) any {
 	switch typed := value.(type) {
 	case string:
-		return Redact(typed)
+		return redactedText(typed)
 	case []any:
 		for index, item := range typed {
 			typed[index] = redactedValue(item)
@@ -205,13 +235,25 @@ func redactedValue(value any) any {
 		redactedMap := make(map[string]any, len(typed))
 
 		for key, item := range typed {
-			redactedMap[Redact(key)] = redactedValue(item)
+			redactedMap[Redact(key)] = redactedItem(key, item)
 		}
 
 		return redactedMap
 	default:
 		return value
 	}
+}
+
+// redactedItem is the value of a key redacted: replaced whole when the key names a secret and the value is a scalar.
+func redactedItem(key string, item any) any {
+	switch item.(type) {
+	case string, json.Number, bool:
+		if sensitiveKey.MatchString(key) {
+			return redacted
+		}
+	}
+
+	return redactedValue(item)
 }
 
 // toolWindow is the context and the turn's lines of the window of a tool cue (855b54, 855b97): the last lines of the

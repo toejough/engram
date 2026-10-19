@@ -528,6 +528,8 @@ Proves the three cues of a [turn](../793_automatic-memory/793a_product-spec.md#7
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 855d4a1c | `Test855d4a1c_Moment_EachToolCuePutsItsEventInTheWindow` | Dedicated example | each tool cue puts its event in the window: the call, the error, the calls of a batch with their responses | Done | 31ff42a1 | 2d70ae7b, 90343ce9 | 9b9785e5 |
 | 855d4a1d | `Test855d4a1d_Moment_ACredentialInEscapedFormInAnEventIsRedacted` | Dedicated example | a credential written in the escaped form of JSON in the input or the response of a tool event is redacted ([855b98 The event of a tool cue is decoded before it is redacted](./855b_decision-log.md#855b98-the-event-of-a-tool-cue-is-decoded-before-it-is-redacted)) | Done | cec35760 | a02948ba | 9b9785e5, 5e24cf2f |
+| 855d4a1d | `Test855d4a1d_Moment_AValueOfASensitiveNameIsRedactedWholeWhateverItHolds` | Dedicated example | the scalar value of a key that names a secret is replaced whole, nested or not, and a response that is JSON written inside a string is redacted as a value ([855b98 The event of a tool cue is decoded before it is redacted](./855b_decision-log.md#855b98-the-event-of-a-tool-cue-is-decoded-before-it-is-redacted)) | Done | REDHASH | GREENHASH | n/a |
+| 855d4a1d | `Test855d4a1d_Moment_ALargeIntegerKeepsItsDigits` | Dedicated example | a number of an event is kept as written | Done | REDHASH | GREENHASH | n/a |
 
 #### 855e6f2 A block delivered within a turn is held
 

@@ -454,9 +454,9 @@ Scenario: 855d4a1c Each tool cue puts its event in the window
   Then the window of each ends with the line of its event, one line for each call of the batch, and the text the turn began with is in the window
 
 Scenario: 855d4a1d A prompt, a message or an event cannot close the window or hold a credential
-  Given a prompt, a conversation and an event whose texts hold the tag that closes the window, line breaks and a credential of every shape
+  Given a prompt, a conversation and an event whose texts hold the tag that closes the window, line breaks and a credential of every shape, an event whose input or response holds the value of a key that names a secret and that value holds a quote, and one whose response is an object or a list of JSON written inside a string
   When the moment is asked for each
-  Then the prompt of the request holds each tag of the window once, no line holds the character that opens a tag, and none of the credentials is in it
+  Then the prompt of the request holds each tag of the window once, no line holds the character that opens a tag, none of the credentials is in it, and no part of the value of such a key is in it, in the response written inside a string too
 
 Scenario: 855d4a1e A prompt of an origin the user does not send is judged nothing
   Given the origins task-notification, peer and the empty origin
