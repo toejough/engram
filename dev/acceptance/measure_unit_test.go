@@ -159,3 +159,35 @@ func TestTokenUsage_CostsEachKindOfTokenAtItsPrice(t *testing.T) {
 	g.Expect(usage.cost(sonnetPrice)).To(BeNumerically("~", 0.0286269, 1e-9), "the cost the host printed for the turn")
 	g.Expect(usage.plus(usage)).To(Equal(tokenUsage{Input: 4, Output: 148, CacheRead: 22458, CacheCreate: 13380}))
 }
+
+func TestUnmatchedRequests_NamesTheStepsThatPrintedARequestAndHaveNoModelCall(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	origin := time.Unix(1000, 0)
+	runs := []stepRun{
+		{step: stepMoment, input: map[string]any{"cue": "prompt", "text": "ask"}, start: origin,
+			end:    origin.Add(200 * time.Millisecond),
+			output: `{"request":{"model":"haiku","system":"abc","prompt":"de"},"carry":{"cue":"prompt"}}`},
+		{step: stepPlace, input: map[string]any{"cue": "prompt", "carry": map[string]any{"cue": "prompt"}},
+			start: origin.Add(time.Second), end: origin.Add(1100 * time.Millisecond), output: ""},
+	}
+	call := meterRecord{
+		Kind: meterModel, At: origin.Add(300 * time.Millisecond).UnixMilli(), Took: 1000, System: 3, Prompt: 2,
+	}
+
+	g.Expect(unmatchedRequests(chainsOf(runs, []meterRecord{call}))).To(BeEmpty(),
+		"a step with a matched call, and a step that printed no request")
+	g.Expect(unmatchedRequests(chainsOf(runs, nil))).To(Equal([]string{"prompt moment"}),
+		"a recorder that saw no model call: the request was printed and nothing answers it")
+
+	call.Prompt = 3
+
+	g.Expect(unmatchedRequests(chainsOf(runs, []meterRecord{call}))).To(Equal([]string{"prompt moment"}),
+		"a call of another size is not the step's call")
+
+	call.Prompt, call.At = 2, origin.Add(-time.Second).UnixMilli()
+
+	g.Expect(unmatchedRequests(chainsOf(runs, []meterRecord{call}))).To(Equal([]string{"prompt moment"}),
+		"a call that began before the step ended is not the step's call")
+}

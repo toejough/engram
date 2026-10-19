@@ -529,3 +529,6 @@ func shellWords(text string) []string {
 
 	return splitter.words
 }
+
+// unmatchedRequests names each step, as "<cue> <step>", that printed a request and has no model call matched to it.
+func unmatchedRequests(_ []chain) []string { return nil }
