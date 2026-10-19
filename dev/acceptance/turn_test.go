@@ -54,9 +54,7 @@ func Test855a2e1a_ANoteArrivesBeforeTheAgentDeclaresItsWorkDone(t *testing.T) {
 		machine.logArrival(sent, arrived)
 
 		g.Expect(delivered).To(BeTrue(), "a block that names the note was delivered within the turn: "+
-			strings.Join(sent.withinTurn(), "\n---\n")+"\nthe moments judged:\n"+
-			machine.stepsGiven("moment")+"\nphrases:\n"+machine.stepsGiven("phrases")+"\nrecall:\n"+
-			machine.stepsGiven("recall")+"\ndeliver:\n"+machine.stepsGiven("deliver")+"\nthe hooks skipped:\n"+strings.Join(machine.hookFailures(), "\n"))
+			machine.whatWasJudged(sent))
 		g.Expect(arrived.next).To(BeNumerically(">", arrived.block), "the agent's next message follows the block")
 		g.Expect(arrived.block).To(BeNumerically("<", sent.finalAt()), "the block comes before the agent's last message")
 	})
@@ -103,9 +101,7 @@ func Test855a2e1b_ANoteArrivesAfterAFailureTheAgentCannotExplain(t *testing.T) {
 		machine.logArrival(sent, arrived)
 
 		g.Expect(delivered).To(BeTrue(), "a block that names the note was delivered within the turn: "+
-			strings.Join(sent.withinTurn(), "\n---\n")+"\nthe moments judged:\n"+
-			machine.stepsGiven("moment")+"\nphrases:\n"+machine.stepsGiven("phrases")+"\nrecall:\n"+
-			machine.stepsGiven("recall")+"\ndeliver:\n"+machine.stepsGiven("deliver")+"\nthe hooks skipped:\n"+strings.Join(machine.hookFailures(), "\n"))
+			machine.whatWasJudged(sent))
 		g.Expect(sent.resultTextAt(arrived.before)).To(ContainSubstring("LINT_STRICT"),
 			"the block follows the failed command's result")
 		g.Expect(arrived.next).To(BeNumerically(">", arrived.block), "the agent's next message follows the block")
@@ -152,9 +148,7 @@ func Test855a2e1c_ANoteArrivesBeforeTheAgentStartsBuildingANewApproach(t *testin
 		machine.logArrival(sent, arrived)
 
 		g.Expect(delivered).To(BeTrue(), "a block that names the note was delivered within the turn: "+
-			strings.Join(sent.withinTurn(), "\n---\n")+"\nthe moments judged:\n"+
-			machine.stepsGiven("moment")+"\nphrases:\n"+machine.stepsGiven("phrases")+"\nrecall:\n"+
-			machine.stepsGiven("recall")+"\ndeliver:\n"+machine.stepsGiven("deliver")+"\nthe hooks skipped:\n"+strings.Join(machine.hookFailures(), "\n"))
+			machine.whatWasJudged(sent))
 		g.Expect(sent.resultTextAt(arrived.before)).NotTo(BeEmpty(), "the block follows a tool's result")
 		g.Expect(arrived.next).To(BeNumerically(">", arrived.block), "the agent's next message follows the block")
 	})
@@ -201,58 +195,35 @@ var (
 	}
 )
 
-// logArrival logs the block that arrived within the turn, the row that records it, and how long after its moment began
-// the cue's delivery printed it (855a2e).
-func (m *machine) logArrival(sent *turn, arrived arrival) {
-	m.t.Helper()
-
-	row := sent.rows[arrived.block]
-	line, _ := json.Marshal(row.Attachment)
-
-	m.t.Logf("the block arrived as row %d of the turn, after row %d: %s", arrived.block, arrived.before, line)
-
-	for _, took := range m.cueTimes() {
-		m.t.Logf("the cue %s: %s from the start of its moment to the delivery's output", took.cue, took.took)
-	}
-}
-
 // cueTime is how long a cue's chain took.
 type cueTime struct {
 	cue  string
 	took time.Duration
 }
 
+// agentMayEditFiles gives the agent the permission to read and edit files, and not to run engram.
+func (m *machine) agentMayEditFiles() {
+	m.t.Helper()
+
+	writeFile(m.t, filepath.Join(m.claudeDir, "settings.json"), `{"permissions":{"allow":["Read","Edit","Write"]}}`)
+}
+
 // cueTimes returns, for each delivery of the machine, the time from the start of the moment of its cue, the last one of
 // the cue that began before it, to the delivery's output.
 func (m *machine) cueTimes() []cueTime {
-	cueOf := func(name string) (string, time.Time) {
-		data, readErr := os.ReadFile(name)
-		info, statErr := os.Stat(name)
-
-		var input struct {
-			Cue string `json:"cue"`
-		}
-
-		if readErr != nil || statErr != nil || json.Unmarshal(data, &input) != nil {
-			return "", time.Time{}
-		}
-
-		return input.Cue, info.ModTime()
-	}
-
 	moments, _ := filepath.Glob(filepath.Join(m.root, "steps-seen", "moment-*.in"))
 	delivered, _ := filepath.Glob(filepath.Join(m.root, "steps-seen", "deliver-*.out"))
 
 	var times []cueTime
 
 	for _, out := range delivered {
-		cue, delivery := cueOf(strings.TrimSuffix(out, ".out") + ".in")
+		cue, delivery := stepCue(strings.TrimSuffix(out, ".out") + ".in")
 		finished, statErr := os.Stat(out)
 
 		var began time.Time
 
 		for _, moment := range moments {
-			if momentCue, at := cueOf(moment); momentCue == cue && !at.After(delivery) && at.After(began) {
+			if momentCue, at := stepCue(moment); momentCue == cue && !at.After(delivery) && at.After(began) {
 				began = at
 			}
 		}
@@ -265,18 +236,20 @@ func (m *machine) cueTimes() []cueTime {
 	return times
 }
 
-// agentMayEditFiles gives the agent the permission to read and edit files, and not to run engram.
-func (m *machine) agentMayEditFiles() {
+// logArrival logs the block that arrived within the turn, the row that records it, and how long after its moment began
+// the cue's delivery printed it (855a2e).
+func (m *machine) logArrival(sent *turn, arrived arrival) {
 	m.t.Helper()
 
-	writeFile(m.t, filepath.Join(m.claudeDir, "settings.json"), `{"permissions":{"allow":["Read","Edit","Write"]}}`)
-}
+	row := sent.rows[arrived.block]
 
-// requestCost is the model calls the machine's steps asked for in a session and the size of their requests, by cue:
-// the steps print one request for each call (855d2a), and the size is the characters of its system and prompt.
-type requestCost struct {
-	calls int
-	chars int
+	m.t.Logf("the block arrived as row %d of the turn, after row %d, as the attachment of type %s from %s, event %s: %s",
+		arrived.block, arrived.before, row.Attachment.Type, row.Attachment.HookName, row.Attachment.HookEvent,
+		row.Attachment.Content)
+
+	for _, took := range m.cueTimes() {
+		m.t.Logf("the cue %s: %s from the start of its moment to the delivery's output", took.cue, took.took)
+	}
 }
 
 // requestCosts returns the cost of the requests that the steps of the machine printed, by the cue of their carry.
@@ -308,4 +281,43 @@ func (m *machine) requestCosts() map[string]requestCost {
 	}
 
 	return costs
+}
+
+// whatWasJudged tells, for the failure of a row, the blocks delivered within the turn, what each step was given and the
+// hooks the host skipped.
+func (m *machine) whatWasJudged(sent *turn) string {
+	var told strings.Builder
+
+	told.WriteString(strings.Join(sent.withinTurn(), "\n---\n"))
+
+	for _, step := range []string{"moment", "phrases", "recall", "deliver"} {
+		told.WriteString("\nthe input of " + step + ":\n" + m.stepsGiven(step))
+	}
+
+	told.WriteString("\nthe hooks skipped:\n" + strings.Join(m.hookFailures(), "\n"))
+
+	return told.String()
+}
+
+// requestCost is the model calls the machine's steps asked for in a session and the size of their requests, by cue:
+// the steps print one request for each call (855d2a), and the size is the characters of its system and prompt.
+type requestCost struct {
+	calls int
+	chars int
+}
+
+// stepCue returns the cue a step was given, from the file that kept its input, and when the file was written.
+func stepCue(name string) (string, time.Time) {
+	data, readErr := os.ReadFile(name)
+	info, statErr := os.Stat(name)
+
+	var input struct {
+		Cue string `json:"cue"`
+	}
+
+	if readErr != nil || statErr != nil || json.Unmarshal(data, &input) != nil {
+		return "", time.Time{}
+	}
+
+	return input.Cue, info.ModTime()
 }

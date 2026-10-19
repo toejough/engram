@@ -58,6 +58,13 @@ var (
 	tokenPattern = regexp.MustCompile(`^\s*(?:export\s+)?` + tokenVariable + `=(.*?)\s*$`)
 )
 
+// arrival is where a block lies in a turn's rows (855a2e).
+type arrival struct {
+	block  int // the row of the block
+	before int // the last row of the agent or of a tool's result before the block
+	next   int // the first row of the agent after the block
+}
+
 // conversation is one running `claude` process that takes its prompts on standard input as stream-json messages.
 type conversation struct {
 	session  *session
@@ -602,6 +609,11 @@ type transcriptRow struct {
 	} `json:"attachment"`
 }
 
+// besideThePrompt reports whether the row is context a hook put beside the prompt, and not within the turn.
+func (r transcriptRow) besideThePrompt() bool {
+	return r.Attachment.HookName == promptHook
+}
+
 // commands returns the shell commands the agent started in the row.
 func (r transcriptRow) commands() []string {
 	var blocks []struct {
@@ -627,11 +639,6 @@ func (r transcriptRow) commands() []string {
 	return commands
 }
 
-// besideThePrompt reports whether the row is context a hook put beside the prompt, and not within the turn.
-func (r transcriptRow) besideThePrompt() bool {
-	return r.Attachment.HookName == promptHook
-}
-
 // delivered returns the context a hook put in front of the model: beside the prompt or within the turn.
 func (r transcriptRow) delivered() []string {
 	if r.Type != "attachment" || r.Attachment.Type != "hook_additional_context" {
@@ -645,6 +652,21 @@ func (r transcriptRow) delivered() []string {
 	}
 
 	return content
+}
+
+// promptText returns the text of a row that holds a prompt the user typed.
+func (r transcriptRow) promptText() (string, bool) {
+	if r.Type != "user" {
+		return "", false
+	}
+
+	var text string
+
+	if json.Unmarshal(r.Message.Content, &text) != nil {
+		return "", false
+	}
+
+	return text, true
 }
 
 // text returns the text blocks of the agent's message in the row, one to a line.
@@ -669,21 +691,6 @@ func (r transcriptRow) text() string {
 	return strings.Join(texts, "\n")
 }
 
-// promptText returns the text of a row that holds a prompt the user typed.
-func (r transcriptRow) promptText() (string, bool) {
-	if r.Type != "user" {
-		return "", false
-	}
-
-	var text string
-
-	if json.Unmarshal(r.Message.Content, &text) != nil {
-		return "", false
-	}
-
-	return text, true
-}
-
 // turn is what one prompt left in the session's record.
 type turn struct {
 	rows  []transcriptRow // from the prompt's own row to the row before the next prompt's
@@ -705,6 +712,23 @@ func (t *turn) agentActsAt() int {
 	}
 
 	return -1
+}
+
+// arrivalOf returns where the first block delivered within the turn that names the note lies in the turn's rows: the
+// row of the block, the last row of the agent or of a tool's result before it, and the first row of the agent after
+// it, each -1 when there is none; and whether any such block was delivered.
+func (t *turn) arrivalOf(note string) (arrival, bool) {
+	for index, row := range t.rows {
+		if !row.besideThePrompt() && strings.Contains(strings.Join(engramEntries(row.delivered()), "\n"), note) {
+			return arrival{
+				block:  index,
+				before: t.lastRowBefore(index, "user", "assistant"),
+				next:   t.firstRowAfter(index, "assistant"),
+			}, true
+		}
+	}
+
+	return arrival{}, false
 }
 
 // blockAt returns the index, in the turn's rows, of the row that delivered the first block beside the prompt, or -1.
@@ -736,35 +760,6 @@ func (t *turn) blocks() []string {
 	return blocks
 }
 
-// arrivalOf returns where the first block delivered within the turn that names the note lies in the turn's rows: the row
-// of the block, the last row of the agent or of a tool's result before it, and the first row of the agent after it,
-// each -1 when there is none; and whether any such block was delivered.
-func (t *turn) arrivalOf(note string) (arrival, bool) {
-	for index, row := range t.rows {
-		if row.besideThePrompt() || !strings.Contains(strings.Join(engramEntries(row.delivered()), "\n"), note) {
-			continue
-		}
-
-		found := arrival{block: index, before: -1, next: -1}
-
-		for earlier := index - 1; earlier >= 0 && found.before < 0; earlier-- {
-			if t.rows[earlier].Type == "user" || t.rows[earlier].Type == "assistant" {
-				found.before = earlier
-			}
-		}
-
-		for later := index + 1; later < len(t.rows) && found.next < 0; later++ {
-			if t.rows[later].Type == "assistant" {
-				found.next = later
-			}
-		}
-
-		return found, true
-	}
-
-	return arrival{}, false
-}
-
 // contexts returns every entry any hook put beside the prompt, whoever wrote it.
 func (t *turn) contexts() []string {
 	var entries []string
@@ -778,6 +773,18 @@ func (t *turn) contexts() []string {
 	return entries
 }
 
+// finalAt returns the index, in the turn's rows, of the last row of the agent that holds text: what the agent said
+// last, or -1.
+func (t *turn) finalAt() int {
+	for index, row := range slices.Backward(t.rows) {
+		if row.Type == "assistant" && row.text() != "" {
+			return index
+		}
+	}
+
+	return -1
+}
+
 // finalText returns the text of the last row of the agent in the turn: what the agent said last.
 func (t *turn) finalText() string {
 	for _, row := range slices.Backward(t.rows) {
@@ -789,12 +796,11 @@ func (t *turn) finalText() string {
 	return ""
 }
 
-// finalAt returns the index, in the turn's rows, of the last row of the agent that holds text: what the agent said last,
-// or -1.
-func (t *turn) finalAt() int {
-	for index, row := range slices.Backward(t.rows) {
-		if row.Type == "assistant" && row.text() != "" {
-			return index
+// firstRowAfter returns the index of the first row after the index that is of the type, or -1.
+func (t *turn) firstRowAfter(index int, kind string) int {
+	for later := index + 1; later < len(t.rows); later++ {
+		if t.rows[later].Type == kind {
+			return later
 		}
 	}
 
@@ -819,6 +825,17 @@ func (t *turn) hold() time.Duration {
 	return -1
 }
 
+// lastRowBefore returns the index of the last row before the index that is of one of the types, or -1.
+func (t *turn) lastRowBefore(index int, kinds ...string) int {
+	for earlier := index - 1; earlier >= 0; earlier-- {
+		if slices.Contains(kinds, t.rows[earlier].Type) {
+			return earlier
+		}
+	}
+
+	return -1
+}
+
 // reached returns how long after the test sent the prompt the model was asked, or -1 when it was not: the row of the
 // prompt is written when the host enters it, so the time from that row misses a prompt that was held before it.
 func (t *turn) reached() time.Duration {
@@ -835,19 +852,6 @@ func (t *turn) reached() time.Duration {
 // repliedAfter returns how long after the test sent the prompt the process printed the result of the turn.
 func (t *turn) repliedAfter() time.Duration {
 	return t.answered.Sub(t.sent)
-}
-
-// withinTurn returns the blocks automatic memory delivered within the turn, with a tool's result, in order.
-func (t *turn) withinTurn() []string {
-	var blocks []string
-
-	for _, row := range t.rows {
-		if !row.besideThePrompt() {
-			blocks = append(blocks, engramEntries(row.delivered())...)
-		}
-	}
-
-	return blocks
 }
 
 // resultTextAt returns the text of the tool results that the row at the index holds, or nothing when it holds none.
@@ -892,20 +896,13 @@ func (t *turn) toolResultsNaming(note string) bool {
 	return false
 }
 
-// arrival is where a block lies in a turn's rows (855a2e).
-type arrival struct {
-	block  int // the row of the block
-	before int // the last row of the agent or of a tool's result before the block
-	next   int // the first row of the agent after the block
-}
-
-// engramEntries returns the entries that begin with the marker of automatic memory's blocks.
-func engramEntries(entries []string) []string {
+// withinTurn returns the blocks automatic memory delivered within the turn, with a tool's result, in order.
+func (t *turn) withinTurn() []string {
 	var blocks []string
 
-	for _, entry := range entries {
-		if strings.HasPrefix(entry, engramMarker) {
-			blocks = append(blocks, entry)
+	for _, row := range t.rows {
+		if !row.besideThePrompt() {
+			blocks = append(blocks, engramEntries(row.delivered())...)
 		}
 	}
 
@@ -938,6 +935,19 @@ func claudeToken(t *testing.T) string {
 	t.Fatalf("%v: set %s, or put it in ~/%s", errNoToken, tokenVariable, credentialFile)
 
 	return ""
+}
+
+// engramEntries returns the entries that begin with the marker of automatic memory's blocks.
+func engramEntries(entries []string) []string {
+	var blocks []string
+
+	for _, entry := range entries {
+		if strings.HasPrefix(entry, engramMarker) {
+			blocks = append(blocks, entry)
+		}
+	}
+
+	return blocks
 }
 
 // newUUID returns a random version 4 UUID, the form `claude --session-id` takes.

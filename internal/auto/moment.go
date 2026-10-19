@@ -46,6 +46,14 @@ type MomentInput struct {
 	Event ToolEvent `json:"event"`
 }
 
+// Step is what a step prints for a judgement: the request, and the carry for the next step.
+type Step struct {
+	Request ModelRequest `json:"request"`
+	Carry   Carry        `json:"carry"`
+	// Write tells the mod that a write follows the delivery: a deep recall's.
+	Write bool `json:"write,omitempty"`
+}
+
 // ToolCall is a call of a batch, with the response it resolved with.
 type ToolCall struct {
 	Tool     string          `json:"tool"`
@@ -60,14 +68,6 @@ type ToolEvent struct {
 	Input json.RawMessage `json:"input"`
 	Error string          `json:"error"`
 	Calls []ToolCall      `json:"calls"`
-}
-
-// Step is what a step prints for a judgement: the request, and the carry for the next step.
-type Step struct {
-	Request ModelRequest `json:"request"`
-	Carry   Carry        `json:"carry"`
-	// Write tells the mod that a write follows the delivery: a deep recall's.
-	Write bool `json:"write,omitempty"`
 }
 
 // Moment returns the request that judges whether a moment is one for recall, or, at the end of a turn, one for learn
@@ -102,13 +102,23 @@ func Moment(record []byte, input MomentInput) Step {
 
 // unexported constants.
 const (
+	// callAndFailure is the lines of the event of a call that failed: the call and the failure.
+	callAndFailure = 2
 	// learnMomentTimeoutMs is the row of the model call of the learn-moment judgement (855d2b).
 	learnMomentTimeoutMs = 10000
-	momentEffort         = "low"
-	momentMaxTokens      = 200
+	// linesPerCall is the lines of a call of a batch: the call and its response.
+	linesPerCall    = 2
+	momentEffort    = "low"
+	momentMaxTokens = 200
 	// windowShape is the prompt of a request that holds the window only: the window between its tags.
 	windowShape = "<window>\n%s\n</window>"
 )
+
+//go:embed prompts/moment_learn.txt
+var learnMomentInstructions string
+
+//go:embed prompts/moment_recall.txt
+var recallMoment string
 
 // compact is the text of a JSON value on one line, redacted after it is decoded: a credential written in the escaped
 // form of JSON is redacted as the text it spells, in every string and key of the value, and the value is written again
@@ -130,11 +140,54 @@ func compact(raw json.RawMessage) string {
 	encoder := json.NewEncoder(&buffer)
 	encoder.SetEscapeHTML(false)
 
-	if encoder.Encode(redactedValue(value)) != nil {
+	encodeErr := encoder.Encode(redactedValue(value))
+	if encodeErr != nil {
 		return string(raw)
 	}
 
 	return strings.TrimSuffix(buffer.String(), "\n")
+}
+
+// eventLines writes the event of a tool cue as the lines of the window that end it (855d4a): the call, with its input;
+// for a failure the error after it; for a batch each call with its response.
+func eventLines(cue string, event ToolEvent) []string {
+	messages := make([]message, 0, linesPerCall*len(event.Calls)+callAndFailure)
+
+	for _, call := range event.Calls {
+		messages = append(messages,
+			message{label: toolLabel, text: call.Tool + " with " + compact(call.Input)},
+			message{label: toolLabel, text: call.Tool + " returned: " + compact(call.Response)})
+	}
+
+	if len(event.Calls) == 0 {
+		messages = append(messages, message{label: toolLabel, text: event.Tool + " with " + compact(event.Input)})
+	}
+
+	if cue == CueFailure {
+		messages = append(messages, message{label: toolLabel, text: event.Tool + " failed: " + event.Error})
+	}
+
+	return linesOf(messages)
+}
+
+// learnMoment is the request that judges whether a turn that ended is a learn moment (855d4a): the window of the turn,
+// as the judgement of the turn builds it, which a turn of many tool calls could not be judged without.
+func learnMoment(messages []message, last int, input MomentInput) Step {
+	start, finish := 0, 0
+	if last >= 0 {
+		start = startOf(messages, last, input.Text)
+		finish = endOf(messages, start)
+	}
+
+	window := strings.Join(windowOf(messages, start, finish, input.Answer), "\n")
+
+	return Step{
+		Request: ModelRequest{
+			Model: cheapTier, Effort: momentEffort, System: learnMomentInstructions,
+			Prompt: fmt.Sprintf(windowShape, window), MaxTokens: momentMaxTokens, TimeoutMs: learnMomentTimeoutMs,
+		},
+		Carry: Carry{Cue: input.Cue, Window: window},
+	}
 }
 
 // redactedValue is a decoded JSON value with every string and every key of an object redacted.
@@ -161,28 +214,6 @@ func redactedValue(value any) any {
 	}
 }
 
-// eventLines writes the event of a tool cue as the lines of the window that end it (855d4a): the call, with its input;
-// for a failure the error after it; for a batch each call with its response.
-func eventLines(cue string, event ToolEvent) []string {
-	messages := make([]message, 0, 2*len(event.Calls)+2)
-
-	for _, call := range event.Calls {
-		messages = append(messages,
-			message{label: toolLabel, text: call.Tool + " with " + compact(call.Input)},
-			message{label: toolLabel, text: call.Tool + " returned: " + compact(call.Response)})
-	}
-
-	if len(event.Calls) == 0 {
-		messages = append(messages, message{label: toolLabel, text: event.Tool + " with " + compact(event.Input)})
-	}
-
-	if cue == CueFailure {
-		messages = append(messages, message{label: toolLabel, text: event.Tool + " failed: " + event.Error})
-	}
-
-	return linesOf(messages)
-}
-
 // toolWindow is the context and the turn's lines of the window of a tool cue (855b54, 855b97): the last lines of the
 // conversation, the text the turn began with before them when they do not hold it, and the lines of the event.
 func toolWindow(before []string, turnLine string, event []string) ([]string, []string) {
@@ -191,30 +222,4 @@ func toolWindow(before []string, turnLine string, event []string) ([]string, []s
 	}
 
 	return fit(before, event)
-}
-
-//go:embed prompts/moment_learn.txt
-var learnMomentInstructions string
-
-//go:embed prompts/moment_recall.txt
-var recallMoment string
-
-// learnMoment is the request that judges whether a turn that ended is a learn moment (855d4a): the window of the turn,
-// as the judgement of the turn builds it, which a turn of many tool calls could not be judged without.
-func learnMoment(messages []message, last int, input MomentInput) Step {
-	start, finish := 0, 0
-	if last >= 0 {
-		start = startOf(messages, last, input.Text)
-		finish = endOf(messages, start)
-	}
-
-	window := strings.Join(windowOf(messages, start, finish, input.Answer), "\n")
-
-	return Step{
-		Request: ModelRequest{
-			Model: cheapTier, Effort: momentEffort, System: learnMomentInstructions,
-			Prompt: fmt.Sprintf(windowShape, window), MaxTokens: momentMaxTokens, TimeoutMs: learnMomentTimeoutMs,
-		},
-		Carry: Carry{Cue: input.Cue, Window: window},
-	}
 }

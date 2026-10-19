@@ -1240,6 +1240,83 @@ func Test855d2a1j_Mod_DeliveriesOfOneSessionRunOneAfterAnotherEachGivenWhatTheOn
 	}
 }
 
+func Test855d2b1a_Mod_APlacementThatPrintsNothingLeavesTheLessonsToBeWrittenAtTheTop(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scenario := printingChain()
+	scenario.Place = map[string]any{"exitCode": 0, "stdout": ""}
+
+	outcome := runCaptureDriver(t, scenario)
+
+	g.Expect(outcome.modelCalls()).To(HaveLen(2), "the model was asked twice")
+
+	writes := outcome.inputsOf("engram auto write")
+
+	g.Expect(writes).To(Equal([]map[string]any{{"session": "a-session", "turn": "a-turn", "reply": "LESSONS"}}),
+		"the reply to the lessons request, and no carry and no placement reply: the placement printed neither")
+}
+
+func Test855d2b1b_Mod_APlacementThatFailsLeavesTheLessonsToBeWrittenAtTheTopAndRecorded(t *testing.T) {
+	t.Parallel()
+
+	failures := map[string]struct {
+		place  map[string]any
+		models []map[string]any
+		calls  int
+	}{
+		"a placement that exits with 1": {place: map[string]any{"exitCode": 1, "stdout": "boom\n"}, calls: 2},
+		"a placement that prints what is not a request": {
+			place: map[string]any{"exitCode": 0, "stdout": "Unknown command: auto\n"}, calls: 2,
+		},
+		"a placement that is ended": {place: map[string]any{"rejects": "the command ran for 20000 ms"}, calls: 2},
+		"a model that answers the placement with an API error": {
+			models: []map[string]any{nil, nil, {"isAnswered": false, "reason": "api-error", "status": 529}}, calls: 3,
+		},
+		"a model that rejects the placement": {
+			models: []map[string]any{nil, nil, {"rejects": "the cap is refused"}}, calls: 3,
+		},
+	}
+
+	for name, failure := range failures {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			scenario := printingChain()
+
+			if failure.place != nil {
+				scenario.Place = failure.place
+			}
+
+			for call, model := range failure.models {
+				if model != nil {
+					scenario.Models[call] = model
+				}
+			}
+
+			outcome := runCaptureDriver(t, scenario)
+
+			g.Expect(outcome.modelCalls()).To(HaveLen(failure.calls), "the model calls made before the placement failed")
+
+			writes := outcome.inputsOf("engram auto write")
+
+			g.Expect(writes).To(HaveLen(1), "the one writing: of the lessons, and not of a failure")
+
+			if len(writes) != 1 {
+				return
+			}
+
+			g.Expect(writes[0]).To(And(HaveKeyWithValue("session", "a-session"), HaveKeyWithValue("turn", "a-turn"),
+				HaveKeyWithValue("reply", "LESSONS")))
+			g.Expect(writes[0]["placementFailure"]).To(ContainSubstring("place"), "the failure names the placement")
+			g.Expect(writes[0]).NotTo(HaveKey("failure"), "the capture did not fail")
+			g.Expect(writes[0]).NotTo(HaveKey("carry"), "no carry: the placement gave none")
+			g.Expect(writes[0]).NotTo(HaveKey("placement"), "no placement reply")
+		})
+	}
+}
+
 // Test855d2c1a_Mod_ANoteArrivesWithTheCallAfterAFailureAndAfterABatch runs the mod under node against a stand-in host
 // that raises the three events of a tool in the turn of a prompt.
 func Test855d2c1a_Mod_ANoteArrivesWithTheCallAfterAFailureAndAfterABatch(t *testing.T) {
@@ -1270,9 +1347,10 @@ func Test855d2c1a_Mod_ANoteArrivesWithTheCallAfterAFailureAndAfterABatch(t *test
 	g.Expect(outcome.Answers[0]).To(Equal(map[string]any{
 		"result": "ok", "context": []any{"another hook's", strings.TrimSpace(noteBlock("a.md"))},
 	}), "the block, one more entry of the result's context")
-	g.Expect(outcome.Answers[1]).To(Equal(map[string]any{"additionalContext": []any{strings.TrimSpace(noteBlock("b.md"))}}))
-	g.Expect(outcome.Answers[2]).To(Equal(map[string]any{"additionalContext": []any{strings.TrimSpace(noteBlock("c.md"))}}))
-	g.Expect(outcome.Logged).To(Equal([]string{"delivered the note a.md", "delivered the note b.md", "delivered the note c.md"}),
+	g.Expect(outcome.Answers[1]).To(Equal(additionalContextOf("b.md")))
+	g.Expect(outcome.Answers[2]).To(Equal(additionalContextOf("c.md")))
+	g.Expect(outcome.Logged).To(
+		Equal([]string{"delivered the note a.md", "delivered the note b.md", "delivered the note c.md"}),
 		"the line the user was shown each time")
 
 	moments := outcome.inputsOf("engram auto moment")
@@ -1284,7 +1362,9 @@ func Test855d2c1a_Mod_ANoteArrivesWithTheCallAfterAFailureAndAfterABatch(t *test
 		}),
 		momentOf("batch-done", []any{"a.md", "b.md"}, map[string]any{"calls": []any{
 			map[string]any{"tool": "Bash", "input": map[string]any{"command": "a"}, "response": "ok"},
-			map[string]any{"tool": "Read", "input": map[string]any{"file_path": "b"}, "response": map[string]any{"lines": float64(3)}},
+			map[string]any{
+				"tool": "Read", "input": map[string]any{"file_path": "b"}, "response": map[string]any{"lines": float64(3)},
+			},
 		}}),
 	}), "the cue, the event, the text the turn began with and the session, for each")
 }
@@ -1480,138 +1560,6 @@ func Test855d2c1k_Mod_AUsersInterruptAndABatchOfFailuresJudgedAlreadyAreLeftAlon
 	}
 
 	g.Expect(outcome.Answers).To(Equal([]map[string]any{{}, {}, {}}), "the result of next(e) each time")
-}
-
-// batchEvent is a classic.PostToolBatch event of two calls of the session.
-func batchEvent(session, first, second string) eventRaised {
-	return eventRaised{Hook: "classic.PostToolBatch", Event: map[string]any{
-		"session_id": session, "tool_calls": []any{
-			map[string]any{
-				"tool_name": "Bash", "tool_input": map[string]any{"command": "a"}, "tool_use_id": first,
-				"tool_response": "ok",
-			},
-			map[string]any{
-				"tool_name": "Read", "tool_input": map[string]any{"file_path": "b"}, "tool_use_id": second,
-				"tool_response": map[string]any{"lines": 3},
-			},
-		},
-	}}
-}
-
-// failureEvent is a classic.PostToolUseFailure event of the session for a Bash call.
-func failureEvent(session, call string, interrupt bool) eventRaised {
-	event := map[string]any{
-		"session_id": session, "tool_name": "Bash", "tool_input": map[string]any{"command": "make ci"},
-		"tool_use_id": call, "error": "exit 1",
-	}
-
-	if interrupt {
-		event["is_interrupt"] = true
-	}
-
-	return eventRaised{Hook: "classic.PostToolUseFailure", Event: event}
-}
-
-// momentOf is what the moment is given for an event of the turn of the prompt "hello".
-func momentOf(cue string, held []any, event map[string]any) map[string]any {
-	return map[string]any{
-		"session": "a-session", "origin": "composer", "cue": cue, "held": held, "text": "hello", "event": event,
-	}
-}
-
-// noteBlock is a block of one note, as the delivery prints it.
-func noteBlock(name string) string {
-	return "[engram memory] The lines below are notes.\n- " + name + " (s): x\n"
-}
-
-// toolScenario gives a scenario the steps that print a request each, so that a chain runs to its delivery, unless it
-// has steps of its own.
-func toolScenario(scenario deliveryScenario) deliveryScenario {
-	if scenario.Steps == nil {
-		scenario.Steps = map[string]map[string]any{
-			"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": aStep(2)},
-			"recall": {"exitCode": 0, "stdout": aStep(3)},
-		}
-	}
-
-	return scenario
-}
-
-func Test855d2b1a_Mod_APlacementThatPrintsNothingLeavesTheLessonsToBeWrittenAtTheTop(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	scenario := printingChain()
-	scenario.Place = map[string]any{"exitCode": 0, "stdout": ""}
-
-	outcome := runCaptureDriver(t, scenario)
-
-	g.Expect(outcome.modelCalls()).To(HaveLen(2), "the model was asked twice")
-
-	writes := outcome.inputsOf("engram auto write")
-
-	g.Expect(writes).To(Equal([]map[string]any{{"session": "a-session", "turn": "a-turn", "reply": "LESSONS"}}),
-		"the reply to the lessons request, and no carry and no placement reply: the placement printed neither")
-}
-
-func Test855d2b1b_Mod_APlacementThatFailsLeavesTheLessonsToBeWrittenAtTheTopAndRecorded(t *testing.T) {
-	t.Parallel()
-
-	failures := map[string]struct {
-		place  map[string]any
-		models []map[string]any
-		calls  int
-	}{
-		"a placement that exits with 1": {place: map[string]any{"exitCode": 1, "stdout": "boom\n"}, calls: 2},
-		"a placement that prints what is not a request": {
-			place: map[string]any{"exitCode": 0, "stdout": "Unknown command: auto\n"}, calls: 2,
-		},
-		"a placement that is ended": {place: map[string]any{"rejects": "the command ran for 20000 ms"}, calls: 2},
-		"a model that answers the placement with an API error": {
-			models: []map[string]any{nil, nil, {"isAnswered": false, "reason": "api-error", "status": 529}}, calls: 3,
-		},
-		"a model that rejects the placement": {
-			models: []map[string]any{nil, nil, {"rejects": "the cap is refused"}}, calls: 3,
-		},
-	}
-
-	for name, failure := range failures {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			scenario := printingChain()
-
-			if failure.place != nil {
-				scenario.Place = failure.place
-			}
-
-			for call, model := range failure.models {
-				if model != nil {
-					scenario.Models[call] = model
-				}
-			}
-
-			outcome := runCaptureDriver(t, scenario)
-
-			g.Expect(outcome.modelCalls()).To(HaveLen(failure.calls), "the model calls made before the placement failed")
-
-			writes := outcome.inputsOf("engram auto write")
-
-			g.Expect(writes).To(HaveLen(1), "the one writing: of the lessons, and not of a failure")
-
-			if len(writes) != 1 {
-				return
-			}
-
-			g.Expect(writes[0]).To(And(HaveKeyWithValue("session", "a-session"), HaveKeyWithValue("turn", "a-turn"),
-				HaveKeyWithValue("reply", "LESSONS")))
-			g.Expect(writes[0]["placementFailure"]).To(ContainSubstring("place"), "the failure names the placement")
-			g.Expect(writes[0]).NotTo(HaveKey("failure"), "the capture did not fail")
-			g.Expect(writes[0]).NotTo(HaveKey("carry"), "no carry: the placement gave none")
-			g.Expect(writes[0]).NotTo(HaveKey("placement"), "no placement reply")
-		})
-	}
 }
 
 // TestMods_EveryJavaScriptModuleParses: the real mods parse under the real node, and the real node rejects a broken
@@ -2270,6 +2218,27 @@ func aStep(n int) string {
 		`"carry":{"cue":"prompt","depth":"glance","window":"W%d"}}`+"\n", n, n, n)
 }
 
+// additionalContextOf is the answer of a classic event that carries the block of a note as additional context.
+func additionalContextOf(name string) map[string]any {
+	return map[string]any{"additionalContext": []any{strings.TrimSpace(noteBlock(name))}}
+}
+
+// batchEvent is a classic.PostToolBatch event of two calls of the session.
+func batchEvent(session, first, second string) eventRaised {
+	return eventRaised{Hook: "classic.PostToolBatch", Event: map[string]any{
+		"session_id": session, "tool_calls": []any{
+			map[string]any{
+				"tool_name": "Bash", "tool_input": map[string]any{"command": "a"}, "tool_use_id": first,
+				"tool_response": "ok",
+			},
+			map[string]any{
+				"tool_name": "Read", "tool_input": map[string]any{"file_path": "b"}, "tool_use_id": second,
+				"tool_response": map[string]any{"lines": 3},
+			},
+		},
+	}}
+}
+
 // carryOfDeepStep is the carry of aDeepStep as the driver decodes it.
 func carryOfDeepStep() map[string]any {
 	return map[string]any{"cue": "prompt", "depth": "deep", "window": "W3"}
@@ -2278,6 +2247,20 @@ func carryOfDeepStep() map[string]any {
 // carryOfStep is the carry of aStep as the driver decodes it.
 func carryOfStep(n int) map[string]any {
 	return map[string]any{"cue": "prompt", "depth": "glance", "window": fmt.Sprintf("W%d", n)}
+}
+
+// failureEvent is a classic.PostToolUseFailure event of the session for a Bash call.
+func failureEvent(session, call string, interrupt bool) eventRaised {
+	event := map[string]any{
+		"session_id": session, "tool_name": "Bash", "tool_input": map[string]any{"command": "make ci"},
+		"tool_use_id": call, "error": "exit 1",
+	}
+
+	if interrupt {
+		event["is_interrupt"] = true
+	}
+
+	return eventRaised{Hook: "classic.PostToolUseFailure", Event: event}
 }
 
 // modulesOf reads every JavaScript file below a directory, by its path relative to the directory.
@@ -2318,6 +2301,18 @@ func momentInput(text, origin string) map[string]any {
 		"session": "a-session", "turn": "a-turn", "text": text, "answer": "Understood.", "origin": origin,
 		"cue": "turn-end",
 	}
+}
+
+// momentOf is what the moment is given for an event of the turn of the prompt "hello".
+func momentOf(cue string, held []any, event map[string]any) map[string]any {
+	return map[string]any{
+		"session": "a-session", "origin": "composer", "cue": cue, "held": held, "text": "hello", "event": event,
+	}
+}
+
+// noteBlock is a block of one note, as the delivery prints it.
+func noteBlock(name string) string {
+	return "[engram memory] The lines below are notes.\n- " + name + " (s): x\n"
 }
 
 // printingChain is a capture whose moment, judgement and placement each print a request, and whose model answers each
@@ -2423,4 +2418,17 @@ func runDriver(t *testing.T, driver string, scenario, outcome any) {
 	if unmarshalErr != nil {
 		t.Fatalf("the driver printed %q: %v", out, unmarshalErr)
 	}
+}
+
+// toolScenario gives a scenario the steps that print a request each, so that a chain runs to its delivery, unless it
+// has steps of its own.
+func toolScenario(scenario deliveryScenario) deliveryScenario {
+	if scenario.Steps == nil {
+		scenario.Steps = map[string]map[string]any{
+			"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": aStep(2)},
+			"recall": {"exitCode": 0, "stdout": aStep(3)},
+		}
+	}
+
+	return scenario
 }

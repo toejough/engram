@@ -14,6 +14,48 @@ import (
 	"github.com/toejough/engram/internal/debuglog"
 )
 
+func Test855d4a1c_Moment_TheCommandReadsTheEventOfEachToolCue(t *testing.T) {
+	t.Parallel()
+
+	events := map[string]struct{ event, line string }{
+		"before-tool": {`{"tool":"Bash","input":{"command":"make ci"}}`, `Agent used Bash with {"command":"make ci"}`},
+		"failure": {
+			`{"tool":"Bash","input":{"command":"make ci"},"error":"exit 1"}`,
+			`Agent used Bash with {"command":"make ci"}` + "\nAgent used Bash failed: exit 1",
+		},
+		"batch-done": {
+			`{"calls":[{"tool":"Bash","input":{"command":"make ci"},"response":"ok"}]}`,
+			`Agent used Bash with {"command":"make ci"}` + "\nAgent used Bash returned: ok",
+		},
+	}
+
+	for cue, spec := range events {
+		t.Run(cue, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			var out bytes.Buffer
+
+			err := cli.RunAutoMoment(context.Background(), cli.AutoMomentArgs{SessionsDir: "/sessions"},
+				cli.AutoMomentDeps{
+					Stdin: strings.NewReader(`{"session":"` + sessionID + `","cue":"` + cue + `","origin":"composer",` +
+						`"text":"Run the build.","event":` + spec.event + `}`),
+					ReadRecord: func(string, string) []byte { return nil },
+				}, &out)
+			g.Expect(err).NotTo(HaveOccurred())
+
+			var step struct {
+				Request struct {
+					Prompt string `json:"prompt"`
+				} `json:"request"`
+			}
+
+			g.Expect(json.Unmarshal(out.Bytes(), &step)).To(Succeed(), "the output is one JSON object: %q", out.String())
+			g.Expect(step.Request.Prompt).To(Equal("<window>\nUser: Run the build.\n" + spec.line + "\n</window>"))
+		})
+	}
+}
+
 //go:generate impgen cli.RecordRead --dependency --import-path github.com/toejough/engram/internal/cli
 
 func Test855d4a1e_Moment_APromptOfAnOriginTheUserDoesNotSendIsJudgedNothing(t *testing.T) {
@@ -92,48 +134,6 @@ func Test855d4a1f_Moment_ASessionWithNoTranscriptIsJudgedWithoutConversationLine
 	g.Expect(json.Unmarshal(out.Bytes(), &step)).To(Succeed(), "the output is one JSON object: %q", out.String())
 	g.Expect(step.Request.Prompt).To(Equal("<window>\n" +
 		"User: Prepare a test run against the Zorblax staging database tonight.\n</window>"))
-}
-
-func Test855d4a1c_Moment_TheCommandReadsTheEventOfEachToolCue(t *testing.T) {
-	t.Parallel()
-
-	events := map[string]struct{ event, line string }{
-		"before-tool": {`{"tool":"Bash","input":{"command":"make ci"}}`, `Agent used Bash with {"command":"make ci"}`},
-		"failure": {
-			`{"tool":"Bash","input":{"command":"make ci"},"error":"exit 1"}`,
-			`Agent used Bash with {"command":"make ci"}` + "\nAgent used Bash failed: exit 1",
-		},
-		"batch-done": {
-			`{"calls":[{"tool":"Bash","input":{"command":"make ci"},"response":"ok"}]}`,
-			`Agent used Bash with {"command":"make ci"}` + "\nAgent used Bash returned: ok",
-		},
-	}
-
-	for cue, spec := range events {
-		t.Run(cue, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			var out bytes.Buffer
-
-			err := cli.RunAutoMoment(context.Background(), cli.AutoMomentArgs{SessionsDir: "/sessions"},
-				cli.AutoMomentDeps{
-					Stdin: strings.NewReader(`{"session":"` + sessionID + `","cue":"` + cue + `","origin":"composer",` +
-						`"text":"Run the build.","event":` + spec.event + `}`),
-					ReadRecord: func(string, string) []byte { return nil },
-				}, &out)
-			g.Expect(err).NotTo(HaveOccurred())
-
-			var step struct {
-				Request struct {
-					Prompt string `json:"prompt"`
-				} `json:"request"`
-			}
-
-			g.Expect(json.Unmarshal(out.Bytes(), &step)).To(Succeed(), "the output is one JSON object: %q", out.String())
-			g.Expect(step.Request.Prompt).To(Equal("<window>\nUser: Run the build.\n" + spec.line + "\n</window>"))
-		})
-	}
 }
 
 func Test855d4a1g_Moment_AnInputThatIsNotAJSONObjectFailsTheCommand(t *testing.T) {
