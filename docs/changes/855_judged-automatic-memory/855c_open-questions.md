@@ -59,3 +59,11 @@ Step 3, the technical specification ([855d Judged Automatic Memory - Technical S
 - **Recommendation:** (b): the floor costs nothing when no passage matched and keeps the evidence of a deep recall otherwise.
 - **Blocks:** [855d4b1m A cap on the count keeps a floor of passages](./855d_technical-spec.md#855d4b1-scenarios).
 - **Status:** answered by default (Author, 2026-10-18): option (b); the owner may reopen it.
+
+## 855c8 Is every tool call judged at the three cues, or only at some?
+
+- **Context:** the owner's North Star says to fire as often as possible ([855b2 North Star](./855b_decision-log.md#855b2-north-star)), and the build judges the call about to run (N, the cue `before-tool`), the call that failed (F) and the batch that resolved (B): a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) of N calls in one batch makes N+B cheap-tier model calls and N+F+B when calls fail, each of about 3,000 characters (793a2c1d, one call: before-tool 3,234, batch-done 3,377, turn-end 2,525, [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) 3,078; characters, not tokens, which group g measures). A context put at a tool call and the context of the batch land at the same model request ([855b51 A context put at a tool call reaches the model after the tool's result](./855b_decision-log.md#855b51-a-context-put-at-a-tool-call-reaches-the-model-after-the-tools-result)), so a judgement per call and a judgement per batch pay twice for one delivery point.
+- **Options:** (a) As built: N+F+B. (b) Failure and batch-done only. (c) Batch-done only, with the errors in its window. (d) As built, skipping the read-only tools for before-tool.
+- **Recommendation:** (a): the owner's rule is to fire as often as possible, and the cost is measured by group g before it is weighed against the delivery each cue adds.
+- **Blocks:** [855d2c Mid-turn recall flow](./855d_technical-spec.md#855d2c-added-mid-turn-recall-flow).
+- **Status:** open; (a) stands as the author's default.

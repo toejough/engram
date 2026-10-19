@@ -105,12 +105,20 @@ export function register(on) {
     }
 
     const event = { tool: e.tool, input: Object.fromEntries(Object.entries(e).filter(([key]) => !RESERVED.includes(key))) }
-    const delivery = await cueDelivery($, 'before-tool', () => bounded($.session.id(), ID_BOUND_MS, "the call for the session's ID"),
-      event)
-    const result = await next(e)
+    // the call is let run while its chain runs (855b102); the block rides the result once both are over
+    const [delivery, result] = await Promise.all([
+      cueDelivery($, 'before-tool', () => bounded($.session.id(), ID_BOUND_MS, "the call for the session's ID"), event),
+      next(e),
+    ])
 
-    // a call that was denied has no context to add to; the notes of the block stay held
-    return result.deny === undefined ? withBlock(result, 'context', delivery.block) : result
+    // a call that was denied has no context to add to; the notes of the block are held no longer
+    if (result.deny !== undefined) {
+      release(delivery)
+
+      return result
+    }
+
+    return withBlock(result, 'context', delivery.block)
   })
 
   on('classic.PostToolUseFailure', async ($, e, next) => {
@@ -503,6 +511,16 @@ function keepNew(session, block, shown) {
   return {
     block: left.length > 0 ? kept.join('\n') : '',
     shown: left.length === all ? shown : shown.flatMap((line) => deliveredLineOf(line, left)),
+    session,
+    added: left.map((entry) => entry.id),
+  }
+}
+
+// release takes the IDs of a block that was not given off the session's set, so that its notes are delivered later
+// (855d2c).
+function release(delivery) {
+  for (const id of delivery.added ?? []) {
+    delivered.get(delivery.session)?.delete(id)
   }
 }
 
