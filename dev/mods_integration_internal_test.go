@@ -1088,24 +1088,6 @@ func Test855d2a1f_Mod_ADeepDeliveryWritesAfterTheBlockFromATimer(t *testing.T) {
 	g.Expect(outcome.limitOf("engram auto write")).To(BeNumerically("==", 60000), "the time limit of the write")
 }
 
-// Test855d2a1k_Mod_TwoDeepDeliveriesOfASessionWriteOneAfterTheOther runs the mod under node against a stand-in host
-// whose writing takes a while: the second write starts when the first has ended (855b29).
-func Test855d2a1k_Mod_TwoDeepDeliveriesOfASessionWriteOneAfterTheOther(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	outcome := runDeliveryDriver(t, deliveryScenario{
-		Steps: map[string]map[string]any{
-			"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": aStep(2)},
-			"recall": {"exitCode": 0, "stdout": aDeepStep()},
-		},
-		Deliver: map[string]any{"exitCode": 0, "stdout": deepBlock + "\n"}, Prompts: 2, WriteDelayMs: 20,
-	})
-
-	g.Expect(outcome.WriteEvents).To(Equal([]string{"start", "end", "start", "end"}), "the writes, one after the other")
-}
-
 // Test855d2a1g_Mod_AGlanceWritesNothing runs the mod under node against a stand-in host whose recall prints a request
 // without the mark of a write. Mutation: a mod that runs the writing for every delivery fails it.
 func Test855d2a1g_Mod_AGlanceWritesNothing(t *testing.T) {
@@ -1238,6 +1220,24 @@ func Test855d2a1j_Mod_DeliveriesOfOneSessionRunOneAfterAnotherEachGivenWhatTheOn
 		g.Expect(deliveries[0]["held"]).To(BeEmpty(), "the IDs held when the first delivery began")
 		g.Expect(deliveries[1]["held"]).To(Equal([]any{"a.md"}), "the IDs held when the second began: the first's")
 	}
+}
+
+// Test855d2a1k_Mod_TwoDeepDeliveriesOfASessionWriteOneAfterTheOther runs the mod under node against a stand-in host
+// whose writing takes a while: the second write starts when the first has ended (855b29).
+func Test855d2a1k_Mod_TwoDeepDeliveriesOfASessionWriteOneAfterTheOther(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runDeliveryDriver(t, deliveryScenario{
+		Steps: map[string]map[string]any{
+			"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": aStep(2)},
+			"recall": {"exitCode": 0, "stdout": aDeepStep()},
+		},
+		Deliver: map[string]any{"exitCode": 0, "stdout": deepBlock + "\n"}, Prompts: 2, WriteDelayMs: 20,
+	})
+
+	g.Expect(outcome.WriteEvents).To(Equal([]string{"start", "end", "start", "end"}), "the writes, one after the other")
 }
 
 func Test855d2b1a_Mod_APlacementThatPrintsNothingLeavesTheLessonsToBeWrittenAtTheTop(t *testing.T) {

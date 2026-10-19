@@ -90,15 +90,17 @@ func TestScenariosWithoutTest_ARemovedScenarioNeedsNoTest(t *testing.T) {
 	})
 }
 
-// TestScenariosWithoutTest_AScenarioOf855IsNamedOnlyWhereItsSpecIsRead: a check that reads the specs of 793 alone does not
-// name a scenario of 855 that has no test (855b45).
+// TestScenariosWithoutTest_AScenarioOf855IsNamedOnlyWhereItsSpecIsRead: a check that reads the specs of 793 alone does
+// not name a scenario of 855 that has no test (855b45).
 func TestScenariosWithoutTest_AScenarioOf855IsNamedOnlyWhereItsSpecIsRead(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 	spec793 := "Scenario: 793a2a1a One\n"
 	spec855 := "Scenario: 855a2a1a A glance\nScenario: 855d4b1m A cap\n"
-	sources := []string{"package a_test\n\nfunc Test793a2a1a_One(t *testing.T) {}\nfunc Test855a2a1a_Glance(t *testing.T) {}\n"}
+	sources := []string{
+		"package a_test\n\nfunc Test793a2a1a_One(t *testing.T) {}\nfunc Test855a2a1a_Glance(t *testing.T) {}\n",
+	}
 
 	g.Expect(scenariosWithoutTest(scenarioIDs(spec793), sources)).To(BeEmpty(), "reading 793 alone misses it")
 	g.Expect(scenariosWithoutTest(scenarioIDs(spec793+spec855), sources)).To(Equal([]string{"855d4b1m"}))

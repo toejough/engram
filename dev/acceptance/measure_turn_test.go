@@ -4,9 +4,9 @@ package acceptance_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -47,8 +47,7 @@ func Test855d7a1e_Hyp_TheChainsOfATurnsToolCallsAreTimed(t *testing.T) {
 			return each.steps[0].cue() == cueTurnEnd || each.steps[0].cue() == "prompt"
 		})
 		rows := make([][]string, 0, len(modSpans))
-
-		var saved []time.Duration
+		saved := make([]time.Duration, 0, len(modSpans))
 
 		// a call is let run while its chain does (855b102): the call and its chain end together, so the chain is
 		// hidden behind the call by as much as the shorter of the two
@@ -85,8 +84,8 @@ func Test855d7a1e_Hyp_TheChainsOfATurnsToolCallsAreTimed(t *testing.T) {
 			delayed += delay
 
 			gapRows = append(gapRows, []string{
-				fmt.Sprintf("%d", index+1), fmt.Sprintf("%d", gap.calls), secs(gap.delay), secs(longest(inBatch)),
-				fmt.Sprintf("%d", len(inBatch)),
+				strconv.Itoa(index + 1), strconv.Itoa(gap.calls), secs(gap.delay), secs(longest(inBatch)),
+				strconv.Itoa(len(inBatch)),
 			})
 		}
 
@@ -118,6 +117,23 @@ func Test855d7a1e_Hyp_TheChainsOfATurnsToolCallsAreTimed(t *testing.T) {
 	})
 }
 
+// unexported constants.
+const (
+	// tenCalls is a turn of 10 tool calls in five messages of the agent: four at once, one, three at once, one and one.
+	tenCalls = "Use the Bash tool for these ten commands, and reply with the word done at the end. In your first " +
+		"message make four calls at once: `sleep 1 && echo c1`, `sleep 1 && echo c2`, `sleep 1 && echo c3` and " +
+		"`sleep 1 && echo c4`. Then make this call alone: `sleep 2 && echo c5`. Then make three calls at once: " +
+		"`sleep 1 && echo c6`, `echo c7` and `sleep 1 && echo c8`. Then make this call alone: `echo c9`. Then make " +
+		"this call alone: `sleep 2 && echo c10`."
+	// tenToolCalls is how many tool calls the turn of tenCalls holds.
+	tenToolCalls = 10
+)
+
+// unexported variables.
+var (
+	callPattern = regexp.MustCompile(`c[0-9]+`)
+)
+
 // requestGap is the wait between the last result of the tool calls the agent made and the request to the model that
 // followed them.
 type requestGap struct {
@@ -127,48 +143,13 @@ type requestGap struct {
 	at    time.Time     // the request after
 }
 
-// requestGaps are the gaps of the turn's rows, one for each request to the model that follows tool results.
-func requestGaps(rows []transcriptRow) []requestGap {
-	var (
-		gaps    []requestGap
-		current requestGap
-		last    time.Time
-		since   time.Time
-	)
-
-	for _, row := range rows {
-		at, err := time.Parse(time.RFC3339Nano, row.Timestamp)
-		if err != nil {
-			continue
-		}
-
-		switch {
-		case row.Type == "user" && strings.Contains(string(row.Message.Content), "tool_result"):
-			current.calls++
-			last = at
-		case row.Type == "api-request":
-			if current.calls > 0 {
-				current.delay, current.since, current.at = at.Sub(last), since, at
-				gaps = append(gaps, current)
-				current = requestGap{}
-			}
-
-			since = at
-		}
-	}
-
-	return gaps
-}
-
-// delays are the delays of the gaps in seconds.
-func delays(gaps []requestGap) []string {
-	out := make([]string, 0, len(gaps))
-
-	for _, gap := range gaps {
-		out = append(out, secs(gap.delay))
-	}
-
-	return out
+// toolSpan is a tool call of the agent in a turn's rows, from the agent's message that holds it to the row that holds
+// its result.
+type toolSpan struct {
+	id      string
+	command string
+	start   time.Time
+	end     time.Time
 }
 
 // callName is the name cN that a command of tenCalls carries, or "".
@@ -185,6 +166,17 @@ func chainNamed(chains []chain, name string) chain {
 	return chain{steps: []stepRun{{}}}
 }
 
+// delays are the delays of the gaps in seconds.
+func delays(gaps []requestGap) []string {
+	out := make([]string, 0, len(gaps))
+
+	for _, gap := range gaps {
+		out = append(out, secs(gap.delay))
+	}
+
+	return out
+}
+
 // meterCallNamed is how long the meter saw the tool call that holds the call named take: from the call to its answer
 // at the meter's place in the hooks.
 func meterCallNamed(records []meterRecord, name string) (time.Duration, bool) {
@@ -195,6 +187,39 @@ func meterCallNamed(records []meterRecord, name string) (time.Duration, bool) {
 	}
 
 	return 0, false
+}
+
+// requestGaps are the gaps of the turn's rows, one for each request to the model that follows tool results.
+func requestGaps(rows []transcriptRow) []requestGap {
+	var (
+		gaps    []requestGap
+		current requestGap
+		last    time.Time
+		since   time.Time
+	)
+
+	for _, row := range rows {
+		when, err := time.Parse(time.RFC3339Nano, row.Timestamp)
+		if err != nil {
+			continue
+		}
+
+		switch {
+		case row.Type == "user" && strings.Contains(string(row.Message.Content), "tool_result"):
+			current.calls++
+			last = when
+		case row.Type == "api-request":
+			if current.calls > 0 {
+				current.delay, current.since, current.at = when.Sub(last), since, when
+				gaps = append(gaps, current)
+				current = requestGap{}
+			}
+
+			since = when
+		}
+	}
+
+	return gaps
 }
 
 // toolPhase is how long the turn's tool calls took: from the first one to the agent's last message.
@@ -215,28 +240,6 @@ func toolPhase(rows []transcriptRow) time.Duration {
 	return last.Sub(spans[0].start)
 }
 
-// unexported constants.
-const (
-	// tenToolCalls is how many tool calls the turn of tenCalls holds.
-	tenToolCalls = 10
-	// tenCalls is a turn of 10 tool calls in five messages of the agent: four at once, one, three at once, one and one.
-	tenCalls = "Use the Bash tool for these ten commands, and reply with the word done at the end. In your first " +
-		"message make four calls at once: `sleep 1 && echo c1`, `sleep 1 && echo c2`, `sleep 1 && echo c3` and " +
-		"`sleep 1 && echo c4`. Then make this call alone: `sleep 2 && echo c5`. Then make three calls at once: " +
-		"`sleep 1 && echo c6`, `echo c7` and `sleep 1 && echo c8`. Then make this call alone: `echo c9`. Then make " +
-		"this call alone: `sleep 2 && echo c10`."
-)
-
-// toolSpan is a tool call of the agent in a turn's rows, from the agent's message that holds it to the row that holds
-// its result.
-type toolSpan struct {
-	id      string
-	tool    string
-	command string
-	start   time.Time
-	end     time.Time
-}
-
 // toolSpans are the tool calls of the turn's rows that have a result, in the order the agent made them.
 func toolSpans(rows []transcriptRow) []toolSpan {
 	var (
@@ -245,7 +248,7 @@ func toolSpans(rows []transcriptRow) []toolSpan {
 	)
 
 	for _, row := range rows {
-		at, err := time.Parse(time.RFC3339Nano, row.Timestamp)
+		when, err := time.Parse(time.RFC3339Nano, row.Timestamp)
 		if err != nil {
 			continue
 		}
@@ -253,8 +256,7 @@ func toolSpans(rows []transcriptRow) []toolSpan {
 		var blocks []struct {
 			Type      string `json:"type"`
 			ID        string `json:"id"`
-			Name      string `json:"name"`
-			ToolUseID string `json:"tool_use_id"`
+			ToolUseID string `json:"tool_use_id"` //nolint:tagliatelle // the host spells a tool result in snake_case
 			Input     struct {
 				Command string `json:"command"`
 			} `json:"input"`
@@ -267,9 +269,9 @@ func toolSpans(rows []transcriptRow) []toolSpan {
 		for _, block := range blocks {
 			switch {
 			case row.Type == "assistant" && block.Type == "tool_use":
-				spans = append(spans, toolSpan{id: block.ID, tool: block.Name, command: block.Input.Command, start: at})
+				spans = append(spans, toolSpan{id: block.ID, command: block.Input.Command, start: when})
 			case row.Type == "user" && block.Type == "tool_result":
-				results[block.ToolUseID] = at
+				results[block.ToolUseID] = when
 			}
 		}
 	}
@@ -280,8 +282,3 @@ func toolSpans(rows []transcriptRow) []toolSpan {
 
 	return slices.DeleteFunc(spans, func(span toolSpan) bool { return span.end.IsZero() })
 }
-
-// unexported variables.
-var (
-	callPattern = regexp.MustCompile(`c[0-9]+`)
-)

@@ -5,6 +5,7 @@ package acceptance_test
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -48,8 +49,8 @@ func Test855d7a1j_Hyp_TheMomentJudgementsFalseNoneIsRecorded(t *testing.T) {
 
 		for index := range arrived {
 			rows = append(rows, []string{
-				fmt.Sprintf("%d", index+1), fmt.Sprintf("%d", len(drawn[index])), arrived[index].depth,
-				fmt.Sprintf("%d", len(arrived[index].candidates)),
+				strconv.Itoa(index + 1), strconv.Itoa(len(drawn[index])), arrived[index].depth,
+				strconv.Itoa(len(arrived[index].candidates)),
 			})
 		}
 
@@ -61,24 +62,6 @@ func Test855d7a1j_Hyp_TheMomentJudgementsFalseNoneIsRecorded(t *testing.T) {
 		g.Expect(withNotes).To(BeNumerically(">", 0), "the prompts for which the skill draws on a note")
 		g.Expect(ratio(none, withNotes)).To(BeNumerically("<=", maxFalseNone), "the share answered none")
 	})
-}
-
-// falseNone counts, among the prompts for which the recall skill drew on a note, those for which the moment judgement
-// chose none.
-func falseNone(chains []promptRecall, drawn [][]string) (none, withNotes int) {
-	for index, notes := range drawn {
-		if len(notes) == 0 || index >= len(chains) {
-			continue
-		}
-
-		withNotes++
-
-		if chains[index].depth == "none" {
-			none++
-		}
-	}
-
-	return none, withNotes
 }
 
 // unexported constants.
@@ -104,3 +87,21 @@ var (
 		"Which command restores staging from a backup?",
 	)
 )
+
+// falseNone counts, among the prompts for which the recall skill drew on a note, those for which the moment judgement
+// chose none.
+func falseNone(chains []promptRecall, drawn [][]string) (none, withNotes int) {
+	for index, notes := range drawn {
+		if len(notes) == 0 || index >= len(chains) {
+			continue
+		}
+
+		withNotes++
+
+		if chains[index].depth == "none" {
+			none++
+		}
+	}
+
+	return none, withNotes
+}

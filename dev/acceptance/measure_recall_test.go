@@ -3,8 +3,8 @@
 package acceptance_test
 
 import (
-	"fmt"
 	"slices"
+	"strconv"
 	"testing"
 	"time"
 
@@ -103,7 +103,8 @@ var (
 )
 
 // hasMeasuredVault is a machine on which the user has run engram update, with a vault of eight facts and a feedback, a
-// searchable earlier conversation, the steps recorded and the meter installed, and the agent allowed to run the commands named.
+// searchable earlier conversation, the steps recorded and the meter installed, and the agent allowed to run the
+// commands named.
 func (m *machine) hasMeasuredVault(agentMayRun ...string) {
 	m.t.Helper()
 
@@ -131,7 +132,7 @@ func chainRows(chains []chain) [][]string {
 
 	for index, each := range chains {
 		rows = append(rows, []string{
-			fmt.Sprintf("%d", index+1), each.depth(), secs(each.stepTook(stepMoment)), secs(each.callTook(stepMoment)),
+			strconv.Itoa(index + 1), each.depth(), secs(each.stepTook(stepMoment)), secs(each.callTook(stepMoment)),
 			secs(each.stepTook(stepPhrases)), secs(each.callTook(stepPhrases)), secs(each.stepTook(stepRecall)),
 			secs(each.callTook(stepRecall)), secs(each.stepTook(stepDeliver)), secs(each.took()),
 		})

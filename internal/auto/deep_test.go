@@ -37,49 +37,6 @@ func Test855d4j1_ReadDeep_ALessonNamesTheNoteItCorrectsAsAFileNameAnObjectOrALis
 	}
 }
 
-func Test855d4j1g_ReadDeep_ALessonOfAnUnexpectedFieldTypeIsLeftOutAndTheGoodLessonIsKept(t *testing.T) {
-	t.Parallel()
-
-	const good = `{"kind":"fact","slug":"good-one","situation":"s","covered":null,` +
-		`"subject":"x","predicate":"y","object":"z"}`
-
-	carry := auto.Carry{Depth: auto.DepthDeep, Candidates: []auto.Candidate{{ID: "1.old.md", Kind: auto.KindNote}}}
-
-	for name, test := range map[string]struct {
-		fault   string
-		skipped []auto.Skipped
-		ties    auto.Ties
-	}{
-		"chunks as a string": {fault: `,"chunks":"c#1"`, skipped: []auto.Skipped{{Slug: "bad-one"}}},
-		"a list of names":    {fault: `,"supersedes":["1.old.md"]`},
-		"a number":           {fault: `,"supersedes":3`},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
-			g := NewWithT(t)
-			bad := `{"kind":"fact","slug":"bad-one","situation":"s","covered":null,"subject":"x","predicate":"y",` +
-				`"object":"z"` + test.fault + `}`
-			deep := auto.ReadDeep(`{"candidates":[],"lessons":[`+bad+`,`+good+`]}`, carry)
-
-			slugs := make([]string, 0, len(deep.Lessons))
-			for _, lesson := range deep.Lessons {
-				slugs = append(slugs, lesson.Slug)
-			}
-
-			g.Expect(slugs).To(ContainElement("good-one"))
-
-			if len(test.skipped) > 0 {
-				g.Expect(deep.Skipped).To(HaveLen(1))
-
-				if len(deep.Skipped) == 1 {
-					g.Expect(deep.Skipped[0].Slug).To(Equal("bad-one"))
-				}
-			}
-		})
-	}
-}
-
 func Test855d4j1_ReadDeep_ALessonWithNoSlugIsLeftOutByItsPlace(t *testing.T) {
 	t.Parallel()
 
@@ -192,5 +149,48 @@ func Test855d4j1_ReadDeep_ASupersessionNamedWithoutItsExtensionOrWithSpacesIsSto
 
 	if len(deep.Lessons) == 1 {
 		g.Expect(deep.Lessons[0].Supersedes).To(Equal(auto.Ties{{Note: "1.old.md", Type: "updates", Claim: "c"}}))
+	}
+}
+
+func Test855d4j1g_ReadDeep_ALessonOfAnUnexpectedFieldTypeIsLeftOutAndTheGoodLessonIsKept(t *testing.T) {
+	t.Parallel()
+
+	const good = `{"kind":"fact","slug":"good-one","situation":"s","covered":null,` +
+		`"subject":"x","predicate":"y","object":"z"}`
+
+	carry := auto.Carry{Depth: auto.DepthDeep, Candidates: []auto.Candidate{{ID: "1.old.md", Kind: auto.KindNote}}}
+
+	for name, test := range map[string]struct {
+		fault   string
+		skipped []auto.Skipped
+		ties    auto.Ties
+	}{
+		"chunks as a string": {fault: `,"chunks":"c#1"`, skipped: []auto.Skipped{{Slug: "bad-one"}}},
+		"a list of names":    {fault: `,"supersedes":["1.old.md"]`},
+		"a number":           {fault: `,"supersedes":3`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+			bad := `{"kind":"fact","slug":"bad-one","situation":"s","covered":null,"subject":"x","predicate":"y",` +
+				`"object":"z"` + test.fault + `}`
+			deep := auto.ReadDeep(`{"candidates":[],"lessons":[`+bad+`,`+good+`]}`, carry)
+
+			slugs := make([]string, 0, len(deep.Lessons))
+			for _, lesson := range deep.Lessons {
+				slugs = append(slugs, lesson.Slug)
+			}
+
+			g.Expect(slugs).To(ContainElement("good-one"))
+
+			if len(test.skipped) > 0 {
+				g.Expect(deep.Skipped).To(HaveLen(1))
+
+				if len(deep.Skipped) == 1 {
+					g.Expect(deep.Skipped[0].Slug).To(Equal("bad-one"))
+				}
+			}
+		})
 	}
 }

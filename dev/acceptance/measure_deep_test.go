@@ -3,7 +3,6 @@
 package acceptance_test
 
 import (
-	"fmt"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -61,7 +60,7 @@ func Test855d7a1d_Hyp_ADeepWriteIsTimed(t *testing.T) {
 			)
 
 			for index, each := range chains {
-				row := []string{fmt.Sprintf("%d", index+1), each.depth(), secs(each.took())}
+				row := []string{strconv.Itoa(index + 1), each.depth(), secs(each.took())}
 
 				if index < len(writes) {
 					took = append(took, writes[index].end.Sub(writes[index].start))
@@ -85,8 +84,38 @@ func Test855d7a1d_Hyp_ADeepWriteIsTimed(t *testing.T) {
 		})
 }
 
+// unexported constants.
+const (
+	// deepMoments is how many deep moments the row times (855d7a1d).
+	deepMoments = 10
+	// deepWriteRow is the row of the write that follows a deep delivery (855d2a).
+	deepWriteRow = 60 * time.Second
+)
+
 // unexported variables.
 var (
+	// deepConversations are earlier conversations that nine of deepPrompts apply to: the first prompt applies to
+	// freezeConversation (855d7a1d).
+	deepConversations = []string{
+		"In an earlier session the user said that the ledger database must be dumped with ledger-dump and verified with " +
+			"ledger-verify before any schema drop, and that a drop without a verified dump has lost data twice.",
+		"In an earlier session the user said that the payments gateway key is rotated on the first of each quarter, and " +
+			"that rotating it invalidates every pending refund, so it is never rotated within two days of month-end close.",
+		"In an earlier session the user said that customer data deletion requests must be approved by legal before the " +
+			"purge job runs, and that the purge cannot be undone.",
+		"In an earlier session the user said that the DNS cutover for zorblax.example.com has a TTL of 48 hours, so it " +
+			"cannot be rolled back faster than that.",
+		"In an earlier session the user said that the warehouse inventory sync deletes remote records that are not in " +
+			"the local set, so it must never run from a partial export.",
+		"In an earlier session the user said that the orders-v2 Kafka topic keeps 7 days of data, and that reducing " +
+			"the retention deletes the older data at once.",
+		"In an earlier session the user said that force-pushes to the main branch of the Zorblax repo are forbidden, " +
+			"because the release tags hang off it.",
+		"In an earlier session the user said that the key of the backup encryption is held by two people, and that a " +
+			"re-key must be witnessed by both.",
+		"In an earlier session the user said that the Zorblax vendor contract renews on its own unless it is cancelled " +
+			"90 days before the end of March.",
+	}
 	// deepPrompts are 20 prompts of decisions that cannot be undone, the first 10 of which an earlier conversation of the
 	// machine applies to (855d7a1d).
 	deepPrompts = []string{
@@ -112,36 +141,6 @@ var (
 		"Archive and remove the production audit logs from the last two years. Reply with one short sentence.",
 		"Cancel the production certificate renewal and replace it by hand. Reply with one short sentence.",
 	}
-	// deepConversations are earlier conversations that nine of deepPrompts apply to: the first prompt applies to
-	// freezeConversation (855d7a1d).
-	deepConversations = []string{
-		"In an earlier session the user said that the ledger database must be dumped with ledger-dump and verified with " +
-			"ledger-verify before any schema drop, and that a drop without a verified dump has lost data twice.",
-		"In an earlier session the user said that the payments gateway key is rotated on the first of each quarter, and " +
-			"that rotating it invalidates every pending refund, so it is never rotated within two days of month-end close.",
-		"In an earlier session the user said that customer data deletion requests must be approved by legal before the " +
-			"purge job runs, and that the purge cannot be undone.",
-		"In an earlier session the user said that the DNS cutover for zorblax.example.com has a TTL of 48 hours, so it " +
-			"cannot be rolled back faster than that.",
-		"In an earlier session the user said that the warehouse inventory sync deletes remote records that are not in " +
-			"the local set, so it must never run from a partial export.",
-		"In an earlier session the user said that the orders-v2 Kafka topic keeps 7 days of data, and that reducing " +
-			"the retention deletes the older data at once.",
-		"In an earlier session the user said that force-pushes to the main branch of the Zorblax repo are forbidden, " +
-			"because the release tags hang off it.",
-		"In an earlier session the user said that the key of the backup encryption is held by two people, and that a " +
-			"re-key must be witnessed by both.",
-		"In an earlier session the user said that the Zorblax vendor contract renews on its own unless it is cancelled " +
-			"90 days before the end of March.",
-	}
-)
-
-// unexported constants.
-const (
-	// deepMoments is how many deep moments the row times (855d7a1d).
-	deepMoments = 10
-	// deepWriteRow is the row of the write that follows a deep delivery (855d2a).
-	deepWriteRow = 60 * time.Second
 )
 
 // awaitDeepWrites waits until the write of each deep delivery of the chains has ended, for the 2 minutes at most.
@@ -157,19 +156,6 @@ func (m *machine) awaitDeepWrites(deep []chain) {
 
 		time.Sleep(capturePoll)
 	}
-}
-
-// deepChains are the chains of the delivery flow that chose the depth deep, in the order they began.
-func deepChains(chains []chain) []chain {
-	var deep []chain
-
-	for _, each := range chains {
-		if each.steps[0].cue() != cueTurnEnd && each.depth() == "deep" {
-			deep = append(deep, each)
-		}
-	}
-
-	return deep
 }
 
 // deepWrites are the runs of the write that follows a deep delivery, which have ended, in the order they began: the
@@ -199,6 +185,19 @@ func (m *machine) hasConversations(texts ...string) {
 
 		m.mustSucceed(m.engram("ingest", "--markdown", source), "ingest")
 	}
+}
+
+// deepChains are the chains of the delivery flow that chose the depth deep, in the order they began.
+func deepChains(chains []chain) []chain {
+	var deep []chain
+
+	for _, each := range chains {
+		if each.steps[0].cue() != cueTurnEnd && each.depth() == "deep" {
+			deep = append(deep, each)
+		}
+	}
+
+	return deep
 }
 
 // depthsOf are the depths the moment judgement chose for the chains of the prompts, in the order they began.

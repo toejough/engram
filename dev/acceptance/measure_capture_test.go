@@ -4,6 +4,7 @@ package acceptance_test
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -56,9 +57,9 @@ func Test855d7a1b_Hyp_ACaptureIsTimedAgainstItsRowsAndThe2Minutes(t *testing.T) 
 		limits := captureRows()
 
 		var (
-			over    []string
+			over    = make([]string, 0, len(lessonPrompts))
 			notes   int
-			toNotes []time.Duration
+			toNotes = make([]time.Duration, 0, len(lessonPrompts))
 		)
 
 		for index := range lessonPrompts {
@@ -73,7 +74,7 @@ func Test855d7a1b_Hyp_ACaptureIsTimedAgainstItsRowsAndThe2Minutes(t *testing.T) 
 			}
 
 			rows = append(rows, []string{
-				fmt.Sprintf("%d", index+1), secs(each.start().Sub(ended)), secs(each.stepTook(stepMoment)),
+				strconv.Itoa(index + 1), secs(each.start().Sub(ended)), secs(each.stepTook(stepMoment)),
 				secs(each.callTook(stepMoment)), secs(each.stepTook(stepJudge)), secs(each.callTook(stepJudge)),
 				secs(each.stepTook(stepPlace)), secs(each.callTook(stepPlace)), secs(each.stepTook(stepWrite)),
 				secs(toNote), secs(written[index].Sub(answered[index])),
@@ -123,15 +124,6 @@ type captureLimits struct {
 	idCall, moment, momentCall, judge, judgeCall, place, placeCall, write, all, toNote time.Duration
 }
 
-// captureRows are the rows of 855d2b.
-func captureRows() captureLimits {
-	return captureLimits{
-		idCall: 5 * time.Second, moment: 5 * time.Second, momentCall: 10 * time.Second, judge: 10 * time.Second,
-		judgeCall: 30 * time.Second, place: 5 * time.Second, placeCall: 15 * time.Second, write: 20 * time.Second,
-		all: 115 * time.Second, toNote: measureBound,
-	}
-}
-
 // exceeded names each wait of a capture that passes its row, and the time from the end of the turn to the note when it
 // passes the 2 minutes.
 func (l captureLimits) exceeded(turn int, each chain, spawn, toNote time.Duration) []string {
@@ -142,7 +134,8 @@ func (l captureLimits) exceeded(turn int, each chain, spawn, toNote time.Duratio
 		took  time.Duration
 		limit time.Duration
 	}{
-		{"call for the ID", spawn, l.idCall}, {"moment", each.stepTook(stepMoment), l.moment}, {"moment call", each.callTook(stepMoment), l.momentCall},
+		{"call for the ID", spawn, l.idCall}, {"moment", each.stepTook(stepMoment), l.moment},
+		{"moment call", each.callTook(stepMoment), l.momentCall},
 		{"judge", each.stepTook(stepJudge), l.judge}, {"judge call", each.callTook(stepJudge), l.judgeCall},
 		{"place", each.stepTook(stepPlace), l.place}, {"place call", each.callTook(stepPlace), l.placeCall},
 		{"write", each.stepTook(stepWrite), l.write}, {"capture", each.took(), l.all}, {"end to note", toNote, l.toNote},
@@ -153,19 +146,6 @@ func (l captureLimits) exceeded(turn int, each chain, spawn, toNote time.Duratio
 	}
 
 	return over
-}
-
-// meterTurnEnds are the times the meter saw a turn of the main loop end, oldest first.
-func meterTurnEnds(records []meterRecord) []time.Time {
-	var ends []time.Time
-
-	for _, record := range records {
-		if record.Kind == meterTurn {
-			ends = append(ends, time.UnixMilli(record.At))
-		}
-	}
-
-	return ends
 }
 
 // newestNoteSince is when the newest note that is new, or written again, since the times given was written, or zero.
@@ -190,4 +170,26 @@ func (m *machine) noteTimes() map[string]time.Time {
 	}
 
 	return times
+}
+
+// captureRows are the rows of 855d2b.
+func captureRows() captureLimits {
+	return captureLimits{
+		idCall: 5 * time.Second, moment: 5 * time.Second, momentCall: 10 * time.Second, judge: 10 * time.Second,
+		judgeCall: 30 * time.Second, place: 5 * time.Second, placeCall: 15 * time.Second, write: 20 * time.Second,
+		all: 115 * time.Second, toNote: measureBound,
+	}
+}
+
+// meterTurnEnds are the times the meter saw a turn of the main loop end, oldest first.
+func meterTurnEnds(records []meterRecord) []time.Time {
+	var ends []time.Time
+
+	for _, record := range records {
+		if record.Kind == meterTurn {
+			ends = append(ends, time.UnixMilli(record.At))
+		}
+	}
+
+	return ends
 }

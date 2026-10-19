@@ -872,8 +872,8 @@ func (m *machine) stepsAreRecorded() {
 
 	m.wrapsEngram(dir, "#!/bin/sh\ncase \"$1 $2\" in\n\"auto deliver\"|\"auto write\"|\"auto moment\"|\"auto phrases\"|"+
 		"\"auto recall\"|\"auto judge\"|\"auto place\")\nf='"+dir+"/'\"$2\"-$$\ncat > \"$f.in\"\n'"+engram+
-		"' \"$@\" < \"$f.in\" > \"$f.out\"\ncode=$?\n: > \"$f.done\"\ncat \"$f.out\"\ncp \"$f.out\" '"+dir+"/'\"$2\".out\ncp \"$f.in\" '"+dir+
-		"/'\"$2\".in\nexit $code\n;;\nesac\nexec '"+engram+"' \"$@\"\n")
+		"' \"$@\" < \"$f.in\" > \"$f.out\"\ncode=$?\n: > \"$f.done\"\ncat \"$f.out\"\ncp \"$f.out\" '"+dir+
+		"/'\"$2\".out\ncp \"$f.in\" '"+dir+"/'\"$2\".in\nexit $code\n;;\nesac\nexec '"+engram+"' \"$@\"\n")
 }
 
 // stepsGiven returns what a step was given, as stepsAreRecorded kept it: the input of each run, one to a line.

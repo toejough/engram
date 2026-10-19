@@ -64,12 +64,13 @@ func Test855d7a1i_Hyp_TheCostOfTheJudgementsIsRecorded(t *testing.T) {
 			haikuPrice.input*perMillion, haikuPrice.output*perMillion, haikuPrice.cacheRead*perMillion,
 			haikuPrice.cacheWrite*perMillion)
 		t.Logf("the cheap calls of each turn by cue, and the blocks that landed at the same request (855c8):\n%s",
-			table([]string{"turn", "prompt", "before-tool", "failure", "batch-done", "turn-end", "blocks", "requests with a block",
-				"requests with 2 or more"}, overlapRows(costPrompts, chains, with)))
+			table([]string{"turn", "prompt", "before-tool", "failure", "batch-done", "turn-end", "blocks",
+				"requests with a block", "requests with 2 or more"}, overlapRows(costPrompts, chains, with)))
 
 		g.Expect(own.Output).To(BeNumerically(">", 0), "the agent's own use with the mod")
 		g.Expect(cheapTools.usage.Input+cheapTools.usage.Output).To(BeNumerically("<",
-			own.Input+own.Output+own.CacheRead+own.CacheCreate), "the tokens of the cheap calls of tool calls against the agent's")
+			own.Input+own.Output+own.CacheRead+own.CacheCreate),
+			"the tokens of the cheap calls of tool calls against the agent's")
 		g.Expect(cheapTools.usage.cost(haikuPrice)).To(BeNumerically("<", own.cost(sonnetPrice)),
 			"the cost of the cheap calls of tool calls against the agent's")
 	})
@@ -83,8 +84,6 @@ const (
 
 // unexported variables.
 var (
-	// toolCues are the cues of the chains of tool calls (855d2c).
-	toolCues = []string{"before-tool", "failure", "batch-done"}
 	// costPrompts are the 10 prompts of the session of the cost: tool calls that succeed, one that fails, an edit, and
 	// prompts of no tool call (855d7a1i).
 	costPrompts = []string{
@@ -100,7 +99,16 @@ var (
 		"Run `echo done` and tell me what it printed. Reply with one short sentence.",
 		askThanks,
 	}
+	// toolCues are the cues of the chains of tool calls (855d2c).
+	toolCues = []string{"before-tool", "failure", "batch-done"}
 )
+
+// callUse is the model calls of a cue, a step and a model, and what they cost in tokens.
+type callUse struct {
+	cue, step, model string
+	calls            int
+	usage            tokenUsage
+}
 
 // agentMaySettle gives the agent the permissions the session of the cost needs, and the files it works on.
 func (m *machine) agentMaySettle() {
@@ -108,6 +116,33 @@ func (m *machine) agentMaySettle() {
 
 	writeFile(m.t, filepath.Join(m.claudeDir, "settings.json"), `{"permissions":{"allow":["Bash(echo:*)","Bash(cat:*)",`+
 		`"Bash(make:*)","Bash(touch:*)","Bash(ls:*)","Read","Edit","Write"]}}`)
+}
+
+// runCostSession runs the session of the cost without the mod's chains and returns its turns.
+func (m *machine) runCostSession() []*turn {
+	turns, _ := m.runCostSessionOnChat()
+
+	return turns
+}
+
+// runCostSessionOnChat runs the prompts of the cost in one session and returns the turns and the session.
+func (m *machine) runCostSessionOnChat() ([]*turn, *conversation) {
+	m.t.Helper()
+
+	project := m.startSession("a-project")
+	project.hasFile("Makefile", "ci:\n\t@test \"$$LINT_STRICT\" = 1 || "+
+		"{ echo \"make ci: LINT_STRICT is unset\" >&2; exit 1; }\n\t@echo ci passed\n")
+	project.hasFile("notes.txt", "the first line of the notes\nthe second line\n")
+	project.hasFile("schema.sql", "create table orders (id integer primary key, created_at text);\n")
+
+	chat := project.converse()
+	turns := make([]*turn, 0, len(costPrompts))
+
+	for _, prompt := range costPrompts {
+		turns = append(turns, chat.tell(prompt))
+	}
+
+	return turns, chat
 }
 
 // agentUsage is the sum of the usage of the turns of the main loop that the meter saw end.
@@ -123,11 +158,28 @@ func agentUsage(records []meterRecord) tokenUsage {
 	return sum
 }
 
-// callUse is the model calls of a cue, a step and a model, and what they cost in tokens.
-type callUse struct {
-	cue, step, model string
-	calls            int
-	usage            tokenUsage
+// blocksPerRequest counts the blocks delivered within a turn, the requests to the model that received at least one of
+// them and the requests that received two or more.
+func blocksPerRequest(rows []transcriptRow) (blocks, received, shared int) {
+	pending := 0
+
+	for _, row := range rows {
+		switch {
+		case row.Type == "attachment" && !row.besideThePrompt():
+			pending += len(engramEntries(row.delivered()))
+		case row.Type == "api-request" && pending > 0:
+			blocks += pending
+			received++
+
+			if pending > 1 {
+				shared++
+			}
+
+			pending = 0
+		}
+	}
+
+	return blocks + pending, received, shared
 }
 
 // callUses are the model calls of the chains grouped by cue, step and model, in the order they first appear.
@@ -196,57 +248,6 @@ func overlapRows(prompts []string, chains []chain, turns []*turn) [][]string {
 	return rows
 }
 
-// blocksPerRequest counts the blocks delivered within a turn, the requests to the model that received at least one of
-// them and the requests that received two or more.
-func blocksPerRequest(rows []transcriptRow) (blocks, received, shared int) {
-	pending := 0
-
-	for _, row := range rows {
-		switch {
-		case row.Type == "attachment" && !row.besideThePrompt():
-			pending += len(engramEntries(row.delivered()))
-		case row.Type == "api-request" && pending > 0:
-			blocks += pending
-			received++
-
-			if pending > 1 {
-				shared++
-			}
-
-			pending = 0
-		}
-	}
-
-	return blocks + pending, received, shared
-}
-
-// runCostSession runs the session of the cost without the mod's chains and returns its turns.
-func (m *machine) runCostSession() []*turn {
-	turns, _ := m.runCostSessionOnChat()
-
-	return turns
-}
-
-// runCostSessionOnChat runs the prompts of the cost in one session and returns the turns and the session.
-func (m *machine) runCostSessionOnChat() ([]*turn, *conversation) {
-	m.t.Helper()
-
-	project := m.startSession("a-project")
-	project.hasFile("Makefile", "ci:\n\t@test \"$$LINT_STRICT\" = 1 || { echo \"make ci: LINT_STRICT is unset\" >&2; exit 1; }\n"+
-		"\t@echo ci passed\n")
-	project.hasFile("notes.txt", "the first line of the notes\nthe second line\n")
-	project.hasFile("schema.sql", "create table orders (id integer primary key, created_at text);\n")
-
-	chat := project.converse()
-	turns := make([]*turn, 0, len(costPrompts))
-
-	for _, prompt := range costPrompts {
-		turns = append(turns, chat.tell(prompt))
-	}
-
-	return turns, chat
-}
-
 // tierUse is the model calls of one model alias, and of the cues given when there are any.
 func tierUse(uses []callUse, model string, cues []string) callUse {
 	total := callUse{model: model}
@@ -262,11 +263,11 @@ func tierUse(uses []callUse, model string, cues []string) callUse {
 }
 
 // usageRow is a row of the table of the uses.
-func usageRow(name string, calls int, usage tokenUsage, at price) []string {
+func usageRow(name string, calls int, usage tokenUsage, rate price) []string {
 	return []string{
 		name, strconv.Itoa(calls), strconv.Itoa(usage.Input), strconv.Itoa(usage.Output), strconv.Itoa(usage.CacheRead),
 		strconv.Itoa(usage.CacheCreate), strconv.Itoa(usage.Input + usage.Output + usage.CacheRead + usage.CacheCreate),
-		fmt.Sprintf("%.4f", usage.cost(at)),
+		fmt.Sprintf("%.4f", usage.cost(rate)),
 	}
 }
 
@@ -275,14 +276,14 @@ func useRows(uses []callUse) [][]string {
 	rows := make([][]string, 0, len(uses))
 
 	for _, use := range uses {
-		at := sonnetPrice
+		rate := sonnetPrice
 		if use.model == "haiku" {
-			at = haikuPrice
+			rate = haikuPrice
 		}
 
 		rows = append(rows, []string{
 			use.cue, use.step, use.model, strconv.Itoa(use.calls), strconv.Itoa(use.usage.Input),
-			strconv.Itoa(use.usage.Output), fmt.Sprintf("%.4f", use.usage.cost(at)),
+			strconv.Itoa(use.usage.Output), fmt.Sprintf("%.4f", use.usage.cost(rate)),
 		})
 	}
 
