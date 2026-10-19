@@ -14,12 +14,12 @@ import (
 
 // LearnQAArgs holds parsed flags for the engram learn qa subcommand.
 type LearnQAArgs struct {
-	Vault        string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"` //nolint:lll
+	Vault        string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault (default $XDG_DATA_HOME/engram/vault)"`
 	Slug         string   `targ:"flag,name=slug,required,desc=kebab-case tag shared by the Q and A filenames (required)"`
 	Question     string   `targ:"flag,name=question,desc=verbatim question text"`
 	Answer       string   `targ:"flag,name=answer,desc=inline answer body (mutually exclusive with --answer-file)"`
 	AnswerFile   string   `targ:"flag,name=answer-file,desc=path to a file whose content is the answer body"`
-	Contributors []string `targ:"flag,name=contributors,desc=full note basenames (no .md) that contributed (repeatable; validated against vault)"` //nolint:lll
+	Contributors []string `targ:"flag,name=contributors,desc=contributing note basenames, no .md (repeatable)"`
 	Certainty    string   `targ:"flag,name=certainty,desc=high|medium|low (default medium)"`
 	Source       string   `targ:"flag,name=source,required,desc=provenance string for the source field (required)"`
 }

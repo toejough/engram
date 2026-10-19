@@ -21,12 +21,12 @@ import (
 // chunk indexes live (like IngestArgs.ChunksDir — path config belongs on Args,
 // not Deps).
 type AmendArgs struct {
-	Vault        string   `json:"vault"        targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`                             //nolint:lll // single unbreakable struct-tag string
-	VaultName    string   `json:"vaultName"    targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name re-stamped on the note's vault: field (default \"personal\")"` //nolint:lll // single unbreakable struct-tag string
-	Target       string   `json:"target"       targ:"flag,name=target,required,desc=note ref: full basename | [[wikilink]] | trailing .md | or bare Luhmann id (required)"`    //nolint:lll // single unbreakable struct-tag string
-	Supersedes   []string `json:"supersedes"   targ:"flag,name=supersedes,desc=supersession: <note>|<type>|<claim> (updates/narrows/refutes)"`                                 //nolint:lll // single unbreakable struct-tag string
-	ChunkSources []string `json:"chunkSources" targ:"flag,name=chunk-source,desc=chunk id (source#anchor) merged into sources: (repeatable)"`                                  //nolint:lll // single unbreakable struct-tag string
-	ChunksDir    string   `json:"chunksDir"    targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`                                        //nolint:lll // single unbreakable struct-tag string
+	Vault        string   `json:"vault"        targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root"`
+	VaultName    string   `json:"vaultName"    targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault: field value"`
+	Target       string   `json:"target"       targ:"flag,name=target,required,desc=note ref (required)"`
+	Supersedes   []string `json:"supersedes"   targ:"flag,name=supersedes,desc=supersession: <note>|<type>|<claim>"`
+	ChunkSources []string `json:"chunkSources" targ:"flag,name=chunk-source,desc=chunk id source#anchor (repeatable)"`
+	ChunksDir    string   `json:"chunksDir"    targ:"flag,name=chunks-dir,desc=chunk index dir"`
 	// Content flags — only supplied fields are overwritten.
 	Situation string `json:"situation" targ:"flag,name=situation,desc=replace situation (optional)"`
 	Subject   string `json:"subject"   targ:"flag,name=subject,desc=replace subject (fact; optional)"`
@@ -41,10 +41,10 @@ type AmendArgs struct {
 	// `--red-flag <text>`) — mirrors LearnArgs.RedFlags (note-writing
 	// 792a3d), full-list replace rather than merge, matching how the rest of
 	// amend's content flags overwrite-when-supplied.
-	RedFlags []string `json:"redFlags" targ:"flag,name=red-flag,desc=replace red_flags (runbook; repeatable; optional)"` //nolint:lll // single unbreakable struct-tag string
+	RedFlags []string `json:"redFlags" targ:"flag,name=red-flag,desc=replace red_flags (runbook; repeatable)"`
 	// Triggers replaces the whole triggers: list when non-empty (repeatable
 	// `--trigger <text>`) — mirrors RedFlags (792a4b).
-	Triggers []string `json:"triggers" targ:"flag,name=trigger,desc=replace triggers (runbook; repeatable; optional)"` //nolint:lll // single unbreakable struct-tag string
+	Triggers []string `json:"triggers" targ:"flag,name=trigger,desc=replace triggers (runbook; repeatable)"`
 	Activate bool     `json:"activate" targ:"flag,name=activate,desc=bump LastUsed on the sidecar (optional)"`
 	// ClearPending is the CLI-facing surface for clearing the pending-offer
 	// marker (792a22) — the curate runbook's only real use of
@@ -52,7 +52,7 @@ type AmendArgs struct {
 	// writes do that), so a one-way clear flag is all the CLI exposes;
 	// targets.go translates ClearPending=true into Pending=&false before
 	// calling RunAmend.
-	ClearPending bool `json:"clearPending" targ:"flag,name=clear-pending,desc=clear the pending-offer marker set by a served write (792a22)"` //nolint:lll // single unbreakable struct-tag string
+	ClearPending bool `json:"clearPending" targ:"flag,name=clear-pending,desc=clear the pending-offer marker (792a22)"`
 	// Pending sets/clears the pending-offer marker directly. nil (the CLI
 	// default — no targ tag, never a flag) leaves the note's existing
 	// marker unchanged; a served amend handler sets &true to keep an offer
@@ -65,16 +65,16 @@ type AmendArgs struct {
 	// decline), with Into for a covered or near offer (the fold).
 	// RunAmend short-circuits to delete-and-return as soon as the target is
 	// resolved; every content-amend flag is ignored when this is set.
-	Discard bool `json:"discard" targ:"flag,name=discard,desc=delete the note and its sidecar instead of amending (792a22)"` //nolint:lll // single unbreakable struct-tag string
+	Discard bool `json:"discard" targ:"flag,name=discard,desc=delete the note and its sidecar (792a22)"`
 	// Into names the existing note a --discard folds the target into
 	// (792b34c6 Fold of an offer): the target's basename and aliases join Into's aliases,
 	// and its parent links join Into's. Only valid with --discard.
-	Into string `json:"into" targ:"flag,name=into,desc=with --discard: fold the note's basename and aliases and parent links into this existing note (792a22)"` //nolint:lll // single unbreakable struct-tag string
+	Into string `json:"into" targ:"flag,name=into,desc=with --discard: fold the note's links into this note (792a22)"`
 	// ExpectHash is the exchange hash curation judged (792b34c5 Judged-version check).
 	// When given, the amend fails without writing unless the target's
 	// current exchange hash equals it. It is required for --clear-pending
 	// and --discard on a note carrying offer.origin.
-	ExpectHash string `json:"expectHash" targ:"flag,name=expect-hash,desc=fail unless the note's current exchange hash equals this (shown by engram show)"` //nolint:lll // single unbreakable struct-tag string
+	ExpectHash string `json:"expectHash" targ:"flag,name=expect-hash,desc=fail unless exchange hash matches"`
 
 	// Repo carries a served write's client-detected repo: value across the
 	// wire. See LearnArgs.Repo for the full rationale — same

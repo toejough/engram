@@ -334,7 +334,8 @@ const (
 	triggerFeedbackNote = "---\ntype: feedback\nsituation: fixing a flaky login test\n---\n\n" +
 		"Behavior: x. Impact: y. Action: z.\n"
 	triggerRunbookName = "1.2026-09-20.drive-ask.md"
-	triggerRunbookNote = "---\ntype: runbook\nsituation: zebra migration planning at the savanna\ndone_when: done\ntriggers:\n    - /please\n    - take this end-to-end\n---\n\n1. Do it\n" //nolint:lll // fixture literal
+	triggerRunbookNote = "---\ntype: runbook\nsituation: zebra migration planning at the savanna\ndone_when: done\n" +
+		"triggers:\n    - /please\n    - take this end-to-end\n---\n\n1. Do it\n"
 )
 
 // unexported variables.

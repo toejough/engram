@@ -26,8 +26,8 @@ type AmendRun func(ctx context.Context, args AmendArgs) error
 // AutoDeliverArgs holds parsed flags for `engram auto deliver`.
 type AutoDeliverArgs struct {
 	VaultPath   string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
-	SessionsDir string `targ:"flag,name=sessions,desc=directory of recorded sessions (default ENGRAM_TRANSCRIPT_DIR then CLAUDE_CONFIG_DIR/projects then ~/.claude/projects)"` //nolint:lll // single unbreakable struct-tag string
-	RecordsDir  string `targ:"flag,name=records,desc=directory of the records of what automatic memory did (default $XDG_DATA_HOME/engram/auto)"`                              //nolint:lll // single unbreakable struct-tag string
+	SessionsDir string `targ:"flag,name=sessions,desc=sessions dir (ENGRAM_TRANSCRIPT_DIR, else Claude projects dir)"`
+	RecordsDir  string `targ:"flag,name=records,desc=auto-memory records dir (default $XDG_DATA_HOME/engram/auto)"`
 }
 
 // AutoDeliverDeps holds injected dependencies for RunAutoDeliver.
@@ -53,8 +53,8 @@ type AutoDeliverDeps struct {
 // notes and reads the record of a session as the delivery does.
 type AutoJudgeArgs struct {
 	VaultPath   string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
-	SessionsDir string `targ:"flag,name=sessions,desc=directory of recorded sessions (default ENGRAM_TRANSCRIPT_DIR then CLAUDE_CONFIG_DIR/projects then ~/.claude/projects)"` //nolint:lll // single unbreakable struct-tag string
-	RecordsDir  string `targ:"flag,name=records,desc=directory of the records of what automatic memory did (default $XDG_DATA_HOME/engram/auto)"`                              //nolint:lll // single unbreakable struct-tag string
+	SessionsDir string `targ:"flag,name=sessions,desc=sessions dir (ENGRAM_TRANSCRIPT_DIR, else Claude projects dir)"`
+	RecordsDir  string `targ:"flag,name=records,desc=auto-memory records dir (default $XDG_DATA_HOME/engram/auto)"`
 }
 
 // AutoJudgeDeps holds injected dependencies for RunAutoJudge: those of the delivery, because the judgement looks up
@@ -78,10 +78,10 @@ type AutoJudgeDeps struct {
 // AutoSweepArgs holds parsed flags for `engram auto sweep`: where the records of sessions and the chunk index are, and
 // the switch for the turns of headless prompts that the judgement has too.
 type AutoSweepArgs struct {
-	SessionsDir string `targ:"flag,name=sessions,desc=directory of recorded sessions (default ENGRAM_TRANSCRIPT_DIR then CLAUDE_CONFIG_DIR/projects then ~/.claude/projects)"`                             //nolint:lll // single unbreakable struct-tag string
-	ChunksDir   string `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`                                                                                           //nolint:lll // single unbreakable struct-tag string
-	RecordsDir  string `targ:"flag,name=records,desc=directory of the records of what automatic memory did (default $XDG_DATA_HOME/engram/auto)"`                                                          //nolint:lll // single unbreakable struct-tag string
-	CaptureSDK  bool   `targ:"flag,name=capture-sdk,env=ENGRAM_AUTO_CAPTURE_SDK,desc=sweep the turns of headless prompts (origin sdk) too; off by default so a script run with claude -p indexes nothing"` //nolint:lll // single unbreakable struct-tag string
+	SessionsDir string `targ:"flag,name=sessions,desc=sessions dir (ENGRAM_TRANSCRIPT_DIR, else Claude projects dir)"`
+	ChunksDir   string `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`
+	RecordsDir  string `targ:"flag,name=records,desc=auto-memory records dir (default $XDG_DATA_HOME/engram/auto)"`
+	CaptureSDK  bool   `targ:"flag,name=capture-sdk,env=ENGRAM_AUTO_CAPTURE_SDK,desc=also sweep headless sdk turns"`
 }
 
 // AutoSweepDeps holds injected dependencies for RunAutoSweep.
@@ -101,9 +101,9 @@ type AutoSweepDeps struct {
 // AutoWriteArgs holds parsed flags for `engram auto write`.
 type AutoWriteArgs struct {
 	VaultPath  string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
-	VaultName  string `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name stamped on the note's vault: field (default \"personal\")"` //nolint:lll // single unbreakable struct-tag string
-	RecordsDir string `targ:"flag,name=records,desc=directory of the records of what automatic memory did (default $XDG_DATA_HOME/engram/auto)"`    //nolint:lll // single unbreakable struct-tag string
-	ChunksDir  string `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`                                     //nolint:lll // single unbreakable struct-tag string
+	VaultName  string `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault: field value (default \"personal\")"`
+	RecordsDir string `targ:"flag,name=records,desc=auto-memory records dir (default $XDG_DATA_HOME/engram/auto)"`
+	ChunksDir  string `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`
 }
 
 // AutoWriteDeps holds injected dependencies for RunAutoWrite.

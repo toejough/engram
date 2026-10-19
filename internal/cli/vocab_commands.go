@@ -31,7 +31,7 @@ type SeedTerm struct {
 
 // VocabBootstrapArgs holds parsed flags for `engram vocab bootstrap`.
 type VocabBootstrapArgs struct {
-	Vault    string  `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"` //nolint:lll // unbreakable env+desc struct-tag string
+	Vault    string  `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
 	SeedFile string  `targ:"flag,name=seed,required,desc=YAML seed file: list of {term+description} entries (required)"`
 	Floor    float32 `targ:"flag,name=floor,desc=minimum cosine similarity for vocab assignment (default 0.35)"`
 }
@@ -64,7 +64,7 @@ type VocabDeps struct {
 // The LLM gate runs agent-side before calling this command; `engram vocab propose`
 // performs only the mechanical part (create the definition note, embed, minor version bump).
 type VocabProposeArgs struct {
-	Vault       string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"` //nolint:lll // unbreakable env+desc struct-tag string
+	Vault       string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
 	Term        string `targ:"flag,name=term,required,desc=kebab-case term name (required)"`
 	Description string `targ:"flag,name=description,required,desc=one-line term description (required)"`
 }
@@ -75,14 +75,14 @@ type VocabProposeArgs struct {
 // involvement is naming only: a run with unmatched clusters emits naming
 // requests; the agent answers via --names.
 type VocabRefitArgs struct {
-	Vault     string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`                 //nolint:lll // unbreakable env+desc struct-tag string
-	DryRun    bool   `targ:"flag,name=dry-run,desc=print the derivation diff (matched/new/retired + K + silhouette) without writing"`     //nolint:lll // unbreakable desc struct-tag string
-	NamesFile string `targ:"flag,name=names,desc=JSON answer file naming every new cluster (see the emitted naming-request instruction)"` //nolint:lll // unbreakable desc struct-tag string
+	Vault     string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
+	DryRun    bool   `targ:"flag,name=dry-run,desc=print the derivation diff (matched/new/retired) without writing"`
+	NamesFile string `targ:"flag,name=names,desc=JSON file naming every new cluster (see the naming request)"`
 }
 
 // VocabStatsArgs holds parsed flags for `engram vocab stats`.
 type VocabStatsArgs struct {
-	Vault string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"` //nolint:lll // unbreakable env+desc struct-tag string
+	Vault string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
 }
 
 // VocabStatsDeps holds injected deps for the read-only vocab stats command.
@@ -93,7 +93,7 @@ type VocabStatsDeps struct {
 
 // VocabTagDefinitionsArgs holds parsed flags for `engram vocab tag-definitions`.
 type VocabTagDefinitionsArgs struct {
-	Vault string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"` //nolint:lll
+	Vault string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
 }
 
 // RunVocabBootstrap mints a bare-vocab-tagged definition fact note per seed

@@ -14,7 +14,7 @@ import (
 
 // ShowArgs holds parsed flags for `engram show`.
 type ShowArgs struct {
-	Ref       string `targ:"positional,required,desc=note ref: full basename | [[wikilink]] | trailing .md | or bare Luhmann id"` //nolint:lll // single struct-tag string
+	Ref       string `targ:"positional,required,desc=note ref: basename | [[wikilink]] | .md | Luhmann id"`
 	VaultPath string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
 	// Parent routes this lookup to ENGRAM_PARENT instead of the local
 	// vault (792a21) — errors if ENGRAM_PARENT is not

@@ -43,7 +43,7 @@ type UpdateArgs struct {
 	// written before the note-origin-identity capability existed (detected
 	// via notesMissingIdentityFields); honors --dry-run. See backfillIdentity
 	// (identity.go) for the mechanism.
-	BackfillIdentity bool `targ:"flag,name=backfill-identity,desc=stamp repo:/user:/vault: provenance onto notes missing it"` //nolint:lll // unbreakable struct-tag string
+	BackfillIdentity bool `targ:"flag,name=backfill-identity,desc=stamp repo:/user:/vault: onto notes missing it"`
 }
 
 // unexported constants.

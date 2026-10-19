@@ -21,13 +21,13 @@ import (
 // same split as LearnFactArgs/LearnFeedbackArgs/LearnRunbookArgs vs. the
 // shared internal LearnArgs.
 type RegisterSkillsArgs struct {
-	Vault     string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`                                                                     //nolint:lll // unbreakable env+desc struct-tag string
-	VaultName string   `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name stamped on a newly-registered note's vault: field (default \"personal\")"`                             //nolint:lll // unbreakable env+desc struct-tag string
-	SkillsDir []string `targ:"flag,name=skills-dir,desc=preview a skills dir instead of the default folders (repeatable; read-only: implies --dry-run and refuses --accept/--decline/--adopt)"` //nolint:lll // unbreakable struct-tag string
+	Vault     string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
+	VaultName string   `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault: field value (default \"personal\")"`
+	SkillsDir []string `targ:"flag,name=skills-dir,desc=preview a skills dir (repeatable; read-only, implies --dry-run)"`
 	DryRun    bool     `targ:"flag,name=dry-run,desc=list offers without prompting or writing"`
-	Accept    []string `targ:"flag,name=accept,desc=accept the matching offers without prompting: a skill key or prefix* pattern or @<scope-id> (repeatable)"`   //nolint:lll // unbreakable struct-tag string
-	Decline   []string `targ:"flag,name=decline,desc=decline the matching offers without prompting: a skill key or prefix* pattern or @<scope-id> (repeatable)"` //nolint:lll // unbreakable struct-tag string
-	Adopt     []string `targ:"flag,name=adopt,desc=adopt an existing runbook note as a skill key's note: <key>=<note-ref> (repeatable)"`                         //nolint:lll // unbreakable struct-tag string
+	Accept    []string `targ:"flag,name=accept,desc=accept matching offers: skill key, prefix* or @<scope> (repeatable)"`
+	Decline   []string `targ:"flag,name=decline,desc=decline matching offers: skill key, prefix* or @<scope> (repeatable)"`
+	Adopt     []string `targ:"flag,name=adopt,desc=adopt a runbook note for a skill key: <key>=<note-ref> (repeatable)"`
 }
 
 // SkillRegistrationArgs holds RunSkillRegistration's inputs: the resolved

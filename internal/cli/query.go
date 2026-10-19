@@ -23,31 +23,31 @@ import (
 type QueryArgs struct {
 	Phrases   []string `targ:"flag,name=phrase,desc=query phrase (repeatable)"`
 	VaultPath string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root"`
-	ChunksDir string   `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks); chunks compete in the same ranking as notes"` //nolint:lll // single unbreakable struct-tag string
+	ChunksDir string   `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`
 	Limit     int      `targ:"flag,name=limit,desc=max number of items to return (default 20)"`
 	Project   string   `targ:"flag,name=project,desc=restrict items to notes with matching project: field (optional)"`
 	// Text carries the user's message verbatim. It is matched literally
 	// (never embedded) against runbook triggers: fields; a hit surfaces that
 	// runbook first in items[] (792a7y).
-	Text string `targ:"flag,name=text,desc=the user's message verbatim; runbooks whose triggers appear in it surface first (optional)"` //nolint:lll // single unbreakable struct-tag string
+	Text string `targ:"flag,name=text,desc=user's message verbatim; matching runbook triggers surface first"`
 	// ContentBudget caps how many chunk items (in rank order) render with full
 	// content; later chunks get a one-line snippet. 0 = baked default (15);
 	// negative = unlimited. Notes are never capped. env= lets the recall sweep
 	// inject the cap without a skill edit.
-	ContentBudget int `targ:"flag,name=content-budget,env=ENGRAM_CONTENT_BUDGET,desc=max chunk items with full content (0=default 15; negative=unlimited); later chunks get a snippet"` //nolint:lll // single unbreakable struct-tag string
+	ContentBudget int `targ:"flag,name=content-budget,env=ENGRAM_CONTENT_BUDGET,desc=full-content chunks (0=15; <0=all)"`
 	// RecentFill caps how many newest-by-ingest chunks fill the recency channel
 	// (Channel 2). 0 = baked default (25); negative = channel off. env= lets the
 	// recall sweep shrink the payload without a skill edit.
-	RecentFill int `targ:"flag,name=recent-fill,env=ENGRAM_RECENT_FILL,desc=newest-by-ingest chunks in the recency channel (0=default 25; negative=off); reduces recall payload"` //nolint:lll // single unbreakable struct-tag string
+	RecentFill int `targ:"flag,name=recent-fill,env=ENGRAM_RECENT_FILL,desc=recency-channel chunks (0=25; negative=off)"`
 	// LazyChunks renders matched chunk items path/score only (no content);
 	// the agent fetches a chunk's evidence on-demand via `engram show-chunk`. Notes
 	// (fact/feedback) always keep full content. Opt-in (recall sets it); env=
 	// lets the recall sweep enable it without a skill edit.
-	LazyChunks bool `targ:"flag,name=lazy-chunks,env=ENGRAM_LAZY_CHUNKS,desc=render matched chunk items path/score only (no content); the agent fetches a chunk's evidence on-demand via engram show-chunk — shrinks the recall payload"` //nolint:lll // single unbreakable struct-tag string
+	LazyChunks bool `targ:"flag,name=lazy-chunks,env=ENGRAM_LAZY_CHUNKS,desc=path/score-only chunks; use show-chunk"`
 	// Timings, when set, emits a `timings:` block (per-stage wall-clock
 	// durations for the query in-flight phase) on the payload. Measurement
 	// only (#691); default off keeps the recall-consumer payload byte-identical.
-	Timings bool `targ:"flag,name=timings,desc=emit a per-stage timing block (scan/embed/cluster/nominate/render) for the query in-flight phase; measurement only"` //nolint:lll // single unbreakable struct-tag string
+	Timings bool `targ:"flag,name=timings,desc=emit a per-stage timing block (measurement only)"`
 }
 
 // QueryDeps holds injected dependencies for the query command.

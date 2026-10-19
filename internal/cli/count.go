@@ -18,9 +18,9 @@ import (
 // note frontmatter attributes and exposes wikilink in-degree; it is read-only
 // and deliberately off the recall/similarity path.
 type CountArgs struct {
-	Vault       string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"` //nolint:lll // unbreakable env+desc struct-tag string
+	Vault       string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root ($XDG_DATA_HOME/engram/vault)"`
 	GroupBy     string   `targ:"flag,name=group-by,desc=frontmatter attribute to count note membership over"`
-	Filter      []string `targ:"flag,name=filter,desc=attr=value predicate (repeatable and AND-ed; scalar equality or list-contains)"` //nolint:lll // single unbreakable struct-tag string
+	Filter      []string `targ:"flag,name=filter,desc=attr=value predicate (repeatable, AND-ed)"`
 	BacklinksOf string   `targ:"flag,name=backlinks-of,desc=note basename: print wikilink in-degree and sorted linkers"`
 }
 

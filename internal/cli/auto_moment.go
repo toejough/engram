@@ -13,9 +13,9 @@ import (
 
 // AutoMomentArgs holds parsed flags for `engram auto moment`.
 type AutoMomentArgs struct {
-	SessionsDir string `targ:"flag,name=sessions,desc=directory of recorded sessions (default ENGRAM_TRANSCRIPT_DIR then CLAUDE_CONFIG_DIR/projects then ~/.claude/projects)"`                            //nolint:lll // single unbreakable struct-tag string
-	CaptureSDK  bool   `targ:"flag,name=capture-sdk,env=ENGRAM_AUTO_CAPTURE_SDK,desc=judge the turns of headless prompts (origin sdk) too; off by default so a script run with claude -p writes no note"` //nolint:lll // single unbreakable struct-tag string
-	RecordsDir  string `targ:"flag,name=records,desc=directory of the records of what automatic memory did (default $XDG_DATA_HOME/engram/auto)"`                                                         //nolint:lll // single unbreakable struct-tag string
+	SessionsDir string `targ:"flag,name=sessions,desc=sessions dir (ENGRAM_TRANSCRIPT_DIR, else Claude projects dir)"`
+	CaptureSDK  bool   `targ:"flag,name=capture-sdk,env=ENGRAM_AUTO_CAPTURE_SDK,desc=also judge headless sdk turns"`
+	RecordsDir  string `targ:"flag,name=records,desc=auto-memory records dir (default $XDG_DATA_HOME/engram/auto)"`
 }
 
 // AutoMomentDeps holds injected dependencies for RunAutoMoment.

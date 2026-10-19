@@ -23,12 +23,12 @@ type IngestArgs struct {
 	Markdowns   []string `targ:"flag,name=markdown,desc=markdown file to chunk+embed (repeatable)"`
 	PiSessions  []string `targ:"flag,name=pi-sessions,desc=PI session transcript directory (JSONL; repeatable)"`
 	Sweep       []string `targ:"flag,name=sweep,desc=directory to scan for new/changed sources (.md + .jsonl; repeatable)"`
-	Auto        bool     `targ:"flag,name=auto,desc=sweep the declarative default roots: repo markdown + ancestor .claude dirs + session logs (see .engram/sweep.json)"` //nolint:lll // single unbreakable struct-tag string
+	Auto        bool     `targ:"flag,name=auto,desc=sweep the default roots in .engram/sweep.json"`
 	ChunksDir   string   `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`
 	// Vault scopes Rule B's dedup exception: a swept .md file with a sibling
 	// .vec.json sidecar is a vault-note copy, and is skipped unless it sits
 	// under this resolved vault path (default $XDG_DATA_HOME/engram/vault).
-	Vault string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"` //nolint:lll // unbreakable env+desc struct-tag string
+	Vault string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
 }
 
 // IngestDeps holds injected dependencies for RunIngest. ReadTranscript

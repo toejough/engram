@@ -22,9 +22,9 @@ type ActivateArgs struct {
 	Notes []string `targ:"flag,name=note,desc=note path to mark used (repeatable)"`
 	// Parent resolves every ref against ENGRAM_PARENT, pulling it down,
 	// even when a local file of that name exists (792a21zc Activate resolves a ref locally first).
-	Parent bool `targ:"flag,name=parent,desc=resolve each ref against ENGRAM_PARENT (pulling it down) instead of the local vault"` //nolint:lll // single struct-tag string
+	Parent bool `targ:"flag,name=parent,desc=resolve refs against ENGRAM_PARENT, pulling them down"`
 	// VaultName is the vault: identity stamped on a pulled-down copy.
-	VaultName string `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name stamped on a pulled-down note's vault: field (default \"personal\")"` //nolint:lll // single struct-tag string
+	VaultName string `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault: field value (default \"personal\")"`
 }
 
 // ActivateDeps holds injected dependencies for RunActivate.

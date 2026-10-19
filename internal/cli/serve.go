@@ -45,9 +45,9 @@ type ServeArgs struct {
 	// Addr is the bind address (e.g. "127.0.0.1:8420"). Required — no env
 	// fallback, no default — so `engram serve` refuses to start rather than
 	// silently binding 0.0.0.0 (792a20b A bind address must be given).
-	Addr      string `targ:"flag,name=addr,required,desc=bind address e.g. 127.0.0.1:8420 (required -- never defaults to 0.0.0.0)"` //nolint:lll // single unbreakable struct-tag string
+	Addr      string `targ:"flag,name=addr,required,desc=bind address e.g. 127.0.0.1:8420 (required; no default)"`
 	Vault     string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
-	VaultName string `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name stamped on served notes' vault: field (default \"personal\")"` //nolint:lll // single unbreakable struct-tag string
+	VaultName string `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault: field value (default \"personal\")"`
 	ChunksDir string `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`
 }
 

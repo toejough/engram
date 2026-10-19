@@ -92,7 +92,7 @@ type SweepSpec struct {
 	// session-logs root (see ResolveSweepRoots below) — it prunes
 	// throwaway *session* subdirectories found underneath a persistent
 	// root, not the root itself.
-	NonPersistentPrefixes []string `json:"non_persistent_prefixes"` //nolint:tagliatelle,lll // developer-facing config uses snake_case
+	NonPersistentPrefixes []string `json:"non_persistent_prefixes"` //nolint:tagliatelle // snake_case config file
 	// NonPersistentPathPrefixes name real filesystem PATH prefixes under
 	// which an entire sweep root is dropped, root and all — a sibling of
 	// NonPersistentPrefixes above, not an overload of it: that field
@@ -105,7 +105,7 @@ type SweepSpec struct {
 	// root is swept whole and permanently indexed. Applies only to --auto's
 	// resolved roots; explicit --sweep/--transcript/--markdown bypass it, as
 	// documented for NonPersistentPrefixes.
-	NonPersistentPathPrefixes []string `json:"non_persistent_path_prefixes"` //nolint:tagliatelle,lll // developer-facing config uses snake_case
+	NonPersistentPathPrefixes []string `json:"non_persistent_path_prefixes"` //nolint:tagliatelle // snake_case config file
 }
 
 // DefaultSweepSpec is the compiled-in declaration: repo markdown + ancestor

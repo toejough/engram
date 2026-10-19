@@ -19,7 +19,7 @@ type PruneArgs struct {
 	// rest — cleanup for duplicates indexed before Unit 3's ingest-time
 	// dedup existed. Safe by construction: a duplicate is only removed once
 	// its retained twin's index file is verified present.
-	Duplicates bool `targ:"flag,name=duplicates,desc=remove non-canonical duplicate index files+manifest entries; keeps one per content hash"` //nolint:lll // single unbreakable struct-tag string
+	Duplicates bool `targ:"flag,name=duplicates,desc=remove duplicate index files and manifest entries"`
 	DryRun     bool `targ:"flag,name=dry-run,desc=report what would be removed without deleting"`
 }
 

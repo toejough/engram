@@ -16,8 +16,8 @@ import (
 // CommonLearnArgs holds shared flags for learn subcommands.
 type CommonLearnArgs struct {
 	Slug       string   `targ:"flag,name=slug,desc=kebab-case tag for the filename"`
-	Vault      string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`                          //nolint:lll // unbreakable env+desc struct-tag string
-	VaultName  string   `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name stamped on the note's vault: field (default \"personal\")"` //nolint:lll // unbreakable env+desc struct-tag string
+	Vault      string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root ($XDG_DATA_HOME/engram/vault)"`
+	VaultName  string   `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault: field value (default \"personal\")"`
 	Target     string   `targ:"flag,name=target,desc=Luhmann ID this note relates to (empty for top-level)"`
 	Position   string   `targ:"flag,name=position,desc=top|continuation|sibling"`
 	Source     string   `targ:"flag,name=source,required,desc=provenance string for the source field (required)"`
@@ -27,7 +27,7 @@ type CommonLearnArgs struct {
 	Tier       string   `targ:"flag,name=tier,desc=tier: L2 (active/default) or L1|L3 (legacy); default derived from type"`
 
 	ChunkSources []string `targ:"flag,name=chunk-source,desc=chunk id (source#anchor) recorded as provenance (repeatable)"`
-	Tags         []string `targ:"flag,name=tag,desc=categorical tag: <family> or <family>/<value> (kebab-case; repeatable)"` //nolint:lll // single unbreakable struct-tag string
+	Tags         []string `targ:"flag,name=tag,desc=tag: <family> or <family>/<value>, kebab-case (repeatable)"`
 }
 
 // LearnFactArgs holds parsed flags for the learn fact subcommand.
@@ -57,8 +57,8 @@ type LearnRunbookArgs struct {
 	Situation string   `targ:"flag,name=situation,required,desc=when should you use this runbook (required)"`
 	DoneWhen  string   `targ:"flag,name=done-when,required,desc=what should be true when you're done (required)"`
 	Body      string   `targ:"flag,name=body,desc=the numbered steps"`
-	RedFlags  []string `targ:"flag,name=red-flag,desc=task-specific failure mode a general step-following rule would not catch (repeatable)"` //nolint:lll // single unbreakable struct-tag string
-	Triggers  []string `targ:"flag,name=trigger,desc=literal cue in the user's message that surfaces this runbook first (repeatable)"`        //nolint:lll // single unbreakable struct-tag string
+	RedFlags  []string `targ:"flag,name=red-flag,desc=task-specific failure mode a general rule misses (repeatable)"`
+	Triggers  []string `targ:"flag,name=trigger,desc=literal cue in the user's message that surfaces this (repeatable)"`
 }
 
 // CacheDirFromHome returns the engram model cache directory for a given home path

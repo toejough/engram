@@ -19,7 +19,7 @@ import (
 // ResituateArgs holds parsed flags for `engram resituate`.
 type ResituateArgs struct {
 	Vault     string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
-	Note      string `targ:"flag,name=note,required,desc=note ref: full basename | [[wikilink]] | trailing .md | or bare Luhmann id (required)"` //nolint:lll // single unbreakable struct-tag string
+	Note      string `targ:"flag,name=note,required,desc=note ref: basename | [[wikilink]] | .md | Luhmann id (required)"`
 	Situation string `targ:"flag,name=situation,required,desc=the new situation to write into the note (required)"`
 }
 
