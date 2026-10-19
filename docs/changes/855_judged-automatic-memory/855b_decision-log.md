@@ -415,3 +415,7 @@ The first instructions for a tool event left the cheap tier answering none for a
 
 Commit acfa04fd was amended into 90bb721b before anything was pushed, against the rule that no commit is rewritten once created. The rule stands: a correction is a follow-up commit, and the rest of the build and of this pass follows it. Decided by: Author (default; owner may override).
 
+## 855b104 A request to remember is a learn moment whatever the agent answers
+
+793a2c1i failed in every run of this pass (three runs) and on the build before group f (aba5bb3f): the cheap tier judged the [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) of an [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) that was asked to remember a fact and answered that it did not save it as no learn moment, though the [learn skill](../../GLOSSARY.md#learn-skill) makes an explicit save request a learn moment at once. The instructions of the learn moment say so. Alternative: leave the judgement to the instructions' list of explicit requests, which the cheap tier read as satisfied by the agent's answer. Decided by: Author (default; owner may override).
+
