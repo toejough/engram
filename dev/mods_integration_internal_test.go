@@ -1047,6 +1047,65 @@ func Test855d2a1f_Mod_ADeepDeliveryWritesAfterTheBlockFromATimer(t *testing.T) {
 	g.Expect(outcome.limitOf("engram auto write")).To(BeNumerically("==", 60000), "the time limit of the write")
 }
 
+// Test855d2a1f_Mod_TwoDeepDeliveriesOfASessionWriteOneAfterTheOther runs the mod under node against a stand-in host
+// whose writing takes a while: the second write starts when the first has ended (855b29).
+func Test855d2a1f_Mod_TwoDeepDeliveriesOfASessionWriteOneAfterTheOther(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runDeliveryDriver(t, deliveryScenario{
+		Steps: map[string]map[string]any{
+			"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": aStep(2)},
+			"recall": {"exitCode": 0, "stdout": aDeepStep(3)},
+		},
+		Deliver: map[string]any{"exitCode": 0, "stdout": deepBlock + "\n"}, Prompts: 2, WriteDelayMs: 20,
+	})
+
+	g.Expect(outcome.WriteEvents).To(Equal([]string{"start", "end", "start", "end"}), "the writes, one after the other")
+}
+
+// Test855b92_Mod_ADeepDeliveryWritesWhenItsDeliveryIsEmptyAndNotWhenItFails runs the mod under node against a stand-in
+// host whose delivery prints nothing, or exits with 1.
+func Test855b92_Mod_ADeepDeliveryWritesWhenItsDeliveryIsEmptyAndNotWhenItFails(t *testing.T) {
+	t.Parallel()
+
+	steps := map[string]map[string]any{
+		"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": aStep(2)},
+		"recall": {"exitCode": 0, "stdout": aDeepStep(3)},
+	}
+
+	t.Run("an empty delivery", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+		outcome := runDeliveryDriver(t, deliveryScenario{Steps: steps, Deliver: map[string]any{"exitCode": 0, "stdout": ""}})
+
+		g.Expect(outcome.Passed.Context).To(BeEmpty(), "no block")
+
+		writes := outcome.reports()
+
+		g.Expect(writes).To(HaveLen(1), "the write")
+
+		if len(writes) == 1 {
+			g.Expect(writes[0]).To(HaveKey("cue"))
+		}
+	})
+
+	t.Run("a delivery that fails", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+		outcome := runDeliveryDriver(t, deliveryScenario{
+			Steps: steps, Deliver: map[string]any{"exitCode": 1, "stdout": "", "stderr": "auto deliver: no\n"},
+		})
+
+		for _, report := range outcome.reports() {
+			g.Expect(report).NotTo(HaveKey("cue"), "only the report of the failure, no write")
+		}
+	})
+}
+
 // Test855d2a1g_Mod_AGlanceWritesNothing runs the mod under node against a stand-in host whose recall prints a request
 // without the mark of a write. Mutation: a mod that runs the writing for every delivery fails it.
 func Test855d2a1g_Mod_AGlanceWritesNothing(t *testing.T) {
@@ -1499,13 +1558,20 @@ let replied = 0
 let nth = 0
 let delivered = 0
 let written = 0
+const writeEvents = []
 const host = {
   session: { id: counted(async () => 'a-session') },
   process: {
     run: counted(async (argv, init) => {
       const step = argv[2]
       calls.push({ step: argv.join(' '), input: JSON.parse(init.stdin), timeoutMs: init.timeoutMs })
-      if (step === 'write') return scenario.writes?.[written++] ?? { exitCode: 0, stdout: '' }
+      if (step === 'write') {
+        const mine = written++
+        writeEvents.push('start')
+        if (scenario.writeDelayMs) await new Promise((resolve) => wait(resolve, scenario.writeDelayMs))
+        writeEvents.push('end')
+        return scenario.writes?.[mine] ?? { exitCode: 0, stdout: '' }
+      }
       if (step === scenario.stalls) {
         await new Promise((resolve) => wait(resolve, 5))
         throw new Error('the command ran too long')
@@ -1558,7 +1624,7 @@ for (let last = -1, stable = 0, tick = 0; tick < 300 && stable < 5; tick++) {
   last = calls.length
 }
 
-console.log(JSON.stringify({ passed, all, calls, delays, settle, logged }))
+console.log(JSON.stringify({ passed, all, calls, delays, settle, logged, writeEvents }))
 process.exit(0)
 `
 	// driverTimeout is how long the mod may take under the stand-in host before the test gives it up.
@@ -1752,6 +1818,8 @@ type deliveryOutcome struct {
 		InFlight int `json:"inFlight"`
 	} `json:"settle"`
 	Logged []string `json:"logged"`
+	// WriteEvents is the start and the end of each run of the writing, in the order they happened.
+	WriteEvents []string `json:"writeEvents"`
 }
 
 // inputsOf returns the inputs of the runs of a step, in the order they were run.
@@ -1834,6 +1902,8 @@ type deliveryScenario struct {
 	ModelFates []string `json:"modelFates,omitempty"`
 	// Writes is what each run of the writing exits with and prints, in order, in place of an exit with 0.
 	Writes []map[string]any `json:"writes,omitempty"`
+	// WriteDelayMs is how long each run of the writing takes.
+	WriteDelayMs int `json:"writeDelayMs,omitempty"`
 }
 
 // aDeepStep is what the recall prints at deep depth, the nth of a chain: the request for the model, the carry and the
