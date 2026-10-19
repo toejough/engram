@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 
@@ -41,6 +42,8 @@ func Test855a2b1a_ANoteStatesTheRuleAndNotTheStory(t *testing.T) {
 
 			g.Expect(strings.ToLower(written.field("situation"))).To(ContainSubstring("push"), "the situation")
 			g.Expect(written.text).NotTo(ContainSubstring(forcePushedBranch), "the story of the turn")
+
+			machine.awaitSettled(chat.session.id, chat.turnEnds, 2)
 		})
 }
 
@@ -130,6 +133,8 @@ func Test855a2b1c_AConfirmedProcedureIsWrittenAsARunbook(t *testing.T) {
 		g.Expect([]int{ci, tag, push}).To(HaveEach(BeNumerically(">=", 0)), "the three commands")
 		g.Expect(ci).To(BeNumerically("<", tag), "make ci comes before the tag")
 		g.Expect(tag).To(BeNumerically("<", push), "the tag comes before the push")
+
+		machine.awaitSettled(chat.session.id, chat.turnEnds, 2)
 	})
 }
 
@@ -148,6 +153,7 @@ func Test855a2c1a_ASubPointOfANoteTheSessionHoldsContinues(t *testing.T) {
 		"ci, which runs the lint, test and package steps, and a session in which that note arrived with a prompt",
 		func() {
 			machine.hasRunUpdate()
+			machine.stepsAreRecorded()
 
 			makeCI = machine.learnsFact(buildWithMakeCI)
 			chat = machine.startSession("zorblax").converse()
@@ -163,9 +169,12 @@ func Test855a2c1a_ASubPointOfANoteTheSessionHoldsContinues(t *testing.T) {
 	step(t, "Then within 2 minutes the vault holds a note for it whose ID continues the ID of the make ci note",
 		func() {
 			added := machine.awaitAutomaticNote(chat.turnEnds, "that states the lint step", "LINT_STRICT")
+			machine.logPlacement()
 
 			g.Expect(idOf(added)).To(HavePrefix(idOf(makeCI)), "the ID of "+added)
 			g.Expect(idOf(added)).NotTo(Equal(idOf(makeCI)), "the ID of "+added)
+
+			machine.awaitSettled(chat.session.id, chat.turnEnds, 2)
 		})
 }
 
@@ -183,6 +192,7 @@ func Test855a2c1b_TheSameThoughtAtTheSameLevelIsASibling(t *testing.T) {
 	step(t, "Given the user has run engram update, a vault holding a note that says to format Python files with "+
 		"black before committing, and a session in which that note arrived with a prompt", func() {
 		machine.hasRunUpdate()
+		machine.stepsAreRecorded()
 
 		parent := machine.learnsFact(formattingIsChecked)
 		black = machine.learnsFactUnder(parent, formatPythonWithBlack)
@@ -199,9 +209,12 @@ func Test855a2c1b_TheSameThoughtAtTheSameLevelIsASibling(t *testing.T) {
 	step(t, "Then within 2 minutes the vault holds a note for it whose ID is a sibling of the ID of the black note",
 		func() {
 			added := machine.awaitAutomaticNote(chat.turnEnds, "that states the Go formatting", "gofmt")
+			machine.logPlacement()
 
 			g.Expect(parentOf(idOf(added))).To(Equal(parentOf(idOf(black))), "the parent of the ID of "+added)
 			g.Expect(idOf(added)).NotTo(Equal(idOf(black)), "the ID of "+added)
+
+			machine.awaitSettled(chat.session.id, chat.turnEnds, 2)
 		})
 }
 
@@ -220,6 +233,7 @@ func Test855a2c1c_ANoteTheSessionHasNotSeenIsNotATarget(t *testing.T) {
 		"black before committing, and a session in which no note arrived or was looked up, the prompt below included",
 		func() {
 			machine.hasRunUpdate()
+			machine.stepsAreRecorded()
 
 			black = machine.learnsFact(formatPythonWithBlack)
 			chat = machine.startSession("zorblax").converse()
@@ -233,9 +247,12 @@ func Test855a2c1c_ANoteTheSessionHasNotSeenIsNotATarget(t *testing.T) {
 	step(t, "Then within 2 minutes the vault holds a note for it placed at the top, and its ID continues no other "+
 		"note's and is no other note's sibling", func() {
 		added := machine.awaitAutomaticNote(chat.turnEnds, "that states the Go formatting", "gofmt")
+		machine.logPlacement()
 
 		g.Expect(parentOf(idOf(added))).To(BeEmpty(), "the ID of "+added+" has no parent: it is at the top")
 		g.Expect(idOf(added)).NotTo(Equal(idOf(black)), "the ID of "+added)
+
+		machine.awaitSettled(chat.session.id, chat.turnEnds, 2)
 	})
 }
 
@@ -254,6 +271,7 @@ func Test855a2d1a_ACorrectingNoteNamesTheNoteItCorrects(t *testing.T) {
 		"every Sunday night, and a session in which that note arrived with a prompt and the agent may not run engram "+
 		"commands", func() {
 		machine.hasRunUpdate()
+		machine.stepsAreRecorded()
 
 		sunday = machine.learnsFact(stagingReset)
 		chat = machine.startSession("zorblax").converse()
@@ -269,22 +287,31 @@ func Test855a2d1a_ACorrectingNoteNamesTheNoteItCorrects(t *testing.T) {
 	step(t, "Then within 2 minutes the vault holds a note that says it is reset every Monday night and that it "+
 		"updates the Sunday note, and the Sunday note shows that the Monday note supersedes it", func() {
 		monday := machine.awaitAutomaticNote(chat.turnEnds, "that states the new reset", "Monday")
+		machine.logPlacement()
+
 		text := machine.noteText(monday)
 
 		g.Expect(text).To(ContainSubstring("Supersedes: [["+strings.TrimSuffix(sunday, ".md")+"]] — updates:"),
 			"the note names the note it updates")
 
-		out := machine.engram("query", "--text", "when is the Zorblax staging database reset", "--phrase",
-			"Zorblax staging database reset")
-		machine.mustSucceed(out, "engram query")
+		// the note is written before its sidecar is, which the lookup needs
+		g.Eventually(func() string {
+			out := machine.engram("query", "--text", "when is the Zorblax staging database reset", "--phrase",
+				"Zorblax staging database reset")
+			machine.mustSucceed(out, "engram query")
 
-		g.Expect(out.stdout).To(And(ContainSubstring(sunday), ContainSubstring(monday)),
+			return out.stdout
+		}).WithTimeout(lookupWait).WithPolling(capturePoll).Should(And(ContainSubstring(sunday), ContainSubstring(monday)),
 			"a lookup of the Sunday note shows the Monday note beside it")
+
+		machine.awaitSettled(chat.session.id, chat.turnEnds, 2)
 	})
 }
 
 // unexported constants.
 const (
+	// lookupWait is how long the sidecar of a note that was just written has to be there for the lookup.
+	lookupWait = 20 * time.Second
 	// askPlanTheBuild is a recall moment that the buildWithMakeCI note applies to (855a2c1a).
 	askPlanTheBuild = "Plan how to build the Zorblax project for release, and say which command you would run. " +
 		"Reply with one short sentence."
@@ -379,4 +406,14 @@ func parentOf(id string) string {
 	}
 
 	return strings.Join(slices.Clone(segments[:len(segments)-1]), "")
+}
+
+// logPlacement logs what the placement printed for the last turn that was placed, and what the writing was given: the
+// reply of the model to it is the writing's placement.
+func (m *machine) logPlacement() {
+	m.t.Helper()
+
+	printed, ran := m.stepPrinted("place")
+	m.t.Logf("the judgement was given %s\nthe placement ran: %v, and printed %s\nthe writing was given %s",
+		m.stepsGiven("judge"), ran, printed, m.stepsGiven("write"))
 }

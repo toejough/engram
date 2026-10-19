@@ -828,6 +828,20 @@ func (m *machine) stepPrinted(step string) (string, bool) {
 	return string(data), err == nil
 }
 
+// stepsGiven returns what a step was given, as stepsAreRecorded kept it: the input of each run, one to a line.
+func (m *machine) stepsGiven(step string) string {
+	files, _ := filepath.Glob(filepath.Join(m.root, "steps-seen", step+"-*.in"))
+
+	var seen strings.Builder
+
+	for _, name := range files {
+		data, _ := os.ReadFile(name)
+		seen.WriteString(strings.TrimSpace(string(data)) + "\n")
+	}
+
+	return seen.String()
+}
+
 // stepStarted reports whether the slow step of stepTakes or stepNeverEnds was started.
 func (m *machine) stepStarted() bool {
 	_, err := os.Stat(filepath.Join(m.root, "slow-step", "started"))
@@ -859,19 +873,20 @@ func (m *machine) stepWraps(step, action string) {
 		filepath.Join(m.gobin, engramBinaryName)+"' \"$@\"\n")
 }
 
-// stepsAreRecorded puts an engram on the PATH that keeps what the moment, the phrases and the recall printed, and runs
+// stepsAreRecorded puts an engram on the PATH that keeps what the steps of the flows were given and printed, and runs
 // the machine's own engram for them and for anything else: the debug log says that the moment found nothing, and no
-// log line says what the recall found.
+// log line says what the recall found. Each run keeps its own files, the last of each step is kept under the step's
+// name, because the steps of one turn and the next prompt run at once.
 func (m *machine) stepsAreRecorded() {
 	m.t.Helper()
 
 	dir := filepath.Join(m.root, "steps-seen")
 	engram := filepath.Join(m.gobin, engramBinaryName)
 
-	m.wrapsEngram(dir, "#!/bin/sh\ncase \"$1 $2\" in\n\"auto deliver\")\ncat > '"+dir+"/deliver.in'\n'"+engram+
-		"' \"$@\" < '"+dir+"/deliver.in'\nexit $?\n;;\n\"auto moment\"|\"auto phrases\"|\"auto recall\")\n'"+engram+
-		"' \"$@\" > '"+dir+"/'\"$2\".out\ncode=$?\ncat '"+dir+"/'\"$2\".out\nexit $code\n;;\nesac\nexec '"+engram+
-		"' \"$@\"\n")
+	m.wrapsEngram(dir, "#!/bin/sh\ncase \"$1 $2\" in\n\"auto deliver\"|\"auto write\"|\"auto moment\"|\"auto phrases\"|"+
+		"\"auto recall\"|\"auto judge\"|\"auto place\")\nf='"+dir+"/'\"$2\"-$$\ncat > \"$f.in\"\n'"+engram+
+		"' \"$@\" < \"$f.in\" > \"$f.out\"\ncode=$?\ncat \"$f.out\"\ncp \"$f.out\" '"+dir+"/'\"$2\".out\ncp \"$f.in\" '"+dir+
+		"/'\"$2\".in\nexit $code\n;;\nesac\nexec '"+engram+"' \"$@\"\n")
 }
 
 // vaultCanBeRead gives the right to read the machine's vault back.
