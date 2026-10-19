@@ -252,7 +252,7 @@ func Test855a2c1c_ANoteTheSessionHasNotSeenIsNotATarget(t *testing.T) {
 		g.Expect(parentOf(idOf(added))).To(BeEmpty(), "the ID of "+added+" has no parent: it is at the top")
 		g.Expect(idOf(added)).NotTo(Equal(idOf(black)), "the ID of "+added)
 
-		machine.awaitSettled(chat.session.id, chat.turnEnds, 2)
+		machine.awaitSettled(chat.session.id, chat.turnEnds, 1)
 	})
 }
 
