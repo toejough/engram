@@ -948,6 +948,124 @@ func Test855d2a1d_Mod_OutputThatIsNotARequestOrABlockFailsTheStep(t *testing.T) 
 	})
 }
 
+// Test855d2a1e_Mod_AModelThatDoesNotAnswerAndAWriteThatFailsAreReported runs the mod under node against a stand-in host
+// whose model gives no text, rejects or is aborted at its bound, and whose writing exits with 1 the first time: a live
+// model cannot be made to fail on cue.
+func Test855d2a1e_Mod_AModelThatDoesNotAnswerAndAWriteThatFailsAreReported(t *testing.T) {
+	t.Parallel()
+
+	steps := map[string]map[string]any{
+		"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": aStep(2)},
+		"recall": {"exitCode": 0, "stdout": aDeepStep(3)},
+	}
+
+	for name, fate := range map[string]string{"gives no text": "empty", "rejects the call": "rejects",
+		"is aborted at 2 minutes": "aborted"} {
+		for call := range 3 {
+			t.Run(fmt.Sprintf("a model that %s on its call %d", name, call+1), func(t *testing.T) {
+				t.Parallel()
+
+				g := NewWithT(t)
+				fates := make([]string, 3)
+				fates[call] = fate
+
+				outcome := runDeliveryDriver(t, deliveryScenario{
+					Steps: steps, Deliver: map[string]any{"exitCode": 0, "stdout": "[engram memory] The lines.\n- a.md (s): b\n"},
+					ModelFates: fates, FastTimers: true,
+				})
+
+				g.Expect(outcome.Passed.Text).To(Equal("hello"), "the prompt goes on as it was")
+				g.Expect(outcome.Passed.Context).To(BeEmpty(), "nothing is added")
+				g.Expect(outcome.inputsOf("engram auto deliver")).To(BeEmpty(), "the delivery was never run")
+
+				reports := outcome.reports()
+
+				g.Expect(reports).To(HaveLen(1), "the runs of auto write")
+
+				if len(reports) == 1 {
+					g.Expect(reports[0]["failure"]).To(ContainSubstring("the model call"), "the failure names the model call")
+					g.Expect(reports[0]).NotTo(HaveKey("cue"), "the report is no write of a deep delivery")
+				}
+			})
+		}
+	}
+
+	t.Run("a write that fails", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+
+		outcome := runDeliveryDriver(t, deliveryScenario{
+			Steps: steps, Deliver: map[string]any{"exitCode": 0, "stdout": "[engram memory] The lines.\n- a.md (s): b\n"},
+			Writes: []map[string]any{{"exitCode": 1, "stdout": "", "stderr": "auto write: the vault is not there\n"}},
+		})
+
+		g.Expect(outcome.Passed.Context).To(Equal([]string{"[engram memory] The lines.\n- a.md (s): b"}), "the block, as context")
+
+		writes := outcome.reports()
+
+		g.Expect(writes).To(HaveLen(2), "the write, and the run that reports its failure")
+
+		if len(writes) == 2 {
+			g.Expect(writes[0]).To(HaveKey("cue"))
+			g.Expect(writes[1]["failure"]).To(And(ContainSubstring("the write after a deep delivery"),
+				ContainSubstring("the vault is not there")), "the failure names the write")
+		}
+	})
+}
+
+// Test855d2a1f_Mod_ADeepDeliveryWritesAfterTheBlockFromATimer runs the mod under node against a stand-in host that
+// counts the calls in flight when the hook settles.
+func Test855d2a1f_Mod_ADeepDeliveryWritesAfterTheBlockFromATimer(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runDeliveryDriver(t, deliveryScenario{
+		Steps: map[string]map[string]any{
+			"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": aStep(2)},
+			"recall": {"exitCode": 0, "stdout": aDeepStep(3)},
+		},
+		Deliver: map[string]any{"exitCode": 0, "stdout": "[engram memory] The lines.\n- a.md (s): b\n"},
+		Replies: []string{"reply 1", "reply 2", "reply 3"},
+	})
+
+	g.Expect(outcome.Passed.Context).To(Equal([]string{"[engram memory] The lines.\n- a.md (s): b"}), "the block, as context")
+	g.Expect(outcome.Settle.InFlight).To(BeZero(), "the calls in flight when the hook settled")
+	g.Expect(outcome.Settle.Commands).To(Equal(7), "the calls made when the hook settled: no write among them")
+
+	writes := outcome.inputsOf("engram auto write")
+
+	g.Expect(writes).To(HaveLen(1), "the runs of auto write")
+
+	if len(writes) == 1 {
+		g.Expect(writes[0]).To(Equal(map[string]any{
+			"session": "a-session", "cue": "prompt", "reply": "reply 3", "carry": carryOfDeepStep(3),
+		}), "the session's ID, the cue, the reply to the candidate request and the carry")
+	}
+
+	g.Expect(outcome.limitOf("engram auto write")).To(BeNumerically("==", 60000), "the time limit of the write")
+}
+
+// Test855d2a1g_Mod_AGlanceWritesNothing runs the mod under node against a stand-in host whose recall prints a request
+// without the mark of a write. Mutation: a mod that runs the writing for every delivery fails it.
+func Test855d2a1g_Mod_AGlanceWritesNothing(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runDeliveryDriver(t, deliveryScenario{
+		Steps: map[string]map[string]any{
+			"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": aStep(2)},
+			"recall": {"exitCode": 0, "stdout": aStep(3)},
+		},
+		Deliver: map[string]any{"exitCode": 0, "stdout": "[engram memory] The lines.\n- a.md (s): b\n"},
+	})
+
+	g.Expect(outcome.Passed.Context).To(HaveLen(1), "the block, as context")
+	g.Expect(outcome.reports()).To(BeEmpty(), "the runs of auto write")
+}
+
 // Test855d2a1h_Mod_ANoteOrPassageDeliveredEarlierIsLeftOutOfALaterBlock runs the mod under node against a stand-in host
 // whose delivery prints blocks that share a note and a passage, one prompt after another: a live session cannot be made
 // to print a block that names what it printed before. The passages' IDs hold spaces, and two of them begin alike.
@@ -1376,14 +1494,16 @@ function counted(call) {
 const timers = []
 const logged = []
 let replied = 0
+let nth = 0
 let delivered = 0
+let written = 0
 const host = {
   session: { id: counted(async () => 'a-session') },
   process: {
     run: counted(async (argv, init) => {
       const step = argv[2]
       calls.push({ step: argv.join(' '), input: JSON.parse(init.stdin), timeoutMs: init.timeoutMs })
-      if (step === 'write') return { exitCode: 0, stdout: '' }
+      if (step === 'write') return scenario.writes?.[written++] ?? { exitCode: 0, stdout: '' }
       if (step === scenario.stalls) {
         await new Promise((resolve) => wait(resolve, 5))
         throw new Error('the command ran too long')
@@ -1398,7 +1518,10 @@ const host = {
   model: {
     complete: counted(async (asked, options) => {
       calls.push({ step: 'model', asked, signal: options?.signal !== undefined })
-      if (scenario.modelNeverSettles) {
+      const fate = scenario.modelFates?.[nth++]
+      if (fate === 'empty') return { isAnswered: false, reason: 'empty-reply' }
+      if (fate === 'rejects') throw new Error('the model failed')
+      if (scenario.modelNeverSettles || fate === 'aborted') {
         return new Promise((resolve, reject) => {
           options.signal.addEventListener('abort', () => (scenario.modelRejectsWhenAborted
             ? reject(new Error('aborted'))
@@ -1704,12 +1827,29 @@ type deliveryScenario struct {
 	Stalls                  string                    `json:"stalls,omitempty"`
 	ModelNeverSettles       bool                      `json:"modelNeverSettles,omitempty"`
 	FastTimers              bool                      `json:"fastTimers,omitempty"`
+	// ModelFates is what becomes of each call of the model, in order: empty (it gives no text), rejects, aborted (it
+	// settles only when its signal aborts it) or, when the list is short or the entry empty, an answer.
+	ModelFates []string `json:"modelFates,omitempty"`
+	// Writes is what each run of the writing exits with and prints, in order, in place of an exit with 0.
+	Writes []map[string]any `json:"writes,omitempty"`
 }
 
 // aStep is what a step prints for a judgement, the nth of a chain: the request for the model and the carry.
 func aStep(n int) string {
 	return fmt.Sprintf(`{"request":{"model":"sonnet","system":"S%d","prompt":"P%d","maxTokens":100},`+
 		`"carry":{"cue":"prompt","depth":"glance","window":"W%d"}}`+"\n", n, n, n)
+}
+
+// aDeepStep is what the recall prints at deep depth, the nth of a chain: the request for the model, the carry and the
+// mark that a write follows the delivery.
+func aDeepStep(n int) string {
+	return fmt.Sprintf(`{"request":{"model":"sonnet","system":"S%d","prompt":"P%d","maxTokens":100},`+
+		`"carry":{"cue":"prompt","depth":"deep","window":"W%d"},"write":true}`+"\n", n, n, n)
+}
+
+// carryOfDeepStep is the carry of aDeepStep as the driver decodes it.
+func carryOfDeepStep(n int) map[string]any {
+	return map[string]any{"cue": "prompt", "depth": "deep", "window": fmt.Sprintf("W%d", n)}
 }
 
 // carryOfStep is the carry of aStep as the driver decodes it.

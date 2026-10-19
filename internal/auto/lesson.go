@@ -99,6 +99,8 @@ type Record struct {
 type Reply struct {
 	Session string `json:"session"`
 	Turn    string `json:"turn"`
+	// Cue is set for the write of a deep delivery, whose reply is the candidate judgement's (855d4j).
+	Cue     string `json:"cue"`
 	Text    string `json:"reply"`
 	Failure string `json:"failure"`
 	// Placement is the reply of the placement judgement, and Carry the placement's carry, which names the notes the

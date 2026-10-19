@@ -94,6 +94,7 @@ type AutoWriteArgs struct {
 	VaultPath  string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
 	VaultName  string `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name stamped on the note's vault: field (default \"personal\")"` //nolint:lll // single unbreakable struct-tag string
 	RecordsDir string `targ:"flag,name=records,desc=directory of the records of what automatic memory did (default $XDG_DATA_HOME/engram/auto)"`    //nolint:lll // single unbreakable struct-tag string
+	ChunksDir  string `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`                                     //nolint:lll // single unbreakable struct-tag string
 }
 
 // AutoWriteDeps holds injected dependencies for RunAutoWrite.
@@ -102,6 +103,8 @@ type AutoWriteDeps struct {
 	Stdin io.Reader
 	// Learn writes a note through the learn path.
 	Learn LearnRun
+	// Amend amends a note, as `engram amend` does.
+	Amend AmendRun
 	// Now is the time a record is made at.
 	Now func() time.Time
 	// WriteRecord writes one record, a file of its own, and makes its directory.
@@ -109,6 +112,9 @@ type AutoWriteDeps struct {
 	// NoteExists reports whether a file is in the vault.
 	NoteExists func(path string) bool
 }
+
+// AmendRun amends a note in place, as `engram amend` does.
+type AmendRun func(ctx context.Context, args AmendArgs) error
 
 // IngestRun indexes sources in the chunk index, as `engram ingest` does, and prints what it indexed.
 type IngestRun func(ctx context.Context, args IngestArgs, stdout io.Writer) error
