@@ -57,6 +57,17 @@ const deliveries = new Map()
 // The writes after the deliveries of a session, each chained after the one before it, for the same reason.
 const writes = new Map()
 
+// The text and the origin of the turn the main loop is in, which the events of its tools carry none of (855d2c): the
+// last turn started.
+let current = { text: '', origin: '' }
+
+// The IDs of the calls whose failure was judged and whose batch has not come (855d2c): a batch of calls all judged as
+// failures is not judged again.
+const failed = new Set()
+
+// The keys a tool.call event carries beside the arguments of the tool (855d2c).
+const RESERVED = ['tool', 'tool_use_id', 'agentId', 'requestMeta', 'consent']
+
 // So many prompts are kept at most: one that is dropped, or delivered into a running turn, starts no turn.
 const RAISED_MAX = 20
 
@@ -68,7 +79,7 @@ export function register(on) {
       raised.shift()
     }
 
-    const delivery = await deliveryFor($, e)
+    const delivery = await deliveryFor($, 'a prompt', (state) => promptChain($, e, state))
 
     // the lines go to the user and the model reads none of them: they are logged, not added to the context (793d2a)
     for (const line of delivery.shown) {
@@ -80,10 +91,57 @@ export function register(on) {
 
   on('turn.start', async (_$, e, next) => {
     if (e.agentId === undefined) {
-      turns.set(e.turnId, { text: e.text, origin: originOfStart(e.text) })
+      current = { text: e.text, origin: originOfStart(e.text) }
+      turns.set(e.turnId, current)
     }
 
     return next(e)
+  })
+
+  // the three cues of a turn (855d2c): the chain of the prompt runs for the event, and the block rides the answer
+  on('tool.call', async ($, e, next) => {
+    if (e.agentId !== undefined) {
+      return next(e)
+    }
+
+    const event = { tool: e.tool, input: Object.fromEntries(Object.entries(e).filter(([key]) => !RESERVED.includes(key))) }
+    const delivery = await cueDelivery($, 'before-tool', () => bounded($.session.id(), ID_BOUND_MS, "the call for the session's ID"),
+      event)
+    const result = await next(e)
+
+    // a call that was denied has no context to add to; the notes of the block stay held
+    return result.deny === undefined ? withBlock(result, 'context', delivery.block) : result
+  })
+
+  on('classic.PostToolUseFailure', async ($, e, next) => {
+    if (e.agent_id !== undefined || e.is_interrupt) {
+      return next(e)
+    }
+
+    failed.add(e.tool_use_id)
+
+    const event = { tool: e.tool_name, input: e.tool_input, error: e.error }
+    const delivery = await cueDelivery($, 'failure', async () => e.session_id, event)
+
+    return withBlock(await next(e), 'additionalContext', delivery.block)
+  })
+
+  on('classic.PostToolBatch', async ($, e, next) => {
+    const calls = e.tool_calls ?? []
+    const judged = calls.every((call) => failed.has(call.tool_use_id))
+
+    for (const call of calls) {
+      failed.delete(call.tool_use_id)
+    }
+
+    if (e.agent_id !== undefined || judged) {
+      return next(e)
+    }
+
+    const event = { calls: calls.map((call) => ({ tool: call.tool_name, input: call.tool_input, response: call.tool_response })) }
+    const delivery = await cueDelivery($, 'batch-done', async () => e.session_id, event)
+
+    return withBlock(await next(e), 'additionalContext', delivery.block)
   })
 
   on('turn.complete', async ($, e, next) => {
@@ -260,37 +318,64 @@ function describe(error) {
   return error instanceof Error ? error.message : String(error)
 }
 
-// delivery is the block and the lines for the user for a prompt, or nothing when the flow does not finish or fails: the
-// prompt goes on as if automatic memory were not installed, and the failure is reported (855d2a).
-async function deliveryFor($, e) {
+// deliveryFor is the block and the lines for the user for a prompt or a tool event, or nothing when the flow does not
+// finish or fails: the work goes on as if automatic memory were not installed, and the failure is reported (855d2a,
+// 855d2c). The chain is given the state, in which the session's ID is left as soon as it is known, for the report.
+async function deliveryFor($, what, chainOf) {
   const state = { session: '', write: null }
 
   try {
-    const delivery = await promptChain($, e, state)
+    const delivery = await chainOf(state)
 
     writeAfter($, state)
 
     return delivery
   } catch (error) {
-    reportDelivery($, state.session, error)
+    reportDelivery($, state.session, what, error)
 
     return { block: '', shown: [] }
   }
 }
 
-// promptChain runs the steps of the flow of a prompt in order (855d2a): the moment, the phrases and the recall, each
-// given the reply to the request before it and its carry and asking the model for the request it prints, and then the
-// delivery with the last reply and its carry. A step that prints nothing ends the chain there, and the delivery is run
-// with the prompt's text and the cue alone. The session's ID is left in the state as soon as it is known, for the
-// report of a failure.
+// cueDelivery is deliveryFor for the event of a tool: the chain of a prompt with the event and the text the turn began
+// with in place of the prompt's text (855d2c). The lines for the user are logged here.
+async function cueDelivery($, cue, sessionOf, event) {
+  const delivery = await deliveryFor($, 'a tool call', async (state) => {
+    state.session = await sessionOf()
+
+    return chain($, state, { origin: current.origin, cue }, { text: current.text, event })
+  })
+
+  for (const line of delivery.shown) {
+    $.ui.log(line)
+  }
+
+  return delivery
+}
+
+// withBlock is the answer of the hooks beneath, with the block added as one more entry of the list the key names, or
+// the answer as it is when there is no block (855d2c).
+function withBlock(result, key, block) {
+  return block ? { ...result, [key]: [...(result[key] ?? []), block] } : result
+}
+
+// promptChain runs the chain of a prompt (855d2a).
 async function promptChain($, e, state) {
   state.session = await bounded($.session.id(), ID_BOUND_MS, "the call for the session's ID")
 
-  const base = { session: state.session, origin: originOf(e), cue: 'prompt', held: [...(delivered.get(state.session) ?? [])] }
+  return chain($, state, { origin: originOf(e), cue: 'prompt' }, { text: e.text })
+}
+
+// chain runs the steps of the flow in order (855d2a): the moment, the phrases and the recall, each given the reply to
+// the request before it and its carry and asking the model for the request it prints, and then the delivery with the
+// last reply and its carry. A step that prints nothing ends the chain there, and the delivery is run with the fields
+// of the moment alone: the prompt's text, or for a tool event the event and the text the turn began with.
+async function chain($, state, who, fields) {
+  const base = { session: state.session, ...who, held: [...(delivered.get(state.session) ?? [])] }
   let answer = {}
 
   for (const step of CHAIN) {
-    const { stdout } = await run($, step, { ...base, ...(step === 'moment' ? { text: e.text } : answer) }, STEP_BOUND_MS)
+    const { stdout } = await run($, step, { ...base, ...(step === 'moment' ? fields : answer) }, STEP_BOUND_MS)
 
     if (stdout === '') {
       answer = {}
@@ -308,7 +393,7 @@ async function promptChain($, e, state) {
 
   return inOrder(deliveries, state.session, async () => {
     const held = [...(delivered.get(state.session) ?? [])]
-    const { stdout, stderr } = await run($, 'deliver', { ...base, held, text: e.text, ...answer }, STEP_BOUND_MS)
+    const { stdout, stderr } = await run($, 'deliver', { ...base, held, ...fields, ...answer }, STEP_BOUND_MS)
     const lines = stderr.split('\n').map((text) => text.trim()).filter((text) => text !== '')
 
     // the lines go to the user and the model reads none of them
@@ -356,16 +441,16 @@ async function inOrder(chains, session, job) {
   }
 }
 
-// reportDelivery has the writing record that the delivery for a prompt could not be done, from a timer, so that the
+// reportDelivery has the writing record that the delivery for a prompt or a tool call could not be done, from a timer, so that the
 // prompt is held no longer and no call is left in flight when the hook settles (793d2a). A delivery whose session's ID
 // did not come is left alone, since the writing cannot record anything without it.
-function reportDelivery($, session, error) {
+function reportDelivery($, session, what, error) {
   if (session === '') {
     return
   }
 
   $.clock.after(0, () => {
-    void report($, session, '', new Error(`the delivery for a prompt could not be done: ${describe(error)}`))
+    void report($, session, '', new Error(`the delivery for ${what} could not be done: ${describe(error)}`))
   })
 }
 
