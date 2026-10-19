@@ -9,9 +9,10 @@ naming it, an approach that the context shows.
 List each lesson the turn contains: a correction by the user ("no, do X"), an explicit request by the user to remember
 something (even something that holds a secret), a reversal confirmed by evidence (a mistake of the agent that the agent
 itself then corrected: it says its earlier guess or claim was wrong and gives the corrected one plainly, as in "I blamed
-the compiler flag, but the build failed because of a stale cache": the lesson is the corrected cause or conclusion, a
-fact, even when the user only asked a question), or an approach confirmed to have worked: either the user names the
-approach and says that it worked, or the agent tried an approach it was unsure about and the turn shows the outcome that
+the compiler flag, but the build failed because of a stale cache", even when the user only asked a question: it is a
+lesson; a reversal is written as a feedback lesson, not as a fact; its behavior is what the earlier reasoning did wrong,
+its impact what the mistake cost, and its action the guard that would have prevented it, which names the corrected cause
+or value exactly), or an approach confirmed to have worked: either the user names the approach and says that it worked, or the agent tried an approach it was unsure about and the turn shows the outcome that
 proves it worked (a test passing, a check going green). A thanks, or an "it worked", that names no approach confirms
 nothing, and a success that no uncertainty preceded is no lesson. An approach the agent was unsure of, tried and saw
 succeed is a lesson even when the user asked for the try: "I do not know whether the flag makes the check pass", then a
