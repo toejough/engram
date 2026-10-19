@@ -158,7 +158,8 @@ func encoded(value any, fallback string) string {
 	encoder := json.NewEncoder(&buffer)
 	encoder.SetEscapeHTML(false)
 
-	if encoder.Encode(value) != nil {
+	encodeErr := encoder.Encode(value)
+	if encodeErr != nil {
 		return fallback
 	}
 
@@ -207,6 +208,18 @@ func learnMoment(messages []message, last int, input MomentInput) Step {
 	}
 }
 
+// redactedItem is the value of a key redacted: replaced whole when the key names a secret and the value is a scalar.
+func redactedItem(key string, item any) any {
+	switch item.(type) {
+	case string, json.Number, bool:
+		if sensitiveKey.MatchString(key) {
+			return redacted
+		}
+	}
+
+	return redactedValue(item)
+}
+
 // redactedText is a string of a value redacted: a string that is an object or a list written as JSON (a response that
 // was encoded twice) is decoded once more and redacted as a value, any other string as text.
 func redactedText(text string) string {
@@ -242,18 +255,6 @@ func redactedValue(value any) any {
 	default:
 		return value
 	}
-}
-
-// redactedItem is the value of a key redacted: replaced whole when the key names a secret and the value is a scalar.
-func redactedItem(key string, item any) any {
-	switch item.(type) {
-	case string, json.Number, bool:
-		if sensitiveKey.MatchString(key) {
-			return redacted
-		}
-	}
-
-	return redactedValue(item)
 }
 
 // toolWindow is the context and the turn's lines of the window of a tool cue (855b54, 855b97): the last lines of the

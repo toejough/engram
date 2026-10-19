@@ -1534,6 +1534,34 @@ func Test855d2c1h_Mod_ChainsOfOneSessionRunAtOnceAndANoteIsDeliveredOnce(t *test
 	g.Expect(given).To(Equal(1), "how many of the two answers hold the block")
 }
 
+// Test855d2c1k_Mod_AUsersInterruptAndABatchOfFailuresJudgedAlreadyAreLeftAlone runs the mod under node against a
+// stand-in host that raises an interrupt, a failure and a batch of that failure alone.
+func Test855d2c1k_Mod_AUsersInterruptAndABatchOfFailuresJudgedAlreadyAreLeftAlone(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runDeliveryDriver(t, toolScenario(deliveryScenario{
+		Events: []eventRaised{
+			failureEvent("a-session", "t1", true),
+			failureEvent("a-session", "t2", false),
+			{Hook: "classic.PostToolBatch", Event: map[string]any{"session_id": "a-session", "tool_calls": []any{
+				map[string]any{"tool_name": "Bash", "tool_input": map[string]any{}, "tool_use_id": "t2", "tool_response": "x"},
+			}}},
+		},
+	}))
+
+	moments := outcome.inputsOf("engram auto moment")
+
+	g.Expect(moments).To(HaveLen(1), "the moments run: the second failure, once")
+
+	if len(moments) == 1 {
+		g.Expect(moments[0]["cue"]).To(Equal("failure"))
+	}
+
+	g.Expect(outcome.Answers).To(Equal([]map[string]any{{}, {}, {}}), "the result of next(e) each time")
+}
+
 // Test855d2c1l_Mod_ADeniedCallKeepsNoBlockAndItsNotesAreDeliveredLater runs the mod under node against a stand-in host
 // whose hooks beneath deny a call, and then raises a prompt.
 func Test855d2c1l_Mod_ADeniedCallKeepsNoBlockAndItsNotesAreDeliveredLater(t *testing.T) {
@@ -1542,7 +1570,9 @@ func Test855d2c1l_Mod_ADeniedCallKeepsNoBlockAndItsNotesAreDeliveredLater(t *tes
 	g := NewWithT(t)
 
 	outcome := runDeliveryDriver(t, toolScenario(deliveryScenario{
-		Delivers: []map[string]any{{"exitCode": 0, "stdout": noteBlock("a.md")}, {"exitCode": 0, "stdout": noteBlock("a.md")}},
+		Delivers: []map[string]any{
+			{"exitCode": 0, "stdout": noteBlock("a.md")}, {"exitCode": 0, "stdout": noteBlock("a.md")},
+		},
 		Events: []eventRaised{
 			{Hook: "tool.call", Event: map[string]any{"tool": "Bash", "tool_use_id": "t1", "command": "rm"},
 				Answer: map[string]any{"deny": "no"}},
@@ -1570,8 +1600,8 @@ func Test855d2c1l_Mod_ADeniedCallKeepsNoBlockAndItsNotesAreDeliveredLater(t *tes
 	}
 }
 
-// Test855d2c1m_Mod_ADeepDeliveryWithinATurnWritesWithItsCue runs the mod under node against a stand-in host whose recall
-// prints a deep request, for a failure.
+// Test855d2c1m_Mod_ADeepDeliveryWithinATurnWritesWithItsCue runs the mod under node against a stand-in host whose
+// recall prints a deep request, for a failure.
 func Test855d2c1m_Mod_ADeepDeliveryWithinATurnWritesWithItsCue(t *testing.T) {
 	t.Parallel()
 
@@ -1613,34 +1643,6 @@ func Test855d2c1n_Mod_ACallRunsWhileItsChainDoes(t *testing.T) {
 	g.Expect(outcome.Answers).To(Equal([]map[string]any{{
 		"result": "ok", "context": []any{strings.TrimSpace(noteBlock("a.md"))},
 	}}), "the block, once the chain was over")
-}
-
-// Test855d2c1k_Mod_AUsersInterruptAndABatchOfFailuresJudgedAlreadyAreLeftAlone runs the mod under node against a
-// stand-in host that raises an interrupt, a failure and a batch of that failure alone.
-func Test855d2c1k_Mod_AUsersInterruptAndABatchOfFailuresJudgedAlreadyAreLeftAlone(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	outcome := runDeliveryDriver(t, toolScenario(deliveryScenario{
-		Events: []eventRaised{
-			failureEvent("a-session", "t1", true),
-			failureEvent("a-session", "t2", false),
-			{Hook: "classic.PostToolBatch", Event: map[string]any{"session_id": "a-session", "tool_calls": []any{
-				map[string]any{"tool_name": "Bash", "tool_input": map[string]any{}, "tool_use_id": "t2", "tool_response": "x"},
-			}}},
-		},
-	}))
-
-	moments := outcome.inputsOf("engram auto moment")
-
-	g.Expect(moments).To(HaveLen(1), "the moments run: the second failure, once")
-
-	if len(moments) == 1 {
-		g.Expect(moments[0]["cue"]).To(Equal("failure"))
-	}
-
-	g.Expect(outcome.Answers).To(Equal([]map[string]any{{}, {}, {}}), "the result of next(e) each time")
 }
 
 // TestMods_EveryJavaScriptModuleParses: the real mods parse under the real node, and the real node rejects a broken
@@ -1998,7 +2000,9 @@ for (let last = -1, stable = 0, tick = 0; tick < 300 && stable < 5; tick++) {
   last = calls.length
 }
 
-console.log(JSON.stringify({ passed, all, calls, delays, settle, logged, writeEvents, answers, barrierMet, nextBeforeMoment }))
+console.log(JSON.stringify({
+  passed, all, calls, delays, settle, logged, writeEvents, answers, barrierMet, nextBeforeMoment,
+}))
 process.exit(0)
 `
 	// driverTimeout is how long the mod may take under the stand-in host before the test gives it up.

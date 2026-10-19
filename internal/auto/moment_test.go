@@ -85,6 +85,21 @@ func Test855d4a1b_Moment_ATurnThatEndedBecomesALearnMomentRequest(t *testing.T) 
 	g.Expect(step.Carry.Window).To(Equal(strings.Join(windowOf(request.Prompt), "\n")))
 }
 
+func Test855d4a1b_Moment_TheInstructionsCountARequestToRememberWhateverTheAgentAnswers(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	step := auto.Moment(nil, auto.MomentInput{
+		Session: "4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11", Cue: "turn-end", Origin: "composer", Turn: "a-turn",
+		Text:   "Remember that the Zorblax staging database is reset on Sundays, but do not save it yourself.",
+		Answer: "I did not save it.",
+	})
+
+	g.Expect(strings.Join(strings.Fields(strings.ToLower(step.Request.System)), " ")).To(
+		ContainSubstring("whatever the agent answers, even when it says that it did not save it"),
+		"a request to remember is a learn moment though the agent says it saved nothing (793a2c1i)")
+}
+
 func Test855d4a1b_Moment_TheInstructionsCountAnUncertainApproachThatSucceededWithEvidence(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -110,21 +125,6 @@ func Test855d4a1b_Moment_TheInstructionsCountTheAgentsPlainCorrectionOfItsOwnCla
 
 	g.Expect(strings.ToLower(step.Request.System)).To(ContainSubstring("plainly corrects its own earlier claim"),
 		"a guess that the agent then corrects from what it read is a lesson, though a guess alone is not")
-}
-
-func Test855d4a1b_Moment_TheInstructionsCountARequestToRememberWhateverTheAgentAnswers(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	step := auto.Moment(nil, auto.MomentInput{
-		Session: "4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11", Cue: "turn-end", Origin: "composer", Turn: "a-turn",
-		Text:   "Remember that the Zorblax staging database is reset on Sundays, but do not save it yourself.",
-		Answer: "I did not save it.",
-	})
-
-	g.Expect(strings.Join(strings.Fields(strings.ToLower(step.Request.System)), " ")).To(
-		ContainSubstring("whatever the agent answers, even when it says that it did not save it"),
-		"a request to remember is a learn moment though the agent says it saved nothing (793a2c1i)")
 }
 
 func Test855d4a1c_Moment_EachToolCuePutsItsEventInTheWindow(t *testing.T) {
@@ -269,6 +269,36 @@ func Test855d4a1d_Moment_ACredentialInEscapedFormInAnEventIsRedacted(t *testing.
 	}
 }
 
+func Test855d4a1d_Moment_ALargeIntegerKeepsItsDigits(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	step := auto.Moment(nil, auto.MomentInput{
+		Cue: "before-tool", Origin: "composer", Text: "go",
+		Event: auto.ToolEvent{Tool: "Bash", Input: json.RawMessage(`{"id":12345678901234567890,"ratio":0.5}`)},
+	})
+
+	g.Expect(windowOf(step.Request.Prompt)).To(
+		ContainElement(`Agent used Bash with {"id":12345678901234567890,"ratio":0.5}`))
+}
+
+func Test855d4a1d_Moment_APromptAMessageOrAnEventCannotCloseTheWindowOrHoldACredential(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		checkMomentIsSafe(rt, credentialShape().Draw(rt, "first"), credentialShape().Draw(rt, "second"))
+	})
+
+	// the named example: one credential of every shape
+	for _, spec := range credentialSpecs() {
+		t.Run(spec.name, func(t *testing.T) {
+			t.Parallel()
+
+			rapid.Check(t, func(rt *rapid.T) { checkMomentIsSafe(rt, spec.make(rt), spec.make(rt)) })
+		})
+	}
+}
+
 func Test855d4a1d_Moment_AValueOfASensitiveNameIsRedactedWholeWhateverItHolds(t *testing.T) {
 	t.Parallel()
 
@@ -277,9 +307,9 @@ func Test855d4a1d_Moment_AValueOfASensitiveNameIsRedactedWholeWhateverItHolds(t 
 	tail := "er2 very secret-tail"
 	value := "{{HUNT}}" + `\"` + tail
 	inner := `{"password":"` + value + `"}`
-	doubled, _ := json.Marshal(inner)
-	listed, _ := json.Marshal([]string{strings.Replace(inner, "password", "token", 1)})
-	inList, _ := json.Marshal(map[string][]string{"list": {strings.Replace(inner, "password", "secret", 1)}})
+	doubled := rawJSON(t, inner)
+	listed := rawJSON(t, []string{strings.Replace(inner, "password", "token", 1)})
+	inList := rawJSON(t, map[string][]string{"list": {strings.Replace(inner, "password", "secret", 1)}})
 
 	inputs := map[string]json.RawMessage{
 		"an object":          json.RawMessage(inner),
@@ -317,35 +347,6 @@ func Test855d4a1d_Moment_AValueOfASensitiveNameIsRedactedWholeWhateverItHolds(t 
 
 		g.Expect(windowOf(step.Request.Prompt)).To(ContainElement(`Agent used Bash with {"password":[redacted]}`))
 	})
-}
-
-func Test855d4a1d_Moment_ALargeIntegerKeepsItsDigits(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	step := auto.Moment(nil, auto.MomentInput{
-		Cue: "before-tool", Origin: "composer", Text: "go",
-		Event: auto.ToolEvent{Tool: "Bash", Input: json.RawMessage(`{"id":12345678901234567890,"ratio":0.5}`)},
-	})
-
-	g.Expect(windowOf(step.Request.Prompt)).To(ContainElement(`Agent used Bash with {"id":12345678901234567890,"ratio":0.5}`))
-}
-
-func Test855d4a1d_Moment_APromptAMessageOrAnEventCannotCloseTheWindowOrHoldACredential(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		checkMomentIsSafe(rt, credentialShape().Draw(rt, "first"), credentialShape().Draw(rt, "second"))
-	})
-
-	// the named example: one credential of every shape
-	for _, spec := range credentialSpecs() {
-		t.Run(spec.name, func(t *testing.T) {
-			t.Parallel()
-
-			rapid.Check(t, func(rt *rapid.T) { checkMomentIsSafe(rt, spec.make(rt), spec.make(rt)) })
-		})
-	}
 }
 
 // checkMomentIsSafe asks the moment for a prompt and for each tool cue, with a conversation and an event of hostile
@@ -388,4 +389,16 @@ func checkMomentIsSafe(rt *rapid.T, first, second credential) {
 			rt.Fatalf("the system holds text of the session: %q (cue %s)", step.Request.System, cue)
 		}
 	}
+}
+
+// rawJSON is the JSON text of a value.
+func rawJSON(t *testing.T, value any) json.RawMessage {
+	t.Helper()
+
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		t.Fatalf("encoding %v: %v", value, err)
+	}
+
+	return encoded
 }
