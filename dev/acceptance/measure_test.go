@@ -88,6 +88,7 @@ type meterRecord struct {
 	Usage    *tokenUsage `json:"usage"`
 	Reply    string      `json:"reply"`
 	Tool     string      `json:"tool"`
+	Command  string      `json:"command"`
 }
 
 // price is what a token costs in USD.

@@ -33,7 +33,7 @@ export function register(on) {
     const result = await next(e)
 
     if (e.agentId === undefined) {
-      await append($, { k: 'tool', at, took: Date.now() - at, tool: e.tool })
+      await append($, { k: 'tool', at, took: Date.now() - at, tool: e.tool, command: e.command ?? '' })
     }
 
     return result
