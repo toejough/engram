@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -44,6 +45,17 @@ func TestConformance_EveryScenarioOfTheSpecsHasATest(t *testing.T) {
 	g.Expect(scenariosWithoutTest(ids, testSources(t))).To(BeEmpty(), "the scenarios no test is named for")
 }
 
+func TestConformance_TheSpecsReadAreThoseOfBothChanges(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	for _, spec := range []string{"793a_", "793d_", "855a_", "855d_"} {
+		g.Expect(slices.ContainsFunc(specFiles, func(name string) bool { return strings.Contains(name, spec) })).To(BeTrue(),
+			"the check reads the spec "+spec+": a check that does not read 855 misses its scenarios")
+	}
+}
+
 // unexported constants.
 const (
 	changeDirectory = "docs/changes/793_automatic-memory"
@@ -56,7 +68,6 @@ var (
 	// specFiles are the product and technical specs of both changes (855b45).
 	specFiles = []string{
 		filepath.Join(changeDirectory, "793a_product-spec.md"), filepath.Join(changeDirectory, "793d_technical-spec.md"),
-		filepath.Join(judgedDirectory, "855a_product-spec.md"), filepath.Join(judgedDirectory, "855d_technical-spec.md"),
 	}
 )
 
