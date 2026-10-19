@@ -248,6 +248,66 @@ func Test855d4a1d_Moment_ACredentialInEscapedFormInAnEventIsRedacted(t *testing.
 	}
 }
 
+func Test855d4a1d_Moment_AValueOfASensitiveNameIsRedactedWholeWhateverItHolds(t *testing.T) {
+	t.Parallel()
+
+	// the value holds a quote, which the encoded text spells \" and which ends a match that reads the encoded text
+	// (a {{...}} placeholder, no real secret)
+	tail := "er2 very secret-tail"
+	value := "{{HUNT}}" + `\"` + tail
+	inner := `{"password":"` + value + `"}`
+	doubled, _ := json.Marshal(inner)
+
+	inputs := map[string]json.RawMessage{
+		"an object":          json.RawMessage(inner),
+		"a nested object":    json.RawMessage(`{"headers":{"x":[{"api_key":"` + value + `"}]}}`),
+		"a number":           json.RawMessage(`{"pwd":1234567}`),
+		"a string of JSON":   doubled,
+		"an array of JSON":   json.RawMessage(`["{\"token\":\"` + value + `\"}"]`),
+		"a string in a list": json.RawMessage(`{"list":["{\"secret\":\"` + value + `\"}"]}`),
+	}
+
+	for name, input := range inputs {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			step := auto.Moment(nil, auto.MomentInput{
+				Cue: "batch-done", Origin: "composer", Text: "go",
+				Event: auto.ToolEvent{Calls: []auto.ToolCall{{Tool: "Bash", Input: input, Response: input}}},
+			})
+
+			g.Expect(step.Request.Prompt).NotTo(ContainSubstring("secret-tail"), "the rest of the value")
+			g.Expect(step.Request.Prompt).NotTo(ContainSubstring("1234567"), "a number of a sensitive name")
+			g.Expect(step.Request.Prompt).To(ContainSubstring("[redacted]"))
+		})
+	}
+
+	t.Run("the value is replaced whole", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		step := auto.Moment(nil, auto.MomentInput{
+			Cue: "before-tool", Origin: "composer", Text: "go",
+			Event: auto.ToolEvent{Tool: "Bash", Input: json.RawMessage(inner)},
+		})
+
+		g.Expect(windowOf(step.Request.Prompt)).To(ContainElement(`Agent used Bash with {"password":"[redacted]"}`))
+	})
+}
+
+func Test855d4a1d_Moment_ALargeIntegerKeepsItsDigits(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	step := auto.Moment(nil, auto.MomentInput{
+		Cue: "before-tool", Origin: "composer", Text: "go",
+		Event: auto.ToolEvent{Tool: "Bash", Input: json.RawMessage(`{"id":12345678901234567890,"ratio":0.5}`)},
+	})
+
+	g.Expect(windowOf(step.Request.Prompt)).To(ContainElement(`Agent used Bash with {"id":12345678901234567890,"ratio":0.5}`))
+}
+
 func Test855d4a1d_Moment_APromptAMessageOrAnEventCannotCloseTheWindowOrHoldACredential(t *testing.T) {
 	t.Parallel()
 
