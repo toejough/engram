@@ -560,9 +560,9 @@ Judgement rows, tallied in 10 runs.
 
 | Gherkin | Test | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855a2e1a | `Test855a2e1a_ANoteArrivesBeforeTheAgentDeclaresItsWorkDone` | Dedicated example, product acceptance (`network`) | a [note](../../GLOSSARY.md#permanent-note) arrives before the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) declares its work done | 10 runs | Not started |  |  |  |
-| 855a2e1b | `Test855a2e1b_ANoteArrivesAfterAFailureTheAgentCannotExplain` | Dedicated example, product acceptance (`network`) | a note arrives after a failure the agent cannot explain | 10 runs | Not started |  |  |  |
-| 855a2e1c | `Test855a2e1c_ANoteArrivesBeforeTheAgentStartsBuildingANewApproach` | Dedicated example, product acceptance (`network`) | a note arrives before the agent's next action when it is about to start building a new approach | 10 runs | Not started |  |  |  |
+| 855a2e1a | `Test855a2e1a_ANoteArrivesBeforeTheAgentDeclaresItsWorkDone` | Dedicated example, product acceptance (`network`) | a [note](../../GLOSSARY.md#permanent-note) arrives before the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) declares its work done | 10 runs | Red |  |  |  |
+| 855a2e1b | `Test855a2e1b_ANoteArrivesAfterAFailureTheAgentCannotExplain` | Dedicated example, product acceptance (`network`) | a note arrives after a failure the agent cannot explain | 10 runs | Red |  |  |  |
+| 855a2e1c | `Test855a2e1c_ANoteArrivesBeforeTheAgentStartsBuildingANewApproach` | Dedicated example, product acceptance (`network`) | a note arrives before the agent's next action when it is about to start building a new approach | 10 runs | Red |  |  |  |
 
 ### 855e6g The remaining hypotheses are measured
 
