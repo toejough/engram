@@ -543,13 +543,13 @@ The mod handles `tool.call`, `classic.PostToolUseFailure` and `classic.PostToolB
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d2c1a | `Test855d2c1a_Mod_ANoteArrivesWithTheCallAfterAFailureAndAfterABatch` | Dedicated example, integration (stand-in host, `integration`) | the three events: each cue, its event, the block in the result's context or as additional context, the line shown | Not started |  |  |  |
-| 855d2c1d | `Test855d2c1d_Mod_TheSessionsIDOfACallAboutToRunComesFromTheHost` | Dedicated example, integration (stand-in host, `integration`) | the [session](../../GLOSSARY.md#session)'s ID of a call about to run comes from the host | Not started |  |  |  |
-| 855d2c1e | `Test855d2c1e_Mod_ASubagentsLoopIsLeftAlone` | Dedicated example, integration (stand-in host, `integration`) | a [subagent](../../GLOSSARY.md#subagent)'s loop is left alone: no step, no model call | Not started |  |  |  |
-| 855d2c1f | `Test855d2c1f_Mod_AMomentThatIsNotOneAnswersTheEvent` | Dedicated example, integration (stand-in host, `integration`) | a moment that is not one answers the event as it was | Not started |  |  |  |
-| 855d2c1g | `Test855d2c1g_Mod_AFailedOrStalledStepAnswersTheEventAsItWasAndIsReported` | Dedicated example, integration (stand-in host, `integration`) | a failed or stalled step answers the event as it was and is reported | Not started |  |  |  |
-| 855d2c1h | `Test855d2c1h_Mod_ChainsOfOneSessionRunAtOnceAndANoteIsDeliveredOnce` | Dedicated example, integration (stand-in host, `integration`) | chains of one session run at once and a [note](../../GLOSSARY.md#permanent-note) is delivered once: the delivered-ID set | Not started |  |  |  |
-| 855d2c1k | `Test855d2c1k_Mod_AUsersInterruptAndABatchOfFailuresJudgedAlreadyAreLeftAlone` | Dedicated example, integration (stand-in host, `integration`) | a user's interrupt and a batch of failures judged already are left alone | Not started |  |  |  |
+| 855d2c1a | `Test855d2c1a_Mod_ANoteArrivesWithTheCallAfterAFailureAndAfterABatch` | Dedicated example, integration (stand-in host, `integration`) | the three events: each cue, its event, the block in the result's context or as additional context, the line shown | Red |  |  |  |
+| 855d2c1d | `Test855d2c1d_Mod_TheSessionsIDOfACallAboutToRunComesFromTheHost` | Dedicated example, integration (stand-in host, `integration`) | the [session](../../GLOSSARY.md#session)'s ID of a call about to run comes from the host | Red |  |  |  |
+| 855d2c1e | `Test855d2c1e_Mod_ASubagentsLoopIsLeftAlone` | Dedicated example, integration (stand-in host, `integration`) | a [subagent](../../GLOSSARY.md#subagent)'s loop is left alone: no step, no model call. Red n/a: the events are answered as they were while the mod handles none. Mutation: a mod that runs the chain for a subagent's event fails it | Green-all | n/a |  |  |
+| 855d2c1f | `Test855d2c1f_Mod_AMomentThatIsNotOneAnswersTheEvent` | Dedicated example, integration (stand-in host, `integration`) | a moment that is not one answers the event as it was. Red n/a: the events are answered as they were while the mod handles none. Mutation: a mod that adds an empty entry to the answer fails it | Green-all | n/a |  |  |
+| 855d2c1g | `Test855d2c1g_Mod_AFailedOrStalledStepAnswersTheEventAsItWasAndIsReported` | Dedicated example, integration (stand-in host, `integration`) | a failed or stalled step answers the event as it was and is reported | Red |  |  |  |
+| 855d2c1h | `Test855d2c1h_Mod_ChainsOfOneSessionRunAtOnceAndANoteIsDeliveredOnce` | Dedicated example, integration (stand-in host, `integration`) | chains of one session run at once and a [note](../../GLOSSARY.md#permanent-note) is delivered once: the delivered-ID set | Red |  |  |  |
+| 855d2c1k | `Test855d2c1k_Mod_AUsersInterruptAndABatchOfFailuresJudgedAlreadyAreLeftAlone` | Dedicated example, integration (stand-in host, `integration`) | a user's interrupt and a batch of failures judged already are left alone | Red |  |  |  |
 
 #### 855e6f4 The scenarios of the turn
 

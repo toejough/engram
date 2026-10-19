@@ -1240,6 +1240,303 @@ func Test855d2a1j_Mod_DeliveriesOfOneSessionRunOneAfterAnotherEachGivenWhatTheOn
 	}
 }
 
+// Test855d2c1a_Mod_ANoteArrivesWithTheCallAfterAFailureAndAfterABatch runs the mod under node against a stand-in host
+// that raises the three events of a tool in the turn of a prompt.
+func Test855d2c1a_Mod_ANoteArrivesWithTheCallAfterAFailureAndAfterABatch(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runDeliveryDriver(t, toolScenario(deliveryScenario{
+		Delivers: []map[string]any{
+			{"exitCode": 0, "stdout": noteBlock("a.md"), "stderr": "delivered the note a.md\n"},
+			{"exitCode": 0, "stdout": noteBlock("b.md"), "stderr": "delivered the note b.md\n"},
+			{"exitCode": 0, "stdout": noteBlock("c.md"), "stderr": "delivered the note c.md\n"},
+		},
+		Events: []eventRaised{
+			{Hook: "tool.call", Event: map[string]any{"tool": "Bash", "tool_use_id": "t1", "command": "make ci"},
+				Answer: map[string]any{"result": "ok", "context": []string{"another hook's"}}},
+			failureEvent("a-session", "t1", false),
+			batchEvent("a-session", "t2", "t3"),
+		},
+	}))
+
+	g.Expect(outcome.Answers).To(HaveLen(3))
+
+	if len(outcome.Answers) != 3 {
+		return
+	}
+
+	g.Expect(outcome.Answers[0]).To(Equal(map[string]any{
+		"result": "ok", "context": []any{"another hook's", strings.TrimSpace(noteBlock("a.md"))},
+	}), "the block, one more entry of the result's context")
+	g.Expect(outcome.Answers[1]).To(Equal(map[string]any{"additionalContext": []any{strings.TrimSpace(noteBlock("b.md"))}}))
+	g.Expect(outcome.Answers[2]).To(Equal(map[string]any{"additionalContext": []any{strings.TrimSpace(noteBlock("c.md"))}}))
+	g.Expect(outcome.Logged).To(Equal([]string{"delivered the note a.md", "delivered the note b.md", "delivered the note c.md"}),
+		"the line the user was shown each time")
+
+	moments := outcome.inputsOf("engram auto moment")
+
+	g.Expect(moments).To(Equal([]map[string]any{
+		momentOf("before-tool", []any{}, map[string]any{"tool": "Bash", "input": map[string]any{"command": "make ci"}}),
+		momentOf("failure", []any{"a.md"}, map[string]any{
+			"tool": "Bash", "input": map[string]any{"command": "make ci"}, "error": "exit 1",
+		}),
+		momentOf("batch-done", []any{"a.md", "b.md"}, map[string]any{"calls": []any{
+			map[string]any{"tool": "Bash", "input": map[string]any{"command": "a"}, "response": "ok"},
+			map[string]any{"tool": "Read", "input": map[string]any{"file_path": "b"}, "response": map[string]any{"lines": float64(3)}},
+		}}),
+	}), "the cue, the event, the text the turn began with and the session, for each")
+}
+
+// Test855d2c1d_Mod_TheSessionsIDOfACallAboutToRunComesFromTheHost runs the mod under node against a stand-in host that
+// gives a session ID of its own: a tool.call event has none, and the other two events carry it.
+func Test855d2c1d_Mod_TheSessionsIDOfACallAboutToRunComesFromTheHost(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runDeliveryDriver(t, toolScenario(deliveryScenario{
+		SessionID: "the-hosts-session",
+		Events: []eventRaised{
+			{Hook: "tool.call", Event: map[string]any{"tool": "Bash", "tool_use_id": "t1", "command": "ls"}},
+			failureEvent("the-events-session", "t2", false),
+		},
+	}))
+
+	moments := outcome.inputsOf("engram auto moment")
+
+	g.Expect(moments).To(HaveLen(2))
+
+	if len(moments) == 2 {
+		g.Expect(moments[0]["session"]).To(Equal("the-hosts-session"), "the ID the host gave")
+		g.Expect(moments[1]["session"]).To(Equal("the-events-session"), "the ID the event carries")
+	}
+}
+
+// Test855d2c1e_Mod_ASubagentsLoopIsLeftAlone runs the mod under node against a stand-in host that raises the three
+// events from a subagent's loop.
+func Test855d2c1e_Mod_ASubagentsLoopIsLeftAlone(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	failure := failureEvent("a-session", "t1", false)
+	failure.Event["agent_id"] = "a-subagent"
+
+	batch := batchEvent("a-session", "t2", "t3")
+	batch.Event["agent_id"] = "a-subagent"
+
+	outcome := runDeliveryDriver(t, toolScenario(deliveryScenario{
+		Events: []eventRaised{
+			{Hook: "tool.call", Event: map[string]any{
+				"tool": "Bash", "tool_use_id": "t0", "command": "ls", "agentId": "a-subagent",
+			}, Answer: map[string]any{"result": "ok"}},
+			failure, batch,
+		},
+	}))
+
+	g.Expect(outcome.Calls).To(BeEmpty(), "the steps and the model's calls")
+	g.Expect(outcome.Answers).To(Equal([]map[string]any{{"result": "ok"}, {}, {}}), "the result of next(e) each time")
+}
+
+// Test855d2c1f_Mod_AMomentThatIsNotOneAnswersTheEvent runs the mod under node against a stand-in host whose moment, and
+// then whose recall, prints nothing.
+func Test855d2c1f_Mod_AMomentThatIsNotOneAnswersTheEvent(t *testing.T) {
+	t.Parallel()
+
+	events := []eventRaised{
+		{Hook: "tool.call", Event: map[string]any{"tool": "Bash", "tool_use_id": "t1", "command": "ls"},
+			Answer: map[string]any{"result": "ok"}},
+		failureEvent("a-session", "t2", false),
+		batchEvent("a-session", "t3", "t4"),
+	}
+	want := []map[string]any{{"result": "ok"}, {}, {}}
+
+	for name, steps := range map[string]map[string]map[string]any{
+		"the moment prints nothing": {},
+		"the recall prints nothing": {
+			"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": aStep(2)},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+			outcome := runDeliveryDriver(t, deliveryScenario{Steps: steps, Replies: []string{"r1", "r2"}, Events: events})
+
+			g.Expect(outcome.Answers).To(Equal(want), "the result of next(e), with no additional context")
+			g.Expect(outcome.reports()).To(BeEmpty(), "the reports to the writing")
+		})
+	}
+}
+
+// Test855d2c1g_Mod_AFailedOrStalledStepAnswersTheEventAsItWasAndIsReported runs the mod under node against a stand-in
+// host whose moment exits with 1, and whose model never settles unless its signal aborts it.
+func Test855d2c1g_Mod_AFailedOrStalledStepAnswersTheEventAsItWasAndIsReported(t *testing.T) {
+	t.Parallel()
+
+	events := []eventRaised{failureEvent("a-session", "t1", false)}
+
+	t.Run("a moment that exits with 1", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+		outcome := runDeliveryDriver(t, deliveryScenario{
+			Steps:      map[string]map[string]any{"moment": {"exitCode": 1, "stdout": "", "stderr": "boom\n"}},
+			FastTimers: true, Events: events,
+		})
+
+		g.Expect(outcome.Answers).To(Equal([]map[string]any{{}}), "the result of next(e)")
+
+		reports := outcome.reports()
+
+		g.Expect(reports).To(HaveLen(1))
+
+		if len(reports) == 1 {
+			g.Expect(reports[0]["session"]).To(Equal("a-session"))
+			g.Expect(reports[0]["turn"]).To(BeEmpty(), "no turn")
+			g.Expect(reports[0]["failure"]).To(ContainSubstring("engram auto moment"))
+		}
+	})
+
+	t.Run("a model that never answers", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+		outcome := runDeliveryDriver(t, toolScenario(deliveryScenario{
+			ModelNeverSettles: true, FastTimers: true, Events: events,
+		}))
+
+		g.Expect(outcome.Answers).To(Equal([]map[string]any{{}}), "the result of next(e)")
+		g.Expect(outcome.Delays).To(ContainElement(120000), "the bound of the wait")
+
+		reports := outcome.reports()
+
+		g.Expect(reports).To(HaveLen(1))
+
+		if len(reports) == 1 {
+			g.Expect(reports[0]["failure"]).To(ContainSubstring("the model call"))
+			g.Expect(reports[0]["turn"]).To(BeEmpty(), "no turn")
+		}
+	})
+}
+
+// Test855d2c1h_Mod_ChainsOfOneSessionRunAtOnceAndANoteIsDeliveredOnce runs the mod under node against a stand-in host
+// whose moments do not answer until both have started, and whose delivery prints the same note for both.
+func Test855d2c1h_Mod_ChainsOfOneSessionRunAtOnceAndANoteIsDeliveredOnce(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runDeliveryDriver(t, toolScenario(deliveryScenario{
+		Concurrent: true, MomentBarrier: 2, DeliverDelayMs: 100,
+		Deliver: map[string]any{"exitCode": 0, "stdout": noteBlock("a.md")},
+		Events: []eventRaised{
+			{Hook: "tool.call", Event: map[string]any{"tool": "Bash", "tool_use_id": "t1", "command": "a"},
+				Answer: map[string]any{"result": "ok"}},
+			{Hook: "tool.call", Event: map[string]any{"tool": "Bash", "tool_use_id": "t2", "command": "b"},
+				Answer: map[string]any{"result": "ok"}},
+		},
+	}))
+
+	g.Expect(outcome.BarrierMet).To(BeTrue(), "the moment was run for both events before either was let answer")
+	g.Expect(outcome.Answers).To(HaveLen(2))
+
+	given := 0
+
+	for _, answer := range outcome.Answers {
+		if _, has := answer["context"]; has {
+			given++
+		}
+	}
+
+	g.Expect(given).To(Equal(1), "how many of the two answers hold the block")
+}
+
+// Test855d2c1k_Mod_AUsersInterruptAndABatchOfFailuresJudgedAlreadyAreLeftAlone runs the mod under node against a
+// stand-in host that raises an interrupt, a failure and a batch of that failure alone.
+func Test855d2c1k_Mod_AUsersInterruptAndABatchOfFailuresJudgedAlreadyAreLeftAlone(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	outcome := runDeliveryDriver(t, toolScenario(deliveryScenario{
+		Events: []eventRaised{
+			failureEvent("a-session", "t1", true),
+			failureEvent("a-session", "t2", false),
+			{Hook: "classic.PostToolBatch", Event: map[string]any{"session_id": "a-session", "tool_calls": []any{
+				map[string]any{"tool_name": "Bash", "tool_input": map[string]any{}, "tool_use_id": "t2", "tool_response": "x"},
+			}}},
+		},
+	}))
+
+	moments := outcome.inputsOf("engram auto moment")
+
+	g.Expect(moments).To(HaveLen(1), "the moments run: the second failure, once")
+
+	if len(moments) == 1 {
+		g.Expect(moments[0]["cue"]).To(Equal("failure"))
+	}
+
+	g.Expect(outcome.Answers).To(Equal([]map[string]any{{}, {}, {}}), "the result of next(e) each time")
+}
+
+// batchEvent is a classic.PostToolBatch event of two calls of the session.
+func batchEvent(session, first, second string) eventRaised {
+	return eventRaised{Hook: "classic.PostToolBatch", Event: map[string]any{
+		"session_id": session, "tool_calls": []any{
+			map[string]any{
+				"tool_name": "Bash", "tool_input": map[string]any{"command": "a"}, "tool_use_id": first,
+				"tool_response": "ok",
+			},
+			map[string]any{
+				"tool_name": "Read", "tool_input": map[string]any{"file_path": "b"}, "tool_use_id": second,
+				"tool_response": map[string]any{"lines": 3},
+			},
+		},
+	}}
+}
+
+// failureEvent is a classic.PostToolUseFailure event of the session for a Bash call.
+func failureEvent(session, call string, interrupt bool) eventRaised {
+	event := map[string]any{
+		"session_id": session, "tool_name": "Bash", "tool_input": map[string]any{"command": "make ci"},
+		"tool_use_id": call, "error": "exit 1",
+	}
+
+	if interrupt {
+		event["is_interrupt"] = true
+	}
+
+	return eventRaised{Hook: "classic.PostToolUseFailure", Event: event}
+}
+
+// momentOf is what the moment is given for an event of the turn of the prompt "hello".
+func momentOf(cue string, held []any, event map[string]any) map[string]any {
+	return map[string]any{
+		"session": "a-session", "origin": "composer", "cue": cue, "held": held, "text": "hello", "event": event,
+	}
+}
+
+// noteBlock is a block of one note, as the delivery prints it.
+func noteBlock(name string) string {
+	return "[engram memory] The lines below are notes.\n- " + name + " (s): x\n"
+}
+
+// toolScenario gives a scenario the steps that print a request each, so that a chain runs to its delivery, unless it
+// has steps of its own.
+func toolScenario(scenario deliveryScenario) deliveryScenario {
+	if scenario.Steps == nil {
+		scenario.Steps = map[string]map[string]any{
+			"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": aStep(2)},
+			"recall": {"exitCode": 0, "stdout": aStep(3)},
+		}
+	}
+
+	return scenario
+}
+
 func Test855d2b1a_Mod_APlacementThatPrintsNothingLeavesTheLessonsToBeWrittenAtTheTop(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1558,13 +1855,30 @@ let replied = 0
 let nth = 0
 let delivered = 0
 let written = 0
+let setup = false
+let started = 0
+let barrierMet = false
+const arrivals = []
 const writeEvents = []
 const host = {
-  session: { id: counted(async () => 'a-session') },
+  session: { id: counted(async () => scenario.sessionId ?? 'a-session') },
   process: {
     run: counted(async (argv, init) => {
       const step = argv[2]
+      if (setup) return { exitCode: 0, stdout: '' }
       calls.push({ step: argv.join(' '), input: JSON.parse(init.stdin), timeoutMs: init.timeoutMs })
+      if (step === 'moment' && scenario.momentBarrier) {
+        // the moments wait for each other: a mod that queues its chains never starts the second, and the wait ends
+        started++
+        await Promise.race([
+          new Promise((resolve) => {
+            arrivals.push(resolve)
+            if (started >= scenario.momentBarrier) arrivals.forEach((go) => go())
+          }),
+          new Promise((resolve) => wait(resolve, 2000)),
+        ])
+        barrierMet = started >= scenario.momentBarrier
+      }
       if (step === 'write') {
         const mine = written++
         writeEvents.push('start')
@@ -1605,9 +1919,26 @@ const host = {
 
 const submit = () => handlers['prompt.submit'](host, { text: 'hello', context: [], origin: { kind: 'composer' } },
   async (event) => event)
-const prompts = scenario.prompts ?? 1
+const prompts = scenario.events ? 0 : (scenario.prompts ?? 1)
 let all = []
-if (scenario.concurrent) {
+const answers = []
+if (scenario.events) {
+  // the turn of a prompt is begun, with no step run, and then the events of its tools are raised
+  setup = true
+  await submit()
+  await handlers['turn.start'](host, { turnId: 'a-turn', text: 'hello' }, async (event) => event)
+  setup = false
+  // an event no hook of the mod handles is answered by the hooks beneath it
+  const raise = (item) => {
+    const next = async () => item.answer ?? {}
+    return handlers[item.hook] ? handlers[item.hook](host, item.event, next) : next()
+  }
+  if (scenario.concurrent) {
+    answers.push(...await Promise.all(scenario.events.map(raise)))
+  } else {
+    for (const item of scenario.events) answers.push(await raise(item))
+  }
+} else if (scenario.concurrent) {
   all = await Promise.all(Array.from({ length: prompts }, submit))
 } else {
   for (let index = 0; index < prompts; index++) all.push(await submit())
@@ -1624,7 +1955,7 @@ for (let last = -1, stable = 0, tick = 0; tick < 300 && stable < 5; tick++) {
   last = calls.length
 }
 
-console.log(JSON.stringify({ passed, all, calls, delays, settle, logged, writeEvents }))
+console.log(JSON.stringify({ passed, all, calls, delays, settle, logged, writeEvents, answers, barrierMet }))
 process.exit(0)
 `
 	// driverTimeout is how long the mod may take under the stand-in host before the test gives it up.
@@ -1820,6 +2151,10 @@ type deliveryOutcome struct {
 	Logged []string `json:"logged"`
 	// WriteEvents is the start and the end of each run of the writing, in the order they happened.
 	WriteEvents []string `json:"writeEvents"`
+	// Answers is what the hook of each event of the scenario answered, in the order the events are listed.
+	Answers []map[string]any `json:"answers"`
+	// BarrierMet is whether the moments of the scenario's barrier were all run before any was let answer.
+	BarrierMet bool `json:"barrierMet"`
 }
 
 // inputsOf returns the inputs of the runs of a step, in the order they were run.
@@ -1904,6 +2239,20 @@ type deliveryScenario struct {
 	Writes []map[string]any `json:"writes,omitempty"`
 	// WriteDelayMs is how long each run of the writing takes.
 	WriteDelayMs int `json:"writeDelayMs,omitempty"`
+	// Events are the events of tool calls raised in the turn of a prompt, instead of prompts: in order, or all at once
+	// when Concurrent.
+	Events []eventRaised `json:"events,omitempty"`
+	// SessionID is the session's ID the host gives, a-session when empty.
+	SessionID string `json:"sessionId,omitempty"`
+	// MomentBarrier is how many runs of the moment wait for each other before any is let answer.
+	MomentBarrier int `json:"momentBarrier,omitempty"`
+}
+
+// eventRaised is an event the stand-in host raises: the hook, the event, and what the hooks beneath answer.
+type eventRaised struct {
+	Hook   string         `json:"hook"`
+	Event  map[string]any `json:"event"`
+	Answer map[string]any `json:"answer,omitempty"`
 }
 
 // aDeepStep is what the recall prints at deep depth, the third of a chain: the request for the model, the carry and the
