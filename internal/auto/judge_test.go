@@ -536,6 +536,22 @@ func Test855d4g1b_Judge_AFencedReplyIsReadAndAReplyThatIsNotAMomentReplyFails(t 
 	}
 }
 
+func Test855d4g1c_Judge_AReversalIsWrittenAsFeedbackAndNotAsAFact(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	request, found := judge(t, userPrompt("What does the file say?"), "I guessed 8080, but it says 7731.", nil)
+
+	g.Expect(found).To(BeTrue())
+
+	system := strings.ToLower(request.System)
+
+	g.Expect(system).To(ContainSubstring("a reversal is written as a feedback lesson"),
+		"the behavior is what the reasoning did wrong, the impact its cost and the action the guard")
+	g.Expect(system).NotTo(ContainSubstring("the lesson is the corrected cause or conclusion, a fact"),
+		"the corrected conclusion is not a fact of its own")
+}
+
 func Test855d4g1c_Judge_TheInstructionsNameTheFourKindsAndTheRunbook(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
