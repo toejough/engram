@@ -215,6 +215,11 @@ Scenario: 855d2a1j Deliveries of one session run one after another, each given w
   Given the mod, and an engram whose auto deliver takes a while and prints the same block each time
   When two prompts are raised at once
   Then the second auto deliver began after the first was over and received the first block's IDs, the session holds the block once, and the user was shown the line once
+
+Scenario: 855d2a1k Writes of one session run one after another
+  Given the mod, and an engram whose auto write takes a while, and a recall that prints a request with the mark of a write
+  When two prompts are raised
+  Then the second auto write began after the first was over
 ```
 
 ### 855d2b Modified: 793d2b Turn capture flow
@@ -862,7 +867,7 @@ Scenario: 855d4i1g A placement that failed is recorded and the lesson is written
 
 ### 855d4j Added: Writing what a deep delivery writes
 
-Requirement: 855d4j The `lesson-writing` MUST, given a `cue`, the `session`'s ID, the model's `reply` to a candidate request and its `carry`, act on the reply's `lessons` and `candidates`, each of an ID the carry holds only. For each lesson, a `fact` or a `feedback` as [855d4i 793d4h Writing the lessons of a reply](#855d4i-modified-793d4h-writing-the-lessons-of-a-reply) reads it with the chunk IDs of the carry's passages that evidence it (`chunks`) and optionally a `supersedes` of a [note](../../GLOSSARY.md#permanent-note) of the carry, it MUST write the note through the learn path at the top of the [vault](../../GLOSSARY.md#vault)'s order with the source `written automatically (session <the session's ID>)`, those chunk IDs as its chunk sources and the supersession. For each candidate note with the verdict `covered` it MUST amend the note, as [`engram amend`](../../specs/technical/note-amendment.md) does, with the chunk IDs it lists as chunk sources and no field changed; for `near`, with those and the `fields` it names that its kind has. It MUST NOT amend a note that came from the parent vault or is a pending copy. It MUST record each note written or amended as `written` with its file name and each lesson or candidate left out as `skipped` with the reason ([793d4k Recording what automatic memory did](../793_automatic-memory/793d_technical-spec.md#793d4k-recording-what-automatic-memory-did)), and the run with no [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms).
+Requirement: 855d4j The `lesson-writing` MUST, given a `cue`, the `session`'s ID, the model's `reply` to a candidate request and its `carry`, act on the reply's `lessons` and `candidates`, each of an ID the carry holds only. For each lesson, a `fact` or a `feedback` as [855d4i 793d4h Writing the lessons of a reply](#855d4i-modified-793d4h-writing-the-lessons-of-a-reply) reads it with the chunk IDs of the carry's passages that evidence it (`chunks`) and optionally a `supersedes` of a [note](../../GLOSSARY.md#permanent-note) of the carry, it MUST write the note through the learn path at the top of the [vault](../../GLOSSARY.md#vault)'s order with the source `written automatically (session <the session's ID>)`, those chunk IDs as its chunk sources and the supersession. For each candidate note with the verdict `covered` it MUST amend the note, as [`engram amend`](../../specs/technical/note-amendment.md) does, with the chunk IDs it lists as chunk sources and no field changed; for `near`, with those and the `fields` it names that its kind has. It MUST NOT amend a note that came from the parent vault or is a pending copy. A lesson that cannot be read loses only itself, and a carry that is not of depth deep writes nothing and is recorded as `skipped`. It MUST record each note written or amended as `written` with its file name (with the reason `amended` for an amend) and each lesson or candidate left out as `skipped` with the reason ([793d4k Recording what automatic memory did](../793_automatic-memory/793d_technical-spec.md#793d4k-recording-what-automatic-memory-did)), and the run with no [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms).
 
 Owner: `lesson-writing`. Supports: [855a2a1b A deep delivery writes the lesson the vault lacks](855a_product-spec.md#855a2a1-uat-scenarios), [855a2a1a A glance leaves the vault's notes as they were](855a_product-spec.md#855a2a1-uat-scenarios).
 
@@ -893,6 +898,16 @@ Scenario: 855d4j1f An ID the carry does not hold is ignored
   Given a carry of depth deep that holds one note, and a reply that gives that note and another file of the vault the verdict covered, and a lesson that lists a chunk ID and supersedes a note the carry does not hold
   When the writing is given the reply
   Then only the note of the carry is amended, and the lesson is written with no chunk source and no supersession
+
+Scenario: 855d4j1g A lesson that cannot be read loses only itself
+  Given a carry of depth deep, and a reply with a lesson whose chunks are a string and a whole lesson after it
+  When the writing is given the reply
+  Then the whole lesson is written, and one record, of the kind skipped, names the other by its slug
+
+Scenario: 855d4j1h A carry that is not of depth deep writes nothing
+  Given a carry of depth glance that holds a note and a passage, and a reply that gives the note the verdict covered and a lesson
+  When the writing is given the reply
+  Then nothing is written or amended, and one record, of the kind skipped, says why
 ```
 
 ### 855d4k Modified: 793d4j Redacting credentials
