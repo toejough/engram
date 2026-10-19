@@ -45,7 +45,7 @@ The groups, in the order of the table: the gates, then the prerequisites of each
 | [855e6d Lessons are judged, placed, tied and written](#855e6d-lessons-are-judged-placed-tied-and-written) | [855a2b Lessons are written as the learn skill writes them](./855a_product-spec.md#855a2b-lessons-are-written-as-the-learn-skill-writes-them), [855a2c Lessons are placed as the learn skill places them](./855a_product-spec.md#855a2c-lessons-are-placed-as-the-learn-skill-places-them), [855a2d Lessons that correct a note say so](./855a_product-spec.md#855a2d-lessons-that-correct-a-note-say-so), [855d4g 793d4g Judging a turn](./855d_technical-spec.md#855d4g-modified-793d4g-judging-a-turn), [855d4h Placing the lessons](./855d_technical-spec.md#855d4h-added-placing-the-lessons), [855d4i 793d4h Writing the lessons of a reply](./855d_technical-spec.md#855d4i-modified-793d4h-writing-the-lessons-of-a-reply), [855d2b 793d2b Turn capture flow](./855d_technical-spec.md#855d2b-modified-793d2b-turn-capture-flow) | Complete |
 | [855e6e A deep delivery writes what the recall skill's deep mode writes](#855e6e-a-deep-delivery-writes-what-the-recall-skills-deep-mode-writes) | [855a2a Delivery writes what its depth writes](./855a_product-spec.md#855a2a-delivery-writes-what-its-depth-writes), [855d4j Writing what a deep delivery writes](./855d_technical-spec.md#855d4j-added-writing-what-a-deep-delivery-writes) | Green-all (each product row run once; the tally of 10 runs is not taken) |
 | [855e6f Recall moments within a turn](#855e6f-recall-moments-within-a-turn) | [855a2e Recall moments within a turn](./855a_product-spec.md#855a2e-recall-moments-within-a-turn), [855d2c Mid-turn recall flow](./855d_technical-spec.md#855d2c-added-mid-turn-recall-flow) | Complete (each product row run once and passed; on the defaults of [855c3 Is every tool call judged, and may the chains run at once?](./855c_open-questions.md#855c3-is-every-tool-call-judged-and-may-the-chains-run-at-once) and [855c4 Does the before-tool cue promise the note before the call or before the next action?](./855c_open-questions.md#855c4-does-the-before-tool-cue-promise-the-note-before-the-call-or-before-the-next-action)) |
-| [855e6g The remaining hypotheses are measured](#855e6g-the-remaining-hypotheses-are-measured) | [855d7a Hypotheses and their measurements](./855d_technical-spec.md#855d7a-added-hypotheses-and-their-measurements) | Blocked by: [855e6c6 The scenarios of the prompt chain](#855e6c6-the-scenarios-of-the-prompt-chain) |
+| [855e6g The remaining hypotheses are measured](#855e6g-the-remaining-hypotheses-are-measured) | [855d7a Hypotheses and their measurements](./855d_technical-spec.md#855d7a-added-hypotheses-and-their-measurements) | Complete |
 
 ## 855e9 Dependency graph
 
@@ -579,43 +579,43 @@ Measures the seven hypotheses of [855d7a Hypotheses and their measurements](./85
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1a | `Test855d7a1a_Hyp_ARecallChainIsTimed` | Measurement, real dependency (`network`) | 20 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms): the depth chosen and the time of each step, each model call and the chain against the 2 minutes | Not started |  |  |  |
+| 855d7a1a | `Test855d7a1a_Hyp_ARecallChainIsTimed` | Measurement, real dependency (`network`) | 20 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms): the depth chosen and the time of each step, each model call and the chain against the 2 minutes. Recorded by the meter mod and the step runs; red (01e97d32) is the run before the meter is installed: no model call and no chain recorded. Held, in [855b105 Measured on 2026-10-19: a recall chain takes 6.4 seconds at the median and 10.5 at most, against the 2 minutes](./855b_decision-log.md#855b105-measured-on-2026-10-19-a-recall-chain-takes-64-seconds-at-the-median-and-105-at-most-against-the-2-minutes) | Done | 01e97d32 | dae628f7 | 512b116e, 60e3946a |
 
 #### 855e6g2 A capture is timed against its rows
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1b | `Test855d7a1b_Hyp_ACaptureIsTimedAgainstItsRowsAndThe2Minutes` | Measurement, real dependency (`network`) | 10 [turns](../793_automatic-memory/793a_product-spec.md#793a1a-terms) that hold a lesson: each step and call against its row, and the time from the end of the turn to the [note](../../GLOSSARY.md#permanent-note) against the 2 minutes | Not started |  |  |  |
+| 855d7a1b | `Test855d7a1b_Hyp_ACaptureIsTimedAgainstItsRowsAndThe2Minutes` | Measurement, real dependency (`network`) | 10 [turns](../793_automatic-memory/793a_product-spec.md#793a1a-terms) that hold a lesson: each step and call against its row, and the time from the end of the turn to the [note](../../GLOSSARY.md#permanent-note) against the 2 minutes. Red is the run before the time of the written note is read. Held, in [855b106 Measured on 2026-10-19: a capture takes 4.3 to 6.9 seconds from the end of the turn to the note, and every wait is far inside its row](./855b_decision-log.md#855b106-measured-on-2026-10-19-a-capture-takes-43-to-69-seconds-from-the-end-of-the-turn-to-the-note-and-every-wait-is-far-inside-its-row) | Done | 62743ad7 | b7fd6864 | 512b116e, 60e3946a |
 
 #### 855e6g3 A deep write is timed
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1d | `Test855d7a1d_Hyp_ADeepWriteIsTimed` | Measurement, real dependency (`network`) | 10 deep moments: the write that follows the block against its 60 seconds | Not started |  |  |  |
+| 855d7a1d | `Test855d7a1d_Hyp_ADeepWriteIsTimed` | Measurement, real dependency (`network`) | 10 deep moments: the write that follows the block against its 60 seconds. Red is the run before the writes after a deep block are read. The test sends [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms) until 10 are deep (the first run, of 10 prompts, had 5). Held, in [855b107 Measured on 2026-10-19: the write after a deep block takes 0.74 seconds at most, against the 60](./855b_decision-log.md#855b107-measured-on-2026-10-19-the-write-after-a-deep-block-takes-074-seconds-at-most-against-the-60) | Done | 52ea140c | a4c1cd79 | 512b116e, 60e3946a |
 
 #### 855e6g4 The chains of a turn's tool calls are timed
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1e | `Test855d7a1e_Hyp_TheChainsOfATurnsToolCallsAreTimed` | Measurement, real dependency (`network`) | a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) of 10 tool calls with and without the mod: the time added to each call and to the turn against the sum of the times of the chains | Not started |  |  |  |
+| 855d7a1e | `Test855d7a1e_Hyp_TheChainsOfATurnsToolCallsAreTimed` | Measurement, real dependency (`network`) | a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) of 10 tool calls with and without the mod: the time added to each call and to the turn against the sum of the times of the chains. Red is the run before the tool calls of a turn are read. Four runs: the first three recorded the call at places that do not see the chain's wait. Held, in [855b108 Measured on 2026-10-19: the tool-call chains add 13.2 seconds to a turn of 10 calls, against 25.7 seconds of chains](./855b_decision-log.md#855b108-measured-on-2026-10-19-the-tool-call-chains-add-132-seconds-to-a-turn-of-10-calls-against-257-seconds-of-chains) | Done | 5155c2ad | 300d0195 | 512b116e, 60e3946a |
 
 #### 855e6g5 The phrases find what the recall skill finds
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1g | `Test855d7a1g_Hyp_ThePhrasesFindWhatTheRecallSkillFinds` | Measurement, real dependency (`network`) | 10 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms): the share of the [notes](../../GLOSSARY.md#permanent-note) the recall [skill](../../GLOSSARY.md#skill) draws on that are among the candidates, against the share the skill's own phrases reach | Not started |  |  |  |
+| 855d7a1g | `Test855d7a1g_Hyp_ThePhrasesFindWhatTheRecallSkillFinds` | Measurement, real dependency (`network`) | 10 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms): the share of the [notes](../../GLOSSARY.md#permanent-note) the recall [skill](../../GLOSSARY.md#skill) draws on that are among the candidates, against the share the skill's own phrases reach. Red is the run before the phrases of the skill's queries are read. Refuted: 24 of 28 notes among the candidates against 28 of 28; the test keeps a record-only assertion, in [855b109 Measured on 2026-10-19 and refuted: the phrases reach 24 of 28 notes, the skill's own 28](./855b_decision-log.md#855b109-measured-on-2026-10-19-and-refuted-the-phrases-reach-24-of-28-notes-the-skills-own-28) and [855c9 Is the loss of the recall chain against the skill accepted?](./855c_open-questions.md#855c9-is-the-loss-of-the-recall-chain-against-the-skill-accepted) | Refuted | c9173bd9 | c45f2fa2 | 512b116e, 60e3946a |
 
 #### 855e6g6 The cost of the judgements is recorded
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1i | `Test855d7a1i_Hyp_TheCostOfTheJudgementsIsRecorded` | Measurement, real dependency (`network`) | a [session](../../GLOSSARY.md#session) of 10 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms) with and without the mod: the tokens and cost of the cheap-tier calls, the mid-tier calls and the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s own use, against the agent's own | Not started |  |  |  |
+| 855d7a1i | `Test855d7a1i_Hyp_TheCostOfTheJudgementsIsRecorded` | Measurement, real dependency (`network`) | a [session](../../GLOSSARY.md#session) of 10 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms) with and without the mod: the tokens and cost of the cheap-tier calls, the mid-tier calls and the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s own use, against the agent's own. Red is the run before the agent's own use is read from the meter. Two runs; the first summed a running total in its cost line. Held, in [855b110 Measured on 2026-10-19: the judgements of ten prompts cost $0.043 beside the agent's $0.096, and the cheap calls of tool calls $0.002](./855b_decision-log.md#855b110-measured-on-2026-10-19-the-judgements-of-ten-prompts-cost-0043-beside-the-agents-0096-and-the-cheap-calls-of-tool-calls-0002) | Done | 4b296d1b | 5d349185 | 512b116e, 60e3946a |
 
 #### 855e6g7 The moment judgement's false none is recorded
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d7a1j | `Test855d7a1j_Hyp_TheMomentJudgementsFalseNoneIsRecorded` | Measurement, real dependency (`network`) | 20 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms) for which the recall [skill](../../GLOSSARY.md#skill) draws on a [note](../../GLOSSARY.md#permanent-note): the share answered none against one half | Not started |  |  |  |
+| 855d7a1j | `Test855d7a1j_Hyp_TheMomentJudgementsFalseNoneIsRecorded` | Measurement, real dependency (`network`) | 20 [prompts](../793_automatic-memory/793a_product-spec.md#793a1a-terms) for which the recall [skill](../../GLOSSARY.md#skill) draws on a [note](../../GLOSSARY.md#permanent-note): the share answered none against one half. Red is the run before the prompts with a note drawn on are counted. Held (7 of 20), in [855b111 Measured on 2026-10-19: the moment judgement answered none for 7 of 20 prompts the recall skill draws on a note for](./855b_decision-log.md#855b111-measured-on-2026-10-19-the-moment-judgement-answered-none-for-7-of-20-prompts-the-recall-skill-draws-on-a-note-for) | Done | e2331d01 | 765c46e0 | 512b116e, 60e3946a |
 
 #### 855e6g8 The conformance check reads the specs of 855
 
@@ -623,8 +623,8 @@ Not scenarios of the specs: the rows are named by test. Every scenario of [855a 
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| none | `TestScenarioIDs_ReadsTheScenariosOfBothChanges` | Dedicated example (dev suite, unit) | the pure reading: the scenario IDs of a product or technical spec of change 793 or 855, a restated scenario counted once | Not started |  |  |  |
-| none | `TestConformance_EveryScenarioOfTheSpecsHasATest` | Dedicated example, integration (dev suite, `integration`) | the real specs of both changes against the real test files, `network`-tagged files included. Mutation: a check that reads only the 793 specs does not name a scenario of 855 that has no test | Not started | n/a |  |  |
+| none | `TestScenarioIDs_ReadsTheScenariosOfBothChanges` | Dedicated example (dev suite, unit) | the pure reading: the scenario IDs of a product or technical spec of change 793 or 855, a restated scenario counted once | Done | 40b4d52e | 21fa97c8 | 512b116e, 60e3946a |
+| none | `TestConformance_EveryScenarioOfTheSpecsHasATest` | Dedicated example, integration (dev suite, `integration`) | the real specs of both changes against the real test files, `network`-tagged files included. Mutation: a check that reads only the 793 specs does not name a scenario of 855 that has no test (mutation: `TestScenariosWithoutTest_AScenarioOf855IsNamedOnlyWhereItsSpecIsRead`). The first run named 855d2a1k, 855d4j1g and 855d4j1h, whose tests carried the ID of their group; they are renamed in 21fa97c8. Read: 183 scenarios of 793, 117 of 855, 5 removed | Done | n/a (mutation) | 21fa97c8 | 512b116e, 60e3946a |
 
 ## 855e7 Completion gates
 
