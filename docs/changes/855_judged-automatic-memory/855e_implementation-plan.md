@@ -498,8 +498,8 @@ The command `auto write` after a delivery.
 | 855d4j1d | `Test855d4j1d_WriteDeep_ANearNoteIsRevisedWithTheFieldsTheJudgementNames` | Interaction (`imptest`) | a near note is revised with the fields the judgement names | Done | e11aa7e1 | 5fe57159 | cd3f7e15 |
 | 855d4j1e | `Test855d4j1e_WriteDeep_ANoteOfTheParentVaultAndAPendingCopyAreNotAmended` | Interaction (`imptest`) | a note of the parent vault and a pending copy are not amended: the injected amend receives no call | Done | e11aa7e1 | 5fe57159 | cd3f7e15 |
 | 855d4j1f | `Test855d4j1f_WriteDeep_AnIDTheCarryDoesNotHoldIsIgnored` | Interaction (`imptest`) | an ID the carry does not hold is ignored: the injected learn path and amend receive no call for it | Done | e11aa7e1 | 5fe57159 | cd3f7e15 |
-| 855d4j1g | `Test855d4j1_ReadDeep_ALessonOfAnUnexpectedFieldTypeIsLeftOutAndTheGoodLessonIsKept` | Dedicated example | a lesson with a field of the wrong type, or none to name it by, is left out by its slug or place and the whole lesson is written | Done | 2a6cb6a8 | be1f76d1 | b9bea357 |
-| 855d4j1h | `Test855d4j1_WriteDeep_AGlanceCarryWritesNothingAndSaysWhy` | Interaction (`imptest`) | a carry that is not of depth deep calls neither the learn path nor the amend, and one record, of the kind skipped, says why | Done | 0a5f3f0a | 5a2dabc2 | b9bea357 |
+| 855d4j1g | `Test855d4j1g_ReadDeep_ALessonOfAnUnexpectedFieldTypeIsLeftOutAndTheGoodLessonIsKept` | Dedicated example | a lesson with a field of the wrong type, or none to name it by, is left out by its slug or place and the whole lesson is written | Done | 2a6cb6a8 | be1f76d1 | b9bea357 |
+| 855d4j1h | `Test855d4j1h_WriteDeep_AGlanceCarryWritesNothingAndSaysWhy` | Interaction (`imptest`) | a carry that is not of depth deep calls neither the learn path nor the amend, and one record, of the kind skipped, says why | Done | 0a5f3f0a | 5a2dabc2 | b9bea357 |
 
 #### 855e6e2 The mod's write after a deep block
 
@@ -508,7 +508,7 @@ The command `auto write` after a delivery.
 | 855d2a1e | `Test855d2a1e_Mod_AModelThatDoesNotAnswerAndAWriteThatFailsAreReported` | Dedicated example, integration (stand-in host, `integration`) | a model that does not answer and a write that fails are reported: two named branches | Done | e11aa7e1 | 5fe57159 | cd3f7e15 |
 | 855d2a1f | `Test855d2a1f_Mod_ADeepDeliveryWritesAfterTheBlockFromATimer` | Dedicated example, integration (stand-in host, `integration`) | a deep delivery writes after the block, from a timer, with no call of the host in flight | Done | e11aa7e1 | 5fe57159 | cd3f7e15 |
 | 855d2a1g | `Test855d2a1g_Mod_AGlanceWritesNothing` | Dedicated example, integration (stand-in host, `integration`) | a glance writes nothing. Mutation: a mod that runs `write` for every delivery fails it | Done | n/a | 5fe57159 | cd3f7e15 |
-| 855d2a1k | `Test855d2a1f_Mod_TwoDeepDeliveriesOfASessionWriteOneAfterTheOther` | Dedicated example, integration (stand-in host, `integration`) | the writes of a [session](../../GLOSSARY.md#session) run one after another: the second began when the first was over | Done | 6e5d81c0 | 887d8c5b | b9bea357 |
+| 855d2a1k | `Test855d2a1k_Mod_TwoDeepDeliveriesOfASessionWriteOneAfterTheOther` | Dedicated example, integration (stand-in host, `integration`) | the writes of a [session](../../GLOSSARY.md#session) run one after another: the second began when the first was over | Done | 6e5d81c0 | 887d8c5b | b9bea357 |
 
 #### 855e6e3 The scenarios of the depth
 

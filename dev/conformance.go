@@ -15,9 +15,9 @@ import (
 var (
 	// removedHeading matches the heading of a Removed operation: `### <ID> Removed: <ID of the scenario> <title>`.
 	removedHeading = regexp.MustCompile(`(?m)^#{2,4} [0-9a-z]+ Removed: (793[ad][0-9a-z]+) `)
-	// scenarioLine matches the first line of a Gherkin scenario of change 793: `Scenario: <ID> <title>`, the ID
-	// beginning with 793a for the product spec or 793d for the technical spec.
-	scenarioLine = regexp.MustCompile(`(?m)^[ \t]*Scenario: (793[ad][0-9a-z]+) `)
+	// scenarioLine matches the first line of a Gherkin scenario of change 793 or 855: `Scenario: <ID> <title>`, the ID
+	// beginning with 793a or 855a for the product spec and 793d or 855d for the technical spec (855b45).
+	scenarioLine = regexp.MustCompile(`(?m)^[ \t]*Scenario: ((?:793|855)[ad][0-9a-z]+) `)
 )
 
 // declaredFunctions returns the names of the functions the Go sources declare, methods left out. Text that only reads

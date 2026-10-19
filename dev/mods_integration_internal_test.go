@@ -1088,9 +1088,9 @@ func Test855d2a1f_Mod_ADeepDeliveryWritesAfterTheBlockFromATimer(t *testing.T) {
 	g.Expect(outcome.limitOf("engram auto write")).To(BeNumerically("==", 60000), "the time limit of the write")
 }
 
-// Test855d2a1f_Mod_TwoDeepDeliveriesOfASessionWriteOneAfterTheOther runs the mod under node against a stand-in host
+// Test855d2a1k_Mod_TwoDeepDeliveriesOfASessionWriteOneAfterTheOther runs the mod under node against a stand-in host
 // whose writing takes a while: the second write starts when the first has ended (855b29).
-func Test855d2a1f_Mod_TwoDeepDeliveriesOfASessionWriteOneAfterTheOther(t *testing.T) {
+func Test855d2a1k_Mod_TwoDeepDeliveriesOfASessionWriteOneAfterTheOther(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

@@ -37,7 +37,7 @@ func Test855d4j1_ReadDeep_ALessonNamesTheNoteItCorrectsAsAFileNameAnObjectOrALis
 	}
 }
 
-func Test855d4j1_ReadDeep_ALessonOfAnUnexpectedFieldTypeIsLeftOutAndTheGoodLessonIsKept(t *testing.T) {
+func Test855d4j1g_ReadDeep_ALessonOfAnUnexpectedFieldTypeIsLeftOutAndTheGoodLessonIsKept(t *testing.T) {
 	t.Parallel()
 
 	const good = `{"kind":"fact","slug":"good-one","situation":"s","covered":null,` +
