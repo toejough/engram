@@ -109,3 +109,17 @@ func Test855d4v1d_Phrases_AFencedReplyIsReadAndAReplyThatIsNotAMomentReplyFails(
 		})
 	}
 }
+
+func Test855d4v1d_Phrases_AReplyThatFollowsTheModelsReasoningIsRead(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	step, found, err := auto.Phrases(auto.PhrasesInput{
+		Reply: "This turn asks for a lookup, so the depth is glance.\n\n{\"depth\":\"glance\"}",
+		Carry: auto.Carry{Window: "User: x"},
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(found).To(BeTrue())
+	g.Expect(step.Carry.Depth).To(Equal("glance"))
+}

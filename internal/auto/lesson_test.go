@@ -201,3 +201,14 @@ func holdsPartOf(text, secret string) bool {
 
 	return false
 }
+
+func Test855d4i1b_ParseLessons_AListThatFollowsTheModelsReasoningIsRead(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	lessons, skipped := auto.ParseLessons("The user corrected the build command, so there is one lesson [see below].\n\n" +
+		`[{"kind":"fact","slug":"a-b","situation":"s","covered":null,"subject":"x","predicate":"y","object":"z"}]`)
+
+	g.Expect(skipped).To(BeEmpty())
+	g.Expect(lessons).To(HaveLen(1))
+}

@@ -689,3 +689,20 @@ func windowOf(prompt string) []string {
 
 	return strings.Split(window, "\n")
 }
+
+func Test855d4g1b_Judge_AReplyIsReadByTheLastValueThatEndsIt(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	record := userPrompt("No - build with make zorblax-build.")
+
+	_, found, err := judgeStep(record, "Understood.", `{ "learn": true }`, nil)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(found).To(BeTrue(), "a spaced object is read")
+
+	_, found, err = judgeStep(record, "Understood.", "The user said {\"learn\": false} is wrong.\n\n{ \"learn\" : true }", nil)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(found).To(BeTrue(), "the last value that ends the reply is read")
+}
