@@ -47,6 +47,7 @@ The groups, in the order of the table: the gates, then the prerequisites of each
 | [855e6f Recall moments within a turn](#855e6f-recall-moments-within-a-turn) | [855a2e Recall moments within a turn](./855a_product-spec.md#855a2e-recall-moments-within-a-turn), [855d2c Mid-turn recall flow](./855d_technical-spec.md#855d2c-added-mid-turn-recall-flow) | Complete (each product row run once and passed; on the defaults of [855c3 Is every tool call judged, and may the chains run at once?](./855c_open-questions.md#855c3-is-every-tool-call-judged-and-may-the-chains-run-at-once) and [855c4 Does the before-tool cue promise the note before the call or before the next action?](./855c_open-questions.md#855c4-does-the-before-tool-cue-promise-the-note-before-the-call-or-before-the-next-action)) |
 | [855e6g The remaining hypotheses are measured](#855e6g-the-remaining-hypotheses-are-measured) | [855d7a Hypotheses and their measurements](./855d_technical-spec.md#855d7a-added-hypotheses-and-their-measurements) | Complete ([855d7a1g The phrases find what the recall skill finds](./855d_technical-spec.md#855d7a1-scenarios) Refuted; owner answer pending, [855c9 Is the loss of the recall chain against the skill accepted?](./855c_open-questions.md#855c9-is-the-loss-of-the-recall-chain-against-the-skill-accepted)) |
 | [855e6h Dogfood fixes](#855e6h-dogfood-fixes) | [855d4g 793d4g Judging a turn](./855d_technical-spec.md#855d4g-modified-793d4g-judging-a-turn), [855d4w 793d4b Deploying the mods of the source](./855d_technical-spec.md#855d4w-modified-793d4b-deploying-the-mods-of-the-source) | Complete (dogfood of 2026-10-19; [855b114 The user's rows of the transcript are told by the kind human, and the events of prompts by their own origins](./855b_decision-log.md#855b114-the-users-rows-of-the-transcript-are-told-by-the-kind-human-and-the-events-of-prompts-by-their-own-origins), [855b115 A reply that is no moment reply fails with its first and last 40 characters](./855b_decision-log.md#855b115-a-reply-that-is-no-moment-reply-fails-with-its-first-and-last-40-characters), [855b116 A turn from a mod of an older engram is skipped with a reason, and engram update says that open sessions reload the mod](./855b_decision-log.md#855b116-a-turn-from-a-mod-of-an-older-engram-is-skipped-with-a-reason-and-engram-update-says-that-open-sessions-reload-the-mod)) |
+| [855e6i Dogfood fixes 2: what the channel records](#855e6i-dogfood-fixes-2-what-the-channel-records) | [855a2g Lessons are durable and atomic](./855a_product-spec.md#855a2g-lessons-are-durable-and-atomic), [855d4g 793d4g Judging a turn](./855d_technical-spec.md#855d4g-modified-793d4g-judging-a-turn), [855d4b Looking up the candidates for the phrases](./855d_technical-spec.md#855d4b-added-looking-up-the-candidates-for-the-phrases), [855d4a Judging the moment](./855d_technical-spec.md#855d4a-added-judging-the-moment), [855d4h Placing the lessons](./855d_technical-spec.md#855d4h-added-placing-the-lessons) | Complete (dogfood of 2026-10-19; [855b117](./855b_decision-log.md#855b117-a-note-is-durable-and-atomic), [855b118](./855b_decision-log.md#855b118-a-near-amend-has-no-guard-in-the-engine), [855b119](./855b_decision-log.md#855b119-the-judgement-sees-the-notes-the-session-wrote-read-from-the-vault), [855b120](./855b_decision-log.md#855b120-a-question-of-status-is-never-deep-the-moment-judgement-otherwise-stays-as-it-is)) |
 
 ## 855e9 Dependency graph
 
@@ -93,6 +94,10 @@ flowchart TD
     n855e6h2["855e6h2 A reply that is no moment reply fails with its ends<br/>Complete"]
     n855e6h3["855e6h3 A turn from an older mod is skipped<br/>Complete"]
     n855e6h4["855e6h4 An update tells that open sessions reload the mod<br/>Complete"]
+    n855e6i1["855e6i1 The instructions keep a durable and atomic lesson<br/>Complete"]
+    n855e6i2["855e6i2 The judgement sees the notes the session wrote<br/>Complete"]
+    n855e6i3["855e6i3 A deep revision sharpens the note's own claim, and a status question is not deep<br/>Complete"]
+    n855e6i4["855e6i4 The judgement rows of the bar<br/>Complete"]
     n855e6a1 --> n855e6a2
     n855e6a1 --> n855e6a3
     n855e6a2 --> n855e6a4
@@ -154,6 +159,12 @@ flowchart TD
     n855e6d4 --> n855e6h2
     n855e6d4 --> n855e6h3
     n855e6a4 --> n855e6h4
+    n855e6d4 --> n855e6i1
+    n855e6d4 --> n855e6i2
+    n855e6e1 --> n855e6i3
+    n855e6i1 --> n855e6i4
+    n855e6i2 --> n855e6i4
+    n855e6i3 --> n855e6i4
 ```
 
 ## 855e5 Node status
@@ -668,6 +679,54 @@ Three defects the owner's dogfood of 2026-10-19 found in the build: a typed [tur
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 855d4w1a | `Test855d4w1a_WriteUpdateReport_TellsThatOpenSessionsReloadTheModWhenItsFilesChanged` | Dedicated example (unit) | the line once for a mod with a changed file, none when none of its files changed, none on a dry run, none for a [harness](../../GLOSSARY.md#harness) with only [skills](../../GLOSSARY.md#skill) | Done | 99490607; e0fad912; d3689a35 | 36d4d94a; ad48d566; cc65bd75 | 5522402a; df4003ab |
 | 855d4w1b | `Test855d4w1b_Updater_Run_CountsTheFilesOfAModThatThisRunChanged` | Dedicated example (unit) | a second update after one file of the mod changed in the checkout counts one changed file for the mod and none for the skill beside it; the first update counts every file, and a third that changes nothing counts none (`Test793d4b1e`, `Test793d4b1h`) | Done | d3689a35 | cc65bd75 | df4003ab |
+
+### 855e6i Dogfood fixes 2: what the channel records
+
+Four defects the owner's dogfood of 2026-10-19 found in build c0caf2a6: notes that were not durable, a deep recall that amended an unrelated claim into a note, the same lesson written two and three times, and a ticket in a situation ([855b117 A note is durable and atomic](./855b_decision-log.md#855b117-a-note-is-durable-and-atomic)). 793 tests it changes: none. The `Runs` of a judgement row are the probe rows of `dev/eval/auto-judge` (10 runs each, the owner's real cases as fixtures, the old build against this one), run with `python3 dev/eval/auto-judge/probe.py --engram <binary> --runs 10`; the full set and the 10-run tallies of the acceptance rows are left to the promotion rebase.
+
+#### 855e6i1 The instructions keep a durable and atomic lesson
+
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d4g1h | `Test855d4g1h_Judge_TheInstructionsKeepOnlyADurableAndAtomicLesson` | Dedicated example (unit) | the instructions of the judgement say durable, atomic, what is not durable and that a request to remember does not make a status durable | Done | 428fd67c | 45c03a91 | 2143e3d2 |
+| 855d4g1i | `Test855d4g1i_Judge_ASituationNamesNoTicketOrChangeNumber` | Dedicated example (unit) | the situation names no ticket, issue or change number and no branch | Done | 428fd67c | 45c03a91 | 2143e3d2 |
+| 855d4h1h | `Test855d4h1h_Place_ALessonSupersedesANoteOnlyWhenItIsAboutTheNotesOwnClaim` | Dedicated example (unit) | a lesson about another claim supersedes nothing and is never merged into a seen note | Done | 428fd67c | 45c03a91 | 2143e3d2 |
+
+#### 855e6i2 The judgement sees the notes the session wrote
+
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d4g1j | `Test855d4g1j_Judge_ALessonWrittenEarlierInTheSessionIsCoveredWhateverItsWording` | Dedicated example (unit) | the instructions say that a note written earlier in the session covers a lesson in whatever words | Done | 428fd67c | 45c03a91 | 2143e3d2 |
+| 855d4g1j | `Test855d4g1j_RunAutoJudge_TheNotesTheSessionWroteAreInTheRequestOnceAndThoseOfOthersAreNot` | Dedicated example, integration (unit suite, files) | a vault holding a note of the session and a note of another session: the request holds the first once, after the nearest notes, with and without the lookup finding it | Done | 428fd67c | 45c03a91 | 2143e3d2 |
+
+#### 855e6i3 A deep revision sharpens the note's own claim, and a status question is not deep
+
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d4b1r | `Test855d4b1r_Recall_ANoteIsNearOnlyWhenTheMomentSharpensItsOwnClaim` | Dedicated example (unit) | a near note omits a part of its own claim; a note that shares only a situation is unrelated | Done | 428fd67c | 45c03a91 | 2143e3d2 |
+| 855d4b1s | `Test855d4b1s_Recall_ADeepRequestRevisesOnlyTheNotesOwnClaimAndWritesOnlyADurableAndAtomicLesson` | Dedicated example (unit) | the deep instructions revise only the note's own claim and ask for durable, atomic lessons with no ticket in the situation ([855b118 A near amend has no guard in the engine](./855b_decision-log.md#855b118-a-near-amend-has-no-guard-in-the-engine)) | Done | 428fd67c | 45c03a91 | 2143e3d2 |
+| 855d4a1i | `Test855d4a1i_Moment_AQuestionOfStatusWithNoDecisionInItIsNeverDeep` | Dedicated example (unit) | the instructions of the recall moment say a status question is never deep ([855b120](./855b_decision-log.md#855b120-a-question-of-status-is-never-deep-the-moment-judgement-otherwise-stays-as-it-is)) | Done | 428fd67c | 45c03a91 | 2143e3d2 |
+
+#### 855e6i4 The judgement rows of the bar
+
+Not scenarios of the specs: the rows are probe fixtures of `dev/eval/auto-judge/fixtures.json` and the pressure test `skill_pressure.py`, of the real cases of the dogfood (the probe and the fixtures are in 8ce8d403, the skills in 6b6cb4e1, the acceptance rows in 7fcfd6ec). The old build is c0caf2a6, the new one the green commit 45c03a91; each cell is the verdicts in 10 runs (the skills: 5 runs).
+
+| Row | Old build | New build | What it proves |
+| --- | --- | --- | --- |
+| `dup-measurement-rows`, `dup-bare-cat`, `dup-live-budget` (1356/1357/1361, 1360/1363/1369, 1358/1362) | written 10, 10, 10 | suppressed 10, 10, 10 | the note of the session is seen and covers the lesson in other words |
+| `status-to-remember` (1309) | lesson 10 | none 10 | a status asked to be remembered is not written |
+| `two-claims` | lesson with the status folded in 10 | lesson of the rule alone 10 | atomic: the second claim is left out |
+| `correction-in-ticket-work` (1356, 1372) | situation names `855` 10 | lesson, situation without it 10 | a real correction is written with no ticket in its situation |
+| `deep-amend-unrelated-claim`, `deep-amend-after-status-question` (1309) | foreign revision 8 and 4, lesson naming `855` 2 | ok 10 and 10 | a deep recall does not amend an unrelated claim into the note |
+| `deep-sharpen-own-claim` | ok 10 | ok 10 | a passage that sharpens the note's own claim still revises it |
+| `incident-finding` (1373) | none 10 | none 10 | control: the old build already answered none to this rebuilt turn |
+| `status-question`, `status-question-where`, two windows after a weighty conversation | glance 39 of 40 | none or glance 40 of 40 | control: the old build did not reproduce the deep answer |
+| `irreversible-decision` | deep 10 | deep 10 | a weighty decision is still deep |
+| the 12 earlier rows (correction, remember, confirmed, own correction, unsure approach, guesses, credential, thanks, covered, different lesson, credential refused, unsaved) | not run | 10 of 10 each | the positive controls hold |
+| `learn-status-and-correction`, `learn-incident-finding`, `learn-ticket-in-situation`, `learn-insistent-status` (learn skill, headless `claude -p`) | status written 5 of 5, incident 4 of 5, ticket in the situation 5 of 5, insistent status 5 of 5 | 0 of 5 each; the correction kept 5 of 5 | the learn skill states the two tests |
+| `recall-unrelated-claim`, `recall-own-claim` (recall skill, headless) | amended the unrelated claim 5 of 5; sharpened the own claim 5 of 5 | Absent 5 of 5; sharpened 5 of 5 | Near sharpens the note's own claim only |
+
+The acceptance rows `Test855a2g1a`, `Test855a2g1b` and `Test855a2g1c` (`dev/acceptance/durable_test.go`, 7fcfd6ec, real sessions, one run each) and ten touched earlier rows (`Test793a2c1a`, `b`, `d`, `f`, `Test793a3c1a`, `c`, `Test855a2b1a`, `c1a`, `Test855a2d1a`, `Test855a3b1a`, one run each) passed.
 
 ## 855e7 Completion gates
 

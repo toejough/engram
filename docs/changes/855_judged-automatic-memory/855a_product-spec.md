@@ -114,6 +114,29 @@ Scenario: 855a2e1c A note arrives before the agent starts building a new approac
   Then before the agent's next action its context holds the migration note
 ```
 
+### 855a2g Lessons are durable and atomic
+
+Requirement: 855a2g A [note](../../GLOSSARY.md#permanent-note) that [automatic memory](../793_automatic-memory/793a_product-spec.md#793a1a-terms) writes or amends MUST be durable (still true and useful to a future task that has nothing to do with the [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms): not status, a plan, a decision about the work in hand, a branch, worktree or ticket name, a timestamp or an episode) and atomic (one claim; an amend only sharpens the note's own claim, and a different claim is a new lesson that must clear the same bar), its situation MUST name no ticket or change number unless the lesson is about it, and a lesson that a note written in the same [session](../../GLOSSARY.md#session) states MUST NOT be written again ([855b117 A note is durable and atomic](./855b_decision-log.md#855b117-a-note-is-durable-and-atomic)).
+
+#### 855a2g1 UAT Scenarios
+
+```gherkin
+Scenario: 855a2g1a A status of the work is not written
+  Given the user has run engram update, and a session in which the agent may not run engram commands
+  When the user asks the agent in a prompt to remember the status of the work, a branch and a worktree, and the turn ends
+  Then 2 minutes after the turn ends the vault holds no note
+
+Scenario: 855a2g1b A lesson the session wrote is not written twice
+  Given the user has run engram update, and a session whose first turn became a note
+  When the user states the same lesson again in other words in a prompt of the session, and the turn ends
+  Then 2 minutes after the turn ends the vault holds the one note
+
+Scenario: 855a2g1c A correction made in work on a ticket is written with no ticket in its situation
+  Given the user has run engram update, and a session in which the agent has answered a question about work on a ticket
+  When the user corrects the agent in a prompt with a rule that holds beyond the ticket, and the turn ends
+  Then within 2 minutes the vault holds a note that states the rule and whose situation names no ticket
+```
+
 ## 855a3 Modified: Automatic memory of 793
 
 ### 855a3a Modified: 793a1a Terms
