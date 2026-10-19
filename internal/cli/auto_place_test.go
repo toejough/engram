@@ -113,6 +113,42 @@ func Test855d4h1c_Place_ASessionThatHasSeenNoNoteAndAReplyWithNoWholeLessonPrint
 	}
 }
 
+func Test855d4h1g_Place_ALessonTheVaultAlreadyStatesIsNotPlaced(t *testing.T) {
+	t.Parallel()
+
+	vault := t.TempDir()
+	plantNoteOnDisk(t, vault, resetNoteName, zorblaxResetNote)
+
+	sessions := recordDelivering(t, resetNoteName)
+	covered := func(reply string, count int) string {
+		return strings.Replace(reply, `"covered":null`, `"covered":"`+resetNoteName+`"`, count)
+	}
+
+	t.Run("one of two lessons", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		step := placed(t, vault, sessions, placeInput(covered(twoLessons, 1)))
+
+		g.Expect(step.Request.Prompt).To(ContainSubstring("<lessons>\n- staging-reset (fact; testing on the staging "+
+			"database)\n</lessons>"), "the lesson the note covers is not asked about")
+		g.Expect(step.Request.Prompt).NotTo(ContainSubstring("format-before-commit"))
+	})
+
+	t.Run("every lesson", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		var out bytes.Buffer
+
+		err := cli.RunAutoPlace(context.Background(), cli.AutoPlaceArgs{VaultPath: vault, SessionsDir: sessions},
+			cli.AutoPlaceDeps{Stdin: placeInput(covered(twoLessons, 2)), ReadDir: os.ReadDir, ReadFile: os.ReadFile}, &out)
+
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(out.String()).To(BeEmpty(), "there is no lesson to place")
+	})
+}
+
 func Test855d4h1e_Place_AReplyThatIsNotAListFailsTheCommand(t *testing.T) {
 	t.Parallel()
 
