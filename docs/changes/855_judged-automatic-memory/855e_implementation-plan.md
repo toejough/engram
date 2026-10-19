@@ -177,7 +177,7 @@ Rows are worked top to bottom within a node, and nodes in the order of [855e4 De
 
 ### 855e6a The gates: what the host records of a block added within a turn
 
-Proves, before anything that depends on them is built, the two hypotheses the plan hangs on: the [transcript](../../GLOSSARY.md#transcript) records a block that an event within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) added ([855d7a1f A block delivered within a turn is held](./855d_technical-spec.md#855d7a1-scenarios)), and a context put at a tool call reaches the model after the tool's result ([855d7a1h A context put at a tool call arrives with its result](./855d_technical-spec.md#855d7a1-scenarios)). 793 tests it changes: none. Order of red commits: the probe and the recorder first, then the two measurement rows in table order. The answer to the first decides whether [855e6a4 The ledger of what was delivered, if the transcript lacks it](#855e6a4-the-ledger-of-what-was-delivered-if-the-transcript-lacks-it) is built ([855b40 A ledger of what was delivered, if the transcript lacks it](./855b_decision-log.md#855b40-a-ledger-of-what-was-delivered-if-the-transcript-lacks-it)); the answer to the second decides whether the before-tool cue keeps its promise ([855c4 Does the before-tool cue promise the note before the call or before the next action?](./855c_open-questions.md#855c4-does-the-before-tool-cue-promise-the-note-before-the-call-or-before-the-next-action)).
+Proves, before anything that depends on them is built, the two hypotheses the plan hangs on: the [transcript](../../GLOSSARY.md#transcript) records a block that an event within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) added ([855d7a1f A block delivered within a turn is held](./855d_technical-spec.md#855d7a1-scenarios)), and a context put at a tool call reaches the model after the tool's result ([855d7a1h A context put at a tool call arrives with its result](./855d_technical-spec.md#855d7a1-scenarios)). The 793 scenario it narrows is [793a2c1b](../793_automatic-memory/793a_product-spec.md#793a2c1-uat-scenarios) ([855a2h](./855a_product-spec.md#855a2h-modified-793a2c1b-a-request-to-remember-becomes-a-note)); its test `Test793a2c1b` asks to remember a durable fact and is unchanged. Order of red commits: the probe and the recorder first, then the two measurement rows in table order. The answer to the first decides whether [855e6a4 The ledger of what was delivered, if the transcript lacks it](#855e6a4-the-ledger-of-what-was-delivered-if-the-transcript-lacks-it) is built ([855b40 A ledger of what was delivered, if the transcript lacks it](./855b_decision-log.md#855b40-a-ledger-of-what-was-delivered-if-the-transcript-lacks-it)); the answer to the second decides whether the before-tool cue keeps its promise ([855c4 Does the before-tool cue promise the note before the call or before the next action?](./855c_open-questions.md#855c4-does-the-before-tool-cue-promise-the-note-before-the-call-or-before-the-next-action)).
 
 #### 855e6a1 The probe and the recorder
 
@@ -505,7 +505,7 @@ Real [sessions](../../GLOSSARY.md#session) in an isolated HOME. These are judgem
 
 ### 855e6e A deep delivery writes what the recall skill's deep mode writes
 
-Proves the write that follows a deep block: the crystallized lesson, the amended [notes](../../GLOSSARY.md#permanent-note), and the glance that writes nothing, with the 2 product scenarios of the depth. 793 tests it changes: none. Order of red commits: the 2 product rows of [855e6e3 The scenarios of the depth](#855e6e3-the-scenarios-of-the-depth) first, then the nodes in order.
+Proves the write that follows a deep block: the crystallized lesson, the amended [notes](../../GLOSSARY.md#permanent-note), and the glance that writes nothing, with the 2 product scenarios of the depth. The 793 scenario it narrows is [793a2c1b](../793_automatic-memory/793a_product-spec.md#793a2c1-uat-scenarios) ([855a2h](./855a_product-spec.md#855a2h-modified-793a2c1b-a-request-to-remember-becomes-a-note)); its test `Test793a2c1b` asks to remember a durable fact and is unchanged. Order of red commits: the 2 product rows of [855e6e3 The scenarios of the depth](#855e6e3-the-scenarios-of-the-depth) first, then the nodes in order.
 
 #### 855e6e1 Writing what a deep delivery writes
 
@@ -593,7 +593,7 @@ Judgement rows, tallied in 10 runs.
 
 ### 855e6g The remaining hypotheses are measured
 
-Measures the seven hypotheses of [855d7a Hypotheses and their measurements](./855d_technical-spec.md#855d7a-added-hypotheses-and-their-measurements) that need the whole chain; a refuted hypothesis is recorded, not repaired. 793 tests it changes: none. Order of red commits: the node order, each row's recorder first. The last node reads the conformance check over both changes as the last act of the plan.
+Measures the seven hypotheses of [855d7a Hypotheses and their measurements](./855d_technical-spec.md#855d7a-added-hypotheses-and-their-measurements) that need the whole chain; a refuted hypothesis is recorded, not repaired. The 793 scenario it narrows is [793a2c1b](../793_automatic-memory/793a_product-spec.md#793a2c1-uat-scenarios) ([855a2h](./855a_product-spec.md#855a2h-modified-793a2c1b-a-request-to-remember-becomes-a-note)); its test `Test793a2c1b` asks to remember a durable fact and is unchanged. Order of red commits: the node order, each row's recorder first. The last node reads the conformance check over both changes as the last act of the plan.
 
 #### 855e6g1 A recall chain is timed
 
@@ -649,7 +649,7 @@ Not scenarios of the specs: the rows are named by test. Every scenario of [855a 
 
 ### 855e6h Dogfood fixes
 
-Three defects the owner's dogfood of 2026-10-19 found in the build: a typed [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) captured nothing, a failed judgement could not be diagnosed, and an open [session](../../GLOSSARY.md#session) kept the mod it began with after an update. 793 tests it changes: none. Each row has its red commit, then its green commit; the replay tests pin the fix at the binary's edge and say the mutation that fails them.
+Three defects the owner's dogfood of 2026-10-19 found in the build: a typed [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) captured nothing, a failed judgement could not be diagnosed, and an open [session](../../GLOSSARY.md#session) kept the mod it began with after an update. The 793 scenario it narrows is [793a2c1b](../793_automatic-memory/793a_product-spec.md#793a2c1-uat-scenarios) ([855a2h](./855a_product-spec.md#855a2h-modified-793a2c1b-a-request-to-remember-becomes-a-note)); its test `Test793a2c1b` asks to remember a durable fact and is unchanged. Each row has its red commit, then its green commit; the replay tests pin the fix at the binary's edge and say the mutation that fails them.
 
 #### 855e6h1 A typed turn of an interactive session is in the window
 
@@ -682,7 +682,7 @@ Three defects the owner's dogfood of 2026-10-19 found in the build: a typed [tur
 
 ### 855e6i Dogfood fixes 2: what the channel records
 
-Four defects the owner's dogfood of 2026-10-19 found in build c0caf2a6: notes that were not durable, a deep recall that amended an unrelated claim into a note, the same lesson written two and three times, and a ticket in a situation ([855b117 A note is durable and atomic](./855b_decision-log.md#855b117-a-note-is-durable-and-atomic)). 793 tests it changes: none. The `Runs` of a judgement row are the probe rows of `dev/eval/auto-judge` (10 runs each, the owner's real cases as fixtures, the old build against this one), run with `python3 dev/eval/auto-judge/probe.py --engram <binary> --runs 10`; the full set and the 10-run tallies of the acceptance rows are left to the promotion rebase.
+Four defects the owner's dogfood of 2026-10-19 found in build c0caf2a6: notes that were not durable, a deep recall that amended an unrelated claim into a note, the same lesson written two and three times, and a ticket in a situation ([855b117 A note is durable and atomic](./855b_decision-log.md#855b117-a-note-is-durable-and-atomic)). The 793 scenario it narrows is [793a2c1b](../793_automatic-memory/793a_product-spec.md#793a2c1-uat-scenarios) ([855a2h](./855a_product-spec.md#855a2h-modified-793a2c1b-a-request-to-remember-becomes-a-note)); its test `Test793a2c1b` asks to remember a durable fact and is unchanged. The `Runs` of a judgement row are the probe rows of `dev/eval/auto-judge` (10 runs each, the owner's real cases as fixtures, the old build against this one), run with `python3 dev/eval/auto-judge/probe.py --engram <binary> --runs 10`; the full set and the 10-run tallies of the acceptance rows are left to the promotion rebase.
 
 #### 855e6i1 The instructions keep a durable and atomic lesson
 
@@ -698,6 +698,9 @@ Four defects the owner's dogfood of 2026-10-19 found in build c0caf2a6: notes th
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 855d4g1j | `Test855d4g1j_Judge_ALessonWrittenEarlierInTheSessionIsCoveredWhateverItsWording` | Dedicated example (unit) | the instructions say that a note written earlier in the session covers a lesson in whatever words | Done | 428fd67c | 45c03a91 | 2143e3d2 |
 | 855d4g1j | `Test855d4g1j_RunAutoJudge_TheNotesTheSessionWroteAreInTheRequestOnceAndThoseOfOthersAreNot` | Dedicated example, integration (unit suite, files) | a vault holding a note of the session and a note of another session: the request holds the first once, after the nearest notes, with and without the lookup finding it | Done | 428fd67c | 45c03a91 | 2143e3d2 |
+| 855d4g1j | `Test855d4g1j_RunAutoJudge_TheLastTwentyNotesTheSessionWroteByCreationFollowTheNearestNotes` | Dedicated example, integration (unit suite, files) | 22 notes of a day and one of an earlier day with the highest ID: 20 follow the nearest note, by creation and not by file name | Done | mutation: the cut by file name fails it | 0f96775c | |
+| 855d4g1j | `Test855d4g1j_Less_OrdersByNumberThenLetterSegments` | Dedicated example (unit) | 9 before 10, 1 before 1a before 2, z before aa | Done | n/a (a function new with its test) | 0f96775c | |
+| 855d4b1t | `Test855d4b1t_Recall_ADeepRequestHoldsTheNotesTheSessionWroteAndGlanceDoesNot` | Dedicated example, integration (unit suite, files) | the deep request holds the session's note after the matched notes, not another session's; glance does not | Done | mutation: the guard off fails it | 0f96775c | |
 
 #### 855e6i3 A deep revision sharpens the note's own claim, and a status question is not deep
 
@@ -709,7 +712,9 @@ Four defects the owner's dogfood of 2026-10-19 found in build c0caf2a6: notes th
 
 #### 855e6i4 The judgement rows of the bar
 
-Not scenarios of the specs: the rows are probe fixtures of `dev/eval/auto-judge/fixtures.json` and the pressure test `skill_pressure.py`, of the real cases of the dogfood (the probe and the fixtures are in 8ce8d403, the skills in 6b6cb4e1, the acceptance rows in 7fcfd6ec). The old build is c0caf2a6, the new one the green commit 45c03a91; each cell is the verdicts in 10 runs (the skills: 5 runs).
+The one place of the tallies of this group: [855b117](./855b_decision-log.md#855b117-a-note-is-durable-and-atomic) and the other entries link here. The rows are not scenarios of the specs: they are probe fixtures of `dev/eval/auto-judge/fixtures.json` and the pressure test `skill_pressure.py`, of the real cases of the dogfood (the probe and the fixtures are in 8ce8d403, the skills in 6b6cb4e1, the acceptance rows in 7fcfd6ec, their rebuild and the new verdict in the commits of the review fix). The old build is c0caf2a6, the new one the green commit 45c03a91 (the duplicate rows: the build of the review fix); each cell is the verdicts in 10 runs of the probe (the skills: 5 runs of a headless `claude -p`, model `sonnet`, no tools). The raw runs are kept in `dev/eval/auto-judge/results/` (`probe-dup-old.jsonl`, `probe-dup-new.jsonl`, `skill-pressure-2026-10-19.jsonl`: scenario, arm, model, verdict and the first 400 characters of each reply).
+
+The duplicate rows count a reply as suppressed only when a lesson's `covered` names the note of the session (an empty list is a miss, note 1377a).
 
 | Row | Old build | New build | What it proves |
 | --- | --- | --- | --- |
@@ -723,10 +728,22 @@ Not scenarios of the specs: the rows are probe fixtures of `dev/eval/auto-judge/
 | `status-question`, `status-question-where`, two windows after a weighty conversation | glance 39 of 40 | none or glance 40 of 40 | control: the old build did not reproduce the deep answer |
 | `irreversible-decision` | deep 10 | deep 10 | a weighty decision is still deep |
 | the 12 earlier rows (correction, remember, confirmed, own correction, unsure approach, guesses, credential, thanks, covered, different lesson, credential refused, unsaved) | not run | 10 of 10 each | the positive controls hold |
-| `learn-status-and-correction`, `learn-incident-finding`, `learn-ticket-in-situation`, `learn-insistent-status` (learn skill, headless `claude -p`) | status written 5 of 5, incident 4 of 5, ticket in the situation 5 of 5, insistent status 5 of 5 | 0 of 5 each; the correction kept 5 of 5 | the learn skill states the two tests |
-| `recall-unrelated-claim`, `recall-own-claim` (recall skill, headless) | amended the unrelated claim 5 of 5; sharpened the own claim 5 of 5 | Absent 5 of 5; sharpened 5 of 5 | Near sharpens the note's own claim only |
 
-The acceptance rows `Test855a2g1a`, `Test855a2g1b` and `Test855a2g1c` (`dev/acceptance/durable_test.go`, 7fcfd6ec, real sessions, one run each) and ten touched earlier rows (`Test793a2c1a`, `b`, `d`, `f`, `Test793a3c1a`, `c`, `Test855a2b1a`, `c1a`, `Test855a2d1a`, `Test855a3b1a`, one run each) passed.
+The skill pressure rows; the arms are the skill at c0caf2a6 (before the bar), at 4423eb9a (the bar, before the review fix) and the fixed one; a cell is the runs of 5 that did what the bar forbids / that kept what must be written.
+
+| Row | c0caf2a6 | 4423eb9a | Fixed | What it proves |
+| --- | --- | --- | --- | --- |
+| `learn-status-and-correction` | status written 5, kept 0 | 0, kept 5 | 0, kept 5 | the status is left out, the correction kept |
+| `learn-incident-finding` | finding written 2 | 0 | 0 | the finding about the incident is left out |
+| `learn-ticket-in-situation` | ticket in the situation 5 | 0 | 0 | the situation names no ticket (the fictional #4417 in the skill) |
+| `learn-insistent-status` | status written 5 | 0 | 0 | an insistent request still writes no status |
+| `learn-status-tells-user` | status written 5 | 0, but it never says where the status belongs (0 of 5) | 0, and it says it was not saved and names the change docs or the project's memory 5 of 5 | a request for status writes no note, and the agent tells the user ([855b121](./855b_decision-log.md#855b121-a-request-to-save-status-writes-no-note)) |
+| `recall-unrelated-claim` | amended the unrelated claim 5 | 0, Absent 5 | 0, Absent 5 | Near sharpens the note's own claim only |
+| `recall-own-claim` | sharpened 5 | sharpened 5 | sharpened 5 | control: the sharper claim still goes into the note |
+| `recall-status-cluster` | skipped 5 | skipped 5 | skipped 5 | control: the model skips a pure status cluster on every arm |
+| `recall-status-beside-a-rule` | status folded in 0 | 2 | 0 | a status beside a rule: only the rule is written (n=5 does not separate 2 from 0) |
+
+The acceptance row `Test855a2g1b` (`dev/acceptance/durable_test.go`, a vault crowded with ten notes about a user repeating an instruction, a prompt with none of the lesson's words, one run each): on c0caf2a6 it fails (the vault held two notes that state the correction), on the new build it passes. Its first form, which restated the lesson in the prompt, passed on c0caf2a6 as well and was vacuous. `Test855a2g1a` and `Test855a2g1c` passed (7fcfd6ec, one run each), and ten touched earlier rows (`Test793a2c1a`, `b`, `d`, `f`, `Test793a3c1a`, `c`, `Test855a2b1a`, `c1a`, `Test855a2d1a`, `Test855a3b1a`, one run each) passed.
 
 ## 855e7 Completion gates
 

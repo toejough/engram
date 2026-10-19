@@ -127,14 +127,27 @@ Scenario: 855a2g1a A status of the work is not written
   Then 2 minutes after the turn ends the vault holds no note
 
 Scenario: 855a2g1b A lesson the session wrote is not written twice
-  Given the user has run engram update, and a session whose first turn became a note
-  When the user states the same lesson again in other words in a prompt of the session, and the turn ends
-  Then 2 minutes after the turn ends the vault holds the one note
+  Given the user has run engram update, a vault crowded with notes about a user repeating an instruction, and a session whose first turn became a note
+  When the user corrects the agent again in a prompt with none of the lesson's words, the agent's answer states the lesson again, and the turn ends
+  Then 2 minutes after the turn ends the vault holds the one note that states the correction
 
 Scenario: 855a2g1c A correction made in work on a ticket is written with no ticket in its situation
   Given the user has run engram update, and a session in which the agent has answered a question about work on a ticket
   When the user corrects the agent in a prompt with a rule that holds beyond the ticket, and the turn ends
   Then within 2 minutes the vault holds a note that states the rule and whose situation names no ticket
+```
+
+The scenario [793a2c1b](../793_automatic-memory/793a_product-spec.md#793a2c1-uat-scenarios) is narrowed by this requirement and replaced by [855a2h 793a2c1b A request to remember becomes a note](#855a2h-modified-793a2c1b-a-request-to-remember-becomes-a-note).
+
+### 855a2h Modified: 793a2c1b A request to remember becomes a note
+
+Target: [793a2c1b A request to remember becomes a note](../793_automatic-memory/793a_product-spec.md#793a2c1-uat-scenarios). A request to remember something that is not durable, such as the status of the work, writes no [note](../../GLOSSARY.md#permanent-note) ([855a2g Lessons are durable and atomic](#855a2g-lessons-are-durable-and-atomic), [855b121 A request to save status writes no note](./855b_decision-log.md#855b121-a-request-to-save-status-writes-no-note)).
+
+```gherkin
+Scenario: 793a2c1b A request to remember becomes a note
+  Given the user has run engram update, and a session in which the agent may not run engram commands
+  When the user asks the agent in a prompt to remember something durable, and the turn ends
+  Then within 2 minutes the vault holds a note that states it and says it was written automatically, and the agent wrote nothing to the vault
 ```
 
 ## 855a3 Modified: Automatic memory of 793

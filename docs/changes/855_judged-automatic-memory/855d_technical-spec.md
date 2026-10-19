@@ -601,6 +601,11 @@ Scenario: 855d4b1s A deep request revises only the note's own claim and writes o
   Given a deep request of the candidate judgement
   When the instructions are read
   Then a revision sharpens the claim a note already makes and never adds a different claim, a status, a plan, a branch, worktree or ticket name, a timestamp or an episode, and a lesson must be durable and atomic and name no ticket or change number in its situation
+
+Scenario: 855d4b1t A deep request holds the notes the session wrote
+  Given a vault holding a note written automatically in the session and one written in another session, and a lookup that finds neither
+  When a deep request and a glance request are built for the session
+  Then the deep request holds the first among its candidates, after the notes that matched and before the passages, and not the second, and the glance request does not hold it
 ```
 
 ### 855d4c Modified: 793d4a Delivering the notes that bear on a prompt
@@ -842,9 +847,10 @@ Scenario: 855d4g1i A situation names no ticket or change number
   Then the situation of a lesson names no ticket, issue or change number and no branch, unless the lesson is about that ticket
 
 Scenario: 855d4g1j The notes the session wrote are in the request once
-  Given a vault holding a note written automatically in the session, a note written automatically in another session, and a lookup that finds the first among its notes or does not
+  Given a vault holding 22 notes written automatically in the session on one day, one written in the session on an earlier day whose ID is the highest, a note written automatically in another session, and a lookup that finds the first among its notes or does not
   When the judgement is given the session
-  Then the notes of the request hold the first once, after the notes nearest to the turn, and not the second
+  Then the notes of the request hold the notes nearest to the turn first, then the last 20 of the session's own by the day they were created and then by Luhmann ID, each once, and not the note of the other session
+
 ```
 
 ### 855d4h Added: Placing the lessons

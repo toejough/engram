@@ -84,3 +84,11 @@ Step 3, the technical specification ([855d Judged Automatic Memory - Technical S
 - **Recommendation:** (a): cost is the bound the owner pays, and it holds either way.
 - **Blocks:** nothing: the build stands.
 - **Status:** open; (a) stands as the author's default.
+
+## 855c11 Does a request to save status write a note, or does durability win?
+
+- **Context:** a user may ask the agent to remember the status of the work (a branch, a worktree, a next step). The learn skill saves every explicit save request, and [855a2g Lessons are durable and atomic](./855a_product-spec.md#855a2g-lessons-are-durable-and-atomic) writes no status ([855b117 A note is durable and atomic](./855b_decision-log.md#855b117-a-note-is-durable-and-atomic)).
+- **Options:** (a) Durability wins: a request to save status writes no note, and the agent says that it was not saved to the vault and that it belongs in the change docs or the project's memory. (b) Status is saved when the user asks.
+- **Recommendation:** (a): a status note is false once the work moves on, and a stale note is what the dogfood amended wrongly into note 1309.
+- **Blocks:** [855a2g1a A status of the work is not written](./855a_product-spec.md#855a2g1-uat-scenarios) and [855a2h](./855a_product-spec.md#855a2h-modified-793a2c1b-a-request-to-remember-becomes-a-note).
+- **Status:** answered (Owner, 2026-10-19): option (a); recorded in [855b121 A request to save status writes no note](./855b_decision-log.md#855b121-a-request-to-save-status-writes-no-note). Follow-up: [#857](https://github.com/toejough/engram/issues/857).
