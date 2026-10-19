@@ -3,8 +3,11 @@
 package acceptance_test
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 )
@@ -85,7 +88,9 @@ func Test855a2a1b_ADeepDeliveryWritesTheLessonTheVaultLacks(t *testing.T) {
 		"that states the freeze and says it was written automatically", func() {
 		g.Expect(strings.Join(sent.blocks(), "\n")).To(ContainSubstring("(passage)"), "the blocks delivered with the prompt")
 
-		machine.awaitAutomaticNote(chat.turnEnds, "that states the production cutover freeze", "cutover", "friday")
+		name := machine.awaitAutomaticNote(chat.turnEnds, "that states the production cutover freeze", "cutover", "friday")
+
+		t.Logf("the note was written %s after the block was printed", machine.noteWrittenAfterBlock(name))
 
 		g.Expect(machine.stepsGiven("write")).To(ContainSubstring(`"cue":"prompt"`), "the writing of a deep delivery")
 	})
@@ -108,4 +113,25 @@ func (m *machine) noteTexts() map[string]string {
 	}
 
 	return texts
+}
+
+// noteWrittenAfterBlock returns how long after the delivery printed its block the note was written: the delivery's
+// output file is kept when it exits.
+func (m *machine) noteWrittenAfterBlock(name string) time.Duration {
+	m.t.Helper()
+
+	block, blockErr := os.Stat(filepath.Join(m.root, "steps-seen", "deliver.out"))
+	if blockErr != nil {
+		m.t.Fatalf("the delivery printed nothing that was kept: %v", blockErr)
+	}
+
+	for _, note := range m.notes() {
+		if note.name == name {
+			return note.written.Sub(block.ModTime())
+		}
+	}
+
+	m.t.Fatalf("the note %s is gone", name)
+
+	return 0
 }
