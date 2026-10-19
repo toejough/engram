@@ -236,27 +236,6 @@ func readList(text string) (lessons []Lesson, ended, isList bool) {
 	return lessons, true, errors.Is(afterErr, io.EOF)
 }
 
-// shownSlug is the slug of a lesson that is left out when it is one, and nothing when it is the model's text (793d4k).
-func shownSlug(slug string) string {
-	if isSlug(slug) {
-		return slug
-	}
-
-	return ""
-}
-
-// unfenced returns the reply without the white space around it and the code fence a model may put around a list.
-func unfenced(reply string) string {
-	text := strings.TrimSpace(reply)
-	if !strings.HasPrefix(text, "```") {
-		return text
-	}
-
-	_, body, _ := strings.Cut(text, "\n")
-
-	return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(body), "```"))
-}
-
 // replyValue is the JSON value of a model's reply, the one rule for every reply (855b83): the reply, unfenced, when it
 // is valid JSON, and otherwise, when the model reasoned before it, the last value that begins with a brace or a bracket
 // and runs to the end of the reply. A reply with no such value, such as a list that was cut off, is the unfenced reply.
@@ -276,4 +255,25 @@ func replyValue(reply string) string {
 	}
 
 	return text
+}
+
+// shownSlug is the slug of a lesson that is left out when it is one, and nothing when it is the model's text (793d4k).
+func shownSlug(slug string) string {
+	if isSlug(slug) {
+		return slug
+	}
+
+	return ""
+}
+
+// unfenced returns the reply without the white space around it and the code fence a model may put around a list.
+func unfenced(reply string) string {
+	text := strings.TrimSpace(reply)
+	if !strings.HasPrefix(text, "```") {
+		return text
+	}
+
+	_, body, _ := strings.Cut(text, "\n")
+
+	return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(body), "```"))
 }

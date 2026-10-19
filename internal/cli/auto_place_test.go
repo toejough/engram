@@ -113,6 +113,35 @@ func Test855d4h1c_Place_ASessionThatHasSeenNoNoteAndAReplyWithNoWholeLessonPrint
 	}
 }
 
+func Test855d4h1e_Place_AReplyThatIsNotAListFailsTheCommand(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		stdin string
+		cause string
+	}{
+		"a reply that is not JSON": {
+			stdin: `{"session":"` + sessionID + `","turn":"a-turn","reply":"I think there is one lesson here.","carry":{}}`,
+			cause: "the reply",
+		},
+		"an input that is not a JSON object": {stdin: "not a JSON object", cause: "reading the lessons"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			var out bytes.Buffer
+
+			err := cli.RunAutoPlace(context.Background(),
+				cli.AutoPlaceArgs{VaultPath: t.TempDir(), SessionsDir: t.TempDir()},
+				cli.AutoPlaceDeps{Stdin: strings.NewReader(test.stdin), ReadDir: os.ReadDir, ReadFile: os.ReadFile}, &out)
+
+			g.Expect(err).To(MatchError(And(ContainSubstring("auto place"), ContainSubstring(test.cause))))
+			g.Expect(out.String()).To(BeEmpty())
+		})
+	}
+}
+
 func Test855d4h1g_Place_ALessonTheVaultAlreadyStatesIsNotPlaced(t *testing.T) {
 	t.Parallel()
 
@@ -147,35 +176,6 @@ func Test855d4h1g_Place_ALessonTheVaultAlreadyStatesIsNotPlaced(t *testing.T) {
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(out.String()).To(BeEmpty(), "there is no lesson to place")
 	})
-}
-
-func Test855d4h1e_Place_AReplyThatIsNotAListFailsTheCommand(t *testing.T) {
-	t.Parallel()
-
-	for name, test := range map[string]struct {
-		stdin string
-		cause string
-	}{
-		"a reply that is not JSON": {
-			stdin: `{"session":"` + sessionID + `","turn":"a-turn","reply":"I think there is one lesson here.","carry":{}}`,
-			cause: "the reply",
-		},
-		"an input that is not a JSON object": {stdin: "not a JSON object", cause: "reading the lessons"},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			var out bytes.Buffer
-
-			err := cli.RunAutoPlace(context.Background(),
-				cli.AutoPlaceArgs{VaultPath: t.TempDir(), SessionsDir: t.TempDir()},
-				cli.AutoPlaceDeps{Stdin: strings.NewReader(test.stdin), ReadDir: os.ReadDir, ReadFile: os.ReadFile}, &out)
-
-			g.Expect(err).To(MatchError(And(ContainSubstring("auto place"), ContainSubstring(test.cause))))
-			g.Expect(out.String()).To(BeEmpty())
-		})
-	}
 }
 
 // unexported constants.

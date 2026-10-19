@@ -367,13 +367,6 @@ var (
 		predicate: "is built with",
 		object:    "make ci, which runs the lint, test and package steps",
 	}
-	formatPythonWithBlack = fact{
-		slug:      "zorblax-format-python-black",
-		situation: "committing a Python file in the Zorblax project",
-		subject:   "Python files of the Zorblax project",
-		predicate: "are formatted before committing with",
-		object:    "black",
-	}
 	// docsAreInTheDocsFolder is the note formatPythonWithBlack continues, so that it is not at the top of the order
 	// and the note that is a sibling or a continuation of it is told from one that is not: it applies to none of
 	// the prompts of the rows, so that no session has seen it (855a2c1b, 855a2c1c).
@@ -383,6 +376,13 @@ var (
 		subject:   "the documentation of the Zorblax project",
 		predicate: "is kept in",
 		object:    "the docs folder",
+	}
+	formatPythonWithBlack = fact{
+		slug:      "zorblax-format-python-black",
+		situation: "committing a Python file in the Zorblax project",
+		subject:   "Python files of the Zorblax project",
+		predicate: "are formatted before committing with",
+		object:    "black",
 	}
 )
 
