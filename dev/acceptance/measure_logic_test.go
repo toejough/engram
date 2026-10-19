@@ -585,7 +585,7 @@ type sessionLimits struct {
 // the process ID and the second it began, so a process ID that comes round again does not overwrite an earlier run.
 func stepsWrapper(dir, engram string) string {
 	return "#!/bin/sh\ncase \"$1 $2\" in\n\"auto deliver\"|\"auto write\"|\"auto moment\"|\"auto phrases\"|" +
-		"\"auto recall\"|\"auto judge\"|\"auto place\")\nf='" + dir + "/'\"$2\"-$$\ncat > \"$f.in\"\n'" + engram +
+		"\"auto recall\"|\"auto judge\"|\"auto place\")\nf='" + dir + "/'\"$2\"-$$-$(date +%s)\ncat > \"$f.in\"\n'" + engram +
 		"' \"$@\" < \"$f.in\" > \"$f.out\"\ncode=$?\n: > \"$f.done\"\ncat \"$f.out\"\ncp \"$f.out\" '" + dir +
 		"/'\"$2\".out\ncp \"$f.in\" '" + dir + "/'\"$2\".in\nexit $code\n;;\nesac\nexec '" + engram + "' \"$@\"\n"
 }
