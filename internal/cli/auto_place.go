@@ -49,6 +49,12 @@ func RunAutoPlace(_ context.Context, args AutoPlaceArgs, deps AutoPlaceDeps, std
 	}
 
 	vault := vaultNotes(deps.ReadDir, deps.ReadFile, args.VaultPath)
+
+	lessons = auto.Uncovered(lessons, vault)
+	if len(lessons) == 0 {
+		return nil
+	}
+
 	held := auto.HeldText(recordOf(deps.ReadDir, deps.ReadFile, args.SessionsDir, input.Session))
 
 	step, found := auto.Place(lessons, auto.SeenNotes(vault, held, input.Session))

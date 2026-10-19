@@ -60,6 +60,16 @@ func Place(lessons []Lesson, seen []Note) (Step, bool) {
 	}, true
 }
 
+// Uncovered returns the lessons that no note of the vault covers: the writing leaves a lesson whose `covered` names a
+// file of the vault out, so the placement is not asked about it (855d4h).
+func Uncovered(lessons []Lesson, vault []Note) []Lesson {
+	return slices.DeleteFunc(slices.Clone(lessons), func(lesson Lesson) bool {
+		return slices.ContainsFunc(vault, func(note Note) bool {
+			return lesson.Covered != "" && strings.TrimSuffix(lesson.Covered, ".md")+".md" == note.Path
+		})
+	})
+}
+
 // SeenNotes returns the notes of the vault a session has seen (855d4h, 855b16): those whose file name its transcript
 // shows as delivered or looked up (held), and those whose source says they were written automatically in it.
 func SeenNotes(vault []Note, held, session string) []Note {
