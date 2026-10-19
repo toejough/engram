@@ -4,7 +4,6 @@ package acceptance_test
 
 import (
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -70,18 +69,22 @@ func Test793a2a1b_ASecondUpdateStillDeliversEachNoteOnce(t *testing.T) {
 		machine.mustSucceed(machine.update(), "engram update, again")
 	})
 
-	var sent *turn
+	var (
+		inSession *session
+		sent      *turn
+	)
 
 	step(t, "And starts a session and sends a prompt to prepare a test run against the staging database tonight",
 		func() {
-			sent = machine.startSession("a-project").send(askPrepareRun)
+			inSession = machine.startSession("a-project")
+			sent = inSession.send(askPrepareRun)
 			t.Logf("the agent replied %q (cost $%.4f)", sent.reply, sent.cost)
 		})
 
 	step(t, "Then the note is in the agent's context once", func() {
 		g.Expect(sent.blocks()).To(HaveLen(1), "blocks automatic memory delivered with the prompt")
-		g.Expect(strings.Count(strings.Join(sent.contexts(), "\n"), noteName)).To(Equal(1),
-			"how many times any context beside the prompt names the note")
+		g.Expect(inSession.blocksNaming(noteName)).To(Equal(1),
+			"how many blocks delivered with the prompt or within the turn name the note")
 		g.Expect(sent.toolResultsNaming(noteName)).To(BeFalse(), "the agent looked the note up")
 	})
 }

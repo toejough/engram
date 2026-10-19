@@ -57,6 +57,9 @@ func Test855a2e1a_ANoteArrivesBeforeTheAgentDeclaresItsWorkDone(t *testing.T) {
 			machine.whatWasJudged(sent))
 		g.Expect(arrived.next).To(BeNumerically(">", arrived.block), "the agent's next message follows the block")
 		g.Expect(arrived.block).To(BeNumerically("<", sent.finalAt()), "the block comes before the agent's last message")
+
+		// the capture of the turn is over before the row returns
+		machine.awaitSettled(chat.session.id, chat.turnEnds, 1)
 	})
 }
 
@@ -105,6 +108,8 @@ func Test855a2e1b_ANoteArrivesAfterAFailureTheAgentCannotExplain(t *testing.T) {
 		g.Expect(sent.resultTextAt(arrived.before)).To(ContainSubstring("LINT_STRICT"),
 			"the block follows the failed command's result")
 		g.Expect(arrived.next).To(BeNumerically(">", arrived.block), "the agent's next message follows the block")
+
+		machine.awaitSettled(chat.session.id, chat.turnEnds, 1)
 	})
 }
 
@@ -151,6 +156,8 @@ func Test855a2e1c_ANoteArrivesBeforeTheAgentStartsBuildingANewApproach(t *testin
 			machine.whatWasJudged(sent))
 		g.Expect(sent.resultTextAt(arrived.before)).NotTo(BeEmpty(), "the block follows a tool's result")
 		g.Expect(arrived.next).To(BeNumerically(">", arrived.block), "the agent's next message follows the block")
+
+		machine.awaitSettled(chat.session.id, chat.turnEnds, 1)
 	})
 }
 
