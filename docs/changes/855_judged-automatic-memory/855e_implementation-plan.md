@@ -43,7 +43,7 @@ The groups, in the order of the table: the gates, then the prerequisites of each
 | [855e6b The moment, the phrases and the candidates: three commands](#855e6b-the-moment-the-phrases-and-the-candidates-three-commands) | [855d4a Judging the moment](./855d_technical-spec.md#855d4a-added-judging-the-moment), [855d4v Phrasing the lookup](./855d_technical-spec.md#855d4v-added-phrasing-the-lookup), [855d4b Looking up the candidates for the phrases](./855d_technical-spec.md#855d4b-added-looking-up-the-candidates-for-the-phrases), [855d4f1a The moment, phrases, recall and placement commands create no vault](./855d_technical-spec.md#855d4f1-scenarios) | Complete (on the default of [855c2 Which tier writes the situation phrases?](./855c_open-questions.md#855c2-which-tier-writes-the-situation-phrases)) |
 | [855e6c The candidates are judged and delivered with the prompt](#855e6c-the-candidates-are-judged-and-delivered-with-the-prompt) | [855a3b 793a2b Memory arrives with the prompt](./855a_product-spec.md#855a3b-modified-793a2b-memory-arrives-with-the-prompt), [855a3c 793a2d Never in the way](./855a_product-spec.md#855a3c-modified-793a2d-never-in-the-way), [855d4c 793d4a Delivering the notes that bear on a prompt](./855d_technical-spec.md#855d4c-modified-793d4a-delivering-the-notes-that-bear-on-a-prompt), [855d4e 793d4d Telling what a session holds](./855d_technical-spec.md#855d4e-modified-793d4d-telling-what-a-session-holds), [855d2a 793d2a Prompt delivery flow](./855d_technical-spec.md#855d2a-modified-793d2a-prompt-delivery-flow), and the Modified scenarios [855a3d 793a2d1a A slow lookup does not hold a prompt for more than 8 seconds](./855a_product-spec.md#855a3d-modified-793a2d1a-a-slow-lookup-does-not-hold-a-prompt-for-more-than-8-seconds), [855a3h 793a2e1g The notes delivered with a prompt are one line](./855a_product-spec.md#855a3h-modified-793a2e1g-the-notes-delivered-with-a-prompt-are-one-line) to [855a3q 793a2b1d A prompt that matches no note arrives with nothing](./855a_product-spec.md#855a3q-modified-793a2b1d-a-prompt-that-matches-no-note-arrives-with-nothing) | Complete |
 | [855e6d Lessons are judged, placed, tied and written](#855e6d-lessons-are-judged-placed-tied-and-written) | [855a2b Lessons are written as the learn skill writes them](./855a_product-spec.md#855a2b-lessons-are-written-as-the-learn-skill-writes-them), [855a2c Lessons are placed as the learn skill places them](./855a_product-spec.md#855a2c-lessons-are-placed-as-the-learn-skill-places-them), [855a2d Lessons that correct a note say so](./855a_product-spec.md#855a2d-lessons-that-correct-a-note-say-so), [855d4g 793d4g Judging a turn](./855d_technical-spec.md#855d4g-modified-793d4g-judging-a-turn), [855d4h Placing the lessons](./855d_technical-spec.md#855d4h-added-placing-the-lessons), [855d4i 793d4h Writing the lessons of a reply](./855d_technical-spec.md#855d4i-modified-793d4h-writing-the-lessons-of-a-reply), [855d2b 793d2b Turn capture flow](./855d_technical-spec.md#855d2b-modified-793d2b-turn-capture-flow) | Complete |
-| [855e6e A deep delivery writes what the recall skill's deep mode writes](#855e6e-a-deep-delivery-writes-what-the-recall-skills-deep-mode-writes) | [855a2a Delivery writes what its depth writes](./855a_product-spec.md#855a2a-delivery-writes-what-its-depth-writes), [855d4j Writing what a deep delivery writes](./855d_technical-spec.md#855d4j-added-writing-what-a-deep-delivery-writes) | Ready |
+| [855e6e A deep delivery writes what the recall skill's deep mode writes](#855e6e-a-deep-delivery-writes-what-the-recall-skills-deep-mode-writes) | [855a2a Delivery writes what its depth writes](./855a_product-spec.md#855a2a-delivery-writes-what-its-depth-writes), [855d4j Writing what a deep delivery writes](./855d_technical-spec.md#855d4j-added-writing-what-a-deep-delivery-writes) | Green-all (each product row run once; the tally of 10 runs is not taken) |
 | [855e6f Recall moments within a turn](#855e6f-recall-moments-within-a-turn) | [855a2e Recall moments within a turn](./855a_product-spec.md#855a2e-recall-moments-within-a-turn), [855d2c Mid-turn recall flow](./855d_technical-spec.md#855d2c-added-mid-turn-recall-flow) | Blocked by: [855c3 Is every tool call judged, and may the chains run at once?](./855c_open-questions.md#855c3-is-every-tool-call-judged-and-may-the-chains-run-at-once) and [855c4 Does the before-tool cue promise the note before the call or before the next action?](./855c_open-questions.md#855c4-does-the-before-tool-cue-promise-the-note-before-the-call-or-before-the-next-action) (proceed on the defaults) |
 | [855e6g The remaining hypotheses are measured](#855e6g-the-remaining-hypotheses-are-measured) | [855d7a Hypotheses and their measurements](./855d_technical-spec.md#855d7a-added-hypotheses-and-their-measurements) | Blocked by: [855e6c6 The scenarios of the prompt chain](#855e6c6-the-scenarios-of-the-prompt-chain) |
 
@@ -73,9 +73,9 @@ flowchart TD
     n855e6d4["855e6d4 The placement command creates no vault<br/>Complete"]
     n855e6d5["855e6d5 The capture flow of the mod<br/>Complete"]
     n855e6d6["855e6d6 The scenarios of the learn chain<br/>Complete"]
-    n855e6e1["855e6e1 Writing what a deep delivery writes<br/>Ready"]
-    n855e6e2["855e6e2 The mod's write after a deep block<br/>Blocked by: 855e6e1, 855e6c5"]
-    n855e6e3["855e6e3 The scenarios of the depth<br/>Blocked by: 855e6e2, 855e6c6"]
+    n855e6e1["855e6e1 Writing what a deep delivery writes<br/>Complete"]
+    n855e6e2["855e6e2 The mod's write after a deep block<br/>Complete"]
+    n855e6e3["855e6e3 The scenarios of the depth<br/>Green-all (one run each; the tally of 10 runs is not taken)"]
     n855e6f1["855e6f1 The tool cues of the moment<br/>Ready"]
     n855e6f2["855e6f2 A block delivered within a turn is held<br/>Blocked by: 855e6c2"]
     n855e6f3["855e6f3 The mid-turn flow of the mod<br/>Blocked by: 855e6f1, 855e6f2, 855e6c5, 855c3 (proceeds on the default)"]
@@ -492,19 +492,19 @@ The command `auto write` after a delivery.
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d4j1b | `Test855d4j1b_WriteDeep_ALessonTheVaultLacksIsCrystallizedWithItsEvidence` | Interaction (`imptest`) | a lesson the [vault](../../GLOSSARY.md#vault) lacks is written at the top through the learn path, with its chunk sources and its supersession | Not started |  |  |  |
-| 855d4j1c | `Test855d4j1c_WriteDeep_ACoveredNoteIsAmendedForProvenanceOnly` | Interaction (`imptest`) | a covered [note](../../GLOSSARY.md#permanent-note) is amended with its chunk sources only, no field changed: the arguments of the amend | Not started |  |  |  |
-| 855d4j1d | `Test855d4j1d_WriteDeep_ANearNoteIsRevisedWithTheFieldsTheJudgementNames` | Interaction (`imptest`) | a near note is revised with the fields the judgement names | Not started |  |  |  |
-| 855d4j1e | `Test855d4j1e_WriteDeep_ANoteOfTheParentVaultAndAPendingCopyAreNotAmended` | Interaction (`imptest`) | a note of the parent vault and a pending copy are not amended: the injected amend receives no call | Not started |  |  |  |
-| 855d4j1f | `Test855d4j1f_WriteDeep_AnIDTheCarryDoesNotHoldIsIgnored` | Interaction (`imptest`) | an ID the carry does not hold is ignored: the injected learn path and amend receive no call for it | Not started |  |  |  |
+| 855d4j1b | `Test855d4j1b_WriteDeep_ALessonTheVaultLacksIsCrystallizedWithItsEvidence` | Interaction (`imptest`) | a lesson the [vault](../../GLOSSARY.md#vault) lacks is written at the top through the learn path, with its chunk sources and its supersession | Done | e11aa7e1 | 5fe57159 | cd3f7e15 |
+| 855d4j1c | `Test855d4j1c_WriteDeep_ACoveredNoteIsAmendedForProvenanceOnly` | Interaction (`imptest`) | a covered [note](../../GLOSSARY.md#permanent-note) is amended with its chunk sources only, no field changed: the arguments of the amend | Done | e11aa7e1 | 5fe57159 | cd3f7e15 |
+| 855d4j1d | `Test855d4j1d_WriteDeep_ANearNoteIsRevisedWithTheFieldsTheJudgementNames` | Interaction (`imptest`) | a near note is revised with the fields the judgement names | Done | e11aa7e1 | 5fe57159 | cd3f7e15 |
+| 855d4j1e | `Test855d4j1e_WriteDeep_ANoteOfTheParentVaultAndAPendingCopyAreNotAmended` | Interaction (`imptest`) | a note of the parent vault and a pending copy are not amended: the injected amend receives no call | Done | e11aa7e1 | 5fe57159 | cd3f7e15 |
+| 855d4j1f | `Test855d4j1f_WriteDeep_AnIDTheCarryDoesNotHoldIsIgnored` | Interaction (`imptest`) | an ID the carry does not hold is ignored: the injected learn path and amend receive no call for it | Done | e11aa7e1 | 5fe57159 | cd3f7e15 |
 
 #### 855e6e2 The mod's write after a deep block
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d2a1e | `Test855d2a1e_Mod_AModelThatDoesNotAnswerAndAWriteThatFailsAreReported` | Dedicated example, integration (stand-in host, `integration`) | a model that does not answer and a write that fails are reported: two named branches | Not started |  |  |  |
-| 855d2a1f | `Test855d2a1f_Mod_ADeepDeliveryWritesAfterTheBlockFromATimer` | Dedicated example, integration (stand-in host, `integration`) | a deep delivery writes after the block, from a timer, with no call of the host in flight | Not started |  |  |  |
-| 855d2a1g | `Test855d2a1g_Mod_AGlanceWritesNothing` | Dedicated example, integration (stand-in host, `integration`) | a glance writes nothing. Mutation: a mod that runs `write` for every delivery fails it | Not started | n/a |  |  |
+| 855d2a1e | `Test855d2a1e_Mod_AModelThatDoesNotAnswerAndAWriteThatFailsAreReported` | Dedicated example, integration (stand-in host, `integration`) | a model that does not answer and a write that fails are reported: two named branches | Done | e11aa7e1 | 5fe57159 | cd3f7e15 |
+| 855d2a1f | `Test855d2a1f_Mod_ADeepDeliveryWritesAfterTheBlockFromATimer` | Dedicated example, integration (stand-in host, `integration`) | a deep delivery writes after the block, from a timer, with no call of the host in flight | Done | e11aa7e1 | 5fe57159 | cd3f7e15 |
+| 855d2a1g | `Test855d2a1g_Mod_AGlanceWritesNothing` | Dedicated example, integration (stand-in host, `integration`) | a glance writes nothing. Mutation: a mod that runs `write` for every delivery fails it | Done | n/a | 5fe57159 | cd3f7e15 |
 
 #### 855e6e3 The scenarios of the depth
 
@@ -512,8 +512,8 @@ Judgement rows, tallied in 10 runs.
 
 | Gherkin | Test | Classification | Why | Runs | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855a2a1a | `Test855a2a1a_AGlanceLeavesTheVaultsNotesAsThey` | Dedicated example, product acceptance (`network`) | a glance leaves the [vault](../../GLOSSARY.md#vault)'s [notes](../../GLOSSARY.md#permanent-note) as they were. Mutation: a glance that runs the deep write adds a note and fails it | 10 runs | Not started | n/a |  |  |
-| 855a2a1b | `Test855a2a1b_ADeepDeliveryWritesTheLessonTheVaultLacks` | Dedicated example, product acceptance (`network`) | a deep delivery writes the lesson the vault lacks from a passage of an earlier conversation, and says it was written automatically | 10 runs | Not started |  |  |  |
+| 855a2a1a | `Test855a2a1a_AGlanceLeavesTheVaultsNotesAsThey` | Dedicated example, product acceptance (`network`) | a glance leaves the [vault](../../GLOSSARY.md#vault)'s [notes](../../GLOSSARY.md#permanent-note) as they were. Mutation: a glance that runs the deep write adds a note and fails it | 10 runs | Green-all | n/a | 5fe57159 | cd3f7e15 |
+| 855a2a1b | `Test855a2a1b_ADeepDeliveryWritesTheLessonTheVaultLacks` | Dedicated example, product acceptance (`network`) | a deep delivery writes the lesson the vault lacks from a passage of an earlier conversation, and says it was written automatically | 10 runs | Green-all | f86b7def | 5fe57159 | cd3f7e15 |
 
 ### 855e6f Recall moments within a turn
 
