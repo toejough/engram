@@ -798,7 +798,8 @@ func shownRecords(entries []fs.DirEntry) map[string]bool {
 	return shown
 }
 
-// supersedesOf is the `--supersedes` flags of the learn path for the notes a lesson supersedes.
+// supersedesOf is the `--supersedes` flags of the learn path for the notes a lesson supersedes: a note is named by its
+// basename, without the suffix .md, as the lookup that makes the older note show the newer one finds it (792a15h).
 func supersedesOf(ties []auto.Supersession) []string {
 	if len(ties) == 0 {
 		return nil
@@ -807,7 +808,7 @@ func supersedesOf(ties []auto.Supersession) []string {
 	flags := make([]string, 0, len(ties))
 
 	for _, tie := range ties {
-		flags = append(flags, tie.Note+"|"+tie.Type+"|"+tie.Claim)
+		flags = append(flags, strings.TrimSuffix(tie.Note, ".md")+"|"+tie.Type+"|"+tie.Claim)
 	}
 
 	return flags
