@@ -122,6 +122,8 @@ func Test855a2b1c_AConfirmedProcedureIsWrittenAsARunbook(t *testing.T) {
 			return note.field("type") == "runbook" && note.states("make ci", "git tag", "git push origin")
 		})
 
+		t.Logf("the runbook note %s:\n%s", note.name, note.text)
+
 		g.Expect(strings.ToLower(note.field("situation"))).To(ContainSubstring("releas"), "the situation")
 		g.Expect(note.field("done_when")).NotTo(BeEmpty(), "what is true once the steps are done")
 		g.Expect(note.source()).To(ContainSubstring("written automatically"), "the source")
