@@ -13,21 +13,6 @@ import (
 	"github.com/toejough/engram/internal/auto"
 )
 
-func Test855d4h1h_Place_ALessonSupersedesANoteOnlyWhenItIsAboutTheNotesOwnClaim(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	step, found := placeLessons(auto.Note{Path: "1.2026-10-17.zorblax-staging-reset.md", Situation: "testing", Body: "x"})
-
-	g.Expect(found).To(BeTrue())
-
-	system := flattened(step.Request.System)
-
-	g.Expect(system).To(ContainSubstring("only when it is about that note's own claim"))
-	g.Expect(system).To(ContainSubstring("a lesson about another claim supersedes nothing, even when it is near the note"))
-	g.Expect(system).To(ContainSubstring("a lesson is never merged into a seen note"))
-}
-
 func Test855d4h1f_Place_ASeenNoteCannotReshapeTheRequestOrHoldACredential(t *testing.T) {
 	t.Parallel()
 
@@ -88,6 +73,21 @@ func Test855d4h1f_Place_ASeenNoteCannotReshapeTheRequestOrHoldACredential(t *tes
 			}
 		})
 	})
+}
+
+func Test855d4h1h_Place_ALessonSupersedesANoteOnlyWhenItIsAboutTheNotesOwnClaim(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	step, found := placeLessons(auto.Note{Path: "1.2026-10-17.zorblax-staging-reset.md", Situation: "testing", Body: "x"})
+
+	g.Expect(found).To(BeTrue())
+
+	system := flattened(step.Request.System)
+
+	g.Expect(system).To(ContainSubstring("only when it is about that note's own claim"))
+	g.Expect(system).To(ContainSubstring("a lesson about another claim supersedes nothing, even when it is near the note"))
+	g.Expect(system).To(ContainSubstring("a lesson is never merged into a seen note"))
 }
 
 // placeLessons is what Place returns for a lesson and the seen notes.

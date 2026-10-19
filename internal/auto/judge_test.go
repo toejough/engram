@@ -592,54 +592,6 @@ func Test855d4g1c_Judge_TheInstructionsNameTheFourKindsAndTheRunbook(t *testing.
 	g.Expect(request.System).NotTo(ContainSubstring("git tag"), "nothing of the transcript")
 }
 
-func Test855d4g1h_Judge_TheInstructionsKeepOnlyADurableAndAtomicLesson(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	request, found := judge(t, userPrompt("What is next?"), "Run the tests.", nil)
-
-	g.Expect(found).To(BeTrue())
-
-	system := flattened(request.System)
-
-	g.Expect(system).To(ContainSubstring("a lesson is kept only when it is durable and atomic"), "the owner's two tests")
-	g.Expect(system).To(ContainSubstring("still true and useful to a future task that has nothing to do with this one"),
-		"durable")
-	g.Expect(system).To(And(ContainSubstring("the status or progress of the work"), ContainSubstring("a plan"),
-		ContainSubstring("a decision about the work in hand"), ContainSubstring("a timestamp"),
-		ContainSubstring("a finding about the incident of this session")), "what is not durable")
-	g.Expect(system).To(ContainSubstring("even when the user asks to remember them"),
-		"the request to remember does not make a status durable")
-	g.Expect(system).To(ContainSubstring("a lesson makes one claim"), "atomic")
-	g.Expect(system).To(ContainSubstring("not folded into the lesson beside it"), "a second claim is a lesson or nothing")
-}
-
-func Test855d4g1i_Judge_ASituationNamesNoTicketOrChangeNumber(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	request, found := judge(t, userPrompt("What is next?"), "Run the tests.", nil)
-
-	g.Expect(found).To(BeTrue())
-	g.Expect(flattened(request.System)).To(ContainSubstring(
-		"no ticket, issue or change number (such as #855) and no branch name, unless the lesson is about that ticket itself"))
-}
-
-func Test855d4g1j_Judge_ALessonWrittenEarlierInTheSessionIsCoveredWhateverItsWording(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	request, found := judge(t, userPrompt("What is next?"), "Run the tests.", nil)
-
-	g.Expect(found).To(BeTrue())
-
-	system := flattened(request.System)
-
-	g.Expect(system).To(ContainSubstring("the notes written automatically earlier in this session"),
-		"the section holds them")
-	g.Expect(system).To(ContainSubstring("is covered by it, however it is worded, so that no lesson is written twice"))
-}
-
 func Test855d4g1e_Judge_ARowStampedHumanIsAPromptAndATaskNotificationOrAPeerIsNot(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -706,6 +658,54 @@ func Test855d4g1f_Judge_AReplyThatIsNoMomentReplyFailsWithItsEnds(t *testing.T) 
 	g.Expect(shown).To(ContainSubstring("learn-moment reply"), "and names the step")
 }
 
+func Test855d4g1h_Judge_TheInstructionsKeepOnlyADurableAndAtomicLesson(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	request, found := judge(t, userPrompt("What is next?"), "Run the tests.", nil)
+
+	g.Expect(found).To(BeTrue())
+
+	system := flattened(request.System)
+
+	g.Expect(system).To(ContainSubstring("a lesson is kept only when it is durable and atomic"), "the owner's two tests")
+	g.Expect(system).To(ContainSubstring("still true and useful to a future task that has nothing to do with this one"),
+		"durable")
+	g.Expect(system).To(And(ContainSubstring("the status or progress of the work"), ContainSubstring("a plan"),
+		ContainSubstring("a decision about the work in hand"), ContainSubstring("a timestamp"),
+		ContainSubstring("a finding about the incident of this session")), "what is not durable")
+	g.Expect(system).To(ContainSubstring("even when the user asks to remember them"),
+		"the request to remember does not make a status durable")
+	g.Expect(system).To(ContainSubstring("a lesson makes one claim"), "atomic")
+	g.Expect(system).To(ContainSubstring("not folded into the lesson beside it"), "a second claim is a lesson or nothing")
+}
+
+func Test855d4g1i_Judge_ASituationNamesNoTicketOrChangeNumber(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	request, found := judge(t, userPrompt("What is next?"), "Run the tests.", nil)
+
+	g.Expect(found).To(BeTrue())
+	g.Expect(flattened(request.System)).To(ContainSubstring(
+		"no ticket, issue or change number (such as #855) and no branch name, unless the lesson is about that ticket itself"))
+}
+
+func Test855d4g1j_Judge_ALessonWrittenEarlierInTheSessionIsCoveredWhateverItsWording(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	request, found := judge(t, userPrompt("What is next?"), "Run the tests.", nil)
+
+	g.Expect(found).To(BeTrue())
+
+	system := flattened(request.System)
+
+	g.Expect(system).To(ContainSubstring("the notes written automatically earlier in this session"),
+		"the section holds them")
+	g.Expect(system).To(ContainSubstring("is covered by it, however it is worded, so that no lesson is written twice"))
+}
+
 // unexported constants.
 const (
 	// learnTrue is the reply of the learn-moment judgement that finds the turn a learn moment.
@@ -746,6 +746,11 @@ type fataler interface {
 // assistantText is the record of a text of the agent.
 func assistantText(text string) string {
 	return `{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"` + text + `"}]}}`
+}
+
+// flattened is the text in lower case with its white space as single spaces.
+func flattened(text string) string {
+	return strings.Join(strings.Fields(strings.ToLower(text)), " ")
 }
 
 // isLooseLine reports a rune a line may not hold: a control character, or a white space that is not a space or that
@@ -846,9 +851,4 @@ func windowOf(prompt string) []string {
 	window, _, _ := strings.Cut(rest, "\n</window>")
 
 	return strings.Split(window, "\n")
-}
-
-// flattened is the text in lower case with its white space as single spaces.
-func flattened(text string) string {
-	return strings.Join(strings.Fields(strings.ToLower(text)), " ")
 }
