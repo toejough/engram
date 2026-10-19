@@ -8,7 +8,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestScenarioIDs_ListsEachScenarioOnceInOrder(t *testing.T) {
+func TestScenarioIDs_ReadsTheScenariosOfBothChanges(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
@@ -31,6 +31,16 @@ func TestScenarioIDs_ListsEachScenarioOnceInOrder(t *testing.T) {
 			name: "an indented scenario line is read",
 			spec: "  Scenario: 793d4b1a Every file of a mod\n",
 			want: []string{"793d4b1a"},
+		},
+		{
+			name: "the scenarios of the product and technical specs of 855 are read beside those of 793",
+			spec: "Scenario: 855a2a1a A glance\nScenario: 793a2a1a One\nScenario: 855d4b1m A cap\n",
+			want: []string{"855a2a1a", "793a2a1a", "855d4b1m"},
+		},
+		{
+			name: "a scenario of 793 that 855 restates is counted once",
+			spec: "Scenario: 793d2a1d Replaced\n### 855d2a Modified\nScenario: 793d2a1d Replaced\nScenario: 855d2a1a New\n",
+			want: []string{"793d2a1d", "855d2a1a"},
 		},
 		{
 			name: "prose and headings that name an ID, and the scenarios of other changes, are left out",
@@ -78,6 +88,20 @@ func TestScenariosWithoutTest_ARemovedScenarioNeedsNoTest(t *testing.T) {
 		g.Expect(removedScenarioIDs("### 855d4c Modified: 793d4a Delivering\n")).To(BeEmpty())
 		g.Expect(exceptIDs(ids, nil)).To(Equal(ids))
 	})
+}
+
+// TestScenariosWithoutTest_AScenarioOf855IsNamedOnlyWhereItsSpecIsRead: a check that reads the specs of 793 alone does not
+// name a scenario of 855 that has no test (855b45).
+func TestScenariosWithoutTest_AScenarioOf855IsNamedOnlyWhereItsSpecIsRead(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	spec793 := "Scenario: 793a2a1a One\n"
+	spec855 := "Scenario: 855a2a1a A glance\nScenario: 855d4b1m A cap\n"
+	sources := []string{"package a_test\n\nfunc Test793a2a1a_One(t *testing.T) {}\nfunc Test855a2a1a_Glance(t *testing.T) {}\n"}
+
+	g.Expect(scenariosWithoutTest(scenarioIDs(spec793), sources)).To(BeEmpty(), "reading 793 alone misses it")
+	g.Expect(scenariosWithoutTest(scenarioIDs(spec793+spec855), sources)).To(Equal([]string{"855d4b1m"}))
 }
 
 func TestScenariosWithoutTest_NamesThoseNoTestSourceDeclares(t *testing.T) {

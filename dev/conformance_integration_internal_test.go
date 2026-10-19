@@ -20,7 +20,7 @@ func TestConformance_EveryScenarioOfTheSpecsHasATest(t *testing.T) {
 	specs := make([]string, 0, len(specFiles))
 
 	for _, name := range specFiles {
-		text, err := os.ReadFile(filepath.Join(repositoryRoot, changeDirectory, name))
+		text, err := os.ReadFile(filepath.Join(repositoryRoot, name))
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
@@ -53,7 +53,11 @@ const (
 
 // unexported variables.
 var (
-	specFiles = []string{"793a_product-spec.md", "793d_technical-spec.md"}
+	// specFiles are the product and technical specs of both changes (855b45).
+	specFiles = []string{
+		filepath.Join(changeDirectory, "793a_product-spec.md"), filepath.Join(changeDirectory, "793d_technical-spec.md"),
+		filepath.Join(judgedDirectory, "855a_product-spec.md"), filepath.Join(judgedDirectory, "855d_technical-spec.md"),
+	}
 )
 
 // testSources returns the text of every Go test file of the repository, whatever its build tags.
