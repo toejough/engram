@@ -49,12 +49,12 @@ func Test855d7a1g_Hyp_ThePhrasesFindWhatTheRecallSkillFinds(t *testing.T) {
 			reached := machine.lookupWith(prompt, phrases)
 
 			drawn += len(named)
-			amongCandidates += len(overlap(named, arrived[index].candidates))
+			amongCandidates += len(arrived[index].reached(named))
 			amongSkillsOwn += len(overlap(named, reached))
 
 			rows = append(rows, []string{
 				strconv.Itoa(index + 1), strconv.Itoa(len(named)), arrived[index].depth,
-				strconv.Itoa(len(arrived[index].candidates)), strconv.Itoa(len(overlap(named, arrived[index].candidates))),
+				strconv.Itoa(len(arrived[index].candidates)), strconv.Itoa(len(arrived[index].reached(named))),
 				strconv.Itoa(len(phrases)), strconv.Itoa(len(reached)), strconv.Itoa(len(overlap(named, reached))),
 			})
 		}

@@ -30,11 +30,11 @@ const (
 
 // unexported variables.
 var (
+	haikuPrice = price{input: 0.10e-6, output: 0.50e-6, cacheRead: 0.01e-6, cacheWrite: 0.20e-6}
 	// liveLimits are the limits of every live row of 793 and 855 that is not a measurement.
 	liveLimits = sessionLimits{budgetUSD: "2", timeout: 5 * time.Minute}
 	// measureLimits are the limits of the conversations of the measurement rows of 855d7a1 (855b112).
 	measureLimits = sessionLimits{budgetUSD: "10", timeout: 30 * time.Minute}
-	haikuPrice    = price{input: 0.10e-6, output: 0.50e-6, cacheRead: 0.01e-6, cacheWrite: 0.20e-6}
 	sonnetPrice   = price{input: 2e-6, output: 10e-6, cacheRead: 0.10e-6, cacheWrite: 4e-6}
 )
 
@@ -112,6 +112,15 @@ type promptRecall struct {
 	candidates []string
 }
 
+// reached are the notes of those given that are among the candidates of the prompt's chain.
+func (r promptRecall) reached(drawn []string) []string { return overlap(drawn, r.candidates) }
+
+// sessionLimits are what a live session may spend, and for how long it may run.
+type sessionLimits struct {
+	budgetUSD string
+	timeout   time.Duration
+}
+
 // stepRun is one run of an `engram auto` step, as stepsAreRecorded keeps it.
 type stepRun struct {
 	step   string
@@ -183,15 +192,15 @@ type tokenUsage struct {
 // cache.
 func (u tokenUsage) all() int { return u.Input + u.Output + u.CacheRead + u.CacheCreate }
 
-// fresh is the tokens the model processed anew: the input and the output, and the input written to the cache; the
-// input read from the cache is not.
-func (u tokenUsage) fresh() int { return u.Input + u.Output + u.CacheCreate }
-
 // cost is the cost of the tokens at a price, in USD.
 func (u tokenUsage) cost(at price) float64 {
 	return float64(u.Input)*at.input + float64(u.Output)*at.output + float64(u.CacheRead)*at.cacheRead +
 		float64(u.CacheCreate)*at.cacheWrite
 }
+
+// fresh is the tokens the model processed anew: the input and the output, and the input written to the cache; the
+// input read from the cache is not.
+func (u tokenUsage) fresh() int { return u.Input + u.Output + u.CacheCreate }
 
 // plus is the sum of two usages.
 func (u tokenUsage) plus(other tokenUsage) tokenUsage {
@@ -542,6 +551,15 @@ func shellWords(text string) []string {
 	return splitter.words
 }
 
+// stepsWrapper is the script that keeps what each run of a step of the flows was given and printed. A run's files carry
+// the process ID and the second it began, so a process ID that comes round again does not overwrite an earlier run.
+func stepsWrapper(dir, engram string) string {
+	return "#!/bin/sh\ncase \"$1 $2\" in\n\"auto deliver\"|\"auto write\"|\"auto moment\"|\"auto phrases\"|" +
+		"\"auto recall\"|\"auto judge\"|\"auto place\")\nf='" + dir + "/'\"$2\"-$$-$(date +%s)\ncat > \"$f.in\"\n'" + engram +
+		"' \"$@\" < \"$f.in\" > \"$f.out\"\ncode=$?\n: > \"$f.done\"\ncat \"$f.out\"\ncp \"$f.out\" '" + dir +
+		"/'\"$2\".out\ncp \"$f.in\" '" + dir + "/'\"$2\".in\nexit $code\n;;\nesac\nexec '" + engram + "' \"$@\"\n"
+}
+
 // unknownDepths are the depths that a prompt's chain arrived at which are none of none, glance and deep: a prompt with
 // no chain has the depth "" and must not count as not none.
 func unknownDepths(arrived []promptRecall) []string {
@@ -573,19 +591,4 @@ func unmatchedRequests(chains []chain) []string {
 	}
 
 	return unmatched
-}
-
-// sessionLimits are what a live session may spend, and for how long it may run.
-type sessionLimits struct {
-	budgetUSD string
-	timeout   time.Duration
-}
-
-// stepsWrapper is the script that keeps what each run of a step of the flows was given and printed. A run's files carry
-// the process ID and the second it began, so a process ID that comes round again does not overwrite an earlier run.
-func stepsWrapper(dir, engram string) string {
-	return "#!/bin/sh\ncase \"$1 $2\" in\n\"auto deliver\"|\"auto write\"|\"auto moment\"|\"auto phrases\"|" +
-		"\"auto recall\"|\"auto judge\"|\"auto place\")\nf='" + dir + "/'\"$2\"-$$-$(date +%s)\ncat > \"$f.in\"\n'" + engram +
-		"' \"$@\" < \"$f.in\" > \"$f.out\"\ncode=$?\n: > \"$f.done\"\ncat \"$f.out\"\ncp \"$f.out\" '" + dir +
-		"/'\"$2\".out\ncp \"$f.in\" '" + dir + "/'\"$2\".in\nexit $code\n;;\nesac\nexec '" + engram + "' \"$@\"\n"
 }

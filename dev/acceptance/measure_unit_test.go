@@ -42,6 +42,11 @@ func TestChainsOf_ACaptureEndsAtTheWriteOfItsTurn(t *testing.T) {
 	chains := chainsOf(runs, nil)
 
 	g.Expect(chains).To(HaveLen(1))
+
+	if len(chains) != 1 {
+		return
+	}
+
 	g.Expect(chains[0].steps).To(HaveLen(4))
 	g.Expect(chains[0].end()).To(Equal(offset(4.5)))
 }
@@ -66,6 +71,11 @@ func TestChainsOf_ADeliveryAfterAStepThatPrintedNothingIsTheEarliestOfItsCue(t *
 	chains := chainsOf(runs, nil)
 
 	g.Expect(chains).To(HaveLen(1))
+
+	if len(chains) != 1 {
+		return
+	}
+
 	g.Expect(chains[0].steps).To(HaveLen(3), "moment, phrases and the delivery that began after the phrases ended")
 	g.Expect(chains[0].end()).To(Equal(offset(1.3)))
 	g.Expect(chains[0].depth()).To(BeEmpty(), "the phrases were given no reply here")
@@ -100,6 +110,11 @@ func TestChainsOf_LinksADeliveryByTheCarryAndMatchesEachModelCall(t *testing.T) 
 	chains := chainsOf(runs, meter)
 
 	g.Expect(chains).To(HaveLen(2))
+
+	if len(chains) != 2 {
+		return
+	}
+
 	g.Expect(chains[0].steps).To(HaveLen(4), "moment, phrases, recall and deliver")
 	g.Expect(chains[0].took()).To(Equal(5100 * time.Millisecond))
 	g.Expect(chains[0].depth()).To(Equal("glance"))
@@ -137,6 +152,16 @@ func TestMedianAndLongest_ReadAListOfDurations(t *testing.T) {
 	g.Expect(secs(0)).To(Equal("-"))
 }
 
+func TestPromptRecall_ReachedAreTheNotesDrawnOnAmongTheCandidates(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	recall := promptRecall{depth: "glance", candidates: []string{"1.a.md", "2.b.md"}}
+
+	g.Expect(recall.reached([]string{"2.b.md", "3.c.md"})).To(Equal([]string{"2.b.md"}))
+	g.Expect(promptRecall{}.reached([]string{"3.c.md"})).To(BeEmpty(), "a prompt with no chain reached nothing")
+}
+
 func TestQueryPhrases_ReadsThePhrasesOfAnEngramQueryWhateverTheirQuoting(t *testing.T) {
 	t.Parallel()
 
@@ -148,6 +173,27 @@ func TestQueryPhrases_ReadsThePhrasesOfAnEngramQueryWhateverTheirQuoting(t *test
 	g.Expect(queryPhrases(`engram query --phrase=plain --phrase=\"x`)).To(Equal([]string{"plain", `"x`}))
 	g.Expect(queryPhrases(`ls -la`)).To(BeEmpty())
 	g.Expect(shellWords("a  'b c'\td \"e \\\" f\"")).To(Equal([]string{"a", "b c", "d", `e " f`}))
+}
+
+func TestSessionLimits_TheMeasurementsRaiseTheirOwnAndTheSharedOnesStayAtThoseOf793(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(liveLimits.budgetUSD).To(Equal("2"), "the budget of 793's rows")
+	g.Expect(liveLimits.timeout).To(Equal(5*time.Minute), "the timeout of 793's rows")
+	g.Expect(measureLimits.budgetUSD).To(Equal("10"), "the budget of 855d7a1")
+	g.Expect(measureLimits.timeout).To(Equal(30*time.Minute), "the timeout of 855d7a1")
+}
+
+func TestStepsWrapper_NamesTheFilesOfARunByItsProcessAndTheSecondItBegan(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	script := stepsWrapper("/steps", "/bin/engram")
+
+	g.Expect(script).To(ContainSubstring(`f='/steps/'"$2"-$$-$(date +%s)`), "a process ID that comes round again")
+	g.Expect(script).To(ContainSubstring(`'/bin/engram' "$@" < "$f.in" > "$f.out"`))
 }
 
 func TestTokenUsage_CostsEachKindOfTokenAtItsPrice(t *testing.T) {
@@ -204,23 +250,4 @@ func TestUnmatchedRequests_NamesTheStepsThatPrintedARequestAndHaveNoModelCall(t 
 
 	g.Expect(unmatchedRequests(chainsOf(runs, []meterRecord{call}))).To(Equal([]string{"prompt moment"}),
 		"a call that began before the step ended is not the step's call")
-}
-
-func TestSessionLimits_TheMeasurementsRaiseTheirOwnAndTheSharedOnesStayAtThoseOf793(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	g.Expect(liveLimits).To(Equal(sessionLimits{budgetUSD: "2", timeout: 5 * time.Minute}), "the limits of 793's rows")
-	g.Expect(measureLimits).To(Equal(sessionLimits{budgetUSD: "10", timeout: 30 * time.Minute}), "the limits of 855d7a1")
-}
-
-func TestStepsWrapper_NamesTheFilesOfARunByItsProcessAndTheSecondItBegan(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	script := stepsWrapper("/steps", "/bin/engram")
-
-	g.Expect(script).To(ContainSubstring(`f='/steps/'"$2"-$$-$(date +%s)`), "a process ID that comes round again")
-	g.Expect(script).To(ContainSubstring(`'/bin/engram' "$@" < "$f.in" > "$f.out"`))
 }

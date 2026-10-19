@@ -256,16 +256,6 @@ func (c *conversation) tell(prompt string) *turn {
 	return answered
 }
 
-// startSession starts a session in a project directory of its own, outside any repository.
-func (m *machine) startSession(project string) *session {
-	m.t.Helper()
-
-	dir := filepath.Join(m.root, "projects", project)
-	mkdirAll(m.t, dir)
-
-	return &session{machine: m, id: newUUID(m.t), project: dir, limits: liveLimits}
-}
-
 // startMeasuredSession starts a session as startSession does, with the budget and the timeout the measurements need
 // (855b112).
 func (m *machine) startMeasuredSession(project string) *session {
@@ -275,6 +265,16 @@ func (m *machine) startMeasuredSession(project string) *session {
 	started.limits = measureLimits
 
 	return started
+}
+
+// startSession starts a session in a project directory of its own, outside any repository.
+func (m *machine) startSession(project string) *session {
+	m.t.Helper()
+
+	dir := filepath.Join(m.root, "projects", project)
+	mkdirAll(m.t, dir)
+
+	return &session{machine: m, id: newUUID(m.t), project: dir, limits: liveLimits}
 }
 
 // session is a Claude Code session in one project of a machine. Its prompts are separate `claude -p` runs that
