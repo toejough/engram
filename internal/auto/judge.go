@@ -18,7 +18,7 @@ import (
 // Exported variables.
 var (
 	// ErrLearnReply is the failure of a judgement given a reply that is not the learn-moment judgement's (855d4g).
-	ErrLearnReply = errors.New(`the reply of the learn-moment judgement is not {"learn": true or false}`)
+	ErrLearnReply = errors.New(`the learn-moment judgement's reply is not {"learn":true|false}`)
 )
 
 // TurnEnd is a turn that has ended, as the memory mod hands it over: the session it was in, its final text, the text it
@@ -69,7 +69,8 @@ func Judge(ctx context.Context, record []byte, end TurnEnd, lookup Lookup) (Step
 }
 
 // LearnMoment reads the reply of the learn-moment judgement: whether the turn is a learn moment (855d4g). A reply that
-// is neither {"learn":true} nor {"learn":false} is an error.
+// is neither {"learn":true} nor {"learn":false} is an error that holds the reply's first and last 80 characters,
+// redacted (855d4g1f).
 func LearnMoment(reply string) (bool, error) {
 	var parsed struct {
 		Learn *bool `json:"learn"`
@@ -77,7 +78,7 @@ func LearnMoment(reply string) (bool, error) {
 
 	readErr := json.Unmarshal([]byte(replyValue(reply)), &parsed)
 	if readErr != nil || parsed.Learn == nil {
-		return false, ErrLearnReply
+		return false, fmt.Errorf("%w: learn-moment reply [%s]", ErrLearnReply, squeezed(oneRedacted(reply), replyShown))
 	}
 
 	return *parsed.Learn, nil
@@ -111,6 +112,8 @@ const (
 	noteLimit = 400
 	// promptShape is the prompt of the request: the window and the section of notes, each between its tags.
 	promptShape = "<window>\n%s\n</window>\n<notes>\n%s\n</notes>"
+	// replyShown is how many characters of a reply that is no moment reply an error holds: 80 of each end and the cut.
+	replyShown  = 161
 	toolLabel   = "Agent used "
 	userLabel   = "User: "
 	// windowLimit is how many characters the window holds at most.
