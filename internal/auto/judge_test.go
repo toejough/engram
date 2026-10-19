@@ -444,6 +444,32 @@ func Test855d4g1e_Judge_ARowStampedHumanIsAPromptAndATaskNotificationOrAPeerIsNo
 	}))
 }
 
+func Test855d4g1f_Judge_AReplyThatIsNoMomentReplyFailsWithItsEnds(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// the issuer's prefix and the body, built here and written whole in no literal (the {{AKIA}} placeholder convention)
+	secret := "AK" + "IA" + "IOSFODNN7EXAMPLE"
+	reply := "BEGIN-" + strings.Repeat("m", 100) + " " + secret + " " + strings.Repeat("n", 100) + "-END"
+	redacted := auto.Redact(reply)
+	runes := []rune(redacted)
+
+	_, found, err := judgeStep(userPrompt("No - build with make zorblax-build."), "Understood.", reply, nil)
+
+	g.Expect(found).To(BeFalse())
+	g.Expect(err).To(MatchError(auto.ErrLearnReply))
+	g.Expect(err).To(MatchError(ContainSubstring("learn-moment reply")), "the failure names the step")
+	g.Expect(err).To(MatchError(ContainSubstring(string(runes[:replyEnd]))), "the first 80 characters of the reply")
+	g.Expect(err).To(MatchError(ContainSubstring(string(runes[len(runes)-replyEnd:]))), "the last 80 characters")
+	g.Expect(err.Error()).NotTo(ContainSubstring(secret), "a credential in the reply is redacted")
+
+	// the failure is recorded as the mod hands it over, and the record keeps a reason to 300 characters
+	recorded := auto.RecordedReason("engram auto judge exited with 1: auto judge: " + err.Error())
+
+	g.Expect(recorded).To(ContainSubstring(string(runes[:replyEnd])), "the record keeps the beginning of the reply")
+	g.Expect(recorded).To(ContainSubstring(string(runes[len(runes)-replyEnd:])), "and its end")
+}
+
 func Test793d4g1v_Judge_AMessageOrANoteCannotCloseTheWindowOrOpenASection(t *testing.T) {
 	t.Parallel()
 
@@ -619,6 +645,8 @@ func Test855d4g1c_Judge_TheInstructionsNameTheFourKindsAndTheRunbook(t *testing.
 
 // unexported constants.
 const (
+	// replyEnd is how many characters of each end of a reply a failure holds (855d4g1f).
+	replyEnd = 80
 	// learnTrue is the reply of the learn-moment judgement that finds the turn a learn moment.
 	learnTrue    = `{"learn":true}`
 	maxFragments = 8
