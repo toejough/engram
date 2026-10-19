@@ -54,6 +54,7 @@ type AutoDeliverDeps struct {
 type AutoJudgeArgs struct {
 	VaultPath   string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
 	SessionsDir string `targ:"flag,name=sessions,desc=directory of recorded sessions (default ENGRAM_TRANSCRIPT_DIR then CLAUDE_CONFIG_DIR/projects then ~/.claude/projects)"` //nolint:lll // single unbreakable struct-tag string
+	RecordsDir  string `targ:"flag,name=records,desc=directory of the records of what automatic memory did (default $XDG_DATA_HOME/engram/auto)"`                                                         //nolint:lll // single unbreakable struct-tag string
 }
 
 // AutoJudgeDeps holds injected dependencies for RunAutoJudge: those of the delivery, because the judgement looks up
@@ -67,6 +68,10 @@ type AutoJudgeDeps struct {
 	// ReadDir and ReadFile read the session-log directory, where Claude Code keeps the record of each session.
 	ReadDir  func(path string) ([]fs.DirEntry, error)
 	ReadFile func(path string) ([]byte, error)
+	// Now is the time a record is made at.
+	Now func() time.Time
+	// WriteRecord writes one record, a file of its own, and makes its directory.
+	WriteRecord func(path string, data []byte) error
 }
 
 // AutoSweepArgs holds parsed flags for `engram auto sweep`: where the records of sessions and the chunk index are, and

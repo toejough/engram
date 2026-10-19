@@ -20,6 +20,8 @@ const (
 	// HeadlessSkipReason is what the record of a headless turn that is left out says (793d4m).
 	HeadlessSkipReason = "the turn was not captured: " +
 		"headless prompts are captured only when ENGRAM_AUTO_CAPTURE_SDK is set"
+	// StaleModSkipReason is what the record of a turn says that the mod of an older engram handed over (855d4g1g).
+	StaleModSkipReason = "the turn was not captured: the session runs an older memory mod; restart the session"
 )
 
 // Exported variables.
