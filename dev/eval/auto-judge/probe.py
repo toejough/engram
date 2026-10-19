@@ -249,7 +249,16 @@ def verdict(reply, expect):
     if not isinstance(lessons, list):
         return "invalid"
     if expect.get("not_written"):
-        return "suppressed" if all(lesson.get("covered") for lesson in lessons) else "written (a miss)"
+        # an empty list proves nothing (the reply may drop the lesson for another reason): suppression is a lesson
+        # whose covered names the note of the session (855b117, the note 1377a)
+        if any(not lesson.get("covered") for lesson in lessons):
+            return "written (a miss)"
+        if not lessons:
+            return "none (no lesson names the covering note, a miss)"
+        named = expect.get("covered_by", "")
+        if not any(named in str(lesson.get("covered")) for lesson in lessons):
+            return "covered by another note (a miss)"
+        return "suppressed"
     if not lessons:
         return "none (a miss)" if expect.get("lesson") or expect.get("covered") else "none"
     if expect.get("covered"):
@@ -332,6 +341,7 @@ def main():
     parser.add_argument("--without", action="append", default=[])
     parser.add_argument("--list", action="store_true")
     parser.add_argument("--fixtures", help="a fixtures file other than fixtures.json")
+    parser.add_argument("--record", help="append one JSON line per run (fixture, variant, model, verdict) to this file")
     parser.add_argument("--dump", help="a directory that keeps the raw reply of every run, for a manual read")
     args = parser.parse_args()
 
@@ -364,6 +374,13 @@ def main():
                 with open(os.path.join(args.dump, "%s.%s.%d.txt" % (name, label, number)), "w", encoding="utf-8") as out:
                     out.write("VERDICT: %s\n%s\n" % (kind, reply))
 
+    if args.record:
+        os.makedirs(os.path.dirname(os.path.abspath(args.record)), exist_ok=True)
+        with open(args.record, "a", encoding="utf-8") as handle:
+            for (name, label), kinds in sorted(results.items()):
+                for number, kind in enumerate(kinds):
+                    handle.write(json.dumps({"fixture": name, "variant": label, "model": requests[name]["model"],
+                                             "run": number, "verdict": kind}) + "\n")
     print("%-22s %-14s %s" % ("fixture", "variant", "replies of %d runs" % args.runs))
     for name in names:
         for label, _ in variants:

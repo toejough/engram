@@ -403,7 +403,7 @@
       "answer": "While doing it I found that my cost and latency rows passed vacuously: when the meter matches no model call, cost and tokens are 0 and 0 falls under every upper bound. I changed each measurement row so that it fails if a step that printed a model request has no matched call, and asserts that the meter has records before it checks the bound."
     },
     "expect": {
-      "not_written": true
+      "not_written": true, "covered_by": "measurement-rows-assert-recorder-matched-calls"
     }
   },
   "dup-bare-cat": {
@@ -509,7 +509,7 @@
       "answer": "My earlier docs-edit command hung because it began with a bare cat that read stdin and never closed, so the edit never ran. I now write edit scripts to a file and run the file, and I do not begin a command with a stdin-reading cat."
     },
     "expect": {
-      "not_written": true
+      "not_written": true, "covered_by": "background-cat-needs-file-argument"
     }
   },
   "dup-live-budget": {
@@ -615,7 +615,7 @@
       "answer": "I had raised the shared live budget to $10 and the timeout to 30 minutes for every live row without recording it, which was wrong. I now give the raised budget and timeout only to the measurement rows that need them, and record the change in the decision log."
     },
     "expect": {
-      "not_written": true
+      "not_written": true, "covered_by": "scope-live-budget-timeout-to-measurement-rows"
     }
   },
   "incident-finding": {

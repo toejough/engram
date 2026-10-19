@@ -38,6 +38,13 @@ def test_record_of_refuses_a_row_that_is_none_of_the_three():
     ('[{"slug": "x", "covered": "1.note.md"}]', {"covered": True}, "covered"),
     ('[{"slug": "x", "covered": null}]', {"covered": True}, "written (a miss)"),
     ('```json\n[{"action": "FLAG"}]\n```', {"lesson": ["flag"]}, "lesson"),
+    ("[]", {"not_written": True, "covered_by": "cat-needs"}, "none (no lesson names the covering note, a miss)"),
+    ('[{"slug": "x", "covered": "1.2026-10-19.cat-needs-file.md"}]', {"not_written": True, "covered_by": "cat-needs"},
+     "suppressed"),
+    ('[{"slug": "x", "covered": "7.2026-10-19.other.md"}]', {"not_written": True, "covered_by": "cat-needs"},
+     "covered by another note (a miss)"),
+    ('[{"slug": "x", "covered": "1.cat-needs.md"}, {"slug": "y", "covered": null}]',
+     {"not_written": True, "covered_by": "cat-needs"}, "written (a miss)"),
     ("not json", {}, "invalid"),
     ('{"a": 1}', {}, "invalid"),
 ])
@@ -71,7 +78,7 @@ def test_every_fixture_has_rows_a_turn_and_an_expectation():
 
 
 @pytest.mark.parametrize("reply, expect, kind", [
-    ("[]", {"not_written": True}, "suppressed"),
+    ("[]", {"not_written": True}, "none (no lesson names the covering note, a miss)"),
     ('[{"slug": "x", "covered": "1.note.md"}]', {"not_written": True}, "suppressed"),
     ('[{"slug": "x", "covered": null}]', {"not_written": True}, "written (a miss)"),
     ('[{"action": "run check-full", "situation": "linting"}]', {"lesson": ["check-full"], "absent": ["friday"]}, "lesson"),
