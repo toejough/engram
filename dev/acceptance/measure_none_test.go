@@ -37,22 +37,56 @@ func Test855d7a1j_Hyp_TheMomentJudgementsFalseNoneIsRecorded(t *testing.T) {
 
 		drawn := make([][]string, 0, len(noneCandidatePrompts))
 
-		for index, prompt := range noneCandidatePrompts[:1] {
+		for index, prompt := range noneCandidatePrompts {
 			skilled := machine.startSession(fmt.Sprintf("skill-%d", index)).send(skillAsk(prompt))
 
 			drawn = append(drawn, namedNotes(skilled.reply, machine.noteNames()))
 		}
 
 		none, withNotes := falseNone(arrived, drawn)
+		rows := make([][]string, 0, len(arrived))
+
+		for index := range arrived {
+			rows = append(rows, []string{
+				fmt.Sprintf("%d", index+1), fmt.Sprintf("%d", len(drawn[index])), arrived[index].depth,
+				fmt.Sprintf("%d", len(arrived[index].candidates)),
+			})
+		}
+
+		t.Logf("the depth the moment judgement chose for each prompt, and the notes the recall skill drew on:\n%s",
+			table([]string{"prompt", "drawn on", "depth", "candidates"}, rows))
+		t.Logf("of %d prompts, %d had a note the skill drew on; the moment judgement answered none for %d of those (%.2f); "+
+			"the bound is one half", len(arrived), withNotes, none, ratio(none, withNotes))
 
 		g.Expect(withNotes).To(BeNumerically(">", 0), "the prompts for which the skill draws on a note")
-		g.Expect(none).To(BeNumerically(">=", 0))
+		g.Expect(ratio(none, withNotes)).To(BeNumerically("<=", maxFalseNone), "the share answered none")
 	})
 }
 
 // falseNone counts, among the prompts for which the recall skill drew on a note, those for which the moment judgement
 // chose none.
-func falseNone(_ []promptRecall, _ [][]string) (none, withNotes int) { return 0, 0 }
+func falseNone(chains []promptRecall, drawn [][]string) (none, withNotes int) {
+	for index, notes := range drawn {
+		if len(notes) == 0 || index >= len(chains) {
+			continue
+		}
+
+		withNotes++
+
+		if chains[index].depth == "none" {
+			none++
+		}
+	}
+
+	return none, withNotes
+}
+
+// unexported constants.
+const (
+	// maxFalseNone is the share of the prompts the skill draws on a note for that the moment judgement may answer none
+	// for: one half (855d7a1j).
+	maxFalseNone = 0.5
+)
 
 // unexported variables.
 var (

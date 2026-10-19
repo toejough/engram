@@ -145,3 +145,16 @@ func TestCandidateNotes_ListsTheNotesAmongTheCandidatesOfARecallStep(t *testing.
 	g.Expect(ratio(1, 0)).To(BeZero())
 	g.Expect(ratio(1, 4)).To(Equal(0.25))
 }
+
+func TestFalseNone_CountsThePromptsWithANoteDrawnOnThatWereJudgedNone(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	chains := []promptRecall{{depth: "none"}, {depth: "glance"}, {depth: "none"}, {depth: "deep"}}
+	drawn := [][]string{{"a.md"}, {"b.md", "c.md"}, nil, {"d.md"}}
+
+	none, withNotes := falseNone(chains, drawn)
+
+	g.Expect(none).To(Equal(1), "the prompt judged none that the skill drew a note for")
+	g.Expect(withNotes).To(Equal(3), "the prompts the skill drew a note for")
+}
