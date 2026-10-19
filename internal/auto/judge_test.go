@@ -516,6 +516,12 @@ func Test855d4g1b_Judge_AFencedReplyIsReadAndAReplyThatIsNotAMomentReplyFails(t 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(found).To(BeTrue(), "a fenced reply is read")
 
+	_, found, err = judgeStep(record, "Understood.", "The user corrected the agent, so this turn holds a lesson.\n\n"+
+		learnTrue, nil)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(found).To(BeTrue(), "the object that follows the model's reasoning is read")
+
 	for name, reply := range map[string]string{
 		"not JSON":                      "yes, this is a learn moment",
 		"an object with no learn field": `{"depth":"glance"}`,

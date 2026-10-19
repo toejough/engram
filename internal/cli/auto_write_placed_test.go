@@ -47,6 +47,17 @@ func Test855d4i1b_Write_ALessonIsWrittenAsAContinuationOrASiblingOfASeenNote(t *
 		})
 	})
 
+	t.Run("a placement that follows the model's reasoning", func(t *testing.T) {
+		t.Parallel()
+
+		writeLearning(t, writeInput{
+			reply: factLessonReply, seen: []string{"2a.2026-10-17.zorblax-format.md"},
+			placement: "The lesson extends the thought of the note at the same level.\n\n" +
+				`[{"slug":"staging-reset","position":"sibling","target":"2a.2026-10-17.zorblax-format.md",` +
+				`"supersedes":[]}]`,
+		}, []cli.LearnArgs{factLearn("sibling", "2a")})
+	})
+
 	t.Run("a sibling of a note at the top is written at the top", func(t *testing.T) {
 		t.Parallel()
 
