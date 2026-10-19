@@ -113,9 +113,9 @@ const (
 	// promptShape is the prompt of the request: the window and the section of notes, each between its tags.
 	promptShape = "<window>\n%s\n</window>\n<notes>\n%s\n</notes>"
 	// replyShown is how many characters of a reply that is no moment reply an error holds: 80 of each end and the cut.
-	replyShown  = 161
-	toolLabel   = "Agent used "
-	userLabel   = "User: "
+	replyShown = 161
+	toolLabel  = "Agent used "
+	userLabel  = "User: "
 	// windowLimit is how many characters the window holds at most.
 	windowLimit = 8000
 )

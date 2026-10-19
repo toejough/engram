@@ -163,10 +163,12 @@ func autoLearnTargets(
 	withLog func(context.Context) context.Context,
 	errHandler func(error),
 	paths func(vault, sessions string) (string, string),
+	recordsDir func(flag string) string,
 ) []any {
 	return []any{
 		targ.Targ(func(ctx context.Context, a AutoJudgeArgs) {
 			a.VaultPath, a.SessionsDir = paths(a.VaultPath, a.SessionsDir)
+			a.RecordsDir = recordsDir(a.RecordsDir)
 
 			errHandler(RunAutoJudge(withLog(ctx), a, newAutoJudgeDeps(deps), deps.Stdout))
 		}).Name("judge").Description(
@@ -243,7 +245,7 @@ func autoTargets(
 
 	return []any{
 		targ.Group("auto", slices.Concat(autoRecallTargets(deps, withLog, errHandler, home, recordsDir),
-			autoLearnTargets(deps, withLog, errHandler, paths), []any{
+			autoLearnTargets(deps, withLog, errHandler, paths, recordsDir), []any{
 				targ.Targ(func(ctx context.Context, a AutoDeliverArgs) {
 					a.VaultPath, a.SessionsDir = paths(a.VaultPath, a.SessionsDir)
 					a.RecordsDir = recordsDir(a.RecordsDir)

@@ -54,7 +54,7 @@ type AutoDeliverDeps struct {
 type AutoJudgeArgs struct {
 	VaultPath   string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
 	SessionsDir string `targ:"flag,name=sessions,desc=directory of recorded sessions (default ENGRAM_TRANSCRIPT_DIR then CLAUDE_CONFIG_DIR/projects then ~/.claude/projects)"` //nolint:lll // single unbreakable struct-tag string
-	RecordsDir  string `targ:"flag,name=records,desc=directory of the records of what automatic memory did (default $XDG_DATA_HOME/engram/auto)"`                                                         //nolint:lll // single unbreakable struct-tag string
+	RecordsDir  string `targ:"flag,name=records,desc=directory of the records of what automatic memory did (default $XDG_DATA_HOME/engram/auto)"`                              //nolint:lll // single unbreakable struct-tag string
 }
 
 // AutoJudgeDeps holds injected dependencies for RunAutoJudge: those of the delivery, because the judgement looks up
@@ -190,12 +190,27 @@ func RunAutoDeliver(
 // record holds no prompt. It fails, printing nothing, when the reply is no moment reply, no vault exists at the path or
 // no record of the session is found, so that the model is not asked for a turn that cannot be judged (793d4g, 855d4g).
 func RunAutoJudge(ctx context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, stdout io.Writer) error {
-	var turn auto.TurnEnd
+	var turn judgedTurn
 
 	decodeErr := json.NewDecoder(deps.Stdin).Decode(&turn)
 	if decodeErr != nil {
 		return fmt.Errorf("auto judge: reading the turn: %w", decodeErr)
 	}
+
+	// a mod of an older engram hands over no reply: its turn is skipped and not failed, and the session needs a restart
+	// (855d4g1g)
+	if turn.Reply == nil {
+		results := outcomes{base: auto.Record{At: deps.Now(), Session: turn.Session, Turn: turn.Turn}}
+		results.add(auto.RecordSkipped, "", "", auto.StaleModSkipReason)
+
+		_ = writeRecords(deps.WriteRecord, args.RecordsDir, results.records)
+
+		debuglog.Log(ctx, "auto.judge", "session=%s nothing", turn.Session)
+
+		return nil
+	}
+
+	turn.TurnEnd.Reply = *turn.Reply
 
 	_, vaultErr := deps.ReadDir(args.VaultPath)
 	if vaultErr != nil {
@@ -207,7 +222,7 @@ func RunAutoJudge(ctx context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, s
 		return fmt.Errorf("auto judge: %w %s under %s", errNoRecord, turn.Session, args.SessionsDir)
 	}
 
-	request, found, judgeErr := auto.Judge(ctx, record, turn,
+	request, found, judgeErr := auto.Judge(ctx, record, turn.TurnEnd,
 		func(ctx context.Context, text string) ([]auto.Note, error) {
 			return lookUpNotes(ctx, args.VaultPath, text, deps.Query)
 		})
@@ -323,6 +338,13 @@ const (
 	// toldFileExt ends the name of the mark of a record whose line was shown: the name of the record's file, then this.
 	toldFileExt = ".told"
 )
+
+// judgedTurn is the turn `auto judge` reads: the turn that ended, and whether it holds a reply at all (855d4g1g).
+type judgedTurn struct {
+	auto.TurnEnd
+
+	Reply *string `json:"reply"`
+}
 
 // unexported variables.
 var (
@@ -528,10 +550,12 @@ func newAutoJudgeDeps(d Deps) AutoJudgeDeps {
 	deliverDeps := newAutoDeliverDeps(d)
 
 	return AutoJudgeDeps{
-		Stdin:    deliverDeps.Stdin,
-		Query:    newAutoLookup(d),
-		ReadDir:  deliverDeps.ReadDir,
-		ReadFile: deliverDeps.ReadFile,
+		Stdin:       deliverDeps.Stdin,
+		Query:       newAutoLookup(d),
+		ReadDir:     deliverDeps.ReadDir,
+		ReadFile:    deliverDeps.ReadFile,
+		Now:         d.Now,
+		WriteRecord: recordWriterFrom(d),
 	}
 }
 
