@@ -127,6 +127,19 @@ func Test855d4a1b_Moment_TheInstructionsCountTheAgentsPlainCorrectionOfItsOwnCla
 		"a guess that the agent then corrects from what it read is a lesson, though a guess alone is not")
 }
 
+func Test855d4a1i_Moment_AQuestionOfStatusWithNoDecisionInItIsNeverDeep(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	step := auto.Moment([]byte(userPrompt("what's next?")), auto.MomentInput{
+		Session: "4f1c0a9e-6f1d-4f5e-9d58-0f3d9a3c8e11", Cue: "prompt", Origin: "composer", Text: "what's next?",
+	})
+
+	g.Expect(flattened(step.Request.System)).To(ContainSubstring(
+		"a question about the status or progress of the work or about what comes next, with no decision in it, is never deep"),
+		"the deep recall is for a decision, and a status question has none (the dogfood of 2026-10-19)")
+}
+
 func Test855d4a1c_Moment_EachToolCuePutsItsEventInTheWindow(t *testing.T) {
 	t.Parallel()
 

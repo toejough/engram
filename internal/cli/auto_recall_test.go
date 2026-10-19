@@ -339,6 +339,32 @@ func Test855d4b1h_Recall_ADeepRequestAlsoAsksForTheLessonsAndTheRevisions(t *tes
 	g.Expect(step.Write).To(BeTrue(), "the output holds write true at deep")
 }
 
+func Test855d4b1r_Recall_ANoteIsNearOnlyWhenTheMomentSharpensItsOwnClaim(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	system := recalledSystem(t, "glance")
+
+	g.Expect(system).To(ContainSubstring("omits a substantive part of its own claim, the same subject and the same principle"))
+	g.Expect(system).To(ContainSubstring(
+		"a note that merely shares a situation or words with the moment, and would need a different claim to apply, "+
+			"is unrelated, not near"))
+}
+
+func Test855d4b1s_Recall_ADeepRequestRevisesOnlyTheNotesOwnClaimAndWritesOnlyADurableAndAtomicLesson(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	system := recalledSystem(t, "deep")
+
+	g.Expect(system).To(ContainSubstring("the claim it already makes: the same subject, the same situation, the same principle"))
+	g.Expect(system).To(ContainSubstring("never adds a different claim"))
+	g.Expect(system).To(ContainSubstring("is a lesson (below) or nothing"))
+	g.Expect(system).To(ContainSubstring("a status, a plan, a branch, worktree or ticket name, a timestamp or an episode"))
+	g.Expect(system).To(ContainSubstring("that is durable and atomic"))
+	g.Expect(system).To(ContainSubstring("no ticket or change number unless the lesson is about it"))
+}
+
 func Test855d4b1j_Recall_AFailedLookupFailsTheCommandAndPrintsNothing(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -614,4 +640,31 @@ func recallInputOfReply(reply string) io.Reader {
 	}
 
 	return bytes.NewReader(input)
+}
+
+// recalledSystem is the system of the request of the candidate judgement at a depth, flattened.
+func recalledSystem(t *testing.T, depth string) string {
+	t.Helper()
+
+	g := NewWithT(t)
+
+	var out bytes.Buffer
+
+	err := cli.RunAutoRecall(context.Background(), cli.AutoRecallArgs{VaultPath: "/a/vault"},
+		cli.AutoRecallDeps{
+			Stdin: recallInput(depth, "staging resets"), ReadChunks: chunksRead(),
+			Query: payloadQuery(payloadOf(
+				noteItem("1.2026-10-17.zorblax-staging-reset.md", "direct", "2026-10-17", resetSituation, resetBody))),
+		}, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var step struct {
+		Request struct {
+			System string `json:"system"`
+		} `json:"request"`
+	}
+
+	g.Expect(json.Unmarshal(out.Bytes(), &step)).To(Succeed())
+
+	return strings.Join(strings.Fields(strings.ToLower(step.Request.System)), " ")
 }

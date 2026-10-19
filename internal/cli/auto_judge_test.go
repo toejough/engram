@@ -138,6 +138,57 @@ func Test793d4g1h_RunAutoJudge_TheNearestNotesAreInTheRequest(t *testing.T) {
 		"the Zorblax staging database is reset every Sunday at 03:40 UTC.\n</notes>"))
 }
 
+func Test855d4g1j_RunAutoJudge_TheNotesTheSessionWroteAreInTheRequestOnceAndThoseOfOthersAreNot(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	ownNote := strings.Replace(zorblaxResetNote, "source: test", "source: written automatically (session "+sessionID+")", 1)
+	otherNote := strings.NewReplacer("1.", "2.", "source: test", "source: written automatically (session another)").
+		Replace(zorblaxResetNote)
+
+	plantNoteOnDisk(t, vault, "1.2026-10-17.zorblax-staging-reset.md", ownNote)
+	plantNoteOnDisk(t, vault, "2.2026-10-17.zorblax-other-session.md", otherNote)
+
+	sessions := t.TempDir()
+	record := `{"type":"user","message":{"role":"user","content":"Run the tests."}}` + "\n"
+	g.Expect(os.WriteFile(filepath.Join(sessions, sessionID+".jsonl"), []byte(record), 0o600)).To(Succeed())
+
+	judged := func(query cli.QueryRun) []string {
+		var out bytes.Buffer
+
+		err := cli.RunAutoJudge(context.Background(), cli.AutoJudgeArgs{VaultPath: vault, SessionsDir: sessions},
+			cli.AutoJudgeDeps{Stdin: turnInput(sessionID, "Done."), Query: query, ReadDir: os.ReadDir, ReadFile: os.ReadFile},
+			&out)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		var step struct {
+			Request struct {
+				Prompt string `json:"prompt"`
+			} `json:"request"`
+		}
+
+		g.Expect(json.Unmarshal(out.Bytes(), &step)).To(Succeed())
+
+		_, rest, _ := strings.Cut(step.Request.Prompt, "<notes>\n")
+		section, _, _ := strings.Cut(rest, "\n</notes>")
+
+		return strings.Split(section, "\n")
+	}
+
+	nothingNear := queryOver(newQueryDeps(newInMemoryFS()))
+
+	lines := judged(nothingNear)
+
+	g.Expect(lines).To(HaveLen(1), "the note this session wrote, and not the note another session wrote")
+	g.Expect(lines[0]).To(HavePrefix("- 1.2026-10-17.zorblax-staging-reset.md (testing against the Zorblax staging database): "))
+
+	memFS := newInMemoryFS()
+	plantNoteWithSidecar(t, memFS, vault, "1.2026-10-17.zorblax-staging-reset.md", ownNote)
+
+	g.Expect(judged(queryOver(newQueryDeps(memFS)))).To(HaveLen(1), "a note both near and written in the session is one line")
+}
+
 func Test793d4g1i_RunAutoJudge_AFailedLookupFailsTheCommandAndPrintsNothing(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
