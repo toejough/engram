@@ -214,3 +214,13 @@ func TestSessionLimits_TheMeasurementsRaiseTheirOwnAndTheSharedOnesStayAtThoseOf
 	g.Expect(liveLimits).To(Equal(sessionLimits{budgetUSD: "2", timeout: 5 * time.Minute}), "the limits of 793's rows")
 	g.Expect(measureLimits).To(Equal(sessionLimits{budgetUSD: "10", timeout: 30 * time.Minute}), "the limits of 855d7a1")
 }
+
+func TestStepsWrapper_NamesTheFilesOfARunByItsProcessAndTheSecondItBegan(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	script := stepsWrapper("/steps", "/bin/engram")
+
+	g.Expect(script).To(ContainSubstring(`f='/steps/'"$2"-$$-$(date +%s)`), "a process ID that comes round again")
+	g.Expect(script).To(ContainSubstring(`'/bin/engram' "$@" < "$f.in" > "$f.out"`))
+}
