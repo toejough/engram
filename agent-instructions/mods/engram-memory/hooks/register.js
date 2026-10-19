@@ -54,6 +54,9 @@ const delivered = new Map()
 // (855d2a).
 const deliveries = new Map()
 
+// The writes after the deliveries of a session, each chained after the one before it, for the same reason.
+const writes = new Map()
+
 // So many prompts are kept at most: one that is dropped, or delivered into a running turn, starts no turn.
 const RAISED_MAX = 20
 
@@ -303,7 +306,7 @@ async function promptChain($, e, state) {
     state.write = printed.write === true ? { cue: base.cue, ...answer } : null
   }
 
-  return inOrder(state.session, async () => {
+  return inOrder(deliveries, state.session, async () => {
     const held = [...(delivered.get(state.session) ?? [])]
     const { stdout, stderr } = await run($, 'deliver', { ...base, held, text: e.text, ...answer }, STEP_BOUND_MS)
     const lines = stderr.split('\n').map((text) => text.trim()).filter((text) => text !== '')
@@ -315,7 +318,8 @@ async function promptChain($, e, state) {
 
 // writeAfter has the lessons and the notes of a deep delivery written from a timer once the block is given, so that the
 // writing holds neither the prompt nor the agent and no call is in flight when the hook settles; a write that fails is
-// reported (855d2a, 855b29).
+// reported (855d2a, 855b29). The writes of a session are run one after the other, so that two deep cues in a turn do
+// not crystallize the same lesson twice.
 function writeAfter($, state) {
   if (state.write === null) {
     return
@@ -325,22 +329,24 @@ function writeAfter($, state) {
 
   $.clock.after(0, () => {
     void (async () => {
-      try {
-        await run($, 'write', { session, ...write }, DEEP_WRITE_BOUND_MS)
-      } catch (error) {
-        await report($, session, '', new Error(`the write after a deep delivery failed: ${describe(error)}`))
-      }
+      await inOrder(writes, session, async () => {
+        try {
+          await run($, 'write', { session, ...write }, DEEP_WRITE_BOUND_MS)
+        } catch (error) {
+          await report($, session, '', new Error(`the write after a deep delivery failed: ${describe(error)}`))
+        }
+      })
     })()
   })
 }
 
-// inOrder runs a delivery of a session after the one before it is over, whatever became of that one (855d2a).
-async function inOrder(session, job) {
-  const before = deliveries.get(session) ?? Promise.resolve()
+// inOrder runs a job of a session after the one before it in the chains is over, whatever became of that one (855d2a).
+async function inOrder(chains, session, job) {
+  const before = chains.get(session) ?? Promise.resolve()
   let over
   const mine = new Promise((resolve) => { over = resolve })
 
-  deliveries.set(session, before.then(() => mine))
+  chains.set(session, before.then(() => mine))
   await before
 
   try {
