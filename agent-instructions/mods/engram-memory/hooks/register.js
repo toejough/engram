@@ -4,8 +4,8 @@
 // routes to it, asks the model for the requests the steps print, puts the block the delivery prints beside the prompt,
 // and shows the user the lines it prints for the user, through the host's log (855d2a).
 
-// Each wait of the flow of a prompt, a step or a model call, has 2 minutes of its own (855a3c): a wait that is only slow
-// is waited for, and one that has not answered by then has stalled, and the flow steps aside.
+// Each wait of the flow of a prompt, a step or a model call, has 2 minutes of its own (855a3c): a wait that is only
+// slow is waited for, and one that has not answered by then has stalled, and the flow steps aside.
 const STEP_BOUND_MS = 120000
 
 // The steps of the flow of a prompt that print a request, in order; the delivery follows them (855d2a).
@@ -18,8 +18,8 @@ const STEP = '{"request":'
 const MARKER = '[engram memory]'
 
 // The bounds of the stages of the capture of a turn (855d2b): the call for the session's ID, the steps `engram auto
-// moment`, `judge` and `place`, `engram auto write` and the run of it that reports a failure. The three model calls hold
-// the limits of their requests, 10, 30 and 15 seconds; together they are 115 seconds, under the 2 minutes of the
+// moment`, `judge` and `place`, `engram auto write` and the run of it that reports a failure. The three model calls
+// hold the limits of their requests, 10, 30 and 15 seconds; together they are 115 seconds, under the 2 minutes of the
 // product (793a2c).
 const ID_BOUND_MS = 5000
 const MOMENT_BOUND_MS = 5000
@@ -104,7 +104,8 @@ export function register(on) {
       return next(e)
     }
 
-    const event = { tool: e.tool, input: Object.fromEntries(Object.entries(e).filter(([key]) => !RESERVED.includes(key))) }
+    const input = Object.fromEntries(Object.entries(e).filter(([key]) => !RESERVED.includes(key)))
+    const event = { tool: e.tool, input }
     // the call is let run while its chain runs (855b102); the block rides the result once both are over
     const [delivery, result] = await Promise.all([
       cueDelivery($, 'before-tool', () => bounded($.session.id(), ID_BOUND_MS, "the call for the session's ID"), event),
@@ -146,7 +147,9 @@ export function register(on) {
       return next(e)
     }
 
-    const event = { calls: calls.map((call) => ({ tool: call.tool_name, input: call.tool_input, response: call.tool_response })) }
+    const event = {
+      calls: calls.map((call) => ({ tool: call.tool_name, input: call.tool_input, response: call.tool_response })),
+    }
     const delivery = await cueDelivery($, 'batch-done', async () => e.session_id, event)
 
     return withBlock(await next(e), 'additionalContext', delivery.block)
@@ -209,7 +212,9 @@ async function askModel($, request) {
   }
 
   if (!reply.isAnswered) {
-    const why = stop.signal.aborted ? `gave nothing within ${limitText(STEP_BOUND_MS)}` : `was not answered: ${reply.reason}`
+    const why = stop.signal.aborted
+      ? `gave nothing within ${limitText(STEP_BOUND_MS)}`
+      : `was not answered: ${reply.reason}`
 
     throw new Error(`the model call ${why}`)
   }
@@ -449,9 +454,9 @@ async function inOrder(chains, session, job) {
   }
 }
 
-// reportDelivery has the writing record that the delivery for a prompt or a tool call could not be done, from a timer, so that the
-// prompt is held no longer and no call is left in flight when the hook settles (793d2a). A delivery whose session's ID
-// did not come is left alone, since the writing cannot record anything without it.
+// reportDelivery has the writing record that the delivery for a prompt or a tool call could not be done, from a timer,
+// so that the prompt is held no longer and no call is left in flight when the hook settles (793d2a). A delivery whose
+// session's ID did not come is left alone, since the writing cannot record anything without it.
 function reportDelivery($, session, what, error) {
   if (session === '') {
     return
@@ -606,7 +611,9 @@ async function run($, step, input, timeoutMs) {
     result = await $.process.run(['engram', 'auto', step], { stdin: JSON.stringify(input), timeoutMs })
   } catch (error) {
     throw Object.assign(
-      new Error(`${command} was ended at its limit of ${limitText(timeoutMs ?? 30000)} or could not run: ${describe(error)}`),
+      new Error(
+        `${command} was ended at its limit of ${limitText(timeoutMs ?? 30000)} or could not run: ${describe(error)}`,
+      ),
       { ended: true },
     )
   }
