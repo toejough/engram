@@ -220,7 +220,7 @@ type HarnessReport struct {
 	ImportsFileRel    string // home-relative config file scanned for guidance imports (empty: no import support)
 	SkillDirs         []SkillDirCount
 	changedDirs       map[string]int // files this run changed in each skill dir of the engram root (855d4w1a)
-	GuidanceFiles     []string // basenames of .md files copied into the guidance dir
+	GuidanceFiles     []string       // basenames of .md files copied into the guidance dir
 	// EngramRoot is the resolved absolute path to this harness's
 	// engram-owned root (792b29c5 Root ownership), maintained by the sync engine below.
 	EngramRoot string
@@ -461,7 +461,7 @@ type SkillDirCount struct {
 	Files int    // number of files copied into <skills-root>/<Name>/
 	// Changed is how many of its files this run created, deleted or rewrote with other content (855d4w1a).
 	Changed int
-	Mod   bool   // the directory is a mod of the source, not a skill (793d4b)
+	Mod     bool // the directory is a mod of the source, not a skill (793d4b)
 }
 
 // SourceInfo describes where the binary was installed from and where the
@@ -1025,8 +1025,10 @@ func (u *Updater) changedSkillDirs(ops []EngramSyncOp) map[string]int {
 	prefix := engramRootSkillsSubdir + string(filepath.Separator)
 
 	for _, syncOp := range ops {
-		dir, _, found := strings.Cut(strings.TrimPrefix(syncOp.RelPath, prefix), string(filepath.Separator))
-		if !found || !strings.HasPrefix(syncOp.RelPath, prefix) {
+		inSkills, isSkills := strings.CutPrefix(syncOp.RelPath, prefix)
+		dir, _, found := strings.Cut(inSkills, string(filepath.Separator))
+
+		if !isSkills || !found {
 			continue
 		}
 
@@ -1038,14 +1040,6 @@ func (u *Updater) changedSkillDirs(ops []EngramSyncOp) map[string]int {
 	}
 
 	return changed
-}
-
-// sameContent reports whether two files hold the same bytes; a file that cannot be read is not the same.
-func (u *Updater) sameContent(first, second string) bool {
-	firstData, firstErr := u.FS.ReadFile(first)
-	secondData, secondErr := u.FS.ReadFile(second)
-
-	return firstErr == nil && secondErr == nil && bytes.Equal(firstData, secondData)
 }
 
 // checkLocalDowngrade gates a local-mode install against a provable
@@ -1458,6 +1452,14 @@ func (u *Updater) resolveSource(
 	}
 
 	return u.resolveRemoteByClone(ctx, skipInstall)
+}
+
+// sameContent reports whether two files hold the same bytes; a file that cannot be read is not the same.
+func (u *Updater) sameContent(first, second string) bool {
+	firstData, firstErr := u.FS.ReadFile(first)
+	secondData, secondErr := u.FS.ReadFile(second)
+
+	return firstErr == nil && secondErr == nil && bytes.Equal(firstData, secondData)
 }
 
 // tempCloneDir is a deterministic scratch location for the remote-mode clone.
