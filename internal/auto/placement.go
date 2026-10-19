@@ -3,6 +3,7 @@ package auto
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
 )
 
@@ -40,6 +41,41 @@ type Supersession struct {
 	Note  string `json:"note"`
 	Type  string `json:"type"`
 	Claim string `json:"claim"`
+}
+
+// Ties is the supersessions a lesson of a deep delivery names: the file name of the note, as the instructions show,
+// whose type and claim the lesson holds, or an object or a list of objects that hold their own.
+type Ties []Supersession
+
+// UnmarshalJSON reads a note's file name, a supersession object or a list of them.
+func (t *Ties) UnmarshalJSON(data []byte) error {
+	var name string
+
+	if json.Unmarshal(data, &name) == nil {
+		*t = Ties{{Note: name}}
+
+		return nil
+	}
+
+	var list []Supersession
+
+	listErr := json.Unmarshal(data, &list)
+	if listErr == nil {
+		*t = list
+
+		return nil
+	}
+
+	var one Supersession
+
+	oneErr := json.Unmarshal(data, &one)
+	if oneErr != nil {
+		return fmt.Errorf("reading the supersession of a lesson: %w", oneErr)
+	}
+
+	*t = Ties{one}
+
+	return nil
 }
 
 // ParsePlacements reads the placement judgement's reply: a JSON list, with or without a code fence around it (855d4i).

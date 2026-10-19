@@ -275,7 +275,15 @@ func RunAutoWrite(ctx context.Context, args AutoWriteArgs, deps AutoWriteDeps, s
 	}
 
 	results := outcomes{base: auto.Record{At: deps.Now(), Session: reply.Session, Turn: reply.Turn}}
-	failures := writeLessons(ctx, args, deps, reply, &results, stdout)
+
+	var failures []error
+
+	if reply.Cue != "" {
+		failures = writeDeep(ctx, args, deps, reply, &results, stdout)
+	} else {
+		failures = writeLessons(ctx, args, deps, reply, &results, stdout)
+	}
+
 	recorded := writeRecords(deps.WriteRecord, args.RecordsDir, results.records)
 
 	// a reply with no lesson makes no record, so the end of a write is told by this line (793d4k)
@@ -543,6 +551,9 @@ func newAutoSweepDeps(d Deps) AutoSweepDeps {
 // newAutoWriteDeps wires RunAutoWrite from the injected CLI capabilities — pure composition (#700).
 func newAutoWriteDeps(d Deps) AutoWriteDeps {
 	learnDeps := newLearnDeps(d)
+	quiet := d
+	quiet.Stdout, quiet.Stderr = io.Discard, io.Discard
+	amendDeps := newAmendDeps(quiet)
 
 	return AutoWriteDeps{
 		Stdin: d.Stdin,
@@ -552,6 +563,9 @@ func newAutoWriteDeps(d Deps) AutoWriteDeps {
 			err := RunLearn(ctx, args, learnDeps, &printed)
 
 			return strings.TrimSpace(printed.String()), err
+		},
+		Amend: func(ctx context.Context, args AmendArgs) error {
+			return RunAmend(ctx, args, amendDeps, io.Discard)
 		},
 		Now:         d.Now,
 		NoteExists:  fileExistsFrom(d),
@@ -878,6 +892,74 @@ func writeLessons(
 		_, _ = fmt.Fprintln(stdout, path)
 
 		results.add(auto.RecordWritten, filepath.Base(path), lesson.Slug, "")
+	}
+
+	return failures
+}
+
+// amendArgsOf is the amend of a note a deep delivery amends: the chunk sources of its evidence and the fields its
+// judgement revises (855d4j).
+func amendArgsOf(amendment auto.Amendment, args AutoWriteArgs) AmendArgs {
+	fields := amendment.Fields
+
+	return AmendArgs{
+		Vault: args.VaultPath, VaultName: args.VaultName, Target: amendment.Note, ChunkSources: amendment.Chunks,
+		ChunksDir: args.ChunksDir, Situation: fields["situation"], Subject: fields["subject"],
+		Predicate: fields["predicate"], Object: fields["object"], Behavior: fields["behavior"], Impact: fields["impact"],
+		Action: fields["action"], DoneWhen: fields["done_when"], Body: fields["body"],
+	}
+}
+
+// writeDeep writes what the reply of a deep delivery says to write (855d4j): each lesson at the top through the learn
+// path with the passages that evidence it and the notes it corrects, and the amendment of each note it draws on. What
+// is written, left out or failed is added to the outcomes, with no turn.
+func writeDeep(
+	ctx context.Context, args AutoWriteArgs, deps AutoWriteDeps, reply auto.Reply, results *outcomes, stdout io.Writer,
+) []error {
+	deep := auto.ReadDeep(reply.Text, reply.Carry)
+
+	for _, left := range deep.Skipped {
+		results.add(auto.RecordSkipped, "", left.Slug, left.Reason)
+	}
+
+	var failures []error
+
+	for _, lesson := range deep.Lessons {
+		if covering := coveringNote(lesson.Covered, args.VaultPath, deps.NoteExists); covering != "" {
+			results.add(auto.RecordSkipped, "", lesson.Slug, "the vault already states it: "+covering)
+
+			continue
+		}
+
+		placed := auto.Placed{Position: auto.PositionTop, Supersedes: lesson.Supersedes}
+		learnArgs := learnArgsOfLesson(lesson, args, reply.Session, placed)
+		learnArgs.ChunkSources = lesson.Chunks
+
+		path, learnErr := deps.Learn(ctx, learnArgs)
+		if learnErr != nil {
+			failures = append(failures, fmt.Errorf("writing %s: %w", lesson.Slug, learnErr))
+
+			results.add(auto.RecordFailed, "", lesson.Slug, learnErr.Error())
+
+			continue
+		}
+
+		_, _ = fmt.Fprintln(stdout, path)
+
+		results.add(auto.RecordWritten, filepath.Base(path), lesson.Slug, "")
+	}
+
+	for _, amendment := range deep.Amendments {
+		amendErr := deps.Amend(ctx, amendArgsOf(amendment, args))
+		if amendErr != nil {
+			failures = append(failures, fmt.Errorf("amending %s: %w", amendment.Note, amendErr))
+
+			results.add(auto.RecordFailed, "", "", "amending "+amendment.Note+": "+amendErr.Error())
+
+			continue
+		}
+
+		results.add(auto.RecordWritten, amendment.Note, "", "")
 	}
 
 	return failures

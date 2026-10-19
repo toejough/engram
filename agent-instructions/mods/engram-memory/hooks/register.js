@@ -28,6 +28,9 @@ const PLACE_BOUND_MS = 5000
 const WRITE_BOUND_MS = 20000
 const REPORT_BOUND_MS = 15000
 
+// The write that follows a deep delivery has a bound of its own (855d2a): it holds neither the prompt nor the agent.
+const DEEP_WRITE_BOUND_MS = 60000
+
 // The sweep of the conversation has a bound of its own (793d2c): the call for the ID, the sweep and the report of its
 // failure are 110 seconds, under the 2 minutes of the product (793a2f), and the capture's bounds are not extended.
 const SWEEP_BOUND_MS = 90000
@@ -257,10 +260,14 @@ function describe(error) {
 // delivery is the block and the lines for the user for a prompt, or nothing when the flow does not finish or fails: the
 // prompt goes on as if automatic memory were not installed, and the failure is reported (855d2a).
 async function deliveryFor($, e) {
-  const state = { session: '' }
+  const state = { session: '', write: null }
 
   try {
-    return await promptChain($, e, state)
+    const delivery = await promptChain($, e, state)
+
+    writeAfter($, state)
+
+    return delivery
   } catch (error) {
     reportDelivery($, state.session, error)
 
@@ -291,6 +298,9 @@ async function promptChain($, e, state) {
     const printed = stepOf(stdout, step)
 
     answer = { reply: await askModel($, printed.request), carry: printed.carry }
+
+    // a deep recall says that a write follows the delivery (855d2a)
+    state.write = printed.write === true ? { cue: base.cue, ...answer } : null
   }
 
   return inOrder(state.session, async () => {
@@ -300,6 +310,27 @@ async function promptChain($, e, state) {
 
     // the lines go to the user and the model reads none of them
     return stdout.startsWith(MARKER) ? keepNew(state.session, stdout, lines) : { block: '', shown: lines }
+  })
+}
+
+// writeAfter has the lessons and the notes of a deep delivery written from a timer once the block is given, so that the
+// writing holds neither the prompt nor the agent and no call is in flight when the hook settles; a write that fails is
+// reported (855d2a, 855b29).
+function writeAfter($, state) {
+  if (state.write === null) {
+    return
+  }
+
+  const { session, write } = state
+
+  $.clock.after(0, () => {
+    void (async () => {
+      try {
+        await run($, 'write', { session, ...write }, DEEP_WRITE_BOUND_MS)
+      } catch (error) {
+        await report($, session, '', new Error(`the write after a deep delivery failed: ${describe(error)}`))
+      }
+    })()
   })
 }
 

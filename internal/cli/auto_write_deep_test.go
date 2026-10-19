@@ -35,8 +35,18 @@ func Test855d4j1b_WriteDeep_ALessonTheVaultLacksIsCrystallizedWithItsEvidence(t 
 	for _, record := range all {
 		g.Expect(record["note"]).To(Equal("production-cutover-freeze.md"))
 		g.Expect(record["session"]).To(Equal(sessionID))
-		g.Expect(record).NotTo(HaveKey("turn"), "the run has no turn")
+		g.Expect(record["turn"]).To(BeEmpty(), "the run has no turn")
 	}
+}
+
+func Test855d4j1b_WriteDeep_ALessonThatCorrectsANoteOfTheCarryTiesIt(t *testing.T) {
+	t.Parallel()
+
+	deep := deepWriting{carry: deepCarry(freezeNote, passageA), reply: deepReply(`[]`,
+		`[`+freezeLesson(`["`+passageA.ID+`"]`, freezeNote.ID)+`]`), records: &recordedFiles{}}
+
+	deep.run(t, []cli.LearnArgs{freezeLearn([]string{passageA.ID}, []string{"1.2026-10-01.production-cutover|narrows|c"})},
+		nil)
 }
 
 func Test855d4j1c_WriteDeep_ACoveredNoteIsAmendedForProvenanceOnly(t *testing.T) {
@@ -115,7 +125,7 @@ func Test855d4j1f_WriteDeep_AnIDTheCarryDoesNotHoldIsIgnored(t *testing.T) {
 	deep := deepWriting{carry: deepCarry(freezeNote, passageA), reply: deepReply(
 		`[{"id":"`+freezeNote.ID+`","verdict":"covered","chunks":["`+passageA.ID+`","other.md#nowhere"]},`+
 			`{"id":"2.2026-10-01.other-file.md","verdict":"covered","chunks":["`+passageA.ID+`"]}]`,
-		`[`+freezeLesson(`["other.md#nowhere"]`, `{"note":"2.2026-10-01.other-file.md","type":"updates","claim":"x"}`)+`]`),
+		`[`+freezeLesson(`["other.md#nowhere"]`, "2.2026-10-01.other-file.md")+`]`),
 		records: records}
 
 	deep.run(t, []cli.LearnArgs{freezeLearn(nil, nil)}, []cli.AmendArgs{{
@@ -139,7 +149,7 @@ func Test855d4j1_WriteDeep_NothingOutsideTheCarryIsWritten(t *testing.T) {
 		supersedes := rapid.SampledFrom(pool).Draw(rt, "superseded")
 		verdict := rapid.SampledFrom([]string{"covered", "near", "evidence", "unrelated"}).Draw(rt, "verdict")
 
-		lesson := freezeLesson(quotedList(chunks), `{"note":"`+supersedes+`","type":"narrows","claim":"c"}`)
+		lesson := freezeLesson(quotedList(chunks), supersedes)
 		reply := deepReply(`[{"id":"`+id+`","verdict":"`+verdict+`","chunks":`+quotedList(noteChunks)+`}]`, `[`+lesson+`]`)
 
 		var learned []cli.LearnArgs
@@ -293,7 +303,7 @@ func deepStdin(carry auto.Carry, reply string) *strings.Reader {
 func freezeLesson(chunks, supersedes string) string {
 	tie := ""
 	if supersedes != "" {
-		tie = `,"supersedes":` + supersedes
+		tie = `,"supersedes":"` + supersedes + `","type":"narrows","claim":"c"`
 	}
 
 	return `{"kind":"fact","slug":"production-cutover-freeze","situation":"planning a production cutover",` +

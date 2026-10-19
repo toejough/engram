@@ -265,6 +265,7 @@ func autoTargets(
 				targ.Targ(func(ctx context.Context, a AutoWriteArgs) {
 					a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
 					a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
+					a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
 
 					a.RecordsDir = recordsDir(a.RecordsDir)
 

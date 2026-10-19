@@ -33,6 +33,12 @@ type Lesson struct {
 	Object    string `json:"object"`
 	DoneWhen  string `json:"done_when"` //nolint:tagliatelle // the name the learn skill gives the field of a runbook
 	Body      string `json:"body"`
+	// Chunks, Supersedes, Type and Claim are those of a lesson of a deep delivery (855d4j): the passages that evidence
+	// it, the note it corrects and the tie and the claim that changes.
+	Chunks     []string `json:"chunks"`
+	Supersedes Ties     `json:"supersedes"`
+	Type       string   `json:"type"`
+	Claim      string   `json:"claim"`
 }
 
 // defect returns what is wrong with the lesson, or nothing when it is whole: it has a kind it knows and the fields of
@@ -74,7 +80,8 @@ func (l Lesson) redacted() Lesson {
 		Kind: l.Kind, Slug: oneRedacted(l.Slug), Situation: oneRedacted(l.Situation), Covered: oneRedacted(l.Covered),
 		Behavior: oneRedacted(l.Behavior), Impact: oneRedacted(l.Impact), Action: oneRedacted(l.Action),
 		Subject: oneRedacted(l.Subject), Predicate: oneRedacted(l.Predicate), Object: oneRedacted(l.Object),
-		DoneWhen: oneRedacted(l.DoneWhen), Body: oneRedacted(l.Body),
+		DoneWhen: oneRedacted(l.DoneWhen), Body: oneRedacted(l.Body), Chunks: l.Chunks, Supersedes: l.Supersedes,
+		Type: l.Type, Claim: oneRedacted(l.Claim),
 	}
 }
 
