@@ -16,9 +16,9 @@ decide first whether the request is "multi-step" or "something you've done befor
 is what the query answers, not a gate in front of it. A one-line request still gets a query; if
 nothing matches, proceed without one.
 
-The one exception: a block opening `[engram memory]` attached to the user's message means the delivery already
-ran this query for that message, so do not run it again for that message. Every other rule here, including the
-re-entry moments below, stands.
+The one exception: a block opening `[engram memory]` attached to the user's message means the mod
+already looked up memory for that message, so do not run this query again for that message. Every
+other rule here, including the re-entry moments below, stands.
 
 ```
 engram query --lazy-chunks \
