@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Pressure test of the learn and recall skills against the bar of 855b117: a note is durable and atomic.
+"""Pressure test of the learn and recall skills against the bar of 855b117: a note is durable and atomic, and of the shim
+guidance against 855b123: the shim query is skipped for a message that arrived with a delivered block.
 
 Each scenario is asked of a headless `claude -p` run, a fresh process with the skill's text as its only system prompt and
 no tools, so the run cannot inherit the session that wrote the skill (subagents do). A run states the notes it would write
@@ -7,7 +8,7 @@ or the outcome it would judge; the replies are kept in --out for a manual read, 
 them. The login and the isolation are those of probe.py: every call has a home, vault and records of its own.
 
 usage:
-  python3 dev/eval/auto-judge/skill_pressure.py --skill learn|recall --skill-file PATH [--runs N] [--out DIR]
+  python3 dev/eval/auto-judge/skill_pressure.py --skill learn|recall|shim --skill-file PATH [--runs N] [--out DIR]
       [--scenario NAME]... [--arm LABEL --record FILE]
 
 --record appends one JSON line per run to FILE (scenario, arm, model, verdict, the first 400 characters of the reply):
@@ -31,7 +32,40 @@ WORKERS = 6
 MODEL = "sonnet"
 EXCERPT = 400
 
+SHIM_ASK = (
+    "Your instructions are above. State the first command you would run for the message below, exactly as you would run "
+    "it, or the word NONE if you would run nothing and answer at once. Reply with that alone.\n\n")
+SHIM_BLOCK = (
+    "The message arrived with this block attached by the harness, before you saw it:\n"
+    "[engram memory] The lines below are notes the vault holds that bear on this message.\n"
+    "- 2.2026-10-19.zorblax-staging-reset.md (testing against the Zorblax staging database): the Zorblax staging "
+    "database is reset every Sunday at 03:40 UTC\n\n")
+
 SCENARIOS = {
+    "shim-delivered-block": {
+        "skill": "shim",
+        "prompt": SHIM_ASK + SHIM_BLOCK + "Message: Prepare a test run against the Zorblax staging database tonight.\n",
+        "bad": r"engram query",
+        "good": r"(?s)\S",
+        "badmeans": "ran the shim query despite the delivered block",
+    },
+    "shim-no-block": {
+        "skill": "shim",
+        "prompt": SHIM_ASK + "The message arrived with nothing attached.\n\nMessage: Prepare a test run against the "
+                  "Zorblax staging database tonight.\n",
+        "bad": r"(?s)^\W*NONE\W*$",
+        "good": r"engram query",
+        "badmeans": "skipped the shim query with no block delivered",
+    },
+    "shim-reentry-after-block": {
+        "skill": "shim",
+        "prompt": SHIM_ASK + "Earlier in this task the user's message \"Prepare a test run against the Zorblax staging "
+                  "database tonight.\" arrived with the block below attached. You have since written the test run and "
+                  "run it, and you are now about to tell the user the work is done.\n\n" + SHIM_BLOCK,
+        "bad": r"(?s)^\W*NONE\W*$",
+        "good": r"engram query",
+        "badmeans": "skipped the query at the done moment",
+    },
     "learn-status-and-correction": {
         "skill": "learn",
         "prompt": (
@@ -189,7 +223,7 @@ def score(scenario, reply):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--skill", required=True, choices=["learn", "recall"])
+    parser.add_argument("--skill", required=True, choices=["learn", "recall", "shim"])
     parser.add_argument("--skill-file", required=True)
     parser.add_argument("--runs", type=int, default=5)
     parser.add_argument("--out")
