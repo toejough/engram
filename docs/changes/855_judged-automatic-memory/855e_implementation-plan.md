@@ -48,6 +48,7 @@ The groups, in the order of the table: the gates, then the prerequisites of each
 | [855e6g The remaining hypotheses are measured](#855e6g-the-remaining-hypotheses-are-measured) | [855d7a Hypotheses and their measurements](./855d_technical-spec.md#855d7a-added-hypotheses-and-their-measurements) | Complete ([855d7a1g The phrases find what the recall skill finds](./855d_technical-spec.md#855d7a1-scenarios) Refuted; owner answer pending, [855c9 Is the loss of the recall chain against the skill accepted?](./855c_open-questions.md#855c9-is-the-loss-of-the-recall-chain-against-the-skill-accepted)) |
 | [855e6h Dogfood fixes](#855e6h-dogfood-fixes) | [855d4g 793d4g Judging a turn](./855d_technical-spec.md#855d4g-modified-793d4g-judging-a-turn), [855d4w 793d4b Deploying the mods of the source](./855d_technical-spec.md#855d4w-modified-793d4b-deploying-the-mods-of-the-source) | Complete (dogfood of 2026-10-19; [855b114 The user's rows of the transcript are told by the kind human, and the events of prompts by their own origins](./855b_decision-log.md#855b114-the-users-rows-of-the-transcript-are-told-by-the-kind-human-and-the-events-of-prompts-by-their-own-origins), [855b115 A reply that is no moment reply fails with its first and last 40 characters](./855b_decision-log.md#855b115-a-reply-that-is-no-moment-reply-fails-with-its-first-and-last-40-characters), [855b116 A turn from a mod of an older engram is skipped with a reason, and engram update says that open sessions reload the mod](./855b_decision-log.md#855b116-a-turn-from-a-mod-of-an-older-engram-is-skipped-with-a-reason-and-engram-update-says-that-open-sessions-reload-the-mod)) |
 | [855e6i Dogfood fixes 2: what the channel records](#855e6i-dogfood-fixes-2-what-the-channel-records) | [855a2g Lessons are durable and atomic](./855a_product-spec.md#855a2g-lessons-are-durable-and-atomic), [855d4g 793d4g Judging a turn](./855d_technical-spec.md#855d4g-modified-793d4g-judging-a-turn), [855d4b Looking up the candidates for the phrases](./855d_technical-spec.md#855d4b-added-looking-up-the-candidates-for-the-phrases), [855d4a Judging the moment](./855d_technical-spec.md#855d4a-added-judging-the-moment), [855d4h Placing the lessons](./855d_technical-spec.md#855d4h-added-placing-the-lessons) | Complete (dogfood of 2026-10-19; [855b117](./855b_decision-log.md#855b117-a-note-is-durable-and-atomic), [855b118](./855b_decision-log.md#855b118-a-near-amend-has-no-guard-in-the-engine), [855b119](./855b_decision-log.md#855b119-the-judgement-sees-the-notes-the-session-wrote-read-from-the-vault), [855b120](./855b_decision-log.md#855b120-a-question-of-status-is-never-deep-the-moment-judgement-otherwise-stays-as-it-is)) |
+| [855e6j Dogfood fixes 3: recursion blocks](#855e6j-dogfood-fixes-3-recursion-blocks) | [855a2e Recall moments within a turn](./855a_product-spec.md#855a2e-recall-moments-within-a-turn), [855d2c Mid-turn recall flow](./855d_technical-spec.md#855d2c-added-mid-turn-recall-flow), [855d4e 793d4d Telling what a session holds](./855d_technical-spec.md#855d4e-modified-793d4d-telling-what-a-session-holds) | Complete (dogfood of 2026-10-20; [855b122](./855b_decision-log.md#855b122-a-memory-command-is-not-looked-up-for), [855b123](./855b_decision-log.md#855b123-the-shim-guidance-skips-its-query-for-a-message-that-arrived-with-a-delivered-block)) |
 
 ## 855e9 Dependency graph
 
@@ -98,6 +99,8 @@ flowchart TD
     n855e6i2["855e6i2 The judgement sees the notes the session wrote<br/>Complete"]
     n855e6i3["855e6i3 A deep revision sharpens the note's own claim, and a status question is not deep<br/>Complete"]
     n855e6i4["855e6i4 The judgement rows of the bar<br/>Complete"]
+    n855e6j1["855e6j1 A memory command is not looked up for<br/>Complete"]
+    n855e6j2["855e6j2 The shim query is skipped after a delivery<br/>Complete"]
     n855e6a1 --> n855e6a2
     n855e6a1 --> n855e6a3
     n855e6a2 --> n855e6a4
@@ -165,6 +168,7 @@ flowchart TD
     n855e6i1 --> n855e6i4
     n855e6i2 --> n855e6i4
     n855e6i3 --> n855e6i4
+    n855e6f3 --> n855e6j1
 ```
 
 ## 855e5 Node status
@@ -682,7 +686,7 @@ Three defects the owner's dogfood of 2026-10-19 found in the build: a typed [tur
 
 ### 855e6i Dogfood fixes 2: what the channel records
 
-Four defects the owner's dogfood of 2026-10-19 found in build c0caf2a6: notes that were not durable, a deep recall that amended an unrelated claim into a note, the same lesson written two and three times, and a ticket in a situation ([855b117 A note is durable and atomic](./855b_decision-log.md#855b117-a-note-is-durable-and-atomic)). The 793 scenario it narrows is [793a2c1b](../793_automatic-memory/793a_product-spec.md#793a2c1-uat-scenarios) ([855a2h](./855a_product-spec.md#855a2h-modified-793a2c1b-a-request-to-remember-becomes-a-note)); its test `Test793a2c1b` asks to remember a durable fact and is unchanged. The `Runs` of a judgement row are the probe rows of `dev/eval/auto-judge` (10 runs each, the owner's real cases as fixtures, the old build against this one), run with `python3 dev/eval/auto-judge/probe.py --engram <binary> --runs 10`; the full set and the 10-run tallies of the acceptance rows are left to the promotion rebase.
+Four defects the owner's dogfood of 2026-10-19 found in build c0caf2a6: [notes](../../GLOSSARY.md#permanent-note) that were not durable, a deep recall that amended an unrelated claim into a note, the same lesson written two and three times, and a ticket in a situation ([855b117 A note is durable and atomic](./855b_decision-log.md#855b117-a-note-is-durable-and-atomic)). The 793 scenario it narrows is [793a2c1b](../793_automatic-memory/793a_product-spec.md#793a2c1-uat-scenarios) ([855a2h](./855a_product-spec.md#855a2h-modified-793a2c1b-a-request-to-remember-becomes-a-note)); its test `Test793a2c1b` asks to remember a durable fact and is unchanged. The `Runs` of a judgement row are the probe rows of `dev/eval/auto-judge` (10 runs each, the owner's real cases as fixtures, the old build against this one), run with `python3 dev/eval/auto-judge/probe.py --engram <binary> --runs 10`; the full set and the 10-run tallies of the acceptance rows are left to the promotion rebase.
 
 #### 855e6i1 The instructions keep a durable and atomic lesson
 
@@ -690,14 +694,14 @@ Four defects the owner's dogfood of 2026-10-19 found in build c0caf2a6: notes th
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 855d4g1h | `Test855d4g1h_Judge_TheInstructionsKeepOnlyADurableAndAtomicLesson` | Dedicated example (unit) | the instructions of the judgement say durable, atomic, what is not durable and that a request to remember does not make a status durable | Done | 428fd67c | 45c03a91 | 2143e3d2 |
 | 855d4g1i | `Test855d4g1i_Judge_ASituationNamesNoTicketOrChangeNumber` | Dedicated example (unit) | the situation names no ticket, issue or change number and no branch | Done | 428fd67c | 45c03a91 | 2143e3d2 |
-| 855d4h1h | `Test855d4h1h_Place_ALessonSupersedesANoteOnlyWhenItIsAboutTheNotesOwnClaim` | Dedicated example (unit) | a lesson about another claim supersedes nothing and is never merged into a seen note | Done | 428fd67c | 45c03a91 | 2143e3d2 |
+| 855d4h1h | `Test855d4h1h_Place_ALessonSupersedesANoteOnlyWhenItIsAboutTheNotesOwnClaim` | Dedicated example (unit) | a lesson about another claim supersedes nothing and is never merged into a seen [note](../../GLOSSARY.md#permanent-note) | Done | 428fd67c | 45c03a91 | 2143e3d2 |
 
 #### 855e6i2 The judgement sees the notes the session wrote
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d4g1j | `Test855d4g1j_Judge_ALessonWrittenEarlierInTheSessionIsCoveredWhateverItsWording` | Dedicated example (unit) | the instructions say that a note written earlier in the session covers a lesson in whatever words | Done | 428fd67c | 45c03a91 | 2143e3d2 |
-| 855d4g1j | `Test855d4g1j_RunAutoJudge_TheNotesTheSessionWroteAreInTheRequestOnceAndThoseOfOthersAreNot` | Dedicated example, integration (unit suite, files) | a vault holding a note of the session and a note of another session: the request holds the first once, after the nearest notes, with and without the lookup finding it | Done | 428fd67c | 45c03a91 | 2143e3d2 |
+| 855d4g1j | `Test855d4g1j_Judge_ALessonWrittenEarlierInTheSessionIsCoveredWhateverItsWording` | Dedicated example (unit) | the instructions say that a [note](../../GLOSSARY.md#permanent-note) written earlier in the [session](../../GLOSSARY.md#session) covers a lesson in whatever words | Done | 428fd67c | 45c03a91 | 2143e3d2 |
+| 855d4g1j | `Test855d4g1j_RunAutoJudge_TheNotesTheSessionWroteAreInTheRequestOnceAndThoseOfOthersAreNot` | Dedicated example, integration (unit suite, files) | a [vault](../../GLOSSARY.md#vault) holding a note of the session and a note of another session: the request holds the first once, after the nearest notes, with and without the lookup finding it | Done | 428fd67c | 45c03a91 | 2143e3d2 |
 | 855d4g1j | `Test855d4g1j_RunAutoJudge_TheLastTwentyNotesTheSessionWroteByCreationFollowTheNearestNotes` | Dedicated example, integration (unit suite, files) | 22 notes of a day and one of an earlier day with the highest ID: 20 follow the nearest note, by creation and not by file name | Done | mutation: the cut by file name fails it | 0f96775c | |
 | 855d4g1j | `Test855d4g1j_Less_OrdersByNumberThenLetterSegments` | Dedicated example (unit) | 9 before 10, 1 before 1a before 2, z before aa | Done | n/a (a function new with its test) | 0f96775c | |
 | 855d4b1t | `Test855d4b1t_Recall_ADeepRequestHoldsTheNotesTheSessionWroteAndGlanceDoesNot` | Dedicated example, integration (unit suite, files) | the deep request holds the session's note after the matched notes, not another session's; glance does not | Done | mutation: the guard off fails it | 0f96775c | |
@@ -706,15 +710,15 @@ Four defects the owner's dogfood of 2026-10-19 found in build c0caf2a6: notes th
 
 | Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 855d4b1r | `Test855d4b1r_Recall_ANoteIsNearOnlyWhenTheMomentSharpensItsOwnClaim` | Dedicated example (unit) | a near note omits a part of its own claim; a note that shares only a situation is unrelated | Done | 428fd67c | 45c03a91 | 2143e3d2 |
+| 855d4b1r | `Test855d4b1r_Recall_ANoteIsNearOnlyWhenTheMomentSharpensItsOwnClaim` | Dedicated example (unit) | a near [note](../../GLOSSARY.md#permanent-note) omits a part of its own claim; a note that shares only a situation is unrelated | Done | 428fd67c | 45c03a91 | 2143e3d2 |
 | 855d4b1s | `Test855d4b1s_Recall_ADeepRequestRevisesOnlyTheNotesOwnClaimAndWritesOnlyADurableAndAtomicLesson` | Dedicated example (unit) | the deep instructions revise only the note's own claim and ask for durable, atomic lessons with no ticket in the situation ([855b118 A near amend has no guard in the engine](./855b_decision-log.md#855b118-a-near-amend-has-no-guard-in-the-engine)) | Done | 428fd67c | 45c03a91 | 2143e3d2 |
 | 855d4a1i | `Test855d4a1i_Moment_AQuestionOfStatusWithNoDecisionInItIsNeverDeep` | Dedicated example (unit) | the instructions of the recall moment say a status question is never deep ([855b120](./855b_decision-log.md#855b120-a-question-of-status-is-never-deep-the-moment-judgement-otherwise-stays-as-it-is)) | Done | 428fd67c | 45c03a91 | 2143e3d2 |
 
 #### 855e6i4 The judgement rows of the bar
 
-The one place of the tallies of this group: [855b117](./855b_decision-log.md#855b117-a-note-is-durable-and-atomic) and the other entries link here. The rows are not scenarios of the specs: they are probe fixtures of `dev/eval/auto-judge/fixtures.json` and the pressure test `skill_pressure.py`, of the real cases of the dogfood (the probe and the fixtures are in 8ce8d403, the skills in 6b6cb4e1, the acceptance rows in 7fcfd6ec, their rebuild and the new verdict in the commits of the review fix). The old build is c0caf2a6, the new one the green commit 45c03a91 (the duplicate rows: the build of the review fix); each cell is the verdicts in 10 runs of the probe (the skills: 5 runs of a headless `claude -p`, model `sonnet`, no tools). The raw runs are kept in `dev/eval/auto-judge/results/` (`probe-dup-old.jsonl`, `probe-dup-new.jsonl`, `skill-pressure-2026-10-19.jsonl`: scenario, arm, model, verdict and the first 400 characters of each reply).
+The one place of the tallies of this group: [855b117](./855b_decision-log.md#855b117-a-note-is-durable-and-atomic) and the other entries link here. The rows are not scenarios of the specs: they are probe fixtures of `dev/eval/auto-judge/fixtures.json` and the pressure test `skill_pressure.py`, of the real cases of the dogfood (the probe and the fixtures are in 8ce8d403, the [skills](../../GLOSSARY.md#skill) in 6b6cb4e1, the acceptance rows in 7fcfd6ec, their rebuild and the new verdict in the commits of the review fix). The old build is c0caf2a6, the new one the green commit 45c03a91 (the duplicate rows: the build of the review fix); each cell is the verdicts in 10 runs of the probe (the skills: 5 runs of a headless `claude -p`, model `sonnet`, no tools). The raw runs are kept in `dev/eval/auto-judge/results/` (`probe-dup-old.jsonl`, `probe-dup-new.jsonl`, `skill-pressure-2026-10-19.jsonl`: scenario, arm, model, verdict and the first 400 characters of each reply).
 
-The duplicate rows count a reply as suppressed only when a lesson's `covered` names the note of the session (an empty list is a miss, note 1377a).
+The duplicate rows count a reply as suppressed only when a lesson's `covered` names the [note](../../GLOSSARY.md#permanent-note) of the [session](../../GLOSSARY.md#session) (an empty list is a miss, note 1377a).
 
 | Row | Old build | New build | What it proves |
 | --- | --- | --- | --- |
@@ -724,7 +728,7 @@ The duplicate rows count a reply as suppressed only when a lesson's `covered` na
 | `correction-in-ticket-work` (1356, 1372) | situation names `855` 10 | lesson, situation without it 10 | a real correction is written with no ticket in its situation |
 | `deep-amend-unrelated-claim`, `deep-amend-after-status-question` (1309) | foreign revision 8 and 4, lesson naming `855` 2 | ok 10 and 10 | a deep recall does not amend an unrelated claim into the note |
 | `deep-sharpen-own-claim` | ok 10 | ok 10 | a passage that sharpens the note's own claim still revises it |
-| `incident-finding` (1373) | none 10 | none 10 | control: the old build already answered none to this rebuilt turn |
+| `incident-finding` (1373) | none 10 | none 10 | control: the old build already answered none to this rebuilt [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) |
 | `status-question`, `status-question-where`, two windows after a weighty conversation | glance 39 of 40 | none or glance 40 of 40 | control: the old build did not reproduce the deep answer |
 | `irreversible-decision` | deep 10 | deep 10 | a weighty decision is still deep |
 | the 12 earlier rows (correction, remember, confirmed, own correction, unsure approach, guesses, credential, thanks, covered, different lesson, credential refused, unsaved) | not run | 10 of 10 each | the positive controls hold |
@@ -737,13 +741,41 @@ The skill pressure rows; the arms are the skill at c0caf2a6 (before the bar), at
 | `learn-incident-finding` | finding written 2 | 0 | 0 | the finding about the incident is left out |
 | `learn-ticket-in-situation` | ticket in the situation 5 | 0 | 0 | the situation names no ticket (the fictional #4417 in the skill) |
 | `learn-insistent-status` | status written 5 | 0 | 0 | an insistent request still writes no status |
-| `learn-status-tells-user` | status written 5 | 0, but it never says where the status belongs (0 of 5) | 0, and it says it was not saved and names the change docs or the project's memory 5 of 5 | a request for status writes no note, and the agent tells the user ([855b121](./855b_decision-log.md#855b121-a-request-to-save-status-writes-no-note)) |
+| `learn-status-tells-user` | status written 5 | 0, but it never says where the status belongs (0 of 5) | 0, and it says it was not saved and names the change docs or the project's memory 5 of 5 | a request for status writes no note, and the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) tells the user ([855b121](./855b_decision-log.md#855b121-a-request-to-save-status-writes-no-note)) |
 | `recall-unrelated-claim` | amended the unrelated claim 5 | 0, Absent 5 | 0, Absent 5 | Near sharpens the note's own claim only |
 | `recall-own-claim` | sharpened 5 | sharpened 5 | sharpened 5 | control: the sharper claim still goes into the note |
 | `recall-status-cluster` | skipped 5 | skipped 5 | skipped 5 | control: the model skips a pure status cluster on every arm |
 | `recall-status-beside-a-rule` | status folded in 0 | 2 | 0 | a status beside a rule: only the rule is written (n=5 does not separate 2 from 0) |
 
-The acceptance row `Test855a2g1b` (`dev/acceptance/durable_test.go`, a vault crowded with ten notes about a user repeating an instruction, a prompt with none of the lesson's words, one run each): on c0caf2a6 it fails (the vault held two notes that state the correction), on the new build it passes. Its first form, which restated the lesson in the prompt, passed on c0caf2a6 as well and was vacuous. `Test855a2g1a` and `Test855a2g1c` passed (7fcfd6ec, one run each), and ten touched earlier rows (`Test793a2c1a`, `b`, `d`, `f`, `Test793a3c1a`, `c`, `Test855a2b1a`, `c1a`, `Test855a2d1a`, `Test855a3b1a`, one run each) passed.
+The acceptance row `Test855a2g1b` (`dev/acceptance/durable_test.go`, a [vault](../../GLOSSARY.md#vault) crowded with ten notes about a user repeating an instruction, a [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) with none of the lesson's words, one run each): on c0caf2a6 it fails (the vault held two notes that state the correction), on the new build it passes. Its first form, which restated the lesson in the prompt, passed on c0caf2a6 as well and was vacuous. `Test855a2g1a` and `Test855a2g1c` passed (7fcfd6ec, one run each), and ten touched earlier rows (`Test793a2c1a`, `b`, `d`, `f`, `Test793a3c1a`, `c`, `Test855a2b1a`, `c1a`, `Test855a2d1a`, `Test855a3b1a`, one run each) passed.
+
+### 855e6j Dogfood fixes 3: recursion blocks
+
+The owner's dogfood of 2026-10-20: one message produced three deliveries, the [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s, one after the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s own shim `engram query` call (before-tool) and one after the same call's batch ([855b122](./855b_decision-log.md#855b122-a-memory-command-is-not-looked-up-for), [855b123](./855b_decision-log.md#855b123-the-shim-guidance-skips-its-query-for-a-message-that-arrived-with-a-delivered-block)). The refactor commit of 855e6j1 only puts the declarations in order.
+
+#### 855e6j1 A memory command is not looked up for
+
+| Gherkin | Test | Classification | Why | Status | Red commit | Green commit | Refactor commit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 855d2c1o | `Test855d2c1o_Mod_ACallThatIsAMemoryCommandIsNotLookedUpFor` | Dedicated example, integration (stand-in host, `integration`) | each of the six commands and the three [skills](../../GLOSSARY.md#skill): the call, its failure and a batch of them run no step and make no model call, and the result is as it was | Done | 5dd90375 | cac88875 | be616b47 |
+| 855d2c1o | `Test855d2c1o_Mod_TheMemoryCommandsOfTheModAreThoseTheBinaryHolds` | Dedicated example, integration (`integration`) | the list of the mod is the list of the binary | Done | 5dd90375 | cac88875 | be616b47 |
+| 855d2c1o | `Test855d2c1o_IsMemoryCommand_ACommandThatRunsOneOfTheMemoryCommandsIsOne` | Dedicated example (unit) | the six commands are memory commands, `[engram update](../../GLOSSARY.md#engram-update)`, `git status` and the empty command are not | Done | 5dd90375 | cac88875 | be616b47 |
+| 855d2c1p | `Test855d2c1p_Mod_ABatchWithAnotherCallAmongTheMemoryCommandsIsLookedUpFor` | Dedicated example, integration (stand-in host, `integration`) | a batch of an `engram query` and a Read, and a command that only mentions engram in a comment, are looked up for. Red n/a: the events are looked up for while the mod skips none. Mutation: `some` for `every` in the mod fails it | Done | n/a | cac88875 | be616b47 |
+| 855a2e1d | `Test855a2e1d_ACallOfTheAgentToTheMemoryIsNotFollowedByADelivery` | Dedicated example, product acceptance (`network`) | a real [session](../../GLOSSARY.md#session): the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s `engram query` call is followed by no moment of the cues before-tool, failure and batch-done. Red: against the mod of 5dd90375 the row fails (a before-tool and a batch-done moment); green: against the mod of cac88875, 1 run, passed | Done | 62a52d9c | cac88875 | be616b47 |
+
+#### 855e6j2 The shim query is skipped after a delivery
+
+The pressure scenarios are in `dev/eval/auto-judge/skill_pressure.py --skill shim` (a headless `claude -p` with the shim file as its only system [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms), no tools, an isolated home, a fictional database); the compact record is `dev/eval/auto-judge/results/shim-pressure-2026-10-20.jsonl`. A cell is the runs of 3 that did what the row names.
+
+| Row | RED (d78d51ab, shim before) | GREEN (4bde80f9, shim after) | What it proves |
+| --- | --- | --- | --- |
+| `shim-delivered-block` | ran the query 3 | 0 | the query is skipped for a message that arrived with a block |
+| `shim-no-block` | skipped the query 0, ran it 3 | skipped 0, ran it 3 | control: with nothing attached the query still runs |
+| `shim-reentry-after-block` | skipped 0, ran it 3 | skipped 0, ran it 3 | control: the query at the done moment still runs after a delivery |
+
+| Work | Classification | Why | Status | Red commit | Green commit |
+| --- | --- | --- | --- | --- | --- |
+| `agent-instructions/guidance/shim.md` says that a block opening `[engram memory]` attached to the message means the query is not run for that message | Judgement row, 3 runs | RED 3 of 3 ran the query; GREEN 0 of 3, controls 3 of 3 | Done | d78d51ab | 4bde80f9 |
 
 ## 855e7 Completion gates
 
