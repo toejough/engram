@@ -1738,6 +1738,46 @@ func Test855d2c1o_Mod_TheMemoryCommandsOfTheModAreThoseTheBinaryHolds(t *testing
 	g.Expect(commands).To(Equal(auto.MemoryCommands), "the list of the mod and the list of the binary")
 }
 
+// Test855d2c1p_Mod_ABatchWithAnotherCallAmongTheMemoryCommandsIsLookedUpFor runs the mod under node against a stand-in
+// host that raises a batch of an engram query and a Read, and a call of the agent's that only mentions engram.
+func Test855d2c1p_Mod_ABatchWithAnotherCallAmongTheMemoryCommandsIsLookedUpFor(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	query := map[string]any{"command": "engram query --text=x"}
+	outcome := runDeliveryDriver(t, toolScenario(deliveryScenario{
+		Delivers: []map[string]any{
+			{"exitCode": 0, "stdout": noteBlock("a.md")}, {"exitCode": 0, "stdout": noteBlock("b.md")},
+		},
+		Events: []eventRaised{
+			{Hook: "classic.PostToolBatch", Event: map[string]any{"session_id": "a-session", "tool_calls": []any{
+				map[string]any{"tool_name": "Bash", "tool_input": query, "tool_use_id": "t1", "tool_response": "ok"},
+				map[string]any{
+					"tool_name": "Read", "tool_input": map[string]any{"file_path": "b"}, "tool_use_id": "t2",
+					"tool_response": "ok",
+				},
+			}}},
+			{Hook: "tool.call", Event: map[string]any{
+				"tool": "Bash", "tool_use_id": "t3", "command": "git log --oneline  # about engram",
+			}, Answer: map[string]any{"result": "ok"}},
+		},
+	}))
+
+	g.Expect(outcome.Answers).To(Equal([]map[string]any{
+		additionalContextOf("a.md"),
+		{"result": "ok", "context": []any{strings.TrimSpace(noteBlock("b.md"))}},
+	}), "the mixed batch and the other command are each looked up for")
+
+	moments := outcome.inputsOf("engram auto moment")
+	cues := make([]any, 0, len(moments))
+
+	for _, moment := range moments {
+		cues = append(cues, moment["cue"])
+	}
+
+	g.Expect(cues).To(Equal([]any{"batch-done", "before-tool"}), "the cues the steps were run for")
+}
+
 // Test855d2c1p_Mod_ACommandThatOnlyMentionsAMemoryCommandIsLookedUpFor: a commit message, a grep or a heredoc that
 // names a memory command is not the agent's use of the memory (855b122).
 func Test855d2c1p_Mod_ACommandThatOnlyMentionsAMemoryCommandIsLookedUpFor(t *testing.T) {
@@ -1798,46 +1838,6 @@ func Test855d2c1p_Mod_AFailedMemoryCommandAndAFailedCallInOneBatchAreSkippedAsFa
 	}
 
 	g.Expect(cues).To(Equal([]any{"failure"}), "only the failed Read was looked up for, and its batch was not")
-}
-
-// Test855d2c1p_Mod_ABatchWithAnotherCallAmongTheMemoryCommandsIsLookedUpFor runs the mod under node against a stand-in
-// host that raises a batch of an engram query and a Read, and a call of the agent's that only mentions engram.
-func Test855d2c1p_Mod_ABatchWithAnotherCallAmongTheMemoryCommandsIsLookedUpFor(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	query := map[string]any{"command": "engram query --text=x"}
-	outcome := runDeliveryDriver(t, toolScenario(deliveryScenario{
-		Delivers: []map[string]any{
-			{"exitCode": 0, "stdout": noteBlock("a.md")}, {"exitCode": 0, "stdout": noteBlock("b.md")},
-		},
-		Events: []eventRaised{
-			{Hook: "classic.PostToolBatch", Event: map[string]any{"session_id": "a-session", "tool_calls": []any{
-				map[string]any{"tool_name": "Bash", "tool_input": query, "tool_use_id": "t1", "tool_response": "ok"},
-				map[string]any{
-					"tool_name": "Read", "tool_input": map[string]any{"file_path": "b"}, "tool_use_id": "t2",
-					"tool_response": "ok",
-				},
-			}}},
-			{Hook: "tool.call", Event: map[string]any{
-				"tool": "Bash", "tool_use_id": "t3", "command": "git log --oneline  # about engram",
-			}, Answer: map[string]any{"result": "ok"}},
-		},
-	}))
-
-	g.Expect(outcome.Answers).To(Equal([]map[string]any{
-		additionalContextOf("a.md"),
-		{"result": "ok", "context": []any{strings.TrimSpace(noteBlock("b.md"))}},
-	}), "the mixed batch and the other command are each looked up for")
-
-	moments := outcome.inputsOf("engram auto moment")
-	cues := make([]any, 0, len(moments))
-
-	for _, moment := range moments {
-		cues = append(cues, moment["cue"])
-	}
-
-	g.Expect(cues).To(Equal([]any{"batch-done", "before-tool"}), "the cues the steps were run for")
 }
 
 // TestMods_EveryJavaScriptModuleParses: the real mods parse under the real node, and the real node rejects a broken

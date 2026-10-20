@@ -40,17 +40,17 @@ func IsMemoryCommand(command string) bool {
 	return memoryCommandAt.MatchString(command)
 }
 
-// unexported variables.
-var (
-	memoryCommandAt = regexp.MustCompile(`(?:^|[;&|(]|-c\s+['"])\s*(?:\S*/)?engram\s+(?:` + //nolint:gochecknoglobals,lll
-		strings.Join(subcommandsOf(MemoryCommands), "|") + `)\b`)
-)
-
 // unexported constants.
 const (
 	// deliveredType is the type of the attachment that a session's record keeps for the context a hook put beside a
 	// prompt.
 	deliveredType = "hook_additional_context"
+)
+
+// unexported variables.
+var (
+	memoryCommandAt = regexp.MustCompile(
+		`(?:^|[;&|(]|-c\s+['"])\s*(?:\S*/)?engram\s+(?:` + strings.Join(subcommandsOf(MemoryCommands), "|") + `)\b`)
 )
 
 // contentBlock is a block of the content of a message: a tool the agent called, or the result of one.
@@ -203,6 +203,17 @@ func noteNamesOf(entry string) string {
 	return names.String()
 }
 
+// subcommandsOf returns the commands less the leading "engram ".
+func subcommandsOf(commands []string) []string {
+	subcommands := make([]string, 0, len(commands))
+
+	for _, command := range commands {
+		subcommands = append(subcommands, strings.TrimPrefix(command, "engram "))
+	}
+
+	return subcommands
+}
+
 // textOf reads the text of the content of a tool's result: a string, or a list of blocks that have a text.
 func textOf(raw json.RawMessage) string {
 	var text string
@@ -226,15 +237,4 @@ func textOf(raw json.RawMessage) string {
 	}
 
 	return strings.Join(parts, "\n")
-}
-
-// subcommandsOf returns the commands less the leading "engram ".
-func subcommandsOf(commands []string) []string {
-	subcommands := make([]string, 0, len(commands))
-
-	for _, command := range commands {
-		subcommands = append(subcommands, strings.TrimPrefix(command, "engram "))
-	}
-
-	return subcommands
 }
