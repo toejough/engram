@@ -7,6 +7,13 @@ import (
 	"strings"
 )
 
+// Exported variables.
+var (
+	MemoryCommands = []string{ //nolint:gochecknoglobals // a list of constants
+		"engram query", "engram show", "engram show-chunk", "engram recall", "engram learn", "engram amend",
+	}
+)
+
 // HeldText returns the text of what a session's agent holds of the vault, from the session's record (793d4d, 855d4e):
 // the file name on each note line and the chunk ID on each passage line of the blocks delivered beside prompts, which
 // the record keeps as `hook_additional_context` attachments, and the command and the result of each lookup or save the
@@ -24,6 +31,11 @@ func HeldText(record []byte) string {
 	}
 
 	return held.text.String()
+}
+
+// IsMemoryCommand reports whether a Bash command runs one of the MemoryCommands.
+func IsMemoryCommand(command string) bool {
+	return slices.ContainsFunc(MemoryCommands, func(memory string) bool { return strings.Contains(command, memory) })
 }
 
 // unexported constants.
@@ -136,18 +148,6 @@ func entriesOf(raw json.RawMessage) []string {
 	}
 
 	return entries
-}
-
-// MemoryCommands are the commands of the agent that look the vault up or save into it (855d4e, 855d2c1o): the text and
-// the result of a Bash command that runs one are what a session holds, and the memory mod looks up nothing for one. The
-// mod writes the same list in its source.
-var MemoryCommands = []string{ //nolint:gochecknoglobals // a list of constants
-	"engram query", "engram show", "engram show-chunk", "engram recall", "engram learn", "engram amend",
-}
-
-// IsMemoryCommand reports whether a Bash command runs one of the MemoryCommands.
-func IsMemoryCommand(command string) bool {
-	return slices.ContainsFunc(MemoryCommands, func(memory string) bool { return strings.Contains(command, memory) })
 }
 
 // lookupOf returns the command of a block that is the agent running a lookup of the vault or a save into it, a Bash

@@ -1704,6 +1704,38 @@ func Test855d2c1o_Mod_ACallThatIsAMemoryCommandIsNotLookedUpFor(t *testing.T) {
 	}
 }
 
+// Test855d2c1o_Mod_TheMemoryCommandsOfTheModAreThoseTheBinaryHolds: the commands the mod skips and the commands the
+// binary holds the text and result of are one list, which the mod writes in its source (855b122).
+func Test855d2c1o_Mod_TheMemoryCommandsOfTheModAreThoseTheBinaryHolds(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	source, err := os.ReadFile(filepath.Join(repositoryRoot, "agent-instructions", "mods", "engram-memory", "hooks",
+		"register.js"))
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	declared := regexp.MustCompile(`const MEMORY_COMMANDS = \[([^\]]*)\]`).FindSubmatch(source)
+
+	g.Expect(declared).NotTo(BeNil(), "the list of the memory commands in the mod")
+
+	if declared == nil {
+		return
+	}
+
+	var commands []string
+
+	for _, word := range regexp.MustCompile(`'([^']*)'`).FindAllSubmatch(declared[1], -1) {
+		commands = append(commands, string(word[1]))
+	}
+
+	g.Expect(commands).To(Equal(auto.MemoryCommands), "the list of the mod and the list of the binary")
+}
+
 // Test855d2c1p_Mod_ABatchWithAnotherCallAmongTheMemoryCommandsIsLookedUpFor runs the mod under node against a stand-in
 // host that raises a batch of an engram query and a Read, and a call of the agent's that only mentions engram.
 func Test855d2c1p_Mod_ABatchWithAnotherCallAmongTheMemoryCommandsIsLookedUpFor(t *testing.T) {
@@ -1741,38 +1773,6 @@ func Test855d2c1p_Mod_ABatchWithAnotherCallAmongTheMemoryCommandsIsLookedUpFor(t
 	}
 
 	g.Expect(cues).To(Equal([]any{"batch-done", "before-tool"}), "the cues the steps were run for")
-}
-
-// Test855d2c1o_Mod_TheMemoryCommandsOfTheModAreThoseTheBinaryHolds: the commands the mod skips and the commands the
-// binary holds the text and result of are one list, which the mod writes in its source (855b122).
-func Test855d2c1o_Mod_TheMemoryCommandsOfTheModAreThoseTheBinaryHolds(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	source, err := os.ReadFile(filepath.Join(repositoryRoot, "agent-instructions", "mods", "engram-memory", "hooks",
-		"register.js"))
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	declared := regexp.MustCompile(`const MEMORY_COMMANDS = \[([^\]]*)\]`).FindSubmatch(source)
-
-	g.Expect(declared).NotTo(BeNil(), "the list of the memory commands in the mod")
-
-	if declared == nil {
-		return
-	}
-
-	var commands []string
-
-	for _, word := range regexp.MustCompile(`'([^']*)'`).FindAllSubmatch(declared[1], -1) {
-		commands = append(commands, string(word[1]))
-	}
-
-	g.Expect(commands).To(Equal(auto.MemoryCommands), "the list of the mod and the list of the binary")
 }
 
 // TestMods_EveryJavaScriptModuleParses: the real mods parse under the real node, and the real node rejects a broken
