@@ -1675,9 +1675,7 @@ func Test855d2c1o_Mod_ACallThatIsAMemoryCommandIsNotLookedUpFor(t *testing.T) {
 			g := NewWithT(t)
 			toolCall := map[string]any{"tool": call.tool, "tool_use_id": "t1"}
 
-			for key, value := range call.input {
-				toolCall[key] = value
-			}
+			maps.Copy(toolCall, call.input)
 
 			failure := eventRaised{Hook: "classic.PostToolUseFailure", Event: map[string]any{
 				"session_id": "a-session", "tool_name": call.tool, "tool_input": call.input, "tool_use_id": "t2",
@@ -1766,9 +1764,10 @@ func Test855d2c1p_Mod_ABatchWithAnotherCallAmongTheMemoryCommandsIsLookedUpFor(t
 		{"result": "ok", "context": []any{strings.TrimSpace(noteBlock("b.md"))}},
 	}), "the mixed batch and the other command are each looked up for")
 
-	cues := []any{}
+	moments := outcome.inputsOf("engram auto moment")
+	cues := make([]any, 0, len(moments))
 
-	for _, moment := range outcome.inputsOf("engram auto moment") {
+	for _, moment := range moments {
 		cues = append(cues, moment["cue"])
 	}
 

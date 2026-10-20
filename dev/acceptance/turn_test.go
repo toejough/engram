@@ -203,12 +203,12 @@ func Test855a2e1d_ACallOfTheAgentToTheMemoryIsNotFollowedByADelivery(t *testing.
 
 // unexported constants.
 const (
-	// askQueryStaging is a prompt whose work is the agent's own use of engram query (855a2e1d).
-	askQueryStaging = "Run engram query --text=\"when is the Zorblax staging database reset\" by itself, with no " +
-		"pipe or redirect, and tell me what it found. Reply with one short sentence."
 	// askAddIndex is a prompt whose work is an edit of the schema, which the schemaMigrations note forbids (855a2e1c).
 	askAddIndex = "Add this line to the end of schema.sql: create index idx_orders_created_at on orders (created_at); " +
 		"Reply with one short sentence."
+	// askQueryStaging is a prompt whose work is the agent's own use of engram query (855a2e1d).
+	askQueryStaging = "Run engram query --text=\"when is the Zorblax staging database reset\" by itself, with no " +
+		"pipe or redirect, and tell me what it found. Reply with one short sentence."
 	// askReadyForReview is a prompt of one command, make ci, which fails (855a2e1b).
 	askReadyForReview = "Run make ci by itself, with no pipe or redirect, and tell me what happened. " +
 		"Reply with one short sentence."
