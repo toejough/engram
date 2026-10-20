@@ -1746,7 +1746,7 @@ func Test855d2c1p_Mod_ACommandThatOnlyMentionsAMemoryCommandIsLookedUpFor(t *tes
 	for name, command := range map[string]string{
 		"git commit": `git commit -m "docs: the engram learn step"`,
 		"grep":       `grep "engram query" notes.md`,
-		"sed":        `sed -i s/engram\ query/x/ notes.md`,
+		"sed":        `sed -i 's/engram query/x/' notes.md`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
