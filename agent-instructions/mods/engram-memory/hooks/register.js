@@ -72,7 +72,13 @@ const RESERVED = ['tool', 'tool_use_id', 'agentId', 'requestMeta', 'consent']
 // (855d2c1o, 855b122), and the skills that are: a call that is one is not looked up for.
 const MEMORY_COMMANDS = ['engram query', 'engram show', 'engram show-chunk', 'engram recall', 'engram learn',
   'engram amend']
-const MEMORY_SKILLS = ['recall', 'learn', 'curate']
+const MEMORY_SKILLS = ['recall', 'learn', 'curate', 'write-memory']
+
+// A Bash command is one of the memory commands only at the position of a command (855b122): at the start, after `;`,
+// `&`, `|` or `(`, or after `-c` and a quote, with a path before `engram` allowed, so that a commit message or a grep
+// that names a command is not one.
+const MEMORY_COMMAND = new RegExp(String.raw`(?:^|[;&|(]|-c\s+['"])\s*(?:\S*/)?engram\s+(?:${
+  MEMORY_COMMANDS.map((memory) => memory.replace('engram ', '')).join('|')})\b`)
 
 // So many prompts are kept at most: one that is dropped, or delivered into a running turn, starts no turn.
 const RAISED_MAX = 20
@@ -129,11 +135,15 @@ export function register(on) {
   })
 
   on('classic.PostToolUseFailure', async ($, e, next) => {
-    if (e.agent_id !== undefined || e.is_interrupt || isMemoryCall(e.tool_name, e.tool_input)) {
+    if (e.agent_id !== undefined || e.is_interrupt) {
       return next(e)
     }
 
     failed.add(e.tool_use_id)
+
+    if (isMemoryCall(e.tool_name, e.tool_input)) {
+      return next(e)
+    }
 
     const event = { tool: e.tool_name, input: e.tool_input, error: e.error }
     const delivery = await cueDelivery($, 'failure', async () => e.session_id, event)
@@ -143,15 +153,14 @@ export function register(on) {
 
   on('classic.PostToolBatch', async ($, e, next) => {
     const calls = e.tool_calls ?? []
-    const judged = calls.every((call) => failed.has(call.tool_use_id))
+    // a batch is left alone when each call was judged as a failure or is the agent's own use of the memory
+    const skipped = calls.every((call) => failed.has(call.tool_use_id) || isMemoryCall(call.tool_name, call.tool_input))
 
     for (const call of calls) {
       failed.delete(call.tool_use_id)
     }
 
-    const memory = calls.length > 0 && calls.every((call) => isMemoryCall(call.tool_name, call.tool_input))
-
-    if (e.agent_id !== undefined || judged || memory) {
+    if (e.agent_id !== undefined || skipped) {
       return next(e)
     }
 
@@ -187,7 +196,7 @@ export function register(on) {
 // the memory commands, or the Skill tool with one of the memory skills. The input holds the command or the skill.
 function isMemoryCall(tool, input) {
   if (tool === 'Bash') {
-    return typeof input?.command === 'string' && MEMORY_COMMANDS.some((memory) => input.command.includes(memory))
+    return typeof input?.command === 'string' && MEMORY_COMMAND.test(input.command)
   }
 
   return tool === 'Skill' && MEMORY_SKILLS.includes(input?.skill)

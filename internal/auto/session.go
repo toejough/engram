@@ -3,7 +3,7 @@ package auto
 import (
 	"bytes"
 	"encoding/json"
-	"slices"
+	"regexp"
 	"strings"
 )
 
@@ -33,10 +33,18 @@ func HeldText(record []byte) string {
 	return held.text.String()
 }
 
-// IsMemoryCommand reports whether a Bash command runs one of the MemoryCommands.
+// IsMemoryCommand reports whether a Bash command runs one of the MemoryCommands at the position of a command (855b122):
+// at the start, after `;`, `&`, `|` or `(`, or after `-c` and a quote, with a path before `engram` allowed, so that a
+// commit message or a grep that names a command is not one.
 func IsMemoryCommand(command string) bool {
-	return slices.ContainsFunc(MemoryCommands, func(memory string) bool { return strings.Contains(command, memory) })
+	return memoryCommandAt.MatchString(command)
 }
+
+// unexported variables.
+var (
+	memoryCommandAt = regexp.MustCompile(`(?:^|[;&|(]|-c\s+['"])\s*(?:\S*/)?engram\s+(?:` + //nolint:gochecknoglobals,lll
+		strings.Join(subcommandsOf(MemoryCommands), "|") + `)\b`)
+)
 
 // unexported constants.
 const (
@@ -218,4 +226,15 @@ func textOf(raw json.RawMessage) string {
 	}
 
 	return strings.Join(parts, "\n")
+}
+
+// subcommandsOf returns the commands less the leading "engram ".
+func subcommandsOf(commands []string) []string {
+	subcommands := make([]string, 0, len(commands))
+
+	for _, command := range commands {
+		subcommands = append(subcommands, strings.TrimPrefix(command, "engram "))
+	}
+
+	return subcommands
 }
