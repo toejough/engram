@@ -1657,15 +1657,19 @@ func Test855d2c1o_Mod_ACallThatIsAMemoryCommandIsNotLookedUpFor(t *testing.T) {
 		tool  string
 		input map[string]any
 	}{
-		"engram query":      {"Bash", map[string]any{"command": "engram query --lazy-chunks --text=\"x\""}},
-		"engram show":       {"Bash", map[string]any{"command": "engram show a-note"}},
-		"engram show-chunk": {"Bash", map[string]any{"command": "engram show-chunk s#1"}},
-		"engram recall":     {"Bash", map[string]any{"command": "engram recall glance"}},
-		"engram learn":      {"Bash", map[string]any{"command": "cd /x && engram learn feedback --situation s"}},
-		"engram amend":      {"Bash", map[string]any{"command": "engram amend a-note"}},
-		"skill recall":      {"Skill", map[string]any{"skill": "recall"}},
-		"skill learn":       {"Skill", map[string]any{"skill": "learn", "args": "x"}},
-		"skill curate":      {"Skill", map[string]any{"skill": "curate"}},
+		"engram query":       {"Bash", map[string]any{"command": "engram query --lazy-chunks --text=\"x\""}},
+		"engram show":        {"Bash", map[string]any{"command": "engram show a-note"}},
+		"engram show-chunk":  {"Bash", map[string]any{"command": "engram show-chunk s#1"}},
+		"engram recall":      {"Bash", map[string]any{"command": "engram recall glance"}},
+		"engram learn":       {"Bash", map[string]any{"command": "cd /x && engram learn feedback --situation s"}},
+		"engram amend":       {"Bash", map[string]any{"command": "engram amend a-note"}},
+		"skill recall":       {"Skill", map[string]any{"skill": "recall"}},
+		"skill learn":        {"Skill", map[string]any{"skill": "learn", "args": "x"}},
+		"skill curate":       {"Skill", map[string]any{"skill": "curate"}},
+		"skill write-memory": {"Skill", map[string]any{"skill": "write-memory"}},
+		"path prefix":        {"Bash", map[string]any{"command": "~/go/bin/engram query --text=x"}},
+		"fish -c":            {"Bash", map[string]any{"command": "fish -c 'engram query --text=x'"}},
+		"two spaces":         {"Bash", map[string]any{"command": "engram  query --text=x"}},
 	}
 
 	for name, call := range calls {
@@ -1732,6 +1736,68 @@ func Test855d2c1o_Mod_TheMemoryCommandsOfTheModAreThoseTheBinaryHolds(t *testing
 	}
 
 	g.Expect(commands).To(Equal(auto.MemoryCommands), "the list of the mod and the list of the binary")
+}
+
+// Test855d2c1p_Mod_ACommandThatOnlyMentionsAMemoryCommandIsLookedUpFor: a commit message, a grep or a heredoc that
+// names a memory command is not the agent's use of the memory (855b122).
+func Test855d2c1p_Mod_ACommandThatOnlyMentionsAMemoryCommandIsLookedUpFor(t *testing.T) {
+	t.Parallel()
+
+	for name, command := range map[string]string{
+		"git commit": `git commit -m "docs: the engram learn step"`,
+		"grep":       `grep "engram query" notes.md`,
+		"sed":        `sed -i s/engram\ query/x/ notes.md`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+			outcome := runDeliveryDriver(t, toolScenario(deliveryScenario{
+				Deliver: map[string]any{"exitCode": 0, "stdout": noteBlock("a.md")},
+				Events: []eventRaised{{Hook: "tool.call", Event: map[string]any{
+					"tool": "Bash", "tool_use_id": "t1", "command": command,
+				}, Answer: map[string]any{"result": "ok"}}},
+			}))
+
+			g.Expect(outcome.Answers).To(Equal([]map[string]any{{
+				"result": "ok", "context": []any{strings.TrimSpace(noteBlock("a.md"))},
+			}}), "the command is looked up for")
+		})
+	}
+}
+
+// Test855d2c1p_Mod_AFailedMemoryCommandAndAFailedCallInOneBatchAreSkippedAsFailures: the failure hook does not look up
+// for a memory command, yet the failed call is still counted, so that the batch of it and another failure is not
+// judged twice (855d2c).
+func Test855d2c1p_Mod_AFailedMemoryCommandAndAFailedCallInOneBatchAreSkippedAsFailures(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	query := map[string]any{"command": "engram query --text=x"}
+	read := map[string]any{"file_path": "b"}
+	outcome := runDeliveryDriver(t, toolScenario(deliveryScenario{
+		Delivers: []map[string]any{{"exitCode": 0, "stdout": noteBlock("a.md")}},
+		Events: []eventRaised{
+			{Hook: "classic.PostToolUseFailure", Event: map[string]any{
+				"session_id": "a-session", "tool_name": "Bash", "tool_input": query, "tool_use_id": "t1", "error": "exit 1",
+			}},
+			{Hook: "classic.PostToolUseFailure", Event: map[string]any{
+				"session_id": "a-session", "tool_name": "Read", "tool_input": read, "tool_use_id": "t2", "error": "gone",
+			}},
+			{Hook: "classic.PostToolBatch", Event: map[string]any{"session_id": "a-session", "tool_calls": []any{
+				map[string]any{"tool_name": "Bash", "tool_input": query, "tool_use_id": "t1", "tool_response": "no"},
+				map[string]any{"tool_name": "Read", "tool_input": read, "tool_use_id": "t2", "tool_response": "no"},
+			}}},
+		},
+	}))
+
+	cues := make([]any, 0, 1)
+
+	for _, moment := range outcome.inputsOf("engram auto moment") {
+		cues = append(cues, moment["cue"])
+	}
+
+	g.Expect(cues).To(Equal([]any{"failure"}), "only the failed Read was looked up for, and its batch was not")
 }
 
 // Test855d2c1p_Mod_ABatchWithAnotherCallAmongTheMemoryCommandsIsLookedUpFor runs the mod under node against a stand-in

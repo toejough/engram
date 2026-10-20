@@ -107,8 +107,16 @@ func Test855d2c1o_IsMemoryCommand_ACommandThatRunsOneOfTheMemoryCommandsIsOne(t 
 		"engram recall glance":               true,
 		"engram learn fact --slug s":         true,
 		"engram amend 3.a-note.md":           true,
+		"engram  query --text=x":             true,
+		"~/go/bin/engram query --text=x":     true,
+		"fish -c 'engram query --text=x'":    true,
+		"(cd /v; engram learn fact)":         true,
 		"engram update":                      false,
 		"git status":                         false,
+		`git commit -m "docs: engram learn"`: false,
+		`grep "engram query" notes.md`:       false,
+		`sed -i s/engram\ query/x/ notes.md`: false,
+		"cat <<EOF\nuse engram show\nEOF":    false,
 		"":                                   false,
 	} {
 		t.Run(command, func(t *testing.T) {
