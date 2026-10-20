@@ -11,12 +11,15 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 	"unicode/utf8"
 
 	. "github.com/onsi/gomega"
+
+	"github.com/toejough/engram/internal/auto"
 )
 
 // Test793d2a1c_Mod_ADeliveryThatPrintsNothingIsNotAFailure runs the mod under node against a stand-in host that records
@@ -1643,6 +1646,133 @@ func Test855d2c1n_Mod_ACallRunsWhileItsChainDoes(t *testing.T) {
 	g.Expect(outcome.Answers).To(Equal([]map[string]any{{
 		"result": "ok", "context": []any{strings.TrimSpace(noteBlock("a.md"))},
 	}}), "the block, once the chain was over")
+}
+
+// Test855d2c1o_Mod_ACallThatIsAMemoryCommandIsNotLookedUpFor runs the mod under node against a stand-in host that
+// raises the three events of a call of the agent's own to the memory: a Bash command of engram, and the skills of it.
+func Test855d2c1o_Mod_ACallThatIsAMemoryCommandIsNotLookedUpFor(t *testing.T) {
+	t.Parallel()
+
+	calls := map[string]struct {
+		tool  string
+		input map[string]any
+	}{
+		"engram query":      {"Bash", map[string]any{"command": "engram query --lazy-chunks --text=\"x\""}},
+		"engram show":       {"Bash", map[string]any{"command": "engram show a-note"}},
+		"engram show-chunk": {"Bash", map[string]any{"command": "engram show-chunk s#1"}},
+		"engram recall":     {"Bash", map[string]any{"command": "engram recall glance"}},
+		"engram learn":      {"Bash", map[string]any{"command": "cd /x && engram learn feedback --situation s"}},
+		"engram amend":      {"Bash", map[string]any{"command": "engram amend a-note"}},
+		"skill recall":      {"Skill", map[string]any{"skill": "recall"}},
+		"skill learn":       {"Skill", map[string]any{"skill": "learn", "args": "x"}},
+		"skill curate":      {"Skill", map[string]any{"skill": "curate"}},
+	}
+
+	for name, call := range calls {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+			toolCall := map[string]any{"tool": call.tool, "tool_use_id": "t1"}
+
+			for key, value := range call.input {
+				toolCall[key] = value
+			}
+
+			failure := eventRaised{Hook: "classic.PostToolUseFailure", Event: map[string]any{
+				"session_id": "a-session", "tool_name": call.tool, "tool_input": call.input, "tool_use_id": "t2",
+				"error": "exit 1",
+			}}
+			batch := eventRaised{Hook: "classic.PostToolBatch", Event: map[string]any{
+				"session_id": "a-session", "tool_calls": []any{
+					map[string]any{"tool_name": call.tool, "tool_input": call.input, "tool_use_id": "t3", "tool_response": "ok"},
+					map[string]any{"tool_name": call.tool, "tool_input": call.input, "tool_use_id": "t4", "tool_response": "ok"},
+				},
+			}}
+
+			outcome := runDeliveryDriver(t, toolScenario(deliveryScenario{
+				Deliver: map[string]any{"exitCode": 0, "stdout": noteBlock("a.md")},
+				Events: []eventRaised{
+					{Hook: "tool.call", Event: toolCall, Answer: map[string]any{"result": "ok"}}, failure, batch,
+				},
+			}))
+
+			g.Expect(outcome.Calls).To(BeEmpty(), "the steps and the model's calls")
+			g.Expect(outcome.Answers).To(Equal([]map[string]any{{"result": "ok"}, {}, {}}), "the result of next(e) each time")
+			g.Expect(outcome.Logged).To(BeEmpty(), "nothing shown to the user")
+		})
+	}
+}
+
+// Test855d2c1p_Mod_ABatchWithAnotherCallAmongTheMemoryCommandsIsLookedUpFor runs the mod under node against a stand-in
+// host that raises a batch of an engram query and a Read, and a call of the agent's that only mentions engram.
+func Test855d2c1p_Mod_ABatchWithAnotherCallAmongTheMemoryCommandsIsLookedUpFor(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	query := map[string]any{"command": "engram query --text=x"}
+	outcome := runDeliveryDriver(t, toolScenario(deliveryScenario{
+		Delivers: []map[string]any{
+			{"exitCode": 0, "stdout": noteBlock("a.md")}, {"exitCode": 0, "stdout": noteBlock("b.md")},
+		},
+		Events: []eventRaised{
+			{Hook: "classic.PostToolBatch", Event: map[string]any{"session_id": "a-session", "tool_calls": []any{
+				map[string]any{"tool_name": "Bash", "tool_input": query, "tool_use_id": "t1", "tool_response": "ok"},
+				map[string]any{
+					"tool_name": "Read", "tool_input": map[string]any{"file_path": "b"}, "tool_use_id": "t2",
+					"tool_response": "ok",
+				},
+			}}},
+			{Hook: "tool.call", Event: map[string]any{
+				"tool": "Bash", "tool_use_id": "t3", "command": "git log --oneline  # about engram",
+			}, Answer: map[string]any{"result": "ok"}},
+		},
+	}))
+
+	g.Expect(outcome.Answers).To(Equal([]map[string]any{
+		additionalContextOf("a.md"),
+		{"result": "ok", "context": []any{strings.TrimSpace(noteBlock("b.md"))}},
+	}), "the mixed batch and the other command are each looked up for")
+
+	cues := []any{}
+
+	for _, moment := range outcome.inputsOf("engram auto moment") {
+		cues = append(cues, moment["cue"])
+	}
+
+	g.Expect(cues).To(Equal([]any{"batch-done", "before-tool"}), "the cues the steps were run for")
+}
+
+// Test855d2c1o_Mod_TheMemoryCommandsOfTheModAreThoseTheBinaryHolds: the commands the mod skips and the commands the
+// binary holds the text and result of are one list, which the mod writes in its source (855b122).
+func Test855d2c1o_Mod_TheMemoryCommandsOfTheModAreThoseTheBinaryHolds(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	source, err := os.ReadFile(filepath.Join(repositoryRoot, "agent-instructions", "mods", "engram-memory", "hooks",
+		"register.js"))
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	declared := regexp.MustCompile(`const MEMORY_COMMANDS = \[([^\]]*)\]`).FindSubmatch(source)
+
+	g.Expect(declared).NotTo(BeNil(), "the list of the memory commands in the mod")
+
+	if declared == nil {
+		return
+	}
+
+	var commands []string
+
+	for _, word := range regexp.MustCompile(`'([^']*)'`).FindAllSubmatch(declared[1], -1) {
+		commands = append(commands, string(word[1]))
+	}
+
+	g.Expect(commands).To(Equal(auto.MemoryCommands), "the list of the mod and the list of the binary")
 }
 
 // TestMods_EveryJavaScriptModuleParses: the real mods parse under the real node, and the real node rejects a broken

@@ -176,3 +176,26 @@ func toolResult(id, content string) string {
 	return `{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"` + id +
 		`","content":` + content + `}]}}`
 }
+
+func Test855d2c1o_IsMemoryCommand_ACommandThatRunsOneOfTheMemoryCommandsIsOne(t *testing.T) {
+	t.Parallel()
+
+	for command, want := range map[string]bool{
+		"engram query --text=x":              true,
+		"cd /vault && engram query | head":   true,
+		"engram show 1.2026-10-17.a-note.md": true,
+		"engram show-chunk /c.jsonl#c3":      true,
+		"engram recall glance":               true,
+		"engram learn fact --slug s":         true,
+		"engram amend 3.a-note.md":           true,
+		"engram update":                      false,
+		"git status":                         false,
+		"":                                   false,
+	} {
+		t.Run(command, func(t *testing.T) {
+			t.Parallel()
+
+			NewWithT(t).Expect(auto.IsMemoryCommand(command)).To(Equal(want))
+		})
+	}
+}
