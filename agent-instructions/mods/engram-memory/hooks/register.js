@@ -68,6 +68,12 @@ const failed = new Set()
 // The keys a tool.call event carries beside the arguments of the tool (855d2c).
 const RESERVED = ['tool', 'tool_use_id', 'agentId', 'requestMeta', 'consent']
 
+// The Bash commands that are the agent's own use of the memory, which the binary holds the text and result of as well
+// (855d2c1o, 855b122), and the skills that are: a call that is one is not looked up for.
+const MEMORY_COMMANDS = ['engram query', 'engram show', 'engram show-chunk', 'engram recall', 'engram learn',
+  'engram amend']
+const MEMORY_SKILLS = ['recall', 'learn', 'curate']
+
 // So many prompts are kept at most: one that is dropped, or delivered into a running turn, starts no turn.
 const RAISED_MAX = 20
 
@@ -100,7 +106,7 @@ export function register(on) {
 
   // the three cues of a turn (855d2c): the chain of the prompt runs for the event, and the block rides the answer
   on('tool.call', async ($, e, next) => {
-    if (e.agentId !== undefined) {
+    if (e.agentId !== undefined || isMemoryCall(e.tool, e)) {
       return next(e)
     }
 
@@ -123,7 +129,7 @@ export function register(on) {
   })
 
   on('classic.PostToolUseFailure', async ($, e, next) => {
-    if (e.agent_id !== undefined || e.is_interrupt) {
+    if (e.agent_id !== undefined || e.is_interrupt || isMemoryCall(e.tool_name, e.tool_input)) {
       return next(e)
     }
 
@@ -143,7 +149,9 @@ export function register(on) {
       failed.delete(call.tool_use_id)
     }
 
-    if (e.agent_id !== undefined || judged) {
+    const memory = calls.length > 0 && calls.every((call) => isMemoryCall(call.tool_name, call.tool_input))
+
+    if (e.agent_id !== undefined || judged || memory) {
       return next(e)
     }
 
@@ -173,6 +181,16 @@ export function register(on) {
 
     return result
   })
+}
+
+// isMemoryCall reports whether a call is the agent's own use of the memory (855d2c1o): a Bash command that runs one of
+// the memory commands, or the Skill tool with one of the memory skills. The input holds the command or the skill.
+function isMemoryCall(tool, input) {
+  if (tool === 'Bash') {
+    return typeof input?.command === 'string' && MEMORY_COMMANDS.some((memory) => input.command.includes(memory))
+  }
+
+  return tool === 'Skill' && MEMORY_SKILLS.includes(input?.skill)
 }
 
 // ask is the text of the model's answer to a request, and fails when the model gives none (793d2b). The call ends at
