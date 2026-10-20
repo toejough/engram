@@ -1778,9 +1778,9 @@ func Test855d2c1p_Mod_ABatchWithAnotherCallAmongTheMemoryCommandsIsLookedUpFor(t
 	g.Expect(cues).To(Equal([]any{"batch-done", "before-tool"}), "the cues the steps were run for")
 }
 
-// Test855d2c1p_Mod_ACommandThatOnlyMentionsAMemoryCommandIsLookedUpFor: a commit message, a grep or a heredoc that
+// Test855d2c1q_Mod_ACommandThatOnlyMentionsAMemoryCommandIsLookedUpFor: a commit message, a grep or a heredoc that
 // names a memory command is not the agent's use of the memory (855b122).
-func Test855d2c1p_Mod_ACommandThatOnlyMentionsAMemoryCommandIsLookedUpFor(t *testing.T) {
+func Test855d2c1q_Mod_ACommandThatOnlyMentionsAMemoryCommandIsLookedUpFor(t *testing.T) {
 	t.Parallel()
 
 	for name, command := range map[string]string{
@@ -1806,10 +1806,10 @@ func Test855d2c1p_Mod_ACommandThatOnlyMentionsAMemoryCommandIsLookedUpFor(t *tes
 	}
 }
 
-// Test855d2c1p_Mod_AFailedMemoryCommandAndAFailedCallInOneBatchAreSkippedAsFailures: the failure hook does not look up
+// Test855d2c1r_Mod_AFailedMemoryCommandAndAFailedCallInOneBatchAreSkippedAsFailures: the failure hook does not look up
 // for a memory command, yet the failed call is still counted, so that the batch of it and another failure is not
 // judged twice (855d2c).
-func Test855d2c1p_Mod_AFailedMemoryCommandAndAFailedCallInOneBatchAreSkippedAsFailures(t *testing.T) {
+func Test855d2c1r_Mod_AFailedMemoryCommandAndAFailedCallInOneBatchAreSkippedAsFailures(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
