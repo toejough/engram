@@ -161,8 +161,51 @@ func Test855a2e1c_ANoteArrivesBeforeTheAgentStartsBuildingANewApproach(t *testin
 	})
 }
 
+func Test855a2e1d_ACallOfTheAgentToTheMemoryIsNotFollowedByADelivery(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	machine := newMachine(t)
+
+	var chat *conversation
+
+	step(t, "Given the user has run engram update, and a vault holding a note about the staging database that "+
+		"applies to the prompt below", func() {
+		machine.hasEngram()
+		machine.hasClaudeCode()
+		machine.agentMayRunEngramAndSkills()
+		machine.learnsFact(stagingReset)
+		machine.stepsAreRecorded()
+		machine.mustSucceed(machine.update(), "engram update")
+
+		chat = machine.startSession("a-project").converse()
+	})
+
+	var sent *turn
+
+	step(t, "When the user asks the agent in a prompt to run engram query for the staging database reset and report "+
+		"what it found", func() {
+		sent = chat.tell(askQueryStaging)
+
+		g.Expect(sent.toolCalls()).To(BeNumerically(">=", 1), "the agent ran its query: "+sent.finalText())
+	})
+
+	step(t, "Then no note arrives after the agent's call to engram query", func() {
+		moments := machine.stepsGiven("moment")
+
+		g.Expect(moments).NotTo(ContainSubstring(`"cue":"before-tool"`), "the call was looked up for")
+		g.Expect(moments).NotTo(ContainSubstring(`"cue":"failure"`), "the call's failure was looked up for")
+		g.Expect(moments).NotTo(ContainSubstring(`"cue":"batch-done"`), "the call's batch was looked up for")
+
+		machine.awaitSettled(chat.session.id, chat.turnEnds, 1)
+	})
+}
+
 // unexported constants.
 const (
+	// askQueryStaging is a prompt whose work is the agent's own use of engram query (855a2e1d).
+	askQueryStaging = "Run engram query --text=\"when is the Zorblax staging database reset\" by itself, with no " +
+		"pipe or redirect, and tell me what it found. Reply with one short sentence."
 	// askAddIndex is a prompt whose work is an edit of the schema, which the schemaMigrations note forbids (855a2e1c).
 	askAddIndex = "Add this line to the end of schema.sql: create index idx_orders_created_at on orders (created_at); " +
 		"Reply with one short sentence."
