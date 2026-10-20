@@ -85,7 +85,7 @@ Scenario: 855a2d1a A correcting note names the note it corrects
 
 ### 855a2e Recall moments within a turn
 
-Requirement: 855a2e When, within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms), the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) is about to declare its work done, has just failed in a way it cannot immediately explain, or is about to start building a new approach, and the [recall skill](../../GLOSSARY.md#recall-skill)'s rule says to run it, [automatic memory](../793_automatic-memory/793a_product-spec.md#793a1a-terms) MUST put what [applies to](#855a3a-modified-793a1a-terms) that moment, less what the agent already has, in the agent's context before the agent goes on, as [793a2b Memory arrives with the prompt](../793_automatic-memory/793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) does for a [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms). The fourth cue of the recall guidance, before endorsing a proposed approach in conversation, is not promised ([855b23 Recall runs at the points the host offers](./855b_decision-log.md#855b23-recall-runs-at-the-points-the-host-offers)).
+Requirement: 855a2e When, within a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms), the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) is about to declare its work done, has just failed in a way it cannot immediately explain, or is about to start building a new approach, and the [recall skill](../../GLOSSARY.md#recall-skill)'s rule says to run it, [automatic memory](../793_automatic-memory/793a_product-spec.md#793a1a-terms) MUST put what [applies to](#855a3a-modified-793a1a-terms) that moment, less what the agent already has, in the agent's context before the agent goes on, as [793a2b Memory arrives with the prompt](../793_automatic-memory/793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) does for a [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms). The fourth cue of the recall guidance, before endorsing a proposed approach in conversation, is not promised ([855b23 Recall runs at the points the host offers](./855b_decision-log.md#855b23-recall-runs-at-the-points-the-host-offers)). The [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms)'s own use of the memory is not such a moment: [automatic memory](../793_automatic-memory/793a_product-spec.md#793a1a-terms) MUST NOT put anything in the agent's context for a call of the agent to `engram query`, `show`, `show-chunk`, `recall`, `learn` or `amend`, or to the recall, learn or curate skill ([855b122](./855b_decision-log.md#855b122-a-memory-command-is-not-looked-up-for)).
 
 #### 855a2e1 UAT Scenarios
 
@@ -99,6 +99,11 @@ Scenario: 855a2e1b A note arrives after a failure the agent cannot explain
   Given the user has run engram update, and a vault holding a note that says make ci fails with the message LINT_STRICT is unset unless LINT_STRICT=1 is set
   When the user asks the agent in a prompt to get the branch ready for review, the prompt arrives with nothing from the vault, and the agent runs make ci, which fails with that message
   Then before the agent's next action its context holds the make ci note
+
+Scenario: 855a2e1d A call of the agent to the memory is not followed by a delivery
+  Given the user has run engram update, and a vault holding a note about the staging database that applies to the prompt below
+  When the user asks the agent in a prompt to run engram query for the staging database reset and report what it found
+  Then no note arrives after the agent's call to engram query
 ```
 
 The third scenario is replaced by [855a2f 855a2e1c A note arrives before the agent starts building a new approach](#855a2f-modified-855a2e1c-a-note-arrives-before-the-agent-starts-building-a-new-approach).
