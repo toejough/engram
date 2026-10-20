@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -191,13 +192,19 @@ func Test855a2e1d_ACallOfTheAgentToTheMemoryIsNotFollowedByADelivery(t *testing.
 	})
 
 	step(t, "Then no note arrives after the agent's call to engram query", func() {
+		machine.awaitSettled(chat.session.id, chat.turnEnds, 1)
+
 		moments := machine.stepsGiven("moment")
 
+		g.Expect(moments).To(ContainSubstring(`"cue":"prompt"`), "the recorder saw the steps of the prompt")
+		g.Expect(slices.ContainsFunc(sent.rows, func(row transcriptRow) bool {
+			return slices.ContainsFunc(row.commands(), func(command string) bool {
+				return strings.Contains(command, "engram query")
+			})
+		})).To(BeTrue(), "the agent ran engram query")
 		g.Expect(moments).NotTo(ContainSubstring(`"cue":"before-tool"`), "the call was looked up for")
 		g.Expect(moments).NotTo(ContainSubstring(`"cue":"failure"`), "the call's failure was looked up for")
 		g.Expect(moments).NotTo(ContainSubstring(`"cue":"batch-done"`), "the call's batch was looked up for")
-
-		machine.awaitSettled(chat.session.id, chat.turnEnds, 1)
 	})
 }
 
