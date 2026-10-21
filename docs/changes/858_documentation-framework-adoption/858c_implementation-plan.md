@@ -905,8 +905,8 @@ Status: Blocked by: [858c1d Migrate and audit agent-instruction-bundle.md](#858c
 Status: Blocked by: [858c1d Migrate and audit agent-instruction-bundle.md](#858c1d-migrate-and-audit-agent-instruction-bundlemd) through [858c1zzb Migrate and audit wikilink-graph.md](#858c1zzb-migrate-and-audit-wikilink-graphmd)
 
 - Template: technical workflow recipe (SPEC 314-348); defining heading `794b4b Nil check run`.
-- Sources: [Nil Check Run Technical Workflow](../../specs/technical/nil-check-run-flow.md); the shipped artifacts and tests the file names.
-- Cautions: Renamed to [Nil Check Run Technical Workflow](../../specs/technical/nil-check-run-flow.md) ([858d55 M8 Technical workflows](./858d_questions-and-decisions.md#questions-and-decisions)); its inbound links are re-pointed. The scenarios of [794b4b Nil check run](../../specs/technical/nil-check-run-flow.md#794b4b-nil-check-run) are outside the conformance regexp.
+- Sources: [Nil Check Run Technical Workflow](../../specs/technical/nil-check-run-workflow.md); the shipped artifacts and tests the file names.
+- Cautions: Renamed to [Nil Check Run Technical Workflow](../../specs/technical/nil-check-run-workflow.md) ([858d55 M8 Technical workflows](./858d_questions-and-decisions.md#questions-and-decisions)); its inbound links are re-pointed. The scenarios of [794b4b Nil check run](../../specs/technical/nil-check-run-workflow.md#794b4b-nil-check-run) are outside the conformance regexp.
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
