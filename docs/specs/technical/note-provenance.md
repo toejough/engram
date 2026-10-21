@@ -1,6 +1,8 @@
 # Note Provenance - Technical Spec
 
-## 792b11a Orientation
+## 792b11 Note Provenance
+
+### 792b11a Orientation
 
 - Ownership: Repository-owned dependency-boundary interaction (`git`, through the
   [subprocess-runner](./subprocess-runner.md), and the operating system's user lookup).
@@ -12,11 +14,45 @@
   `identityStamp` in `internal/cli/identity.go`; `newLearnDeps` wires them for `learn`. The amend
   re-stamp is `identityStamp.stampPreservingUser`; identity backfill
   (`internal/cli/identity_backfill.go`) is [792b11c5 Repository for a backfill](#792b11c5-repository-for-a-backfill) to [792b11c7 Identity backfill](#792b11c7-identity-backfill).
-- Qualification: responsibility, provenance detection is stated without naming any command;
-  ownership, writers decide when to stamp, while this component decides what the values are;
-  independent verification, detection and stamping are tested directly over a fake `git` and user
-  lookup; stability, the fields and their sources survive any change to the writers; necessity,
-  every note's `repo:`, `user:` and `vault:` come from it.
+- Qualification: Purpose: every [note](../../GLOSSARY.md#permanent-note)'s `repo:`, `user:` and `vault:` come
+  from this component ([Note Writing](../product/note-writing.md)). Contract: writers decide when to stamp,
+  while this component decides what the values are; detection and stamping are tested directly over a fake
+  `git` and user lookup. Identity: the fields and their sources survive any change to the writers. Value:
+  detection never fails a write, and a verified identity could later replace the self-reported one without
+  changing the fields. Responsibility (naming): provenance detection is stated without naming any command.
+- Required behavior: `git` (external) is assumed to print the origin URL for `git remote get-url origin`, the
+  top-level path for `git rev-parse --show-toplevel` and the configured email address for
+  `git config user.email`, and to fail or print nothing when there is no origin, no repository or no
+  configured address ([792b11c1 Repository detection](#792b11c1-repository-detection),
+  [792b11c2 User detection](#792b11c2-user-detection)); authoritative contract: not recorded in this
+  repository; compatibility verification: none (the tests use a fake `git`, `internal/cli/identity_test.go`).
+- Required behavior: the operating system's user lookup (external) is assumed to return the OS username, or to
+  fail when it is unavailable ([792b11c2 User detection](#792b11c2-user-detection)); authoritative contract:
+  not recorded in this repository; compatibility verification: none (the tests inject the username function,
+  `internal/cli/identity_test.go`).
+- Required behavior: [Subprocess Runner](./subprocess-runner.md) runs `git` in the working directory and
+  returns everything it printed, or an error naming the program and its arguments
+  ([792b4c1 Run and collect output](./subprocess-runner.md#792b4c1-run-and-collect-output),
+  [792b4c2 Failure reporting](./subprocess-runner.md#792b4c2-failure-reporting)).
+- Required behavior: [Vault Write Lock](./vault-write-lock.md) gives exclusive hold of the
+  [vault](../../GLOSSARY.md#vault)'s lock until it is released
+  ([792b8c4 The vault's lock](./vault-write-lock.md#792b8c4-the-vaults-lock)), for
+  [792b11c7 Identity backfill](#792b11c7-identity-backfill).
+- Required behavior: [Durable File Store](./durable-file-store.md) lists the vault root's Markdown files
+  ([792b3c4 Vault Markdown listing](./durable-file-store.md#792b3c4-vault-markdown-listing)) and replaces a
+  file atomically ([792b3c1 Atomic replace](./durable-file-store.md#792b3c1-atomic-replace)), for
+  [792b11c6 Notes a backfill could stamp](#792b11c6-notes-a-backfill-could-stamp) and
+  [792b11c7 Identity backfill](#792b11c7-identity-backfill).
+- Required behavior: [Note Document Format](./note-document-format.md) reads a note as its LF form
+  ([792b6c8 CRLF reading](./note-document-format.md#792b6c8-crlf-reading)) and edits its frontmatter as
+  YAML-node edits
+  ([792b6c7 Frontmatter node edits](./note-document-format.md#792b6c7-frontmatter-node-edits)), for
+  [792b11c6 Notes a backfill could stamp](#792b11c6-notes-a-backfill-could-stamp) and
+  [792b11c7 Identity backfill](#792b11c7-identity-backfill).
+- Required behavior: [Embedding Sidecar](./embedding-sidecar.md) builds the
+  [sidecar](../../GLOSSARY.md#sidecar-embedding-sidecar) of a CRLF note the backfill wrote as LF
+  ([792b10c5 Building a sidecar](./embedding-sidecar.md#792b10c5-building-a-sidecar)), for
+  [792b11c7 Identity backfill](#792b11c7-identity-backfill).
 - Supported capabilities: [vault-identity](../product/vault-identity.md), [note-writing](../product/note-writing.md), [note-revision](../product/note-revision.md), [vault-migration](../product/vault-migration.md), [vault-serving](../product/vault-serving.md), [parent-sync](../product/parent-sync.md).
 
 Rationale: detection shells out to `git` rather than reading `.git/config`, because reproducing
@@ -26,9 +62,9 @@ write and never verified, as `source:` already was; a verified identity could la
 without changing the fields. Detection never fails a write. A working directory outside git, like
 an absent `project:`, simply leaves the field out.
 
-## 792b11c Behavior Requirements
+### 792b11c Behavior Requirements
 
-### 792b11c1 Repository detection
+#### 792b11c1 Repository detection
 
 Requirement: [792b11c1 Repository detection](#792b11c1-repository-detection) The note-provenance MUST resolve the repository as the output of
 `git remote get-url origin` in the working directory, trimmed; when that fails or prints nothing,
@@ -37,7 +73,7 @@ when the working directory cannot be resolved, as empty, without failing.
 
 Supports: [792a3o1a The origin remote names the repo](../product/note-writing.md#792a3o1-uat-scenarios), [792a3o1b Without an origin the top-level directory names the repo](../product/note-writing.md#792a3o1-uat-scenarios), [792a3o1c Outside a git repository there is no repo](../product/note-writing.md#792a3o1-uat-scenarios), [792a4h1a Amend from another environment re-stamps](../product/note-revision.md#792a4h1-uat-scenarios), [792a4h1b Amend backfills missing identity](../product/note-revision.md#792a4h1-uat-scenarios), [792a4h1c The project field does not stand in for the repo](../product/note-revision.md#792a4h1-uat-scenarios).
 
-#### 792b11c1a Scenarios
+##### 792b11c1a Scenarios
 
 ```gherkin
 Scenario: 792b11c1a1 The origin remote names the repository
@@ -61,7 +97,7 @@ Scenario: 792b11c1a4 An unresolvable working directory has no repository
   Then it is empty, and git is never run
 ```
 
-### 792b11c2 User detection
+#### 792b11c2 User detection
 
 Requirement: [792b11c2 User detection](#792b11c2-user-detection) The note-provenance MUST resolve the user as the output of
 `git config user.email`, trimmed; when that fails or prints nothing, as the OS username; and when
@@ -69,7 +105,7 @@ that also fails or is unavailable, as empty, without failing.
 
 Supports: [792a3p1a The git email names the user](../product/note-writing.md#792a3p1-uat-scenarios), [792a3p1b The OS username is the fallback](../product/note-writing.md#792a3p1-uat-scenarios), [792a3p1c No detectable user](../product/note-writing.md#792a3p1-uat-scenarios), [792a4h1a Amend from another environment re-stamps](../product/note-revision.md#792a4h1-uat-scenarios), [792a4h1b Amend backfills missing identity](../product/note-revision.md#792a4h1-uat-scenarios), [792a4h1d Empty user detection keeps the prior user](../product/note-revision.md#792a4h1-uat-scenarios), [792a4h1e Empty user detection never writes an empty user](../product/note-revision.md#792a4h1-uat-scenarios).
 
-#### 792b11c2a Scenarios
+##### 792b11c2a Scenarios
 
 ```gherkin
 Scenario: 792b11c2a1 The git email names the user
@@ -88,7 +124,7 @@ Scenario: 792b11c2a3 No source resolves
   Then it is empty
 ```
 
-### 792b11c3 First-write stamp
+#### 792b11c3 First-write stamp
 
 Requirement: [792b11c3 First-write stamp](#792b11c3-first-write-stamp) On a note's first write, the note-provenance MUST stamp the resolved
 repository, user and vault name; a stamp whose user is empty MUST leave `user:` out and log one
@@ -101,7 +137,7 @@ Supports: [792a2b1a The default vault name is personal](../product/vault-identit
 Rationale: an empty `user: ""` or `vault: ""` would look like a real value to every later reader.
 Identity backfill, or a later amend that re-stamps, fills a missing user in.
 
-#### 792b11c3a Scenarios
+##### 792b11c3a Scenarios
 
 ```gherkin
 Scenario: 792b11c3a1 All three fields are stamped
@@ -120,7 +156,7 @@ Scenario: 792b11c3a3 An empty vault name is left out
   Then it has no vault: key, and a warning names the vault
 ```
 
-### 792b11c4 Re-stamp
+#### 792b11c4 Re-stamp
 
 Requirement: [792b11c4 Re-stamp](#792b11c4-re-stamp) When a revision re-stamps a note, the note-provenance MUST overwrite the
 note's repository, user and vault with the resolved repository, user and vault name; when the
@@ -134,7 +170,7 @@ Rationale: refusing the revision for an empty user would block content edits on 
 broken identity, and keeping the old value silently would hide the broken environment. The repository keeps fresh detection even when empty, because a working
 directory outside git is legitimate.
 
-#### 792b11c4a Scenarios
+##### 792b11c4a Scenarios
 
 ```gherkin
 Scenario: 792b11c4a1 All three are overwritten
@@ -158,7 +194,7 @@ Scenario: 792b11c4a4 No re-stamp changes nothing
   Then its repo, user and vault are still r, u and v
 ```
 
-### 792b11c5 Repository for a backfill
+#### 792b11c5 Repository for a backfill
 
 Requirement: [792b11c5 Repository for a backfill](#792b11c5-repository-for-a-backfill) The note-provenance MUST, when backfilling a note's identity, resolve the note's
 repository as the note's `project:` when it is non-empty, and otherwise as the repository detection of the
@@ -169,7 +205,7 @@ Supports: [792a10k1b The project field is preferred](../product/vault-migration.
 Rationale: one backfill run has one working directory but may stamp notes from several repositories, so the
 note's own `project:` is the better per-note signal. An amend always uses fresh detection.
 
-#### 792b11c5a Scenarios
+##### 792b11c5a Scenarios
 
 ```gherkin
 Scenario: 792b11c5a1 The project field is preferred
@@ -188,7 +224,7 @@ Scenario: 792b11c5a3 Neither resolves
   Then it is empty
 ```
 
-### 792b11c6 Notes a backfill could stamp
+#### 792b11c6 Notes a backfill could stamp
 
 Requirement: [792b11c6 Notes a backfill could stamp](#792b11c6-notes-a-backfill-could-stamp) The note-provenance MUST judge a note stampable when it is a `fact` or `feedback` note
 whose frontmatter parses, read as its LF form, that has no `user:` and either has no `vault:` or a user
@@ -197,7 +233,7 @@ MUST judge it not to when its directory or a file cannot be read.
 
 Supports: [792a10j1a Notes missing identity are noticed](../product/vault-migration.md#792a10j1-uat-scenarios), [792a10j1b No notice when nothing is missing](../product/vault-migration.md#792a10j1-uat-scenarios), [792a10j1c No notice for a note that cannot be stamped](../product/vault-migration.md#792a10j1-uat-scenarios), [792a10j1d A CRLF note is noticed](../product/vault-migration.md#792a10j1-uat-scenarios).
 
-#### 792b11c6a Scenarios
+##### 792b11c6a Scenarios
 
 ```gherkin
 Scenario: 792b11c6a1 A note missing identity is found
@@ -231,7 +267,7 @@ Scenario: 792b11c6a6 A note with vault: and no resolvable user is not found
   Then it does not
 ```
 
-### 792b11c7 Identity backfill
+#### 792b11c7 Identity backfill
 
 Requirement: [792b11c7 Identity backfill](#792b11c7-identity-backfill) The note-provenance MUST, under the vault write lock, stamp each stampable note
 ([792b11c6 Notes a backfill could stamp](#792b11c6-notes-a-backfill-could-stamp)) as YAML-node edits of its parsed frontmatter in one atomic write: a note with no `vault:` gets
@@ -252,7 +288,7 @@ Rationale: re-rendering the whole frontmatter from the typed model would drop ev
 define. Editing the parsed mapping keeps them, and keeps the bytes of an ordinary note as they
 were. The lock stops a backfill racing a concurrent `learn` or `amend`.
 
-#### 792b11c7a Scenarios
+##### 792b11c7a Scenarios
 
 ```gherkin
 Scenario: 792b11c7a1 A note with project is stamped from it

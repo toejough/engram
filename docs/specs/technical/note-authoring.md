@@ -1,6 +1,8 @@
 # Note Authoring - Technical Spec
 
-## 792b12a Orientation
+## 792b12 Note Authoring
+
+### 792b12a Orientation
 
 - Ownership: Repository component (caller of [note-document-format](./note-document-format.md), [luhmann-addressing](./luhmann-addressing.md),
   [vault-write-lock](./vault-write-lock.md), [embedding-sidecar](./embedding-sidecar.md), [note-provenance](./note-provenance.md) and [durable-file-store](./durable-file-store.md)).
@@ -15,11 +17,41 @@
   `internal/cli/qa.go`; the learn argument types in `internal/cli/targets.go` and `qa.go`;
   `newLearnDeps` and `newQaDeps`. Each `learn` subcommand is its own process; nothing here calls
   another subcommand.
-- Qualification: responsibility, capturing a note is stated without naming any function or seam;
-  ownership, it owns validation, field mapping and the order of the write, while the components it
-  calls own the format, the IDs, the lock, the sidecar and provenance; independent verification,
-  it is tested directly over injected dependencies; stability, the capture flow survives any
-  refactoring of the components it calls; necessity, every new note is written through it.
+- Qualification: Purpose: every new [note](../../GLOSSARY.md#permanent-note) is written through this component
+  ([Note Writing](../product/note-writing.md)). Contract: it owns validation, field mapping and the order of
+  the write, while the components it calls own the format, the IDs, the lock, the
+  [sidecar](../../GLOSSARY.md#sidecar-embedding-sidecar) and provenance; it is tested directly over injected
+  dependencies. Identity: the capture flow survives any refactoring of the components it calls. Value: the
+  [vault](../../GLOSSARY.md#vault) lock spans everything from listing the existing IDs to creating the note,
+  so two concurrent writers never allocate the same ID. Responsibility (naming): capturing a note is stated
+  without naming any function or seam.
+- Required behavior: [Note Document Format](./note-document-format.md) names and renders a note: its filename
+  ([792b6c1 Note filenames](./note-document-format.md#792b6c1-note-filenames)), frontmatter
+  ([792b6c2 Frontmatter block](./note-document-format.md#792b6c2-frontmatter-block),
+  [792b6c3 Kind schemas](./note-document-format.md#792b6c3-kind-schemas)), body
+  ([792b6c4 Body formulas](./note-document-format.md#792b6c4-body-formulas)) and, for a question-and-answer
+  pair, both documents
+  ([792b6c5 Question-and-answer documents](./note-document-format.md#792b6c5-question-and-answer-documents)).
+- Required behavior: [Luhmann Addressing](./luhmann-addressing.md) allocates the next ID for a target and
+  position and refuses an invalid placement
+  ([792b7c4 Next-ID allocation](./luhmann-addressing.md#792b7c4-next-id-allocation),
+  [792b7c5 Allocation refusals](./luhmann-addressing.md#792b7c5-allocation-refusals)).
+- Required behavior: [Vault Write Lock](./vault-write-lock.md) gives exclusive hold of the vault's lock until
+  it is released ([792b8c1 Exclusive hold](./vault-write-lock.md#792b8c1-exclusive-hold),
+  [792b8c4 The vault's lock](./vault-write-lock.md#792b8c4-the-vaults-lock)) and fails with an error naming
+  the lock path when it cannot ([792b8c3 Acquire failures](./vault-write-lock.md#792b8c3-acquire-failures)).
+- Required behavior: [Embedding Sidecar](./embedding-sidecar.md) builds a learned note's sidecar and writes it
+  atomically, logging a warning instead of failing the command when it cannot
+  ([792b10c6 Writing a learned note's sidecar](./embedding-sidecar.md#792b10c6-writing-a-learned-notes-sidecar)).
+- Required behavior: [Note Provenance](./note-provenance.md) stamps the resolved repository, user and vault
+  name on a first write ([792b11c3 First-write stamp](./note-provenance.md#792b11c3-first-write-stamp)).
+- Required behavior: [Durable File Store](./durable-file-store.md) creates a file only when none exists
+  ([792b3c2 Exclusive create](./durable-file-store.md#792b3c2-exclusive-create)) and lists the vault root's
+  Markdown files ([792b3c4 Vault Markdown listing](./durable-file-store.md#792b3c4-vault-markdown-listing)).
+- Required behavior: [Vocabulary Engine](./vocabulary-engine.md) tags a written note with its closest terms
+  and checks whether a refit is due
+  ([792b20c5 Tagging a written note](./vocabulary-engine.md#792b20c5-tagging-a-written-note),
+  [792b20c6 Refit check](./vocabulary-engine.md#792b20c6-refit-check)).
 - Supported capabilities: [note-writing](../product/note-writing.md), [controlled-vocabulary](../product/controlled-vocabulary.md), [curate](../product/curate.md) ([792b12c8 The pending marker is not set by a local learn](#792b12c8-the-pending-marker-is-not-set-by-a-local-learn)).
   Also [skill-runbook-registration](../product/skill-runbook-registration.md), [write-memory](../product/write-memory.md), [learn](../product/learn.md), [vault-serving](../product/vault-serving.md) and [parent-sync](../product/parent-sync.md).
 
@@ -29,9 +61,9 @@ fails rather than overwrites. A question-and-answer pair has no Luhmann ID, so i
 around its two writes and embeds after releasing it: sidecar writes are atomic per file and need no
 lock, and holding it through embedding would stall other writers.
 
-## 792b12c Behavior Requirements
+### 792b12c Behavior Requirements
 
-### 792b12c1 Argument validation
+#### 792b12c1 Argument validation
 
 Requirement: [792b12c1 Argument validation](#792b12c1-argument-validation) The note-authoring MUST refuse, before writing anything, a slug that is empty
 or does not match `[a-z0-9-]+`, a project that is not kebab-case, an issue containing whitespace, a
@@ -42,7 +74,7 @@ three characters after trimming, a tier other than `L1`, `L2` or `L3`, a superse
 
 Supports: [792a3g1a An invalid argument is refused before any write](../product/note-writing.md#792a3g1-uat-scenarios).
 
-#### 792b12c1a Scenarios
+##### 792b12c1a Scenarios
 
 ```gherkin
 Scenario: 792b12c1a1 An invalid slug is refused
@@ -81,7 +113,7 @@ Scenario: 792b12c1a7 An unknown note type is refused
   Then it fails with the unknown-type error
 ```
 
-### 792b12c2 Required content
+#### 792b12c2 Required content
 
 Requirement: [792b12c2 Required content](#792b12c2-required-content) The note-authoring MUST refuse a fact, feedback or runbook whose situation is
 empty or whitespace, and a runbook whose done-when is empty or whitespace, with an error naming the
@@ -89,7 +121,7 @@ missing flag and nothing written.
 
 Supports: [792a3f1a A missing situation is refused](../product/note-writing.md#792a3f1-uat-scenarios), [792a3f1b A blank situation is refused](../product/note-writing.md#792a3f1-uat-scenarios), [792a3f1c A runbook without done-when is refused](../product/note-writing.md#792a3f1-uat-scenarios).
 
-#### 792b12c2a Scenarios
+##### 792b12c2a Scenarios
 
 ```gherkin
 Scenario: 792b12c2a1 A fact or feedback without a situation is refused
@@ -108,7 +140,7 @@ Scenario: 792b12c2a3 A runbook without done-when is refused
   Then it fails naming --done-when and nothing is written
 ```
 
-### 792b12c3 Locked write
+#### 792b12c3 Locked write
 
 Requirement: [792b12c3 Locked write](#792b12c3-locked-write) The note-authoring MUST, for a fact, feedback or runbook, take the vault lock;
 list the vault's note IDs, which are the IDs of the Markdown files at its root; allocate the next ID
@@ -120,7 +152,7 @@ written.
 Supports: [792a3a1a A fact note is written](../product/note-writing.md#792a3a1-uat-scenarios), [792a3b1a A feedback note is written](../product/note-writing.md#792a3b1-uat-scenarios), [792a3c1a A runbook note is written](../product/note-writing.md#792a3c1-uat-scenarios), [792a3j1a Top takes the next top-level number](../product/note-writing.md#792a3j1-uat-scenarios), [792a3j1b A continuation of a number takes the next letter](../product/note-writing.md#792a3j1-uat-scenarios), [792a3j1c A continuation of a letter takes the next number](../product/note-writing.md#792a3j1-uat-scenarios), [792a3j1d A sibling takes the next child of the target's parent](../product/note-writing.md#792a3j1-uat-scenarios), [792a3j1e Letters roll over from z to aa](../product/note-writing.md#792a3j1-uat-scenarios),
 [792a3k1a A missing position is refused](../product/note-writing.md#792a3k1-uat-scenarios), [792a3k1b A continuation without a target is refused](../product/note-writing.md#792a3k1-uat-scenarios), [792a3k1c A sibling of a top-level note is refused](../product/note-writing.md#792a3k1-uat-scenarios), [792a3k1d A malformed target is refused](../product/note-writing.md#792a3k1-uat-scenarios), [792a3m1a Concurrent learns get distinct IDs](../product/note-writing.md#792a3m1-uat-scenarios), [792a3n1a A learned note has its sidecar](../product/note-writing.md#792a3n1-uat-scenarios), [792a3n1b A failed embedding keeps the note](../product/note-writing.md#792a3n1-uat-scenarios), [792a3o1a The origin remote names the repo](../product/note-writing.md#792a3o1-uat-scenarios), [792a3p1a The git email names the user](../product/note-writing.md#792a3p1-uat-scenarios), [792a3u1a A runbook is tagged](../product/note-writing.md#792a3u1-uat-scenarios).
 
-#### 792b12c3a Scenarios
+##### 792b12c3a Scenarios
 
 ```gherkin
 Scenario: 792b12c3a1 A note is written at its allocated path
@@ -144,7 +176,7 @@ Scenario: 792b12c3a4 Only root notes count as IDs
   Then they are exactly 1 and 1a
 ```
 
-### 792b12c4 Arguments to fields
+#### 792b12c4 Arguments to fields
 
 Requirement: [792b12c4 Arguments to fields](#792b12c4-arguments-to-fields) The note-authoring MUST give a note `tier: L2` when no tier is given and the
 given tier otherwise, and MUST carry the project, issue, tags, chunk sources, supersessions, and a
@@ -153,7 +185,7 @@ given.
 
 Supports: [792a3d1a Red flags are kept in order](../product/note-writing.md#792a3d1-uat-scenarios), [792a3d1b Triggers follow the red flags in order](../product/note-writing.md#792a3d1-uat-scenarios), [792a3d1c Neither flag means neither field](../product/note-writing.md#792a3d1-uat-scenarios), [792a3h1a Optional metadata is written](../product/note-writing.md#792a3h1-uat-scenarios), [792a3h1b Absent metadata writes no field](../product/note-writing.md#792a3h1-uat-scenarios), [792a3i1a The tier defaults to L2](../product/note-writing.md#792a3i1-uat-scenarios), [792a3i1b A legacy tier is written as given](../product/note-writing.md#792a3i1-uat-scenarios).
 
-#### 792b12c4a Scenarios
+##### 792b12c4a Scenarios
 
 ```gherkin
 Scenario: 792b12c4a1 The tier defaults to L2
@@ -192,7 +224,7 @@ Scenario: 792b12c4a7 Triggers are carried
   Then the note carries them in order under triggers: after red_flags:, or no triggers: key, for any valid triggers
 ```
 
-### 792b12c5 Question-and-answer write
+#### 792b12c5 Question-and-answer write
 
 Requirement: [792b12c5 Question-and-answer write](#792b12c5-question-and-answer-write) The note-authoring MUST, for a question-and-answer pair, validate the
 arguments, defaulting certainty to `medium`; read the answer from `--answer-file` when given; check
@@ -205,7 +237,7 @@ A lock failure MUST return an error with nothing written.
 
 Supports: [792a3n1a A learned note has its sidecar](../product/note-writing.md#792a3n1-uat-scenarios), [792a3q1a A pair is captured](../product/note-writing.md#792a3q1-uat-scenarios), [792a3q1b A pair without contributors](../product/note-writing.md#792a3q1-uat-scenarios), [792a3q1c The answer can come from a file](../product/note-writing.md#792a3q1-uat-scenarios), [792a3r1a An invalid pair is refused before any write](../product/note-writing.md#792a3r1-uat-scenarios), [792a3r1b Certainty defaults to medium](../product/note-writing.md#792a3r1-uat-scenarios), [792a3s1a A failed answer removes the question](../product/note-writing.md#792a3s1-uat-scenarios), [792a3u1b The answer is tagged and the question is not](../product/note-writing.md#792a3u1-uat-scenarios).
 
-#### 792b12c5a Scenarios
+##### 792b12c5a Scenarios
 
 ```gherkin
 Scenario: 792b12c5a1 A pair is written question first
@@ -244,7 +276,7 @@ Scenario: 792b12c5a7 A failed removal is reported too
   Then the error names the orphaned question note
 ```
 
-### 792b12c6 Vocabulary tagging after a write
+#### 792b12c6 Vocabulary tagging after a write
 
 Requirement: [792b12c6 Vocabulary tagging after a write](#792b12c6-vocabulary-tagging-after-a-write) After creating a fact, feedback or runbook note and writing its sidecar, and
 after writing both sidecars of a question-and-answer pair, the note-authoring MUST have the
@@ -253,7 +285,7 @@ a refit is due, and MUST still succeed when tagging or the check does nothing.
 
 Supports: [792a3u1a A runbook is tagged](../product/note-writing.md#792a3u1-uat-scenarios), [792a3u1b The answer is tagged and the question is not](../product/note-writing.md#792a3u1-uat-scenarios), [792a6c1a A categorical tag survives tagging](../product/controlled-vocabulary.md#792a6c1-uat-scenarios), [792a6d1a A learned note is tagged with its closest terms](../product/controlled-vocabulary.md#792a6d1-uat-scenarios), [792a6e1a A vault without a vocabulary writes plain notes](../product/controlled-vocabulary.md#792a6e1-uat-scenarios), [792a6e1b A note whose embedding failed is not tagged](../product/controlled-vocabulary.md#792a6e1-uat-scenarios), [792a6s1a Growth marks a refit pending](../product/controlled-vocabulary.md#792a6s1-uat-scenarios), [792a6s1c A first write records the baseline](../product/controlled-vocabulary.md#792a6s1-uat-scenarios).
 
-#### 792b12c6a Scenarios
+##### 792b12c6a Scenarios
 
 ```gherkin
 Scenario: 792b12c6a1 A learned note is tagged after its write
@@ -272,7 +304,7 @@ Scenario: 792b12c6a3 The question of a pair is not tagged
   Then only the answer note is tagged
 ```
 
-### 792b12c7 Skill identity fields are not written by learn
+#### 792b12c7 Skill identity fields are not written by learn
 
 Requirement: [792b12c7 Skill identity fields are not written by learn](#792b12c7-skill-identity-fields-are-not-written-by-learn) The note-authoring MUST NOT write `skill_hash`, `skill_key` or `skill_source` for a
 note captured through `engram learn`, and the learn commands MUST NOT offer a flag for them. Only the
@@ -280,7 +312,7 @@ registration path, which calls the authoring code directly, supplies them.
 
 Supports: [792a12u1g Ordinary capture carries none](../product/skill-runbook-registration.md#792a12u1-uat-scenarios).
 
-#### 792b12c7a Scenarios
+##### 792b12c7a Scenarios
 
 ```gherkin
 Scenario: 792b12c7a1 A captured runbook has no skill hash
@@ -294,7 +326,7 @@ Scenario: 792b12c7a2 A captured runbook has no skill key or source
   Then the note carries neither skill_key nor skill_source
 ```
 
-### 792b12c8 The pending marker is not set by a local learn
+#### 792b12c8 The pending marker is not set by a local learn
 
 Requirement: [792b12c8 The pending marker is not set by a local learn](#792b12c8-the-pending-marker-is-not-set-by-a-local-learn) The note-authoring MUST write `pending: true` only when the arguments it is given carry the pending marker, which
 a served learn, a pull-down and a skill registration build, and the command line MUST NOT expose a flag that sets it, so that a local `engram learn`
@@ -305,7 +337,7 @@ Supports: [792a22b1a A local learn is never pending](../product/curate.md#792a22
 Rationale: the marker means that the note came from another vault and has not been judged, so a note the user writes in their own
 vault is never held back from recall.
 
-#### 792b12c8a Scenarios
+##### 792b12c8a Scenarios
 
 ```gherkin
 Scenario: 792b12c8a1 A local learn writes no marker

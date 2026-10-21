@@ -1,6 +1,8 @@
 # Note Document Format - Technical Spec
 
-## 792b6a Orientation
+## 792b6 Note Document Format
+
+### 792b6a Orientation
 
 - Ownership: Repository component, crossing the YAML library boundary.
 - Responsibility: the on-disk shape of a vault note. It names the note's file, renders its
@@ -15,14 +17,20 @@
   `renderSupersedes` in `internal/cli/supersedes.go`; the exchange fields in
   `internal/cli/exchangefields.go`; `SplitFrontmatter` in `internal/embed/hash.go`; the YAML-node
   edits in `internal/cli/frontmatter_node.go`; `toLF` in `internal/cli/luhmann_reparent.go`.
-- Qualification: responsibility, the file and document shape is stated without naming any writer or
-  reader; ownership, writers decide what a note says and when it is written, while this component
-  decides how it is laid out; independent verification, rendering, naming and splitting are tested
-  directly on strings; stability, the shape survives any change to the commands that write it, and
-  hand-edited and Obsidian-edited notes depend on it; necessity, every note engram writes or reads
-  passes through it.
+- Qualification: Purpose: every [note](../../GLOSSARY.md#permanent-note) engram writes or reads passes through
+  this component ([Note Writing](../product/note-writing.md), [Note Revision](../product/note-revision.md)).
+  Contract: writers decide what a note says and when it is written, while this component decides how it is
+  laid out; rendering, naming and splitting are tested directly on strings. Identity: the shape survives any
+  change to the commands that write it, and hand-edited and Obsidian-edited notes depend on it. Responsibility
+  (naming): the file and document shape is stated without naming any writer or reader.
+- Required behavior: the YAML library (`go.yaml.in/yaml/v3`, external) is assumed to encode a value so that it
+  reads back unchanged and to parse a frontmatter block into a mapping that keeps each key, anchor and style
+  when re-encoded ([792b6c2 Frontmatter block](#792b6c2-frontmatter-block),
+  [792b6c7 Frontmatter node edits](#792b6c7-frontmatter-node-edits)); authoritative contract: not recorded in
+  this repository; compatibility verification: `internal/cli/learn_test.go` and
+  `internal/cli/amend_unknown_keys_test.go` (property tests over the real library).
 - Supported capabilities: [note-writing](../product/note-writing.md), [note-revision](../product/note-revision.md), [controlled-vocabulary](../product/controlled-vocabulary.md).
-  Also [skill-runbook-registration](../product/skill-runbook-registration.md) ([792b6c9 Skill identity fields](#792b6c9-skill-identity-fields), [792b6c10 Rewrites by other writers keep the skill identity fields](#792b6c10-rewrites-by-other-writers-keep-the-skill-identity-fields)), [vault-counting](../product/vault-counting.md) and [parent-sync](../product/parent-sync.md).
+  Also [skill-runbook-registration](../product/skill-runbook-registration.md) ([792b6c9 Skill identity fields](#792b6c9-skill-identity-fields), [792b6c10 Rewrites by other writers keep the skill identity fields](#792b6c10-rewrites-by-other-writers-keep-the-skill-identity-fields)), [vault-counting](../product/vault-counting.md), [Vault Health](../product/vault-health.md) and [parent-sync](../product/parent-sync.md).
 
 Rationale: the vault is flat. Notes sit at the vault root, and a note's place in the hierarchy is
 carried by the Luhmann ID that leads its filename, not by a folder ([792a2c Flat vault layout](../product/vault-identity.md#792a2c-flat-vault-layout)). A fact or feedback note
@@ -30,9 +38,9 @@ states its situation twice: in the `situation:` field, which recall's situation 
 from, and again in the body formula. The writers that change a
 situation keep the two copies in step.
 
-## 792b6c Behavior Requirements
+### 792b6c Behavior Requirements
 
-### 792b6c1 Note filenames
+#### 792b6c1 Note filenames
 
 Requirement: [792b6c1 Note filenames](#792b6c1-note-filenames) The note-document-format MUST name a fact, feedback or runbook note
 `<luhmann>.<YYYY-MM-DD>.<slug>.md` in the vault root, using its creation date, and MUST name a
@@ -40,7 +48,7 @@ question-and-answer pair `qa.<YYYY-MM-DD>.<slug>.q.md` and `qa.<YYYY-MM-DD>.<slu
 
 Supports: [792a3a1a A fact note is written](../product/note-writing.md#792a3a1-uat-scenarios), [792a3b1a A feedback note is written](../product/note-writing.md#792a3b1-uat-scenarios), [792a3c1a A runbook note is written](../product/note-writing.md#792a3c1-uat-scenarios), [792a3q1a A pair is captured](../product/note-writing.md#792a3q1-uat-scenarios), [792a6a1a A definition note carries its self-tag](../product/controlled-vocabulary.md#792a6a1-uat-scenarios), [792a6b1a Bootstrap creates the family note](../product/controlled-vocabulary.md#792a6b1-uat-scenarios).
 
-#### 792b6c1a Scenarios
+##### 792b6c1a Scenarios
 
 ```gherkin
 Scenario: 792b6c1a1 A Luhmann note's filename
@@ -54,7 +62,7 @@ Scenario: 792b6c1a2 A pair's filenames
   Then they are /vault/qa.2026-07-03.my-slug.q.md and /vault/qa.2026-07-03.my-slug.a.md
 ```
 
-### 792b6c2 Frontmatter block
+#### 792b6c2 Frontmatter block
 
 Requirement: [792b6c2 Frontmatter block](#792b6c2-frontmatter-block) The note-document-format MUST render a note's frontmatter as a line `---`, the
 fields as YAML, a line `---` and one blank line, and MUST encode every value so that it reads back
@@ -65,7 +73,7 @@ Supports: [792a3a1a A fact note is written](../product/note-writing.md#792a3a1-u
 Rationale: frontmatter is encoded through the YAML library, not built by concatenating strings,
 so a multi-line value cannot end the block early.
 
-#### 792b6c2a Scenarios
+##### 792b6c2a Scenarios
 
 ```gherkin
 Scenario: 792b6c2a1 The block is delimited
@@ -79,7 +87,7 @@ Scenario: 792b6c2a2 Tricky values read back unchanged
   Then every field reads back exactly as given
 ```
 
-### 792b6c3 Kind schemas
+#### 792b6c3 Kind schemas
 
 Requirement: [792b6c3 Kind schemas](#792b6c3-kind-schemas) The note-document-format MUST render each kind's keys in this order, leaving
 out any optional key whose value is empty:
@@ -105,7 +113,7 @@ Rationale: a Luhmann ID is quoted so that an ID such as `1e1` is not read back a
 so that notes written by engram, migrated and written by hand all read the same way. A fact or
 feedback note always carries `situation:`, because recall finds a note by its situation.
 
-#### 792b6c3a Scenarios
+##### 792b6c3a Scenarios
 
 ```gherkin
 Scenario: 792b6c3a1 A fact's frontmatter
@@ -144,7 +152,7 @@ Scenario: 792b6c3a7 Lists keep their order
   Then the list reads back with the same entries in the same order
 ```
 
-### 792b6c4 Body formulas
+#### 792b6c4 Body formulas
 
 Requirement: [792b6c4 Body formulas](#792b6c4-body-formulas) The note-document-format MUST render a fact's body as
 `Information learned: when in <situation>, <subject> <predicate> <object>.`, a feedback note's as
@@ -160,7 +168,7 @@ Rationale: situations are usually phrased "When …", while the formulas already
 the strip, a body would read "when When". A supersession link drops `.md` because links resolve by
 extension-less basename.
 
-#### 792b6c4a Scenarios
+##### 792b6c4a Scenarios
 
 ```gherkin
 Scenario: 792b6c4a1 A fact's body
@@ -189,7 +197,7 @@ Scenario: 792b6c4a5 A supersession line drops .md
   Then it is "Supersedes: [[9e.2026-01-01.old-note]] — updates: old note superseded"
 ```
 
-### 792b6c5 Question-and-answer documents
+#### 792b6c5 Question-and-answer documents
 
 Requirement: [792b6c5 Question-and-answer documents](#792b6c5-question-and-answer-documents) The note-document-format MUST render a question note with frontmatter `type:
 qa-question`, `date`, `answered_by` (the answer's basename) and `source`, and a body of the question
@@ -201,7 +209,7 @@ comma-separated link to each.
 
 Supports: [792a3q1a A pair is captured](../product/note-writing.md#792a3q1-uat-scenarios), [792a3q1b A pair without contributors](../product/note-writing.md#792a3q1-uat-scenarios), [792a3q1c The answer can come from a file](../product/note-writing.md#792a3q1-uat-scenarios).
 
-#### 792b6c5a Scenarios
+##### 792b6c5a Scenarios
 
 ```gherkin
 Scenario: 792b6c5a1 A question note
@@ -220,7 +228,7 @@ Scenario: 792b6c5a3 An answer note without contributors
   Then it has no Contributors: line
 ```
 
-### 792b6c6 Frontmatter splitting
+#### 792b6c6 Frontmatter splitting
 
 Requirement: [792b6c6 Frontmatter splitting](#792b6c6-frontmatter-splitting) The note-document-format MUST split a note's text into the frontmatter between
 a leading `---` line and the next line that is exactly `---`, and the text after that line. A value
@@ -233,7 +241,7 @@ Supports: [792a3n1a A learned note has its sidecar](../product/note-writing.md#7
 Rationale: a skill key, for example, can end in `---`; matching only a whole line keeps such a value
 from cutting the frontmatter short.
 
-#### 792b6c6a Scenarios
+##### 792b6c6a Scenarios
 
 ```gherkin
 Scenario: 792b6c6a1 Only a whole --- line closes the frontmatter
@@ -252,7 +260,7 @@ Scenario: 792b6c6a3 A note without frontmatter
   Then it has no frontmatter, and its whole text is the body
 ```
 
-### 792b6c7 Frontmatter node edits
+#### 792b6c7 Frontmatter node edits
 
 Requirement: [792b6c7 Frontmatter node edits](#792b6c7-frontmatter-node-edits) The note-document-format MUST write an edit to an existing note's frontmatter
 as edits to its parsed YAML mapping: a key whose value the edit changes MUST be replaced in place, a
@@ -275,7 +283,7 @@ without leaving its aliases dangling, and decoding the result again before it is
 note that no reader could parse from ever reaching the disk. Byte-identical output for ordinary
 notes keeps their exchange hash unchanged, so the offer paths that compare these bytes are unaffected.
 
-#### 792b6c7a Scenarios
+##### 792b6c7a Scenarios
 
 ```gherkin
 Scenario: 792b6c7a1 Keys the edit does not change are kept
@@ -314,7 +322,7 @@ Scenario: 792b6c7a7 An ordinary note is written as a fresh render
   Then the result is byte-identical to the note rendered afresh with the edit, and its exchange hash is unchanged
 ```
 
-### 792b6c8 CRLF reading
+#### 792b6c8 CRLF reading
 
 Requirement: [792b6c8 CRLF reading](#792b6c8-crlf-reading) The note-document-format MUST read a note for splitting and editing as its LF
 form, converting each `\r\n` to `\n` and keeping a lone `\r`, while frontmatter splitting itself
@@ -326,7 +334,7 @@ Rationale: a CRLF-aware split would hand the writers that splice its slices back
 lines, and they would write mixed line endings; converting at the reader leaves every writer working
 on the LF form, and a writer converts a note only inside a write it makes anyway.
 
-#### 792b6c8a Scenarios
+##### 792b6c8a Scenarios
 
 ```gherkin
 Scenario: 792b6c8a1 CRLF pairs become LF
@@ -335,7 +343,7 @@ Scenario: 792b6c8a1 CRLF pairs become LF
   Then it is "a\nb\rc\n\n", and text without CRLF is unchanged
 ```
 
-### 792b6c9 Skill identity fields
+#### 792b6c9 Skill identity fields
 
 Requirement: [792b6c9 Skill identity fields](#792b6c9-skill-identity-fields) The note-document-format MUST write a runbook's `skill_hash`, `skill_key` and
 `skill_source`, at the place [792b6c3 Kind schemas](#792b6c3-kind-schemas) gives them, only when each is non-empty, and MUST read back exactly
@@ -346,7 +354,7 @@ Supports: [792a12d1a Accepted registration](../product/skill-runbook-registratio
 Rationale: a runbook note that mirrors a skill is identified by these three fields ([792a12b One runbook note per skill, identified by its key](../product/skill-runbook-registration.md#792a12b-one-runbook-note-per-skill-identified-by-its-key)), so a value
 that does not survive a render and parse would make the note unfindable or its offer unstable.
 
-#### 792b6c9a Scenarios
+##### 792b6c9a Scenarios
 
 ```gherkin
 Scenario: 792b6c9a1 The hash is written when set
@@ -380,7 +388,7 @@ Scenario: 792b6c9a6 Any key and source read back unchanged
   Then both read back unchanged
 ```
 
-### 792b6c10 Rewrites by other writers keep the skill identity fields
+#### 792b6c10 Rewrites by other writers keep the skill identity fields
 
 Requirement: [792b6c10 Rewrites by other writers keep the skill identity fields](#792b6c10-rewrites-by-other-writers-keep-the-skill-identity-fields) Every writer other than registration that rewrites a note's frontmatter MUST leave
 `skill_hash`, `skill_key` and `skill_source` as they were: `engram amend` (a content change, an
@@ -394,7 +402,7 @@ Supports: [792a12u1a Amend preserves the identity fields](../product/skill-runbo
 Rationale: only registration may change them, because registration compares a note's hash with the
 source's to decide whether a skill changed.
 
-#### 792b6c10a Scenarios
+##### 792b6c10a Scenarios
 
 ```gherkin
 Scenario: 792b6c10a1 Amend keeps the fields

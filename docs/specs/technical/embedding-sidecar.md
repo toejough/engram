@@ -1,6 +1,8 @@
 # Embedding Sidecar - Technical Spec
 
-## 792b10a Orientation
+## 792b10 Embedding Sidecar
+
+### 792b10a Orientation
 
 - Ownership: Repository component.
 - Responsibility: each note's `.vec.json` sidecar. It decides which text of a note is embedded and
@@ -14,14 +16,31 @@
   `internal/embed/state.go` (`ComputeState`), `internal/embed/cosine.go` (`Cosine`), and
   `autoEmbedNote` in `internal/cli/learn.go`, and `RunEmbedApply`, `RunEmbedStatus` and
   `selectStates` in `internal/cli/embed.go` (the operator's census and re-embed).
-- Qualification: responsibility, the sidecar contract is stated without naming any writer or
-  reader; ownership, callers decide when to build, read or classify a sidecar, while this component
-  decides its content and what makes it current; independent verification, building, decoding,
-  hashing and classification are tested directly over fake embedders and filesystems; stability,
-  the on-disk format is versioned and outlives any refactoring; necessity, every retrieval over notes
-  reads it.
-- Supported capabilities: [vault-identity](../product/vault-identity.md), [note-writing](../product/note-writing.md), [note-revision](../product/note-revision.md), [chunk-indexing](../product/chunk-indexing.md)
-  [controlled-vocabulary](../product/controlled-vocabulary.md), [memory-query](../product/memory-query.md), [vault-health](../product/vault-health.md).
+- Qualification: Purpose: every retrieval over [notes](../../GLOSSARY.md#permanent-note) reads a
+  [sidecar](../../GLOSSARY.md#sidecar-embedding-sidecar) ([Memory Query](../product/memory-query.md)).
+  Contract: callers decide when to build, read or classify a sidecar, while this component decides its content
+  and what makes it current; building, decoding, hashing and classification are tested directly over fake
+  embedders and filesystems. Identity: the on-disk format is versioned and outlives any refactoring. Value:
+  every note carries its own sidecar, so there is no index to maintain or invalidate and a copied
+  [vault](../../GLOSSARY.md#vault) is self-contained. Responsibility (naming): the sidecar contract is stated
+  without naming any writer or reader.
+- Required behavior: [Text Embedder](./text-embedder.md) embeds a text as one vector and reports the model ID
+  and dimension of its vectors
+  ([792b9c1 Bundled-model embedding](./text-embedder.md#792b9c1-bundled-model-embedding)).
+- Required behavior: [Durable File Store](./durable-file-store.md) replaces a file atomically
+  ([792b3c1 Atomic replace](./durable-file-store.md#792b3c1-atomic-replace)) and wraps a failed read in an
+  error that still satisfies `errors.Is` for `fs.ErrNotExist`
+  ([792b3c3 Error identity](./durable-file-store.md#792b3c3-error-identity)).
+- Required behavior: [Wikilink Graph](./wikilink-graph.md) scans the vault into one note per `.md` file at its
+  root, or returns an error naming the path ([792b13c1 Vault scan](./wikilink-graph.md#792b13c1-vault-scan)),
+  for [792b10c10 Embedding census](#792b10c10-embedding-census) and
+  [792b10c12 Embedding run](#792b10c12-embedding-run).
+- Required behavior: [Note Document Format](./note-document-format.md) splits a note's text into its
+  frontmatter and the text after it
+  ([792b6c6 Frontmatter splitting](./note-document-format.md#792b6c6-frontmatter-splitting)), for
+  [792b10c3 Embedding sources](#792b10c3-embedding-sources).
+- Supported capabilities: [vault-identity](../product/vault-identity.md), [note-writing](../product/note-writing.md), [note-revision](../product/note-revision.md), [chunk-indexing](../product/chunk-indexing.md),
+  [controlled-vocabulary](../product/controlled-vocabulary.md), [memory-query](../product/memory-query.md), [vault-health](../product/vault-health.md),
   [vault-migration](../product/vault-migration.md).
 
 Rationale: semantic search needs vectors, but a vector database or a separate rebuild step is a moving part that can
@@ -30,9 +49,9 @@ index to maintain or invalidate, and a copied vault is self-contained. Each side
 note's situation and one for its body, so retrieval can match a query against whichever fits better. Notes of every
 kind embed this way.
 
-## 792b10c Behavior Requirements
+### 792b10c Behavior Requirements
 
-### 792b10c1 Sidecar format
+#### 792b10c1 Sidecar format
 
 Requirement: [792b10c1 Sidecar format](#792b10c1-sidecar-format) The embedding-sidecar MUST store a sidecar as JSON with `schema_version` 1,
 `embedding_model_id`, `dims`, `situation_vector`, `body_vector`, `content_hash`, and `last_used`
@@ -45,7 +64,7 @@ Supports: [792a3n1a A learned note has its sidecar](../product/note-writing.md#7
 Rationale: `last_used` is added metadata. It does not bump the schema version, and it is kept out of
 the content hash, so recording a use never makes a note look stale.
 
-#### 792b10c1a Scenarios
+##### 792b10c1a Scenarios
 
 ```gherkin
 Scenario: 792b10c1a1 A dual-vector sidecar round-trips
@@ -74,14 +93,14 @@ Scenario: 792b10c1a5 An old single-vector sidecar is a schema error
   Then the schema-version error is returned
 ```
 
-### 792b10c2 Sidecar path
+#### 792b10c2 Sidecar path
 
 Requirement: [792b10c2 Sidecar path](#792b10c2-sidecar-path) The embedding-sidecar MUST place a note's sidecar beside it, named after the
 note with `.md` replaced by `.vec.json`, and MUST append `.vec.json` to any other path.
 
 Supports: [792a3n1a A learned note has its sidecar](../product/note-writing.md#792a3n1-uat-scenarios), [792a6a1a A definition note carries its self-tag](../product/controlled-vocabulary.md#792a6a1-uat-scenarios).
 
-#### 792b10c2a Scenarios
+##### 792b10c2a Scenarios
 
 ```gherkin
 Scenario: 792b10c2a1 A note's sidecar path
@@ -95,7 +114,7 @@ Scenario: 792b10c2a2 A non-Markdown path gets the suffix appended
   Then .vec.json is appended to it
 ```
 
-### 792b10c3 Embedding sources
+#### 792b10c3 Embedding sources
 
 Requirement: [792b10c3 Embedding sources](#792b10c3-embedding-sources) The embedding-sidecar MUST take a note's situation text from its
 `situation:` frontmatter value, trimmed, for any kind of note, and its body text from the text after
@@ -109,7 +128,7 @@ Rationale: the machine-written lines are link channels rewritten in place by lea
 curation. Leaving them out means a link-only change neither moves the body vector nor makes the
 sidecar stale. Trailing blanks are normalized because the writers end bodies differently.
 
-#### 792b10c3a Scenarios
+##### 792b10c3a Scenarios
 
 ```gherkin
 Scenario: 792b10c3a1 The situation is read from the frontmatter
@@ -138,7 +157,7 @@ Scenario: 792b10c3a5 Trailing blank lines are normalized
   Then each ends in exactly one newline
 ```
 
-### 792b10c4 Content hash
+#### 792b10c4 Content hash
 
 Requirement: [792b10c4 Content hash](#792b10c4-content-hash) The embedding-sidecar MUST hash a note as `sha256:` followed by the hex
 SHA-256 of its situation text, a zero byte, and its body text, so the hash changes when either
@@ -146,7 +165,7 @@ changes, does not change for any other frontmatter edit, and is the same for the
 
 Supports: [792a3n1a A learned note has its sidecar](../product/note-writing.md#792a3n1-uat-scenarios), [792a4g1a A content amend re-embeds](../product/note-revision.md#792a4g1-uat-scenarios), [792a4g1b A provenance-only amend does not re-embed](../product/note-revision.md#792a4g1-uat-scenarios), [792a6u1a Backfill adds missing self-tags](../product/controlled-vocabulary.md#792a6u1-uat-scenarios), [792a10i1c A CRLF note that is renamed becomes LF](../product/vault-migration.md#792a10i1-uat-scenarios).
 
-#### 792b10c4a Scenarios
+##### 792b10c4a Scenarios
 
 ```gherkin
 Scenario: 792b10c4a1 The hash covers situation and body
@@ -170,7 +189,7 @@ Scenario: 792b10c4a4 Hashing is repeatable
   Then both hashes are equal
 ```
 
-### 792b10c5 Building a sidecar
+#### 792b10c5 Building a sidecar
 
 Requirement: [792b10c5 Building a sidecar](#792b10c5-building-a-sidecar) The embedding-sidecar MUST build a sidecar by embedding the situation text,
 or the body text when the note has no situation, and the body text, and stamping schema version 1,
@@ -180,7 +199,7 @@ returned.
 Supports: [792a3n1a A learned note has its sidecar](../product/note-writing.md#792a3n1-uat-scenarios), [792a3n1b A failed embedding keeps the note](../product/note-writing.md#792a3n1-uat-scenarios), [792a4g1a A content amend re-embeds](../product/note-revision.md#792a4g1-uat-scenarios), [792a4g1c A failed re-embed keeps the amend](../product/note-revision.md#792a4g1-uat-scenarios), [792a4l1a A fact is resituated](../product/note-revision.md#792a4l1-uat-scenarios), [792a4l1c A failed sidecar rebuild fails the command](../product/note-revision.md#792a4l1-uat-scenarios), [792a4o1b An activation does not undo a re-embed](../product/note-revision.md#792a4o1-uat-scenarios), [792a6a1a A definition note carries its self-tag](../product/controlled-vocabulary.md#792a6a1-uat-scenarios), [792a10e1f Rewritten notes are not left stale](../product/vault-migration.md#792a10e1-uat-scenarios),
 [792a10i1c A CRLF note that is renamed becomes LF](../product/vault-migration.md#792a10i1-uat-scenarios), [792a10l1d A CRLF note is converted](../product/vault-migration.md#792a10l1-uat-scenarios).
 
-#### 792b10c5a Scenarios
+##### 792b10c5a Scenarios
 
 ```gherkin
 Scenario: 792b10c5a1 Both vectors are embedded and stamped
@@ -194,7 +213,7 @@ Scenario: 792b10c5a2 A note without a situation embeds its body twice
   Then both vectors embed the body text
 ```
 
-### 792b10c6 Writing a learned note's sidecar
+#### 792b10c6 Writing a learned note's sidecar
 
 Requirement: [792b10c6 Writing a learned note's sidecar](#792b10c6-writing-a-learned-notes-sidecar) After `engram learn` writes a note, the embedding-sidecar MUST build its
 sidecar and atomically write it to the note's sidecar path. When building or writing fails, it MUST
@@ -206,7 +225,7 @@ Supports: [792a3n1a A learned note has its sidecar](../product/note-writing.md#7
 Rationale: the note itself is already written in one atomic step, so a missing sidecar is
 recoverable later by `engram embed apply --missing`.
 
-#### 792b10c6a Scenarios
+##### 792b10c6a Scenarios
 
 ```gherkin
 Scenario: 792b10c6a1 A learned note gets a valid sidecar
@@ -230,7 +249,7 @@ Scenario: 792b10c6a4 Nothing is done without an embedder or writer
   Then nothing is embedded or written
 ```
 
-### 792b10c7 State classification
+#### 792b10c7 State classification
 
 Requirement: [792b10c7 State classification](#792b10c7-state-classification) The embedding-sidecar MUST classify a note against the current model as
 `broken` when the note cannot be read; `missing` when its sidecar does not exist; `broken` when the
@@ -247,7 +266,7 @@ stops early. All sidecars are expected to share one model ID. A query skips side
 model with only an advisory, and fails only when none remains, so after a partial model change its
 results can be silently thinner.
 
-#### 792b10c7a Scenarios
+##### 792b10c7a Scenarios
 
 ```gherkin
 Scenario: 792b10c7a1 A current sidecar is ok
@@ -281,14 +300,14 @@ Scenario: 792b10c7a6 States have labels
   Then it reads ok, missing, stale, incompatible or broken
 ```
 
-### 792b10c8 Cosine similarity
+#### 792b10c8 Cosine similarity
 
 Requirement: [792b10c8 Cosine similarity](#792b10c8-cosine-similarity) The embedding-sidecar MUST measure two vectors' cosine similarity, and MUST
 return 0 when their lengths differ, when they are empty, or when either has zero magnitude.
 
 Supports: [792a3t1a The answer is found and the question is not](../product/note-writing.md#792a3t1-uat-scenarios), [792a3u1a A runbook is tagged](../product/note-writing.md#792a3u1-uat-scenarios), [792a3u1b The answer is tagged and the question is not](../product/note-writing.md#792a3u1-uat-scenarios), [792a6d1a A learned note is tagged with its closest terms](../product/controlled-vocabulary.md#792a6d1-uat-scenarios), [792a6d1c At most three terms are kept](../product/controlled-vocabulary.md#792a6d1-uat-scenarios), [792a10c1a Candidates are emitted for review](../product/vault-migration.md#792a10c1-uat-scenarios), [792a10c1b No pair is similar enough](../product/vault-migration.md#792a10c1-uat-scenarios).
 
-#### 792b10c8a Scenarios
+##### 792b10c8a Scenarios
 
 ```gherkin
 Scenario: 792b10c8a1 A vector is fully similar to itself
@@ -307,7 +326,7 @@ Scenario: 792b10c8a3 Vectors without signal score 0
   Then it is 0
 ```
 
-### 792b10c9 CRLF notes
+#### 792b10c9 CRLF notes
 
 Requirement: [792b10c9 CRLF notes](#792b10c9-crlf-notes) The embedding-sidecar MUST take the situation text, the body text and the
 content hash of a note whose lines end in `\r\n` from its LF form, so that each equals the value
@@ -318,7 +337,7 @@ Supports: [792a4m1a Amend converts a CRLF note](../product/note-revision.md#792a
 Rationale: reading the LF form means a CRLF note is embedded from the same text as its LF equivalent, so a conversion
 to LF leaves the hash as it would be for the LF note.
 
-#### 792b10c9a Scenarios
+##### 792b10c9a Scenarios
 
 ```gherkin
 Scenario: 792b10c9a1 A CRLF note embeds and hashes as its LF form
@@ -327,7 +346,7 @@ Scenario: 792b10c9a1 A CRLF note embeds and hashes as its LF form
   Then each equals the LF note's
 ```
 
-### 792b10c10 Embedding census
+#### 792b10c10 Embedding census
 
 Requirement: [792b10c10 Embedding census](#792b10c10-embedding-census) The embedding-sidecar MUST, for a census, scan the vault, classify each scanned
 note ([792b10c7 State classification](#792b10c7-state-classification)) and print six lines: `total:` and the number of notes, then `with-embeddings:` (ok),
@@ -336,7 +355,7 @@ so the numbers align. It MUST return a scan failure as `embed status: scan: <err
 
 Supports: [792a9g1a Notes without sidecars are counted as without](../product/vault-health.md#792a9g1-uat-scenarios), [792a9g1b Every state is counted](../product/vault-health.md#792a9g1-uat-scenarios), [792a9g1c An unreadable note stops the census](../product/vault-health.md#792a9g1-uat-scenarios), [792a9j1a A CRLF note is not stale](../product/vault-health.md#792a9j1-uat-scenarios).
 
-#### 792b10c10a Scenarios
+##### 792b10c10a Scenarios
 
 ```gherkin
 Scenario: 792b10c10a1 Notes without sidecars are counted as without
@@ -355,7 +374,7 @@ Scenario: 792b10c10a3 A scan failure is returned
   Then it fails with an error beginning "embed status: scan:"
 ```
 
-### 792b10c11 Embedding selection
+#### 792b10c11 Embedding selection
 
 Requirement: [792b10c11 Embedding selection](#792b10c11-embedding-selection) The embedding-sidecar MUST select, with no mode flag or with the missing flag,
 the notes whose state is missing; with the stale flag, the stale notes; with the force flag, the
@@ -368,7 +387,7 @@ Rationale: a broken sidecar cannot be classified against the content, and no sel
 it, so every selection takes it. The force flag is separate from the stale flag because replacing
 another model's sidecars changes the model a vault runs under ([792b10c7 State classification](#792b10c7-state-classification)).
 
-#### 792b10c11a Scenarios
+##### 792b10c11a Scenarios
 
 ```gherkin
 Scenario: 792b10c11a1 No flag selects the missing notes
@@ -402,7 +421,7 @@ Scenario: 792b10c11a6 Mode flags combine
   Then stale, incompatible and broken are selected and missing and ok are not
 ```
 
-### 792b10c12 Embedding run
+#### 792b10c12 Embedding run
 
 Requirement: [792b10c12 Embedding run](#792b10c12-embedding-run) The embedding-sidecar MUST, for each selected note in ascending basename order,
 read the note, build its sidecar ([792b10c5 Building a sidecar](#792b10c5-building-a-sidecar)), write it atomically beside the note and print
@@ -420,7 +439,7 @@ Rationale: a sidecar is a derived file, not part of the note's git-tracked conte
 from the current note, so its content hash stays honest, and it is never stored in or versioned with
 the note file. No lock is taken: a sidecar write does not collide with Luhmann ID assignment.
 
-#### 792b10c12a Scenarios
+##### 792b10c12a Scenarios
 
 ```gherkin
 Scenario: 792b10c12a1 A missing sidecar is written

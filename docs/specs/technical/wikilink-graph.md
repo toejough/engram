@@ -1,6 +1,8 @@
 # Wikilink Graph - Technical Spec
 
-## 792b13a Orientation
+## 792b13 Wikilink Graph
+
+### 792b13a Orientation
 
 - Ownership: Repository component.
 - Responsibility: the vault seen as a set of linked notes. It scans the notes at the vault root,
@@ -12,24 +14,30 @@
   `ParseWikilinks`, `BuildGraph`, `UnresolvedTargets`); `normalizeNoteRef` in
   `internal/cli/note_ref.go`; `findNote` in `internal/cli/resituate.go`. `BFSWithCap`,
   `InDegreeIn` and `UndirectedNeighbors` have no production caller.
-- Qualification: responsibility, scanning and reference resolution are stated without naming any
-  command; ownership, callers decide what to do with a note once found, while this component
-  decides what a note's key is and which note a reference names; independent verification, the
-  scan and the lookup are tested directly over a fake vault listing and a note list; stability, the
-  basename key is the link form notes and Obsidian share, and it survives any refactoring;
-  necessity, every command that reads or revises a named note finds it here.
-- Supported capabilities: [vault-identity](../product/vault-identity.md), [note-revision](../product/note-revision.md), [memory-query](../product/memory-query.md), [vault-counting](../product/vault-counting.md)
-  [vault-counting](../product/vault-counting.md), [vault-health](../product/vault-health.md),
-  [vault-migration](../product/vault-migration.md).
+- Qualification: Purpose: every command that reads or revises a named [note](../../GLOSSARY.md#permanent-note)
+  finds it here ([Note Revision](../product/note-revision.md)). Contract: callers decide what to do with a
+  note once found, while this component decides what a note's key is and which note a reference names; the
+  scan and the lookup are tested directly over a fake [vault](../../GLOSSARY.md#vault) listing and a note
+  list. Identity: the basename key is the link form notes and Obsidian share, and it survives any refactoring.
+  Value: there is no separate graph store to drift from the notes: the graph is derived from the notes each
+  time, so it is always current. Responsibility (naming): scanning and reference resolution are stated without
+  naming any command.
+- Required behavior: [Durable File Store](./durable-file-store.md) lists the vault root's Markdown files,
+  leaving out subdirectories and other files
+  ([792b3c4 Vault Markdown listing](./durable-file-store.md#792b3c4-vault-markdown-listing)), and reports a
+  failed listing or read with its path
+  ([792b3c3 Error identity](./durable-file-store.md#792b3c3-error-identity)).
+- Supported capabilities: [vault-identity](../product/vault-identity.md), [note-revision](../product/note-revision.md), [memory-query](../product/memory-query.md), [vault-counting](../product/vault-counting.md),
+  [vault-health](../product/vault-health.md), [vault-migration](../product/vault-migration.md).
 
 Rationale: navigation lives in authored relations, the wikilinks in note text, rather than in a
 separate graph store that could drift from the notes, so the graph is derived from the notes each
 time and is always current. A note is keyed by its basename because that is what a wikilink names
 and what Obsidian resolves.
 
-## 792b13c Behavior Requirements
+### 792b13c Behavior Requirements
 
-### 792b13c1 Vault scan
+#### 792b13c1 Vault scan
 
 Requirement: [792b13c1 Vault scan](#792b13c1-vault-scan) The wikilink-graph MUST scan a vault by listing the `.md` files at its root,
 ignoring subdirectories and other files, and MUST return one note per file, keyed by its filename
@@ -39,7 +47,7 @@ naming the path.
 
 Supports: [792a2c1a A Markdown file in a subdirectory is not a note](../product/vault-identity.md#792a2c1-uat-scenarios), [792a2d1a A fresh vault has no notes](../product/vault-identity.md#792a2d1-uat-scenarios), [792a2d1b A user's README is a note](../product/vault-identity.md#792a2d1-uat-scenarios), [792a4a1a Every reference form finds the note](../product/note-revision.md#792a4a1-uat-scenarios), [792a4a1b An unknown reference is refused](../product/note-revision.md#792a4a1-uat-scenarios), [792a8e1i Only notes at the vault root link](../product/vault-counting.md#792a8e1-uat-scenarios), [792a8e1j An unreadable note fails the report](../product/vault-counting.md#792a8e1-uat-scenarios), [792a9a1e An unreadable note stops the check](../product/vault-health.md#792a9a1-uat-scenarios).
 
-#### 792b13c1a Scenarios
+##### 792b13c1a Scenarios
 
 ```gherkin
 Scenario: 792b13c1a1 Root notes are scanned with their keys and links
@@ -68,7 +76,7 @@ Scenario: 792b13c1a5 A read failure is returned
   Then the error is returned, naming that note's path
 ```
 
-### 792b13c2 Note references
+#### 792b13c2 Note references
 
 Requirement: [792b13c2 Note references](#792b13c2-note-references) The wikilink-graph MUST resolve a note reference by trimming surrounding
 whitespace, removing enclosing `[[` and `]]` and any `|display` part, and dropping a trailing
@@ -82,7 +90,7 @@ Rationale: an agent copies a note's name from wherever it saw it, as a wikilink 
 a filename from a listing, or a Luhmann ID, so each form names the same note. The error quotes what
 the user typed, not its normalized form, so the user can see which reference failed.
 
-#### 792b13c2a Scenarios
+##### 792b13c2a Scenarios
 
 ```gherkin
 Scenario Outline: 792b13c2a1 Every reference form names the note
@@ -103,7 +111,7 @@ Scenario: 792b13c2a2 An unknown reference quotes what was given
   Then it fails as not found, quoting "99.missing.md"
 ```
 
-### 792b13c3 Link targets
+#### 792b13c3 Link targets
 
 Requirement: [792b13c3 Link targets](#792b13c3-link-targets) The wikilink-graph MUST list the targets of the links in a text: the text between
 `[[` and the next `]]` on one line, each target once, in order of first appearance, after a trailing
@@ -121,7 +129,7 @@ resolves to the same note as the bare basename, so both are one target. A bare l
 three characters `.md` is always read as the suffixed form, because the text cannot say which was
 meant.
 
-#### 792b13c3a Scenarios
+##### 792b13c3a Scenarios
 
 ```gherkin
 Scenario: 792b13c3a1 A link is a target
@@ -175,7 +183,7 @@ Scenario: 792b13c3a10 A display part stays in the target
   Then the result is 4.gamma|the gamma note
 ```
 
-### 792b13c4 Link graph
+#### 792b13c4 Link graph
 
 Requirement: [792b13c4 Link graph](#792b13c4-link-graph) The wikilink-graph MUST build, from scanned notes, a directed graph with one
 node per note, keyed by its basename, and one edge from a note to each distinct target among its
@@ -189,7 +197,7 @@ Rationale: a wikilink names a note by its basename, and Obsidian resolves it the
 to no note is not a backlink of any note, and a note linking to itself is not evidence that anything
 else refers to it.
 
-#### 792b13c4a Scenarios
+##### 792b13c4a Scenarios
 
 ```gherkin
 Scenario: 792b13c4a1 No notes make an empty graph
@@ -218,14 +226,14 @@ Scenario: 792b13c4a5 No node has an edge to itself
   Then no note has an edge to itself
 ```
 
-### 792b13c5 In-degree
+#### 792b13c5 In-degree
 
 Requirement: [792b13c5 In-degree](#792b13c5-in-degree) The wikilink-graph MUST report a note's in-degree as the number of distinct
 notes with an edge to it ([792b13c4 Link graph](#792b13c4-link-graph)), and 0 for a basename that is not a node.
 
 Supports: [792a8e1a A note with incoming links](../product/vault-counting.md#792a8e1-uat-scenarios), [792a8e1b A note with no incoming links](../product/vault-counting.md#792a8e1-uat-scenarios), [792a8e1c A basename that is not a note](../product/vault-counting.md#792a8e1-uat-scenarios).
 
-#### 792b13c5a Scenarios
+##### 792b13c5a Scenarios
 
 ```gherkin
 Scenario: 792b13c5a1 In-degree counts the linking notes
@@ -239,7 +247,7 @@ Scenario: 792b13c5a2 An unknown basename has in-degree 0
   Then it is 0
 ```
 
-### 792b13c6 Unresolved links
+#### 792b13c6 Unresolved links
 
 Requirement: [792b13c6 Unresolved links](#792b13c6-unresolved-links) The wikilink-graph MUST list, for scanned notes, each link target of a note that
 is neither that note's own basename nor the basename of a scanned note, as the linking note's
@@ -251,7 +259,7 @@ Rationale: the graph drops a link to no note without a sound ([792b13c4 Link gra
 edges it dropped. A vault that writes links in a form the graph does not resolve, such as a bare
 Luhmann ID against a basename key, loses most of its edges without it.
 
-#### 792b13c6a Scenarios
+##### 792b13c6a Scenarios
 
 ```gherkin
 Scenario: 792b13c6a1 A link in the wrong form is listed

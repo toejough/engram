@@ -1,6 +1,8 @@
 # Note Amendment - Technical Spec
 
-## 792b14a Orientation
+## 792b14 Note Amendment
+
+### 792b14a Orientation
 
 - Ownership: Repository component (caller of [wikilink-graph](./wikilink-graph.md), [note-document-format](./note-document-format.md),
   [note-provenance](./note-provenance.md), [embedding-sidecar](./embedding-sidecar.md), [durable-file-store](./durable-file-store.md) and [vault-write-lock](./vault-write-lock.md)).
@@ -14,13 +16,57 @@
   (`RunActivate`, `bumpLastUsed`); the amend and resituate targets in `internal/cli/targets.go`.
   The curation flags in `amend_fold.go` are curate's ([curate](../product/curate.md)), the offer hooks are offer-outbox's ([offer-outbox](./offer-outbox.md)) and
   the pull-down is parent-vault-client's ([parent-vault-client](./parent-vault-client.md)).
-- Qualification: responsibility, revising a stored note is stated without naming any function;
-  ownership, it owns the ordering of lookup, validation, edit, write and re-embed, while the format,
-  provenance, sidecar and lock contracts belong to the components it calls; independent
-  verification, `RunAmend`, `RunResituate` and `RunActivate` are tested directly over injected
-  lookup, read, write, lock and embedder fakes; stability, the read-modify-write contract survives any
-  change to the flags that drive it; necessity, every change an agent makes to an existing note
-  goes through it.
+- Qualification: Purpose: every change an [agent](../../GLOSSARY.md#agent-automatic-memory) makes to an
+  existing [note](../../GLOSSARY.md#permanent-note) goes through this component
+  ([Note Revision](../product/note-revision.md)). Contract: it owns the ordering of lookup, validation, edit,
+  write and re-embed, while the format, provenance, [sidecar](../../GLOSSARY.md#sidecar-embedding-sidecar) and
+  lock contracts belong to the components it calls; `RunAmend`, `RunResituate` and `RunActivate` are tested
+  directly over injected lookup, read, write, lock and embedder fakes. Identity: the read-modify-write
+  contract survives any change to the flags that drive it. Value: every revision takes the
+  [vault](../../GLOSSARY.md#vault)'s lock at its command's entry point and holds it through the note write,
+  the sidecar rebuild and the last-used bump, so no two revisions interleave and overwrite each other's
+  change. Responsibility (naming): revising a stored note is stated without naming any function.
+- Required behavior: [Vault Write Lock](./vault-write-lock.md) gives one holder at a time exclusive hold of
+  the vault's lock, waiting while another holds it, until it is released
+  ([792b8c1 Exclusive hold](./vault-write-lock.md#792b8c1-exclusive-hold),
+  [792b8c4 The vault's lock](./vault-write-lock.md#792b8c4-the-vaults-lock)).
+- Required behavior: [Durable File Store](./durable-file-store.md) replaces a file atomically, for a sidecar
+  write ([792b3c1 Atomic replace](./durable-file-store.md#792b3c1-atomic-replace)).
+- Required behavior: [Embedding Sidecar](./embedding-sidecar.md) builds a sidecar from a note's text
+  ([792b10c5 Building a sidecar](./embedding-sidecar.md#792b10c5-building-a-sidecar)) and decodes and encodes
+  a sidecar with an optional last-used date
+  ([792b10c1 Sidecar format](./embedding-sidecar.md#792b10c1-sidecar-format)).
+- Required behavior: [Note Document Format](./note-document-format.md) renders a note's body from its formula
+  ([792b6c4 Body formulas](./note-document-format.md#792b6c4-body-formulas)), edits an existing note's
+  frontmatter in place
+  ([792b6c7 Frontmatter node edits](./note-document-format.md#792b6c7-frontmatter-node-edits)) and reads a
+  note as its LF form ([792b6c8 CRLF reading](./note-document-format.md#792b6c8-crlf-reading)).
+- Required behavior: [Note Provenance](./note-provenance.md) re-stamps a note's repository, user and vault
+  name ([792b11c4 Re-stamp](./note-provenance.md#792b11c4-re-stamp)).
+- Required behavior: [Note Authoring](./note-authoring.md) defines which `--supersedes` values parse
+  ([792b12c1 Argument validation](./note-authoring.md#792b12c1-argument-validation)).
+- Required behavior: [Wikilink Graph](./wikilink-graph.md) resolves a note reference to the note it names, or
+  fails quoting the reference ([792b13c2 Note references](./wikilink-graph.md#792b13c2-note-references)).
+- Required behavior: [Vocabulary Engine](./vocabulary-engine.md) tags a written note with its closest terms
+  and checks whether a refit is due
+  ([792b20c5 Tagging a written note](./vocabulary-engine.md#792b20c5-tagging-a-written-note),
+  [792b20c6 Refit check](./vocabulary-engine.md#792b20c6-refit-check)).
+- Required behavior: [Pending Offer Bookkeeping](./pending-offer-bookkeeping.md) checks that the version a
+  curator judged is the version still there, before a pending marker is cleared or a note is discarded
+  ([792b34c5 The judged-version check](./pending-offer-bookkeeping.md#792b34c5-the-judged-version-check)).
+- Required behavior: [Offer Outbox](./offer-outbox.md) classifies a write as offered, stamps it with an `xid`
+  and queues it in the write's own critical section, and drains the [outbox](../../GLOSSARY.md#outbox) with no
+  vault lock held ([792b36c1 Which writes are offered](./offer-outbox.md#792b36c1-which-writes-are-offered),
+  [792b36c4 Queueing an offer](./offer-outbox.md#792b36c4-queueing-an-offer),
+  [792b36c5 Before a drain sends](./offer-outbox.md#792b36c5-before-a-drain-sends)).
+- Required behavior: [Parent Vault Client](./parent-vault-client.md) pulls a parent note down as a pending
+  copy and re-checks a linked note's parent copy without failing the activate
+  ([792b37c13 The pulled copy](./parent-vault-client.md#792b37c13-the-pulled-copy),
+  [792b37c16 Re-checking a linked note's parent copy](./parent-vault-client.md#792b37c16-re-checking-a-linked-notes-parent-copy)).
+- Required behavior: [Vault Identity Registry](./vault-identity-registry.md) keeps the declined-pull record,
+  holding the parent [vault ID](../../GLOSSARY.md#vault-id), basename and hash of each declined note, adding
+  an entry once and writing the record atomically
+  ([792b5c16 The declined-pull record](./vault-identity-registry.md#792b5c16-the-declined-pull-record)).
 - Supported capabilities: [note-revision](../product/note-revision.md), [controlled-vocabulary](../product/controlled-vocabulary.md), [parent-sync](../product/parent-sync.md) ([792b14c12 Activation against the parent](#792b14c12-activation-against-the-parent),
   [792b14c13 A discard of a pulled note records its decline](#792b14c13-a-discard-of-a-pulled-note-records-its-decline)), [curate](../product/curate.md) ([792b14c14 Settling a pending offer](#792b14c14-settling-a-pending-offer)), [write-memory](../product/write-memory.md), [recall](../product/recall.md).
 
@@ -30,9 +76,9 @@ the vault's lock at its command's entry point and holds it through the note writ
 rebuild and the last-used bump. The helpers it shares with other writers never take the lock
 themselves, because the lock is held per file descriptor and a nested acquire would wait on itself.
 
-## 792b14c Behavior Requirements
+### 792b14c Behavior Requirements
 
-### 792b14c1 Locked revision
+#### 792b14c1 Locked revision
 
 Requirement: [792b14c1 Locked revision](#792b14c1-locked-revision) The note-amendment MUST take the vault lock ([792b8c4 The vault's lock](./vault-write-lock.md#792b8c4-the-vaults-lock)) before amend, resituate
 or activate reads any note or sidecar, MUST hold it through every read and write of the note and
@@ -42,7 +88,7 @@ lock MUST be returned with nothing read or written.
 
 Supports: [792a4o1a Concurrent amends both take effect](../product/note-revision.md#792a4o1-uat-scenarios), [792a4o1b An activation does not undo a re-embed](../product/note-revision.md#792a4o1-uat-scenarios).
 
-#### 792b14c1a Scenarios
+##### 792b14c1a Scenarios
 
 ```gherkin
 Scenario: 792b14c1a1 An amend holds the lock across its read-modify-write
@@ -61,7 +107,7 @@ Scenario: 792b14c1a3 An activate holds the lock around its bumps
   Then the lock is taken once before the first bump and released after the last
 ```
 
-### 792b14c2 Amend refusals
+#### 792b14c2 Amend refusals
 
 Requirement: [792b14c2 Amend refusals](#792b14c2-amend-refusals) The note-amendment MUST refuse an amend, writing nothing, when no note
 matches the reference, when the note has no frontmatter, is not a fact, feedback or runbook note, or
@@ -71,7 +117,7 @@ three characters after trimming.
 
 Supports: [792a4a1b An unknown reference is refused](../product/note-revision.md#792a4a1-uat-scenarios), [792a4c1a A question-and-answer note is refused](../product/note-revision.md#792a4c1-uat-scenarios), [792a4f1a An invalid amend argument is refused before any write](../product/note-revision.md#792a4f1-uat-scenarios).
 
-#### 792b14c2a Scenarios
+##### 792b14c2a Scenarios
 
 ```gherkin
 Scenario: 792b14c2a1 No matching note
@@ -105,7 +151,7 @@ Scenario: 792b14c2a6 A trigger that is too short
   Then it fails saying a trigger must be at least 3 characters, and nothing is written
 ```
 
-### 792b14c3 Field replacement
+#### 792b14c3 Field replacement
 
 Requirement: [792b14c3 Field replacement](#792b14c3-field-replacement) The note-amendment MUST overwrite each content field of the note's kind that
 the amend supplies with a value different from the note's, MUST replace a runbook's whole
@@ -117,7 +163,7 @@ the body and only replace its supersession lines. It MUST write the note once an
 
 Supports: [792a4b1a A fact field is replaced](../product/note-revision.md#792a4b1-uat-scenarios), [792a4b1b A feedback field is replaced](../product/note-revision.md#792a4b1-uat-scenarios), [792a4b1c A runbook's steps and red flags are replaced](../product/note-revision.md#792a4b1-uat-scenarios), [792a4g1a A content amend re-embeds](../product/note-revision.md#792a4g1-uat-scenarios), [792a4g1b A provenance-only amend does not re-embed](../product/note-revision.md#792a4g1-uat-scenarios).
 
-#### 792b14c3a Scenarios
+##### 792b14c3a Scenarios
 
 ```gherkin
 Scenario: 792b14c3a1 One fact field is replaced
@@ -151,7 +197,7 @@ Scenario: 792b14c3a6 An unchanged value is not a content change
   Then the amend is not a content change, and the sidecar is not rebuilt
 ```
 
-### 792b14c4 Supersessions and chunk sources
+#### 792b14c4 Supersessions and chunk sources
 
 Requirement: [792b14c4 Supersessions and chunk sources](#792b14c4-supersessions-and-chunk-sources) The note-amendment MUST replace a note's whole `supersedes:` list with the
 entries an amend supplies, rewriting the body's `Supersedes:` lines to match ([792b6c4 Body formulas](./note-document-format.md#792b6c4-body-formulas)), and MUST
@@ -159,7 +205,7 @@ merge each supplied `--chunk-source` ID into `sources:` after the IDs already th
 
 Supports: [792a4d1a A supersession is written in canonical form](../product/note-revision.md#792a4d1-uat-scenarios), [792a4d1b The list is replaced, not appended to](../product/note-revision.md#792a4d1-uat-scenarios), [792a4e1a Chunk sources are merged without duplicates](../product/note-revision.md#792a4e1-uat-scenarios).
 
-#### 792b14c4a Scenarios
+##### 792b14c4a Scenarios
 
 ```gherkin
 Scenario: 792b14c4a1 A supersession is written to the frontmatter and the body
@@ -173,7 +219,7 @@ Scenario: 792b14c4a2 Chunk sources are merged
   Then sources: lists the existing ID and then the new one, each once
 ```
 
-### 792b14c5 Identity re-stamp gating
+#### 792b14c5 Identity re-stamp gating
 
 Requirement: [792b14c5 Identity re-stamp gating](#792b14c5-identity-re-stamp-gating) The note-amendment MUST have [note-provenance](./note-provenance.md) re-stamp a note ([792b11c4 Re-stamp](./note-provenance.md#792b11c4-re-stamp)) exactly
 when the amend supplies a content flag of any kind, a `--red-flag`, a `--trigger`, a `--supersedes`
@@ -184,7 +230,7 @@ resolved, leave `vault:` out and log a warning.
 
 Supports: [792a4h1a Amend from another environment re-stamps](../product/note-revision.md#792a4h1-uat-scenarios), [792a4h1b Amend backfills missing identity](../product/note-revision.md#792a4h1-uat-scenarios), [792a4h1c The project field does not stand in for the repo](../product/note-revision.md#792a4h1-uat-scenarios), [792a4h1f Without a vault name the default is stamped](../product/note-revision.md#792a4h1-uat-scenarios), [792a4h1g Recording a use keeps the declared identity](../product/note-revision.md#792a4h1-uat-scenarios), [792a4i1a A use recorded on a note without vault fills it in](../product/note-revision.md#792a4i1-uat-scenarios).
 
-#### 792b14c5a Scenarios
+##### 792b14c5a Scenarios
 
 ```gherkin
 Scenario: 792b14c5a1 A content, supersession or chunk-source amend re-stamps
@@ -218,7 +264,7 @@ Scenario: 792b14c5a6 An empty vault is filled, never written empty
   Then the first writes vault: personal with no warning, and the second writes no vault: key and warns naming vault
 ```
 
-### 792b14c6 Sidecar rebuild after an amend
+#### 792b14c6 Sidecar rebuild after an amend
 
 Requirement: [792b14c6 Sidecar rebuild after an amend](#792b14c6-sidecar-rebuild-after-an-amend) After writing the note, the note-amendment MUST build the note's sidecar from
 the written text ([792b10c5 Building a sidecar](./embedding-sidecar.md#792b10c5-building-a-sidecar)) and write it to the sidecar path ([792b3c1 Atomic replace](./durable-file-store.md#792b3c1-atomic-replace)) when the amend changed content
@@ -227,7 +273,7 @@ it MUST log a warning naming the note and complete the amend.
 
 Supports: [792a4g1a A content amend re-embeds](../product/note-revision.md#792a4g1-uat-scenarios), [792a4g1b A provenance-only amend does not re-embed](../product/note-revision.md#792a4g1-uat-scenarios), [792a4g1c A failed re-embed keeps the amend](../product/note-revision.md#792a4g1-uat-scenarios), [792a4m1a Amend converts a CRLF note](../product/note-revision.md#792a4m1-uat-scenarios).
 
-#### 792b14c6a Scenarios
+##### 792b14c6a Scenarios
 
 ```gherkin
 Scenario: 792b14c6a1 A provenance-only amend does not re-embed
@@ -241,7 +287,7 @@ Scenario: 792b14c6a2 A failed re-embed only warns
   Then the note is written, a warning naming the note is logged, and the amend succeeds
 ```
 
-### 792b14c7 CRLF revision
+#### 792b14c7 CRLF revision
 
 Requirement: [792b14c7 CRLF revision](#792b14c7-crlf-revision) The note-amendment MUST read the note an amend or resituate edits as its LF
 form ([792b6c8 CRLF reading](./note-document-format.md#792b6c8-crlf-reading)), MUST write it as LF in the single write it makes, byte-identical to the same
@@ -249,7 +295,7 @@ revision of the note's LF form, and MUST count the conversion as a reason to reb
 
 Supports: [792a4m1a Amend converts a CRLF note](../product/note-revision.md#792a4m1-uat-scenarios), [792a4m1b Resituate converts a CRLF note](../product/note-revision.md#792a4m1-uat-scenarios).
 
-#### 792b14c7a Scenarios
+##### 792b14c7a Scenarios
 
 ```gherkin
 Scenario: 792b14c7a1 An amend converts a CRLF note
@@ -268,7 +314,7 @@ Scenario: 792b14c7a3 A resituate converts a CRLF note
   Then it is written once with no \r, keeping its other keys
 ```
 
-### 792b14c8 Resituation
+#### 792b14c8 Resituation
 
 Requirement: [792b14c8 Resituation](#792b14c8-resituation) The note-amendment MUST resituate only a fact or feedback note with a
 `created:` that is a `YYYY-MM-DD` date, by setting `situation:` and re-emitting `created:` as the
@@ -279,7 +325,7 @@ or write the sidecar.
 
 Supports: [792a4j1d Resituate keeps every untouched field](../product/note-revision.md#792a4j1-uat-scenarios), [792a4l1a A fact is resituated](../product/note-revision.md#792a4l1-uat-scenarios), [792a4l1b A runbook cannot be resituated](../product/note-revision.md#792a4l1-uat-scenarios), [792a4l1c A failed sidecar rebuild fails the command](../product/note-revision.md#792a4l1-uat-scenarios).
 
-#### 792b14c8a Scenarios
+##### 792b14c8a Scenarios
 
 ```gherkin
 Scenario: 792b14c8a1 A fact is resituated
@@ -308,7 +354,7 @@ Scenario: 792b14c8a5 Every failure is returned
   Then that failure is returned
 ```
 
-### 792b14c9 Recording a use
+#### 792b14c9 Recording a use
 
 Requirement: [792b14c9 Recording a use](#792b14c9-recording-a-use) The note-amendment MUST record a use by reading the note's sidecar, setting
 its last-used date to today and writing it back atomically with every other field unchanged, and
@@ -322,7 +368,7 @@ Supports: [792a4n1a A note's use is recorded](../product/note-revision.md#792a4n
 Rationale: the last-used date is metadata outside the content hash, so the bump never makes the
 sidecar stale and never triggers a re-embed.
 
-#### 792b14c9a Scenarios
+##### 792b14c9a Scenarios
 
 ```gherkin
 Scenario: 792b14c9a1 The date is set and the vectors kept
@@ -351,7 +397,7 @@ Scenario: 792b14c9a5 The production wiring writes the real sidecar
   Then the sidecar file on disk carries today's last_used
 ```
 
-### 792b14c10 Activation refs
+#### 792b14c10 Activation refs
 
 Requirement: [792b14c10 Activation refs](#792b14c10-activation-refs) With no parent configured, the note-amendment MUST resolve each activate ref
 to a note file, as given when absolute and otherwise under the vault, adding `.md` when missing; MUST
@@ -361,7 +407,7 @@ with an error saying how many refs failed.
 
 Supports: [792a4n1a A note's use is recorded](../product/note-revision.md#792a4n1-uat-scenarios), [792a4n1b A note without a sidecar still counts](../product/note-revision.md#792a4n1-uat-scenarios), [792a4n1c A missing note fails only its own ref](../product/note-revision.md#792a4n1-uat-scenarios).
 
-#### 792b14c10a Scenarios
+##### 792b14c10a Scenarios
 
 ```gherkin
 Scenario: 792b14c10a1 Every existing note is activated
@@ -385,7 +431,7 @@ Scenario: 792b14c10a4 All refs failing fails the command
   Then the command fails
 ```
 
-### 792b14c11 Vocabulary tagging after a revision
+#### 792b14c11 Vocabulary tagging after a revision
 
 Requirement: [792b14c11 Vocabulary tagging after a revision](#792b14c11-vocabulary-tagging-after-a-revision) After an amend or a resituate writes the note (and, for a resituate, after its
 sidecar is rewritten), the note-amendment MUST have the [vocabulary-engine](./vocabulary-engine.md) tag the note's written
@@ -393,7 +439,7 @@ content and then check whether a refit is due.
 
 Supports: [792a6d1d An amend re-tags the note](../product/controlled-vocabulary.md#792a6d1-uat-scenarios), [792a6d1e A resituated note is re-tagged](../product/controlled-vocabulary.md#792a6d1-uat-scenarios).
 
-#### 792b14c11a Scenarios
+##### 792b14c11a Scenarios
 
 ```gherkin
 Scenario: 792b14c11a1 An amended note is tagged
@@ -417,7 +463,7 @@ Scenario: 792b14c11a4 The refit check runs after a resituate
   Then the vault's refit is marked pending
 ```
 
-### 792b14c12 Activation against the parent
+#### 792b14c12 Activation against the parent
 
 Requirement: [792b14c12 Activation against the parent](#792b14c12-activation-against-the-parent) With a parent configured, or with `--parent`, the note-amendment MUST extend [792b14c10 Activation refs](#792b14c10-activation-refs) as follows.
 A ref whose note file exists MUST be a local hit and be bumped, except that with `--parent` no ref is looked up locally.
@@ -436,7 +482,7 @@ Rationale: a bare Luhmann ID names an unrelated note in another vault, so only a
 pass holds the vault lock and each pull takes it only for its own write, because a fetch under the lock would stall every
 other writer for as long as the parent took to answer.
 
-#### 792b14c12a Scenarios
+##### 792b14c12a Scenarios
 
 ```gherkin
 Scenario: 792b14c12a1 A local hit is bumped and the parent is not contacted
@@ -480,7 +526,7 @@ Scenario: 792b14c12a8 Failed refs are counted
   Then a warning names the failed ref and the command fails saying 1 of 2 failed
 ```
 
-### 792b14c13 A discard of a pulled note records its decline
+#### 792b14c13 A discard of a pulled note records its decline
 
 Requirement: [792b14c13 A discard of a pulled note records its decline](#792b14c13-a-discard-of-a-pulled-note-records-its-decline) A bare `--discard` of a note whose primary link is `via: pulled` MUST record the link's parent
 basename and hash, keyed by the link's parent vault ID, in the vault's declined-pull record before it deletes the note, and
@@ -494,7 +540,7 @@ Rationale: the decline is what stops an unchanged parent note that curation reje
 activate. A decline that failed to record must not delete the note, or the note could return unrecorded. Recording a
 decline in a vault with no parent would stamp a vault ID for no purpose.
 
-#### 792b14c13a Scenarios
+##### 792b14c13a Scenarios
 
 ```gherkin
 Scenario: 792b14c13a1 A decline that cannot be recorded keeps the note
@@ -523,7 +569,7 @@ Scenario: 792b14c13a5 A CRLF pulled note's decline is recorded
   Then its decline is recorded from the LF form and the note is deleted
 ```
 
-### 792b14c14 Settling a pending offer
+#### 792b14c14 Settling a pending offer
 
 Requirement: [792b14c14 Settling a pending offer](#792b14c14-settling-a-pending-offer) The note-amendment MUST clear the pending marker of its target for `--clear-pending` (and for the amend arguments' own pending field set false, which is not a command-line flag: `--pending` is listed by `--help` only by mistake, #797), on a
 fact, feedback or runbook note, a runbook note that carries `skill_hash` included, changing no other field of the note and not
@@ -538,7 +584,7 @@ Rationale: `--clear-pending` is the only way a curator accepts an offer, and the
 bookkeeping amends do not re-stamp it. A pending note is a real file, so discarding it is a deletion, not a
 revision.
 
-#### 792b14c14a Scenarios
+##### 792b14c14a Scenarios
 
 ```gherkin
 Scenario: 792b14c14a1 Clearing the marker makes the note live

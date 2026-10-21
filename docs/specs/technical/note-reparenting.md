@@ -1,6 +1,8 @@
 # Note Reparenting - Technical Spec
 
-## 792b27a Orientation
+## 792b27 Note Reparenting
+
+### 792b27a Orientation
 
 - Ownership: Repository component.
 - Responsibility: moves existing notes to new Luhmann IDs, and keeps the vault consistent with the move.
@@ -12,12 +14,41 @@
   `RebuildNoteSidecars`, the pre-flight and the link rewriting) and `internal/cli/luhmann_reparent_apply.go`
   (`RunReparentLuhmann`, derive, apply and preview); `vaultHasOnlyTopLevelNotes` in
   `internal/cli/update.go`.
-- Qualification: responsibility, re-parenting is stated without naming any command; ownership, the
-  `update` command decides when a flag selects it and how a notice reaches the user, while this
-  component decides what is proposed, renamed and rewritten; independent verification, it is tested
-  directly over fake listing, reading, writing and renaming; stability, a vault whose IDs must change
-  without breaking its links is a lasting need; necessity, `engram update --reparent-luhmann` is this
-  contract.
+- Qualification: Purpose: `engram update --reparent-luhmann` is this contract
+  ([Vault Migration](../product/vault-migration.md)). Contract: the `update` command decides when a flag
+  selects it and how a notice reaches the user, while this component decides what is proposed, renamed and
+  rewritten; it is tested directly over fake listing, reading, writing and renaming. Identity: a
+  [vault](../../GLOSSARY.md#vault) whose IDs must change without breaking its links is a lasting need. Value:
+  the rename, the link rewrite and the chunk-index update happen in one invocation, so a successful apply
+  never leaves a manual `engram ingest --auto` or `engram prune`, and the fingerprint stops answers from being
+  applied to a vault that has changed since they were derived. Responsibility (naming): re-parenting is stated
+  without naming any command.
+- Required behavior: [Embedding Sidecar](./embedding-sidecar.md) decodes a
+  [note](../../GLOSSARY.md#permanent-note)'s [sidecar](../../GLOSSARY.md#sidecar-embedding-sidecar) into its
+  body vector ([792b10c1 Sidecar format](./embedding-sidecar.md#792b10c1-sidecar-format)), names that sidecar
+  after its note ([792b10c2 Sidecar path](./embedding-sidecar.md#792b10c2-sidecar-path)), measures cosine
+  similarity ([792b10c8 Cosine similarity](./embedding-sidecar.md#792b10c8-cosine-similarity)) and builds a
+  sidecar from a note's content
+  ([792b10c5 Building a sidecar](./embedding-sidecar.md#792b10c5-building-a-sidecar)).
+- Required behavior: [Vocabulary Engine](./vocabulary-engine.md) derives the fingerprint of the considered
+  notes' names and vectors
+  ([792b20c13 Deriving clusters](./vocabulary-engine.md#792b20c13-deriving-clusters)).
+- Required behavior: [Luhmann Addressing](./luhmann-addressing.md) parses an ID
+  ([792b7c1 ID parsing](./luhmann-addressing.md#792b7c1-id-parsing)), reads the ID that leads a filename
+  ([792b7c2 ID from a filename](./luhmann-addressing.md#792b7c2-id-from-a-filename)) and allocates the next ID
+  for a position and target
+  ([792b7c4 Next-ID allocation](./luhmann-addressing.md#792b7c4-next-id-allocation)).
+- Required behavior: [Durable File Store](./durable-file-store.md) lists the vault root's Markdown files
+  ([792b3c4 Vault Markdown listing](./durable-file-store.md#792b3c4-vault-markdown-listing)); renaming a file
+  is assumed of it, and no requirement of it states that.
+- Required behavior: [Note Document Format](./note-document-format.md) reads a note as its LF form
+  ([792b6c8 CRLF reading](./note-document-format.md#792b6c8-crlf-reading)) and edits a note's frontmatter
+  mapping, refusing an anchored key or a result that does not decode
+  ([792b6c7 Frontmatter node edits](./note-document-format.md#792b6c7-frontmatter-node-edits)).
+- Required behavior: [Chunk Index Store](./chunk-index-store.md) indexes a source it has not seen
+  ([792b18c5 Rebuilding a source's index](./chunk-index-store.md#792b18c5-rebuilding-a-sources-index)) and, on
+  prune, detaches from the manifest every source whose path no longer exists while keeping its index files
+  ([792b18c9 Detaching vanished sources](./chunk-index-store.md#792b18c9-detaching-vanished-sources)).
 - Supported capabilities: [vault-migration](../product/vault-migration.md), [parent-sync](../product/parent-sync.md) (the alias, [792b27c6 Rename and link rewrite](#792b27c6-rename-and-link-rewrite)), [install-and-update](../product/install-and-update.md) (the command's routing and notices).
 
 Rationale: whether one note is a sub-point of another is a judgment of content that embeddings cannot
@@ -28,9 +59,9 @@ successful apply never leaves a manual `engram ingest --auto` or `engram prune`.
 index step leaves the already-completed rename in place, because the vault is the authority and the index
 can be rebuilt from it.
 
-## 792b27c Behavior Requirements
+### 792b27c Behavior Requirements
 
-### 792b27c1 Flat-vault detection
+#### 792b27c1 Flat-vault detection
 
 Requirement: [792b27c1 Flat-vault detection](#792b27c1-flat-vault-detection) The note-reparenting MUST report that a vault holds only top-level notes when it holds
 at least one note file at its root and the Luhmann ID that leads every note file's name has one segment.
@@ -43,7 +74,7 @@ Supports: [792a10a1a Only top-level notes](../product/vault-migration.md#792a10a
 Rationale: a detection failure must never fail `engram update`'s main job, so every uncertain case reads as
 "not flat", and an ID that does not parse counts as branched so a malformed vault is never called flat.
 
-#### 792b27c1a Scenarios
+##### 792b27c1a Scenarios
 
 ```gherkin
 Scenario: 792b27c1a1 Every note is top-level
@@ -72,7 +103,7 @@ Scenario: 792b27c1a5 An ID that does not parse is not top-level
   Then it does not hold only top-level notes
 ```
 
-### 792b27c2 Candidate selection
+#### 792b27c2 Candidate selection
 
 Requirement: [792b27c2 Candidate selection](#792b27c2-candidate-selection) The note-reparenting MUST consider each note at the vault root whose Luhmann ID has one
 segment and whose sidecar yields a non-empty body vector, in ascending filename order. For each, it MUST keep
@@ -82,7 +113,7 @@ least 0.75 with its own, nearest first, each carrying its ID, an excerpt of its 
 
 Supports: [792a10c1a Candidates are emitted for review](../product/vault-migration.md#792a10c1-uat-scenarios), [792a10c1b No pair is similar enough](../product/vault-migration.md#792a10c1-uat-scenarios), [792a10c1d Only top-level notes with sidecars are considered](../product/vault-migration.md#792a10c1-uat-scenarios).
 
-#### 792b27c2a Scenarios
+##### 792b27c2a Scenarios
 
 ```gherkin
 Scenario: 792b27c2a1 Similar top-level notes become candidates
@@ -111,7 +142,7 @@ Scenario: 792b27c2a5 An excerpt is capped
   Then it is the first 200 bytes of the trimmed body
 ```
 
-### 792b27c3 Derive output
+#### 792b27c3 Derive output
 
 Requirement: [792b27c3 Derive output](#792b27c3-derive-output) The note-reparenting MUST, with no answers file, write nothing to the vault and print
 either `update --reparent-luhmann: no candidates found` or a JSON document with the candidates, a
@@ -124,7 +155,7 @@ note, sends the finished file back to the user or orchestrating agent to preview
 
 Supports: [792a10c1a Candidates are emitted for review](../product/vault-migration.md#792a10c1-uat-scenarios), [792a10c1b No pair is similar enough](../product/vault-migration.md#792a10c1-uat-scenarios), [792a10c1c The instruction routes to the learn skill](../product/vault-migration.md#792a10c1-uat-scenarios).
 
-#### 792b27c3a Scenarios
+##### 792b27c3a Scenarios
 
 ```gherkin
 Scenario: 792b27c3a1 The payload carries candidates, fingerprint and next command
@@ -153,7 +184,7 @@ Scenario: 792b27c3a5 Deriving writes nothing
   Then no file is written
 ```
 
-### 792b27c4 Answers validation
+#### 792b27c4 Answers validation
 
 Requirement: [792b27c4 Answers validation](#792b27c4-answers-validation) The note-reparenting MUST read the answers file and return, writing nothing, an error
 when it cannot be read (`reading --answers`), when it is not valid JSON (`cannot parse --answers JSON`), when
@@ -163,7 +194,7 @@ says to re-run `engram update --reparent-luhmann`), and when an answer names a n
 
 Supports: [792a10d1a A missing answers file](../product/vault-migration.md#792a10d1-uat-scenarios), [792a10d1b Malformed answers](../product/vault-migration.md#792a10d1-uat-scenarios), [792a10d1c Stale answers](../product/vault-migration.md#792a10d1-uat-scenarios), [792a10d1d An unknown note](../product/vault-migration.md#792a10d1-uat-scenarios).
 
-#### 792b27c4a Scenarios
+##### 792b27c4a Scenarios
 
 ```gherkin
 Scenario: 792b27c4a1 An unreadable answers file
@@ -187,7 +218,7 @@ Scenario: 792b27c4a4 An unknown note
   Then the error says --answers references an unknown note
 ```
 
-### 792b27c5 Rename map
+#### 792b27c5 Rename map
 
 Requirement: [792b27c5 Rename map](#792b27c5-rename-map) The note-reparenting MUST build the old-to-new basename map from the answers, taking
 them in ascending numeric order of the answered note IDs, with an ID that is not numeric after the numeric
@@ -197,7 +228,7 @@ allocated earlier in the run, and keep the note's date and slug in the new basen
 
 Supports: [792a10e1a A continuation answer renames the note and rewrites links](../product/vault-migration.md#792a10e1-uat-scenarios), [792a10e1b Renames are ordered by original ID](../product/vault-migration.md#792a10e1-uat-scenarios), [792a10e1d A top answer changes nothing](../product/vault-migration.md#792a10e1-uat-scenarios).
 
-#### 792b27c5a Scenarios
+##### 792b27c5a Scenarios
 
 ```gherkin
 Scenario: 792b27c5a1 Answers are taken in numeric order
@@ -221,7 +252,7 @@ Scenario: 792b27c5a4 A top answer is skipped
   Then the note is not in the map
 ```
 
-### 792b27c6 Rename and link rewrite
+#### 792b27c6 Rename and link rewrite
 
 Requirement: [792b27c6 Rename and link rewrite](#792b27c6-rename-and-link-rewrite) The note-reparenting MUST, given a rename map, do nothing when it is empty, and otherwise
 rename each noted note's file and its sidecar (when it has one), write its content with `luhmann:` set to the
@@ -241,7 +272,7 @@ Rationale: a `parent:` link's `note:` names a note in another vault, never a loc
 rename must leave it alone. A basename uses only `[a-z0-9.-]`, so swapping one for another inside a plain,
 quoted or double-quoted scalar needs no escaping and cannot break the scalar's quoting.
 
-#### 792b27c6a Scenarios
+##### 792b27c6a Scenarios
 
 ```gherkin
 Scenario: 792b27c6a1 A single reference is rewritten
@@ -320,7 +351,7 @@ Scenario: 792b27c6a15 A write failure is returned
   Then the error names the path
 ```
 
-### 792b27c7 Rename safety
+#### 792b27c7 Rename safety
 
 Requirement: [792b27c7 Rename safety](#792b27c7-rename-safety) The note-reparenting MUST, before it renames or writes any file, render the new content
 of every note it would rename, with CRLF converted, references rewritten, `luhmann:` set and the alias
@@ -337,7 +368,7 @@ Rationale: re-rendering would lose a key the note model does not define, and an 
 another key aliases cannot be replaced without leaving that alias dangling. Converting a CRLF note only
 inside a write that is made anyway keeps a rename from touching notes it has no reason to touch.
 
-#### 792b27c7a Scenarios
+##### 792b27c7a Scenarios
 
 ```gherkin
 Scenario: 792b27c7a1 An anchored luhmann value is refused untouched
@@ -371,7 +402,7 @@ Scenario: 792b27c7a6 A preview preflights the same notes
   Then each refusal is reported, an empty map lists nothing, and a listing failure is returned
 ```
 
-### 792b27c8 Sidecars of rewritten notes
+#### 792b27c8 Sidecars of rewritten notes
 
 Requirement: [792b27c8 Sidecars of rewritten notes](#792b27c8-sidecars-of-rewritten-notes) The note-reparenting MUST, after a rename, rebuild the sidecar ([792b10c5 Building a sidecar](./embedding-sidecar.md#792b10c5-building-a-sidecar)) of each note it
 reports as rewritten or converted, from the note's current content, and MUST return a failure to read, embed or
@@ -379,7 +410,7 @@ write.
 
 Supports: [792a10e1f Rewritten notes are not left stale](../product/vault-migration.md#792a10e1-uat-scenarios), [792a10i1c A CRLF note that is renamed becomes LF](../product/vault-migration.md#792a10i1-uat-scenarios).
 
-#### 792b27c8a Scenarios
+##### 792b27c8a Scenarios
 
 ```gherkin
 Scenario: 792b27c8a1 Referrers get fresh sidecars
@@ -398,7 +429,7 @@ Scenario: 792b27c8a3 A rebuild failure is returned
   Then the error is returned
 ```
 
-### 792b27c9 Apply flow
+#### 792b27c9 Apply flow
 
 Requirement: [792b27c9 Apply flow](#792b27c9-apply-flow) The note-reparenting MUST, once the answers are valid, apply the rename map ([792b27c6 Rename and link rewrite](#792b27c6-rename-and-link-rewrite),
 [792b27c8 Sidecars of rewritten notes](#792b27c8-sidecars-of-rewritten-notes)) and print `update --reparent-luhmann: renamed <N> note(s)`, and, only when the map is not empty,
@@ -415,7 +446,7 @@ old ones are detached and no renamed note is ever unindexed. A failure in ingest
 the rename: the renamed vault is the authoritative state and the chunk index is a derived cache that a later
 `engram ingest --auto` or `prune` rebuilds.
 
-#### 792b27c9a Scenarios
+##### 792b27c9a Scenarios
 
 ```gherkin
 Scenario: 792b27c9a1 A continuation is renamed, rewritten and indexed
@@ -449,7 +480,7 @@ Scenario: 792b27c9a6 A fully evaluated vault is reported
   Then the output says the vault is fully evaluated
 ```
 
-### 792b27c10 Preview
+#### 792b27c10 Preview
 
 Requirement: [792b27c10 Preview](#792b27c10-preview) The note-reparenting MUST, with the dry-run flag and an answers file, validate the
 answers ([792b27c4 Answers validation](#792b27c4-answers-validation)), run the pre-flight ([792b27c7 Rename safety](#792b27c7-rename-safety)), and print `update --reparent-luhmann (dry-run): would
@@ -460,7 +491,7 @@ renaming, rewriting, re-indexing or pruning. It MUST return a usage error, `upda
 
 Supports: [792a10h1a A preview changes nothing](../product/vault-migration.md#792a10h1-uat-scenarios), [792a10h1b A preview without answers is refused](../product/vault-migration.md#792a10h1-uat-scenarios), [792a10h1c A preview reports a refusal](../product/vault-migration.md#792a10h1-uat-scenarios).
 
-#### 792b27c10a Scenarios
+##### 792b27c10a Scenarios
 
 ```gherkin
 Scenario: 792b27c10a1 A preview lists and changes nothing
