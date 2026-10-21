@@ -211,10 +211,12 @@ func TestChainsOf_TheCallsOfTwoParallelChainsOfOneSizeAreTakenInTheOrderTheyBega
 	}
 	// the first call is slow and the second is quick, so the meter appended the second one first
 	slow := meterRecord{
-		Kind: meterModel, At: origin.Add(slowBegan).UnixMilli(), Took: slowTook, System: requestLength, Prompt: requestLength,
+		Kind: meterModel, At: origin.Add(slowBegan).UnixMilli(), Took: slowTook,
+		System: requestLength, Prompt: requestLength,
 	}
 	quick := meterRecord{
-		Kind: meterModel, At: origin.Add(quickBegan).UnixMilli(), Took: quickTook, System: requestLength, Prompt: requestLength,
+		Kind: meterModel, At: origin.Add(quickBegan).UnixMilli(), Took: quickTook,
+		System: requestLength, Prompt: requestLength,
 	}
 
 	chains := chainsOf([]stepRun{moment("c1", 0), moment("c2", secondStarts)}, []meterRecord{quick, slow})
