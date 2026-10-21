@@ -1,6 +1,8 @@
 # Text Embedder - Technical Spec
 
-## 792b9a Orientation
+## 792b9 Text Embedder
+
+### 792b9a Orientation
 
 - Ownership: Repository-owned dependency-boundary interaction (the Hugot and GoMLX inference
   libraries, the bundled ONNX model, and the model cache directory).
@@ -13,11 +15,27 @@
   `internal/embed/runtime.go` (the runtime backend), `internal/embed/cache.go` and
   `internal/embed/cachefs.go` (model cache), `CacheDirFromHome` in `internal/cli/targets.go`, and
   `cmd/engram/hugot.go`, the thin Hugot runtime.
-- Qualification: responsibility, embedding text is stated without naming any caller; ownership,
-  callers decide what text to embed and what to do with the vector, while this component owns the
-  model, its cache and its window; independent verification, it is tested directly over fake
-  backends and cache filesystems and over the real bundled model; stability, the contract survives
-  a change of runtime library; necessity, every sidecar and every query phrase depends on it.
+- Qualification: Purpose: every [sidecar](../../GLOSSARY.md#sidecar-embedding-sidecar) and every query phrase depends
+  on it ([Note Writing](../product/note-writing.md), [Memory Query](../product/memory-query.md)). Contract: callers
+  decide what text to embed and what to do with the vector, while this component owns the model, its cache and its
+  window; it is tested directly and over the real bundled model. Identity: the contract survives a change of runtime
+  library. Value: an external embedding API would bring a network dependency, per-call cost and latency, and send
+  [vault](../../GLOSSARY.md#vault) content off the machine; the bundled model makes embeddings deterministic, offline
+  and free per call. Responsibility (naming): embedding text is stated without naming any caller.
+- Required behavior: Hugot and GoMLX (external) are assumed to run the bundled model's `model.onnx` in process and
+  offline through a session and a pipeline ([792b9c7 Runtime lifecycle](#792b9c7-runtime-lifecycle)), to give for a
+  text the vector whose similarities match the reference implementation's
+  ([792b9c1 Bundled-model embedding](#792b9c1-bundled-model-embedding)) and to fail a run on a text that tokenizes
+  past the model's window ([792b9c2 Input window](#792b9c2-input-window)); authoritative contract: not recorded in
+  this repository; compatibility verification: `Test792b9c1a3_ParityWithPythonReference` in
+  `internal/embed/parity_test.go` (build tag `parity`) compares the cosines of five pairs with the Python reference,
+  none with the real library for a long text.
+- Required behavior: the operating-system filesystem (external) is assumed to move an unpacked directory into place by
+  one rename, so that a concurrent process never sees a half-written model, and to refuse a rename onto a populated
+  directory ([792b9c5 Model cache](#792b9c5-model-cache), [792b9c6 Cache filesystem](#792b9c6-cache-filesystem));
+  authoritative contract: not recorded in this repository; compatibility verification:
+  `internal/embed/cachefs_integration_test.go`, on the real filesystem, covers the unpack, the refusal of a rename
+  onto a populated directory and the marker, none for the atomicity of the rename.
 - Supported capabilities: [note-writing](../product/note-writing.md), [chunk-indexing](../product/chunk-indexing.md), [controlled-vocabulary](../product/controlled-vocabulary.md),
   [memory-query](../product/memory-query.md), [vault-health](../product/vault-health.md).
 
@@ -30,9 +48,9 @@ therefore deterministic, offline and free per call, and the embedder is part of 
 rather than an external system. Engram embeds note text when it writes a note and query text when
 it reads.
 
-## 792b9c Behavior Requirements
+### 792b9c Behavior Requirements
 
-### 792b9c1 Bundled-model embedding
+#### 792b9c1 Bundled-model embedding
 
 Requirement: [792b9c1 Bundled-model embedding](#792b9c1-bundled-model-embedding) The text-embedder MUST embed text with the bundled model, model ID
 `minilm-l6-v2@384`, returning one 384-value vector per text, and MUST match the reference
@@ -40,7 +58,7 @@ implementation's similarities for that model.
 
 Supports: [792a3n1a A learned note has its sidecar](../product/note-writing.md#792a3n1-uat-scenarios), [792a6a1a A definition note carries its self-tag](../product/controlled-vocabulary.md#792a6a1-uat-scenarios), [792a9i1a A missing sidecar is written](../product/vault-health.md#792a9i1-uat-scenarios).
 
-#### 792b9c1a Scenarios
+##### 792b9c1a Scenarios
 
 ```gherkin
 Scenario: 792b9c1a1 The bundled model embeds text
@@ -64,7 +82,7 @@ Scenario: 792b9c1a4 A run returns the pipeline's vector
   Then that vector is returned, and the pipeline is released once
 ```
 
-### 792b9c2 Input window
+#### 792b9c2 Input window
 
 Requirement: [792b9c2 Input window](#792b9c2-input-window) The text-embedder MUST cut text longer than 1500 characters to its first 1500,
 and when the model run fails MUST halve the text and retry until a run succeeds or the text is
@@ -76,7 +94,7 @@ Rationale: 1500 characters fit the model's 512-token window for prose, but dense
 can tokenize past it. Halving degrades a long chunk to a shorter prefix instead of failing a whole
 ingest.
 
-#### 792b9c2a Scenarios
+##### 792b9c2a Scenarios
 
 ```gherkin
 Scenario: 792b9c2a1 An over-long failure retries shorter
@@ -95,7 +113,7 @@ Scenario: 792b9c2a3 An empty result is an error
   Then the empty-result error is returned
 ```
 
-### 792b9c3 Construction
+#### 792b9c3 Construction
 
 Requirement: [792b9c3 Construction](#792b9c3-construction) The text-embedder MUST build itself by opening the model's pipeline and
 embedding one probe text to learn the dimension. It MUST return the open error when the pipeline
@@ -105,7 +123,7 @@ load, and closing it MUST release the pipeline and return any release error.
 
 Supports: [792a3n1a A learned note has its sidecar](../product/note-writing.md#792a3n1-uat-scenarios), [792a3n1b A failed embedding keeps the note](../product/note-writing.md#792a3n1-uat-scenarios).
 
-#### 792b9c3a Scenarios
+##### 792b9c3a Scenarios
 
 ```gherkin
 Scenario: 792b9c3a1 A probed embedder is built
@@ -139,7 +157,7 @@ Scenario: 792b9c3a6 A release error on close is returned
   Then the release error is returned
 ```
 
-### 792b9c4 Lazy construction
+#### 792b9c4 Lazy construction
 
 Requirement: [792b9c4 Lazy construction](#792b9c4-lazy-construction) The text-embedder MUST build the model at most once per process, on the first
 embedding or dimension request, MUST report the bundled model ID without building it, and when
@@ -151,7 +169,7 @@ Supports: [792a3n1a A learned note has its sidecar](../product/note-writing.md#7
 Rationale: commands that never embed, such as `--help` or `update`, neither pay to unpack the model
 nor fail when it cannot load.
 
-#### 792b9c4a Scenarios
+##### 792b9c4a Scenarios
 
 ```gherkin
 Scenario: 792b9c4a1 The model ID needs no build
@@ -170,7 +188,7 @@ Scenario: 792b9c4a3 A successful build is reused
   Then all three are served by the built embedder
 ```
 
-### 792b9c5 Model cache
+#### 792b9c5 Model cache
 
 Requirement: [792b9c5 Model cache](#792b9c5-model-cache) The text-embedder MUST unpack the bundled model into the cache directory
 `$XDG_CACHE_HOME/engram/models/<model ID>`, or `~/.cache/engram/models/<model ID>` without
@@ -186,7 +204,7 @@ Rationale: the model is about 90 MB, so it is unpacked once and shared by every 
 rename makes the unpacked cache appear all at once, so a concurrent process never sees a half-written
 model.
 
-#### 792b9c5a Scenarios
+##### 792b9c5a Scenarios
 
 ```gherkin
 Scenario: 792b9c5a1 The first use unpacks the model
@@ -230,7 +248,7 @@ Scenario: 792b9c5a8 The cache directory follows XDG
   Then it is /Users/joe/.cache/engram/models/minilm-l6-v2@384, or /custom/cache/engram/models/minilm-l6-v2@384
 ```
 
-### 792b9c6 Cache filesystem
+#### 792b9c6 Cache filesystem
 
 Requirement: [792b9c6 Cache filesystem](#792b9c6-cache-filesystem) The text-embedder's cache filesystem MUST report a rename onto an existing,
 populated directory as an "already exists" error, whatever error the platform gives, and MUST
@@ -241,7 +259,7 @@ Supports: [792a3n1a A learned note has its sidecar](../product/note-writing.md#7
 Rationale: macOS reports a directory renamed over a non-empty one as "directory not empty", not
 "exists"; translating it lets the race in [792b9c5 Model cache](#792b9c5-model-cache) be recognized on every platform.
 
-#### 792b9c6a Scenarios
+##### 792b9c6a Scenarios
 
 ```gherkin
 Scenario: 792b9c6a1 A rename onto a populated directory is "exists"
@@ -255,7 +273,7 @@ Scenario: 792b9c6a2 The marker round-trips
   Then the directory is reported complete, and a directory without it is not
 ```
 
-### 792b9c7 Runtime lifecycle
+#### 792b9c7 Runtime lifecycle
 
 Requirement: [792b9c7 Runtime lifecycle](#792b9c7-runtime-lifecycle) The text-embedder's runtime backend MUST open a session and then a pipeline
 named `engram-embed` over the model's `model.onnx`, MUST release the session when the pipeline
@@ -264,7 +282,7 @@ backend with no runtime wired MUST fail with the runtime-missing error rather th
 
 Supports: [792a3n1a A learned note has its sidecar](../product/note-writing.md#792a3n1-uat-scenarios).
 
-#### 792b9c7a Scenarios
+##### 792b9c7a Scenarios
 
 ```gherkin
 Scenario: 792b9c7a1 The pipeline is configured internally

@@ -1,6 +1,8 @@
 # Vocabulary Engine - Technical Spec
 
-## 792b20a Orientation
+## 792b20 Vocabulary Engine
+
+### 792b20a Orientation
 
 - Ownership: Repository component (caller of [vault-write-lock](./vault-write-lock.md), [durable-file-store](./durable-file-store.md),
   [luhmann-addressing](./luhmann-addressing.md), [note-document-format](./note-document-format.md), [text-embedder](./text-embedder.md), [embedding-sidecar](./embedding-sidecar.md) and
@@ -18,13 +20,52 @@
   `vocab_regen.go`; `collectVaultStats`'s question helpers `countQAPairs` and `isQAQuestionFilename`
   in `qa.go`; `oldVocabFilesPresent` and `vocabDefinitionsMissingSelfTags` in `update.go`; and the
   `vocab` group in `targets.go`.
-- Qualification: responsibility, keeping a vocabulary is stated without naming any function or seam;
-  ownership, writers decide when a note is tagged and `engram update` decides when to report or
-  migrate, while this component owns what a term is, which terms a note gets and how the term set is
-  derived; independent verification, it is tested directly over injected dependencies; stability, the
-  contract survives any refactoring of the commands that call it; necessity, every `vocab/` tag and
-  definition note is written through it.
-- Supported capabilities: [controlled-vocabulary](../product/controlled-vocabulary.md), note-writing's [792a3u Vocabulary tagging by kind](../product/note-writing.md#792a3u-vocabulary-tagging-by-kind) and [memory-query](../product/memory-query.md).
+- Qualification: Purpose: every `vocab/` tag and [definition note](../../GLOSSARY.md#vocab-definition-note) is written
+  through it ([Controlled Vocabulary](../product/controlled-vocabulary.md)). Contract: writers decide when a
+  [note](../../GLOSSARY.md#permanent-note) is tagged and [`engram update`](../../GLOSSARY.md#engram-update) decides
+  when to report or migrate, while this component owns what a term is, which terms a note gets and how the term set is
+  derived; it is tested directly. Identity: the contract survives any refactoring of the commands that call it. Value:
+  tags are assigned at write time by cosine alone, so the write path needs no LLM and the vocabulary's cost stays off
+  retrieval; the centroids live in a separate `vocab.centroids.json`, so that a rebuild of the
+  [sidecars](../../GLOSSARY.md#sidecar-embedding-sidecar) with `engram embed apply` cannot overwrite them.
+  Responsibility (naming): keeping a vocabulary is stated without naming any function or seam.
+- Required behavior: [Vault Write Lock](./vault-write-lock.md) gives one process at a time the exclusive hold of the
+  [vault](../../GLOSSARY.md#vault)'s lock file, waiting while another holder has it, and lets it go on release
+  ([792b8c1 Exclusive hold](./vault-write-lock.md#792b8c1-exclusive-hold),
+  [792b8c4 The vault's lock](./vault-write-lock.md#792b8c4-the-vaults-lock)).
+- Required behavior: [Durable File Store](./durable-file-store.md) replaces a file's content atomically
+  ([792b3c1 Atomic replace](./durable-file-store.md#792b3c1-atomic-replace)) and lists the names of the `.md` files
+  directly inside a vault directory, none when it does not exist, returning any other read error
+  ([792b3c4 Vault Markdown listing](./durable-file-store.md#792b3c4-vault-markdown-listing)).
+- Required behavior: [Luhmann Addressing](./luhmann-addressing.md) reads a note's
+  [Luhmann ID](../../GLOSSARY.md#luhmann-id) from its filename
+  ([792b7c2 ID from a filename](./luhmann-addressing.md#792b7c2-id-from-a-filename)) and allocates the next top-level
+  one, one more than the largest top-level number
+  ([792b7c4 Next-ID allocation](./luhmann-addressing.md#792b7c4-next-id-allocation)).
+- Required behavior: [Note Document Format](./note-document-format.md) names and renders a
+  [fact note](../../GLOSSARY.md#fact-note-type), its frontmatter and its body formula
+  ([792b6c1 Note filenames](./note-document-format.md#792b6c1-note-filenames),
+  [792b6c3 Kind schemas](./note-document-format.md#792b6c3-kind-schemas),
+  [792b6c4 Body formulas](./note-document-format.md#792b6c4-body-formulas)), splits a note's text into frontmatter and
+  body ([792b6c6 Frontmatter splitting](./note-document-format.md#792b6c6-frontmatter-splitting)) and reads a note
+  with CRLF line endings as its LF form ([792b6c8 CRLF reading](./note-document-format.md#792b6c8-crlf-reading)).
+- Required behavior: [Text Embedder](./text-embedder.md) returns a vector for each text it is given, or an error when
+  it cannot embed the text ([792b9c1 Bundled-model embedding](./text-embedder.md#792b9c1-bundled-model-embedding),
+  [792b9c2 Input window](./text-embedder.md#792b9c2-input-window)).
+- Required behavior: [Embedding Sidecar](./embedding-sidecar.md) builds a note's sidecar by embedding its text
+  ([792b10c5 Building a sidecar](./embedding-sidecar.md#792b10c5-building-a-sidecar)), places it beside the note
+  ([792b10c2 Sidecar path](./embedding-sidecar.md#792b10c2-sidecar-path)), decodes the situation and body vectors that
+  the vocabulary reads ([792b10c1 Sidecar format](./embedding-sidecar.md#792b10c1-sidecar-format)) and measures the
+  cosine similarity of two vectors ([792b10c8 Cosine similarity](./embedding-sidecar.md#792b10c8-cosine-similarity)).
+- Required behavior: [Similarity Clustering](./similarity-clustering.md) partitions vectors into the number of
+  clusters in a range that scores best, the same partition for the same vectors, range, floor and seed, and none when
+  the best score is below the floor
+  ([792b19c4 Choosing the number of clusters](./similarity-clustering.md#792b19c4-choosing-the-number-of-clusters),
+  [792b19c2 K-means partition](./similarity-clustering.md#792b19c2-k-means-partition)).
+- Supported capabilities: [controlled-vocabulary](../product/controlled-vocabulary.md),
+  [Note Writing](../product/note-writing.md)'s
+  [792a3u Vocabulary tagging by kind](../product/note-writing.md#792a3u-vocabulary-tagging-by-kind) and
+  [memory-query](../product/memory-query.md).
 
 Rationale: tags are assigned at write time by cosine alone, so the write path needs no LLM and the
 vocabulary's cost stays off retrieval. The `tags:` list is the only channel for terms ([792a6c Categorical tags share one list](../product/controlled-vocabulary.md#792a6c-categorical-tags-share-one-list)), and the
@@ -34,9 +75,9 @@ the definitions' sidecars, because a sidecar must stay a pure function of its no
 while a separate file survives it. The file carries the embedding model's ID so that centroids from
 another model are ignored rather than mixed in.
 
-## 792b20c Behavior Requirements
+### 792b20c Behavior Requirements
 
-### 792b20c1 Definition recognition
+#### 792b20c1 Definition recognition
 
 Requirement: [792b20c1 Definition recognition](#792b20c1-definition-recognition) The vocabulary-engine MUST treat a note as a definition exactly when its
 frontmatter `tags:` list, read as its LF form, contains the bare entry `vocab`, whatever the note's
@@ -53,7 +94,7 @@ Rationale: The bare `vocab` tag stays the single definition discriminator rather
 nominee side and the seed side, because the seed side derives terms from a cluster's top-3 delivered notes.
 The backfill is an explicit subcommand, never a side effect of `engram update`.
 
-#### 792b20c1a Scenarios
+##### 792b20c1a Scenarios
 
 ```gherkin
 Scenario: 792b20c1a1 The bare tag marks a definition
@@ -72,7 +113,7 @@ Scenario: 792b20c1a3 A note's terms are its vocab/ entries
   Then they are a and b, in that order
 ```
 
-### 792b20c2 Term vectors
+#### 792b20c2 Term vectors
 
 Requirement: [792b20c2 Term vectors](#792b20c2-term-vectors) The vocabulary-engine MUST take the vocabulary to be the terms of the
 definition notes whose sidecar has a body vector, keeping the first definition of a term in the
@@ -83,7 +124,7 @@ MUST fail when the vault cannot be listed.
 
 Supports: [792a6d1a A learned note is tagged with its closest terms](../product/controlled-vocabulary.md#792a6d1-uat-scenarios), [792a6q1a An unmatched proposed term is kept](../product/controlled-vocabulary.md#792a6q1-uat-scenarios).
 
-#### 792b20c2a Scenarios
+##### 792b20c2a Scenarios
 
 ```gherkin
 Scenario: 792b20c2a1 Each definition's sidecar gives its term's vector
@@ -102,7 +143,7 @@ Scenario: 792b20c2a3 A stored centroid replaces the description vector
   Then x uses its centroid and y its sidecar vector; with a record from another model, or a malformed one, both use their sidecars
 ```
 
-### 792b20c3 Term selection
+#### 792b20c3 Term selection
 
 Requirement: [792b20c3 Term selection](#792b20c3-term-selection) The vocabulary-engine MUST select, for a note's body vector, the terms whose
 vector has a cosine similarity at or above the floor, at most three, ordered by similarity
@@ -112,7 +153,7 @@ Supports: [792a3u1a A runbook is tagged](../product/note-writing.md#792a3u1-uat-
 
 Rationale: the cap of three and the 0.35 floor are set by [792a6d Write-time vocabulary tagging](../product/controlled-vocabulary.md#792a6d-write-time-vocabulary-tagging).
 
-#### 792b20c3a Scenarios
+##### 792b20c3a Scenarios
 
 ```gherkin
 Scenario: 792b20c3a1 Terms below the floor are dropped
@@ -131,7 +172,7 @@ Scenario: 792b20c3a3 No vector or no terms gives no terms
   Then none is returned
 ```
 
-### 792b20c4 Rewriting a note's vocabulary tags
+#### 792b20c4 Rewriting a note's vocabulary tags
 
 Requirement: [792b20c4 Rewriting a note's vocabulary tags](#792b20c4-rewriting-a-notes-vocabulary-tags) The vocabulary-engine MUST rewrite a note's `tags:` list so that its
 `vocab/<term>` entries are exactly the given terms, after every other tag in its original order and
@@ -143,7 +184,7 @@ note's sidecar stale.
 
 Supports: [792a6c1a A categorical tag survives tagging](../product/controlled-vocabulary.md#792a6c1-uat-scenarios), [792a6c1b A categorical tag survives a refit](../product/controlled-vocabulary.md#792a6c1-uat-scenarios), [792a6d1a A learned note is tagged with its closest terms](../product/controlled-vocabulary.md#792a6d1-uat-scenarios), [792a6d1b A note close to no term gets no tag](../product/controlled-vocabulary.md#792a6d1-uat-scenarios), [792a6d1d An amend re-tags the note](../product/controlled-vocabulary.md#792a6d1-uat-scenarios), [792a6u1a Backfill adds missing self-tags](../product/controlled-vocabulary.md#792a6u1-uat-scenarios).
 
-#### 792b20c4a Scenarios
+##### 792b20c4a Scenarios
 
 ```gherkin
 Scenario: 792b20c4a1 Vocab entries are replaced and other tags kept
@@ -172,7 +213,7 @@ Scenario: 792b20c4a5 A tags-only rewrite keeps the sidecar current
   Then its sidecar is still classified current
 ```
 
-### 792b20c5 Tagging a written note
+#### 792b20c5 Tagging a written note
 
 Requirement: [792b20c5 Tagging a written note](#792b20c5-tagging-a-written-note) When a writer asks it to tag a written note, the vocabulary-engine MUST load the
 tagging vectors ([792b20c2 Term vectors](#792b20c2-term-vectors)) and the note's sidecar body vector, select terms with the 0.35 floor
@@ -183,7 +224,7 @@ write MUST be logged as a warning, not returned.
 
 Supports: [792a3u1a A runbook is tagged](../product/note-writing.md#792a3u1-uat-scenarios), [792a3u1b The answer is tagged and the question is not](../product/note-writing.md#792a3u1-uat-scenarios), [792a6d1a A learned note is tagged with its closest terms](../product/controlled-vocabulary.md#792a6d1-uat-scenarios), [792a6d1d An amend re-tags the note](../product/controlled-vocabulary.md#792a6d1-uat-scenarios), [792a6d1e A resituated note is re-tagged](../product/controlled-vocabulary.md#792a6d1-uat-scenarios), [792a6e1a A vault without a vocabulary writes plain notes](../product/controlled-vocabulary.md#792a6e1-uat-scenarios), [792a6e1b A note whose embedding failed is not tagged](../product/controlled-vocabulary.md#792a6e1-uat-scenarios), [792a6f1a Vocab tagging reads a CRLF note](../product/controlled-vocabulary.md#792a6f1-uat-scenarios).
 
-#### 792b20c5a Scenarios
+##### 792b20c5a Scenarios
 
 ```gherkin
 Scenario: 792b20c5a1 A written note is tagged
@@ -212,7 +253,7 @@ Scenario: 792b20c5a5 A CRLF note is tagged as LF and only when its tags change
   Then the first is written with LF endings and the second is not written
 ```
 
-### 792b20c6 Refit check
+#### 792b20c6 Refit check
 
 Requirement: [792b20c6 Refit check](#792b20c6-refit-check) When a writer asks whether a refit is due, the vocabulary-engine MUST do
 nothing when it is given no way to list, read or write, or when `vocab.centroids.json` already marks a
@@ -226,7 +267,7 @@ notes MUST affect the check. A failed write MUST be logged as a warning.
 
 Supports: [792a6s1a Growth marks a refit pending](../product/controlled-vocabulary.md#792a6s1-uat-scenarios), [792a6s1b Growth without enough time does not trigger](../product/controlled-vocabulary.md#792a6s1-uat-scenarios), [792a6s1c A first write records the baseline](../product/controlled-vocabulary.md#792a6s1-uat-scenarios), [792a6s1d A high untagged rate alone does not trigger](../product/controlled-vocabulary.md#792a6s1-uat-scenarios).
 
-#### 792b20c6a Scenarios
+##### 792b20c6a Scenarios
 
 ```gherkin
 Scenario: 792b20c6a1 The first check records the baseline
@@ -270,7 +311,7 @@ Scenario: 792b20c6a8 Nothing wired does nothing
   Then nothing is read or written
 ```
 
-### 792b20c7 Statistics
+#### 792b20c7 Statistics
 
 Requirement: [792b20c7 Statistics](#792b20c7-statistics) For `engram vocab stats`, the vocabulary-engine MUST list the vault, take its
 terms from the definition notes ([792b20c1 Definition recognition](#792b20c1-definition-recognition)), count as member notes the readable files with
@@ -285,7 +326,7 @@ Supports: [792a6b1b The version follows propose and refit](../product/controlled
 Rationale: question notes are recognized by their filename, `qa.<…>.q.md`, and their answer by the
 same name ending `.a.md`.
 
-#### 792b20c7a Scenarios
+##### 792b20c7a Scenarios
 
 ```gherkin
 Scenario: 792b20c7a1 An empty vault reports zero
@@ -314,7 +355,7 @@ Scenario: 792b20c7a5 Question-and-answer pairs are counted
   Then the first shows "qa pairs: 1" and "qa round-2 gate: accumulating (1/20)", the second "qa round-2 gate: READY (20>=20)"
 ```
 
-### 792b20c8 Writing a definition note
+#### 792b20c8 Writing a definition note
 
 Requirement: [792b20c8 Writing a definition note](#792b20c8-writing-a-definition-note) The vocabulary-engine MUST write a definition note at the next free top-level
 Luhmann ID of the vault (counting the notes it has written in the same run), with today's date and
@@ -326,7 +367,7 @@ command MUST continue.
 
 Supports: [792a6a1a A definition note carries its self-tag](../product/controlled-vocabulary.md#792a6a1-uat-scenarios), [792a6g1a Bootstrap seeds terms and tags existing notes](../product/controlled-vocabulary.md#792a6g1-uat-scenarios), [792a6i1a A proposed term is created](../product/controlled-vocabulary.md#792a6i1-uat-scenarios), [792a6o1a A named cluster becomes a term](../product/controlled-vocabulary.md#792a6o1-uat-scenarios).
 
-#### 792b20c8a Scenarios
+##### 792b20c8a Scenarios
 
 ```gherkin
 Scenario: 792b20c8a1 A definition takes the next top-level ID and its self-tag
@@ -350,7 +391,7 @@ Scenario: 792b20c8a4 A failed note write is a warning
   Then a warning is logged and the command continues
 ```
 
-### 792b20c9 The family note and the version
+#### 792b20c9 The family note and the version
 
 Requirement: [792b20c9 The family note and the version](#792b20c9-the-family-note-and-the-version) The vocabulary-engine MUST find the family note as the definition whose slug
 is `vocab-definition`; when it is absent and the command creates the vocabulary, MUST write it
@@ -363,7 +404,7 @@ log that as a warning and continue.
 
 Supports: [792a6b1a Bootstrap creates the family note](../product/controlled-vocabulary.md#792a6b1-uat-scenarios), [792a6b1b The version follows propose and refit](../product/controlled-vocabulary.md#792a6b1-uat-scenarios), [792a6i1a A proposed term is created](../product/controlled-vocabulary.md#792a6i1-uat-scenarios), [792a6i1b Propose in a vault without a family note](../product/controlled-vocabulary.md#792a6i1-uat-scenarios), [792a6o1a A named cluster becomes a term](../product/controlled-vocabulary.md#792a6o1-uat-scenarios).
 
-#### 792b20c9a Scenarios
+##### 792b20c9a Scenarios
 
 ```gherkin
 Scenario: 792b20c9a1 The family note is created bare and names no term
@@ -392,7 +433,7 @@ Scenario: 792b20c9a5 Writing a version without a family note fails
   Then it fails saying the family note was not found, or the listing failed
 ```
 
-### 792b20c10 Bootstrap
+#### 792b20c10 Bootstrap
 
 Requirement: [792b20c10 Bootstrap](#792b20c10-bootstrap) For `engram vocab bootstrap`, the vocabulary-engine MUST read and parse the
 seed file before taking the lock, failing with an error naming the read or parse failure; MUST then
@@ -404,7 +445,7 @@ MUST be skipped. `--floor` 0 MUST mean 0.35.
 
 Supports: [792a6g1a Bootstrap seeds terms and tags existing notes](../product/controlled-vocabulary.md#792a6g1-uat-scenarios), [792a6g1b A second bootstrap creates nothing new](../product/controlled-vocabulary.md#792a6g1-uat-scenarios), [792a6h1a A bad seed is refused](../product/controlled-vocabulary.md#792a6h1-uat-scenarios).
 
-#### 792b20c10a Scenarios
+##### 792b20c10a Scenarios
 
 ```gherkin
 Scenario: 792b20c10a1 Bootstrap seeds the terms and tags the vault
@@ -433,7 +474,7 @@ Scenario: 792b20c10a5 A bad seed fails before the lock
   Then it fails naming the problem and writes nothing
 ```
 
-### 792b20c11 Two-pass re-tagging
+#### 792b20c11 Two-pass re-tagging
 
 Requirement: [792b20c11 Two-pass re-tagging](#792b20c11-two-pass-re-tagging) To re-tag a vault from description vectors, the vocabulary-engine MUST read the
 body vector of every note that is not a definition and has a readable sidecar, select each one's
@@ -446,7 +487,7 @@ vault MUST be logged as a warning.
 
 Supports: [792a6a1b A definition is never assigned a term](../product/controlled-vocabulary.md#792a6a1-uat-scenarios), [792a6g1a Bootstrap seeds terms and tags existing notes](../product/controlled-vocabulary.md#792a6g1-uat-scenarios), [792a6w1a An old-format vocabulary is migrated](../product/controlled-vocabulary.md#792a6w1-uat-scenarios).
 
-#### 792b20c11a Scenarios
+##### 792b20c11a Scenarios
 
 ```gherkin
 Scenario: 792b20c11a1 The second pass tags against member centroids
@@ -470,7 +511,7 @@ Scenario: 792b20c11a4 A listing failure is a warning
   Then a warning is logged
 ```
 
-### 792b20c12 Propose
+#### 792b20c12 Propose
 
 Requirement: [792b20c12 Propose](#792b20c12-propose) For `engram vocab propose`, the vocabulary-engine MUST, holding the vault lock,
 raise the minor version ([792b20c9 The family note and the version](#792b20c9-the-family-note-and-the-version)), write the term's definition ([792b20c8 Writing a definition note](#792b20c8-writing-a-definition-note)) with the source
@@ -483,7 +524,7 @@ definition fails.
 
 Supports: [792a6i1a A proposed term is created](../product/controlled-vocabulary.md#792a6i1-uat-scenarios), [792a6i1b Propose in a vault without a family note](../product/controlled-vocabulary.md#792a6i1-uat-scenarios), [792a6q1a An unmatched proposed term is kept](../product/controlled-vocabulary.md#792a6q1-uat-scenarios).
 
-#### 792b20c12a Scenarios
+##### 792b20c12a Scenarios
 
 ```gherkin
 Scenario: 792b20c12a1 A proposed term is written and the minor version raised
@@ -502,7 +543,7 @@ Scenario: 792b20c12a3 The origin survives a failed definition write
   Then the record still holds gardening with origin proposed
 ```
 
-### 792b20c13 Deriving clusters
+#### 792b20c13 Deriving clusters
 
 Requirement: [792b20c13 Deriving clusters](#792b20c13-deriving-clusters) For a refit, the vocabulary-engine MUST cluster the body vectors of every note
 that is not a definition and has a readable sidecar, in name order, with the [similarity-clustering](./similarity-clustering.md)
@@ -515,7 +556,7 @@ vector's bits>`.
 
 Supports: [792a6j1a The term count follows the vault's clusters](../product/controlled-vocabulary.md#792a6j1-uat-scenarios), [792a6j1b A vault without structure keeps its vocabulary](../product/controlled-vocabulary.md#792a6j1-uat-scenarios), [792a6m1a New clusters are emitted as naming requests](../product/controlled-vocabulary.md#792a6m1-uat-scenarios), [792a6n1a A bad naming answer is refused](../product/controlled-vocabulary.md#792a6n1-uat-scenarios).
 
-#### 792b20c13a Scenarios
+##### 792b20c13a Scenarios
 
 ```gherkin
 Scenario: 792b20c13a1 Clusters hold their members and mean vectors
@@ -539,7 +580,7 @@ Scenario: 792b20c13a4 A clearly better K replaces the previous one
   Then the best K's clustering is used
 ```
 
-### 792b20c14 Matching clusters to terms
+#### 792b20c14 Matching clusters to terms
 
 Requirement: [792b20c14 Matching clusters to terms](#792b20c14-matching-clusters-to-terms) The vocabulary-engine MUST pair clusters with existing terms by the cosine
 similarity of a cluster's mean and a term's tagging vector, taking pairs at or above 0.80 from the
@@ -548,7 +589,7 @@ left unpaired MUST be new, and an unpaired term MUST be retired unless its origi
 
 Supports: [792a6k1a A cluster keeps its term's name](../product/controlled-vocabulary.md#792a6k1-uat-scenarios), [792a6k1b Unmatched clusters and terms are reported](../product/controlled-vocabulary.md#792a6k1-uat-scenarios), [792a6q1a An unmatched proposed term is kept](../product/controlled-vocabulary.md#792a6q1-uat-scenarios).
 
-#### 792b20c14a Scenarios
+##### 792b20c14a Scenarios
 
 ```gherkin
 Scenario: 792b20c14a1 A close cluster keeps the term's name
@@ -572,7 +613,7 @@ Scenario: 792b20c14a4 A proposed term is never retired
   Then it is not retired
 ```
 
-### 792b20c15 Refit routing
+#### 792b20c15 Refit routing
 
 Requirement: [792b20c15 Refit routing](#792b20c15-refit-routing) For `engram vocab refit`, the vocabulary-engine MUST hold the vault lock for the
 whole run; after deriving ([792b20c13 Deriving clusters](#792b20c13-deriving-clusters)) and matching ([792b20c14 Matching clusters to terms](#792b20c14-matching-clusters-to-terms)), it MUST print the no-structure line
@@ -587,7 +628,7 @@ Rationale: refit rewrites tags across the whole vault, so no other writer may in
 The two-run naming protocol is sound only while the vault is unchanged between the runs, which the
 fingerprint checks.
 
-#### 792b20c15a Scenarios
+##### 792b20c15a Scenarios
 
 ```gherkin
 Scenario: 792b20c15a1 No structure writes nothing
@@ -616,7 +657,7 @@ Scenario: 792b20c15a5 An accepted answer applies the derivation
   Then the derivation is applied and the applied line printed
 ```
 
-### 792b20c16 Naming requests
+#### 792b20c16 Naming requests
 
 Requirement: [792b20c16 Naming requests](#792b20c16-naming-requests) The vocabulary-engine MUST build one naming request per new cluster with its
 index, member count and, as exemplars, its three members nearest the cluster's mean, nearest first,
@@ -626,7 +667,7 @@ fingerprint ([792b20c13 Deriving clusters](#792b20c13-deriving-clusters)).
 
 Supports: [792a6m1a New clusters are emitted as naming requests](../product/controlled-vocabulary.md#792a6m1-uat-scenarios).
 
-#### 792b20c16a Scenarios
+##### 792b20c16a Scenarios
 
 ```gherkin
 Scenario: 792b20c16a1 Exemplars are the members nearest the centroid
@@ -635,7 +676,7 @@ Scenario: 792b20c16a1 Exemplars are the members nearest the centroid
   Then it carries the three nearest, nearest first, each with its title and snippet
 ```
 
-### 792b20c17 Naming answers
+#### 792b20c17 Naming answers
 
 Requirement: [792b20c17 Naming answers](#792b20c17-naming-answers) The vocabulary-engine MUST accept a naming answer only when it is JSON whose
 fingerprint equals the current derivation's and whose entries each name a new cluster, none twice,
@@ -645,7 +686,7 @@ snippets.
 
 Supports: [792a6n1a A bad naming answer is refused](../product/controlled-vocabulary.md#792a6n1-uat-scenarios), [792a6o1a A named cluster becomes a term](../product/controlled-vocabulary.md#792a6o1-uat-scenarios).
 
-#### 792b20c17a Scenarios
+##### 792b20c17a Scenarios
 
 ```gherkin
 Scenario: 792b20c17a1 A complete answer is accepted
@@ -664,7 +705,7 @@ Scenario: 792b20c17a3 A named cluster becomes a term with its snippets
   Then the term carries the answer's name and description and the snippets as exemplars
 ```
 
-### 792b20c18 Applying a derivation
+#### 792b20c18 Applying a derivation
 
 Requirement: [792b20c18 Applying a derivation](#792b20c18-applying-a-derivation) To apply a derivation, the vocabulary-engine MUST raise the major version
 ([792b20c9 The family note and the version](#792b20c9-the-family-note-and-the-version)), retire the retired terms ([792b20c19 Retiring terms](#792b20c19-retiring-terms)), write a definition for each named cluster
@@ -677,7 +718,7 @@ line of [792a6o Applying a refit](../product/controlled-vocabulary.md#792a6o-app
 
 Supports: [792a6c1b A categorical tag survives a refit](../product/controlled-vocabulary.md#792a6c1-uat-scenarios), [792a6o1a A named cluster becomes a term](../product/controlled-vocabulary.md#792a6o1-uat-scenarios), [792a6o1b A refit with nothing to name applies at once](../product/controlled-vocabulary.md#792a6o1-uat-scenarios), [792a6p1a A retired term is deleted with its references](../product/controlled-vocabulary.md#792a6p1-uat-scenarios), [792a6q1a An unmatched proposed term is kept](../product/controlled-vocabulary.md#792a6q1-uat-scenarios).
 
-#### 792b20c18a Scenarios
+##### 792b20c18a Scenarios
 
 ```gherkin
 Scenario: 792b20c18a1 The centroid record carries origins and the derivation
@@ -686,7 +727,7 @@ Scenario: 792b20c18a1 The centroid record carries origins and the derivation
   Then each term has its origin, member count and vector, the derivation's K, silhouette and date are recorded, and an absent origin or derivation is omitted from the file
 ```
 
-### 792b20c19 Retiring terms
+#### 792b20c19 Retiring terms
 
 Requirement: [792b20c19 Retiring terms](#792b20c19-retiring-terms) To retire terms, the vocabulary-engine MUST delete each retired term's
 definition note and sidecar; then, in every other note, MUST drop `supersedes:` entries whose `note:`
@@ -698,7 +739,7 @@ delete or write MUST be logged as a warning without stopping the rest.
 
 Supports: [792a6p1a A retired term is deleted with its references](../product/controlled-vocabulary.md#792a6p1-uat-scenarios), [792a6p1b Retirement leaves no dangling body link](../product/controlled-vocabulary.md#792a6p1-uat-scenarios).
 
-#### 792b20c19a Scenarios
+##### 792b20c19a Scenarios
 
 ```gherkin
 Scenario: 792b20c19a1 The definition and its sidecar are deleted
@@ -722,7 +763,7 @@ Scenario: 792b20c19a4 Failures are warnings
   Then a warning is logged for each failure and the rest continues
 ```
 
-### 792b20c20 Self-tag backfill
+#### 792b20c20 Self-tag backfill
 
 Requirement: [792b20c20 Self-tag backfill](#792b20c20-self-tag-backfill) For `engram vocab tag-definitions`, the vocabulary-engine MUST list the vault,
 then hold the vault lock while, for every definition note ([792b20c1 Definition recognition](#792b20c1-definition-recognition)), it appends the missing
@@ -733,7 +774,7 @@ continue. It MUST NOT touch any sidecar.
 
 Supports: [792a6u1a Backfill adds missing self-tags](../product/controlled-vocabulary.md#792a6u1-uat-scenarios), [792a6u1b Backfill is idempotent](../product/controlled-vocabulary.md#792a6u1-uat-scenarios).
 
-#### 792b20c20a Scenarios
+##### 792b20c20a Scenarios
 
 ```gherkin
 Scenario: 792b20c20a1 Missing self-tags are added once
@@ -747,7 +788,7 @@ Scenario: 792b20c20a2 A failed write is reported
   Then it prints "<basename>: write failed (<error>)" and continues
 ```
 
-### 792b20c21 Migrating an old-format vocabulary
+#### 792b20c21 Migrating an old-format vocabulary
 
 Requirement: [792b20c21 Migrating an old-format vocabulary](#792b20c21-migrating-an-old-format-vocabulary) For `engram update --regen-vocab`, the vocabulary-engine MUST list the vault;
 harvest each `vocab.<term>.md` file other than `vocab.index.md` whose frontmatter has a `term:` as a
@@ -762,7 +803,7 @@ assignments. A listing failure MUST be returned as an error.
 
 Supports: [792a6w1a An old-format vocabulary is migrated](../product/controlled-vocabulary.md#792a6w1-uat-scenarios), [792a6w1b A dry run changes nothing](../product/controlled-vocabulary.md#792a6w1-uat-scenarios), [792a6w1c Nothing to migrate](../product/controlled-vocabulary.md#792a6w1-uat-scenarios).
 
-#### 792b20c21a Scenarios
+##### 792b20c21a Scenarios
 
 ```gherkin
 Scenario: 792b20c21a1 An old-format vocabulary is migrated
@@ -796,7 +837,7 @@ Scenario: 792b20c21a6 A file that cannot be deleted is warned about and not coun
   Then a warning names it and it is not counted as removed
 ```
 
-### 792b20c22 Repairs a vault needs
+#### 792b20c22 Repairs a vault needs
 
 Requirement: [792b20c22 Repairs a vault needs](#792b20c22-repairs-a-vault-needs) For `engram update`'s notices, the vocabulary-engine MUST report that a vault
 holds old-format files when its directory holds a regular file named `vocab.<name>.md` (never
@@ -806,7 +847,7 @@ when the vault cannot be read.
 
 Supports: [792a6v1a An old-format vault is flagged](../product/controlled-vocabulary.md#792a6v1-uat-scenarios), [792a6v1b A missing self-tag is flagged](../product/controlled-vocabulary.md#792a6v1-uat-scenarios), [792a6v1c A current vault gets no vocab notice](../product/controlled-vocabulary.md#792a6v1-uat-scenarios), [792a6w1a An old-format vocabulary is migrated](../product/controlled-vocabulary.md#792a6w1-uat-scenarios).
 
-#### 792b20c22a Scenarios
+##### 792b20c22a Scenarios
 
 ```gherkin
 Scenario: 792b20c22a1 Old-format files are detected

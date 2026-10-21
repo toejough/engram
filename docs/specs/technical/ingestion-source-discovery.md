@@ -1,6 +1,8 @@
 # Ingestion Source Discovery - Technical Spec
 
-## 792b17a Orientation
+## 792b17 Ingestion Source Discovery
+
+### 792b17a Orientation
 
 - Ownership: Repository component, walking the local filesystem through the durable-file-store's ([durable-file-store](./durable-file-store.md))
   directory walk.
@@ -14,12 +16,16 @@
   and `shouldSkipDir` in `internal/cli/ingest.go`; `sourceRefsFromRoot` and the origin constants in
   `internal/cli/ingest_dedup.go`; `SweepSpec`, `DefaultSweepSpec`, `LoadSweepSpec`,
   `ResolveSweepRoots` and `dropNonPersistentRoots` in `internal/cli/sweepspec.go`.
-- Qualification: responsibility, finding the sources to index is stated without naming any
-  function; ownership, the [chunk-index-store](./chunk-index-store.md) decides what to do with each source, while this
-  component owns which files are sources and how each was found; independent verification, root
-  resolution is tested as a pure function of the spec and an injected directory check, and
-  gathering over fake listings; stability, the contract survives any change to the index;
-  necessity, every source the index holds is one it found.
+- Qualification: Purpose: every source the index holds is one it found
+  ([Chunk Indexing](../product/chunk-indexing.md)). Contract: the [Chunk Index Store](./chunk-index-store.md) decides
+  what to do with each source, while this component owns which files are sources and how each was found; root
+  resolution and gathering are tested directly, root resolution as a pure function of the spec. Identity: the contract
+  survives any change to the index. Value: what `--auto` covers is data, compiled in as defaults and overridable per
+  repository, so a developer tunes the sweep without changing code. Responsibility (naming): finding the sources to
+  index is stated without naming any function.
+- Required behavior: [Durable File Store](./durable-file-store.md) is assumed to walk the tree below a root, calling
+  back for each entry and letting the caller skip a directory, and to return the failure of a walk
+  ([792b17c7 Walking a root](#792b17c7-walking-a-root)); no requirement of that file specifies the walk.
 - Supported capabilities: [chunk-indexing](../product/chunk-indexing.md).
 
 Rationale: the sweep is declarative and inspectable: what `--auto` covers is data, compiled in as defaults and
@@ -30,9 +36,9 @@ a repository root that resolves to `/tmp/eval-pool/warm0` because it has no repo
 root's own path against the exclusions. Named files, `--sweep` and `extra_roots` are deliberate choices, so neither
 rule applies to them.
 
-## 792b17c Behavior Requirements
+### 792b17c Behavior Requirements
 
-### 792b17c1 Named sources
+#### 792b17c1 Named sources
 
 Requirement: [792b17c1 Named sources](#792b17c1-named-sources) The ingestion-source-discovery MUST make each `--transcript` and `--markdown`
 path a source with the explicit origin, without checking that it exists, and for each `--pi-sessions`
@@ -42,7 +48,7 @@ value that is a directory MUST make each `.md` and `.jsonl` file under it, outsi
 
 Supports: [792a5b1a A named transcript and document are indexed](../product/chunk-indexing.md#792a5b1-uat-scenarios), [792a5b1b A Pi sessions directory is indexed without its scratch](../product/chunk-indexing.md#792a5b1-uat-scenarios), [792a5b1c A Pi sessions value that is not a directory is ignored](../product/chunk-indexing.md#792a5b1-uat-scenarios), [792a5b1d An unreadable named file fails the command](../product/chunk-indexing.md#792a5b1-uat-scenarios), [792a5f1d Explicit sources are indexed anywhere](../product/chunk-indexing.md#792a5f1-uat-scenarios), [792a5l1b A named file outranks the repository copy](../product/chunk-indexing.md#792a5l1-uat-scenarios).
 
-#### 792b17c1a Scenarios
+##### 792b17c1a Scenarios
 
 ```gherkin
 Scenario: 792b17c1a1 Named files and Pi directories are gathered together
@@ -61,7 +67,7 @@ Scenario: 792b17c1a3 A Pi value that is not a directory is skipped
   Then session1.jsonl is indexed and the run succeeds
 ```
 
-### 792b17c2 Swept directories
+#### 792b17c2 Swept directories
 
 Requirement: [792b17c2 Swept directories](#792b17c2-swept-directories) The ingestion-source-discovery MUST make each `--sweep` directory a root with
 the manual-sweep origin, the default excluded directory names ([792b17c5 Sweep configuration](#792b17c5-sweep-configuration)) and hidden directories
@@ -69,7 +75,7 @@ pruned, and no throwaway-name or throwaway-path rule.
 
 Supports: [792a5c1a A swept directory's documents and transcripts are indexed](../product/chunk-indexing.md#792a5c1-uat-scenarios), [792a5f1d Explicit sources are indexed anywhere](../product/chunk-indexing.md#792a5f1-uat-scenarios).
 
-#### 792b17c2a Scenarios
+##### 792b17c2a Scenarios
 
 ```gherkin
 Scenario: 792b17c2a1 A swept directory under a throwaway path is still swept
@@ -78,7 +84,7 @@ Scenario: 792b17c2a1 A swept directory under a throwaway path is still swept
   Then s.jsonl is indexed
 ```
 
-### 792b17c3 Automatic roots
+#### 792b17c3 Automatic roots
 
 Requirement: [792b17c3 Automatic roots](#792b17c3-automatic-roots) For `--auto`, the ingestion-source-discovery MUST resolve, in this order and
 each only when its setting is on: the repository root (the nearest of the working directory and its
@@ -94,7 +100,7 @@ directory levels climbed from the working directory to reach the directory holdi
 
 Supports: [792a5d1a The repository, its ancestors and the session logs are swept](../product/chunk-indexing.md#792a5d1-uat-scenarios), [792a5d1b Without a repository marker the working directory is the root](../product/chunk-indexing.md#792a5d1-uat-scenarios), [792a5d1c Harness scratch and state are not swept](../product/chunk-indexing.md#792a5d1-uat-scenarios), [792a5d1d ENGRAM_TRANSCRIPT_DIR names the session logs](../product/chunk-indexing.md#792a5d1-uat-scenarios), [792a5e1a A repository adds a root and turns one off](../product/chunk-indexing.md#792a5e1-uat-scenarios), [792a5f1a Sessions recorded in a throwaway directory are skipped](../product/chunk-indexing.md#792a5f1-uat-scenarios), [792a5l1a A repository file outranks its copy in an ancestor .claude directory](../product/chunk-indexing.md#792a5l1-uat-scenarios), [792a5l1c The nearer ancestor directory wins](../product/chunk-indexing.md#792a5l1-uat-scenarios).
 
-#### 792b17c3a Scenarios
+##### 792b17c3a Scenarios
 
 ```gherkin
 Scenario: 792b17c3a1 The repository, its ancestors and the session logs are roots
@@ -128,7 +134,7 @@ Scenario: 792b17c3a6 Ancestor depth is the physical distance
   Then the .pi root has depth 0 and the .claude root depth 1
 ```
 
-### 792b17c4 Throwaway roots
+#### 792b17c4 Throwaway roots
 
 Requirement: [792b17c4 Throwaway roots](#792b17c4-throwaway-roots) The ingestion-source-discovery MUST drop every `--auto` root, before
 `extra_roots` are added, whose own path equals or lies under a `non_persistent_path_prefixes` entry,
@@ -136,7 +142,7 @@ comparing whole path segments, so that `/tmpfoo` is not under `/tmp`.
 
 Supports: [792a5f1b A throwaway working directory is not swept](../product/chunk-indexing.md#792a5f1-uat-scenarios), [792a5f1c An ancestor directory under the macOS temp root is dropped](../product/chunk-indexing.md#792a5f1-uat-scenarios).
 
-#### 792b17c4a Scenarios
+##### 792b17c4a Scenarios
 
 ```gherkin
 Scenario: 792b17c4a1 Roots under a throwaway path are dropped
@@ -150,7 +156,7 @@ Scenario: 792b17c4a2 Extra roots are kept under a throwaway path
   Then /tmp/mydata is the only root
 ```
 
-### 792b17c5 Sweep configuration
+#### 792b17c5 Sweep configuration
 
 Requirement: [792b17c5 Sweep configuration](#792b17c5-sweep-configuration) The ingestion-source-discovery MUST default every root setting on,
 `exclude_dirs` to `node_modules`, `vendor`, `.git`, `.hg`, `.jj`, `dist`, `build`, `target`,
@@ -165,7 +171,7 @@ when the working directory cannot be found.
 
 Supports: [792a5c1a A swept directory's documents and transcripts are indexed](../product/chunk-indexing.md#792a5c1-uat-scenarios), [792a5d1c Harness scratch and state are not swept](../product/chunk-indexing.md#792a5d1-uat-scenarios), [792a5e1a A repository adds a root and turns one off](../product/chunk-indexing.md#792a5e1-uat-scenarios), [792a5e1b A malformed sweep file is refused](../product/chunk-indexing.md#792a5e1-uat-scenarios), [792a5f1a Sessions recorded in a throwaway directory are skipped](../product/chunk-indexing.md#792a5f1-uat-scenarios), [792a5f1b A throwaway working directory is not swept](../product/chunk-indexing.md#792a5f1-uat-scenarios).
 
-#### 792b17c5a Scenarios
+##### 792b17c5a Scenarios
 
 ```gherkin
 Scenario: 792b17c5a1 The defaults sweep everything and exclude dependency trees
@@ -189,7 +195,7 @@ Scenario: 792b17c5a4 An invalid configuration file is an error
   Then the error names .engram/sweep.json
 ```
 
-### 792b17c6 Session-log directory
+#### 792b17c6 Session-log directory
 
 Requirement: [792b17c6 Session-log directory](#792b17c6-session-log-directory) The ingestion-source-discovery MUST take the session-log directory from
 `ENGRAM_TRANSCRIPT_DIR` when it is non-empty, else `<home>/.claude/projects`, and MUST use no
@@ -200,7 +206,7 @@ Supports: [792a5d1a The repository, its ancestors and the session logs are swept
 Rationale: memory learns from every recorded conversation of every project, not only the current
 one's. A headless or eval run sets `ENGRAM_TRANSCRIPT_DIR` so it sweeps only its own sessions.
 
-#### 792b17c6a Scenarios
+##### 792b17c6a Scenarios
 
 ```gherkin
 Scenario: 792b17c6a1 The default is every project's sessions
@@ -214,7 +220,7 @@ Scenario: 792b17c6a2 The environment names the directory
   Then it is /custom/sessions
 ```
 
-### 792b17c7 Walking a root
+#### 792b17c7 Walking a root
 
 Requirement: [792b17c7 Walking a root](#792b17c7-walking-a-root) The ingestion-source-discovery MUST walk each root and return its files,
 pruning every directory below the root whose name is in the root's excluded names, starts with one
@@ -223,7 +229,7 @@ an error naming the root when the walk fails.
 
 Supports: [792a5b1b A Pi sessions directory is indexed without its scratch](../product/chunk-indexing.md#792a5b1-uat-scenarios), [792a5c1a A swept directory's documents and transcripts are indexed](../product/chunk-indexing.md#792a5c1-uat-scenarios), [792a5d1c Harness scratch and state are not swept](../product/chunk-indexing.md#792a5d1-uat-scenarios), [792a5f1a Sessions recorded in a throwaway directory are skipped](../product/chunk-indexing.md#792a5f1-uat-scenarios).
 
-#### 792b17c7a Scenarios
+##### 792b17c7a Scenarios
 
 ```gherkin
 Scenario: 792b17c7a1 Excluded and hidden directories are pruned
@@ -242,7 +248,7 @@ Scenario: 792b17c7a3 A failed walk is an error
   Then gathering fails
 ```
 
-### 792b17c8 Source files
+#### 792b17c8 Source files
 
 Requirement: [792b17c8 Source files](#792b17c8-source-files) The ingestion-source-discovery MUST keep only `.md` and `.jsonl` files of a
 walked root, MUST drop, for every root but a `--pi-sessions` directory, each file under the chunk
@@ -251,7 +257,7 @@ the origin is explicit.
 
 Supports: [792a5c1a A swept directory's documents and transcripts are indexed](../product/chunk-indexing.md#792a5c1-uat-scenarios), [792a5c1c The chunk index directory is never indexed](../product/chunk-indexing.md#792a5c1-uat-scenarios), [792a5l1a A repository file outranks its copy in an ancestor .claude directory](../product/chunk-indexing.md#792a5l1-uat-scenarios).
 
-#### 792b17c8a Scenarios
+##### 792b17c8a Scenarios
 
 ```gherkin
 Scenario: 792b17c8a1 Only documents and transcripts are sources

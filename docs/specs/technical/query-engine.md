@@ -1,6 +1,8 @@
 # Query Engine - Technical Spec
 
-## 792b24a Orientation
+## 792b24 Query Engine
+
+### 792b24a Orientation
 
 - Ownership: Repository component (the caller of the [text-embedder](./text-embedder.md), the [embedding-sidecar](./embedding-sidecar.md), the
   [chunk-index-store](./chunk-index-store.md), the [similarity-clustering](./similarity-clustering.md), the [vocabulary-engine](./vocabulary-engine.md), the [recency-ranking](./recency-ranking.md), the
@@ -17,14 +19,69 @@
   ride-along); `internal/cli/query_explore.go` (the explore half). The pending-offer exclusion in
   `internal/cli/offer.go` and the merge with a parent vault in `internal/cli/merged_query.go` are
   added by [curate](../product/curate.md) and [parent-sync](../product/parent-sync.md).
-- Qualification: responsibility, finding and bounding what answers a query is stated without naming
-  any function; ownership, the renderer shapes the payload and the callers choose the vault and the
-  flags, while this component owns what is matched, clustered and sampled; independent verification,
-  it is tested through `RunQuery` and its helpers over an in-memory vault and a fixed embedder, and by
-  property tests; stability, the contract survives any change to the embedder, the index layout or
-  the payload's shape; necessity, every recall passes through it.
-- Supported capabilities: [memory-query](../product/memory-query.md) and note-writing's [792a3t Question-and-answer retrieval](../product/note-writing.md#792a3t-question-and-answer-retrieval). Recall ([recall](../product/recall.md)), [ambient-guidance](../product/ambient-guidance.md),
-  [vault-serving](../product/vault-serving.md) and [parent-sync](../product/parent-sync.md) also rely on it.
+- Qualification: Purpose: every recall passes through it ([Memory Query](../product/memory-query.md)). Contract: the
+  [Query Payload Renderer](./query-payload-renderer.md) shapes the payload and the callers choose the
+  [vault](../../GLOSSARY.md#vault) and the flags, while this component owns what is matched, clustered and sampled; it
+  is tested through `RunQuery` and its helpers, and by property tests. Identity: the contract survives any change to
+  the embedder, the index layout or the payload's shape. Value: the engine is one deterministic pass with no LLM, so
+  the same vault and phrases give the same payload, and the judgment about coverage stays with the reader.
+  Responsibility (naming): finding and bounding what answers a query is stated without naming any function.
+- Required behavior: [Text Embedder](./text-embedder.md) returns one vector per phrase, made with the bundled model
+  whose ID it reports ([792b9c1 Bundled-model embedding](./text-embedder.md#792b9c1-bundled-model-embedding),
+  [792b9c4 Lazy construction](./text-embedder.md#792b9c4-lazy-construction)), or an error when it cannot embed the
+  phrase ([792b9c2 Input window](./text-embedder.md#792b9c2-input-window)).
+- Required behavior: [Embedding Sidecar](./embedding-sidecar.md) decodes a
+  [sidecar](../../GLOSSARY.md#sidecar-embedding-sidecar) into its model ID, situation and body vectors and last-used
+  date, refusing malformed JSON, another schema version and a vector whose length differs from the dimension
+  ([792b10c1 Sidecar format](./embedding-sidecar.md#792b10c1-sidecar-format)), places a
+  [note](../../GLOSSARY.md#permanent-note)'s sidecar beside it
+  ([792b10c2 Sidecar path](./embedding-sidecar.md#792b10c2-sidecar-path)) and measures the cosine similarity of two
+  vectors ([792b10c8 Cosine similarity](./embedding-sidecar.md#792b10c8-cosine-similarity)).
+- Required behavior: [Chunk Index Store](./chunk-index-store.md) lists its index files, none when the directory does
+  not exist ([792b18c12 Listing index files](./chunk-index-store.md#792b18c12-listing-index-files)), and keeps in each
+  record of an index file the source, anchor, text, vector and first-indexed time of a chunk, failing on a line that
+  is not a record ([792b18c1 Index layout](./chunk-index-store.md#792b18c1-index-layout),
+  [792b18c14 First-indexed time](./chunk-index-store.md#792b18c14-first-indexed-time)).
+- Required behavior: [Similarity Clustering](./similarity-clustering.md) partitions vectors into the number of
+  clusters in a range that scores best, the same partition for the same vectors, range, floor and seed, and none when
+  the best score is below the floor
+  ([792b19c4 Choosing the number of clusters](./similarity-clustering.md#792b19c4-choosing-the-number-of-clusters),
+  [792b19c2 K-means partition](./similarity-clustering.md#792b19c2-k-means-partition)), and scores one point's
+  silhouette ([792b19c5 Per-point silhouette](./similarity-clustering.md#792b19c5-per-point-silhouette)).
+- Required behavior: [Vocabulary Engine](./vocabulary-engine.md) tags a note with its terms as `vocab/<term>` entries
+  of its `tags:` list
+  ([792b20c4 Rewriting a note's vocabulary tags](./vocabulary-engine.md#792b20c4-rewriting-a-notes-vocabulary-tags))
+  and keeps in `vocab.centroids.json` each term's centroid vector and the mark of a pending refit
+  ([792b20c11 Two-pass re-tagging](./vocabulary-engine.md#792b20c11-two-pass-re-tagging),
+  [792b20c6 Refit check](./vocabulary-engine.md#792b20c6-refit-check)).
+- Required behavior: [Recency Ranking](./recency-ranking.md) returns the factor a score is multiplied by from an age
+  in days and a position in a [session](../../GLOSSARY.md#session)
+  ([792b21c1 Recency factor](./recency-ranking.md#792b21c1-recency-factor)), a note's age
+  ([792b21c2 Note age](./recency-ranking.md#792b21c2-note-age)), the turn number of a chunk's anchor
+  ([792b21c4 Turn positions](./recency-ranking.md#792b21c4-turn-positions)) and the newest chunks by the time they
+  were first indexed ([792b21c5 Newest chunks](./recency-ranking.md#792b21c5-newest-chunks)).
+- Required behavior: [Runbook Trigger Matching](./runbook-trigger-matching.md) indexes the
+  [triggers](../../GLOSSARY.md#trigger) of the [runbooks](../../GLOSSARY.md#runbook) that have a current sidecar
+  ([792b22c1 Trigger index](./runbook-trigger-matching.md#792b22c1-trigger-index)), puts the
+  [hits](../../GLOSSARY.md#trigger-hit) ahead of every other item
+  ([792b22c4 Placing the hits](./runbook-trigger-matching.md#792b22c4-placing-the-hits)) and answers a query that has
+  a message and no phrase from the hits alone
+  ([792b22c6 Lookup by message alone](./runbook-trigger-matching.md#792b22c6-lookup-by-message-alone)).
+- Required behavior: [Query Payload Renderer](./query-payload-renderer.md) previews a note's red-flag list so that the
+  newest entries are kept ([792b23c8 Red-flag preview](./query-payload-renderer.md#792b23c8-red-flag-preview)) and
+  encodes the result as one YAML document, the trigger hits first, the other items cut to the limit and the recent
+  chunks last, with the budget block and, when timing is on, the stage timings
+  ([792b23c1 The document](./query-payload-renderer.md#792b23c1-the-document),
+  [792b23c3 Order and limit](./query-payload-renderer.md#792b23c3-order-and-limit),
+  [792b23c6 Budget block](./query-payload-renderer.md#792b23c6-budget-block),
+  [792b23c7 Stage timings](./query-payload-renderer.md#792b23c7-stage-timings)).
+- Supported capabilities: [memory-query](../product/memory-query.md) and [Note Writing](../product/note-writing.md)'s
+  [792a3t Question-and-answer retrieval](../product/note-writing.md#792a3t-question-and-answer-retrieval).
+  [Recall](../product/recall.md), [ambient-guidance](../product/ambient-guidance.md),
+  [vault-serving](../product/vault-serving.md) and [parent-sync](../product/parent-sync.md) also rely on it, and so
+  does [Automatic Memory](../product/automatic-memory.md)
+  ([792b24c1 Input and defaults](#792b24c1-input-and-defaults), [792b24c5 The matched set](#792b24c5-the-matched-set),
+  [792b24c20 A query writes nothing](#792b24c20-a-query-writes-nothing)).
 
 Rationale: the engine is one deterministic pass with no LLM, so the same vault and phrases give the
 same payload, and the judgment about coverage stays with the reader. A single query process loads the
@@ -38,9 +95,9 @@ an accident of rank.
 Superseding notes ride along in `items`, not in a cluster's candidates, so the candidates stay the
 cluster's own nearest notes.
 
-## 792b24c Behavior Requirements
+### 792b24c Behavior Requirements
 
-### 792b24c1 Input and defaults
+#### 792b24c1 Input and defaults
 
 Requirement: [792b24c1 Input and defaults](#792b24c1-input-and-defaults) The query-engine MUST fail with `query: empty query string` when given no phrase and
 a message that is empty after trimming, MUST accept any number of phrases, and MUST use a limit of 20
@@ -50,7 +107,7 @@ phrases it was given.
 
 Supports: [792a7a1a A query with nothing to search for fails](../product/memory-query.md#792a7a1-uat-scenarios), [792a7a1b Several phrases are searched together](../product/memory-query.md#792a7a1-uat-scenarios), [792a7b1a The payload has the documented shape](../product/memory-query.md#792a7b1-uat-scenarios), [792a7q1a The default caps a large result](../product/memory-query.md#792a7q1-uat-scenarios).
 
-#### 792b24c1a Scenarios
+##### 792b24c1a Scenarios
 
 ```gherkin
 Scenario: 792b24c1a1 Nothing to search for is an error
@@ -79,7 +136,7 @@ Scenario: 792b24c1a5 An empty vault has no items
   Then items is empty and the query succeeds
 ```
 
-### 792b24c2 Usable embeddings
+#### 792b24c2 Usable embeddings
 
 Requirement: [792b24c2 Usable embeddings](#792b24c2-usable-embeddings) The query-engine MUST use only the notes whose sidecar reads, is of the current
 schema and was made by the embedding model of the run. It MUST warn once for the sidecars of another
@@ -94,7 +151,7 @@ Rationale: a silent model swap would empty the results with no explanation, so t
 cause and the remedy; the all-mismatch case fails because an empty payload would read as "nothing is
 relevant".
 
-#### 792b24c2a Scenarios
+##### 792b24c2a Scenarios
 
 ```gherkin
 Scenario: 792b24c2a1 Notes without sidecars are an error
@@ -118,7 +175,7 @@ Scenario: 792b24c2a4 Another model's sidecars are warned about
   Then one warning names the number dropped, their model and the active model
 ```
 
-### 792b24c3 Scoring notes
+#### 792b24c3 Scoring notes
 
 Requirement: [792b24c3 Scoring notes](#792b24c3-scoring-notes) For each phrase the query-engine MUST score each usable note whose file reads by the
 higher of the cosines between the phrase's vector and the note's situation and body vectors, keep the
@@ -130,7 +187,7 @@ A note's content MUST show each wikilink as its display text or target, and be p
 
 Supports: [792a7b1c Wikilinks are flattened in the content](../product/memory-query.md#792a7b1-uat-scenarios), [792a7d1a Notes are ranked by their better axis](../product/memory-query.md#792a7d1-uat-scenarios), [792a7f1b A long-unused note is scaled down](../product/memory-query.md#792a7f1-uat-scenarios), [792a7v1c A runbook has no kind boost](../product/memory-query.md#792a7v1-uat-scenarios).
 
-#### 792b24c3a Scenarios
+##### 792b24c3a Scenarios
 
 ```gherkin
 Scenario: 792b24c3a1 Notes are ranked by descending cosine
@@ -164,7 +221,7 @@ Scenario: 792b24c3a6 A runbook competes like a fact
   Then both appear with the same score, and the runbook is among the candidate notes
 ```
 
-### 792b24c4 Scoring chunks
+#### 792b24c4 Scoring chunks
 
 Requirement: [792b24c4 Scoring chunks](#792b24c4-scoring-chunks) For each phrase the query-engine MUST score each chunk by the cosine between the
 phrase's vector and the chunk's vector, multiplied by the recency factor ([792b21c1 Recency factor](./recency-ranking.md#792b21c1-recency-factor)) of the days since
@@ -174,7 +231,7 @@ turn or its source has none above zero. The unscaled cosine MUST be kept for the
 
 Supports: [792a7f1a An old chunk is scaled down](../product/memory-query.md#792a7f1-uat-scenarios), [792a7f1c The floor ignores the scaling](../product/memory-query.md#792a7f1-uat-scenarios), [792a7f1e A late turn is lifted](../product/memory-query.md#792a7f1-uat-scenarios).
 
-#### 792b24c4a Scenarios
+##### 792b24c4a Scenarios
 
 ```gherkin
 Scenario: 792b24c4a1 A recent low-cosine chunk surfaces among stale ones
@@ -193,7 +250,7 @@ Scenario: 792b24c4a3 The floor uses the unscaled cosine
   Then it is a direct match, scored about 0.13
 ```
 
-### 792b24c5 The matched set
+#### 792b24c5 The matched set
 
 Requirement: [792b24c5 The matched set](#792b24c5-the-matched-set) For each phrase the query-engine MUST rank the notes and chunks together by score,
 ties by key, and keep the first 30 after the reservation of [792b24c6 The matched-note floor](#792b24c6-the-matched-note-floor). It MUST then merge the phrases
@@ -203,7 +260,7 @@ keeping, for each key, the item with the highest score, drop each item whose uns
 
 Supports: [792a7d1b An item below the floor is dropped](../product/memory-query.md#792a7d1-uat-scenarios), [792a7d1c Only the best 30 of a phrase are kept](../product/memory-query.md#792a7d1-uat-scenarios), [792a7d1d An item keeps its best score across phrases](../product/memory-query.md#792a7d1-uat-scenarios), [792a7d1e The matched set is capped at 300](../product/memory-query.md#792a7d1-uat-scenarios).
 
-#### 792b24c5a Scenarios
+##### 792b24c5a Scenarios
 
 ```gherkin
 Scenario: 792b24c5a1 Items below the floor are dropped
@@ -232,7 +289,7 @@ Scenario: 792b24c5a5 An item appears once
   Then items holds it once
 ```
 
-### 792b24c6 The matched-note floor
+#### 792b24c6 The matched-note floor
 
 Requirement: [792b24c6 The matched-note floor](#792b24c6-the-matched-note-floor) When a phrase's ranked list is longer than 30, the query-engine MUST reserve up to
 5 of the 30 kept for notes whose unscaled cosine is at least 0.25, promoting the best such notes from
@@ -242,7 +299,7 @@ definition note as any other note.
 
 Supports: [792a7e1a A relevant note survives a flood of chunks](../product/memory-query.md#792a7e1-uat-scenarios), [792a7e1b A note below the floor is not promoted](../product/memory-query.md#792a7e1-uat-scenarios), [792a7e1c Several notes share the reserved slots](../product/memory-query.md#792a7e1-uat-scenarios), [792a7e1d A definition note is promoted like any other](../product/memory-query.md#792a7e1-uat-scenarios), [792a7d1g A definition note is an ordinary match](../product/memory-query.md#792a7d1-uat-scenarios).
 
-#### 792b24c6a Scenarios
+##### 792b24c6a Scenarios
 
 ```gherkin
 Scenario: 792b24c6a1 A relevant note survives a flood of chunks
@@ -261,7 +318,7 @@ Scenario: 792b24c6a3 A definition note alone is returned
   Then the definition note is kept
 ```
 
-### 792b24c7 Question notes
+#### 792b24c7 Question notes
 
 Requirement: [792b24c7 Question notes](#792b24c7-question-notes) The query-engine MUST leave a question note out of the matched set at each of the
 four places that build it: when promoting under the matched-note floor, when merging a phrase into the
@@ -270,7 +327,7 @@ answer note MUST compete as any other note.
 
 Supports: [792a3t1a The answer is found and the question is not](../product/note-writing.md#792a3t1-uat-scenarios), [792a7k1a The core outranks the fringe](../product/memory-query.md#792a7k1-uat-scenarios).
 
-#### 792b24c7a Scenarios
+##### 792b24c7a Scenarios
 
 ```gherkin
 Scenario Outline: 792b24c7a1 Which kinds are left out
@@ -289,7 +346,7 @@ Scenario Outline: 792b24c7a1 Which kinds are left out
     | a runbook             | ---\ntype: runbook\n---\n          | no       |
 ```
 
-### 792b24c8 Chunks and notes together
+#### 792b24c8 Chunks and notes together
 
 Requirement: [792b24c8 Chunks and notes together](#792b24c8-chunks-and-notes-together) The query-engine MUST rank the chunks of the chunk index with the notes when a chunk
 index directory and a lister are supplied, cluster them together ([792b24c9 Clusters](#792b24c9-clusters)), and MUST behave as a
@@ -297,7 +354,7 @@ query over the vault alone when none is. A missing chunk index directory MUST be
 
 Supports: [792a7d1f Notes and chunks compete in one list](../product/memory-query.md#792a7d1-uat-scenarios).
 
-#### 792b24c8a Scenarios
+##### 792b24c8a Scenarios
 
 ```gherkin
 Scenario: 792b24c8a1 Chunks and notes are ranked together
@@ -311,7 +368,7 @@ Scenario: 792b24c8a2 Without a chunk index only notes are returned
   Then the payload is that of the vault alone
 ```
 
-### 792b24c9 Clusters
+#### 792b24c9 Clusters
 
 Requirement: [792b24c9 Clusters](#792b24c9-clusters) The query-engine MUST cluster the matched set once with the [similarity-clustering](./similarity-clustering.md)
 ([792b19c4 Choosing the number of clusters](./similarity-clustering.md#792b19c4-choosing-the-number-of-clusters)) for 2 to 7 clusters and a floor of 0.10, seeded from the FNV-1a hash of the phrases joined
@@ -327,7 +384,7 @@ Supports: [792a7g1a Matches form clusters with a representative](../product/memo
 Rationale: clustering the union once, not per phrase, keeps the number of clusters small, and the seed
 from the phrases removes run-to-run variation.
 
-#### 792b24c9a Scenarios
+##### 792b24c9a Scenarios
 
 ```gherkin
 Scenario: 792b24c9a1 The number of clusters stays in range
@@ -346,7 +403,7 @@ Scenario: 792b24c9a3 Ties for the representative are broken
   Then the higher-scoring member wins, and on equal scores the lower path
 ```
 
-### 792b24c10 Candidate notes
+#### 792b24c10 Candidate notes
 
 Requirement: [792b24c10 Candidate notes](#792b24c10-candidate-notes) The query-engine MUST give each cluster that has note members a `candidate_l2s`
 list of at most five of those notes, ordered by the higher of the cosines between the cluster's
@@ -356,7 +413,7 @@ superseding note, and a cluster with no note has none.
 
 Supports: [792a7h1a Candidates are the cluster's nearest notes](../product/memory-query.md#792a7h1-uat-scenarios), [792a7h1b A cluster of chunks has no candidates](../product/memory-query.md#792a7h1-uat-scenarios), [792a7h1c A small cluster lists all its notes](../product/memory-query.md#792a7h1-uat-scenarios).
 
-#### 792b24c10a Scenarios
+##### 792b24c10a Scenarios
 
 ```gherkin
 Scenario: 792b24c10a1 Chunk clusters carry candidates with inline content
@@ -370,7 +427,7 @@ Scenario: 792b24c10a2 A near-duplicate of the centroid has a high cosine
   Then every cluster's first candidate has cosine at least 0.95
 ```
 
-### 792b24c11 Item order
+#### 792b24c11 Item order
 
 Requirement: [792b24c11 Item order](#792b24c11-item-order) The query-engine MUST order the direct matches that are notes by the number of
 their provenances, then by the highest rank among them, `trigger` 4, `direct` 3, `cluster_rep` 2 and any
@@ -380,7 +437,7 @@ chunks by score, the recent chunks ([792b24c19 The newest chunks](#792b24c19-the
 
 Supports: [792a7d1f Notes and chunks compete in one list](../product/memory-query.md#792a7d1-uat-scenarios), [792a7m1a An explore note names its term](../product/memory-query.md#792a7m1-uat-scenarios), [792a7n1a The newer note follows the older one](../product/memory-query.md#792a7n1-uat-scenarios), [792a7o1a Recent chunks follow the matches](../product/memory-query.md#792a7o1-uat-scenarios).
 
-#### 792b24c11a Scenarios
+##### 792b24c11a Scenarios
 
 ```gherkin
 Scenario Outline: 792b24c11a1 The rank of a role
@@ -406,7 +463,7 @@ Scenario: 792b24c11a3 A provenance is added once
   Then it keeps direct once and gains cluster_rep
 ```
 
-### 792b24c12 Project filter
+#### 792b24c12 Project filter
 
 Requirement: [792b24c12 Project filter](#792b24c12-project-filter) When a project is requested the query-engine MUST drop each matched note whose
 content, read as LF, has no frontmatter or has no `project:` line equal to it, the line being at the
@@ -416,7 +473,7 @@ explore and ride-along notes, so that a dropped note appears nowhere in the outp
 
 Supports: [792a7u1a Notes of other projects are dropped](../product/memory-query.md#792a7u1-uat-scenarios), [792a7u1b A body mention does not match](../product/memory-query.md#792a7u1-uat-scenarios), [792a7u1c No filter drops nothing](../product/memory-query.md#792a7u1-uat-scenarios), [792a7u1d Explore and ride-along notes of other projects are dropped](../product/memory-query.md#792a7u1-uat-scenarios).
 
-#### 792b24c12a Scenarios
+##### 792b24c12a Scenarios
 
 ```gherkin
 Scenario: 792b24c12a1 A body mention does not match
@@ -455,7 +512,7 @@ Scenario: 792b24c12a7 Explore and ride-along notes are filtered too
   Then the items and clusters hold no beta note, and chunks are unchanged
 ```
 
-### 792b24c13 Explore budget and allocation
+#### 792b24c13 Explore budget and allocation
 
 Requirement: [792b24c13 Explore budget and allocation](#792b24c13-explore-budget-and-allocation) The query-engine MUST size the explore half as the number of distinct notes among
 the matched notes after the project filter, and MUST skip it when that is zero or when
@@ -468,7 +525,7 @@ name, so that the allocation always sums to the budget.
 
 Supports: [792a7i1a The halves are equal on a healthy vault](../product/memory-query.md#792a7i1-uat-scenarios), [792a7i1b Missing centroids leave only the matches](../product/memory-query.md#792a7i1-uat-scenarios), [792a7i1c No matched note means no explore half](../product/memory-query.md#792a7i1-uat-scenarios), [792a7j1a Nearer terms sample more](../product/memory-query.md#792a7j1-uat-scenarios), [792a7j1b Evidence lifts a distant term](../product/memory-query.md#792a7j1-uat-scenarios), [792a7j1c The bonus does not stack](../product/memory-query.md#792a7j1-uat-scenarios).
 
-#### 792b24c13a Scenarios
+##### 792b24c13a Scenarios
 
 ```gherkin
 Scenario: 792b24c13a1 The allocation adds up
@@ -512,7 +569,7 @@ Scenario: 792b24c13a8 Members among the matches are found
   Then only those terms are marked
 ```
 
-### 792b24c14 Picking a term's core
+#### 792b24c14 Picking a term's core
 
 Requirement: [792b24c14 Picking a term's core](#792b24c14-picking-a-terms-core) The query-engine MUST rank a term's member notes by the cosine between each
 note's body vector and the term's centroid, highest first, ties by path, and pick the first as many as
@@ -522,7 +579,7 @@ has a vector, and a note with several terms MUST be a member of each.
 
 Supports: [792a7k1a The core outranks the fringe](../product/memory-query.md#792a7k1-uat-scenarios), [792a7k1b Definition notes are never picked](../product/memory-query.md#792a7k1-uat-scenarios).
 
-#### 792b24c14a Scenarios
+##### 792b24c14a Scenarios
 
 ```gherkin
 Scenario: 792b24c14a1 The core comes first
@@ -546,7 +603,7 @@ Scenario: 792b24c14a4 Definitions and vectorless members are left out
   Then neither is picked
 ```
 
-### 792b24c15 Dedupe and backfill
+#### 792b24c15 Dedupe and backfill
 
 Requirement: [792b24c15 Dedupe and backfill](#792b24c15-dedupe-and-backfill) The query-engine MUST fill each term's allocation from its own ranked members in
 order of the cosines, skipping a note that is among the matched notes or that another term already
@@ -555,7 +612,7 @@ still has candidates, until the budget is met or none remain.
 
 Supports: [792a7l1a A duplicate is replaced](../product/memory-query.md#792a7l1-uat-scenarios), [792a7l1b A note under two terms is picked once](../product/memory-query.md#792a7l1-uat-scenarios), [792a7l1c Exhausted candidates leave the budget unmet](../product/memory-query.md#792a7l1-uat-scenarios).
 
-#### 792b24c15a Scenarios
+##### 792b24c15a Scenarios
 
 ```gherkin
 Scenario: 792b24c15a1 A note under two terms is picked once
@@ -574,7 +631,7 @@ Scenario: 792b24c15a3 Too few candidates leave the budget unmet
   Then every eligible note is picked and the result is shorter than the budget
 ```
 
-### 792b24c16 Delivering the explore half
+#### 792b24c16 Delivering the explore half
 
 Requirement: [792b24c16 Delivering the explore half](#792b24c16-delivering-the-explore-half) The query-engine MUST deliver each explore pick as an item with provenance
 `explore`, its term as `source_term`, its cosine to the term's centroid as score and content, after the
@@ -583,7 +640,7 @@ allocation as the number delivered for each term.
 
 Supports: [792a7i1a The halves are equal on a healthy vault](../product/memory-query.md#792a7i1-uat-scenarios), [792a7i1b Missing centroids leave only the matches](../product/memory-query.md#792a7i1-uat-scenarios), [792a7m1a An explore note names its term](../product/memory-query.md#792a7m1-uat-scenarios), [792a7m1b Explore notes are outside the clusters](../product/memory-query.md#792a7m1-uat-scenarios), [792a7m1c The budget counts what was delivered](../product/memory-query.md#792a7m1-uat-scenarios).
 
-#### 792b24c16a Scenarios
+##### 792b24c16a Scenarios
 
 ```gherkin
 Scenario: 792b24c16a1 A member outside the matches is delivered
@@ -607,7 +664,7 @@ Scenario: 792b24c16a4 Missing centroids leave only the matches
   Then no item is an explore item and explore_allocated is {}
 ```
 
-### 792b24c17 Superseding notes
+#### 792b24c17 Superseding notes
 
 Requirement: [792b24c17 Superseding notes](#792b24c17-superseding-notes) The query-engine MUST read, in one pass over every usable note, the notes that
 supersede each other from the `supersedes:` lists of their frontmatter, and MUST insert each note that
@@ -618,7 +675,7 @@ supersedes another.
 
 Supports: [792a7n1a The newer note follows the older one](../product/memory-query.md#792a7n1-uat-scenarios), [792a7n1b A note already present is not inserted again](../product/memory-query.md#792a7n1-uat-scenarios), [792a7n1c Several superseders are all inserted](../product/memory-query.md#792a7n1-uat-scenarios), [792a7n1d A missing superseder is skipped](../product/memory-query.md#792a7n1-uat-scenarios).
 
-#### 792b24c17a Scenarios
+##### 792b24c17a Scenarios
 
 ```gherkin
 Scenario: 792b24c17a1 No superseding notes changes nothing
@@ -652,7 +709,7 @@ Scenario: 792b24c17a6 The inverse of the supersedes lists is built
   Then each older note maps to its superseders
 ```
 
-### 792b24c18 The metadata pass
+#### 792b24c18 The metadata pass
 
 Requirement: [792b24c18 The metadata pass](#792b24c18-the-metadata-pass) The query-engine MUST read, from each usable note's frontmatter read as its LF
 form, the `vocab/<term>` entries of `tags:`, in block or inline form, ignoring the bare `vocab` entry and
@@ -662,7 +719,7 @@ MUST give nothing. A vault with no terms and no supersedes lists MUST give empty
 
 Supports: [792a7zg1g The lists in a CRLF note's frontmatter are read](../product/memory-query.md#792a7zg1-uat-scenarios), [792a7k1a The core outranks the fringe](../product/memory-query.md#792a7k1-uat-scenarios).
 
-#### 792b24c18a Scenarios
+##### 792b24c18a Scenarios
 
 ```gherkin
 Scenario: 792b24c18a1 The bare vocab tag contributes no term
@@ -706,7 +763,7 @@ Scenario: 792b24c18a8 A CRLF note is parsed as LF
   Then the lists are read as for the LF note
 ```
 
-### 792b24c19 The newest chunks
+#### 792b24c19 The newest chunks
 
 Requirement: [792b24c19 The newest chunks](#792b24c19-the-newest-chunks) The query-engine MUST append the newest chunks ([792b21c5 Newest chunks](./recency-ranking.md#792b21c5-newest-chunks)) up to the recent-fill
 count, skipping chunks that are matched, with provenance `recent` and score 0, outside every cluster.
@@ -715,7 +772,7 @@ chunks MUST be returned when there are fewer than the count.
 
 Supports: [792a7o1a Recent chunks follow the matches](../product/memory-query.md#792a7o1-uat-scenarios), [792a7o1b A matched chunk is not repeated](../product/memory-query.md#792a7o1-uat-scenarios), [792a7o1c The count can be set](../product/memory-query.md#792a7o1-uat-scenarios), [792a7o1d A negative count turns the channel off](../product/memory-query.md#792a7o1-uat-scenarios), [792a7o1e Zero means the default](../product/memory-query.md#792a7o1-uat-scenarios).
 
-#### 792b24c19a Scenarios
+##### 792b24c19a Scenarios
 
 ```gherkin
 Scenario: 792b24c19a1 Recent chunks follow the matches with provenance recent
@@ -750,14 +807,14 @@ Scenario Outline: 792b24c19a5 The count resolves
     | -1   | 0     |
 ```
 
-### 792b24c20 A query writes nothing
+#### 792b24c20 A query writes nothing
 
 Requirement: [792b24c20 A query writes nothing](#792b24c20-a-query-writes-nothing) The query-engine MUST NOT write or change any file and MUST NOT put an `activated`
 field on any item.
 
 Supports: [792a7zh1a A query leaves the vault as it was](../product/memory-query.md#792a7zh1-uat-scenarios).
 
-#### 792b24c20a Scenarios
+##### 792b24c20a Scenarios
 
 ```gherkin
 Scenario: 792b24c20a1 No item is activated and no sidecar changes
@@ -766,14 +823,14 @@ Scenario: 792b24c20a1 No item is activated and no sidecar changes
   Then no item has an activated field and the sidecar files are unchanged
 ```
 
-### 792b24c21 The refit flag
+#### 792b24c21 The refit flag
 
 Requirement: [792b24c21 The refit flag](#792b24c21-the-refit-flag) The query-engine MUST report a pending refit when `vocab.centroids.json` records one
 and MUST report none when the file is absent or does not parse.
 
 Supports: [792a7zd1a A pending refit is reported](../product/memory-query.md#792a7zd1-uat-scenarios), [792a7zd1b Otherwise the field is absent](../product/memory-query.md#792a7zd1-uat-scenarios).
 
-#### 792b24c21a Scenarios
+##### 792b24c21a Scenarios
 
 ```gherkin
 Scenario: 792b24c21a1 A pending refit is read from the centroids file
@@ -782,7 +839,7 @@ Scenario: 792b24c21a1 A pending refit is read from the centroids file
   Then the payload has refit_pending: true
 ```
 
-### 792b24c22 A note is found by its situation
+#### 792b24c22 A note is found by its situation
 
 Requirement: [792b24c22 A note is found by its situation](#792b24c22-a-note-is-found-by-its-situation) A note whose embedded text is S MUST be returned by a query for the phrase S, with
 a cosine of 1.
@@ -792,7 +849,7 @@ Supports: [792a7d1h A note is found by its own situation](../product/memory-quer
 Rationale: learn and recall are inverse over the situation field, so what was written for a situation
 is found by asking for it.
 
-#### 792b24c22a Scenarios
+##### 792b24c22a Scenarios
 
 ```gherkin
 Scenario: 792b24c22a1 A note is returned for its own situation
@@ -801,7 +858,7 @@ Scenario: 792b24c22a1 A note is returned for its own situation
   Then that note is among the items with cosine 1
 ```
 
-### 792b24c23 Searching chunks alone
+#### 792b24c23 Searching chunks alone
 
 Requirement: [792b24c23 Searching chunks alone](#792b24c23-searching-chunks-alone) For `query-chunks` the query-engine MUST fail with
 `query chunks: at least one --phrase is required` when given no phrase, MUST read every index file
@@ -814,7 +871,7 @@ when there are at least six, and the budget `total_chunks` and `returned`.
 
 Supports: [792a7zf1a Chunks are ranked by cosine](../product/memory-query.md#792a7zf1-uat-scenarios), [792a7zf1b The limit is honoured](../product/memory-query.md#792a7zf1-uat-scenarios), [792a7zf1c Many chunks are clustered](../product/memory-query.md#792a7zf1-uat-scenarios), [792a7zf1d A phrase is required](../product/memory-query.md#792a7zf1-uat-scenarios), [792a7zf1e An empty index is an empty payload](../product/memory-query.md#792a7zf1-uat-scenarios).
 
-#### 792b24c23a Scenarios
+##### 792b24c23a Scenarios
 
 ```gherkin
 Scenario: 792b24c23a1 Chunks are ranked by cosine
@@ -853,7 +910,7 @@ Scenario: 792b24c23a7 A malformed index is an error
   Then it fails
 ```
 
-### 792b24c24 Stage readings
+#### 792b24c24 Stage readings
 
 Requirement: [792b24c24 Stage readings](#792b24c24-stage-readings) When timing is on, the query-engine MUST read the injected clock at the start of the
 query and at the end of its scan, embed, cluster and nominate stages, the scan stage ending when the
@@ -865,7 +922,7 @@ otherwise.
 
 Supports: [792a7ze1a Timings are reported on request](../product/memory-query.md#792a7ze1-uat-scenarios).
 
-#### 792b24c24a Scenarios
+##### 792b24c24a Scenarios
 
 ```gherkin
 Scenario: 792b24c24a1 Each stage ends with a reading

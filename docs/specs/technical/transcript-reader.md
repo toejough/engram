@@ -1,6 +1,8 @@
 # Transcript Reader - Technical Spec
 
-## 792b15a Orientation
+## 792b15 Transcript Reader
+
+### 792b15a Orientation
 
 - Ownership: Repository component, at the boundary of the harnesses' session-transcript file
   format (Claude Code and Pi JSONL).
@@ -18,20 +20,34 @@
   `newIngestDeps` (`internal/cli/ingest.go`). `ReadFrom` also takes a start time and a byte budget,
   which ingestion leaves unset; `SegmentsFrom`, `Strip` and the `KeepToolCalls` mode have no
   production caller.
-- Qualification: responsibility, turning a transcript into conversation text is stated without
-  naming any function; ownership, the caller decides which files to read and what to do with the
-  text, while this component owns the file format and what is kept; independent verification, it is
-  tested directly over a fake file reader and on raw transcript lines; stability, the contract
-  survives any change to how the cleaning is split across packages; necessity, every transcript
-  chunk is made from its output.
-- Supported capabilities: [chunk-indexing](../product/chunk-indexing.md), and memory-query's [792a7p When a chunk was first indexed](../product/memory-query.md#792a7p-when-a-chunk-was-first-indexed) (the last timestamp).
+- Qualification: Purpose: every [transcript](../../GLOSSARY.md#transcript) chunk is made from its output
+  ([Chunk Indexing](../product/chunk-indexing.md)). Contract: the caller decides which files to read and what to do
+  with the text, while this component owns the file format and what is kept; it is tested directly, on raw transcript
+  lines. Identity: the contract survives any change to how the cleaning is split across packages. Value: Claude Code
+  and Pi both write JSONL, so one reader serves both and stripping and emitting do not depend on the
+  [harness](../../GLOSSARY.md#harness). Responsibility (naming): turning a transcript into conversation text is stated
+  without naming any function.
+- Required behavior: Claude Code and Pi (external) are assumed to write each [session](../../GLOSSARY.md#session) as a
+  JSONL file, one entry per line, whose user and assistant entries carry their text as a string or as text content
+  blocks and a timestamp, whose tool calls are `tool_use` blocks answered by `tool_result` blocks of the same ID, and
+  whose injected texts carry the markers the reader drops
+  ([792b15c2 Conversation entries](#792b15c2-conversation-entries), [792b15c3 Harness noise](#792b15c3-harness-noise),
+  [792b15c5 Tool-call summaries](#792b15c5-tool-call-summaries), [792b15c6 Last timestamp](#792b15c6-last-timestamp));
+  authoritative contract: not recorded in this repository; compatibility verification:
+  `Test793a2f1a_TheConversationSoFarIsFindableAfterATurn` in `dev/acceptance/sweep_test.go` (build tag `network`)
+  finds the words of the user turns of a real Claude Code session in the index, none for Pi, for the injected texts,
+  for tool calls or for the timestamp.
+- Supported capabilities: [chunk-indexing](../product/chunk-indexing.md), and
+  [Memory Query](../product/memory-query.md)'s
+  [792a7p When a chunk was first indexed](../product/memory-query.md#792a7p-when-a-chunk-was-first-indexed) (the last
+  timestamp).
 
 Rationale: Claude Code and Pi both write JSONL, so one reader serves both and stripping and
 emitting do not depend on the harness.
 
-## 792b15c Behavior Requirements
+### 792b15c Behavior Requirements
 
-### 792b15c1 Reading a transcript
+#### 792b15c1 Reading a transcript
 
 Requirement: [792b15c1 Reading a transcript](#792b15c1-reading-a-transcript) The transcript-reader MUST read the whole transcript file at the given path
 and return its conversation text, and MUST return an error wrapping the read failure as
@@ -39,7 +55,7 @@ and return its conversation text, and MUST return an error wrapping the read fai
 
 Supports: [792a5b1d An unreadable named file fails the command](../product/chunk-indexing.md#792a5b1-uat-scenarios), [792a5g1a A conversation is indexed as text with tool summaries](../product/chunk-indexing.md#792a5g1-uat-scenarios).
 
-#### 792b15c1a Scenarios
+##### 792b15c1a Scenarios
 
 ```gherkin
 Scenario: 792b15c1a1 An unreadable transcript is an error
@@ -48,7 +64,7 @@ Scenario: 792b15c1a1 An unreadable transcript is an error
   Then the error says reading transcript and file not found
 ```
 
-### 792b15c2 Conversation entries
+#### 792b15c2 Conversation entries
 
 Requirement: [792b15c2 Conversation entries](#792b15c2-conversation-entries) The transcript-reader MUST keep only entries whose top-level `type`, or else
 whose `message.role`, is `user` or `assistant`, MUST render each kept entry's text, given as a string
@@ -57,7 +73,7 @@ drop entries that are not JSON, have another type, or have no text.
 
 Supports: [792a5g1a A conversation is indexed as text with tool summaries](../product/chunk-indexing.md#792a5g1-uat-scenarios), [792a5h1b A transcript is chunked by turns](../product/chunk-indexing.md#792a5h1-uat-scenarios).
 
-#### 792b15c2a Scenarios
+##### 792b15c2a Scenarios
 
 ```gherkin
 Scenario: 792b15c2a1 User and assistant text become prefixed lines
@@ -76,7 +92,7 @@ Scenario: 792b15c2a3 An entry with another role is dropped
   Then the text holds "USER: hello" and "ASSISTANT: response" and nothing of the toolResult entry
 ```
 
-### 792b15c3 Harness noise
+#### 792b15c3 Harness noise
 
 Requirement: [792b15c3 Harness noise](#792b15c3-harness-noise) The transcript-reader MUST drop text that starts with `<system-reminder`,
 `Base directory for this skill:`, `<local-command-stdout>`, `<local-command-caveat>` or
@@ -90,7 +106,7 @@ used it.
 
 Supports: [792a5g1a A conversation is indexed as text with tool summaries](../product/chunk-indexing.md#792a5g1-uat-scenarios).
 
-#### 792b15c3a Scenarios
+##### 792b15c3a Scenarios
 
 ```gherkin
 Scenario: 792b15c3a1 A system reminder is dropped
@@ -109,7 +125,7 @@ Scenario: 792b15c3a3 A slash command keeps only its arguments
   Then the only line is "USER: remember X"
 ```
 
-### 792b15c4 Oversized content
+#### 792b15c4 Oversized content
 
 Requirement: [792b15c4 Oversized content](#792b15c4-oversized-content) The transcript-reader MUST replace every run of 100 or more base64 characters
 (letters, digits, `+`, `/`, `=`) in an entry with `[base64 removed]`, and MUST cut any text line
@@ -117,7 +133,7 @@ longer than 2000 characters to its first 2000 followed by `[truncated]`.
 
 Supports: [792a5g1a A conversation is indexed as text with tool summaries](../product/chunk-indexing.md#792a5g1-uat-scenarios).
 
-#### 792b15c4a Scenarios
+##### 792b15c4a Scenarios
 
 ```gherkin
 Scenario: 792b15c4a1 Base64 data is replaced
@@ -131,7 +147,7 @@ Scenario: 792b15c4a2 An oversized line is cut
   Then its line, prefix included, is cut to its first 2000 characters followed by [truncated]
 ```
 
-### 792b15c5 Tool-call summaries
+#### 792b15c5 Tool-call summaries
 
 Requirement: [792b15c5 Tool-call summaries](#792b15c5-tool-call-summaries) The transcript-reader MUST render each `tool_use` block that a later
 `tool_result` block with string content answers by ID as one line,
@@ -147,7 +163,7 @@ Rationale: a tool call's full input and output are usually the bulk of a session
 what was done and whether it worked, which is what an agent reading the chunk back needs. A
 `tool_result` whose content is a list of blocks matches no summary, so its call is dropped.
 
-#### 792b15c5a Scenarios
+##### 792b15c5a Scenarios
 
 ```gherkin
 Scenario: 792b15c5a1 A tool call and its result become one line
@@ -181,7 +197,7 @@ Scenario: 792b15c5a6 Long arguments and output are cut
   Then the summary line holds [truncated] for each
 ```
 
-### 792b15c6 Last timestamp
+#### 792b15c6 Last timestamp
 
 Requirement: [792b15c6 Last timestamp](#792b15c6-last-timestamp) The transcript-reader MUST return, with the conversation text, the timestamp of the
 last entry it kept, treating an entry whose timestamp is absent, null or unreadable, or that is not
@@ -194,7 +210,7 @@ Rationale: the timestamp becomes every chunk's first-indexed time ([792b18c14 Fi
 newest chunks of a query ([792a7o The newest chunks](../product/memory-query.md#792a7o-the-newest-chunks)), so a session with a few rows that lack a time must still report
 when it ended.
 
-#### 792b15c6a Scenarios
+##### 792b15c6a Scenarios
 
 ```gherkin
 Scenario: 792b15c6a1 Unreadable timestamps are skipped

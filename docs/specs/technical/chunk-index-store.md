@@ -1,6 +1,8 @@
 # Chunk Index Store - Technical Spec
 
-## 792b18a Orientation
+## 792b18 Chunk Index Store
+
+### 792b18a Orientation
 
 - Ownership: Repository component (caller of [ingestion-source-discovery](./ingestion-source-discovery.md), [transcript-reader](./transcript-reader.md),
   [source-chunking](./source-chunking.md), [text-embedder](./text-embedder.md), [durable-file-store](./durable-file-store.md) and [vault-write-lock](./vault-write-lock.md)).
@@ -21,12 +23,42 @@
   `internal/cli/prune_duplicates.go`; `listJSONLIndexes` in `internal/cli/query_chunks.go`; the
   record format in `internal/chunk/index.go`. The chunk index lives in the chunks directory
   ([792b2c6 Chunk index directory resolution](./command-line-surface.md#792b2c6-chunk-index-directory-resolution)), part of the binary's operational state rather than a store of its own.
-- Qualification: responsibility, maintaining an index of embedded chunks is stated without naming
-  any function; ownership, it owns the index's files and their consistency, while discovery, reading,
-  chunking, embedding, writing and locking belong to the components it calls; independent
-  verification, `RunIngest` and `RunPrune` are tested directly over in-memory filesystems, fake
-  embedders and recording locks, and over the real filesystem; stability, the contract survives any
-  change to how sources are found or chunked; necessity, every chunk a query returns comes from it.
+- Qualification: Purpose: every chunk a query returns comes from it ([Chunk Indexing](../product/chunk-indexing.md)).
+  Contract: it owns the index's files and their consistency, while discovery, reading, chunking, embedding, writing
+  and locking belong to the components it calls; `RunIngest` and `RunPrune` are tested directly, and over the real
+  filesystem. Identity: the contract survives any change to how sources are found or chunked. Value: the index is
+  append-only, so editing or deleting a source never loses what was learned from it, and a copy's index file is
+  removed only when a retained twin's index provably holds every chunk; the index has its own lock (`.manifest.lock`)
+  apart from the [vault](../../GLOSSARY.md#vault)'s, because ingest and prune never touch
+  [notes](../../GLOSSARY.md#permanent-note). Responsibility (naming): maintaining an index of embedded chunks is
+  stated without naming any function.
+- Required behavior: [Ingestion Source Discovery](./ingestion-source-discovery.md) makes each named path a source with
+  the explicit origin ([792b17c1 Named sources](./ingestion-source-discovery.md#792b17c1-named-sources)) and tags each
+  source with its root's origin and depth
+  ([792b17c8 Source files](./ingestion-source-discovery.md#792b17c8-source-files)).
+- Required behavior: [Transcript Reader](./transcript-reader.md) returns the conversation text of a `.jsonl`
+  [transcript](../../GLOSSARY.md#transcript), or an error wrapping the read failure
+  ([792b15c1 Reading a transcript](./transcript-reader.md#792b15c1-reading-a-transcript)), with the timestamp of the
+  last entry it kept, none when no entry carries a readable one
+  ([792b15c6 Last timestamp](./transcript-reader.md#792b15c6-last-timestamp)).
+- Required behavior: [Source Chunking](./source-chunking.md) cuts a Markdown source into pieces by heading section
+  ([792b16c1 Markdown sections](./source-chunking.md#792b16c1-markdown-sections)) and a transcript's text into pieces
+  of whole user turns ([792b16c2 Transcript turns](./source-chunking.md#792b16c2-transcript-turns)), each with the
+  anchor that locates it in its source.
+- Required behavior: [Text Embedder](./text-embedder.md) returns one vector per text, made with the bundled model
+  ([792b9c1 Bundled-model embedding](./text-embedder.md#792b9c1-bundled-model-embedding)), or an error when it cannot
+  embed the text ([792b9c2 Input window](./text-embedder.md#792b9c2-input-window)).
+- Required behavior: [Durable File Store](./durable-file-store.md) replaces a file's content atomically at the
+  requested mode, so that a concurrent reader sees the old content or the new
+  ([792b3c1 Atomic replace](./durable-file-store.md#792b3c1-atomic-replace)).
+- Required behavior: [Vault Write Lock](./vault-write-lock.md) opens a lock file at a given path, creating it when
+  absent, takes an exclusive lock on it, waiting while another holder has it, and returns a release function
+  ([792b8c1 Exclusive hold](./vault-write-lock.md#792b8c1-exclusive-hold)); the release lets the lock go
+  ([792b8c2 Release](./vault-write-lock.md#792b8c2-release)), and a lock that cannot be taken is an error naming the
+  path ([792b8c3 Acquire failures](./vault-write-lock.md#792b8c3-acquire-failures)).
+- Required behavior: [Embedding Sidecar](./embedding-sidecar.md) places a note's
+  [sidecar](../../GLOSSARY.md#sidecar-embedding-sidecar) beside it, named after the note with `.md` replaced by
+  `.vec.json` ([792b10c2 Sidecar path](./embedding-sidecar.md#792b10c2-sidecar-path)).
 - Supported capabilities: [chunk-indexing](../product/chunk-indexing.md), [note-revision](../product/note-revision.md) (chunk IDs), [memory-query](../product/memory-query.md)
   (the first-indexed time), [install-and-update](../product/install-and-update.md) (the backlog check), [learn](../product/learn.md) (the chunk index written at learn time).
 
@@ -37,9 +69,9 @@ when every one of its chunks is provably in a retained twin's index, so no chunk
 locks protect the chunk index (`.manifest.lock`) and the vault (`.luhmann.lock`), because ingest and prune never touch
 notes.
 
-## 792b18c Behavior Requirements
+### 792b18c Behavior Requirements
 
-### 792b18c1 Index layout
+#### 792b18c1 Index layout
 
 Requirement: [792b18c1 Index layout](#792b18c1-index-layout) The chunk-index-store MUST keep each indexed source's chunks in the file
 `<source base name without extension>-<first 8 hex digits of the SHA-256 of the source path>.jsonl`
@@ -56,7 +88,7 @@ Supports: [792a5b1a A named transcript and document are indexed](../product/chun
 Rationale: the path hash keeps two `README.md` files in different directories from sharing an
 index file, and the base name keeps the directory readable.
 
-#### 792b18c1a Scenarios
+##### 792b18c1a Scenarios
 
 ```gherkin
 Scenario: 792b18c1a1 A transcript's chunk is recorded with its vector and hash
@@ -75,7 +107,7 @@ Scenario: 792b18c1a3 A source's staleness signature is its modification time and
   Then it is that modification time in nanoseconds and that size, and a failed stat is an error
 ```
 
-### 792b18c2 Locked reconciliation
+#### 792b18c2 Locked reconciliation
 
 Requirement: [792b18c2 Locked reconciliation](#792b18c2-locked-reconciliation) The chunk-index-store MUST create the chunks directory and take the
 [vault-write-lock](./vault-write-lock.md) on `<chunks>/.manifest.lock` ([792b8c1 Exclusive hold](./vault-write-lock.md#792b8c1-exclusive-hold)) before `engram ingest` or `engram prune`
@@ -90,7 +122,7 @@ Rationale: two concurrent runs that each read the manifest would let the later w
 change, so a lock serializes manifest updates. Creating the directory first lets a prune of a fresh index take its
 lock.
 
-#### 792b18c2a Scenarios
+##### 792b18c2a Scenarios
 
 ```gherkin
 Scenario: 792b18c2a1 Ingest holds the lock across its read-modify-write
@@ -119,7 +151,7 @@ Scenario: 792b18c2a5 A directory failure takes no lock
   Then the error is returned and no lock is attempted
 ```
 
-### 792b18c3 Change detection
+#### 792b18c3 Change detection
 
 Requirement: [792b18c3 Change detection](#792b18c3-change-detection) The chunk-index-store MUST NOT read a known source whose modification time
 and size equal its manifest entry's and which is a recorded copy or has its index file, and MUST use
@@ -135,7 +167,7 @@ source must cost one stat. The index-file check closes the window between removi
 file and its manifest entry: a crash there would otherwise leave a source recorded as indexed with
 no index, forever.
 
-#### 792b18c3a Scenarios
+##### 792b18c3a Scenarios
 
 ```gherkin
 Scenario: 792b18c3a1 An unchanged source is not re-embedded
@@ -159,7 +191,7 @@ Scenario: 792b18c3a4 A missing index file is rebuilt
   Then its index file is rebuilt
 ```
 
-### 792b18c4 Read and write failures
+#### 792b18c4 Read and write failures
 
 Requirement: [792b18c4 Read and write failures](#792b18c4-read-and-write-failures) When a source cannot be read, the chunk-index-store MUST return an error
 naming it if the source was named ([792b17c1 Named sources](./ingestion-source-discovery.md#792b17c1-named-sources)), and otherwise MUST print `skip <path>: <error>` on
@@ -168,7 +200,7 @@ index-file or manifest write, MUST be returned as an error.
 
 Supports: [792a5b1d An unreadable named file fails the command](../product/chunk-indexing.md#792a5b1-uat-scenarios), [792a5c1b A swept file that vanishes is skipped](../product/chunk-indexing.md#792a5c1-uat-scenarios).
 
-#### 792b18c4a Scenarios
+##### 792b18c4a Scenarios
 
 ```gherkin
 Scenario: 792b18c4a1 A vanished swept source is skipped and a named one fails
@@ -197,7 +229,7 @@ Scenario: 792b18c4a5 A manifest write failure fails the ingest
   Then the ingest fails with that error
 ```
 
-### 792b18c5 Rebuilding a source's index
+#### 792b18c5 Rebuilding a source's index
 
 Requirement: [792b18c5 Rebuilding a source's index](#792b18c5-rebuilding-a-sources-index) To rebuild a source, the chunk-index-store MUST chunk it ([source-chunking](./source-chunking.md)), a `.jsonl`
 source as transcript text from the [transcript-reader](./transcript-reader.md) and any other as Markdown, MUST keep
@@ -212,7 +244,7 @@ Rationale: reusing a chunk's vector by its text's hash means editing one section
 that section. Keeping every earlier record makes the index append-only within a source ([792a5j A source's chunks are never dropped](../product/chunk-indexing.md#792a5j-a-sources-chunks-are-never-dropped)),
 which is also why two byte-identical sources can hold different records ([792b18c7 Recording and evicting copies](#792b18c7-recording-and-evicting-copies)).
 
-#### 792b18c5a Scenarios
+##### 792b18c5a Scenarios
 
 ```gherkin
 Scenario: 792b18c5a1 A new document is chunked and embedded
@@ -246,7 +278,7 @@ Scenario: 792b18c5a6 The production wiring indexes a swept document
   Then the second sweep changes nothing and the search finds the document's text
 ```
 
-### 792b18c6 Grouping identical content
+#### 792b18c6 Grouping identical content
 
 Requirement: [792b18c6 Grouping identical content](#792b18c6-grouping-identical-content) The chunk-index-store MUST group the gathered sources by content hash and
 kind, `.jsonl` sources being transcripts and all others Markdown, and MUST pick each group's
@@ -263,7 +295,7 @@ the same bytes apart, since their chunks differ. Reconciling the preferred copy 
 index exists, or is known to be empty, before any copy is judged against it, so a copy found earlier
 in the sweep than its preferred twin is not refused for an accident of order.
 
-#### 792b18c6a Scenarios
+##### 792b18c6a Scenarios
 
 ```gherkin
 Scenario Outline: 792b18c6a1 Each precedence rule picks the preferred copy
@@ -306,7 +338,7 @@ Scenario: 792b18c6a6 A preferred copy found later is still reconciled first
   Then in this one run the preferred copy is indexed and the lower copy evicted
 ```
 
-### 792b18c7 Recording and evicting copies
+#### 792b18c7 Recording and evicting copies
 
 Requirement: [792b18c7 Recording and evicting copies](#792b18c7-recording-and-evicting-copies) The chunk-index-store MUST record each other member of a group as a copy of
 the preferred copy, with its signature and hash and no index file, writing nothing when it is
@@ -326,7 +358,7 @@ preferred copy's index existed could remove a file holding content found nowhere
 the manifest entry means an interrupted eviction leaves an entry without a file, which change detection repairs
 ([792b18c3 Change detection](#792b18c3-change-detection)), never a file nothing points to.
 
-#### 792b18c7a Scenarios
+##### 792b18c7a Scenarios
 
 ```gherkin
 Scenario: 792b18c7a1 A copy indexed first is evicted by its preferred twin
@@ -368,7 +400,7 @@ Scenario: 792b18c7a6 A copy is promoted when its preferred twin goes away
   Then /repo/.claude/doc.md is read and indexed
 ```
 
-### 792b18c8 Stray vault-note copies
+#### 792b18c8 Stray vault-note copies
 
 Requirement: [792b18c8 Stray vault-note copies](#792b18c8-stray-vault-note-copies) Before reconciling, the chunk-index-store MUST drop every gathered source that
 is not explicit, ends in `.md`, lies outside the resolved vault path, and has a sidecar ([792b10c2 Sidecar path](./embedding-sidecar.md#792b10c2-sidecar-path))
@@ -380,7 +412,7 @@ Rationale: a sidecar marks a vault note, so such a file outside the vault is a c
 one that identical-content grouping cannot match to its original. The rule is specific to vault
 notes; a drifted copy of any other document is not caught.
 
-#### 792b18c8a Scenarios
+##### 792b18c8a Scenarios
 
 ```gherkin
 Scenario: 792b18c8a1 A swept vault-note copy is dropped and a plain document kept
@@ -402,7 +434,7 @@ Scenario Outline: 792b18c8a2 Which sources are vault-note copies
     | a .md with a sidecar outside the vault           | a dropped copy   |
 ```
 
-### 792b18c9 Detaching vanished sources
+#### 792b18c9 Detaching vanished sources
 
 Requirement: [792b18c9 Detaching vanished sources](#792b18c9-detaching-vanished-sources) With neither `--empty` nor `--duplicates`, the chunk-index-store MUST remove
 from the manifest every source whose path no longer exists, leaving every index file in place, MUST
@@ -414,7 +446,7 @@ manifest write failure MUST be returned.
 
 Supports: [792a5p1a A deleted source is detached and stays searchable](../product/chunk-indexing.md#792a5p1-uat-scenarios), [792a5p1b A source that still exists is kept](../product/chunk-indexing.md#792a5p1-uat-scenarios), [792a5p1c An empty index has nothing to prune](../product/chunk-indexing.md#792a5p1-uat-scenarios), [792a5p1d A dry run changes nothing](../product/chunk-indexing.md#792a5p1-uat-scenarios).
 
-#### 792b18c9a Scenarios
+##### 792b18c9a Scenarios
 
 ```gherkin
 Scenario: 792b18c9a1 A dead source is detached and its index kept
@@ -448,7 +480,7 @@ Scenario: 792b18c9a6 Existence and removal go through the filesystem
   Then /live.jsonl exists, /dead.jsonl does not, and the removal reaches the filesystem
 ```
 
-### 792b18c10 Removing empty index files
+#### 792b18c10 Removing empty index files
 
 Requirement: [792b18c10 Removing empty index files](#792b18c10-removing-empty-index-files) With `--empty`, the chunk-index-store MUST read every index file ([792b18c12 Listing index files](#792b18c12-listing-index-files)),
 remove each that is empty unless `--dry-run` is given, leave the manifest and every other file alone,
@@ -457,7 +489,7 @@ dry run. A read or removal failure MUST be returned.
 
 Supports: [792a5q1a Empty index files are removed](../product/chunk-indexing.md#792a5q1-uat-scenarios), [792a5q1b A dry run removes nothing](../product/chunk-indexing.md#792a5q1-uat-scenarios).
 
-#### 792b18c10a Scenarios
+##### 792b18c10a Scenarios
 
 ```gherkin
 Scenario: 792b18c10a1 Only empty index files are removed
@@ -471,7 +503,7 @@ Scenario: 792b18c10a2 A dry run removes nothing
   Then the empty file remains and the output says [dry-run], removed 1 and of 2 scanned
 ```
 
-### 792b18c11 Collapsing duplicate groups
+#### 792b18c11 Collapsing duplicate groups
 
 Requirement: [792b18c11 Collapsing duplicate groups](#792b18c11-collapsing-duplicate-groups) With `--duplicates`, the chunk-index-store MUST group the manifest's entries
 that are not recorded copies by content hash and kind, and in each group of two or more MUST keep the
@@ -496,7 +528,7 @@ once with a preferred copy ([792b18c7 Recording and evicting copies](#792b18c7-r
 Recorded copies are skipped because they were never indexed. Groups whose sources yield no chunks are counted rather
 than listed, so they do not bury the real removals.
 
-#### 792b18c11a Scenarios
+##### 792b18c11a Scenarios
 
 ```gherkin
 Scenario: 792b18c11a1 A group collapses to its kept entry
@@ -560,7 +592,7 @@ Scenario: 792b18c11a12 A manifest write failure is returned
   Then the prune fails with that error
 ```
 
-### 792b18c12 Listing index files
+#### 792b18c12 Listing index files
 
 Requirement: [792b18c12 Listing index files](#792b18c12-listing-index-files) The chunk-index-store MUST list its index files as the entries of the chunks
 directory that are not directories and end in `.jsonl`, never from the manifest, MUST list none when
@@ -571,7 +603,7 @@ Supports: [792a5p1a A deleted source is detached and stays searchable](../produc
 Rationale: a detached source has no manifest entry, so its chunks stay searchable only because readers find index
 files by listing the directory.
 
-#### 792b18c12a Scenarios
+##### 792b18c12a Scenarios
 
 ```gherkin
 Scenario: 792b18c12a1 Index files are found by listing the directory
@@ -580,7 +612,7 @@ Scenario: 792b18c12a1 Index files are found by listing the directory
   Then the first lists none, the second lists a.jsonl and b.jsonl, and the third fails
 ```
 
-### 792b18c13 Chunk IDs
+#### 792b18c13 Chunk IDs
 
 Requirement: [792b18c13 Chunk IDs](#792b18c13-chunk-ids) The chunk-index-store MUST give the set of chunk IDs in the index, each
 record's `<source>#<anchor>`, read from every index file it lists, and MUST return an error when
@@ -588,7 +620,7 @@ listing, reading or decoding an index file fails.
 
 Supports: [792a4e1a Chunk sources are merged without duplicates](../product/note-revision.md#792a4e1-uat-scenarios), [792a4f1a An invalid amend argument is refused before any write](../product/note-revision.md#792a4f1-uat-scenarios).
 
-#### 792b18c13a Scenarios
+##### 792b18c13a Scenarios
 
 ```gherkin
 Scenario: 792b18c13a1 The set holds every record's ID
@@ -602,7 +634,7 @@ Scenario: 792b18c13a2 A failure is an error
   Then the error is returned
 ```
 
-### 792b18c14 First-indexed time
+#### 792b18c14 First-indexed time
 
 Requirement: [792b18c14 First-indexed time](#792b18c14-first-indexed-time) When rebuilding a source ([792b18c5 Rebuilding a source's index](#792b18c5-rebuilding-a-sources-index)), the chunk-index-store MUST stamp each chunk
 it embeds with `ingested_at`: for a transcript the last timestamp the [transcript-reader](./transcript-reader.md) returned
@@ -619,7 +651,7 @@ file's modification time would make one edit mark every chunk of the source as n
 shares the session's last timestamp, a sufficient approximation because each session is its own source. A record that
 predates the field is stamped from the manifest in place, because that is the only time the store has for it.
 
-#### 792b18c14a Scenarios
+##### 792b18c14a Scenarios
 
 ```gherkin
 Scenario: 792b18c14a1 A Markdown chunk takes the current time
@@ -653,7 +685,7 @@ Scenario: 792b18c14a6 A record without the field has no time
   Then its ingested_at is the zero time
 ```
 
-### 792b18c15 Reporting a prune backlog
+#### 792b18c15 Reporting a prune backlog
 
 Requirement: [792b18c15 Reporting a prune backlog](#792b18c15-reporting-a-prune-backlog) The chunk-index-store MUST report, without changing anything, whether the chunks
 directory holds at least one zero-byte file whose name ends in `.jsonl` (skipping directories), and
@@ -670,7 +702,7 @@ Rationale: `engram update` only notifies, so the notice must fire exactly when t
 Re-running prune's own check is cheaper to keep correct than a second copy of it, and costs one manifest read, with
 per-source reads only for groups of two or more.
 
-#### 792b18c15a Scenarios
+##### 792b18c15a Scenarios
 
 ```gherkin
 Scenario: 792b18c15a1 An empty index file is found

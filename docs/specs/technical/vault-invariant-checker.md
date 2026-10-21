@@ -1,6 +1,8 @@
 # Vault Invariant Checker - Technical Spec
 
-## 792b26a Orientation
+## 792b26 Vault Invariant Checker
+
+### 792b26a Orientation
 
 - Ownership: Repository component.
 - Responsibility: reads the notes and sidecars at a vault's root and reports which of the vault's
@@ -9,12 +11,27 @@
 - Current realization (informational): `internal/cli/check.go` (`RunCheck`, `CheckArgs`, `CheckDeps`,
   `checkGraphResolution`, `checkSituationPresence`, `checkSidecars`, `printLinkExamples`,
   `printNoteExamples`).
-- Qualification: responsibility, the invariants and their severities are stated without naming any
-  function; ownership, the [command-line-surface](./command-line-surface.md) decides how the failure reaches stderr and the exit
-  status, while this component decides what is judged and how; independent verification, it is
-  tested directly over a fake scan, note reader and sidecar reader and over a real directory;
-  stability, a vault with invariants that something checks is a lasting need; necessity, `engram
-  check` is this contract.
+- Qualification: Purpose: `engram check` is this contract ([Vault Health](../product/vault-health.md)). Contract: the
+  [Command Line Surface](./command-line-surface.md) decides how the failure reaches stderr and the exit status, while
+  this component decides what is judged and how; it is tested directly and over a real directory. Identity: a vault
+  with invariants that something checks is a lasting need. Value: testing downstream results never checks the
+  [vault](../../GLOSSARY.md#vault)'s own structure, and a link written in one form and resolved in another can
+  silently drop most of the vault's edges, so the invariants are executable: a check over the real vault that parses
+  it, with a severity that separates a break in correctness from corpus health. Responsibility (naming): the
+  invariants and their severities are stated without naming any function.
+- Required behavior: [Wikilink Graph](./wikilink-graph.md) scans the vault into one
+  [note](../../GLOSSARY.md#permanent-note) per `.md` file at its root, with the targets of the links in its text, or
+  returns the failure naming the path ([792b13c1 Vault scan](./wikilink-graph.md#792b13c1-vault-scan)), and lists the
+  link targets that resolve to no note ([792b13c6 Unresolved links](./wikilink-graph.md#792b13c6-unresolved-links)).
+- Required behavior: [Note Document Format](./note-document-format.md) reads a note as its LF form
+  ([792b6c8 CRLF reading](./note-document-format.md#792b6c8-crlf-reading)) and splits its text into frontmatter and
+  body, treating a text with no leading `---` line or no closing line as having no frontmatter
+  ([792b6c6 Frontmatter splitting](./note-document-format.md#792b6c6-frontmatter-splitting)).
+- Required behavior: [Embedding Sidecar](./embedding-sidecar.md) places a note's
+  [sidecar](../../GLOSSARY.md#sidecar-embedding-sidecar) beside it
+  ([792b10c2 Sidecar path](./embedding-sidecar.md#792b10c2-sidecar-path)) and decodes it under the current schema,
+  refusing malformed JSON, another schema version and a vector whose length differs from the dimension
+  ([792b10c1 Sidecar format](./embedding-sidecar.md#792b10c1-sidecar-format)).
 - Supported capabilities: [vault-health](../product/vault-health.md).
 
 Rationale: testing downstream results never checks the vault's own structure, and a link written in
@@ -24,9 +41,9 @@ a violation where an agent or a person will see it. Severity separates a break i
 breaks correctness and fails the run, while a `WARN` reports without blocking, because a
 legitimately standalone note or a deleted note's name is not an error.
 
-## 792b26c Behavior Requirements
+### 792b26c Behavior Requirements
 
-### 792b26c1 Running the checks
+#### 792b26c1 Running the checks
 
 Requirement: [792b26c1 Running the checks](#792b26c1-running-the-checks) The vault-invariant-checker MUST scan the vault ([792b13c1 Vault scan](./wikilink-graph.md#792b13c1-vault-scan)), run the link check
 ([792b26c2 Link resolution](#792b26c2-link-resolution)), then the situation check ([792b26c3 Situation presence](#792b26c3-situation-presence)), then the sidecar check ([792b26c4 Sidecar schema](#792b26c4-sidecar-schema)), and print each
@@ -40,7 +57,7 @@ Supports: [792a9a1a A clean vault passes](../product/vault-health.md#792a9a1-uat
 Rationale: a text search that stops at an invalid multibyte sequence silently skips notes and gives a
 false count, so a checker must not be built on one.
 
-#### 792b26c1a Scenarios
+##### 792b26c1a Scenarios
 
 ```gherkin
 Scenario: 792b26c1a1 A clean vault returns no error
@@ -69,7 +86,7 @@ Scenario: 792b26c1a5 A note that is not valid UTF-8 is checked
   Then the dangling link is reported
 ```
 
-### 792b26c2 Link resolution
+#### 792b26c2 Link resolution
 
 Requirement: [792b26c2 Link resolution](#792b26c2-link-resolution) The vault-invariant-checker MUST take the links that resolve to no note
 ([792b13c6 Unresolved links](./wikilink-graph.md#792b13c6-unresolved-links)) and treat a link as a G0 violation when its target is a bare Luhmann ID, one or more digits
@@ -87,7 +104,7 @@ Rationale: a link `[[105]]` for a note `105.2026-05-30.foo` could resolve if wri
 graph keys on, so it is a defect to fix and fails the run. A link to a name that is no note at all
 cannot be fixed by rewriting it, so it is only reported.
 
-#### 792b26c2a Scenarios
+##### 792b26c2a Scenarios
 
 ```gherkin
 Scenario: 792b26c2a1 A bare-ID link fails
@@ -116,7 +133,7 @@ Scenario: 792b26c2a5 No G3 line without a dangling link
   Then no G3 line is printed
 ```
 
-### 792b26c3 Situation presence
+#### 792b26c3 Situation presence
 
 Requirement: [792b26c3 Situation presence](#792b26c3-situation-presence) The vault-invariant-checker MUST read each scanned note, as its LF form, and
 split its frontmatter ([792b6c6 Frontmatter splitting](./note-document-format.md#792b6c6-frontmatter-splitting)), and MUST count a note of type `fact` or `feedback` whose `situation`
@@ -132,7 +149,7 @@ without one cannot be found by the situation it was written for. The write paths
 ([792a3f Required content](../product/note-writing.md#792a3f-required-content)), so this finds a note that reached the vault another way. A note that cannot be read or
 parsed is left for the checks that report it.
 
-#### 792b26c3a Scenarios
+##### 792b26c3a Scenarios
 
 ```gherkin
 Scenario: 792b26c3a1 A fact without a situation fails
@@ -171,7 +188,7 @@ Scenario: 792b26c3a7 An unreadable note is skipped
   Then it is not counted under M5
 ```
 
-### 792b26c4 Sidecar schema
+#### 792b26c4 Sidecar schema
 
 Requirement: [792b26c4 Sidecar schema](#792b26c4-sidecar-schema) The vault-invariant-checker MUST read the sidecar of each scanned note and
 decode it under the current schema ([792b10c1 Sidecar format](./embedding-sidecar.md#792b10c1-sidecar-format)). It MUST count a note with no readable sidecar file as
@@ -184,7 +201,7 @@ schema` when no sidecar is invalid, after any missing-sidecar line.
 
 Supports: [792a9a1a A clean vault passes](../product/vault-health.md#792a9a1-uat-scenarios), [792a9e1a An old-schema sidecar fails](../product/vault-health.md#792a9e1-uat-scenarios), [792a9e1b A malformed sidecar fails](../product/vault-health.md#792a9e1-uat-scenarios), [792a9e1c A current sidecar passes](../product/vault-health.md#792a9e1-uat-scenarios), [792a9e1d A missing sidecar warns](../product/vault-health.md#792a9e1-uat-scenarios).
 
-#### 792b26c4a Scenarios
+##### 792b26c4a Scenarios
 
 ```gherkin
 Scenario: 792b26c4a1 An old-schema sidecar fails
@@ -208,7 +225,7 @@ Scenario: 792b26c4a4 A malformed sidecar fails
   Then a FAIL line names S1 and the note
 ```
 
-### 792b26c5 Example lists
+#### 792b26c5 Example lists
 
 Requirement: [792b26c5 Example lists](#792b26c5-example-lists) The vault-invariant-checker MUST list at most ten offending items under a
 violated invariant, one per line, a link as `<source> → [[<target>]]` and a note by its basename, and
@@ -216,7 +233,7 @@ MUST follow ten with the line `… and <N> more` when more were found.
 
 Supports: [792a9a1d Offenders are capped at ten](../product/vault-health.md#792a9a1-uat-scenarios).
 
-#### 792b26c5a Scenarios
+##### 792b26c5a Scenarios
 
 ```gherkin
 Scenario: 792b26c5a1 Links are capped
@@ -230,7 +247,7 @@ Scenario: 792b26c5a2 Notes are capped
   Then ten are listed and the next line says "and 2 more"
 ```
 
-### 792b26c6 No writes
+#### 792b26c6 No writes
 
 Requirement: [792b26c6 No writes](#792b26c6-no-writes) The vault-invariant-checker MUST NOT create, modify or delete any file.
 
@@ -238,7 +255,7 @@ Supports: [792a9f1a A check leaves the vault as it was](../product/vault-health.
 
 Rationale: the checker is given listing and reading capabilities only, so it cannot write.
 
-#### 792b26c6a Scenarios
+##### 792b26c6a Scenarios
 
 ```gherkin
 Scenario: 792b26c6a1 A check writes nothing

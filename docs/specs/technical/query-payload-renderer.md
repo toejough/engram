@@ -1,6 +1,8 @@
 # Query Payload Renderer - Technical Spec
 
-## 792b23a Orientation
+## 792b23 Query Payload Renderer
+
+### 792b23a Orientation
 
 - Ownership: Repository component; the YAML document goes to stdout.
 - Responsibility: turns what the [query-engine](./query-engine.md) found into the payload the reader gets. It puts the
@@ -15,21 +17,39 @@
   `merged_query.go`; `capRedFlagsForPreview` in `internal/cli/redflags_truncation.go`. The keys that
   lead a payload with pending offers ([curate](../product/curate.md)) are added by that capability, and the tags of a
   merged payload are [792b23c9 The item tags of a merge](#792b23c9-the-item-tags-of-a-merge).
-- Qualification: responsibility, shaping and cutting a payload is stated without naming any
-  function; ownership, the [query-engine](./query-engine.md) decides what is in it, while this component owns its order,
-  its cuts and its labels; independent verification, it is tested directly on item lists and notes,
-  with a property test for the red-flag preview; stability, the contract survives any change to how
-  matches are found; necessity, every query payload is made by it.
-- Supported capabilities: [memory-query](../product/memory-query.md), [parent-sync](../product/parent-sync.md) ([792b23c9 The item tags of a merge](#792b23c9-the-item-tags-of-a-merge)), [curate](../product/curate.md) ([792b23c10 The lead of a payload with pending offers](#792b23c10-the-lead-of-a-payload-with-pending-offers)). Recall extends it.
+- Qualification: Purpose: every query payload is made by it ([Memory Query](../product/memory-query.md)). Contract:
+  the [Query Engine](./query-engine.md) decides what is in it, while this component owns its order, its cuts and its
+  labels; it is tested directly on item lists and [notes](../../GLOSSARY.md#permanent-note), with a property test for
+  the red-flag preview. Identity: the contract survives any change to how matches are found. Value: a recall pass
+  carries less to read without losing reach, because the payload is cut where the reader gains least, and a reader
+  that opens the payload through a tool that truncates its output still sees the most recent red flag. Responsibility
+  (naming): shaping and cutting a payload is stated without naming any function.
+- Required behavior: [Query Engine](./query-engine.md) gives the phrases queried and the limit
+  ([792b24c1 Input and defaults](./query-engine.md#792b24c1-input-and-defaults)), the
+  [clusters](../../GLOSSARY.md#cluster-query-time) found ([792b24c9 Clusters](./query-engine.md#792b24c9-clusters)),
+  the explore allocation
+  ([792b24c16 Delivering the explore half](./query-engine.md#792b24c16-delivering-the-explore-half)), the other
+  figures of the budget block ([792b23c6 Budget block](#792b23c6-budget-block)) and, when timing is on, the readings
+  of the clock at the start of the query and at the end of each stage
+  ([792b24c24 Stage readings](./query-engine.md#792b24c24-stage-readings)).
+- Required behavior: go.yaml.in/yaml/v3 (external) is assumed to write the fields of the payload as YAML keys in the
+  order declared, indented by the width set, and to leave out a field marked to be omitted when empty
+  ([792b23c1 The document](#792b23c1-the-document)); authoritative contract: not recorded in this repository;
+  compatibility verification: `internal/cli/query_test.go` checks the order of the lead keys and the omission of an
+  empty field in the encoded text, none for the indentation.
+- Supported capabilities: [memory-query](../product/memory-query.md), [parent-sync](../product/parent-sync.md)
+  ([792b23c9 The item tags of a merge](#792b23c9-the-item-tags-of-a-merge)), [curate](../product/curate.md)
+  ([792b23c10 The lead of a payload with pending offers](#792b23c10-the-lead-of-a-payload-with-pending-offers)).
+  [Recall](../product/recall.md) extends it.
 
 Rationale: a recall pass should carry less to read without losing reach, so the payload is cut where
 the reader gains least: chunk text is shortened or fetched on demand, the newest chunks have a count of
 their own, and the matched items have a limit. A reader that opens the payload through a tool that truncates its output must still see the most
 recent red flag, which a long runbook would otherwise leave past the truncation boundary.
 
-## 792b23c Behavior Requirements
+### 792b23c Behavior Requirements
 
-### 792b23c1 The document
+#### 792b23c1 The document
 
 Requirement: [792b23c1 The document](#792b23c1-the-document) The query-payload-renderer MUST encode one YAML document with the keys `version`
 (always 1), `phrases`, `items`, `clusters`, `budget`, `refit_pending`, `model_id` and `timings`, in that
@@ -39,7 +59,7 @@ is empty, and MUST give `items` and `clusters` as empty lists, not omit them, wh
 
 Supports: [792a7b1a The payload has the documented shape](../product/memory-query.md#792a7b1-uat-scenarios), [792a7zc1a Every payload names its model](../product/memory-query.md#792a7zc1-uat-scenarios), [792a7zd1a A pending refit is reported](../product/memory-query.md#792a7zd1-uat-scenarios), [792a7zd1b Otherwise the field is absent](../product/memory-query.md#792a7zd1-uat-scenarios).
 
-#### 792b23c1a Scenarios
+##### 792b23c1a Scenarios
 
 ```gherkin
 Scenario: 792b23c1a1 A pending refit is reported
@@ -63,7 +83,7 @@ Scenario: 792b23c1a4 The keys come in order
   Then version, phrases, items, clusters, budget and model_id appear in that order
 ```
 
-### 792b23c2 Item labels
+#### 792b23c2 Item labels
 
 Requirement: [792b23c2 Item labels](#792b23c2-item-labels) The query-payload-renderer MUST give each item its `path`, `kind`, `score` and
 `provenances`, its `content` unless that is empty, and its `source_term` when it has one. The kind of a
@@ -73,7 +93,7 @@ frontmatter that has a type, has no such line there, or has the line later.
 
 Supports: [792a7b1b A note item is labelled by its type](../product/memory-query.md#792a7b1-uat-scenarios), [792a7m1a An explore note names its term](../product/memory-query.md#792a7m1-uat-scenarios), [792a7zg1f A CRLF note keeps its kind](../product/memory-query.md#792a7zg1-uat-scenarios).
 
-#### 792b23c2a Scenarios
+##### 792b23c2a Scenarios
 
 ```gherkin
 Scenario Outline: 792b23c2a1 The kind of a note
@@ -101,7 +121,7 @@ Scenario: 792b23c2a3 An explore item shows its term
   Then it contains "- explore" and "source_term: topic-a"
 ```
 
-### 792b23c3 Order and limit
+#### 792b23c3 Order and limit
 
 Requirement: [792b23c3 Order and limit](#792b23c3-order-and-limit) The query-payload-renderer MUST place the items that are trigger hits first, then the
 other items that are not recent chunks, cut to the first `limit` of them in the order given, then the
@@ -114,7 +134,7 @@ Rationale: the recency channel has its own count, so cutting both under one limi
 whole channel in any vault whose matches reach the limit, which is routine; trigger hits are exempt so
 that a cue the author declared is never cut by an unrelated limit ([runbook-trigger-matching](./runbook-trigger-matching.md)).
 
-#### 792b23c3a Scenarios
+##### 792b23c3a Scenarios
 
 ```gherkin
 Scenario: 792b23c3a1 Only the first N are kept
@@ -148,7 +168,7 @@ Scenario: 792b23c3a6 A trigger hit does not use the limit
   Then items holds the hit first and then one other item
 ```
 
-### 792b23c4 Chunk content budget
+#### 792b23c4 Chunk content budget
 
 Requirement: [792b23c4 Chunk content budget](#792b23c4-chunk-content-budget) The query-payload-renderer MUST keep the first `budget` chunk items of the payload,
 in the order printed, with their full content and MUST replace the content of every later chunk item
@@ -159,7 +179,7 @@ collapsed to one space and the ends trimmed, and when it is longer than 160 char
 
 Supports: [792a7r1a Later chunks become snippets](../product/memory-query.md#792a7r1-uat-scenarios), [792a7r1b A long chunk is cut with an ellipsis](../product/memory-query.md#792a7r1-uat-scenarios), [792a7r1c Notes are never reduced](../product/memory-query.md#792a7r1-uat-scenarios), [792a7r1d A negative budget means none](../product/memory-query.md#792a7r1-uat-scenarios).
 
-#### 792b23c4a Scenarios
+##### 792b23c4a Scenarios
 
 ```gherkin
 Scenario: 792b23c4a1 Later chunks become snippets
@@ -183,7 +203,7 @@ Scenario: 792b23c4a4 A snippet collapses and truncates
   Then the first is "hello world" and the second is at most 160 characters ending in …
 ```
 
-### 792b23c5 Lazy chunks
+#### 792b23c5 Lazy chunks
 
 Requirement: [792b23c5 Lazy chunks](#792b23c5-lazy-chunks) When lazy chunks are on, the query-payload-renderer MUST clear the content of every
 chunk item, MUST leave every note item's content, MUST NOT snippet anything, and MUST put
@@ -191,7 +211,7 @@ chunk item, MUST leave every note item's content, MUST NOT snippet anything, and
 
 Supports: [792a7s1a Chunks carry no content](../product/memory-query.md#792a7s1-uat-scenarios), [792a7s1b Notes keep their content](../product/memory-query.md#792a7s1-uat-scenarios), [792a7s1c The environment can turn it on](../product/memory-query.md#792a7s1-uat-scenarios), [792a7s1d Without the flag the field is absent](../product/memory-query.md#792a7s1-uat-scenarios).
 
-#### 792b23c5a Scenarios
+##### 792b23c5a Scenarios
 
 ```gherkin
 Scenario: 792b23c5a1 Chunks are cleared and notes kept
@@ -210,7 +230,7 @@ Scenario: 792b23c5a3 Without lazy mode the key is absent
   Then the budget has no lazy_chunks and chunks_snippeted: 1
 ```
 
-### 792b23c6 Budget block
+#### 792b23c6 Budget block
 
 Requirement: [792b23c6 Budget block](#792b23c6-budget-block) The query-payload-renderer MUST fill the budget with the phrases queried, the notes
 in the vault, the notes with embeddings, the clusters found, the limit and the explore allocation as
@@ -221,7 +241,7 @@ MUST print `explore_allocated` in every payload, `{}` when empty.
 
 Supports: [792a7b1a The payload has the documented shape](../product/memory-query.md#792a7b1-uat-scenarios), [792a7m1c The budget counts what was delivered](../product/memory-query.md#792a7m1-uat-scenarios), [792a7q1a The default caps a large result](../product/memory-query.md#792a7q1-uat-scenarios).
 
-#### 792b23c6a Scenarios
+##### 792b23c6a Scenarios
 
 ```gherkin
 Scenario: 792b23c6a1 The limit is reported as given
@@ -240,7 +260,7 @@ Scenario: 792b23c6a3 The allocation is always present
   Then the budget has explore_allocated: {}
 ```
 
-### 792b23c7 Stage timings
+#### 792b23c7 Stage timings
 
 Requirement: [792b23c7 Stage timings](#792b23c7-stage-timings) When timing is on, the query-payload-renderer MUST read the injected clock to end the
 render stage and MUST add the `timings` block with `scan_ms`, `embed_ms`, `cluster_ms`, `nominate_ms`
@@ -254,7 +274,7 @@ Supports: [792a7ze1a Timings are reported on request](../product/memory-query.md
 Rationale: a measurement-only diagnostic: the clock is injected so that tests can script it, and
 the default payload stays unchanged so that consumers that ignore the block are unaffected.
 
-#### 792b23c7a Scenarios
+##### 792b23c7a Scenarios
 
 ```gherkin
 Scenario: 792b23c7a1 Each stage is the gap between readings
@@ -268,7 +288,7 @@ Scenario: 792b23c7a2 No timing, no block
   Then it contains no timings
 ```
 
-### 792b23c8 Red-flag preview
+#### 792b23c8 Red-flag preview
 
 Requirement: [792b23c8 Red-flag preview](#792b23c8-red-flag-preview) The query-payload-renderer MUST preview the content of a note read as its LF form
 so that a `red_flags:` list taking more than 1200 bytes of rendered YAML keeps its newest entries,
@@ -287,7 +307,7 @@ resolves and the reader knows how much it has not seen. The budget is counted in
 the marker's own length depends on how many entries it says were dropped, so the cut is refitted until
 the kept set stops shrinking.
 
-#### 792b23c8a Scenarios
+##### 792b23c8a Scenarios
 
 ```gherkin
 Scenario: 792b23c8a1 An oversized list keeps its newest entry
@@ -336,7 +356,7 @@ Scenario: 792b23c8a9 A query shows a runbook's red flags
   Then its content holds done_when, red_flags and both entries
 ```
 
-### 792b23c9 The item tags of a merge
+#### 792b23c9 The item tags of a merge
 
 Requirement: [792b23c9 The item tags of a merge](#792b23c9-the-item-tags-of-a-merge) The query-payload-renderer MUST write an item's `from_parent` and `model_id` only when a merge tagged
 the item, writing `from_parent: false` explicitly for a local item of a merged payload, so that a payload that no merge
@@ -348,7 +368,7 @@ Rationale: a boolean that is omitted when false would drop the local items' expl
 not tell a local item from an item with no origin. The tag is a pointer for that reason, and each item gets its own, so
 that a later write through one never aliases another.
 
-#### 792b23c9a Scenarios
+##### 792b23c9a Scenarios
 
 ```gherkin
 Scenario: 792b23c9a1 No merge, no from_parent
@@ -362,7 +382,7 @@ Scenario: 792b23c9a2 A local item of a merged payload says false
   Then the local item has from_parent: false and the parent item has from_parent: true
 ```
 
-### 792b23c10 The lead of a payload with pending offers
+#### 792b23c10 The lead of a payload with pending offers
 
 Requirement: [792b23c10 The lead of a payload with pending offers](#792b23c10-the-lead-of-a-payload-with-pending-offers) The query-payload-renderer MUST write `pending_offers` and `pending_offers_hint` immediately after `version`, before
 `items` and every other large field, so that a truncated preview of a large payload still shows them, and MUST write neither when
@@ -372,7 +392,7 @@ Supports: [792a22o1c The flag and hint lead the payload](../product/curate.md#79
 
 Rationale: an agent that reads only the first part of a large payload must still see that offers wait.
 
-#### 792b23c10a Scenarios
+##### 792b23c10a Scenarios
 
 ```gherkin
 Scenario: 792b23c10a1 The flag and hint lead a large payload
