@@ -313,7 +313,7 @@ Recall's two rungs (the depth dial, #662). `deep` (default) = the full procedure
 crystallization writes that grow the vault. `glance` (opt-in) = read-only (no crystallization
 writes): ~3 phrases; *applies* memory to the decision without growing the vault. Glance escalates
 to `deep` for C5 (recency-channel standards) — it surfaces the recent marker but won't elevate it
-to a requirement (#661).
+to a requirement (#661). Automatic memory gives each [recall moment](#recall-moment) one of these as its [depth](#depth-recall-moment), or none.
 
 
 ### Step 0 / Step 1 / …
@@ -607,6 +607,78 @@ vault). Machine-written and excluded from `BodyText`/`ContentHash` so a
 contributors-only update leaves the embedding and content hash unchanged.
 Powers `vaultgraph.InDegreeIn` usage counting as a graded signal that
 scales with accumulated Q&A capture.
+
+---
+
+## Automatic memory terms
+
+Terms of the automatic channel of recall and learn; specified in [automatic-memory](./specs/product/automatic-memory.md) and [automatic-memory-mod](./specs/technical/automatic-memory-mod.md).
+
+### agent (automatic memory)
+The AI the user works with in a Claude Code [session](#session), not a [subagent](#subagent).
+
+### prompt (automatic memory)
+A message the user sends to the [agent](#agent-automatic-memory).
+
+### turn (automatic memory)
+A [prompt](#prompt-automatic-memory) and everything the agent does in answer, until it hands control back to the user.
+
+### recall moment
+A point at which the [recall skill](#recall-skill)'s own rule says to run it: a [prompt](#prompt-automatic-memory) for which the request might entail more than a single tool call or anything more than quick, shallow thinking, or one of three points in a [turn](#turn-automatic-memory) that the recall guidance for the [agent](#agent-automatic-memory) names: the agent is about to declare its work done, has just failed in a way it cannot immediately explain, or is about to start building a new approach. The user can read that rule and those cues in the skill's description and the guidance.
+
+### depth (recall moment)
+How much of the recall skill a recall moment calls for: none, which is not a recall moment, glance, which reads, or deep, which reads and also writes as the skill's deep mode writes. The recall skill says when each fits: deep when the decision is weighty or irreversible. Its values glance and deep are the rungs of [recall modes](#recall-modes--glance--deep).
+
+### passage
+A stretch of an earlier conversation that the [sweep](#sweep) made searchable.
+
+### applies to a recall moment
+A [note](#permanent-note) or a passage applies to a recall moment when the recall skill, run at the depth the moment calls for, for that moment in a [session](#session) on the same [vault](#vault) in which [automatic memory](#automatic-memory) is not on, draws on it; of two notes that conflict because the newer reverses the older, only the newer applies. The user can run the skill at that depth, ask the agent to name what it drew on, and read it. Automatic memory looks up the vault of the session only, so a note of a parent vault ([`ENGRAM_PARENT`](#parent-sync-engram_parent)) that the recall skill would draw on is not delivered.
+
+### automatic memory
+What is done without the user or the agent asking: notes and passages that apply to a recall moment arrive in the agent's context ([793a2b Memory arrives with the prompt](./specs/product/automatic-memory.md#793a2b-memory-arrives-with-the-prompt)), lessons are written as notes ([793a2c Lessons are written without the agent](./specs/product/automatic-memory.md#793a2c-lessons-are-written-without-the-agent)) and the conversation becomes searchable ([793a2f The conversation becomes searchable memory](./specs/product/automatic-memory.md#793a2f-the-conversation-becomes-searchable-memory)).
+
+### recognised credential
+One of these, as a [turn](#turn-automatic-memory) holds it: a private key block; a token of three parts joined by dots that begins `eyJ`, each part of 8 or more letters, digits, `_` or `-` (the first counted after `eyJ`); `sk`, `pk`, `rk`, `ghp`, `gho`, `ghs`, `ghu`, `ghr`, `github_pat`, `npm` or `glpat`, then `-` or `_` and 16 or more letters, digits, `_` or `-`; `AKIA` or `ASIA` and exactly 16 capital letters or digits; `AIza` and 30 or more letters, digits, `_` or `-`; `xoxa-`, `xoxb-`, `xoxp-`, `xoxr-` or `xoxs-` and 10 or more letters, digits or `-`; `Bearer` or `Basic`, in any case, white space and 12 or more letters, digits or `._~+/=-`; the user and password of a web address; the rest of the line of an `Authorization` header; the value that `=`, `:` or `is` gives to a name that holds `key`, `token`, `secret`, `password`, `passwd`, `pwd`, `credential` or `authorization`, or is `pass` or ends in `_pass` or `-pass`, in any case, with up to six words of the sentence between the name and `:` or `is`; a run of 32 or more letters, digits, `+`, `_` or `=` that holds a letter and a digit, other than the 40 lowercase hexadecimal digits of a commit.
+
+### sweep
+The indexing of a [session](#session)'s conversation that makes it findable by `engram query` ([793a2f The conversation becomes searchable memory](./specs/product/automatic-memory.md#793a2f-the-conversation-becomes-searchable-memory)).
+
+### mod
+A mod is a folder Claude Code loads as a plugin of function hooks when it sits in `~/.claude/skills/<name>` (also as a link): its hooks module registers functions for session events, and `prompt.submit` runs for each prompt before it enters the session, where a function may add context that the model reads beside the prompt and the user does not see.
+
+### step (automatic memory)
+An `engram auto <step>` command: `moment`, `phrases`, `recall`, `deliver`, `write`, `judge`, `place` or `sweep`.
+
+### request (automatic memory)
+The object a step prints for a judgement: `model`, `effort` (cheap tier only), `system`, `prompt`, `maxTokens`, and, in a capture only, `timeoutMs`.
+
+### carry
+The object a step prints beside a request, which the mod gives back to the next step with the model's reply and reads no part of.
+
+### cue
+What raised a moment: `prompt`, `before-tool`, `failure`, `batch-done` or `turn-end`.
+
+### seen note
+A [note](#permanent-note) written, delivered or looked up earlier in the same [session](#session).
+
+### row (automatic memory)
+One line of a budget table: the bound of one wait, in seconds.
+
+### reply (automatic memory)
+A reply that a step reads, a moment reply included (`{"depth":...}`, `{"learn":...}`), is a JSON value, fenced or not, or one that follows the model's reasoning: it is read as the reply unfenced when that is valid JSON, and otherwise as the last JSON value that begins with a brace or a bracket and runs to the end of the reply; one rule reads them all.
+
+### failed step
+A step that exits with other than 0 or cannot be run, or prints what is neither nothing nor a request (for `deliver`, nor a block), or a model call that gives no text or rejects, or a wait that passes its bound without an answer.
+
+### held (delivered IDs)
+The IDs of the notes and passages the mod delivered in the session within a [turn](#turn-automatic-memory) ([855d2c Mid-turn recall flow](./specs/technical/mid-turn-recall-workflow.md#855d2c-mid-turn-recall-flow)).
+
+### date (automatic memory)
+The day a candidate line carries: for a note the day it was written (its `created` field), for a chunk the time the index holds, which is the time of the last row of its session for a [transcript](#transcript) ([855d4b Looking up the candidates for the phrases](./specs/technical/recall-lookup.md#855d4b-looking-up-the-candidates-for-the-phrases)).
+
+### report of a failure
+When the session's ID is known, `engram auto write` with the session's ID, the turn's ID when there is one, and a `failure`, a sentence that names the step and how it failed, run from a timer (`$.clock.after`) so that no call of the host is in flight when the hook settles.
 
 ---
 
