@@ -1,6 +1,8 @@
 # Parent Vault Client - Technical Spec
 
-## 792b37a Orientation
+## 792b37 Parent Vault Client
+
+### 792b37a Orientation
 
 - Ownership: Repository-owned dependency-boundary interaction (the HTTP client of a parent vault's served routes).
 - Responsibility: asks the configured parent vault for what a child reads from it and brings the answer into the child's
@@ -12,15 +14,51 @@
   `dispatchShow`, `fetchShowFallback`, `writeParentSourced`), `merged_query.go` (`runMergedQuery`, `mergeQueryPayloads`),
   `merged_dedupe.go` (`matchLocalNote`, `dedupeParentItems`, `capMergedChannelOne`) and `pulldown.go` (`pullSession`,
   `buildPulledNote`, `parsePulledSource`).
-- Qualification: responsibility, the parent requests, the merge and the pull-down are stated without naming a function;
-  ownership, it owns what is asked of the parent and how the answer enters the vault, while the parent's side of each route
-  is vault-http-server's ([vault-http-server](./vault-http-server.md)), the cache, the backoff gate and the declined-pull record are
-  vault-identity-registry's ([792b5c14 The parent cache and the contact backoff](./vault-identity-registry.md#792b5c14-the-parent-cache-and-the-contact-backoff) to [792b5c16 The declined-pull record](./vault-identity-registry.md#792b5c16-the-declined-pull-record)), the routing of `show` and `activate` is the command-line-surface's ([command-line-surface](./command-line-surface.md)) and
-  note-amendment's ([792b2c10 Parent routing of note lookup](./command-line-surface.md#792b2c10-parent-routing-of-note-lookup), [792b14c12 Activation against the parent](./note-amendment.md#792b14c12-activation-against-the-parent)), and the outbox drain it triggers is offer-outbox's ([offer-outbox](./offer-outbox.md)); independent
-  verification, the merge is tested as pure functions over payloads and notes, and the requests through an injected fetch
-  capability over scripted answers; stability, the contract survives a new parent route or a change to the merge's
-  ordering; necessity, without it a child could neither read its parent's notes nor use them.
-- Supported capabilities: [parent-sync](../product/parent-sync.md).
+- Qualification: Purpose: without it a child could neither read its parent's notes nor use them. Contract: it owns
+  what is asked of the parent and how the answer enters the vault, while the parent's side of each route is
+  vault-http-server's ([vault-http-server](./vault-http-server.md)), the cache, the backoff gate and the declined-pull
+  record are vault-identity-registry's
+  ([792b5c14 The parent cache and the contact backoff](./vault-identity-registry.md#792b5c14-the-parent-cache-and-the-contact-backoff)
+  to [792b5c16 The declined-pull record](./vault-identity-registry.md#792b5c16-the-declined-pull-record)), the routing
+  of `show` and `activate` is the command-line-surface's ([command-line-surface](./command-line-surface.md)) and
+  note-amendment's
+  ([792b2c10 Parent routing of note lookup](./command-line-surface.md#792b2c10-parent-routing-of-note-lookup),
+  [792b14c12 Activation against the parent](./note-amendment.md#792b14c12-activation-against-the-parent)), and the
+  outbox drain it triggers is offer-outbox's ([offer-outbox](./offer-outbox.md)); the merge is tested as pure
+  functions over payloads and notes, and the requests through an injected fetch capability over scripted answers.
+  Identity: the contract survives a new parent route or a change to the merge's ordering. Value: every request to the
+  parent goes through the same gated, backoff-aware contact, so a down parent costs one connect timeout per window and
+  not one per command ([792b37c4 The merged query](#792b37c4-the-merged-query),
+  [792b37c11 A pull-down is a gated parent contact](#792b37c11-a-pull-down-is-a-gated-parent-contact)). Responsibility
+  (naming): the parent requests, the merge and the pull-down are stated without naming a function.
+- Required behavior: [Vault HTTP Server](./vault-http-server.md) answers `GET /query` with the payload the local query
+  prints, adding the served [vault ID](../../GLOSSARY.md#vault-id) and each [note](../../GLOSSARY.md#permanent-note)'s
+  [exchange hash](../../GLOSSARY.md#exchange-hash) and aliases when `dedupe-keys=1` is given
+  ([792b35c4 The query route](./vault-http-server.md#792b35c4-the-query-route),
+  [792b35c5 Dedupe keys](./vault-http-server.md#792b35c5-dedupe-keys)), answers `GET /show` with `raw=1` with an
+  envelope of vault ID, basename, content and exchange hash and answers 404 for a pending note
+  ([792b35c6 The show route](./vault-http-server.md#792b35c6-the-show-route)), answers `POST /activate`
+  ([792b35c7 The activate route](./vault-http-server.md#792b35c7-the-activate-route)) and makes a child's requests to
+  its parent with a bounded connect step and total time
+  ([792b35c17 The bounded fetch client](./vault-http-server.md#792b35c17-the-bounded-fetch-client)).
+- Required behavior: [Vault Identity Registry](./vault-identity-registry.md) stamps a missing vault ID
+  ([792b5c4 Vault ID stamping](./vault-identity-registry.md#792b5c4-vault-id-stamping)), checks the
+  [vault](../../GLOSSARY.md#vault)'s location
+  ([792b5c7 Location record and check](./vault-identity-registry.md#792b5c7-location-record-and-check)), reports a
+  vault that is its own parent
+  ([792b5c12 Self-parent guard](./vault-identity-registry.md#792b5c12-self-parent-guard)), keeps the parent cache and
+  says whether a command may contact the parent
+  ([792b5c14 The parent cache and the contact backoff](./vault-identity-registry.md#792b5c14-the-parent-cache-and-the-contact-backoff)),
+  accepts only well-formed vault IDs and basenames from the parent
+  ([792b5c15 Exchange identifiers](./vault-identity-registry.md#792b5c15-exchange-identifiers)) and keeps the
+  declined-pull record
+  ([792b5c16 The declined-pull record](./vault-identity-registry.md#792b5c16-the-declined-pull-record)).
+- Required behavior: [Exchange Versioning](./exchange-versioning.md) gives a note's exchange hash
+  ([792b33c1 The exchange hash](./exchange-versioning.md#792b33c1-the-exchange-hash)) and compares two hashes as
+  equal, changed or unknown ([792b33c5 Comparing two hashes](./exchange-versioning.md#792b33c5-comparing-two-hashes)).
+- Required behavior: [Offer Outbox](./offer-outbox.md) drains the queued [offers](../../GLOSSARY.md#offer) once a
+  command has reached the parent ([792b36c5 Before a drain sends](./offer-outbox.md#792b36c5-before-a-drain-sends)).
+- Supported capabilities: [parent-sync](../product/parent-sync.md), [Vault Identity](../product/vault-identity.md).
 
 Rationale: a node with a parent wants one coherent answer, so the merge fuses two complete payloads and
 leaves the clusters to the local node, and it fuses notes only, because chunks are the machine's own transcript text. A
@@ -29,9 +67,9 @@ it before it counts as knowledge, and its exchange hash equals the parent's, whi
 dedupe see the pair. Every request to the parent goes through the same gated, backoff-aware contact, so a down parent costs
 one connect timeout per window and not one per command.
 
-## 792b37c Behavior Requirements
+### 792b37c Behavior Requirements
 
-### 792b37c1 The parent address
+#### 792b37c1 The parent address
 
 Requirement: [792b37c1 The parent address](#792b37c1-the-parent-address) The parent-vault-client MUST take the parent's base URL from the `ENGRAM_PARENT` environment value
 and MUST have no parent when the value is empty or the environment is not available.
@@ -40,7 +78,7 @@ Supports: [792a21b1a ENGRAM_PARENT names the one parent](../product/parent-sync.
 
 Rationale: the parent is an additive setting: a set `ENGRAM_PARENT` adds a step to local behavior and never replaces it.
 
-#### 792b37c1a Scenarios
+##### 792b37c1a Scenarios
 
 ```gherkin
 Scenario: 792b37c1a1 The base URL comes from the environment
@@ -54,7 +92,7 @@ Scenario: 792b37c1a2 No environment, no parent
   Then there is no parent
 ```
 
-### 792b37c2 A request to the parent
+#### 792b37c2 A request to the parent
 
 Requirement: [792b37c2 A request to the parent](#792b37c2-a-request-to-the-parent) The parent-vault-client MUST send each request to the base URL joined with the route and a query
 string of percent-encoded keys and values in sorted key order, repeating a key once per value, so that any text, quotes,
@@ -67,7 +105,7 @@ Supports: [792a21k1a The parent does not respond](../product/parent-sync.md#792a
 Rationale: `internal/` may not import `net/url`, so the encoder is hand-written and held to a round-trip test. An outage backs
 the parent off and a 4xx does not, which is why the two errors differ ([792b5c14 The parent cache and the contact backoff](./vault-identity-registry.md#792b5c14-the-parent-cache-and-the-contact-backoff)).
 
-#### 792b37c2a Scenarios
+##### 792b37c2a Scenarios
 
 ```gherkin
 Scenario: 792b37c2a1 A note reference is percent-encoded
@@ -91,7 +129,7 @@ Scenario: 792b37c2a4 A non-2xx answer carries the server's message
   Then the first error says "no such note" and the second carries the raw text
 ```
 
-### 792b37c3 The parent's query answer
+#### 792b37c3 The parent's query answer
 
 Requirement: [792b37c3 The parent's query answer](#792b37c3-the-parents-query-answer) To fetch the parent's answer to a query, the parent-vault-client MUST send a `GET /query` carrying
 each query input that is set (every phrase, `limit`, `project`, `text`, `content-budget`, `recent-fill`, `lazy-chunks` and
@@ -103,7 +141,7 @@ Supports: [792a21c1a Local and parent results appear in one ranked list](../prod
 Rationale: a payload decoded into the type the local query renders can be merged with it before a single render, where
 copying the parent's bytes to the output could not.
 
-#### 792b37c3a Scenarios
+##### 792b37c3a Scenarios
 
 ```gherkin
 Scenario: 792b37c3a1 Every set input is sent
@@ -127,7 +165,7 @@ Scenario: 792b37c3a4 A non-2xx or a transport failure fails
   Then each fails, the second as unreachable
 ```
 
-### 792b37c4 The merged query
+#### 792b37c4 The merged query
 
 Requirement: [792b37c4 The merged query](#792b37c4-the-merged-query) With `ENGRAM_PARENT` set, `engram query` MUST run the merged path and with it unset MUST run the local
 query with no request. The merged path MUST first make the parent contact: stamp a missing vault ID and check the vault's
@@ -144,7 +182,7 @@ Supports: [792a21c1a Local and parent results appear in one ranked list](../prod
 Rationale: a node's recall must not depend on its parent's availability, so every failure falls back to the local
 answer. Fetching unbounded and capping once is what keeps the merged size at the requested budget and not at twice it.
 
-#### 792b37c4a Scenarios
+##### 792b37c4a Scenarios
 
 ```gherkin
 Scenario: 792b37c4a1 The request asks for dedupe keys and the answer's vault ID is cached
@@ -188,7 +226,7 @@ Scenario: 792b37c4a8 A merged answer drains the outbox
   Then the offers are sent after the answer
 ```
 
-### 792b37c5 Dropping and tagging the parent's items
+#### 792b37c5 Dropping and tagging the parent's items
 
 Requirement: [792b37c5 Dropping and tagging the parent's items](#792b37c5-dropping-and-tagging-the-parents-items) The parent-vault-client MUST drop every item of the parent's answer whose kind is `chunk` or whose
 provenances include `recent`, before any other step of the merge. It MUST tag every item with the `model_id` of the node
@@ -201,7 +239,7 @@ Rationale: chunks never cross vaults. A refusal on a model mismatch would break 
 that upgrades its embedding model one environment at a time. Each item gets its own pointer so that a later write
 through one never aliases another.
 
-#### 792b37c5a Scenarios
+##### 792b37c5a Scenarios
 
 ```gherkin
 Scenario: 792b37c5a1 Parent chunks and its recency channel are dropped
@@ -225,7 +263,7 @@ Scenario: 792b37c5a4 Each tagged item has its own tag
   Then every item holds its own from_parent value and none shares a pointer
 ```
 
-### 792b37c6 Deduping against the local notes
+#### 792b37c6 Deduping against the local notes
 
 Requirement: [792b37c6 Deduping against the local notes](#792b37c6-deduping-against-the-local-notes) The parent-vault-client MUST treat a parent item P as the same note as a live local note L when L's
 `parent.vault` is the vault ID the parent reported in this query and any of L's links names P's basename or one of its
@@ -244,7 +282,7 @@ Rationale: an exchanged note must not show twice, and the local copy is the one 
 alias covers a parent that renamed or folded the note. An unlinked near-duplicate is left to curation and heals through
 the link graph.
 
-#### 792b37c6a Scenarios
+##### 792b37c6a Scenarios
 
 ```gherkin
 Scenario: 792b37c6a1 A primary link dedupes
@@ -308,7 +346,7 @@ Scenario: 792b37c6a12 A failed scan merges without dedupe
   Then a warning is printed, the query does not fail, and no item is deduped
 ```
 
-### 792b37c7 The order of the merged relevance items
+#### 792b37c7 The order of the merged relevance items
 
 Requirement: [792b37c7 The order of the merged relevance items](#792b37c7-the-order-of-the-merged-relevance-items) The parent-vault-client MUST put the trigger hits first, the local ones before the parent's, each in the
 order its source gave them, and exempt from `--limit`. It MUST then order the other non-recency items in two groups, the
@@ -323,7 +361,7 @@ Supports: [792a21c1a Local and parent results appear in one ranked list](../prod
 Rationale: sorting every item by raw score would let explore picks crowd out direct matches, and a cap by
 position must still keep the notes the matched-note floor keeps in a local query.
 
-#### 792b37c7a Scenarios
+##### 792b37c7a Scenarios
 
 ```gherkin
 Scenario: 792b37c7a1 Trigger hits lead and bypass the limit
@@ -362,7 +400,7 @@ Scenario: 792b37c7a7 The reported crowding shape keeps its notes
   Then direct items come first and the note floor holds
 ```
 
-### 792b37c8 The budgets of the merged set
+#### 792b37c8 The budgets of the merged set
 
 Requirement: [792b37c8 The budgets of the merged set](#792b37c8-the-budgets-of-the-merged-set) The parent-vault-client MUST append the local recency items after the relevance items, cap them to
 `--recent-fill` as a group, and not count them against `--limit`. It MUST apply `--content-budget`, or `--lazy-chunks` when
@@ -375,7 +413,7 @@ Rationale: letting each source apply its own budget would let the merged answer 
 recency channel's newest-first order cannot be merged into one chronology, since an item carries no timestamp, so it is
 the local channel only, capped as a group.
 
-#### 792b37c8a Scenarios
+##### 792b37c8a Scenarios
 
 ```gherkin
 Scenario: 792b37c8a1 The content budget spans the merged set
@@ -399,7 +437,7 @@ Scenario: 792b37c8a4 Recency items follow the relevance items
   Then they come after the score-ranked items and count against none of the relevance ranking
 ```
 
-### 792b37c9 The merged payload's own fields
+#### 792b37c9 The merged payload's own fields
 
 Requirement: [792b37c9 The merged payload's own fields](#792b37c9-the-merged-payloads-own-fields) The merged payload MUST be version 1 with the local query's phrases and clusters, so that no cluster mixes
 the two sources; its `pending_offers` flag and hint and its refit flag MUST be the local query's, the hint present exactly
@@ -413,7 +451,7 @@ Supports: [792a21h1a No cross-node cluster grouping](../product/parent-sync.md#7
 Rationale: a child cannot curate its parent's offers or refit its parent's vocabulary, so a parent-side flag would tell the
 child to do something it cannot.
 
-#### 792b37c9a Scenarios
+##### 792b37c9a Scenarios
 
 ```gherkin
 Scenario: 792b37c9a1 Clusters stay local
@@ -452,7 +490,7 @@ Scenario: 792b37c9a7 Lazy chunks are reported
   Then chunk content is cleared, nothing is snippeted, and the block says lazy_chunks true
 ```
 
-### 792b37c10 The parent-sourced label
+#### 792b37c10 The parent-sourced label
 
 Requirement: [792b37c10 The parent-sourced label](#792b37c10-the-parent-sourced-label) When the parent-vault-client prints a note it fetched as the fallback of `show`, it MUST write the line `#
 from_parent: true` and then the body verbatim, and MUST fail with an error that wraps the cause when either write fails,
@@ -463,7 +501,7 @@ Supports: [792a21l1d A local miss falls back to the parent](../product/parent-sy
 Rationale: the fallback leaves the reader unsure where the text came from, so only it is labeled; the answer is buffered
 first so that a failed fetch never leaves a stray label.
 
-#### 792b37c10a Scenarios
+##### 792b37c10a Scenarios
 
 ```gherkin
 Scenario: 792b37c10a1 A failed label write is reported
@@ -477,7 +515,7 @@ Scenario: 792b37c10a2 A failed body write is reported
   Then the error wraps the cause
 ```
 
-### 792b37c11 A pull-down is a gated parent contact
+#### 792b37c11 A pull-down is a gated parent contact
 
 Requirement: [792b37c11 A pull-down is a gated parent contact](#792b37c11-a-pull-down-is-a-gated-parent-contact) Before its first fetch in a command, the parent-vault-client MUST stamp a missing vault ID, check the
 vault's location, apply the cached self-parent guard and ask the backoff gate, and MUST refuse every pull and re-check of
@@ -492,7 +530,7 @@ Supports: [792a21zg1c A paused vault pulls nothing](../product/parent-sync.md#79
 Rationale: a pull-down writes to the vault and contacts a remote vault, so it pauses for the same reasons an offer does
 ([792a2p Copied and cloned vaults pause exchange](../product/vault-identity.md#792a2p-copied-and-cloned-vaults-pause-exchange), [792a2q A vault does not exchange with itself](../product/vault-identity.md#792a2q-a-vault-does-not-exchange-with-itself)). A parent that is down would otherwise be tried again for every ref.
 
-#### 792b37c11a Scenarios
+##### 792b37c11a Scenarios
 
 ```gherkin
 Scenario: 792b37c11a1 A failed check pauses the pull-down
@@ -516,7 +554,7 @@ Scenario: 792b37c11a4 A pull-down drains the outbox
   Then the offers drain once, after the last ref
 ```
 
-### 792b37c12 The raw envelope
+#### 792b37c12 The raw envelope
 
 Requirement: [792b37c12 The raw envelope](#792b37c12-the-raw-envelope) The parent-vault-client MUST fetch a note with `GET /show?note=<name>&raw=1`, holding no vault lock, and
 MUST accept the answer only as a JSON object with a `vault_id`, a `basename`, an `exchange_hash` and `content`. It MUST
@@ -531,7 +569,7 @@ Supports: [792a21zb1d A CRLF parent note pulls down](../product/parent-sync.md#7
 Rationale: the envelope is JSON with a `vault_id`, so it cannot be mistaken for the rendered output of an older parent, and
 a parent is another machine's input ([792b5c15 Exchange identifiers](./vault-identity-registry.md#792b5c15-exchange-identifiers)).
 
-#### 792b37c12a Scenarios
+##### 792b37c12a Scenarios
 
 ```gherkin
 Scenario: 792b37c12a1 An older parent is detected
@@ -570,7 +608,7 @@ Scenario: 792b37c12a7 A pending parent note is not pulled
   Then the parent answers not found and nothing is written
 ```
 
-### 792b37c13 The pulled copy
+#### 792b37c13 The pulled copy
 
 Requirement: [792b37c13 The pulled copy](#792b37c13-the-pulled-copy) Under the vault lock, the parent-vault-client MUST write the pulled note as a new top-level note, named
 from the parent's slug, with a fresh Luhmann ID and `xid`, the creation date of the pull, `pending: true`, the parent's
@@ -586,7 +624,7 @@ Supports: [792a21zd1a Pulled note is pending and linked](../product/parent-sync.
 Rationale: the parent's identity fields, tags and chunk provenance mean nothing in this vault, and a pulled note is never
 live, so curation judges it before it counts as knowledge. Keeping the exact content is what keeps the hashes equal.
 
-#### 792b37c13a Scenarios
+##### 792b37c13a Scenarios
 
 ```gherkin
 Scenario: 792b37c13a1 The copy is pending, linked and stripped
@@ -615,7 +653,7 @@ Scenario: 792b37c13a5 The parent's tags are not kept
   Then the copy does not keep them
 ```
 
-### 792b37c14 What a pull-down skips
+#### 792b37c14 What a pull-down skips
 
 Requirement: [792b37c14 What a pull-down skips](#792b37c14-what-a-pull-down-skips) Under the vault lock the parent-vault-client MUST apply the skip rule again and write nothing when a local note,
 live or pending, has any link to the envelope's basename or one of its aliases under the envelope's vault ID whose hash is
@@ -630,7 +668,7 @@ Supports: [792a21ze1a Re-activating an unchanged parent note](../product/parent-
 Rationale: re-pulling an unchanged note on every use would fill the vault with copies; the check under the lock is what
 makes two racing activates safe, since the first check ran before the fetch.
 
-#### 792b37c14a Scenarios
+##### 792b37c14a Scenarios
 
 ```gherkin
 Scenario: 792b37c14a1 A linked live note is bumped, not copied
@@ -669,7 +707,7 @@ Scenario: 792b37c14a7 No sequence duplicates
   Then at most one local note is linked to the parent note
 ```
 
-### 792b37c15 Telling the parent the note was used
+#### 792b37c15 Telling the parent the note was used
 
 Requirement: [792b37c15 Telling the parent the note was used](#792b37c15-telling-the-parent-the-note-was-used) After a pull-down that wrote the note or a skip, once the vault lock is released, the parent-vault-client MUST send `POST /activate` for the
 parent note's name, MUST NOT send it when the local write failed, and a failure of that request MUST NOT fail the command, MUST NOT be queued and MUST NOT back the
@@ -679,7 +717,7 @@ Supports: [792a21zg1a Parent recency is bumped](../product/parent-sync.md#792a21
 
 Rationale: the parent ranks what its children use, and a lost hint costs nothing.
 
-#### 792b37c15a Scenarios
+##### 792b37c15a Scenarios
 
 ```gherkin
 Scenario: 792b37c15a1 The parent's recency is bumped
@@ -698,7 +736,7 @@ Scenario: 792b37c15a3 A failed local write sends no signal
   Then the command fails and the parent received no POST /activate for the note
 ```
 
-### 792b37c16 Re-checking a linked note's parent copy
+#### 792b37c16 Re-checking a linked note's parent copy
 
 Requirement: [792b37c16 Re-checking a linked note's parent copy](#792b37c16-re-checking-a-linked-notes-parent-copy) For a linked local note that has been activated, the parent-vault-client MUST skip a link under another
 parent vault, without contacting the parent when the configured parent's vault ID is cached and differs, then fetch the link's
@@ -712,7 +750,7 @@ Supports: [792a21zf1a A changed parent note arrives through its local copy](../p
 Rationale: the merged query shows a linked local note in place of its parent note, so a parent-side change reaches the child
 only through a use of the local copy.
 
-#### 792b37c16a Scenarios
+##### 792b37c16a Scenarios
 
 ```gherkin
 Scenario: 792b37c16a1 A changed parent note arrives through the local copy

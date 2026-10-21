@@ -1,6 +1,8 @@
 # Pending Offer Bookkeeping - Technical Spec
 
-## 792b34a Orientation
+## 792b34 Pending Offer Bookkeeping
+
+### 792b34a Orientation
 
 - Ownership: Repository component.
 - Responsibility: decides whether a note is a pending offer, finds the pending offers in a vault, leaves them out of a
@@ -11,12 +13,24 @@
 - Current realization (informational): `internal/cli/offer.go` (`noteHasPendingMarker`, `excludePendingOffers`,
   `vaultHasPendingOffers`, `warnIfPendingOffers`, `pendingOfferCurateInstruction`) and `internal/cli/amend_fold.go`
   (`checkJudgedVersion`, `foldInto`, `foldParentLinks`, `foldAliases`), with the header written by `RunShow`.
-- Qualification: responsibility, the marker, the scan, the check and the fold are stated without naming a function;
-  ownership, it owns what makes a note pending and how an offer is settled, while [exchange-versioning](./exchange-versioning.md) owns the hash and
-  the link edit it calls, served learn and pull-down own the writing of a pending note, and [curate](../product/curate.md) owns the judgment;
-  independent verification, each runs over in-memory notes and a fake vault; stability, the contract survives a new
-  note type or a new surfacing point; necessity, without it a pending offer would be served as a live note and an
-  offer changed after it was judged could be accepted unseen.
+- Qualification: Purpose: without it a pending offer would be served as a live note and an offer changed after it was
+  judged could be accepted unseen. Contract: it owns what makes a note pending and how an offer is settled, while
+  [exchange-versioning](./exchange-versioning.md) owns the hash and the link edit it calls, served learn and pull-down
+  own the writing of a pending note, and [curate](../product/curate.md) owns the judgment; each runs over in-memory
+  notes and a fake vault. Identity: the contract survives a new note type or a new surfacing point. Value: one marker
+  lets everything that reads the [vault](../../GLOSSARY.md#vault) tell a pending [offer](../../GLOSSARY.md#offer) from
+  a live [note](../../GLOSSARY.md#permanent-note)
+  ([792b34c1 The pending-offer marker](#792b34c1-the-pending-offer-marker)), and the curate instruction is defined
+  once, with the hint derived from the flag and never transported, so a merged or served payload cannot carry a stale
+  or drifted copy ([792b34c4 The curate instruction](#792b34c4-the-curate-instruction)). Responsibility (naming): the
+  marker, the scan, the check and the fold are stated without naming a function.
+- Required behavior: [Exchange Versioning](./exchange-versioning.md) gives a note's
+  [exchange hash](../../GLOSSARY.md#exchange-hash)
+  ([792b33c1 The exchange hash](./exchange-versioning.md#792b33c1-the-exchange-hash)), compares two hashes as equal,
+  changed or unknown ([792b33c5 Comparing two hashes](./exchange-versioning.md#792b33c5-comparing-two-hashes)) and
+  edits a note's `aliases:` list and `parent:` block as YAML nodes, refusing without writing when a key it edits
+  carries an anchor
+  ([792b33c8 Editing the exchange blocks](./exchange-versioning.md#792b33c8-editing-the-exchange-blocks)).
 - Supported capabilities: [vault-serving](../product/vault-serving.md), [parent-sync](../product/parent-sync.md), [curate](../product/curate.md).
 
 Rationale: an offered note, whether sent by a child or pulled down from a parent, must be judged before it counts as
@@ -25,9 +39,9 @@ a version nobody judged. Curation is expected upkeep, so the same instruction tr
 waiting. The fold refuses to guess: it never re-embeds, re-stamps identity, queues an offer or records a decline, because
 the existing note's content is unchanged and only its links and names grow.
 
-## 792b34c Behavior Requirements
+### 792b34c Behavior Requirements
 
-### 792b34c1 The pending-offer marker
+#### 792b34c1 The pending-offer marker
 
 Requirement: [792b34c1 The pending-offer marker](#792b34c1-the-pending-offer-marker) The pending-offer-bookkeeping MUST report a note as a pending offer exactly when it is a fact,
 feedback or runbook note, with or without `skill_hash`, whose frontmatter carries `pending: true`, reading a note with
@@ -40,7 +54,7 @@ Rationale: a pending skill runbook note is treated exactly as a pending fact is,
 served before curation authors its fields ([skill-runbook-registration](../product/skill-runbook-registration.md)). A CRLF offer is still pending, so query excludes it and the server
 never hands it out as live.
 
-#### 792b34c1a Scenarios
+##### 792b34c1a Scenarios
 
 ```gherkin
 Scenario: 792b34c1a1 Pending fact and feedback notes are flagged
@@ -64,7 +78,7 @@ Scenario: 792b34c1a4 A CRLF offer is still pending
   Then the pending offer is reported pending and the normal note is not
 ```
 
-### 792b34c2 Leaving pending offers out of a list of notes
+#### 792b34c2 Leaving pending offers out of a list of notes
 
 Requirement: [792b34c2 Leaving pending offers out of a list of notes](#792b34c2-leaving-pending-offers-out-of-a-list-of-notes) The pending-offer-bookkeeping MUST, given a list of notes, return the notes that are not pending
 offers and whether at least one pending offer was found, reading each note's file at the vault path joined with the
@@ -76,7 +90,7 @@ Supports: [792a20d1b The offered note is pending, not live](../product/vault-ser
 Rationale: a read failure must not silently drop a note that query would otherwise return, so the filter fails open.
 The one pass gives the query payload its `pending_offers` flag without a second scan.
 
-#### 792b34c2a Scenarios
+##### 792b34c2a Scenarios
 
 ```gherkin
 Scenario: 792b34c2a1 A pending note is dropped and an unreadable one is kept
@@ -95,7 +109,7 @@ Scenario: 792b34c2a3 A pending skill runbook is dropped and an ordinary runbook 
   Then the pending skill runbook is dropped and the ordinary runbook is kept
 ```
 
-### 792b34c3 Finding pending offers
+#### 792b34c3 Finding pending offers
 
 Requirement: [792b34c3 Finding pending offers](#792b34c3-finding-pending-offers) The pending-offer-bookkeeping MUST decide whether a vault holds a pending offer by scanning the
 vault's current notes every time it is asked, and MUST NOT persist a flag or withhold the answer until a growth or time
@@ -110,7 +124,7 @@ Rationale: pending offers are lower-volume and costlier to leave stale than the 
 stateless and unbatched. A detection failure must never fail `engram update`'s primary job, so an unreadable vault is
 no signal. The write-path nudge runs at the call sites where the refit trigger is already checked, and persists nothing.
 
-#### 792b34c3a Scenarios
+##### 792b34c3a Scenarios
 
 ```gherkin
 Scenario: 792b34c3a1 A vault with a pending note is flagged
@@ -144,7 +158,7 @@ Scenario: 792b34c3a6 A missing dependency makes the check a no-op
   Then nothing is logged and nothing panics
 ```
 
-### 792b34c4 The curate instruction
+#### 792b34c4 The curate instruction
 
 Requirement: [792b34c4 The curate instruction](#792b34c4-the-curate-instruction) The pending-offer-bookkeeping MUST define one curate instruction on a single line that says
 reviewing pending offers is expected vault upkeep and not an extra, says to curate them after finishing the user's
@@ -161,7 +175,7 @@ so the instruction says that curation is expected. The hint is derived from the 
 or served payload cannot carry a stale or drifted copy. A runbook has no description the harness reads, so each cue
 carries the query that surfaces the curate runbook.
 
-#### 792b34c4a Scenarios
+##### 792b34c4a Scenarios
 
 ```gherkin
 Scenario: 792b34c4a1 The instruction says curation is expected upkeep
@@ -175,7 +189,7 @@ Scenario: 792b34c4a2 The hint follows the flag
   Then the first holds the shared instruction and the second holds no hint
 ```
 
-### 792b34c5 The judged-version check
+#### 792b34c5 The judged-version check
 
 Requirement: [792b34c5 The judged-version check](#792b34c5-the-judged-version-check) The pending-offer-bookkeeping MUST require `--expect-hash` for `engram amend` with
 `--clear-pending`, `--discard` or `--discard --into` on a note that carries `offer.origin`, whether the note is pending
@@ -191,7 +205,7 @@ discard content nobody reviewed. A hash of another version is not the version th
 changed does and the curator re-reads and judges again, and since `offer` survives acceptance, a host-side discard of a
 once-offered live note needs the hash too, because a same-origin retry could otherwise race it.
 
-#### 792b34c5a Scenarios
+##### 792b34c5a Scenarios
 
 ```gherkin
 Scenario: 792b34c5a1 The hash is checked across every bookkeeping mode
@@ -215,7 +229,7 @@ Scenario: 792b34c5a4 A hash that cannot be computed fails
   Then it fails and changes nothing
 ```
 
-### 792b34c6 The fold of an offer into an existing note
+#### 792b34c6 The fold of an offer into an existing note
 
 Requirement: [792b34c6 The fold of an offer into an existing note](#792b34c6-the-fold-of-an-offer-into-an-existing-note) The pending-offer-bookkeeping MUST, for `engram amend --target O --discard --into E`, record on E
 the basename of O and every alias O answered to (each once, never E's own basename), merge O's parent links into E's
@@ -231,7 +245,7 @@ its names and links grow; recording O's names keeps a later reference to O resol
 from being pulled down again unchanged. E keeps its own author, and O's is not carried (the loss is documented, and the
 basename survives in `aliases`).
 
-#### 792b34c6a Scenarios
+##### 792b34c6a Scenarios
 
 ```gherkin
 Scenario: 792b34c6a1 A pulled copy is folded into a note that has a primary
@@ -260,7 +274,7 @@ Scenario: 792b34c6a5 A CRLF existing note is converted by the fold
   Then E is written with no CRLF, its sidecar is rebuilt, and the offer and its sidecar are gone
 ```
 
-### 792b34c7 Merging parent links
+#### 792b34c7 Merging parent links
 
 Requirement: [792b34c7 Merging parent links](#792b34c7-merging-parent-links) When the pending-offer-bookkeeping folds O into E it MUST give E the links O held under O's parent
 vault, with O's primary (`offered` or `pulled`) link staying primary only when E has none of its own and becoming
@@ -274,7 +288,7 @@ Supports: [792a22f1b A pulled-down offer covered by a local note](../product/cur
 Rationale: links count only under the current parent's vault, as a receipt's own replacement rule has it ([792b33c9 Recording an offer receipt](./exchange-versioning.md#792b33c9-recording-an-offer-receipt)). Taking
 O's hash records the version curation judged, so the pull-down skip and the dedupe see the pair as already related.
 
-#### 792b34c7a Scenarios
+##### 792b34c7a Scenarios
 
 ```gherkin
 Scenario: 792b34c7a1 An existing link keeps its role and takes the offer's hash
@@ -293,7 +307,7 @@ Scenario: 792b34c7a3 A held covered link is promoted to primary
   Then E's link to P is O's pulled or offered primary with O's hash
 ```
 
-### 792b34c8 The exchange-hash header of show
+#### 792b34c8 The exchange-hash header of show
 
 Requirement: [792b34c8 The exchange-hash header of show](#792b34c8-the-exchange-hash-header-of-show) The pending-offer-bookkeeping MUST make `engram show` print `# exchange_hash: <hash>` as its first
 output line, before the note, for a note that carries `xid`, reading a note with CRLF line endings as its LF form for
@@ -305,7 +319,7 @@ Supports: [792a20k1a Show without raw matches the local output](../product/vault
 Rationale: the header is how a curator learns the version to name in `--expect-hash` ([792b34c5 The judged-version check](#792b34c5-the-judged-version-check)), and a note that never
 took part in exchange has no version to name, so its output does not change.
 
-#### 792b34c8a Scenarios
+##### 792b34c8a Scenarios
 
 ```gherkin
 Scenario: 792b34c8a1 The header comes first on an exchanged note

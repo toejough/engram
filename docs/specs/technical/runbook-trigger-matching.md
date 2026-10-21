@@ -1,6 +1,8 @@
 # Runbook Trigger Matching - Technical Spec
 
-## 792b22a Orientation
+## 792b22 Runbook Trigger Matching
+
+### 792b22a Orientation
 
 - Ownership: Repository component.
 - Responsibility: decides which runbooks a user's message triggers and puts them first. It indexes the
@@ -11,12 +13,15 @@
   `runTriggerOnlyQuery` in `internal/cli/query_triggers.go`; the trigger index filled by
   `loadAllVaultNotesMeta` in `internal/cli/query_vault_meta.go`; the ordering rule `resolvedItemLess`
   in `internal/cli/query.go`.
-- Qualification: responsibility, finding and placing triggered runbooks is stated without naming any
-  function; ownership, the query engine decides what to pass in and what the payload looks like, while
-  this component owns what counts as a hit and where hits go; independent verification, matching is
-  tested directly on texts and trigger lists, with a property test against a regular-expression
-  oracle; stability, the contract survives any change to how notes are scanned or the payload is
-  rendered; necessity, a cue-triggered runbook can be surfaced reliably only through it.
+- Qualification: Purpose: a cue-triggered runbook can be surfaced reliably only through it. Contract: the query engine
+  decides what to pass in and what the payload looks like, while this component owns what counts as a hit and where
+  hits go; matching is tested directly on texts and trigger lists, with a property test against a regular-expression
+  oracle. Identity: the contract survives any change to how notes are scanned or the payload is rendered. Value: the
+  message is matched lexically against literal cues and never embedded, so a cue that the
+  [agent](../../GLOSSARY.md#agent-automatic-memory)'s paraphrase drops still finds its
+  [runbook](../../GLOSSARY.md#runbook), and declaring a [trigger](../../GLOSSARY.md#trigger) re-embeds nothing.
+  Responsibility (naming): finding and placing triggered runbooks is stated without naming any function.
+- Required behavior: none; the component calls no collaborator.
 - Supported capabilities: [memory-query](../product/memory-query.md), [ambient-guidance](../product/ambient-guidance.md) (the shim passes the
   message).
 
@@ -29,9 +34,9 @@ message, rank as they always did. A hit is only a candidate: the agent still jud
 runbook's own applicability text. The match is whole-word, because bare-word triggers such as `curate` and `please` would
 otherwise hit `accurate` and `pleased`.
 
-## 792b22c Behavior Requirements
+### 792b22c Behavior Requirements
 
-### 792b22c1 Trigger index
+#### 792b22c1 Trigger index
 
 Requirement: [792b22c1 Trigger index](#792b22c1-trigger-index) The runbook-trigger-matching MUST index, from each note read as its LF form, the
 non-empty entries of the `triggers:` list of every note whose `type` is `runbook`, under the note's
@@ -43,7 +48,7 @@ Supports: [792a7za1c Other kinds never hit](../product/memory-query.md#792a7za1-
 Rationale: triggers are read in the same pass over the vault that finds vocabulary tags and
 supersessions, so a query needs no second scan, and only `runbook` notes carry a contract for them.
 
-#### 792b22c1a Scenarios
+##### 792b22c1a Scenarios
 
 ```gherkin
 Scenario: 792b22c1a1 A runbook's triggers are indexed
@@ -62,7 +67,7 @@ Scenario: 792b22c1a3 A CRLF runbook is indexed and matched
   Then the index maps the basename to ["rotate the keys"] and the runbook is the one hit
 ```
 
-### 792b22c2 Whole-word occurrence
+#### 792b22c2 Whole-word occurrence
 
 Requirement: [792b22c2 Whole-word occurrence](#792b22c2-whole-word-occurrence) The runbook-trigger-matching MUST treat a trigger as occurring in a message when,
 after the message and the trigger are lowercased and each run of whitespace in them is collapsed to one
@@ -80,7 +85,7 @@ an author who wrote punctuation at the edge supplied the delimiter: `/please` hi
 not in `/pleased`. The scan is two rune lookups over `strings.Index`, not a regular expression built
 from author text, which needs escaping and could be abused.
 
-#### 792b22c2a Scenarios
+##### 792b22c2a Scenarios
 
 ```gherkin
 Scenario Outline: 792b22c2a1 Occurrence in a message
@@ -134,7 +139,7 @@ Scenario: 792b22c2a3 Case and whitespace are ignored in a full query
   Then the runbook is the first item, with provenance trigger
 ```
 
-### 792b22c3 The hits
+#### 792b22c3 The hits
 
 Requirement: [792b22c3 The hits](#792b22c3-the-hits) The runbook-trigger-matching MUST return the basenames of the runbooks with at
 least one occurring trigger, each once, in ascending order, and MUST return none for a message that is
@@ -142,7 +147,7 @@ empty after normalization.
 
 Supports: [792a7y1a Text alone is a trigger lookup](../product/memory-query.md#792a7y1-uat-scenarios), [792a7za1a A hit with no similarity match is first](../product/memory-query.md#792a7za1-uat-scenarios).
 
-#### 792b22c3a Scenarios
+##### 792b22c3a Scenarios
 
 ```gherkin
 Scenario: 792b22c3a1 Hits are listed once, in order
@@ -156,7 +161,7 @@ Scenario: 792b22c3a2 An empty message has no hits
   Then there are no hits
 ```
 
-### 792b22c4 Placing the hits
+#### 792b22c4 Placing the hits
 
 Requirement: [792b22c4 Placing the hits](#792b22c4-placing-the-hits) The runbook-trigger-matching MUST, given the ranked items and the hits, put every
 hit ahead of all other items with `trigger` added to its provenances. A hit that is already ranked MUST
@@ -168,7 +173,7 @@ higher score. With no hits the items MUST be returned unchanged.
 
 Supports: [792a7za1a A hit with no similarity match is first](../product/memory-query.md#792a7za1-uat-scenarios), [792a7za1b A hit outranks a stronger match](../product/memory-query.md#792a7za1-uat-scenarios), [792a7za1d A hit that matched keeps its score](../product/memory-query.md#792a7za1-uat-scenarios), [792a7za1e A hit outside the project is not surfaced](../product/memory-query.md#792a7za1-uat-scenarios).
 
-#### 792b22c4a Scenarios
+##### 792b22c4a Scenarios
 
 ```gherkin
 Scenario: 792b22c4a1 A hit with no similarity match leads the payload
@@ -197,7 +202,7 @@ Scenario: 792b22c4a5 No hits changes nothing
   Then the items are returned as they were
 ```
 
-### 792b22c5 Trigger rank
+#### 792b22c5 Trigger rank
 
 Requirement: [792b22c5 Trigger rank](#792b22c5-trigger-rank) The runbook-trigger-matching MUST order any item whose provenances include
 `trigger` before every item whose provenances do not, whatever their numbers of provenances, their
@@ -208,7 +213,7 @@ Supports: [792a7za1b A hit outranks a stronger match](../product/memory-query.md
 Rationale: a hit may have only the one role, and it must still beat an item that matched by similarity
 under two.
 
-#### 792b22c5a Scenarios
+##### 792b22c5a Scenarios
 
 ```gherkin
 Scenario: 792b22c5a1 A trigger always sorts first
@@ -217,7 +222,7 @@ Scenario: 792b22c5a1 A trigger always sorts first
   Then the one with trigger precedes the other, and not the reverse
 ```
 
-### 792b22c6 Lookup by message alone
+#### 792b22c6 Lookup by message alone
 
 Requirement: [792b22c6 Lookup by message alone](#792b22c6-lookup-by-message-alone) When a query has a message and no phrase, the runbook-trigger-matching MUST answer
 from the hits alone: it MUST embed nothing, match no notes by similarity, cluster nothing, sample no
@@ -226,7 +231,7 @@ empty `explore_allocated`.
 
 Supports: [792a7y1a Text alone is a trigger lookup](../product/memory-query.md#792a7y1-uat-scenarios).
 
-#### 792b22c6a Scenarios
+##### 792b22c6a Scenarios
 
 ```gherkin
 Scenario: 792b22c6a1 The message alone returns the hit
@@ -235,14 +240,14 @@ Scenario: 792b22c6a1 The message alone returns the hit
   Then the payload has one item, the runbook, with provenances [trigger]
 ```
 
-### 792b22c7 No message, no matching
+#### 792b22c7 No message, no matching
 
 Requirement: [792b22c7 No message, no matching](#792b22c7-no-message-no-matching) When a query has no message, the runbook-trigger-matching MUST NOT match any
 trigger, and a message that hits nothing MUST leave the payload equal to the payload without a message.
 
 Supports: [792a7y1b Without text nothing changes](../product/memory-query.md#792a7y1-uat-scenarios).
 
-#### 792b22c7a Scenarios
+##### 792b22c7a Scenarios
 
 ```gherkin
 Scenario: 792b22c7a1 A query without a hit is unchanged

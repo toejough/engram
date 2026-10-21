@@ -1,6 +1,8 @@
 # Offer Outbox - Technical Spec
 
-## 792b36a Orientation
+## 792b36 Offer Outbox
+
+### 792b36a Orientation
 
 - Ownership: Repository component.
 - Responsibility: decides which local writes are offered to the parent vault, stamps an exchange ID on the note and
@@ -12,14 +14,49 @@
   (`buildOfferPayload`), `outbox.go` (`enqueueOutbox`, `drainOutbox`, `recordKeptReceipts`, `classifyOfferResponse`) and
   `offer_wiring.go` (`offerHooks`, `drainForCommand`, `ensureParentVaultID`, `newUpdateExchange`, `outboxNotice`). The
   receipt edit it calls is exchange-versioning's ([exchange-versioning](./exchange-versioning.md)) `applyReceiptToContent` ([792b33c9 Recording an offer receipt](./exchange-versioning.md#792b33c9-recording-an-offer-receipt)).
-- Qualification: responsibility, the offered writes, the outbox and the drain are stated without naming a function;
-  ownership, it owns what is offered, queued and sent, while [exchange-versioning](./exchange-versioning.md) owns the hash and the receipt edit,
-  [vault-identity-registry](./vault-identity-registry.md) owns the parent cache, the backoff gate and the location and self-parent checks, the
-  [vault-http-server](./vault-http-server.md) owns the route that answers an offer, and the commands own when to drain; independent verification,
-  every requirement is tested over an in-memory filesystem, lock, clock and fetch capability; stability, the contract
-  survives a new offered command or a new outcome of a send; necessity, without it a child could not share what it
-  learns and a local write would depend on its parent being up.
-- Supported capabilities: [parent-sync](../product/parent-sync.md).
+- Qualification: Purpose: without it a child could not share what it learns and a local write would depend on its
+  parent being up. Contract: it owns what is offered, queued and sent, while
+  [exchange-versioning](./exchange-versioning.md) owns the hash and the receipt edit,
+  [vault-identity-registry](./vault-identity-registry.md) owns the parent cache, the backoff gate and the location and
+  self-parent checks, the [vault-http-server](./vault-http-server.md) owns the route that answers an offer, and the
+  commands own when to drain; every requirement is tested over an in-memory filesystem, lock, clock and fetch
+  capability. Identity: the contract survives a new offered command or a new outcome of a send. Value: the write
+  completes locally whether or not the parent is up ([792b36c4 Queueing an offer](#792b36c4-queueing-an-offer)), and
+  sending without the lock keeps local writers moving while the network answers
+  ([792b36c6 Which entries are sent](#792b36c6-which-entries-are-sent)). Responsibility (naming): the offered writes,
+  the outbox and the drain are stated without naming a function.
+- Required behavior: [Exchange Versioning](./exchange-versioning.md) gives a
+  [note](../../GLOSSARY.md#permanent-note)'s [exchange hash](../../GLOSSARY.md#exchange-hash)
+  ([792b33c1 The exchange hash](./exchange-versioning.md#792b33c1-the-exchange-hash)), compares two hashes as equal,
+  changed or unknown ([792b33c5 Comparing two hashes](./exchange-versioning.md#792b33c5-comparing-two-hashes)), stamps
+  an [`xid`](../../GLOSSARY.md#xid) on a note that has none
+  ([792b33c7 The lazy exchange ID](./exchange-versioning.md#792b33c7-the-lazy-exchange-id)) and records an
+  [offer](../../GLOSSARY.md#offer) receipt on a note's `parent:` block alone
+  ([792b33c9 Recording an offer receipt](./exchange-versioning.md#792b33c9-recording-an-offer-receipt)).
+- Required behavior: [Vault Identity Registry](./vault-identity-registry.md) stamps a missing
+  [vault ID](../../GLOSSARY.md#vault-id)
+  ([792b5c4 Vault ID stamping](./vault-identity-registry.md#792b5c4-vault-id-stamping)), checks the
+  [vault](../../GLOSSARY.md#vault)'s location and warns when the check fails
+  ([792b5c7 Location record and check](./vault-identity-registry.md#792b5c7-location-record-and-check),
+  [792b5c8 Location warning](./vault-identity-registry.md#792b5c8-location-warning)), reports a vault that is its own
+  parent ([792b5c12 Self-parent guard](./vault-identity-registry.md#792b5c12-self-parent-guard)), keeps the parent
+  cache and says whether a command may contact the parent
+  ([792b5c14 The parent cache and the contact backoff](./vault-identity-registry.md#792b5c14-the-parent-cache-and-the-contact-backoff))
+  and accepts only well-formed vault IDs and basenames from the parent
+  ([792b5c15 Exchange identifiers](./vault-identity-registry.md#792b5c15-exchange-identifiers)).
+- Required behavior: [Vault HTTP Server](./vault-http-server.md) answers an offer posted to `/learn` with a receipt
+  that holds the pending note's basename, the vault's ID and the stored hash
+  ([792b35c14 A new pending offer](./vault-http-server.md#792b35c14-a-new-pending-offer)), refuses a looping offer
+  with a 409 that names its vault
+  ([792b35c9 Refusing an invalid offer](./vault-http-server.md#792b35c9-refusing-an-invalid-offer)), answers an offer
+  key it has recorded with the current receipt and writes nothing
+  ([792b35c10 A recorded key is a retry](./vault-http-server.md#792b35c10-a-recorded-key-is-a-retry)) and answers
+  `GET /query` with `dedupe-keys=1` with its vault ID
+  ([792b35c5 Dedupe keys](./vault-http-server.md#792b35c5-dedupe-keys)).
+- Required behavior: [Parent Vault Client](./parent-vault-client.md) sends the probe that learns the parent's vault
+  ID, reporting a transport error, a timeout or a 5xx as an unreachable parent and any other answer outside 200 to 299
+  as an error ([792b37c2 A request to the parent](./parent-vault-client.md#792b37c2-a-request-to-the-parent)).
+- Supported capabilities: [parent-sync](../product/parent-sync.md), [Vault Identity](../product/vault-identity.md).
 
 Rationale: a local write must never fail because of the parent, so the outbox is written under the
 vault lock in the write's own critical section, and the offer is built from the note when it is sent, so offline learn and
@@ -29,9 +66,9 @@ call would block every local writer, and merges under the lock after re-reading 
 a command queue an offer while another drains. A transport error stops the drain and backs the parent off, while a 4xx
 only rejects that entry, because an answer proves the parent is up.
 
-## 792b36c Behavior Requirements
+### 792b36c Behavior Requirements
 
-### 792b36c1 Which writes are offered
+#### 792b36c1 Which writes are offered
 
 Requirement: [792b36c1 Which writes are offered](#792b36c1-which-writes-are-offered) The offer-outbox MUST classify a write as offered exactly when the note is a fact, feedback or
 runbook note whose frontmatter parses and carries neither the pending marker nor `skill_hash`, the command is `learn`
@@ -51,7 +88,7 @@ a served offer is itself a local learn at that level, so it is offered onward un
 keeps the single-parent tree free of loops. Suppressing an offer whose hash equals the link's hash is what stops a pulled
 note from bouncing back, while a link under another parent never suppresses.
 
-#### 792b36c1a Scenarios
+##### 792b36c1a Scenarios
 
 ```gherkin
 Scenario: 792b36c1a1 Every row of the offer table
@@ -85,7 +122,7 @@ Scenario: 792b36c1a6 An equal hash suppresses the offer
   Then the first is suppressed and the second is not
 ```
 
-### 792b36c2 The offer built from a note
+#### 792b36c2 The offer built from a note
 
 Requirement: [792b36c2 The offer built from a note](#792b36c2-the-offer-built-from-a-note) The offer-outbox MUST build an offer's `/learn` body from the note as it is when sent, read as its
 LF form: the `type`, the `slug` of the basename, the vault name, `source`, `project`, `issue`, `tier`, the
@@ -109,7 +146,7 @@ parent's own vocabulary reassigns. Declaring the note's author lets it survive t
 different person. Hashing the offered content into `offer.key` makes a retry of unchanged content idempotent and a
 changed note a new offer.
 
-#### 792b36c2a Scenarios
+##### 792b36c2a Scenarios
 
 ```gherkin
 Scenario: 792b36c2a1 Placement and chunks are not sent
@@ -173,7 +210,7 @@ Scenario: 792b36c2a12 No user, no offer
   Then no body is built, and the error says no user identity was detected
 ```
 
-### 792b36c3 An offer withdrawn at send time
+#### 792b36c3 An offer withdrawn at send time
 
 Requirement: [792b36c3 An offer withdrawn at send time](#792b36c3-an-offer-withdrawn-at-send-time) When the parent's vault ID is known at send time, the offer-outbox MUST NOT build an offer, and the
 drain MUST NOT send it, when the note's `offer.origin` vault is the parent or the note's exchange hash equals the hash of
@@ -186,7 +223,7 @@ Rationale: the classification at write time may have run before the parent's vau
 once the drain has learned it. An offer to its own origin would loop, and one equal to its link repeats what the parent
 holds.
 
-#### 792b36c3a Scenarios
+##### 792b36c3a Scenarios
 
 ```gherkin
 Scenario: 792b36c3a1 An origin that is the parent, or an equal hash, is withdrawn
@@ -200,7 +237,7 @@ Scenario: 792b36c3a2 A withdrawn entry is dropped unless its note changed
   Then the first entry is dropped and the second stays
 ```
 
-### 792b36c4 Queueing an offer
+#### 792b36c4 Queueing an offer
 
 Requirement: [792b36c4 Queueing an offer](#792b36c4-queueing-an-offer) With a parent configured, the offer-outbox MUST, under the vault lock and before the note is written,
 classify the write ([792b36c1 Which writes are offered](#792b36c1-which-writes-are-offered)) and, when it is offered, stamp a freshly minted `xid` on a note that has none ([792b33c7 The lazy exchange ID](./exchange-versioning.md#792b33c7-the-lazy-exchange-id)),
@@ -218,7 +255,7 @@ Supports: [792a21m1b A write with no parent exchanges nothing](../product/parent
 Rationale: the write completes locally whether or not the parent is up, so the outbox lives next to the note and is
 written in the write's own lock. Stamping the vault ID first keeps `.engram/` meaning created-by-engram.
 
-#### 792b36c4a Scenarios
+##### 792b36c4a Scenarios
 
 ```gherkin
 Scenario: 792b36c4a1 One entry per note, in its first slot
@@ -267,7 +304,7 @@ Scenario: 792b36c4a9 A self-parent vault queues nothing
   Then the note is written, no entry is queued, and one warning names engram vault-id --regenerate
 ```
 
-### 792b36c5 Before a drain sends
+#### 792b36c5 Before a drain sends
 
 Requirement: [792b36c5 Before a drain sends](#792b36c5-before-a-drain-sends) After a command has reached the parent (or in `update`), the offer-outbox MUST first record every
 kept receipt ([792b36c15 An entry that waits](#792b36c15-an-entry-that-waits)), and then, unless the backoff gate refuses the contact ([792b5c14 The parent cache and the contact backoff](./vault-identity-registry.md#792b5c14-the-parent-cache-and-the-contact-backoff)), MUST do nothing when the
@@ -285,7 +322,7 @@ Rationale: a clone or a copy must not offer under another vault's name ([792a2p 
 parent's vault ID, so it is learned first, by the cheapest request the parent offers, or the offer would be built
 wrongly. A failed location or backoff gate leaves the offers queued for the next command; a self-parent sends nothing and queues nothing new.
 
-#### 792b36c5a Scenarios
+##### 792b36c5a Scenarios
 
 ```gherkin
 Scenario: 792b36c5a1 An empty outbox touches nothing
@@ -324,7 +361,7 @@ Scenario: 792b36c5a7 A backed-off parent is not drained
   Then nothing is sent, and the kept receipts were still recorded
 ```
 
-### 792b36c6 Which entries are sent
+#### 792b36c6 Which entries are sent
 
 Requirement: [792b36c6 Which entries are sent](#792b36c6-which-entries-are-sent) The send phase MUST visit the entries oldest first (stable for ties, whatever the file order),
 holding no vault lock while it sends, and MUST build each payload from the note found by `xid` at that moment, so a
@@ -338,7 +375,7 @@ Supports: [792a21q1b Offline learn then amend coalesce](../product/parent-sync.m
 Rationale: FIFO order is what a user expects of a queue, and sending without the lock keeps local writers moving while
 the network answers. A note read by `xid` is the note as it is now, so an offer carries the latest content.
 
-#### 792b36c6a Scenarios
+##### 792b36c6a Scenarios
 
 ```gherkin
 Scenario: 792b36c6a1 Oldest first, whatever the file order
@@ -372,7 +409,7 @@ Scenario: 792b36c6a6 A CRLF note is found and sent
   Then the entry is not treated as gone and the offer is sent
 ```
 
-### 792b36c7 The parent's answer
+#### 792b36c7 The parent's answer
 
 Requirement: [792b36c7 The parent's answer](#792b36c7-the-parents-answer) The offer-outbox MUST classify the parent's answer to a send as failed for a transport error, a
 timeout, a 5xx, a status outside 200 to 299 that is not a 4xx, and a 2xx body that does not decode; as refused for a 409
@@ -386,7 +423,7 @@ Supports: [792a21v1a A pre-change parent is detected](../product/parent-sync.md#
 Rationale: the parent is another machine's input, so what it returns is checked before it is written into frontmatter.
 Only a 2xx with a whole, well formed receipt is a success, and a 5xx or a silent parent is an outage.
 
-#### 792b36c7a Scenarios
+##### 792b36c7a Scenarios
 
 ```gherkin
 Scenario: 792b36c7a1 Each answer maps to one outcome
@@ -410,7 +447,7 @@ Scenario: 792b36c7a4 A forbidden basename character is never accepted
   Then it is not accepted
 ```
 
-### 792b36c8 An accepted offer
+#### 792b36c8 An accepted offer
 
 Requirement: [792b36c8 An accepted offer](#792b36c8-an-accepted-offer) For an accepted offer, the drain MUST, under the lock, cache the vault ID the receipt reports and reset
 the failure count, record the receipt on the note with exchange-versioning's ([exchange-versioning](./exchange-versioning.md)) receipt edit ([792b33c9 Recording an offer receipt](./exchange-versioning.md#792b33c9-recording-an-offer-receipt)), and finish the
@@ -426,7 +463,7 @@ Rationale: the receipt is what links the child's note to its counterpart, and it
 recorded, not the child's ([792b33c9 Recording an offer receipt](./exchange-versioning.md#792b33c9-recording-an-offer-receipt)). A note amended while its offer was in flight carries content the parent has not
 seen, so it keeps an entry.
 
-#### 792b36c8a Scenarios
+##### 792b36c8a Scenarios
 
 ```gherkin
 Scenario: 792b36c8a1 The receipt is recorded and the parent's ID cached
@@ -460,7 +497,7 @@ Scenario: 792b36c8a6 A CRLF note takes its receipt as LF
   Then the note is written as LF and its entry is removed
 ```
 
-### 792b36c9 A rejected offer
+#### 792b36c9 A rejected offer
 
 Requirement: [792b36c9 A rejected offer](#792b36c9-a-rejected-offer) For a rejected offer (a 4xx, or a 409 without the loop mark), the drain MUST mark the entry `rejected`
 with the exchange hash that was sent and the parent's error (empty when the parent gave none), count the attempt,
@@ -472,7 +509,7 @@ Supports: [792a21r1c A rejected offer does not block the queue](../product/paren
 Rationale: a 4xx says the offer, not the parent, is the problem, so retrying it unchanged would only repeat the refusal.
 The next edit of the note, which moves its hash, re-arms it.
 
-#### 792b36c9a Scenarios
+##### 792b36c9a Scenarios
 
 ```gherkin
 Scenario: 792b36c9a1 A rejection re-arms only when the hash changes
@@ -496,7 +533,7 @@ Scenario: 792b36c9a4 Any answer resets the backoff
   Then each resets the failure count and the backoff window
 ```
 
-### 792b36c10 An unreachable parent
+#### 792b36c10 An unreachable parent
 
 Requirement: [792b36c10 An unreachable parent](#792b36c10-an-unreachable-parent) When a send fails ([792b36c7 The parent's answer](#792b36c7-the-parents-answer)), the drain MUST stop, MUST keep the failed entry and every later one in
 their order, MUST record the attempt and the error on the failed entry, and MUST record a failure in the parent cache so
@@ -507,7 +544,7 @@ Supports: [792a21q1a The parent is unreachable during learn](../product/parent-s
 
 Rationale: after one failure the rest would fail too, and each would wait out the connect timeout.
 
-#### 792b36c10a Scenarios
+##### 792b36c10a Scenarios
 
 ```gherkin
 Scenario: 792b36c10a1 A transport failure stops the drain
@@ -516,7 +553,7 @@ Scenario: 792b36c10a1 A transport failure stops the drain
   Then the first entry is removed, the second and third remain in order, the second records attempts and the error, and the parent is backed off for 30 seconds
 ```
 
-### 792b36c11 A parent that is too old
+#### 792b36c11 A parent that is too old
 
 Requirement: [792b36c11 A parent that is too old](#792b36c11-a-parent-that-is-too-old) When a receipt lacks a vault ID or a basename, the drain MUST stop with an error saying the parent
 is too old, MUST keep the entry queued, MUST record the attempt, and MUST reset the failure count, because the parent
@@ -526,7 +563,7 @@ Supports: [792a21v1a A pre-change parent is detected](../product/parent-sync.md#
 
 Rationale: an old parent cannot link the note, but it is up, so it is not backed off, and upgrading it needs no change here.
 
-#### 792b36c11a Scenarios
+##### 792b36c11a Scenarios
 
 ```gherkin
 Scenario: 792b36c11a1 A too-old parent keeps the entry and errors
@@ -535,7 +572,7 @@ Scenario: 792b36c11a1 A too-old parent keeps the entry and errors
   Then it stops with a too-old error and the entry stays queued
 ```
 
-### 792b36c12 A looping offer
+#### 792b36c12 A looping offer
 
 Requirement: [792b36c12 A looping offer](#792b36c12-a-looping-offer) When the parent refuses an offer as a loop, the drain MUST, for a refusing vault other than this one,
 mark the entry `rejected`, continue, print one warning per drain naming the refusing vault, and not back the
@@ -548,7 +585,7 @@ Supports: [792a21y1a A cycle rejects the entry and continues](../product/parent-
 Rationale: a real cycle (A to B to C to A) is a fault that retrying cannot mend, while a vault that is its own parent is a
 copy mistake that the user repairs, and it must not act as its own parent, so nothing is sent or rejected ([792a2q A vault does not exchange with itself](../product/vault-identity.md#792a2q-a-vault-does-not-exchange-with-itself)).
 
-#### 792b36c12a Scenarios
+##### 792b36c12a Scenarios
 
 ```gherkin
 Scenario: 792b36c12a1 A cycle rejects the entry and continues
@@ -567,7 +604,7 @@ Scenario: 792b36c12a3 A self-parent receipt records nothing
   Then nothing is recorded, the drain stops, the entry is neither sent nor rejected and one warning names --regenerate
 ```
 
-### 792b36c13 An offer that cannot be built
+#### 792b36c13 An offer that cannot be built
 
 Requirement: [792b36c13 An offer that cannot be built](#792b36c13-an-offer-that-cannot-be-built) When an offer cannot be built from its note, for a reason other than a withdrawal ([792b36c3 An offer withdrawn at send time](#792b36c3-an-offer-withdrawn-at-send-time)) or the lack
 of a user identity ([792b36c15 An entry that waits](#792b36c15-an-entry-that-waits)), the drain MUST record the error on the entry, keep it queued, contact the parent not at
@@ -577,7 +614,7 @@ Supports: [792a21r1g An unbuildable payload does not stop the drain](../product/
 
 Rationale: a local fault in one note must not stop the others, and it says nothing about the parent.
 
-#### 792b36c13a Scenarios
+##### 792b36c13a Scenarios
 
 ```gherkin
 Scenario: 792b36c13a1 A skipped send keeps the entry and goes on
@@ -591,7 +628,7 @@ Scenario: 792b36c13a2 The production sender skips without contacting the parent
   Then it makes no request, and for a buildable note it posts the built payload to /learn
 ```
 
-### 792b36c14 Merging the outcomes
+#### 792b36c14 Merging the outcomes
 
 Requirement: [792b36c14 Merging the outcomes](#792b36c14-merging-the-outcomes) After the sends, the drain MUST take the vault lock, re-read the outbox, the parent cache and the notes
 from disk, fold in every outcome, and save the outbox and the cache, so that an entry queued while the sends ran
@@ -604,7 +641,7 @@ Supports: [792a21q1b Offline learn then amend coalesce](../product/parent-sync.m
 Rationale: the sends ran without the lock, so the state they began from may be stale, and merging into a fresh read is
 what keeps both a concurrent enqueue and a concurrent clear.
 
-#### 792b36c14a Scenarios
+##### 792b36c14a Scenarios
 
 ```gherkin
 Scenario: 792b36c14a1 A concurrent enqueue survives
@@ -618,7 +655,7 @@ Scenario: 792b36c14a2 No offer is lost
   Then the outbox holds at most one entry per note, and every live, non-pending note whose content the parent has not accepted keeps an entry
 ```
 
-### 792b36c15 An entry that waits
+#### 792b36c15 An entry that waits
 
 Requirement: [792b36c15 An entry that waits](#792b36c15-an-entry-that-waits) When the note refuses an accepted receipt because its `parent:` carries a YAML anchor or its frontmatter
 does not decode, the offer-outbox MUST leave the note untouched, move the entry to `attention` keeping the receipt, the
@@ -639,7 +676,7 @@ Rationale: the parent accepted the offer, so resending it would be wrong, and th
 owner repairs it. Keeping the receipt rather than the offer makes the repair automatic, and recording it before the
 gate means a fixed note is linked even while the parent is away.
 
-#### 792b36c15a Scenarios
+##### 792b36c15a Scenarios
 
 ```gherkin
 Scenario: 792b36c15a1 A refused receipt needs attention
@@ -693,7 +730,7 @@ Scenario: 792b36c15a10 A built no-user entry that then fails is still counted
   Then the entry is queued, counted, and not listed as needing attention
 ```
 
-### 792b36c16 The update exchange and the outbox notice
+#### 792b36c16 The update exchange and the outbox notice
 
 Requirement: [792b36c16 The update exchange and the outbox notice](#792b36c16-the-update-exchange-and-the-outbox-notice) With a parent configured and outside `--dry-run`, the offer-outbox MUST drain in `engram update` ignoring
 the backoff window. It MUST then return a notice that is empty when the outbox holds no entry and no backoff is active, and
@@ -708,7 +745,7 @@ Supports: [792a21s1b update always tries](../product/parent-sync.md#792a21s1-uat
 Rationale: a stuck outbox is silent otherwise, and `update` is where the user already looks for notices. A dry run must
 change nothing, and the end of an outage must be noticed, so `update` drains through the window.
 
-#### 792b36c16a Scenarios
+##### 792b36c16a Scenarios
 
 ```gherkin
 Scenario: 792b36c16a1 A dry run only reports, a real run drains through the window

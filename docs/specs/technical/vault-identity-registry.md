@@ -1,6 +1,8 @@
 # Vault Identity Registry - Technical Spec
 
-## 792b5a Orientation
+## 792b5 Vault Identity Registry
+
+### 792b5a Orientation
 
 - Ownership: Repository component.
 - Responsibility: brings a vault into existence on first use and owns its identity: the tracked
@@ -15,12 +17,30 @@
   parent cache and backoff (`gateParentContact`, `recordParentFailure`, `recordParentSuccess`), the exchange-identifier
   checks (`isExchangeID`, `isExchangeBasename`) and the declined-pull record (`loadDeclined`, `recordDeclinedPull`,
   `declineMatches`) are [792b5c14 The parent cache and the contact backoff](#792b5c14-the-parent-cache-and-the-contact-backoff) to [792b5c16 The declined-pull record](#792b5c16-the-declined-pull-record).
-- Qualification: responsibility, the identity contract is stated without naming any command;
-  ownership, commands decide when to exchange, while this component decides whether the vault's
-  identity allows it; independent verification, every requirement is tested directly over a
-  temp-dir or scripted filesystem and an injected random source; stability, the ID file, state
-  directory and location record are on-disk contracts that survive refactoring; necessity,
-  vault-identity's ([vault-identity](../product/vault-identity.md)) creation, ID and refusal requirements all depend on it.
+- Qualification: Purpose: vault-identity's ([vault-identity](../product/vault-identity.md)) creation, ID and refusal
+  requirements all depend on it. Contract: commands decide when to exchange, while this component decides whether the
+  vault's identity allows it; every requirement is tested directly over a temp-dir or scripted filesystem and an
+  injected random source. Identity: the ID file, state directory and location record are on-disk contracts that
+  survive refactoring. Value: exchange links key on the [vault ID](../../GLOSSARY.md#vault-id) and never on URL or
+  hostname, so DNS or IP churn breaks nothing, and the untracked location record catches a copied or cloned
+  [vault](../../GLOSSARY.md#vault) before it exchanges
+  ([792b5c7 Location record and check](#792b5c7-location-record-and-check)). Responsibility (naming): the identity
+  contract is stated without naming any command.
+- Required behavior: [Durable File Store](./durable-file-store.md) creates a file only when none exists at the path,
+  failing with an error that satisfies `fs.ErrExist` otherwise
+  ([792b3c2 Exclusive create](./durable-file-store.md#792b3c2-exclusive-create)), replaces a file's content atomically
+  ([792b3c1 Atomic replace](./durable-file-store.md#792b3c1-atomic-replace)) and keeps the underlying error of a
+  failed operation, so that a missing path reads as not existing
+  ([792b3c3 Error identity](./durable-file-store.md#792b3c3-error-identity)).
+- Required behavior: [Subprocess Runner](./subprocess-runner.md) runs `git` in the vault's directory and hands back
+  what it printed, or reports why it failed
+  ([792b4c1 Run and collect output](./subprocess-runner.md#792b4c1-run-and-collect-output),
+  [792b4c2 Failure reporting](./subprocess-runner.md#792b4c2-failure-reporting)).
+- Required behavior: `git` (external) is assumed to tell whether a directory is inside a work tree, whether a file is
+  in the index and whether it is staged or modified relative to the last commit
+  ([792b5c13 Uncommitted ID detection](#792b5c13-uncommitted-id-detection)); authoritative contract: not recorded in
+  this repository; compatibility verification: `internal/cli/vault_first_use_test.go` (real git, an ignored and a
+  committed ID file).
 - Supported capabilities: [vault-identity](../product/vault-identity.md), [parent-sync](../product/parent-sync.md) ([792b5c14 The parent cache and the contact backoff](#792b5c14-the-parent-cache-and-the-contact-backoff) to [792b5c16 The declined-pull record](#792b5c16-the-declined-pull-record)).
 
 Rationale: every environment has its own local vault, created by the first command
@@ -32,9 +52,9 @@ Transient exchange state lives in `.engram/`, which ignores itself, so the vault
 child-side exchange until `--claim` or `--regenerate` runs; links and IDs live in tracked files, so
 no note content is lost.
 
-## 792b5c Behavior Requirements
+### 792b5c Behavior Requirements
 
-### 792b5c1 First-use ensure
+#### 792b5c1 First-use ensure
 
 Requirement: [792b5c1 First-use ensure](#792b5c1-first-use-ensure) Given a vault path, the vault-identity-registry MUST, when nothing exists at
 the path, write the starter files, create `.engram/`, stamp a vault ID with its location record,
@@ -44,7 +64,7 @@ directory, and MUST fail when the path can't be inspected or the random source f
 
 Supports: [792a2e1a A read command creates the vault](../product/vault-identity.md#792a2e1-uat-scenarios), [792a2e1b amend and activate fail only on their own merits](../product/vault-identity.md#792a2e1-uat-scenarios), [792a2e1c A child host gets its own vault](../product/vault-identity.md#792a2e1-uat-scenarios), [792a2e1d A second run creates nothing](../product/vault-identity.md#792a2e1-uat-scenarios), [792a2f1a An existing vault is untouched by read-only use](../product/vault-identity.md#792a2f1-uat-scenarios).
 
-#### 792b5c1a Scenarios
+##### 792b5c1a Scenarios
 
 ```gherkin
 Scenario: 792b5c1a1 A missing vault is created with its ID and state directory
@@ -78,7 +98,7 @@ Scenario: 792b5c1a6 A random-source failure is an error
   Then an error naming the random source is returned
 ```
 
-### 792b5c2 Half-created vault repair
+#### 792b5c2 Half-created vault repair
 
 Requirement: [792b5c2 Half-created vault repair](#792b5c2-half-created-vault-repair) When an existing vault has `.engram/` but no `.engram-vault-id`, the
 vault-identity-registry MUST stamp the vault ID and print exactly one stderr line
@@ -89,7 +109,7 @@ Supports: [792a2g1a A half-created vault gets its ID](../product/vault-identity.
 Rationale: first-use creation writes `.engram/` before the ID, so `.engram/` marks a vault engram
 created, and a stamp that failed part-way is finished by the next run.
 
-#### 792b5c2a Scenarios
+##### 792b5c2a Scenarios
 
 ```gherkin
 Scenario: 792b5c2a1 A half-created vault is repaired
@@ -98,7 +118,7 @@ Scenario: 792b5c2a1 A half-created vault is repaired
   Then the ID file and location record are written and stderr has exactly one repair line
 ```
 
-### 792b5c3 Starter files
+#### 792b5c3 Starter files
 
 Requirement: [792b5c3 Starter files](#792b5c3-starter-files) The vault-identity-registry MUST initialize a vault by creating `.obsidian/`
 and writing `.obsidian/app.json` (`{}`), a `.gitignore` listing `.luhmann.lock`,
@@ -111,7 +131,7 @@ Rationale: the minimal `.obsidian/app.json` lets Obsidian open the directory as 
 engram shipping an Obsidian configuration. The `.gitignore` keeps lock and workspace files out of
 git for users who track their vault.
 
-#### 792b5c3a Scenarios
+##### 792b5c3a Scenarios
 
 ```gherkin
 Scenario: 792b5c3a1 The starter set is written
@@ -130,7 +150,7 @@ Scenario: 792b5c3a3 Directory and write failures are returned
   Then an error naming the failed step is returned
 ```
 
-### 792b5c4 Vault ID stamping
+#### 792b5c4 Vault ID stamping
 
 Requirement: [792b5c4 Vault ID stamping](#792b5c4-vault-id-stamping) The vault-identity-registry MUST return the vault's existing ID when
 `.engram-vault-id` exists, and otherwise MUST mint 16 bytes from the injected random source as 32
@@ -145,7 +165,7 @@ Supports: [792a2h1a serve stamps an existing vault](../product/vault-identity.md
 Rationale: exclusive create followed by a re-read makes concurrent creators converge on one ID. The
 random source is injected so tests are deterministic.
 
-#### 792b5c4a Scenarios
+##### 792b5c4a Scenarios
 
 ```gherkin
 Scenario: 792b5c4a1 Concurrent creators converge
@@ -169,7 +189,7 @@ Scenario: 792b5c4a4 An existing ID is reused
   Then the existing ID is returned and the file is unchanged
 ```
 
-### 792b5c5 Vault ID validation
+#### 792b5c5 Vault ID validation
 
 Requirement: [792b5c5 Vault ID validation](#792b5c5-vault-id-validation) The vault-identity-registry MUST accept the ID file's content, ignoring
 trailing whitespace, only when it is 32 lowercase hex characters, and MUST otherwise fail with an
@@ -178,7 +198,7 @@ lost race retries an invalid read a bounded number of times before failing.
 
 Supports: [792a2j1a serve starts despite a corrupt ID](../product/vault-identity.md#792a2j1-uat-scenarios), [792a2j1b A merged query warns and still runs](../product/vault-identity.md#792a2j1-uat-scenarios), [792a2j1c vault-id reports the corrupt file](../product/vault-identity.md#792a2j1-uat-scenarios).
 
-#### 792b5c5a Scenarios
+##### 792b5c5a Scenarios
 
 ```gherkin
 Scenario: 792b5c5a1 Invalid content is refused
@@ -192,7 +212,7 @@ Scenario: 792b5c5a2 A read failure is returned
   Then the read error is returned
 ```
 
-### 792b5c6 State directory
+#### 792b5c6 State directory
 
 Requirement: [792b5c6 State directory](#792b5c6-state-directory) The vault-identity-registry MUST create `<vault>/.engram/` with a `.gitignore`
 holding only `*`, writing that `.gitignore` only when it is missing, and MUST NOT write the vault's
@@ -200,7 +220,7 @@ root `.gitignore`.
 
 Supports: [792a2k1a State does not dirty the vault's git](../product/vault-identity.md#792a2k1-uat-scenarios), [792a2k1b The root .gitignore is untouched](../product/vault-identity.md#792a2k1-uat-scenarios).
 
-#### 792b5c6a Scenarios
+##### 792b5c6a Scenarios
 
 ```gherkin
 Scenario: 792b5c6a1 The root .gitignore is untouched
@@ -214,7 +234,7 @@ Scenario: 792b5c6a2 State-directory failures are returned
   Then the failure is returned
 ```
 
-### 792b5c7 Location record and check
+#### 792b5c7 Location record and check
 
 Requirement: [792b5c7 Location record and check](#792b5c7-location-record-and-check) The vault-identity-registry MUST record a vault's location in
 `.engram/home.json` as exactly its vault ID and its canonical path (symlinks evaluated, made
@@ -228,7 +248,7 @@ Rationale: a hostname would give false positives, because DHCP, `.local` renames
 change it without the vault moving. Canonicalizing the path keeps a symlinked route to the same
 vault from failing.
 
-#### 792b5c7a Scenarios
+##### 792b5c7a Scenarios
 
 ```gherkin
 Scenario: 792b5c7a1 A copy is a mismatch
@@ -257,7 +277,7 @@ Scenario: 792b5c7a5 A symlinked path passes
   Then the result is ok
 ```
 
-### 792b5c8 Location warning
+#### 792b5c8 Location warning
 
 Requirement: [792b5c8 Location warning](#792b5c8-location-warning) When the location check does not pass, or cannot run, the
 vault-identity-registry MUST print exactly one warning naming the vault, the check result, and both
@@ -266,7 +286,7 @@ a passing check prints nothing.
 
 Supports: [792a2p1a A cloned child is caught before it offers](../product/vault-identity.md#792a2p1-uat-scenarios), [792a2p1b A cloned child's merged query still runs](../product/vault-identity.md#792a2p1-uat-scenarios), [792a2p1c serve starts despite a mismatched record](../product/vault-identity.md#792a2p1-uat-scenarios).
 
-#### 792b5c8a Scenarios
+##### 792b5c8a Scenarios
 
 ```gherkin
 Scenario: 792b5c8a1 A failed check warns once with both remedies
@@ -275,14 +295,14 @@ Scenario: 792b5c8a1 A failed check warns once with both remedies
   Then exactly one warning naming both remedies is printed and the failure is reported, while a passing check prints nothing
 ```
 
-### 792b5c9 Regenerate
+#### 792b5c9 Regenerate
 
 Requirement: [792b5c9 Regenerate](#792b5c9-regenerate) Regenerating MUST mint a new vault ID, atomically rewrite `.engram-vault-id`
 and the location record with it, and touch no note.
 
 Supports: [792a2m1a Regenerate gives a copy its own identity](../product/vault-identity.md#792a2m1-uat-scenarios).
 
-#### 792b5c9a Scenarios
+##### 792b5c9a Scenarios
 
 ```gherkin
 Scenario: 792b5c9a1 A copy gets its own identity
@@ -291,14 +311,14 @@ Scenario: 792b5c9a1 A copy gets its own identity
   Then the ID differs from the original's, the location check passes, and no note file changed
 ```
 
-### 792b5c10 Claim
+#### 792b5c10 Claim
 
 Requirement: [792b5c10 Claim](#792b5c10-claim) Claiming MUST rewrite only the location record for the vault's current ID and
 path, and MUST fail with an error saying the vault has no vault ID when the ID file is absent.
 
 Supports: [792a2n1a Claim accepts a moved vault](../product/vault-identity.md#792a2n1-uat-scenarios), [792a2n1b Claim needs an ID](../product/vault-identity.md#792a2n1-uat-scenarios).
 
-#### 792b5c10a Scenarios
+##### 792b5c10a Scenarios
 
 ```gherkin
 Scenario: 792b5c10a1 A moved vault keeps its ID and passes
@@ -312,7 +332,7 @@ Scenario: 792b5c10a2 Claim without an ID fails
   Then it fails saying the vault has no vault ID
 ```
 
-### 792b5c11 vault-id report
+#### 792b5c11 vault-id report
 
 Requirement: [792b5c11 vault-id report](#792b5c11-vault-id-report) The `vault-id` command MUST refuse `--regenerate` and `--claim` together,
 print `vault_id: <id> (regenerated)` or `vault_id: <id> (location claimed)` after those actions, and
@@ -322,7 +342,7 @@ anything.
 
 Supports: [792a2l1a A healthy vault reports its ID](../product/vault-identity.md#792a2l1-uat-scenarios), [792a2l1b A moved vault reports a mismatch with both remedies](../product/vault-identity.md#792a2l1-uat-scenarios), [792a2l1c A vault without an ID is reported without writing](../product/vault-identity.md#792a2l1-uat-scenarios), [792a2o1a Both flags are refused](../product/vault-identity.md#792a2o1-uat-scenarios).
 
-#### 792b5c11a Scenarios
+##### 792b5c11a Scenarios
 
 ```gherkin
 Scenario: 792b5c11a1 The report prints the ID and the check
@@ -336,7 +356,7 @@ Scenario: 792b5c11a2 Both flags are refused
   Then it fails as mutually exclusive and changes nothing
 ```
 
-### 792b5c12 Self-parent guard
+#### 792b5c12 Self-parent guard
 
 Requirement: [792b5c12 Self-parent guard](#792b5c12-self-parent-guard) Given the local vault ID and a parent's reported vault ID, the
 vault-identity-registry MUST report a self-parent, and print exactly one warning naming
@@ -345,7 +365,7 @@ and MUST print nothing otherwise.
 
 Supports: [792a2q1a A copied vault served back to itself](../product/vault-identity.md#792a2q1-uat-scenarios), [792a2q1b A write in a vault that is its own parent queues nothing](../product/vault-identity.md#792a2q1-uat-scenarios).
 
-#### 792b5c12a Scenarios
+##### 792b5c12a Scenarios
 
 ```gherkin
 Scenario: 792b5c12a1 Only an equal, non-empty ID is a self-parent
@@ -354,7 +374,7 @@ Scenario: 792b5c12a1 Only an equal, non-empty ID is a self-parent
   Then it fires with one warning naming engram vault-id --regenerate exactly when the local ID is non-empty and equals the parent's
 ```
 
-### 792b5c13 Uncommitted ID detection
+#### 792b5c13 Uncommitted ID detection
 
 Requirement: [792b5c13 Uncommitted ID detection](#792b5c13-uncommitted-id-detection) The vault-identity-registry MUST report the vault ID as uncommitted when
 `.engram-vault-id` exists in a git work tree and is either not in the index (untracked or ignored)
@@ -365,7 +385,7 @@ Supports: [792a2i1a Uncommitted ID is flagged](../product/vault-identity.md#792a
 
 Rationale: `git status` alone hides an ignored file, so index membership is checked first.
 
-#### 792b5c13a Scenarios
+##### 792b5c13a Scenarios
 
 ```gherkin
 Scenario Outline: 792b5c13a1 Uncommitted detection
@@ -389,7 +409,7 @@ Scenario: 792b5c13a2 The update report carries the notice only when flagged
   Then it names .engram-vault-id and asks for a commit only when the flag is set
 ```
 
-### 792b5c14 The parent cache and the contact backoff
+#### 792b5c14 The parent cache and the contact backoff
 
 Requirement: [792b5c14 The parent cache and the contact backoff](#792b5c14-the-parent-cache-and-the-contact-backoff) The vault-identity-registry MUST keep, per vault, a record of the configured parent in
 `<vault>/.engram/parent.json`: the parent's URL, the vault ID it last reported, the count of consecutive failures and the
@@ -409,7 +429,7 @@ host would slow every command the user runs. The record keys on the URL that fai
 parent tries the new one at once, and `update` always tries so that the end of an outage is noticed. The remembered vault
 ID is what lets a link count only under the parent it was made for ([792a21zj An exchanged note carries vault-qualified parent links](../product/parent-sync.md#792a21zj-an-exchanged-note-carries-vault-qualified-parent-links)).
 
-#### 792b5c14a Scenarios
+##### 792b5c14a Scenarios
 
 ```gherkin
 Scenario: 792b5c14a1 The delay doubles from thirty seconds and is capped
@@ -448,7 +468,7 @@ Scenario: 792b5c14a7 Another URL is not backed off
   Then it is allowed
 ```
 
-### 792b5c15 Exchange identifiers
+#### 792b5c15 Exchange identifiers
 
 Requirement: [792b5c15 Exchange identifiers](#792b5c15-exchange-identifiers) The vault-identity-registry MUST accept a vault ID or a note's `xid` as an exchange identifier only
 when it is exactly 32 lowercase hexadecimal characters, and MUST accept a basename another vault hands this one only
@@ -460,7 +480,7 @@ Rationale: the parent is another machine's input. An accepted basename is stored
 record and in offers, so a separator would become a path and a `|` would corrupt the `note|type|claim` encoding of a
 supersession.
 
-#### 792b5c15a Scenarios
+##### 792b5c15a Scenarios
 
 ```gherkin
 Scenario: 792b5c15a1 Only a 32-character lowercase hexadecimal string is an identifier
@@ -473,7 +493,7 @@ Scenario: 792b5c15a2 A basename with a separator is refused
   When each is checked as an exchange basename
   Then only the one without a separator is accepted
 ```
-### 792b5c16 The declined-pull record
+#### 792b5c16 The declined-pull record
 
 Requirement: [792b5c16 The declined-pull record](#792b5c16-the-declined-pull-record) The vault-identity-registry MUST keep, in `<vault>/.engram/declined.json`, the parent notes whose
 pulled copies were discarded outright, each entry holding the parent's vault ID, the basename and the exchange hash that
@@ -488,7 +508,7 @@ Supports: [792a21ze1c A declined pull is remembered](../product/parent-sync.md#7
 Rationale: a decline keyed by the parent's vault ID never suppresses a note of another parent, naming the aliases keeps a
 declined note declined after the parent renames it, and a changed hash is new information, so it pulls again.
 
-#### 792b5c16a Scenarios
+##### 792b5c16a Scenarios
 
 ```gherkin
 Scenario: 792b5c16a1 A decline is recorded once

@@ -1,6 +1,8 @@
 # Exchange Versioning - Technical Spec
 
-## 792b33a Orientation
+## 792b33 Exchange Versioning
+
+### 792b33a Orientation
 
 - Ownership: Repository component.
 - Responsibility: gives a note the identity that two vaults compare and the links that tie it to a note in another
@@ -11,13 +13,21 @@
 - Current realization (informational): `internal/cli/exchangehash.go`, `exchangefields.go`, `exchange_blocks.go`
   and `offer_receipt.go` (`exchangeHash`, `compareExchangeHashes`, `exchangeKeyClassification`,
   `exchangeFrontmatter`, `editExchangeBlocks`, `applyReceiptToContent`, `setXIDField`).
-- Qualification: responsibility, the hash, its comparison and the link edit are stated without naming a function;
-  ownership, it owns what is hashed and how two hashes compare, while [note-document-format](./note-document-format.md) owns the frontmatter
-  edit machinery it reuses and the exchange paths that call it (served learn, the outbox, pull-down, curation) own
-  when to hash and edit; independent verification, a golden note fixes the hash and a property test moves each
-  field in turn; stability, the contract survives a new frontmatter key, because a reflection test refuses an
-  unclassified one; necessity, two vaults cannot tell whether a note changed, nor link it to its counterpart,
-  without it.
+- Qualification: Purpose: two vaults cannot tell whether a note changed, nor link it to its counterpart, without it.
+  Contract: it owns what is hashed and how two hashes compare, while [note-document-format](./note-document-format.md)
+  owns the frontmatter edit machinery it reuses and the exchange paths that call it (served learn, the outbox,
+  pull-down, curation) own when to hash and edit; a golden note fixes the hash and a property test moves each field in
+  turn. Identity: the contract survives a new frontmatter key, because a reflection test refuses an unclassified one.
+  Value: one function serves both sides of an exchange, so the same file hashes the same on a child and on its parent
+  ([792b33c1 The exchange hash](#792b33c1-the-exchange-hash)), and the version prefix lets what is hashed change
+  without old and new hashes comparing as different. Responsibility (naming): the hash, its comparison and the link
+  edit are stated without naming a function.
+- Required behavior: [Note Document Format](./note-document-format.md) splits a
+  [note](../../GLOSSARY.md#permanent-note)'s text into frontmatter and body
+  ([792b6c6 Frontmatter splitting](./note-document-format.md#792b6c6-frontmatter-splitting)), reads a CRLF note as its
+  LF form ([792b6c8 CRLF reading](./note-document-format.md#792b6c8-crlf-reading)) and edits its frontmatter as parsed
+  YAML nodes, refusing an edit of a key that carries an anchor and a result that does not decode
+  ([792b6c7 Frontmatter node edits](./note-document-format.md#792b6c7-frontmatter-node-edits)).
 - Supported capabilities: [vault-serving](../product/vault-serving.md), [parent-sync](../product/parent-sync.md). Curate ([curate](../product/curate.md)) extends it later.
 
 Rationale: a vault that exchanges notes needs a hash that changes when and only when an offered note's content
@@ -27,9 +37,9 @@ suppression would never fire. The hash is versioned (`xh1:`) so a later change t
 hashes compare as unknown instead of different. Both sides of an exchange call the same function, so the same file
 hashes the same on a child and on its parent.
 
-## 792b33c Behavior Requirements
+### 792b33c Behavior Requirements
 
-### 792b33c1 The exchange hash
+#### 792b33c1 The exchange hash
 
 Requirement: [792b33c1 The exchange hash](#792b33c1-the-exchange-hash) The exchange-versioning MUST give a note the hash `xh1:` followed by the lowercase hex SHA-256
 of the sorted-key JSON object of `type`, `situation`, `subject`, `predicate`, `object`, `behavior`, `impact`,
@@ -42,7 +52,7 @@ Rationale: the one function is used by the server for a receipt's `stored_hash`,
 exchange-hash header of `engram show` and for the query payload's dedupe keys, and by the child for what it
 offers, so a golden test pins what both sides compute.
 
-#### 792b33c1a Scenarios
+##### 792b33c1a Scenarios
 
 ```gherkin
 Scenario: 792b33c1a1 A feedback note hashes to the canonical JSON
@@ -51,7 +61,7 @@ Scenario: 792b33c1a1 A feedback note hashes to the canonical JSON
   Then it is xh1: followed by the SHA-256 of the sorted-key JSON of the offered fields, with absent fields empty, and the body Lesson learned line followed by one newline
 ```
 
-### 792b33c2 What the hash covers
+#### 792b33c2 What the hash covers
 
 Requirement: [792b33c2 What the hash covers](#792b33c2-what-the-hash-covers) The exchange hash MUST change when any offered field or the body of a note changes, on a fact,
 feedback or runbook note, and MUST NOT change when any other frontmatter key changes: `tier`, `luhmann`, `created`,
@@ -66,7 +76,7 @@ counterpart in another vault without the content having changed, so hashing them
 The classification is one explicit table, with a reflection test that fails when a frontmatter key is missing from
 it, so a new field cannot silently fall outside the hash.
 
-#### 792b33c2a Scenarios
+##### 792b33c2a Scenarios
 
 ```gherkin
 Scenario: 792b33c2a1 Changing an offered field moves the hash
@@ -95,7 +105,7 @@ Scenario: 792b33c2a5 The classification is the design's split
   Then they are exactly the hashed content fields, and repo, user, vault, pending, tags, sources, supersedes, xid, parent, aliases, offer and the skill fields are not offered
 ```
 
-### 792b33c3 The canonical body
+#### 792b33c3 The canonical body
 
 Requirement: [792b33c3 The canonical body](#792b33c3-the-canonical-body) The exchange-versioning MUST hash a note as its LF form, with the body being the text after the
 frontmatter with CRLF line endings turned into LF and ending in exactly one newline (none for an empty body), so that
@@ -110,7 +120,7 @@ as its LF conversion, and a note converted from CRLF frontmatter matches the sam
 block reads as body everywhere else in engram, and an error would let one malformed note stall an outbox drain or a
 dedupe pass. The prefix stays `xh1:` because a bump would turn every note's comparison into unknown across versions.
 
-#### 792b33c3a Scenarios
+##### 792b33c3a Scenarios
 
 ```gherkin
 Scenario: 792b33c3a1 Line endings do not move the hash
@@ -139,14 +149,14 @@ Scenario: 792b33c3a5 An unterminated frontmatter is the whole text as body
   Then there is no error, the body is the whole text and every offered field is empty
 ```
 
-### 792b33c4 An unreadable frontmatter has no hash
+#### 792b33c4 An unreadable frontmatter has no hash
 
 Requirement: [792b33c4 An unreadable frontmatter has no hash](#792b33c4-an-unreadable-frontmatter-has-no-hash) The exchange-versioning MUST fail with an error wrapping `exchange hash: parsing frontmatter`
 when a note's closed frontmatter is not YAML, and MUST NOT give such a note a hash.
 
 Supports: none. See [792b33c2 What the hash covers](#792b33c2-what-the-hash-covers).
 
-#### 792b33c4a Scenarios
+##### 792b33c4a Scenarios
 
 ```gherkin
 Scenario: 792b33c4a1 Invalid YAML has no hash
@@ -155,7 +165,7 @@ Scenario: 792b33c4a1 Invalid YAML has no hash
   Then it fails
 ```
 
-### 792b33c5 Comparing two hashes
+#### 792b33c5 Comparing two hashes
 
 Requirement: [792b33c5 Comparing two hashes](#792b33c5-comparing-two-hashes) The exchange-versioning MUST compare two hashes three ways: unknown when either lacks the
 current `xh1:` prefix, whatever the other is, otherwise equal when the strings are equal and changed when they
@@ -169,7 +179,7 @@ Rationale: a hash from an older or newer version, a sidecar's content hash, a mi
 nothing about whether the content changed, so a consumer that acts only on equal never acts on a guess, and a
 consumer that acts only on changed never re-sends or re-pulls on one.
 
-#### 792b33c5a Scenarios
+##### 792b33c5a Scenarios
 
 ```gherkin
 Scenario: 792b33c5a1 Hashes compare equal, changed or unknown
@@ -188,7 +198,7 @@ Scenario: 792b33c5a3 Equal matches and changed changes
   Then the equality check is true only for the equal pair and the change check is true only for the different pair
 ```
 
-### 792b33c6 The exchange fields
+#### 792b33c6 The exchange fields
 
 Requirement: [792b33c6 The exchange fields](#792b33c6-the-exchange-fields) The exchange-versioning MUST give the fact, feedback and runbook frontmatter the optional keys
 `xid` (the note's own exchange ID), `parent` (`vault`, `links` of `note`, `via` and `hash`, and `author` of `repo`,
@@ -206,7 +216,7 @@ note covers a second parent note once it has a counterpart. `aliases` lets a par
 reference to a renamed note keep resolving. The keys are not settable from the wire, which is what stops a remote
 client forging a link ([792a20j A caller cannot set link, identity or registration fields](../product/vault-serving.md#792a20j-a-caller-cannot-set-link-identity-or-registration-fields)).
 
-#### 792b33c6a Scenarios
+##### 792b33c6a Scenarios
 
 ```gherkin
 Scenario: 792b33c6a1 Every frontmatter structure declares the exchange fields
@@ -235,7 +245,7 @@ Scenario: 792b33c6a5 A CRLF frontmatter reads as LF
   Then they equal those decoded from its LF form, and the xid is not empty
 ```
 
-### 792b33c7 The lazy exchange ID
+#### 792b33c7 The lazy exchange ID
 
 Requirement: [792b33c7 The lazy exchange ID](#792b33c7-the-lazy-exchange-id) The exchange-versioning MUST stamp `xid` into a note's frontmatter, before `parent`, `aliases`
 and `offer` where they are present, only when the note has none, MUST return a note that already has an `xid`
@@ -243,7 +253,7 @@ unchanged, and MUST fail for a note with no frontmatter.
 
 Supports: [792a20j1b A caller cannot forge a link](../product/vault-serving.md#792a20j1-uat-scenarios).
 
-#### 792b33c7a Scenarios
+##### 792b33c7a Scenarios
 
 ```gherkin
 Scenario: 792b33c7a1 The stamp goes before the exchange blocks
@@ -262,7 +272,7 @@ Scenario: 792b33c7a3 A note with no frontmatter cannot be stamped
   Then it fails
 ```
 
-### 792b33c8 Editing the exchange blocks
+#### 792b33c8 Editing the exchange blocks
 
 Requirement: [792b33c8 Editing the exchange blocks](#792b33c8-editing-the-exchange-blocks) The exchange-versioning MUST edit a note's `aliases:` list and `parent:` block as YAML nodes: the
 `aliases:` list replaced whole, `parent:` edited in place with its `vault` and `author` set and each link's node
@@ -279,7 +289,7 @@ Rationale: an anchored value cannot be replaced without leaving its aliases dang
 decode would corrupt a note an agent depends on, so the edit refuses before it writes. The fold refuses before it
 writes the existing note or deletes the offer, so a refusal leaves both files untouched.
 
-#### 792b33c8a Scenarios
+##### 792b33c8a Scenarios
 
 ```gherkin
 Scenario: 792b33c8a1 Unknown keys under parent survive
@@ -318,7 +328,7 @@ Scenario: 792b33c8a7 Held link nodes are reused only when they line up
   Then they are returned only for the aligned block
 ```
 
-### 792b33c9 Recording an offer receipt
+#### 792b33c9 Recording an offer receipt
 
 Requirement: [792b33c9 Recording an offer receipt](#792b33c9-recording-an-offer-receipt) The exchange-versioning MUST record an offer receipt on a note by setting `parent.vault` to the
 receipt's vault ID and making the primary link `{note, via: offered, hash: stored_hash}`, where `note` is the receipt's
@@ -334,7 +344,7 @@ Supports: none. The receipt is parent-sync's.
 Rationale: the receipt is the parent's answer to an offer, and linking the child's note to the note it became (or to the
 live note it was folded onto) is what lets a later query dedupe the pair and a retry find it.
 
-#### 792b33c9a Scenarios
+##### 792b33c9a Scenarios
 
 ```gherkin
 Scenario: 792b33c9a1 The receipt links the note
@@ -373,7 +383,7 @@ Scenario: 792b33c9a7 A CRLF note takes the receipt as LF
   Then the note is written with no CRLF and the outbox entry is removed
 ```
 
-### 792b33c10 The exchange fields survive every other rewrite
+#### 792b33c10 The exchange fields survive every other rewrite
 
 Requirement: [792b33c10 The exchange fields survive every other rewrite](#792b33c10-the-exchange-fields-survive-every-other-rewrite) Every path that rewrites a note's frontmatter and is not an exchange path MUST leave `xid`,
 `parent`, `aliases` and `offer` unchanged, byte for byte: `amend` with every flag family on every note type, `resituate`,
@@ -388,7 +398,7 @@ Rationale: a link or an exchange ID lost to an unrelated rewrite would silently 
 and the next exchange would treat the note as new. Each rewrite site has its own survival test because each rewrites
 the frontmatter in its own way, some by re-marshalling the typed document and some line by line.
 
-#### 792b33c10a Scenarios
+##### 792b33c10a Scenarios
 
 ```gherkin
 Scenario: 792b33c10a1 Amend keeps the exchange fields

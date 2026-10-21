@@ -1,6 +1,8 @@
 # Vault HTTP Server - Technical Spec
 
-## 792b35a Orientation
+## 792b35 Vault HTTP Server
+
+### 792b35a Orientation
 
 - Ownership: Repository-owned dependency-boundary interaction (the `net/http` server, and the bounded client that
   reaches a parent).
@@ -8,16 +10,59 @@
   It reduces each request to primitives, runs the command's own implementation under the command's own locks, maps the
   outcome to a status and a JSON or text body, refuses requests that are too large, malformed, looping or aimed
   outside the vault, and writes a served `learn` as a pending offer under the declared identity, answering with a
-  receipt.
+  receipt. It also makes a child's requests to its parent through a client whose connect step and total time are
+  bounded ([792b35c17 The bounded fetch client](#792b35c17-the-bounded-fetch-client)).
 - Current realization (informational): `internal/cli/serve.go`, `serve_learn.go` and `serve_exchange_read.go`, with the
   `net/http` edge in `cmd/engram/serve.go` (the mux, the route registration, the listener and the bounded fetch client).
-- Qualification: responsibility, serving the four commands over HTTP is stated without naming a function or a handler;
-  ownership, it owns the routes, statuses, size caps and the served-learn lookup, while the commands own their results
-  and [exchange-versioning](./exchange-versioning.md) and [pending-offer-bookkeeping](./pending-offer-bookkeeping.md) own the hash and the marker it calls; independent verification,
-  every handler runs over an in-memory request and a temporary vault, and a real mux serves two round trips over TCP;
-  stability, the route table and receipt are the contract children depend on; necessity, a child cannot offer or pull
-  without it.
-- Supported capabilities: [vault-serving](../product/vault-serving.md).
+- Qualification: Purpose: a child cannot offer or pull without it. Contract: it owns the routes, statuses, size caps
+  and the served-learn lookup, while the commands own their results and
+  [exchange-versioning](./exchange-versioning.md) and [pending-offer-bookkeeping](./pending-offer-bookkeeping.md) own
+  the hash and the marker it calls; every handler runs over an in-memory request and a temporary vault, and a real mux
+  serves two round trips over TCP. Identity: the route table and receipt are the contract children depend on. Value: a
+  child reaches its parent without a second implementation of any command, since each handler calls the command's own
+  code under its locks, and the server takes its [vault](../../GLOSSARY.md#vault) once at startup, so no request can
+  aim it elsewhere. Responsibility (naming): serving the four commands over HTTP is stated without naming a function
+  or a handler.
+- Required behavior: `net/http` (external) is assumed to answer a request for an unregistered path with 404 and a
+  request for a registered path with another method with 405 ([792b35c1 The route table](#792b35c1-the-route-table)),
+  to report a body over the cap apart from another read failure and to close a connection whose request headers are
+  not read within the bound ([792b35c3 Request bodies](#792b35c3-request-bodies)), and to bound a client request's
+  connect step and total time as configured
+  ([792b35c17 The bounded fetch client](#792b35c17-the-bounded-fetch-client)); authoritative contract: not recorded in
+  this repository; compatibility verification: `cmd/engram/serve_integration_test.go` (a real mux and a real fetch
+  over TCP, for `GET /show` and `POST /learn`) and `cmd/engram/serve_config_test.go` (the configured client bounds),
+  none for the other assumptions.
+- Required behavior: [Exchange Versioning](./exchange-versioning.md) gives a
+  [note](../../GLOSSARY.md#permanent-note)'s [exchange hash](../../GLOSSARY.md#exchange-hash), the same for the stored
+  note and a child's note with the same offered content
+  ([792b33c1 The exchange hash](./exchange-versioning.md#792b33c1-the-exchange-hash)).
+- Required behavior: [Pending Offer Bookkeeping](./pending-offer-bookkeeping.md) reports a note as a pending
+  [offer](../../GLOSSARY.md#offer) exactly when it carries the pending marker
+  ([792b34c1 The pending-offer marker](./pending-offer-bookkeeping.md#792b34c1-the-pending-offer-marker)), leaves
+  pending offers out of a list of notes and reports whether one was found
+  ([792b34c2 Leaving pending offers out of a list of notes](./pending-offer-bookkeeping.md#792b34c2-leaving-pending-offers-out-of-a-list-of-notes)),
+  defines the curate instruction that the payload's hint carries
+  ([792b34c4 The curate instruction](./pending-offer-bookkeeping.md#792b34c4-the-curate-instruction)) and makes
+  `engram show` print the exchange-hash header of a note that carries an [`xid`](../../GLOSSARY.md#xid)
+  ([792b34c8 The exchange-hash header of show](./pending-offer-bookkeeping.md#792b34c8-the-exchange-hash-header-of-show)).
+- Required behavior: [Vault Identity Registry](./vault-identity-registry.md) stamps a missing
+  [vault ID](../../GLOSSARY.md#vault-id)
+  ([792b5c4 Vault ID stamping](./vault-identity-registry.md#792b5c4-vault-id-stamping)) and checks the vault's
+  location, warning when the check fails
+  ([792b5c7 Location record and check](./vault-identity-registry.md#792b5c7-location-record-and-check),
+  [792b5c8 Location warning](./vault-identity-registry.md#792b5c8-location-warning)).
+- Required behavior: [Vault Write Lock](./vault-write-lock.md) gives one process at a time exclusive hold of the
+  vault's lock file, waiting while another holder has it
+  ([792b8c1 Exclusive hold](./vault-write-lock.md#792b8c1-exclusive-hold)).
+- Required behavior: the command implementations that a handler runs give the results the local commands give:
+  [Query Payload Renderer](./query-payload-renderer.md) the payload of `query`
+  ([792b23c1 The document](./query-payload-renderer.md#792b23c1-the-document),
+  [792b23c10 The lead of a payload with pending offers](./query-payload-renderer.md#792b23c10-the-lead-of-a-payload-with-pending-offers)),
+  [Command Line Surface](./command-line-surface.md) the output of `show`
+  ([792b2c7 Note lookup](./command-line-surface.md#792b2c7-note-lookup)) and [Note Amendment](./note-amendment.md) the
+  recording of a use for `activate` ([792b14c9 Recording a use](./note-amendment.md#792b14c9-recording-a-use)).
+- Supported capabilities: [vault-serving](../product/vault-serving.md), [parent-sync](../product/parent-sync.md) (the
+  bounded fetch client, [792b35c17 The bounded fetch client](#792b35c17-the-bounded-fetch-client)).
 
 Rationale: a child needs to reach its parent without a second implementation of any command, so each handler calls the
 command's own code, sharing its locks. The server takes its vault, vault name and chunk index once at startup, so no
@@ -25,9 +70,9 @@ request can aim it elsewhere. A served write is an offer to be judged, never a l
 is, because the server has no authentication of its own and its trust boundary is network reachability. The net/http
 types stay in `cmd/engram`, so every other part of the server runs over primitives.
 
-## 792b35c Behavior Requirements
+### 792b35c Behavior Requirements
 
-### 792b35c1 The route table
+#### 792b35c1 The route table
 
 Requirement: [792b35c1 The route table](#792b35c1-the-route-table) The vault-http-server MUST serve exactly `GET /query`, `GET /show`, `POST /activate` and `POST /learn`,
 and MUST answer a request for any other path with 404 and a request for a served path with another method with 405,
@@ -36,7 +81,7 @@ refit`, `prune`, `check`, `update` or `resituate`.
 
 Supports: [792a20a1a A served command is reachable](../product/vault-serving.md#792a20a1-uat-scenarios), [792a20a1b A host-only command has no route](../product/vault-serving.md#792a20a1-uat-scenarios), [792a20a1c A served command refuses the wrong method](../product/vault-serving.md#792a20a1-uat-scenarios).
 
-#### 792b35c1a Scenarios
+##### 792b35c1a Scenarios
 
 ```gherkin
 Scenario: 792b35c1a1 The route table is the four routes
@@ -50,7 +95,7 @@ Scenario: 792b35c1a2 An unrouted path or method is refused
   Then the answer is 404 for the path and 405 for the method, and no vault operation runs
 ```
 
-### 792b35c2 Starting and stopping
+#### 792b35c2 Starting and stopping
 
 Requirement: [792b35c2 Starting and stopping](#792b35c2-starting-and-stopping) The vault-http-server MUST register every route once on a new mux and then listen on the given
 address, MUST wrap a listening error as `serve: <cause>` when the context was not canceled, and MUST return no error
@@ -62,7 +107,7 @@ Supports: [792a20b1b A given address is bound](../product/vault-serving.md#792a2
 Rationale: a corrupt or empty ID file would crash-loop under a service manager if serving were refused, and a location
 false positive would turn into a host outage.
 
-#### 792b35c2a Scenarios
+##### 792b35c2a Scenarios
 
 ```gherkin
 Scenario: 792b35c2a1 Every route is registered and a listening failure is wrapped
@@ -81,7 +126,7 @@ Scenario: 792b35c2a3 A corrupt ID or a mismatched location warns and serves
   Then it warns, naming the remedy, and serves anyway
 ```
 
-### 792b35c3 Request bodies
+#### 792b35c3 Request bodies
 
 Requirement: [792b35c3 Request bodies](#792b35c3-request-bodies) The vault-http-server MUST read at most 4 MiB of a request body, MUST answer 413 on every route,
 writing nothing, when the body itself is over that cap, and MUST answer 400 on every route, writing nothing, for any other
@@ -93,7 +138,7 @@ Supports: [792a20n1a An oversized request is refused](../product/vault-serving.m
 Rationale: the server is unauthenticated, so what a caller can make it buffer is bounded. An offer or an activate body is a
 few KB, so the cap leaves ample room, and a client disconnect is not an oversized body.
 
-#### 792b35c3a Scenarios
+##### 792b35c3a Scenarios
 
 ```gherkin
 Scenario: 792b35c3a1 An oversized body is 413 on every route
@@ -117,7 +162,7 @@ Scenario: 792b35c3a4 A slow header read is cut off
   Then the server closes the connection
 ```
 
-### 792b35c4 The query route
+#### 792b35c4 The query route
 
 Requirement: [792b35c4 The query route](#792b35c4-the-query-route) The vault-http-server MUST answer `GET /query` with the payload the local `engram query` prints
 for the same arguments, built from the `phrase` (repeatable), `limit`, `project`, `text`, `content-budget`, `recent-fill`,
@@ -128,7 +173,7 @@ vault.
 
 Supports: [792a20c1a A served query matches the local query](../product/vault-serving.md#792a20c1-uat-scenarios), [792a20c1d A request cannot redirect the server](../product/vault-serving.md#792a20c1-uat-scenarios), [792a20d1b The offered note is pending, not live](../product/vault-serving.md#792a20d1-uat-scenarios), [792a20m1a Short text round-trips unchanged](../product/vault-serving.md#792a20m1-uat-scenarios), [792a20m1b Long text is truncated on a rune boundary](../product/vault-serving.md#792a20m1-uat-scenarios).
 
-#### 792b35c4a Scenarios
+##### 792b35c4a Scenarios
 
 ```gherkin
 Scenario: 792b35c4a1 Text is cut at 2 KB
@@ -152,7 +197,7 @@ Scenario: 792b35c4a4 A failing query is a 500
   Then the answer is 500 with an error body
 ```
 
-### 792b35c5 Dedupe keys
+#### 792b35c5 Dedupe keys
 
 Requirement: [792b35c5 Dedupe keys](#792b35c5-dedupe-keys) The vault-http-server MUST, only when `dedupe-keys=1` is given, add the served vault's ID as a
 top-level `vault_id` and, to each note item, its `exchange_hash` and its non-empty `aliases`, adding nothing to chunk
@@ -161,7 +206,7 @@ still succeeds. Without the parameter the payload MUST be byte-identical to the 
 
 Supports: [792a20m1c Keys are present only on request](../product/vault-serving.md#792a20m1-uat-scenarios), [792a20m1d A note whose keys cannot be computed loses only its own](../product/vault-serving.md#792a20m1-uat-scenarios).
 
-#### 792b35c5a Scenarios
+##### 792b35c5a Scenarios
 
 ```gherkin
 Scenario: 792b35c5a1 Keys are present only on request
@@ -175,7 +220,7 @@ Scenario: 792b35c5a2 A note whose hash cannot be computed is skipped
   Then the good note has an xh1: hash, the odd note has none, the response is 200 and stderr names the odd note
 ```
 
-### 792b35c6 The show route
+#### 792b35c6 The show route
 
 Requirement: [792b35c6 The show route](#792b35c6-the-show-route) The vault-http-server MUST answer `GET /show` without `raw` with exactly the local `engram show`
 output, exchange-hash header included. With `raw=1` it MUST resolve `note` against basenames, with or without `.md`,
@@ -191,7 +236,7 @@ Rationale: the envelope is JSON with a `vault_id` and so cannot be mistaken for 
 only matched against listed names and never joined into a path, so it cannot reach outside the vault. A pending note is an
 unvetted offer, so it is never pulled down as the vault's note.
 
-#### 792b35c6a Scenarios
+##### 792b35c6a Scenarios
 
 ```gherkin
 Scenario: 792b35c6a1 Show matches the local output
@@ -225,7 +270,7 @@ Scenario: 792b35c6a6 A pending note is not served raw
   Then the pending requests are 404 and the live one is 200
 ```
 
-### 792b35c7 The activate route
+#### 792b35c7 The activate route
 
 Requirement: [792b35c7 The activate route](#792b35c7-the-activate-route) The vault-http-server MUST answer `POST /activate` by resolving each ref in `notes` only against
 the vault's listed note names, with or without `.md` and case-sensitively, never joining a ref into a path, MUST list the
@@ -240,7 +285,7 @@ Supports: [792a20l1a A path ref is rejected](../product/vault-serving.md#792a20l
 Rationale: the one listing keeps a request with many short refs from costing a directory read per ref while the vault
 lock is held, and a 5xx therefore only ever means a server-side failure.
 
-#### 792b35c7a Scenarios
+##### 792b35c7a Scenarios
 
 ```gherkin
 Scenario: 792b35c7a1 Activate commits directly
@@ -269,7 +314,7 @@ Scenario: 792b35c7a5 The status follows the outcome
   Then they answer 404, 200 and 500, and the first two bodies list each ref's result
 ```
 
-### 792b35c8 Decoding a served learn
+#### 792b35c8 Decoding a served learn
 
 Requirement: [792b35c8 Decoding a served learn](#792b35c8-decoding-a-served-learn) The vault-http-server MUST decode a `POST /learn` body as a learn request whose only JSON keys are
 `action`, `behavior`, `body`, `chunkSources`, `doneWhen`, `impact`, `issue`, `object`, `offer`, `pending`, `position`,
@@ -288,7 +333,7 @@ Rationale: the body is a remote client's, so every field a caller must not contr
 field on the learn request that is not marked non-decodable fails the key-set test. A served learn must claim some
 identity, and the server trusts what is declared because it has nothing else to consult.
 
-#### 792b35c8a Scenarios
+##### 792b35c8a Scenarios
 
 ```gherkin
 Scenario: 792b35c8a1 An empty declared identity is rejected
@@ -332,7 +377,7 @@ Scenario: 792b35c8a8 A served offer is tagged by the vault's vocabulary
   Then the pending note carries the vocab/ tags that the vault assigns
 ```
 
-### 792b35c9 Refusing an invalid offer
+#### 792b35c9 Refusing an invalid offer
 
 Requirement: [792b35c9 Refusing an invalid offer](#792b35c9-refusing-an-invalid-offer) The vault-http-server MUST, before taking the vault lock, answer 400 and write nothing when
 `offer.path` has more than 16 entries or an entry that is not exactly 32 lowercase hexadecimal characters, when
@@ -342,7 +387,7 @@ already holds its own vault ID, with a body of `error`, `reason` `loop` and `vau
 
 Supports: [792a20h1a A key without an origin is rejected](../product/vault-serving.md#792a20h1-uat-scenarios), [792a20h1b A malformed or oversized path is rejected](../product/vault-serving.md#792a20h1-uat-scenarios), [792a20h1c A malformed origin is rejected](../product/vault-serving.md#792a20h1-uat-scenarios), [792a20h1d A cycle is refused](../product/vault-serving.md#792a20h1-uat-scenarios), [792a20h1e Invalid note content is a client error](../product/vault-serving.md#792a20h1-uat-scenarios).
 
-#### 792b35c9a Scenarios
+##### 792b35c9a Scenarios
 
 ```gherkin
 Scenario: 792b35c9a1 A malformed offer is a 400 and a cycle is a 409
@@ -371,7 +416,7 @@ Scenario: 792b35c9a5 Invalid note content is a 400
   Then the answer is 400 before any lock is taken and nothing is written
 ```
 
-### 792b35c10 A recorded key is a retry
+#### 792b35c10 A recorded key is a retry
 
 Requirement: [792b35c10 A recorded key is a retry](#792b35c10-a-recorded-key-is-a-retry) The vault-http-server MUST, when any note, live or pending, records a non-empty `offer.key` as its
 current key or among its `offer.prior_keys`, write nothing and return that note's current receipt, and MUST check this
@@ -380,7 +425,7 @@ pending offer back to older content.
 
 Supports: [792a20g1b A duplicate key writes nothing](../product/vault-serving.md#792a20g1-uat-scenarios), [792a20g1c A retry after acceptance writes nothing](../product/vault-serving.md#792a20g1-uat-scenarios), [792a20g1d A late retry never reverts a newer amend](../product/vault-serving.md#792a20g1-uat-scenarios), [792a20g1e A late retry of a superseded key never reverts the note](../product/vault-serving.md#792a20g1-uat-scenarios).
 
-#### 792b35c10a Scenarios
+##### 792b35c10a Scenarios
 
 ```gherkin
 Scenario: 792b35c10a1 A duplicate key writes nothing
@@ -404,7 +449,7 @@ Scenario: 792b35c10a4 A late retry of a superseded key never reverts the note
   Then the response is the note's current receipt, the note still holds the K2 content and no file changes
 ```
 
-### 792b35c11 A same-origin pending offer is rewritten in place
+#### 792b35c11 A same-origin pending offer is rewritten in place
 
 Requirement: [792b35c11 A same-origin pending offer is rewritten in place](#792b35c11-a-same-origin-pending-offer-is-rewritten-in-place) The vault-http-server MUST, when no note records the key and a pending note carries the same
 `offer.origin`, rewrite that note in place under its basename, still pending and keeping its `xid`, links, aliases, origin
@@ -414,7 +459,7 @@ unless the exchange hash is provably unchanged. Same-origin offers racing each o
 
 Supports: [792a20f1c An in-place rewrite is stamped from its own request](../product/vault-serving.md#792a20f1-uat-scenarios), [792a20g1a An amend before curation updates the pending offer](../product/vault-serving.md#792a20g1-uat-scenarios), [792a20g1k Prior keys are bounded](../product/vault-serving.md#792a20g1-uat-scenarios), [792a20o1b A rewrite is re-tagged](../product/vault-serving.md#792a20o1-uat-scenarios).
 
-#### 792b35c11a Scenarios
+##### 792b35c11a Scenarios
 
 ```gherkin
 Scenario: 792b35c11a1 An amend before curation updates the pending offer
@@ -433,7 +478,7 @@ Scenario: 792b35c11a3 Racing same-origin offers leave one pending note
   Then exactly one pending note exists
 ```
 
-### 792b35c12 A same-origin live offer makes a new pending note
+#### 792b35c12 A same-origin live offer makes a new pending note
 
 Requirement: [792b35c12 A same-origin live offer makes a new pending note](#792b35c12-a-same-origin-live-offer-makes-a-new-pending-note) The vault-http-server MUST, when no note records the key, no pending note carries the origin and a
 live note carries the same `offer.origin`, write a new pending note whose `offer.for` names that live note, and report
@@ -441,7 +486,7 @@ live note carries the same `offer.origin`, write a new pending note whose `offer
 
 Supports: [792a20g1f A new key from an accepted origin makes a new pending note](../product/vault-serving.md#792a20g1-uat-scenarios).
 
-#### 792b35c12a Scenarios
+##### 792b35c12a Scenarios
 
 ```gherkin
 Scenario: 792b35c12a1 A new key from an accepted origin makes a new pending note
@@ -455,7 +500,7 @@ Scenario: 792b35c12a2 The live note is untouched
   Then the live note is byte-identical to before
 ```
 
-### 792b35c13 Resolving where an offer points
+#### 792b35c13 Resolving where an offer points
 
 Requirement: [792b35c13 Resolving where an offer points](#792b35c13-resolving-where-an-offer-points) The vault-http-server MUST, when no earlier case applies, resolve `offer.for` against live notes'
 basenames, then live notes' `aliases`, then pending notes' basenames, among fact, feedback and runbook notes that parse
@@ -466,7 +511,7 @@ or a note whose frontmatter does not parse, MUST be dropped, with the offer writ
 
 Supports: [792a20g1g No cross-origin overwrite](../product/vault-serving.md#792a20g1-uat-scenarios), [792a20g1h An amend-offer names a live target](../product/vault-serving.md#792a20g1-uat-scenarios), [792a20g1i A renamed target resolves through its aliases](../product/vault-serving.md#792a20g1-uat-scenarios), [792a20g1j An unresolvable target is dropped](../product/vault-serving.md#792a20g1-uat-scenarios).
 
-#### 792b35c13a Scenarios
+##### 792b35c13a Scenarios
 
 ```gherkin
 Scenario: 792b35c13a1 A live target is left unchanged and reported
@@ -495,7 +540,7 @@ Scenario: 792b35c13a5 Only exchange notes resolve
   Then each target is dropped
 ```
 
-### 792b35c14 A new pending offer
+#### 792b35c14 A new pending offer
 
 Requirement: [792b35c14 A new pending offer](#792b35c14-a-new-pending-offer) The vault-http-server MUST write a new pending note at top level, whatever `target` or `position` the
 caller sent, with `pending: true`, a fresh `xid` it mints, an `offer` record of the offer's `origin`, `key`, `for` and
@@ -505,7 +550,7 @@ return a receipt with the note's Luhmann ID and basename, `pending` true, its va
 
 Supports: [792a20d1a The receipt names the pending note](../product/vault-serving.md#792a20d1-uat-scenarios), [792a20i1a Placement is ignored](../product/vault-serving.md#792a20i1-uat-scenarios), [792a20j1b A caller cannot forge a link](../product/vault-serving.md#792a20j1-uat-scenarios), [792a20o1a A served offer is tagged by the receiving vault](../product/vault-serving.md#792a20o1-uat-scenarios).
 
-#### 792b35c14a Scenarios
+##### 792b35c14a Scenarios
 
 ```gherkin
 Scenario: 792b35c14a1 A new offer records its offer and xid
@@ -514,7 +559,7 @@ Scenario: 792b35c14a1 A new offer records its offer and xid
   Then the note has a server-minted xid, offer.origin, key, for and path, a new top-level Luhmann ID, and the receipt names the note, the vault and the stored exchange hash
 ```
 
-### 792b35c15 The locked section
+#### 792b35c15 The locked section
 
 Requirement: [792b35c15 The locked section](#792b35c15-the-locked-section) The vault-http-server MUST do a served learn's lookup of every note, its write, its re-embed and the
 building of its receipt in one locked section of the vault lock that the local commands use, and MUST fail the request
@@ -525,7 +570,7 @@ Supports: [792a20c1c Concurrent local and served writers lose nothing](../produc
 
 Rationale: skipping an unreadable note could miss a same-origin pending offer and write a second one.
 
-#### 792b35c15a Scenarios
+##### 792b35c15a Scenarios
 
 ```gherkin
 Scenario: 792b35c15a1 One lock spans lookup, write, embed and receipt
@@ -544,14 +589,14 @@ Scenario: 792b35c15a3 Local and served writers do not lose an update
   Then ten notes exist with ten distinct Luhmann IDs
 ```
 
-### 792b35c16 The stored hash
+#### 792b35c16 The stored hash
 
 Requirement: [792b35c16 The stored hash](#792b35c16-the-stored-hash) The vault-http-server MUST return as `stored_hash` the exchange hash of the note as stored ([792b33c1 The exchange hash](./exchange-versioning.md#792b33c1-the-exchange-hash)),
 so that for any offered content it equals the hash a child computes over its own note with the same content.
 
 Supports: [792a20d1a The receipt names the pending note](../product/vault-serving.md#792a20d1-uat-scenarios).
 
-#### 792b35c16a Scenarios
+##### 792b35c16a Scenarios
 
 ```gherkin
 Scenario: 792b35c16a1 The stored hash equals the child's hash
@@ -560,7 +605,7 @@ Scenario: 792b35c16a1 The stored hash equals the child's hash
   Then the stored_hash equals the exchange hash a child computes over its own note with the same content, whatever the identity, Luhmann ID, pending marker and exchange fields
 ```
 
-### 792b35c17 The bounded fetch client
+#### 792b35c17 The bounded fetch client
 
 Requirement: [792b35c17 The bounded fetch client](#792b35c17-the-bounded-fetch-client) The vault-http-server's net/http edge MUST make the requests of a child to its parent with a client whose
 connect step is bounded to at most 3 seconds and whose total time is bounded to 30 seconds, built on the default transport's
@@ -572,7 +617,7 @@ Supports: none. The exchange that uses the client is parent-sync's ([parent-sync
 Rationale: an unreachable parent costs at most 3 seconds once per backoff window, and a malicious parent cannot exhaust a
 child's memory.
 
-#### 792b35c17a Scenarios
+##### 792b35c17a Scenarios
 
 ```gherkin
 Scenario: 792b35c17a1 The connect step is bounded
