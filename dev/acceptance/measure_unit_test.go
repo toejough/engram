@@ -186,6 +186,50 @@ func TestChainsOf_LinksADeliveryByTheCarryAndMatchesEachModelCall(t *testing.T) 
 	g.Expect(chains[1].steps).To(HaveLen(1), "a capture whose moment printed nothing ends there")
 }
 
+func TestChainsOf_TheCallsOfTwoParallelChainsOfOneSizeAreTakenInTheOrderTheyBegan(t *testing.T) {
+	t.Parallel()
+
+	const (
+		momentLength  = 100 * time.Millisecond
+		secondStarts  = 500 * time.Millisecond
+		slowBegan     = 200 * time.Millisecond
+		quickBegan    = 700 * time.Millisecond
+		slowTook      = 3000
+		quickTook     = 500
+		requestLength = 1
+		momentChains  = 2
+	)
+
+	g := NewWithT(t)
+	origin := time.Unix(1000, 0)
+	moment := func(event string, start time.Duration) stepRun {
+		return stepRun{
+			step: stepMoment, input: map[string]any{"cue": "before-tool", "event": event},
+			start: origin.Add(start), end: origin.Add(start + momentLength),
+			output: `{"request":{"model":"haiku","system":"a","prompt":"b"},"carry":{"window":"` + event + `"}}`,
+		}
+	}
+	// the first call is slow and the second is quick, so the meter appended the second one first
+	slow := meterRecord{
+		Kind: meterModel, At: origin.Add(slowBegan).UnixMilli(), Took: slowTook, System: requestLength, Prompt: requestLength,
+	}
+	quick := meterRecord{
+		Kind: meterModel, At: origin.Add(quickBegan).UnixMilli(), Took: quickTook, System: requestLength, Prompt: requestLength,
+	}
+
+	chains := chainsOf([]stepRun{moment("c1", 0), moment("c2", secondStarts)}, []meterRecord{quick, slow})
+
+	g.Expect(unmatchedRequests(chains)).To(BeEmpty(), "each moment has its own model call")
+	g.Expect(chains).To(HaveLen(momentChains))
+
+	if len(chains) != momentChains {
+		return
+	}
+
+	g.Expect(chains[0].calls[stepMoment]).To(Equal(slow), "the call that began after the first moment")
+	g.Expect(chains[1].calls[stepMoment]).To(Equal(quick), "the call that began after the second moment")
+}
+
 func TestFalseNone_CountsThePromptsWithANoteDrawnOnThatWereJudgedNone(t *testing.T) {
 	t.Parallel()
 

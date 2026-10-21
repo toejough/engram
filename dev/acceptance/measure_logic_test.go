@@ -1,6 +1,7 @@
 package acceptance_test
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -386,6 +387,8 @@ func captureOf(first stepRun, ordered []stepRun) []stepRun {
 // and event that began after it; a place step and a write are linked to a capture by the turn.
 func chainsOf(runs []stepRun, meter []meterRecord) []chain {
 	ordered := slices.SortedFunc(slices.Values(runs), func(a, b stepRun) int { return a.start.Compare(b.start) })
+	// the meter appends a call when it ends, so the file holds the calls in the order they ended, not began
+	meter = slices.SortedStableFunc(slices.Values(meter), func(a, b meterRecord) int { return cmp.Compare(a.At, b.At) })
 	used := map[int]bool{}
 
 	var chains []chain
