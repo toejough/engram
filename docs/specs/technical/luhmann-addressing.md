@@ -1,6 +1,8 @@
 # Luhmann Addressing - Technical Spec
 
-## 792b7a Orientation
+## 792b7 Luhmann Addressing
+
+### 792b7a Orientation
 
 - Ownership: Repository component.
 - Responsibility: the Luhmann ID scheme. It parses an ID into its alternating number and letter
@@ -11,27 +13,33 @@
   `extractLuhmannFromFilename` in `internal/cli/learn.go`. The parse and order functions are a
   shared kernel: [note-authoring](./note-authoring.md), the vault scanner, Luhmann reparenting and the exchange code all
   use them.
-- Qualification: responsibility, the scheme is stated without naming any caller; ownership, callers
-  choose the target and position, while this component decides what ID they yield; independent
-  verification, parsing, ordering and allocation are pure functions tested directly; stability, the
-  scheme is the vault's addressing convention and outlives any refactoring; necessity, every fact,
-  feedback and runbook note is placed by it.
-- Supported capabilities: [note-writing](../product/note-writing.md). [vault-migration](../product/vault-migration.md) (reparenting).
+- Qualification: Purpose: every [fact](../../GLOSSARY.md#fact-note-type),
+  [feedback](../../GLOSSARY.md#feedback-note-type) and [runbook](../../GLOSSARY.md#runbook) note is placed by it
+  ([Note Writing](../product/note-writing.md)). Contract: callers choose the target and position, while this component
+  decides what ID they yield; parsing, ordering and allocation are pure functions tested directly. Identity: the
+  scheme is the [vault](../../GLOSSARY.md#vault)'s addressing convention and outlives any refactoring. Responsibility
+  (naming): the scheme is stated without naming any caller.
+- Required behavior: [Vault Write Lock](./vault-write-lock.md) keeps two concurrent writers from allocating the same
+  ID, by giving one process at a time exclusive hold of the vault
+  ([792b8c4 The vault's lock](./vault-write-lock.md#792b8c4-the-vaults-lock),
+  [792b8c1 Exclusive hold](./vault-write-lock.md#792b8c1-exclusive-hold)).
+- Supported capabilities: [Note Writing](../product/note-writing.md), [Vault Migration](../product/vault-migration.md)
+  (reparenting).
 
 Rationale: Luhmann IDs must be unique across the vault and well formed, a digit-led run of digits
 and letters. The allocator only ever returns an ID that no existing note holds; two concurrent
 writers are kept from allocating the same one by the [vault-write-lock](./vault-write-lock.md).
 
-## 792b7c Behavior Requirements
+### 792b7c Behavior Requirements
 
-### 792b7c1 ID parsing
+#### 792b7c1 ID parsing
 
 Requirement: [792b7c1 ID parsing](#792b7c1-id-parsing) The luhmann-addressing MUST split an ID into its alternating runs of digits and
 letters, MUST refuse an empty ID, and MUST refuse an ID that does not start with a digit.
 
 Supports: [792a3j1a Top takes the next top-level number](../product/note-writing.md#792a3j1-uat-scenarios), [792a3j1b A continuation of a number takes the next letter](../product/note-writing.md#792a3j1-uat-scenarios), [792a3j1c A continuation of a letter takes the next number](../product/note-writing.md#792a3j1-uat-scenarios), [792a3j1d A sibling takes the next child of the target's parent](../product/note-writing.md#792a3j1-uat-scenarios), [792a3j1e Letters roll over from z to aa](../product/note-writing.md#792a3j1-uat-scenarios), [792a3k1d A malformed target is refused](../product/note-writing.md#792a3k1-uat-scenarios).
 
-#### 792b7c1a Scenarios
+##### 792b7c1a Scenarios
 
 ```gherkin
 Scenario: 792b7c1a1 Segments alternate
@@ -55,7 +63,7 @@ Scenario: 792b7c1a4 A leading letter is refused
   Then the leading-letter error is returned
 ```
 
-### 792b7c2 ID from a filename
+#### 792b7c2 ID from a filename
 
 Requirement: [792b7c2 ID from a filename](#792b7c2-id-from-a-filename) The luhmann-addressing MUST read a note's ID as the part of its `.md`
 filename before the first dot, when that part starts with a digit and holds only digits and
@@ -63,7 +71,7 @@ letters, and MUST report no ID for any other filename.
 
 Supports: [792a3j1a Top takes the next top-level number](../product/note-writing.md#792a3j1-uat-scenarios), [792a3j1b A continuation of a number takes the next letter](../product/note-writing.md#792a3j1-uat-scenarios), [792a3j1c A continuation of a letter takes the next number](../product/note-writing.md#792a3j1-uat-scenarios), [792a3j1d A sibling takes the next child of the target's parent](../product/note-writing.md#792a3j1-uat-scenarios), [792a3j1e Letters roll over from z to aa](../product/note-writing.md#792a3j1-uat-scenarios).
 
-#### 792b7c2a Scenarios
+##### 792b7c2a Scenarios
 
 ```gherkin
 Scenario: 792b7c2a1 The leading ID is read
@@ -82,7 +90,7 @@ Scenario: 792b7c2a3 A file that is not Markdown has no ID
   Then no ID is reported
 ```
 
-### 792b7c3 Letter order
+#### 792b7c3 Letter order
 
 Requirement: [792b7c3 Letter order](#792b7c3-letter-order) The luhmann-addressing MUST order letter segments shorter first, then
 alphabetically, so that `z` comes before `aa`, `az` before `ba`, and `zz` before `aaa`.
@@ -92,7 +100,7 @@ Supports: [792a3j1e Letters roll over from z to aa](../product/note-writing.md#7
 Rationale: comparing letter segments lexically would take `z` as the largest of the children `a` to `z`, `aa` and
 `ab`, and allocate `aa` again.
 
-#### 792b7c3a Scenarios
+##### 792b7c3a Scenarios
 
 ```gherkin
 Scenario: 792b7c3a1 Shorter letter segments come first
@@ -101,7 +109,7 @@ Scenario: 792b7c3a1 Shorter letter segments come first
   Then z < aa < ab, az < ba, zz < aaa, and no segment is less than itself
 ```
 
-### 792b7c4 Next-ID allocation
+#### 792b7c4 Next-ID allocation
 
 Requirement: [792b7c4 Next-ID allocation](#792b7c4-next-id-allocation) Given the existing IDs, the luhmann-addressing MUST allocate, for `top`, one
 more than the largest top-level number, or `1` when there is none; for `continuation`, the next
@@ -112,7 +120,7 @@ the target's parent.
 
 Supports: [792a3j1a Top takes the next top-level number](../product/note-writing.md#792a3j1-uat-scenarios), [792a3j1b A continuation of a number takes the next letter](../product/note-writing.md#792a3j1-uat-scenarios), [792a3j1c A continuation of a letter takes the next number](../product/note-writing.md#792a3j1-uat-scenarios), [792a3j1d A sibling takes the next child of the target's parent](../product/note-writing.md#792a3j1-uat-scenarios), [792a3j1e Letters roll over from z to aa](../product/note-writing.md#792a3j1-uat-scenarios), [792a10e1a A continuation answer renames the note and rewrites links](../product/vault-migration.md#792a10e1-uat-scenarios), [792a10e1b Renames are ordered by original ID](../product/vault-migration.md#792a10e1-uat-scenarios).
 
-#### 792b7c4a Scenarios
+##### 792b7c4a Scenarios
 
 ```gherkin
 Scenario: 792b7c4a1 Top takes the next top-level number
@@ -141,7 +149,7 @@ Scenario: 792b7c4a5 A sibling takes the next child of the parent
   Then it is 1b
 ```
 
-### 792b7c5 Allocation refusals
+#### 792b7c5 Allocation refusals
 
 Requirement: [792b7c5 Allocation refusals](#792b7c5-allocation-refusals) The luhmann-addressing MUST refuse to allocate for a position other than `top`,
 `continuation` or `sibling`, for a `continuation` or `sibling` with no target or with a target that
@@ -149,7 +157,7 @@ is not a valid ID, and for a `sibling` of a top-level ID.
 
 Supports: [792a3k1a A missing position is refused](../product/note-writing.md#792a3k1-uat-scenarios), [792a3k1b A continuation without a target is refused](../product/note-writing.md#792a3k1-uat-scenarios), [792a3k1c A sibling of a top-level note is refused](../product/note-writing.md#792a3k1-uat-scenarios), [792a3k1d A malformed target is refused](../product/note-writing.md#792a3k1-uat-scenarios).
 
-#### 792b7c5a Scenarios
+##### 792b7c5a Scenarios
 
 ```gherkin
 Scenario: 792b7c5a1 An unknown position is refused
@@ -173,7 +181,7 @@ Scenario: 792b7c5a4 A sibling of a top-level ID is refused
   Then an error is returned
 ```
 
-### 792b7c6 ID and date from a filename
+#### 792b7c6 ID and date from a filename
 
 Requirement: [792b7c6 ID and date from a filename](#792b7c6-id-and-date-from-a-filename) The luhmann-addressing MUST read from a note filename of the form `<id>.<date>.<slug>.md`
 its ID, as in [792b7c2 ID from a filename](#792b7c2-id-from-a-filename), and its date, the second dot-separated segment, and MUST refuse a filename that has no
@@ -184,7 +192,7 @@ Supports: [792a10e1a A continuation answer renames the note and rewrites links](
 Rationale: a re-parented note keeps its date and slug and takes a new ID, so the new basename is built from
 these parts.
 
-#### 792b7c6a Scenarios
+##### 792b7c6a Scenarios
 
 ```gherkin
 Scenario: 792b7c6a1 A note filename yields its ID and date

@@ -1,6 +1,8 @@
 # Skill Source Discovery - Technical Spec
 
-## 792b30a Orientation
+## 792b30 Skill Source Discovery
+
+### 792b30a Orientation
 
 - Ownership: Repository-owned dependency-boundary interaction (the harness configuration files, the skill
   folders and the plugin and Pi settings manifests, over the injected read-only filesystem and the `git`
@@ -13,12 +15,39 @@
   `skillsources_piconfig.go`, `skillsources_plugin.go`, `skillsources_project.go` and
   `skillsources_resolve.go` (`ResolveSkillSources`, the scanners, `ResolveSkillPath`), and
   `internal/cli/skillkeys.go` (`AssignSkillKeys`, `SkillKeySlug`, `parseSkillKey`).
-- Qualification: responsibility, discovering the skills a harness loads is stated without naming any
-  scanner; ownership, it owns discovery, keys and read status, while the comparison with the vault belongs
-  to [skill-registration-ledger](./skill-registration-ledger.md) and the harness list to [harness-deploy-sync](./harness-deploy-sync.md); independent verification, each
-  scanner runs over an in-memory filesystem with injected read faults; stability, the contract survives the
-  addition of a source or a change in how a harness stores its settings; necessity, no offer can be made
-  without it.
+- Qualification: Purpose: no [offer](../../GLOSSARY.md#offer) can be made without it
+  ([Skill Runbook Registration](../product/skill-runbook-registration.md)). Contract: it owns discovery, keys and read
+  status, while the comparison with the [vault](../../GLOSSARY.md#vault) belongs to
+  [Skill Registration Ledger](./skill-registration-ledger.md) and the [harness](../../GLOSSARY.md#harness) list to
+  [Harness Deploy Sync](./harness-deploy-sync.md); each scanner is tested directly over an in-memory filesystem with
+  injected read faults. Identity: the contract survives the addition of a source or a change in how a harness stores
+  its settings. Value: a read that fails is never treated as an empty folder, because a removal offer built on a
+  misread folder would delete a note whose [skill](../../GLOSSARY.md#skill) still exists. Responsibility (naming):
+  discovering the skills a harness loads is stated without naming any scanner.
+- Required behavior: Claude Code (external) is assumed to load skills and commands from the user and project folders
+  and from the enabled plugins that [792b30c3 Claude Code user skills](#792b30c3-claude-code-user-skills),
+  [792b30c4 Command directories](#792b30c4-command-directories),
+  [792b30c7 Claude Code plugins](#792b30c7-claude-code-plugins) and
+  [792b30c15 Claude Code project sources](#792b30c15-claude-code-project-sources) read; authoritative contract: not
+  recorded in this repository; compatibility verification: none.
+- Required behavior: Pi (external) is assumed to load skills and prompt templates from the directories, settings,
+  packages and trusted projects that [792b30c8 Pi skill directories](#792b30c8-pi-skill-directories) to
+  [792b30c13 Pi configured sources](#792b30c13-pi-configured-sources) read, by its own rules and its own package
+  manager's; authoritative contract: not recorded in this repository; compatibility verification: none.
+- Required behavior: the operating-system filesystem (external) is assumed to answer link inspection, link reading,
+  listing and file reads for those folders and manifests
+  ([792b30c1 Symlink-resolving path reads](#792b30c1-symlink-resolving-path-reads),
+  [792b30c2 Root read status](#792b30c2-root-read-status)); authoritative contract: not recorded in this repository;
+  compatibility verification: `internal/cli/register_skills_resolve_test.go` (a real home reached through a symlink).
+- Required behavior: `git` (external), run through [Subprocess Runner](./subprocess-runner.md)
+  ([792b4c1 Run and collect output](./subprocess-runner.md#792b4c1-run-and-collect-output)), is assumed to report the
+  repository top-level, the origin remote and the absolute common directory of a working directory, and to fail
+  outside a work tree ([792b30c14 Project identity](#792b30c14-project-identity),
+  [792b30c15 Claude Code project sources](#792b30c15-claude-code-project-sources)); authoritative contract: not
+  recorded in this repository; compatibility verification: `internal/cli/register_skills_resolve_test.go` (a real git
+  repository with an origin remote).
+- Required behavior: [Harness Deploy Sync](./harness-deploy-sync.md) detects the harnesses that exist, which the
+  default source set follows ([792b29c1 Harness detection](./harness-deploy-sync.md#792b29c1-harness-detection)).
 - Supported capabilities: [skill-runbook-registration](../product/skill-runbook-registration.md).
 
 Rationale: registration covers every folder a harness loads, so discovery follows each harness's own rules: Claude Code's folders and plugin
@@ -26,9 +55,9 @@ manifests, and Pi's settings, packages and project trust (matched to Pi's own pa
 fails is never treated as an empty folder, because a removal offer built on a misread folder would delete a
 note whose skill still exists.
 
-## 792b30c Behavior Requirements
+### 792b30c Behavior Requirements
 
-### 792b30c1 Symlink-resolving path reads
+#### 792b30c1 Symlink-resolving path reads
 
 Requirement: [792b30c1 Symlink-resolving path reads](#792b30c1-symlink-resolving-path-reads) The skill-source-discovery MUST resolve a path with every symbolic link in it followed, using only link inspection and link reading so
 that it stays pure over the injected filesystem: a chain of absolute and relative links ending at a real
@@ -38,7 +67,7 @@ loop MUST give `errSkillPathLinkLoop`.
 
 Supports: [792a12j1a A symlinked user skill is found](../product/skill-runbook-registration.md#792a12j1-uat-scenarios).
 
-#### 792b30c1a Scenarios
+##### 792b30c1a Scenarios
 
 ```gherkin
 Scenario: 792b30c1a1 A chain resolves to its terminal
@@ -67,7 +96,7 @@ Scenario: 792b30c1a5 A relative target and a symlinked parent resolve
   Then the result is the real location
 ```
 
-### 792b30c2 Root read status
+#### 792b30c2 Root read status
 
 Requirement: [792b30c2 Root read status](#792b30c2-root-read-status) The skill-source-discovery MUST record every source root a scanner tries to read, with its resolved path and whether the read succeeded,
 MUST count a root as scanned only when its resolution, its listing and the read of every child
@@ -77,7 +106,7 @@ exist.
 
 Supports: [792a12j1a A symlinked user skill is found](../product/skill-runbook-registration.md#792a12j1-uat-scenarios), [792a12q1f An unreadable user skills directory](../product/skill-runbook-registration.md#792a12q1-uat-scenarios).
 
-#### 792b30c2a Scenarios
+##### 792b30c2a Scenarios
 
 ```gherkin
 Scenario: 792b30c2a1 A missing root is not scanned and silent
@@ -106,7 +135,7 @@ Scenario: 792b30c2a5 A child that cannot be inspected marks the root not scanned
   Then the root is not scanned
 ```
 
-### 792b30c3 Claude Code user skills
+#### 792b30c3 Claude Code user skills
 
 Requirement: [792b30c3 Claude Code user skills](#792b30c3-claude-code-user-skills) The skill-source-discovery MUST find the skills of a Claude Code skills root as its immediate children that are directories, or symbolic
 links resolving to directories, containing `SKILL.md`, each with its own bytes and resolved path and the
@@ -115,7 +144,7 @@ dangling links and directories without `SKILL.md`.
 
 Supports: [792a12j1a A symlinked user skill is found](../product/skill-runbook-registration.md#792a12j1-uat-scenarios), [792a12j1b A dangling symlink is skipped](../product/skill-runbook-registration.md#792a12j1-uat-scenarios).
 
-#### 792b30c3a Scenarios
+##### 792b30c3a Scenarios
 
 ```gherkin
 Scenario: 792b30c3a1 A symlinked skill is found
@@ -144,7 +173,7 @@ Scenario: 792b30c3a5 A dangling link is skipped
   Then it is skipped without failing
 ```
 
-### 792b30c4 Command directories
+#### 792b30c4 Command directories
 
 Requirement: [792b30c4 Command directories](#792b30c4-command-directories) The skill-source-discovery MUST find the commands of a commands root as the `.md` files beneath it, recursively, named by their path
 relative to the root with `/` replaced by `:` and `.md` removed, MUST follow symbolic links, MUST skip
@@ -154,7 +183,7 @@ be read.
 
 Supports: [792a12j1c A user command in a subdirectory](../product/skill-runbook-registration.md#792a12j1-uat-scenarios).
 
-#### 792b30c4a Scenarios
+##### 792b30c4a Scenarios
 
 ```gherkin
 Scenario: 792b30c4a1 Names follow symlinks and skip non-markdown
@@ -188,7 +217,7 @@ Scenario: 792b30c4a6 A name with a colon is skipped
   Then it is skipped with a warning
 ```
 
-### 792b30c5 Synced skill buckets
+#### 792b30c5 Synced skill buckets
 
 Requirement: [792b30c5 Synced skill buckets](#792b30c5-synced-skill-buckets) The skill-source-discovery MUST find the claude.ai-synced skills as the skill children of each directory child ("bucket") of the synced
 root whose `manifest.json` parses as JSON, MUST record every bucket as its own root, scanned only when
@@ -197,7 +226,7 @@ buckets once for each, and MUST count the synced root as scanned only when at le
 
 Supports: [792a12j1d Synced skills come from manifest buckets](../product/skill-runbook-registration.md#792a12j1-uat-scenarios).
 
-#### 792b30c5a Scenarios
+##### 792b30c5a Scenarios
 
 ```gherkin
 Scenario: 792b30c5a1 A manifest bucket is scanned and a stray file ignored
@@ -231,7 +260,7 @@ Scenario: 792b30c5a6 Candidates come only from parseable buckets
   Then candidates come only from parseable buckets, each bucket's flag equals "manifest parsed", and the synced root is scanned iff at least one parsed
 ```
 
-### 792b30c6 Plugin command paths
+#### 792b30c6 Plugin command paths
 
 Requirement: [792b30c6 Plugin command paths](#792b30c6-plugin-command-paths) The skill-source-discovery MUST find a plugin's commands from its `commands/` directory when `plugin.json` declares no `commands` field,
 from a declared string path (a directory, or one `.md` file named by its stem) or an array of such paths
@@ -241,7 +270,7 @@ skip a declared file whose name contains `:`.
 
 Supports: [792a12l1a plugin.json commands replace the commands directory](../product/skill-runbook-registration.md#792a12l1-uat-scenarios).
 
-#### 792b30c6a Scenarios
+##### 792b30c6a Scenarios
 
 ```gherkin
 Scenario: 792b30c6a1 An absent field uses the commands directory
@@ -280,7 +309,7 @@ Scenario: 792b30c6a7 A declared file with a colon is skipped
   Then it is skipped with a warning
 ```
 
-### 792b30c7 Claude Code plugins
+#### 792b30c7 Claude Code plugins
 
 Requirement: [792b30c7 Claude Code plugins](#792b30c7-claude-code-plugins) The skill-source-discovery MUST read `installed_plugins.json` (a missing file silently unread, any other failure a warning) and the
 `enabledPlugins` map of `settings.json` (a missing file meaning every plugin falls back to its
@@ -299,7 +328,7 @@ or contains `:`, saying nothing for a disabled one and treating `cmd` as an ordi
 
 Supports: [792a12l1a plugin.json commands replace the commands directory](../product/skill-runbook-registration.md#792a12l1-uat-scenarios), [792a12l1b A disabled plugin contributes nothing](../product/skill-runbook-registration.md#792a12l1-uat-scenarios), [792a12l1c A plugin without an enabledPlugins entry and without an install path](../product/skill-runbook-registration.md#792a12l1-uat-scenarios), [792a12l1d Only the installed version is read](../product/skill-runbook-registration.md#792a12l1-uat-scenarios), [792a12o1g A plugin named claude is reserved](../product/skill-runbook-registration.md#792a12o1-uat-scenarios), [792a12o1h A disabled reserved-name plugin is silent](../product/skill-runbook-registration.md#792a12o1-uat-scenarios), [792a12o1i A plugin named cmd is an ordinary plugin](../product/skill-runbook-registration.md#792a12o1-uat-scenarios), [792a12p1d A plugin name in two marketplaces](../product/skill-runbook-registration.md#792a12p1-uat-scenarios).
 
-#### 792b30c7a Scenarios
+##### 792b30c7a Scenarios
 
 ```gherkin
 Scenario: 792b30c7a1 The machine's plugin shape
@@ -373,7 +402,7 @@ Scenario: 792b30c7a14 The reserved-name check follows enablement
   Then claude is skipped with a warning, pi contributes nothing silently, and cmd is scanned as an ordinary plugin
 ```
 
-### 792b30c8 Pi skill directories
+#### 792b30c8 Pi skill directories
 
 Requirement: [792b30c8 Pi skill directories](#792b30c8-pi-skill-directories) The skill-source-discovery MUST discover Pi skills in a skills directory recursively: a directory that holds `SKILL.md` and has no
 `SKILL.md`-holding ancestor below the root MUST be one skill named by the directory, root `.md` files
@@ -385,7 +414,7 @@ MUST be one skill.
 
 Supports: [792a12k1g A Pi root markdown skill](../product/skill-runbook-registration.md#792a12k1-uat-scenarios).
 
-#### 792b30c8a Scenarios
+##### 792b30c8a Scenarios
 
 ```gherkin
 Scenario: 792b30c8a1 Recursive discovery and root markdown
@@ -449,7 +478,7 @@ Scenario: 792b30c8a12 The agents root ignores root markdown
   Then the root file is ignored
 ```
 
-### 792b30c9 Pi prompt directories
+#### 792b30c9 Pi prompt directories
 
 Requirement: [792b30c9 Pi prompt directories](#792b30c9-pi-prompt-directories) The skill-source-discovery MUST find Pi prompt templates as the non-hidden `.md` files directly in the prompts directory, regular or
 linked, named by their stem, MUST NOT descend into subdirectories, MUST record a missing directory as
@@ -457,7 +486,7 @@ not scanned, and MUST mark the root not scanned when a prompt cannot be read.
 
 Supports: [792a12k1a A Pi prompt template](../product/skill-runbook-registration.md#792a12k1-uat-scenarios).
 
-#### 792b30c9a Scenarios
+##### 792b30c9a Scenarios
 
 ```gherkin
 Scenario: 792b30c9a1 A global prompt is named by its stem
@@ -481,7 +510,7 @@ Scenario: 792b30c9a4 Only flat markdown files are prompts
   Then exactly the non-hidden .md files are found and subdirectories are never descended
 ```
 
-### 792b30c10 Pi project trust
+#### 792b30c10 Pi project trust
 
 Requirement: [792b30c10 Pi project trust](#792b30c10-pi-project-trust) The skill-source-discovery MUST decide that a Pi project is trusted when the nearest non-null saved decision, for the canonical working
 directory or an ancestor, in `~/.pi/agent/trust.json` is true, or, when there is none, when
@@ -491,7 +520,7 @@ or invalid file as untrusted with a warning.
 
 Supports: [792a12m1b Trust falls back to defaultProjectTrust always](../product/skill-runbook-registration.md#792a12m1-uat-scenarios), [792a12m1c An untrusted Pi project is not scanned](../product/skill-runbook-registration.md#792a12m1-uat-scenarios).
 
-#### 792b30c10a Scenarios
+##### 792b30c10a Scenarios
 
 ```gherkin
 Scenario: 792b30c10a1 Always trusts by default
@@ -525,7 +554,7 @@ Scenario: 792b30c10a6 A symlinked working directory is canonicalized
   Then decisions are looked up for its canonical path
 ```
 
-### 792b30c11 Pi project sources
+#### 792b30c11 Pi project sources
 
 Requirement: [792b30c11 Pi project sources](#792b30c11-pi-project-sources) The skill-source-discovery MUST scan, only for a trusted project, `.pi/skills` and `.pi/prompts` of the working directory, and the
 `.agents/skills` directory of the working directory and each ancestor up to the repository top-level,
@@ -538,7 +567,7 @@ scope.
 
 Supports: [792a12m1a Agents skills in an ancestor](../product/skill-runbook-registration.md#792a12m1-uat-scenarios), [792a12m1c An untrusted Pi project is not scanned](../product/skill-runbook-registration.md#792a12m1-uat-scenarios).
 
-#### 792b30c11a Scenarios
+##### 792b30c11a Scenarios
 
 ```gherkin
 Scenario: 792b30c11a1 A trusted project scans the working directory's Pi skills
@@ -587,7 +616,7 @@ Scenario: 792b30c11a9 Agents and Pi project sources need a trusted project only
   Then both the .pi and .agents levels are scanned
 ```
 
-### 792b30c12 Pi settings reading and overrides
+#### 792b30c12 Pi settings reading and overrides
 
 Requirement: [792b30c12 Pi settings reading and overrides](#792b30c12-pi-settings-reading-and-overrides) The skill-source-discovery MUST read Pi's `settings.json` (resolving its path first, accepting the legacy object form of `skills`, and
 giving an error for an unreadable or invalid file), and apply a settings file's overrides to the
@@ -602,7 +631,7 @@ evaluate (`**`).
 
 Supports: [792a12k1b A Pi settings skill path](../product/skill-runbook-registration.md#792a12k1-uat-scenarios), [792a12k1f An object-form empty skills filter](../product/skill-runbook-registration.md#792a12k1-uat-scenarios).
 
-#### 792b30c12a Scenarios
+##### 792b30c12a Scenarios
 
 ```gherkin
 Scenario: 792b30c12a1 Settings are read from the resolved file
@@ -646,7 +675,7 @@ Scenario: 792b30c12a8 Prompts are matched by file name
   Then it is matched by its file name
 ```
 
-### 792b30c13 Pi configured sources
+#### 792b30c13 Pi configured sources
 
 Requirement: [792b30c13 Pi configured sources](#792b30c13-pi-configured-sources) The skill-source-discovery MUST scan the `skills` and `prompts` entries and the `packages` of Pi's global settings, and, for a trusted
 project, of the project's, resolving each against the right base: a directory entry MUST be searched
@@ -664,7 +693,7 @@ project settings MUST need a trusted project.
 
 Supports: [792a12k1b A Pi settings skill path](../product/skill-runbook-registration.md#792a12k1-uat-scenarios), [792a12k1c Package skills come from its manifest](../product/skill-runbook-registration.md#792a12k1-uat-scenarios), [792a12k1d A string-form package with a pi key ignores convention directories](../product/skill-runbook-registration.md#792a12k1-uat-scenarios), [792a12k1e An object-form omitted type falls back per type](../product/skill-runbook-registration.md#792a12k1-uat-scenarios), [792a12k1f An object-form empty skills filter](../product/skill-runbook-registration.md#792a12k1-uat-scenarios), [792a12k1h A configured package with a missing path contributes nothing](../product/skill-runbook-registration.md#792a12k1-uat-scenarios).
 
-#### 792b30c13a Scenarios
+##### 792b30c13a Scenarios
 
 ```gherkin
 Scenario: 792b30c13a1 A settings skill path
@@ -778,7 +807,7 @@ Scenario: 792b30c13a22 An unreadable manifest is not scanned
   Then the package is not scanned
 ```
 
-### 792b30c14 Project identity
+#### 792b30c14 Project identity
 
 Requirement: [792b30c14 Project identity](#792b30c14-project-identity) The skill-source-discovery MUST identify the project of a working directory with `git`: inside a git work tree its identity MUST be the
 origin remote normalized to `<host>/<path>`, which is the host and path lowercased, with the scheme,
@@ -790,7 +819,7 @@ repository. A fallback that cannot be used MUST give no project.
 
 Supports: [792a12o1c A worktree resolves to owner and repository](../product/skill-runbook-registration.md#792a12o1-uat-scenarios), [792a12o1d Two same-named projects stay distinct](../product/skill-runbook-registration.md#792a12o1-uat-scenarios), [792a12m1f Outside a repository there are no project entries](../product/skill-runbook-registration.md#792a12m1-uat-scenarios).
 
-#### 792b30c14a Scenarios
+##### 792b30c14a Scenarios
 
 ```gherkin
 Scenario: 792b30c14a1 Variants of one remote normalize alike
@@ -829,7 +858,7 @@ Scenario: 792b30c14a7 Unusable fallbacks give no project
   Then there is no project
 ```
 
-### 792b30c15 Claude Code project sources
+#### 792b30c15 Claude Code project sources
 
 Requirement: [792b30c15 Claude Code project sources](#792b30c15-claude-code-project-sources) The skill-source-discovery MUST scan `.claude/skills` and `.claude/commands` in the working directory and each ancestor up to the
 repository top-level, each existing level recorded as its own root and unreadable levels marked not
@@ -840,7 +869,7 @@ in `.claude/skills`.
 
 Supports: [792a12m1d Claude project sources from a subdirectory](../product/skill-runbook-registration.md#792a12m1-uat-scenarios), [792a12m1e Root markdown in the project skills directory is ignored](../product/skill-runbook-registration.md#792a12m1-uat-scenarios).
 
-#### 792b30c15a Scenarios
+##### 792b30c15a Scenarios
 
 ```gherkin
 Scenario: 792b30c15a1 The chain finds exactly the levels that hold sources
@@ -879,7 +908,7 @@ Scenario: 792b30c15a7 An unreadable level is not scanned
   Then that level is recorded not scanned
 ```
 
-### 792b30c16 Source composition and precedence
+#### 792b30c16 Source composition and precedence
 
 Requirement: [792b30c16 Source composition and precedence](#792b30c16-source-composition-and-precedence) The skill-source-discovery MUST compose the default source set from the harnesses that exist: the Claude Code sources only when
 `~/.claude` is detected, the Pi and `~/.agents` sources only when `~/.pi` is detected, using the
@@ -895,7 +924,7 @@ not-exist.
 
 Supports: [792a12n1a A machine without Pi reads no Pi sources](../product/skill-runbook-registration.md#792a12n1-uat-scenarios), [792a12o1e Engram-installed skills are keyed by their folder](../product/skill-runbook-registration.md#792a12o1-uat-scenarios), [792a12m1f Outside a repository there are no project entries](../product/skill-runbook-registration.md#792a12m1-uat-scenarios), [792a12m1c An untrusted Pi project is not scanned](../product/skill-runbook-registration.md#792a12m1-uat-scenarios).
 
-#### 792b30c16a Scenarios
+##### 792b30c16a Scenarios
 
 ```gherkin
 Scenario: 792b30c16a1 Absent harness sources are not read
@@ -979,7 +1008,7 @@ Scenario: 792b30c16a16 A symlinked home round-trips skill_source
   Then each note's skill_source is home-relative and the second run offers nothing
 ```
 
-### 792b30c17 Skill keys
+#### 792b30c17 Skill keys
 
 Requirement: [792b30c17 Skill keys](#792b30c17-skill-keys) The skill-source-discovery MUST give each candidate the source-qualified key of [792a12o Every scanned entry has a source-qualified key](../product/skill-runbook-registration.md#792a12o-every-scanned-entry-has-a-source-qualified-key) from its scope, source segment, kind and name,
 joined by `:`, MUST key a disabled candidate like any other, MUST skip with a warning a candidate whose
@@ -992,7 +1021,7 @@ source's shape; any other first segment MUST be a plugin's.
 
 Supports: [792a12o1a A plugin skill's key and slug](../product/skill-runbook-registration.md#792a12o1-uat-scenarios), [792a12o1b A plugin's skill and command never collide](../product/skill-runbook-registration.md#792a12o1-uat-scenarios), [792a12o1e Engram-installed skills are keyed by their folder](../product/skill-runbook-registration.md#792a12o1-uat-scenarios), [792a12o1f A Claude user command's key](../product/skill-runbook-registration.md#792a12o1-uat-scenarios), [792a12o1j A prompt template's key](../product/skill-runbook-registration.md#792a12o1-uat-scenarios), [792a12n1b A name with a colon is skipped](../product/skill-runbook-registration.md#792a12n1-uat-scenarios).
 
-#### 792b30c17a Scenarios
+##### 792b30c17a Scenarios
 
 ```gherkin
 Scenario: 792b30c17a1 The keys of every source

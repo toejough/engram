@@ -1,6 +1,8 @@
 # Durable File Store - Technical Spec
 
-## 792b3a Orientation
+## 792b3 Durable File Store
+
+### 792b3a Orientation
 
 - Ownership: Repository-owned dependency-boundary interaction (the operating-system filesystem).
 - Responsibility: every engram read and write of vault, sidecar, state and chunk-index files. It
@@ -10,20 +12,28 @@
 - Current realization (informational): `primFS` in `internal/cli/edgefs.go` (the `EdgeFS`
   interface in `internal/cli/deps.go`), `vaultFS` in `internal/cli/vault_fs.go`, `listMDFromFS` in
   `internal/cli/deps_compose.go`, over the raw `FSPrims` that `cmd/engram/main.go` supplies.
-- Qualification: responsibility, atomic replace, exclusive create and vault listing are stated
-  without naming any caller; ownership, callers decide what to write and when, while this
-  component decides how a write reaches the disk; independent verification, it is tested directly
-  over fake primitives and over the real filesystem; stability, the contract survives any change to
-  the injection seam; necessity, every [vault-identity](../product/vault-identity.md), note and index write depends on it.
-- Supported capabilities: [vault-identity](../product/vault-identity.md), [note-writing](../product/note-writing.md), [note-revision](../product/note-revision.md), [chunk-indexing](../product/chunk-indexing.md)
-  chunk-indexing.
+- Qualification: Purpose: every [Vault Identity](../product/vault-identity.md),
+  [note](../../GLOSSARY.md#permanent-note) and index write depends on it. Contract: callers decide what to write and
+  when, while this component decides how a write reaches the disk; it is tested directly over fake primitives and over
+  the real filesystem. Identity: the contract survives any change to the injection seam. Value: `os.WriteFile` is not
+  atomic, so unlocked concurrent writers could corrupt state; a same-directory rename is atomic on POSIX, so a reader
+  sees either the old file or the new one, never a partial write. Responsibility (naming): atomic replace, exclusive
+  create and vault listing are stated without naming any caller.
+- Required behavior: the operating-system filesystem (external) is assumed to make a rename within one directory
+  atomic, so that a reader sees the old content or the new ([792b3c1 Atomic replace](#792b3c1-atomic-replace)), and to
+  refuse the exclusive creation of a path that exists ([792b3c2 Exclusive create](#792b3c2-exclusive-create));
+  authoritative contract: not recorded in this repository; compatibility verification:
+  `internal/cli/primitives_integration_test.go` (the real filesystem).
+- Supported capabilities: [Vault Identity](../product/vault-identity.md), [Note Writing](../product/note-writing.md),
+  [Note Revision](../product/note-revision.md), [Chunk Indexing](../product/chunk-indexing.md),
+  [Vault Counting](../product/vault-counting.md) ([792b3c4 Vault Markdown listing](#792b3c4-vault-markdown-listing)).
 
 Rationale: `os.WriteFile` is not atomic, so unlocked concurrent writers could corrupt state. A same-directory rename
 is atomic on POSIX, so a reader sees either the old file or the new one, never a partial write.
 
-## 792b3c Behavior Requirements
+### 792b3c Behavior Requirements
 
-### 792b3c1 Atomic replace
+#### 792b3c1 Atomic replace
 
 Requirement: [792b3c1 Atomic replace](#792b3c1-atomic-replace) The durable-file-store MUST replace a file's content by writing the new data
 to a uniquely named temp file in the target's directory, setting the temp's permissions to exactly
@@ -37,7 +47,7 @@ Supports: [792a2h1a serve stamps an existing vault](../product/vault-identity.md
 Rationale: the unique temp name (target base, clock nanoseconds, attempt counter) is retried a
 bounded number of times on a name collision, so two writers of the same file never share a temp.
 
-#### 792b3c1a Scenarios
+##### 792b3c1a Scenarios
 
 ```gherkin
 Scenario: 792b3c1a1 An existing file is replaced and no temp remains
@@ -81,7 +91,7 @@ Scenario: 792b3c1a8 Exhausted temp names give a bounded error
   Then an error saying no unique temp name was available is returned after the bounded attempts
 ```
 
-### 792b3c2 Exclusive create
+#### 792b3c2 Exclusive create
 
 Requirement: [792b3c2 Exclusive create](#792b3c2-exclusive-create) The durable-file-store MUST create a file only when no file exists at the path,
 writing the data at the requested mode, and MUST fail with an error that names the path and
@@ -94,7 +104,7 @@ Supports: [792a2h1c Concurrent creation converges](../product/vault-identity.md#
 Rationale: exclusive create is the collision backstop for concurrent creators, such as two
 processes stamping the same vault ID or racing for the same Luhmann ID.
 
-#### 792b3c2a Scenarios
+##### 792b3c2a Scenarios
 
 ```gherkin
 Scenario: 792b3c2a1 An existing file is refused
@@ -118,7 +128,7 @@ Scenario: 792b3c2a4 A close error surfaces after a good write
   Then the close error is returned
 ```
 
-### 792b3c3 Error identity
+#### 792b3c3 Error identity
 
 Requirement: [792b3c3 Error identity](#792b3c3-error-identity) The durable-file-store MUST wrap every failed filesystem operation in an error
 that names the operation and path and still satisfies `errors.Is` for the underlying error, such as
@@ -129,7 +139,7 @@ Supports: [792a2e1a A read command creates the vault](../product/vault-identity.
 Rationale: callers decide "missing" versus "failed" by `errors.Is`. First-use creation, for
 example, creates a vault only when the path is missing.
 
-#### 792b3c3a Scenarios
+##### 792b3c3a Scenarios
 
 ```gherkin
 Scenario: 792b3c3a1 A missing file still reads as not-exist
@@ -143,7 +153,7 @@ Scenario: 792b3c3a2 Every operation adds its context
   Then each error names its operation and path and wraps the primitive's error
 ```
 
-### 792b3c4 Vault Markdown listing
+#### 792b3c4 Vault Markdown listing
 
 Requirement: [792b3c4 Vault Markdown listing](#792b3c4-vault-markdown-listing) The durable-file-store MUST list a vault directory as the names of the `.md`
 files directly inside it, leaving out subdirectories, other files and the untouched starter
@@ -155,7 +165,7 @@ Supports: [792a2c1a A Markdown file in a subdirectory is not a note](../product/
 Rationale: this listing is the one shared point where every vault scanner (query, check, embed,
 count) stops seeing subdirectories and the starter README.
 
-#### 792b3c4a Scenarios
+##### 792b3c4a Scenarios
 
 ```gherkin
 Scenario: 792b3c4a1 Only root Markdown files are listed

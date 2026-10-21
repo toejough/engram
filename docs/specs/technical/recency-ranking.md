@@ -1,6 +1,8 @@
 # Recency Ranking - Technical Spec
 
-## 792b21a Orientation
+## 792b21 Recency Ranking
+
+### 792b21a Orientation
 
 - Ownership: Repository component (the wall clock is supplied by the caller).
 - Responsibility: turns time into ranking weight and orders chunks by recency. Given an age in days and
@@ -11,12 +13,15 @@
 - Current realization (informational): `recencyMultiplier`, `defaultRecencyParams`, `noteAgeDays`,
   `parseCreatedFromNote`, `parseTurnN`, `maxTurnBySource` and `newestChunkItems` in
   `internal/cli/recency.go`; the query engine applies the factor to note and chunk scores.
-- Qualification: responsibility, mapping ages and positions to a factor and ordering chunks is stated
-  without naming any function; ownership, the query engine decides which scores to scale and where the
-  clock comes from, while this component owns the curve, the age rules and the ordering; independent
-  verification, it is tested directly on numbers, note texts and chunk lists; stability, the contract
-  survives any change to what is scored; necessity, recency scaling ([792a7f Recency scaling](../product/memory-query.md#792a7f-recency-scaling)) and the newest chunks
-  ([792a7o The newest chunks](../product/memory-query.md#792a7o-the-newest-chunks)) both rest on it.
+- Qualification: Purpose: recency scaling
+  ([792a7f Recency scaling](../product/memory-query.md#792a7f-recency-scaling)) and the newest chunks
+  ([792a7o The newest chunks](../product/memory-query.md#792a7o-the-newest-chunks)) both rest on it. Contract: the
+  [Query Engine](./query-engine.md) decides which scores to scale and where the clock comes from, while this component
+  owns the curve, the age rules and the ordering; it is tested directly on numbers,
+  [note](../../GLOSSARY.md#permanent-note) texts and chunk lists. Identity: the contract survives any change to what
+  is scored. Responsibility (naming): mapping ages and positions to a factor and ordering chunks is stated without
+  naming any function.
+- Required behavior: none; the component calls no collaborator.
 - Supported capabilities: [memory-query](../product/memory-query.md).
 
 Rationale: operators work in monthly cycles, so a short half-life would suppress legitimate older
@@ -26,9 +31,9 @@ the newest chunks ([792b21c5 Newest chunks](#792b21c5-newest-chunks)), picked by
 last proved useful, not from when it was written, so a note that keeps being used stays fresh and one
 that is never used fades.
 
-## 792b21c Behavior Requirements
+### 792b21c Behavior Requirements
 
-### 792b21c1 Recency factor
+#### 792b21c1 Recency factor
 
 Requirement: [792b21c1 Recency factor](#792b21c1-recency-factor) The recency-ranking MUST return, for an age in days of zero or more, a half-life
 in days, a tail weight and a position in a session from 0 to 1, the factor
@@ -38,7 +43,7 @@ MUST be a half-life of 60 days and a tail weight of 0.2.
 
 Supports: [792a7f1a An old chunk is scaled down](../product/memory-query.md#792a7f1-uat-scenarios), [792a7f1b A long-unused note is scaled down](../product/memory-query.md#792a7f1-uat-scenarios), [792a7f1e A late turn is lifted](../product/memory-query.md#792a7f1-uat-scenarios).
 
-#### 792b21c1a Scenarios
+##### 792b21c1a Scenarios
 
 ```gherkin
 Scenario Outline: 792b21c1a1 Factors for an age and a position
@@ -59,7 +64,7 @@ Scenario: 792b21c1a2 Production ranking uses a 60-day half-life
   Then the half-life is 60 days and the tail weight is 0.2
 ```
 
-### 792b21c2 Note age
+#### 792b21c2 Note age
 
 Requirement: [792b21c2 Note age](#792b21c2-note-age) The recency-ranking MUST give a note's age in days at a given time as the time
 since the date in its sidecar's `last_used`, or, when that is empty, since the date in its `created`
@@ -68,7 +73,7 @@ the date does not read, and when it is in the future.
 
 Supports: [792a7f1b A long-unused note is scaled down](../product/memory-query.md#792a7f1-uat-scenarios), [792a7f1d A note that was never used is not scaled](../product/memory-query.md#792a7f1-uat-scenarios).
 
-#### 792b21c2a Scenarios
+##### 792b21c2a Scenarios
 
 ```gherkin
 Scenario Outline: 792b21c2a1 Ages from the two dates
@@ -88,7 +93,7 @@ Scenario: 792b21c2a2 An unreadable or future date is no age
   Then it is 0
 ```
 
-### 792b21c3 Creation date of a note
+#### 792b21c3 Creation date of a note
 
 Requirement: [792b21c3 Creation date of a note](#792b21c3-creation-date-of-a-note) The recency-ranking MUST read a note's creation date as the value of the
 `created:` key at the start of a line in the note's frontmatter, trimmed and otherwise exactly as
@@ -103,7 +108,7 @@ Rationale: `engram learn` writes `created` quoted, and the quoted value cannot b
 such a note reads as age 0 until it is used. Reading it without its quotes would put most of a real vault's
 notes under decay at once, a ranking change that needs its own check first.
 
-#### 792b21c3a Scenarios
+##### 792b21c3a Scenarios
 
 ```gherkin
 Scenario: 792b21c3a1 The frontmatter date is read
@@ -137,7 +142,7 @@ Scenario: 792b21c3a6 A CRLF note is read as its LF form
   Then it is 2026-06-10
 ```
 
-### 792b21c4 Turn positions
+#### 792b21c4 Turn positions
 
 Requirement: [792b21c4 Turn positions](#792b21c4-turn-positions) The recency-ranking MUST read the turn number of an anchor of the form `turn-N`, with
 N a non-negative whole number, and MUST read none from any other anchor. It MUST give for a list of
@@ -145,7 +150,7 @@ chunk records the highest turn number of each source, leaving out a source that 
 
 Supports: [792a7f1e A late turn is lifted](../product/memory-query.md#792a7f1-uat-scenarios).
 
-#### 792b21c4a Scenarios
+##### 792b21c4a Scenarios
 
 ```gherkin
 Scenario Outline: 792b21c4a1 Turn numbers
@@ -168,7 +173,7 @@ Scenario: 792b21c4a2 The highest turn of each source
   Then a.jsonl is 5, b.jsonl is 2 and c.md is absent
 ```
 
-### 792b21c5 Newest chunks
+#### 792b21c5 Newest chunks
 
 Requirement: [792b21c5 Newest chunks](#792b21c5-newest-chunks) The recency-ranking MUST pick, from a list of scored chunks and a count, the chunks
 with the latest `ingested_at`, newest first, ignoring their scores, with ties going to the later turn
@@ -179,7 +184,7 @@ the kind `chunk`.
 
 Supports: [792a7o1a Recent chunks follow the matches](../product/memory-query.md#792a7o1-uat-scenarios), [792a7o1c The count can be set](../product/memory-query.md#792a7o1-uat-scenarios), [792a7o1f A chunk without a time sorts last](../product/memory-query.md#792a7o1-uat-scenarios).
 
-#### 792b21c5a Scenarios
+##### 792b21c5a Scenarios
 
 ```gherkin
 Scenario: 792b21c5a1 A count of zero picks nothing

@@ -1,6 +1,8 @@
 # Skill Registration Ledger - Technical Spec
 
-## 792b31a Orientation
+## 792b31 Skill Registration Ledger
+
+### 792b31a Orientation
 
 - Ownership: Repository component; terminal detection boundary.
 - Responsibility: turns the keyed candidates of [skill-source-discovery](./skill-source-discovery.md) and the vault's skill notes into
@@ -12,12 +14,42 @@
   `CompareSkillOffers`, `AnswerSkillOffers`, `RegisterSkill`, `RefreshSkill`, `RemoveSkill`,
   `AdoptSkillNote`, `ReadSkillRegistrations`, `RecordSkillDeclined`) and `registerSkillsTargets` in
   `internal/cli/targets.go`, over the injected terminal gate, vault lock, filesystem and embedder.
-- Qualification: responsibility, deciding and recording what to offer and carrying the answer out is stated
-  without naming any function; ownership, it owns offers, declines and note writes, while discovery and keys
-  belong to [skill-source-discovery](./skill-source-discovery.md) and the note format to [note-document-format](./note-document-format.md); independent verification,
-  the comparison, the answers and each action run over an in-memory vault with injected faults and a fake
-  terminal; stability, the contract survives a new source or a new prompt style; necessity, it is the only
-  writer of skill notes.
+- Qualification: Purpose: it is the only writer of [skill](../../GLOSSARY.md#skill)
+  [notes](../../GLOSSARY.md#permanent-note) ([Skill Runbook Registration](../product/skill-runbook-registration.md)).
+  Contract: it owns [offers](../../GLOSSARY.md#offer), declines and note writes, while discovery and keys belong to
+  [Skill Source Discovery](./skill-source-discovery.md) and the note format to
+  [Note Document Format](./note-document-format.md); the comparison, the answers and each action are tested directly
+  over an in-memory [vault](../../GLOSSARY.md#vault) with injected faults and a fake terminal. Identity: the contract
+  survives a new source or a new prompt style. Value: a skill note mirrors a file the user owns, so a write the user
+  did not choose would be a silent change to their memory; registration therefore offers and never acts alone.
+  Responsibility (naming): deciding and recording what to offer and carrying the answer out is stated without naming
+  any function.
+- Required behavior: [Skill Source Discovery](./skill-source-discovery.md) gives the keyed candidates in precedence
+  order
+  ([792b30c16 Source composition and precedence](./skill-source-discovery.md#792b30c16-source-composition-and-precedence),
+  [792b30c17 Skill keys](./skill-source-discovery.md#792b30c17-skill-keys)) and records whether each source root was
+  read ([792b30c2 Root read status](./skill-source-discovery.md#792b30c2-root-read-status)).
+- Required behavior: [Note Authoring](./note-authoring.md) creates a [runbook](../../GLOSSARY.md#runbook) note through
+  its write path ([792b12c3 Locked write](./note-authoring.md#792b12c3-locked-write)) and writes the skill identity
+  fields and the pending marker only when the registration path supplies them
+  ([792b12c7 Skill identity fields are not written by learn](./note-authoring.md#792b12c7-skill-identity-fields-are-not-written-by-learn),
+  [792b12c8 The pending marker is not set by a local learn](./note-authoring.md#792b12c8-the-pending-marker-is-not-set-by-a-local-learn)).
+- Required behavior: [Note Document Format](./note-document-format.md) renders a runbook note with the `skill_hash`,
+  `skill_key` and `skill_source` keys ([792b6c3 Kind schemas](./note-document-format.md#792b6c3-kind-schemas)) and
+  edits an existing note's frontmatter as its parsed YAML
+  ([792b6c7 Frontmatter node edits](./note-document-format.md#792b6c7-frontmatter-node-edits)).
+- Required behavior: [Vault Write Lock](./vault-write-lock.md) gives exclusive hold of the vault while an accepted
+  offer is carried out ([792b8c4 The vault's lock](./vault-write-lock.md#792b8c4-the-vaults-lock)).
+- Required behavior: [Text Embedder](./text-embedder.md) embeds the text of a registered or refreshed note for its
+  [sidecar](../../GLOSSARY.md#sidecar-embedding-sidecar)
+  ([792b9c1 Bundled-model embedding](./text-embedder.md#792b9c1-bundled-model-embedding)).
+- Required behavior: [Durable File Store](./durable-file-store.md) replaces a file atomically, as the write of the
+  declines file needs ([792b3c1 Atomic replace](./durable-file-store.md#792b3c1-atomic-replace)).
+- Required behavior: the terminal check on standard input (external) is assumed to tell an interactive terminal from
+  any other input, `/dev/null` included, so that a run without a terminal never prompts or writes
+  ([792b31c8 The command wiring](#792b31c8-the-command-wiring)); authoritative contract: not recorded in this
+  repository; compatibility verification: `internal/cli/register_skills_cli_test.go` (the built
+  [binary](../../GLOSSARY.md#binary) with standard input from `/dev/null`).
 - Supported capabilities: [skill-runbook-registration](../product/skill-runbook-registration.md).
 
 Rationale: registration offers and never acts alone, because a skill note mirrors a file the user owns and a
@@ -26,9 +58,9 @@ that a refusal lasts until the skill changes, and a removal is offered only when
 an unreadable folder looks the same as a deleted skill. Without a terminal nothing is prompted or written, so
 an agent that runs `engram update` in a shell is told what is waiting instead of guessing.
 
-## 792b31c Behavior Requirements
+### 792b31c Behavior Requirements
 
-### 792b31c1 Skill note lookup
+#### 792b31c1 Skill note lookup
 
 Requirement: [792b31c1 Skill note lookup](#792b31c1-skill-note-lookup) The skill-registration-ledger MUST find the note of a key as the note of type runbook whose basename slug begins `skill-`, that carries a
 non-empty `skill_hash` and a recognized `skill_key` equal to the key ([792b30c17 Skill keys](./skill-source-discovery.md#792b30c17-skill-keys)), reading only `skill-`
@@ -38,7 +70,7 @@ or unparseable file, and a note with an unrecognized key MUST NOT be a skill not
 
 Supports: [792a12b1a Note located by skill_key](../product/skill-runbook-registration.md#792a12b1-uat-scenarios), [792a12b1b Note not located by slug](../product/skill-runbook-registration.md#792a12b1-uat-scenarios), [792a12b1c Duplicate notes are an error](../product/skill-runbook-registration.md#792a12b1-uat-scenarios), [792a12b1d Unkeyed legacy notes are ignored until adopted](../product/skill-runbook-registration.md#792a12b1-uat-scenarios), [792a12b1e An unrecognized skill_key is never matched or removed](../product/skill-runbook-registration.md#792a12b1-uat-scenarios), [792a12b1f A skill-prefixed slug without skill_hash is not a skill note](../product/skill-runbook-registration.md#792a12b1-uat-scenarios), [792a12b1g A keyed note with another slug is not found](../product/skill-runbook-registration.md#792a12b1-uat-scenarios).
 
-#### 792b31c1a Scenarios
+##### 792b31c1a Scenarios
 
 ```gherkin
 Scenario: 792b31c1a1 A note is found by its skill key
@@ -72,7 +104,7 @@ Scenario: 792b31c1a6 A duplicate qualified key is an error
   Then the error names both
 ```
 
-### 792b31c2 Offer comparison
+#### 792b31c2 Offer comparison
 
 Requirement: [792b31c2 Offer comparison](#792b31c2-offer-comparison) The skill-registration-ledger MUST compare the keyed candidates with the vault's skill notes and the declined hashes and produce the
 offers: candidates in precedence order ([792b30c16 Source composition and precedence](./skill-source-discovery.md#792b30c16-source-composition-and-precedence)), entries resolving to one file collapsed, entries
@@ -88,7 +120,7 @@ handled and return a failure when there is any conflict, and MUST print nothing 
 
 Supports: [792a12b1d Unkeyed legacy notes are ignored until adopted](../product/skill-runbook-registration.md#792a12b1-uat-scenarios), [792a12b1e An unrecognized skill_key is never matched or removed](../product/skill-runbook-registration.md#792a12b1-uat-scenarios), [792a12b1f A skill-prefixed slug without skill_hash is not a skill note](../product/skill-runbook-registration.md#792a12b1-uat-scenarios), [792a12b1g A keyed note with another slug is not found](../product/skill-runbook-registration.md#792a12b1-uat-scenarios), [792a12c1a A new skill is offered once](../product/skill-runbook-registration.md#792a12c1-uat-scenarios), [792a12c1b A changed skill is offered again after a decline](../product/skill-runbook-registration.md#792a12c1-uat-scenarios), [792a12c1c A matching hash makes no offer](../product/skill-runbook-registration.md#792a12c1-uat-scenarios), [792a12p1a A Pi copy of an engram skill makes no offer](../product/skill-runbook-registration.md#792a12p1-uat-scenarios), [792a12p1b Two Pi skills with one name and different content](../product/skill-runbook-registration.md#792a12p1-uat-scenarios), [792a12p1c The same project skill at two levels](../product/skill-runbook-registration.md#792a12p1-uat-scenarios), [792a12p1d A plugin name in two marketplaces](../product/skill-runbook-registration.md#792a12p1-uat-scenarios), [792a12p1e Diverged harness copies are separate keys](../product/skill-runbook-registration.md#792a12p1-uat-scenarios), [792a12p1f Two synced buckets hold the same skill](../product/skill-runbook-registration.md#792a12p1-uat-scenarios), [792a12p1g A diverged plugin skill of the same name is its own skill](../product/skill-runbook-registration.md#792a12p1-uat-scenarios), [792a12o1e Engram-installed skills are keyed by their folder](../product/skill-runbook-registration.md#792a12o1-uat-scenarios).
 
-#### 792b31c2a Scenarios
+##### 792b31c2a Scenarios
 
 ```gherkin
 Scenario: 792b31c2a1 Each offer kind
@@ -182,7 +214,7 @@ Scenario: 792b31c2a18 An unrecognized key is never eligible for any state
   Then a note with an unrecognized key is never removal-eligible, matched or an alias source
 ```
 
-### 792b31c3 Removal eligibility
+#### 792b31c3 Removal eligibility
 
 Requirement: [792b31c3 Removal eligibility](#792b31c3-removal-eligibility) The skill-registration-ledger MUST offer to remove a skill note only when no candidate at all holds its key (disabled, collapsed,
 conflicted or alias ones included), its key form's own roots were read, and its `skill_hash` is not
@@ -200,7 +232,7 @@ resolves, so that it hides the notes under that location from an outer read root
 
 Supports: [792a12q1a A project skill note from another directory](../product/skill-runbook-registration.md#792a12q1-uat-scenarios), [792a12q1b An update run without a project](../product/skill-runbook-registration.md#792a12q1-uat-scenarios), [792a12q1c A disabled plugin keeps its notes](../product/skill-runbook-registration.md#792a12q1-uat-scenarios), [792a12q1d A Pi-disabled skill keeps its note](../product/skill-runbook-registration.md#792a12q1-uat-scenarios), [792a12q1e An uninstalled plugin is offered for removal](../product/skill-runbook-registration.md#792a12q1-uat-scenarios), [792a12q1f An unreadable user skills directory](../product/skill-runbook-registration.md#792a12q1-uat-scenarios), [792a12q1g Another namespace's missing root does not block removal](../product/skill-runbook-registration.md#792a12q1-uat-scenarios), [792a12q1h An unkeyed legacy note is never offered for removal](../product/skill-runbook-registration.md#792a12q1-uat-scenarios), [792a12q1i A missing synced manifest](../product/skill-runbook-registration.md#792a12q1-uat-scenarios), [792a12q1j A nested-only project skill is safe from the top level](../product/skill-runbook-registration.md#792a12q1-uat-scenarios), [792a12q1k One failing synced bucket](../product/skill-runbook-registration.md#792a12q1-uat-scenarios), [792a12q1l A Pi settings note is tied to its own entry](../product/skill-runbook-registration.md#792a12q1-uat-scenarios), [792a12q1m A package dropped from settings leaves an orphan](../product/skill-runbook-registration.md#792a12q1-uat-scenarios), [792a12q1n An alias keeps its note](../product/skill-runbook-registration.md#792a12q1-uat-scenarios), [792a12q1o A machine without the harness](../product/skill-runbook-registration.md#792a12q1-uat-scenarios).
 
-#### 792b31c3a Scenarios
+##### 792b31c3a Scenarios
 
 ```gherkin
 Scenario: 792b31c3a1 Plugin notes follow the manifest rule
@@ -259,7 +291,7 @@ Scenario: 792b31c3a11 A failed root keeps its real location
   Then it gets the real location up to the failing component
 ```
 
-### 792b31c4 Declines file
+#### 792b31c4 Declines file
 
 Requirement: [792b31c4 Declines file](#792b31c4-declines-file) The skill-registration-ledger MUST read the vault-root `skill-registrations.json`: a missing file MUST be an empty state, any other read
 failure MUST be an error (a decline is intent, so an unreadable present file must not mean "nothing
@@ -273,7 +305,7 @@ version 2.
 
 Supports: [792a12s1a A version-1 file fails loudly](../product/skill-runbook-registration.md#792a12s1-uat-scenarios), [792a12s1b An unknown schema version fails loudly](../product/skill-runbook-registration.md#792a12s1-uat-scenarios), [792a12s1c A missing file is no declines](../product/skill-runbook-registration.md#792a12s1-uat-scenarios), [792a12c1a A new skill is offered once](../product/skill-runbook-registration.md#792a12c1-uat-scenarios), [792a12c1b A changed skill is offered again after a decline](../product/skill-runbook-registration.md#792a12c1-uat-scenarios).
 
-#### 792b31c4a Scenarios
+##### 792b31c4a Scenarios
 
 ```gherkin
 Scenario: 792b31c4a1 An absent file is the empty state
@@ -337,7 +369,7 @@ Scenario: 792b31c4a12 A run on a non-version-2 file writes nothing
   Then it errors and writes nothing
 ```
 
-### 792b31c5 Answers and prompts
+#### 792b31c5 Answers and prompts
 
 Requirement: [792b31c5 Answers and prompts](#792b31c5-answers-and-prompts) The skill-registration-ledger MUST parse `--accept` and `--decline` tokens, refusing a token named in both before anything is acted on
 (`register-skills: answer named in both --accept and --decline`), and answer each offer by an exact key
@@ -358,7 +390,7 @@ error. `--dry-run` MUST print each scope as ``@<scope> (<n>)`` and each offer as
 
 Supports: [792a12r1a Decline a whole plugin](../product/skill-runbook-registration.md#792a12r1-uat-scenarios), [792a12r1b The longest pattern wins](../product/skill-runbook-registration.md#792a12r1-uat-scenarios), [792a12r1c An exact key beats a pattern](../product/skill-runbook-registration.md#792a12r1-uat-scenarios), [792a12r1d The Claude user scope is nameable](../product/skill-runbook-registration.md#792a12r1-uat-scenarios), [792a12r1e Removals are never bulk-accepted](../product/skill-runbook-registration.md#792a12r1-uat-scenarios), [792a12r1f Skip leaves the scope for next time](../product/skill-runbook-registration.md#792a12r1-uat-scenarios), [792a12r1g A scope with several offers is asked once](../product/skill-runbook-registration.md#792a12r1-uat-scenarios), [792a12r1h End of input at a prompt records nothing](../product/skill-runbook-registration.md#792a12r1-uat-scenarios), [792a12g1a An agent runs update through a shell](../product/skill-runbook-registration.md#792a12g1-uat-scenarios), [792a12h1a An agent relays the user's answer](../product/skill-runbook-registration.md#792a12h1-uat-scenarios), [792a12h1b A dry run](../product/skill-runbook-registration.md#792a12h1-uat-scenarios), [792a12h1c An answer matching nothing is noted](../product/skill-runbook-registration.md#792a12h1-uat-scenarios), [792a12h1f One answer in both flags is refused](../product/skill-runbook-registration.md#792a12h1-uat-scenarios).
 
-#### 792b31c5a Scenarios
+##### 792b31c5a Scenarios
 
 ```gherkin
 Scenario: 792b31c5a1 The same token in both flags is refused
@@ -462,7 +494,7 @@ Scenario: 792b31c5a20 The remove prompt and a yes answer
   Then the note is deleted
 ```
 
-### 792b31c6 The registration run
+#### 792b31c6 The registration run
 
 Requirement: [792b31c6 The registration run](#792b31c6-the-registration-run) The skill-registration-ledger MUST run registration as one operation for `engram register-skills` and for the update hook: resolve the
 default source set ([792b30c16 Source composition and precedence](./skill-source-discovery.md#792b30c16-source-composition-and-precedence)) from the home and the working directory its dependency supplies (failing
@@ -485,7 +517,7 @@ whose source cannot be found, or whose kind is unknown, MUST be an error that wr
 
 Supports: [792a12h1a An agent relays the user's answer](../product/skill-runbook-registration.md#792a12h1-uat-scenarios), [792a12h1b A dry run](../product/skill-runbook-registration.md#792a12h1-uat-scenarios), [792a12h1d A skills-dir run is a preview](../product/skill-runbook-registration.md#792a12h1-uat-scenarios), [792a12h1e A skills-dir run refuses answers](../product/skill-runbook-registration.md#792a12h1-uat-scenarios), [792a12h1f One answer in both flags is refused](../product/skill-runbook-registration.md#792a12h1-uat-scenarios), [792a12a1a A deployed skill is byte-identical](../product/skill-runbook-registration.md#792a12a1-uat-scenarios), [792a12a1b Command and prompt files are untouched](../product/skill-runbook-registration.md#792a12a1-uat-scenarios), [792a12i1a Adopting a previously promoted note](../product/skill-runbook-registration.md#792a12i1-uat-scenarios), [792a12i1b Adopt keeps an unmodeled key](../product/skill-runbook-registration.md#792a12i1-uat-scenarios), [792a12i1c Adopt refuses an anchored key](../product/skill-runbook-registration.md#792a12i1-uat-scenarios), [792a12i1e Adopt refuses a note that is not a runbook](../product/skill-runbook-registration.md#792a12i1-uat-scenarios), [792a12i1f Adopt refuses a note keyed to another skill](../product/skill-runbook-registration.md#792a12i1-uat-scenarios), [792a12i1g Adopt refuses an unscanned key](../product/skill-runbook-registration.md#792a12i1-uat-scenarios), [792a12i1h Adopt refuses an ambiguous reference](../product/skill-runbook-registration.md#792a12i1-uat-scenarios), [792a12i1i A dry run adopts nothing](../product/skill-runbook-registration.md#792a12i1-uat-scenarios), [792a12i1j Adopt refuses a skill that Pi disables](../product/skill-runbook-registration.md#792a12i1-uat-scenarios), [792a12t1c A dry run previews the offers too](../product/skill-runbook-registration.md#792a12t1-uat-scenarios).
 
-#### 792b31c6a Scenarios
+##### 792b31c6a Scenarios
 
 ```gherkin
 Scenario: 792b31c6a1 The default set is resolved from the working directory
@@ -639,7 +671,7 @@ Scenario: 792b31c6a30 Adopting takes a conflict-free qualified key
   Then the note is renamed to the key slug and stamped with key and source
 ```
 
-### 792b31c7 Note actions
+#### 792b31c7 Note actions
 
 Requirement: [792b31c7 Note actions](#792b31c7-note-actions) The skill-registration-ledger MUST carry an accepted offer out on the vault under the vault lock. Registering MUST create a runbook note
 through `engram learn`'s write path (a fresh top-level Luhmann ID, the slug derived from the key,
@@ -660,7 +692,7 @@ scan, list, write or embed MUST be returned.
 
 Supports: [792a12d1a Accepted registration](../product/skill-runbook-registration.md#792a12d1-uat-scenarios), [792a12d1b A plugin skill's preamble names its real file](../product/skill-runbook-registration.md#792a12d1-uat-scenarios), [792a12d1c A command is registered from its file](../product/skill-runbook-registration.md#792a12d1-uat-scenarios), [792a12e1a Accepted refresh](../product/skill-runbook-registration.md#792a12e1-uat-scenarios), [792a12e1b Refresh follows a plugin version bump](../product/skill-runbook-registration.md#792a12e1-uat-scenarios), [792a12e1c Refresh keeps an unmodeled key](../product/skill-runbook-registration.md#792a12e1-uat-scenarios), [792a12e1d Refresh converts a CRLF note](../product/skill-runbook-registration.md#792a12e1-uat-scenarios), [792a12e1e Refresh refuses an anchored key](../product/skill-runbook-registration.md#792a12e1-uat-scenarios), [792a12e1f Authored fields survive a refresh](../product/skill-runbook-registration.md#792a12e1-uat-scenarios), [792a12f1a A skill no longer shipped](../product/skill-runbook-registration.md#792a12f1-uat-scenarios), [792a12i1a Adopting a previously promoted note](../product/skill-runbook-registration.md#792a12i1-uat-scenarios), [792a12i1b Adopt keeps an unmodeled key](../product/skill-runbook-registration.md#792a12i1-uat-scenarios), [792a12i1c Adopt refuses an anchored key](../product/skill-runbook-registration.md#792a12i1-uat-scenarios), [792a12i1d Adopt converts a CRLF note](../product/skill-runbook-registration.md#792a12i1-uat-scenarios), [792a12i1e Adopt refuses a note that is not a runbook](../product/skill-runbook-registration.md#792a12i1-uat-scenarios), [792a12i1f Adopt refuses a note keyed to another skill](../product/skill-runbook-registration.md#792a12i1-uat-scenarios), [792a12i1g Adopt refuses an unscanned key](../product/skill-runbook-registration.md#792a12i1-uat-scenarios), [792a12i1h Adopt refuses an ambiguous reference](../product/skill-runbook-registration.md#792a12i1-uat-scenarios), [792a12v1c A non-engram skill's preamble names the real file](../product/skill-runbook-registration.md#792a12v1-uat-scenarios), [792a12v1d An engram-installed skill's preamble names the deployed file](../product/skill-runbook-registration.md#792a12v1-uat-scenarios).
 
-#### 792b31c7a Scenarios
+##### 792b31c7a Scenarios
 
 ```gherkin
 Scenario: 792b31c7a1 Registering creates a pending note with hash and preamble
@@ -814,7 +846,7 @@ Scenario: 792b31c7a30 Adopt failures are returned
   Then the error is returned
 ```
 
-### 792b31c8 The command wiring
+#### 792b31c8 The command wiring
 
 Requirement: [792b31c8 The command wiring](#792b31c8-the-command-wiring) The skill-registration-ledger MUST wire `engram register-skills` to the registration run over the real filesystem: `--accept` MUST register
 a real note, `--adopt` MUST adopt a real note, `--dry-run` MUST list a register offer, and a run whose
@@ -825,7 +857,7 @@ templates in the default folders.
 
 Supports: [792a12g1a An agent runs update through a shell](../product/skill-runbook-registration.md#792a12g1-uat-scenarios), [792a12h1a An agent relays the user's answer](../product/skill-runbook-registration.md#792a12h1-uat-scenarios), [792a12h1b A dry run](../product/skill-runbook-registration.md#792a12h1-uat-scenarios), [792a12h1d A skills-dir run is a preview](../product/skill-runbook-registration.md#792a12h1-uat-scenarios), [792a12i1a Adopting a previously promoted note](../product/skill-runbook-registration.md#792a12i1-uat-scenarios).
 
-#### 792b31c8a Scenarios
+##### 792b31c8a Scenarios
 
 ```gherkin
 Scenario: 792b31c8a1 Accept registers a real note

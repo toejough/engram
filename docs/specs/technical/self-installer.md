@@ -1,6 +1,8 @@
 # Self Installer - Technical Spec
 
-## 792b28a Orientation
+## 792b28 Self Installer
+
+### 792b28a Orientation
 
 - Ownership: Repository-owned dependency-boundary interaction (the Go toolchain and git), and the
   repository component that runs `engram update` end to end.
@@ -13,13 +15,69 @@
   `internal/cli/update.go` (`runUpdate`, `runPostUpdateChecks`, `reexecArgsFrom`, `writeUpdateReport`,
   `finishUpdate`), over the injected `update.Commander`, `update.Spawner`, `update.Env` and
   `update.Filesystem`.
-- Qualification: responsibility, installing a newer binary and carrying the update out in it is stated
-  without naming any function; ownership, it owns acquisition, the downgrade gate, the hand-off and the
-  report, while the deploy of skills and guidance belongs to [harness-deploy-sync](./harness-deploy-sync.md) and each notice's
-  detection to the component that owns the state it reports; independent verification, the install
-  steps run over a fake commander, filesystem and spawner, and the update run over fakes of those and a
-  recording exit function; stability, the contract survives any change to how the deploy works;
-  necessity, `engram update` is the only way a machine receives a new release.
+- Qualification: Purpose: [`engram update`](../../GLOSSARY.md#engram-update) is the only way a machine receives a new
+  release ([Install and Update](../product/install-and-update.md)). Contract: it owns acquisition, the downgrade gate,
+  the hand-off and the report, while the deploy of [skills](../../GLOSSARY.md#skill) and guidance belongs to
+  [Harness Deploy Sync](./harness-deploy-sync.md) and each notice's detection to the component that owns the state it
+  reports; the install steps are tested directly over a fake commander, filesystem and spawner, and the update run
+  over fakes of those and a recording exit function. Identity: the contract survives any change to how the deploy
+  works. Value: the installed [binary](../../GLOSSARY.md#binary), not the running one, must carry out the deploy,
+  because a release that changes how an update works would otherwise take effect one update late. Responsibility
+  (naming): installing a newer binary and carrying the update out in it is stated without naming any function.
+- Required behavior: the Go toolchain (external) is assumed to install the binary with `go install ./cmd/engram/` at
+  the location that `go env GOBIN GOPATH` names, in the toolchain's own order
+  ([792b28c1 Install location](#792b28c1-install-location)), and to print the installed binary's revision as a
+  `vcs.revision=` line of `go version -m` ([792b28c7 Downgrade gate](#792b28c7-downgrade-gate)); authoritative
+  contract: not recorded in this repository; compatibility verification: `dev/acceptance/machine_test.go` (a real
+  `engram update` with `GOBIN` set, build tag `network`).
+- Required behavior: `git` (external) is assumed to print the short revision of `HEAD`, to clone with its smudge
+  filter so that the git-lfs model arrives whole
+  ([792b28c5 Installing from a fresh clone](#792b28c5-installing-from-a-fresh-clone)), and to exit non-zero from
+  `merge-base --is-ancestor` both for "not an ancestor" and, with `fatal:` in its error output, for "cannot tell"
+  ([792b28c7 Downgrade gate](#792b28c7-downgrade-gate)); authoritative contract: not recorded in this repository;
+  compatibility verification: none.
+- Required behavior: [Subprocess Runner](./subprocess-runner.md) runs `go` and `git` in a chosen directory and returns
+  what they printed ([792b4c1 Run and collect output](./subprocess-runner.md#792b4c1-run-and-collect-output)), tells a
+  program that is not installed from one that failed
+  ([792b4c3 Not-found translation](./subprocess-runner.md#792b4c3-not-found-translation)), and runs the installed
+  binary on the caller's streams, giving its exit status once it started
+  ([792b4c4 Run with the caller's streams](./subprocess-runner.md#792b4c4-run-with-the-callers-streams)).
+- Required behavior: [Harness Deploy Sync](./harness-deploy-sync.md) detects the
+  [harnesses](../../GLOSSARY.md#harness)
+  ([792b29c1 Harness detection](./harness-deploy-sync.md#792b29c1-harness-detection)), deploys the skills and guidance
+  of the source to each ([792b29c2 The deploy set](./harness-deploy-sync.md#792b29c2-the-deploy-set)), and gives the
+  report each harness's section
+  ([792b29c17 Harness sections of the report](./harness-deploy-sync.md#792b29c17-harness-sections-of-the-report)) and
+  the guidance hints
+  ([792b29c18 Guidance activation hints](./harness-deploy-sync.md#792b29c18-guidance-activation-hints)).
+- Required behavior: [Note Reparenting](./note-reparenting.md) derives, applies and previews the re-parenting that
+  `--reparent-luhmann` runs ([792b27c3 Derive output](./note-reparenting.md#792b27c3-derive-output),
+  [792b27c9 Apply flow](./note-reparenting.md#792b27c9-apply-flow),
+  [792b27c10 Preview](./note-reparenting.md#792b27c10-preview)) and reports a [vault](../../GLOSSARY.md#vault) that
+  holds only top-level [notes](../../GLOSSARY.md#permanent-note)
+  ([792b27c1 Flat-vault detection](./note-reparenting.md#792b27c1-flat-vault-detection)).
+- Required behavior: [Skill Registration Ledger](./skill-registration-ledger.md) runs skill registration as one
+  operation for the update hook
+  ([792b31c6 The registration run](./skill-registration-ledger.md#792b31c6-the-registration-run)).
+- Required behavior: [Vocabulary Engine](./vocabulary-engine.md) reports old-format vocabulary files and definitions
+  that lack their self-tag ([792b20c22 Repairs a vault needs](./vocabulary-engine.md#792b20c22-repairs-a-vault-needs))
+  and migrates an old-format vocabulary for `--regen-vocab`
+  ([792b20c21 Migrating an old-format vocabulary](./vocabulary-engine.md#792b20c21-migrating-an-old-format-vocabulary)).
+- Required behavior: [Note Provenance](./note-provenance.md) judges whether a vault holds notes missing identity
+  ([792b11c6 Notes a backfill could stamp](./note-provenance.md#792b11c6-notes-a-backfill-could-stamp)) and stamps
+  them for `--backfill-identity` ([792b11c7 Identity backfill](./note-provenance.md#792b11c7-identity-backfill)).
+- Required behavior: [Vault Identity Registry](./vault-identity-registry.md) reports whether the
+  [vault ID](../../GLOSSARY.md#vault-id) is committed
+  ([792b5c13 Uncommitted ID detection](./vault-identity-registry.md#792b5c13-uncommitted-id-detection)).
+- Required behavior: [Pending Offer Bookkeeping](./pending-offer-bookkeeping.md) decides whether a vault holds a
+  pending [offer](../../GLOSSARY.md#offer)
+  ([792b34c3 Finding pending offers](./pending-offer-bookkeeping.md#792b34c3-finding-pending-offers)).
+- Required behavior: [Chunk Index Store](./chunk-index-store.md) reports empty index files and a duplicate backlog
+  that `prune --duplicates` would remove
+  ([792b18c15 Reporting a prune backlog](./chunk-index-store.md#792b18c15-reporting-a-prune-backlog)).
+- Required behavior: [Offer Outbox](./offer-outbox.md) drains the [outbox](../../GLOSSARY.md#outbox) in the update and
+  returns its notice
+  ([792b36c16 The update exchange and the outbox notice](./offer-outbox.md#792b36c16-the-update-exchange-and-the-outbox-notice)).
 - Supported capabilities: [install-and-update](../product/install-and-update.md), [vault-migration](../product/vault-migration.md) (the notices and the flag
   routing), [controlled-vocabulary](../product/controlled-vocabulary.md) (the notices and the `--regen-vocab` summary).
   Also [skill-runbook-registration](../product/skill-runbook-registration.md), [parent-sync](../product/parent-sync.md) and [curate](../product/curate.md) (the registration, outbox and pending-offer
@@ -32,9 +90,9 @@ order install result, then deploy and checks. A downgrade gate that fails open i
 update whose safety cannot be proved must still be possible, and only a provable regression blocks. The checks run in the process that deployed so that they and their notices come from the same
 release as the deploy.
 
-## 792b28c Behavior Requirements
+### 792b28c Behavior Requirements
 
-### 792b28c1 Install location
+#### 792b28c1 Install location
 
 Requirement: [792b28c1 Install location](#792b28c1-install-location) The self-installer MUST name the install location `go install` uses, reading `GOBIN` and `GOPATH` as the Go toolchain
 does (`go env GOBIN GOPATH`, which includes values set with `go env -w`): `$GOBIN/engram` when `GOBIN` is
@@ -45,7 +103,7 @@ Supports: [792a11a1c The install location follows the Go toolchain](../product/i
 Rationale: this is where `go install` puts the binary, in the toolchain's own order and from the toolchain's own settings, so the hand-off
 starts the binary that was just installed.
 
-#### 792b28c1a Scenarios
+##### 792b28c1a Scenarios
 
 ```gherkin
 Scenario: 792b28c1a1 GOBIN wins
@@ -74,7 +132,7 @@ Scenario: 792b28c1a5 The first GOPATH entry is used
   Then it is /gp1/bin/engram
 ```
 
-### 792b28c2 Source choice
+#### 792b28c2 Source choice
 
 Requirement: [792b28c2 Source choice](#792b28c2-source-choice) The self-installer MUST look for a `go.mod` in the working directory and then in each
 parent up to the filesystem root, MUST decide on the first one it finds, and MUST take its directory as a
@@ -89,7 +147,7 @@ Supports: [792a11a1a A local clone is installed in place](../product/install-and
 Rationale: stopping at the nearest `go.mod` means a checkout of another Go module, such as an engram
 vendored inside a larger project, is not mistaken for the engram source.
 
-#### 792b28c2a Scenarios
+##### 792b28c2a Scenarios
 
 ```gherkin
 Scenario: 792b28c2a1 The module is at the working directory
@@ -138,7 +196,7 @@ Scenario: 792b28c2a9 The walk ends for every path
   Then the walk terminates
 ```
 
-### 792b28c3 Preconditions
+#### 792b28c3 Preconditions
 
 Requirement: [792b28c3 Preconditions](#792b28c3-preconditions) The self-installer MUST fail with an error saying it could not resolve the home
 directory when the home directory cannot be resolved, MUST then detect the harnesses ([792b29c1 Harness detection](./harness-deploy-sync.md#792b29c1-harness-detection)) and fail
@@ -148,7 +206,7 @@ run no command and write nothing before these checks pass.
 
 Supports: [792a11g1c No harness is an error before any install](../product/install-and-update.md#792a11g1-uat-scenarios).
 
-#### 792b28c3a Scenarios
+##### 792b28c3a Scenarios
 
 ```gherkin
 Scenario: 792b28c3a1 An unresolvable home directory is an error
@@ -167,7 +225,7 @@ Scenario: 792b28c3a3 An unresolvable working directory is an error
   Then it fails with an error containing "getwd"
 ```
 
-### 792b28c4 Installing from a local source
+#### 792b28c4 Installing from a local source
 
 Requirement: [792b28c4 Installing from a local source](#792b28c4-installing-from-a-local-source) When the source is local ([792b28c2 Source choice](#792b28c2-source-choice)), the self-installer MUST resolve the module root's
 revision with `git rev-parse --short HEAD` run in the module root, and MUST use `unknown` when git fails or
@@ -178,7 +236,7 @@ wraps the failure and names `go install (local)`.
 
 Supports: [792a11a1a A local clone is installed in place](../product/install-and-update.md#792a11a1-uat-scenarios), [792a11a1e Go is missing](../product/install-and-update.md#792a11a1-uat-scenarios), [792a11d1a A local install reports its revision](../product/install-and-update.md#792a11d1-uat-scenarios).
 
-#### 792b28c4a Scenarios
+##### 792b28c4a Scenarios
 
 ```gherkin
 Scenario: 792b28c4a1 The install runs in the module root
@@ -207,7 +265,7 @@ Scenario: 792b28c4a5 Another install failure surfaces
   Then the run fails with an error wrapping that failure
 ```
 
-### 792b28c5 Installing from a fresh clone
+#### 792b28c5 Installing from a fresh clone
 
 Requirement: [792b28c5 Installing from a fresh clone](#792b28c5-installing-from-a-fresh-clone) When there is no local source, the self-installer MUST remove any earlier scratch
 clone at `$TMPDIR/engram-update-clone` (`/tmp/engram-update-clone` when `TMPDIR` is empty), run `git clone
@@ -222,7 +280,7 @@ Supports: [792a11a1b Outside a checkout the repository is cloned](../product/ins
 Rationale: the module proxy serves repository blobs raw, so the git-lfs model arrives as a 133-byte
 pointer and a proxy build embeds it; a clone runs git's smudge filter.
 
-#### 792b28c5a Scenarios
+##### 792b28c5a Scenarios
 
 ```gherkin
 Scenario: 792b28c5a1 The binary is built from a clone
@@ -251,7 +309,7 @@ Scenario: 792b28c5a5 Both harnesses are deployed from the clone
   Then the report's source is the clone and its revision, and each harness's engram root holds the skill from the clone
 ```
 
-### 792b28c6 Model check
+#### 792b28c6 Model check
 
 Requirement: [792b28c6 Model check](#792b28c6-model-check) After cloning, the self-installer MUST read `internal/embed/assets/model/model.onnx`
 in the clone, and MUST fail with an error satisfying `update.ErrModelLFSStub` that names the file, its
@@ -262,7 +320,7 @@ be read, and MUST continue otherwise.
 
 Supports: [792a11b1a A pointer file stops the install](../product/install-and-update.md#792a11b1-uat-scenarios), [792a11b1b A real model installs](../product/install-and-update.md#792a11b1-uat-scenarios), [792a11b1c An unreadable model is an error](../product/install-and-update.md#792a11b1-uat-scenarios).
 
-#### 792b28c6a Scenarios
+##### 792b28c6a Scenarios
 
 ```gherkin
 Scenario: 792b28c6a1 A pointer file is refused with guidance
@@ -286,7 +344,7 @@ Scenario: 792b28c6a4 A real model passes
   Then the build goes ahead
 ```
 
-### 792b28c7 Downgrade gate
+#### 792b28c7 Downgrade gate
 
 Requirement: [792b28c7 Downgrade gate](#792b28c7-downgrade-gate) For a local install that is neither a dry run nor the handed-off run, when a file
 exists at the install location, the self-installer MUST read the installed binary's revision as the value
@@ -304,7 +362,7 @@ Rationale: `git merge-base --is-ancestor` exits non-zero both for "not an ancest
 "cannot tell"; only the first is proof. The remote route is exempt, because a fresh clone always builds
 the repository's current tip.
 
-#### 792b28c7a Scenarios
+##### 792b28c7a Scenarios
 
 ```gherkin
 Scenario: 792b28c7a1 A provable downgrade is refused
@@ -338,7 +396,7 @@ Scenario: 792b28c7a6 A descendant installs
   Then go install runs
 ```
 
-### 792b28c8 Installs that are skipped
+#### 792b28c8 Installs that are skipped
 
 Requirement: [792b28c8 Installs that are skipped](#792b28c8-installs-that-are-skipped) The self-installer MUST run no `go install`, and MUST NOT hand off ([792b28c9 Hand-off](#792b28c9-hand-off)), when
 the run is a dry run or when the environment variable `ENGRAM_UPDATE_REEXEC` is non-empty (the
@@ -351,7 +409,7 @@ Supports: [792a11e1d A handed-off run does not claim an install](../product/inst
 Rationale: the sentinel is what ends the loop: a handed-off run that installed again would hand off
 again.
 
-#### 792b28c8a Scenarios
+##### 792b28c8a Scenarios
 
 ```gherkin
 Scenario: 792b28c8a1 A dry run installs and spawns nothing
@@ -375,7 +433,7 @@ Scenario: 792b28c8a4 A remote dry run still clones
   Then the repository is cloned and its model checked, and go install does not run
 ```
 
-### 792b28c9 Hand-off
+#### 792b28c9 Hand-off
 
 Requirement: [792b28c9 Hand-off](#792b28c9-hand-off) After an install that succeeded, unless [792b28c8 Installs that are skipped](#792b28c8-installs-that-are-skipped) applies, the self-installer MUST
 first have the install result written through the injected hand-off reporter, MUST then start the
@@ -392,7 +450,7 @@ Supports: [792a11e1a The deploy runs in the new binary](../product/install-and-u
 Rationale: a failed write to the output means the same broken output would fail the fallback's report, so
 smoothing it into the fallback only hides it.
 
-#### 792b28c9a Scenarios
+##### 792b28c9a Scenarios
 
 ```gherkin
 Scenario: 792b28c9a1 The installed binary is started with the flags and the sentinel
@@ -421,7 +479,7 @@ Scenario: 792b28c9a5 A report that cannot be written aborts
   Then the run fails with an error containing "writing re-exec handoff report:", no process is spawned, there is no fallback note, and no harness is deployed
 ```
 
-### 792b28c10 The update run and its flags
+#### 792b28c10 The update run and its flags
 
 Requirement: [792b28c10 The update run and its flags](#792b28c10-the-update-run-and-its-flags) The self-installer MUST, when `--reparent-luhmann` is given, run only the
 re-parenting of note-reparenting ([792b27c3 Derive output](./note-reparenting.md#792b27c3-derive-output), [792b27c9 Apply flow](./note-reparenting.md#792b27c9-apply-flow), [792b27c10 Preview](./note-reparenting.md#792b27c10-preview)) against the vault and chunk index resolved from the home
@@ -439,7 +497,7 @@ Supports: [792a11o1a The help lists every option](../product/install-and-update.
 Rationale: the re-parenting is a one-shot batch whose answers come from an agent, so it stays apart from
 the routine refresh instead of running as one more step of it.
 
-#### 792b28c10a Scenarios
+##### 792b28c10a Scenarios
 
 ```gherkin
 Scenario: 792b28c10a1 The re-parenting flag runs nothing else
@@ -488,7 +546,7 @@ Scenario: 792b28c10a9 The help lists every flag
   Then it describes refreshing the binary and harness skills and lists --dry-run, --with-guidance, --allow-downgrade, --regen-vocab, --reparent-luhmann, --answers and --backfill-identity
 ```
 
-### 792b28c11 Checks after the deploy
+#### 792b28c11 Checks after the deploy
 
 Requirement: [792b28c11 Checks after the deploy](#792b28c11-checks-after-the-deploy) When the deploy ran in this process and `Updater.Run` returned no error, the
 self-installer MUST resolve the vault path and the chunk-index directory from the home directory and the
@@ -507,7 +565,7 @@ Rationale: every check reads the machine and the vault as they stand after the d
 deployed, and an unreadable path means no signal, since a detection failure must never fail `engram update`'s
 primary job.
 
-#### 792b28c11a Scenarios
+##### 792b28c11a Scenarios
 
 ```gherkin
 Scenario: 792b28c11a1 The regeneration flag is applied and summarized
@@ -531,7 +589,7 @@ Scenario: 792b28c11a4 A failed run runs no checks
   Then no check ran and the error is returned wrapped
 ```
 
-### 792b28c12 Report
+#### 792b28c12 Report
 
 Requirement: [792b28c12 Report](#792b28c12-report) The self-installer MUST write the report as the lines `engram update`,
 `  source: <source>`, `  binary: <binary>`, then (when set) the re-exec failure note, then each harness
@@ -549,7 +607,7 @@ prefix a notice line.
 
 Supports: [792a11d1a A local install reports its revision](../product/install-and-update.md#792a11d1-uat-scenarios), [792a11d1b A real install reports where the binary went](../product/install-and-update.md#792a11d1-uat-scenarios), [792a11d1c A remote source reports its revision](../product/install-and-update.md#792a11d1-uat-scenarios), [792a11e1b The install result comes first](../product/install-and-update.md#792a11e1-uat-scenarios), [792a11e1d A handed-off run does not claim an install](../product/install-and-update.md#792a11e1-uat-scenarios), [792a11f1b Action lines carry the prefix, notices do not](../product/install-and-update.md#792a11f1-uat-scenarios), [792a11g1d One failing harness does not stop the other](../product/install-and-update.md#792a11g1-uat-scenarios).
 
-#### 792b28c12a Scenarios
+##### 792b28c12a Scenarios
 
 ```gherkin
 Scenario: 792b28c12a1 A dry run with both harnesses
@@ -598,7 +656,7 @@ Scenario: 792b28c12a9 Action lines carry the dry-run prefix and notices do not
   Then every action line begins with "[dry-run] " and none of the notice lines does
 ```
 
-### 792b28c13 Notices
+#### 792b28c13 Notices
 
 Requirement: [792b28c13 Notices](#792b28c13-notices) The self-installer MUST print each notice below, in this order and after the
 `installed:` line and the guidance hints, exactly when the report's flag for it is set, and MUST print
@@ -611,7 +669,7 @@ their capabilities specify. The vocabulary and identity notices MUST be replaced
 
 Supports: [792a6v1a An old-format vault is flagged](../product/controlled-vocabulary.md#792a6v1-uat-scenarios), [792a6v1b A missing self-tag is flagged](../product/controlled-vocabulary.md#792a6v1-uat-scenarios), [792a6v1c A current vault gets no vocab notice](../product/controlled-vocabulary.md#792a6v1-uat-scenarios), [792a10a1a Only top-level notes](../product/vault-migration.md#792a10a1-uat-scenarios), [792a10a1b A branched note silences the notice](../product/vault-migration.md#792a10a1-uat-scenarios), [792a10a1c An empty vault has no notice](../product/vault-migration.md#792a10a1-uat-scenarios), [792a10a1d The notice names the answering procedure](../product/vault-migration.md#792a10a1-uat-scenarios), [792a10j1a Notes missing identity are noticed](../product/vault-migration.md#792a10j1-uat-scenarios), [792a10j1b No notice when nothing is missing](../product/vault-migration.md#792a10j1-uat-scenarios), [792a11n1a Update reports the prune command when duplicates exist](../product/install-and-update.md#792a11n1-uat-scenarios), [792a11n1b A refusal-only backlog is silent](../product/install-and-update.md#792a11n1-uat-scenarios), [792a11n1c Empty index files are reported](../product/install-and-update.md#792a11n1-uat-scenarios), [792a11n1d A clean or missing index is silent](../product/install-and-update.md#792a11n1-uat-scenarios), [792a11n1e The notices coexist with the other upgrade notices](../product/install-and-update.md#792a11n1-uat-scenarios), [792a21za1a Update reports a stuck outbox](../product/parent-sync.md#792a21za1-uat-scenarios), [792a21za1b Update reports an entry that needs attention](../product/parent-sync.md#792a21za1-uat-scenarios), [792a22o1g Update surfaces a notice](../product/curate.md#792a22o1-uat-scenarios).
 
-#### 792b28c13a Scenarios
+##### 792b28c13a Scenarios
 
 ```gherkin
 Scenario: 792b28c13a1 The old-format vocabulary notice
@@ -665,7 +723,7 @@ Scenario: 792b28c13a10 The pending-offer notice is written
   Then the first names the pending_offers flag and carries the shared curate instruction and its engram query command, without naming a skill, and the second prints no pending-offer line
 ```
 
-### 792b28c14 Summaries of the opt-in flags
+#### 792b28c14 Summaries of the opt-in flags
 
 Requirement: [792b28c14 Summaries of the opt-in flags](#792b28c14-summaries-of-the-opt-in-flags) When `--regen-vocab` ran, the self-installer MUST print its summary in place of the
 old-format notice: `update --regen-vocab: nothing to regenerate` when it removed no file and cleaned no
@@ -677,7 +735,7 @@ no note, else `update --backfill-identity: stamped <N> note(s) with repo:/user:/
 
 Supports: [792a6w1a An old-format vocabulary is migrated](../product/controlled-vocabulary.md#792a6w1-uat-scenarios), [792a6w1b A dry run changes nothing](../product/controlled-vocabulary.md#792a6w1-uat-scenarios), [792a6w1c Nothing to migrate](../product/controlled-vocabulary.md#792a6w1-uat-scenarios), [792a10k1a The current environment is stamped](../product/vault-migration.md#792a10k1-uat-scenarios), [792a10k1f A dry run writes nothing](../product/vault-migration.md#792a10k1-uat-scenarios).
 
-#### 792b28c14a Scenarios
+##### 792b28c14a Scenarios
 
 ```gherkin
 Scenario: 792b28c14a1 A regeneration is summarized
@@ -711,7 +769,7 @@ Scenario: 792b28c14a6 A backfill with nothing to do
   Then it holds "update --backfill-identity: nothing to backfill"
 ```
 
-### 792b28c15 Exit status and errors
+#### 792b28c15 Exit status and errors
 
 Requirement: [792b28c15 Exit status and errors](#792b28c15-exit-status-and-errors) The self-installer MUST return an error `update: <error>` that preserves the error
 chain, without writing the report, when the run failed, MUST return `update: writing report: <error>` when
@@ -720,7 +778,7 @@ writing the report when any harness failed, and MUST otherwise return no error.
 
 Supports: [792a11g1d One failing harness does not stop the other](../product/install-and-update.md#792a11g1-uat-scenarios), [792a11a1e Go is missing](../product/install-and-update.md#792a11a1-uat-scenarios), [792a11g1c No harness is an error before any install](../product/install-and-update.md#792a11g1-uat-scenarios).
 
-#### 792b28c15a Scenarios
+##### 792b28c15a Scenarios
 
 ```gherkin
 Scenario: 792b28c15a1 A harness failure is an error
@@ -759,7 +817,7 @@ Scenario: 792b28c15a7 A report that cannot be written is an error
   Then the returned error begins "update: writing report:"
 ```
 
-### 792b28c16 The registration step
+#### 792b28c16 The registration step
 
 Requirement: [792b28c16 The registration step](#792b28c16-the-registration-step) After the checks and the opt-in summaries, the self-installer MUST run skill
 registration over the resolved vault and vault name, with the home directory, the update's `--dry-run`
@@ -772,7 +830,7 @@ Supports: [792a12t1a An interactive update](../product/skill-runbook-registratio
 Rationale: the step reads the freshly deployed copies and the user's own folders, and a failure there must
 never undo a deploy that already succeeded.
 
-#### 792b28c16a Scenarios
+##### 792b28c16a Scenarios
 
 ```gherkin
 Scenario: 792b28c16a1 The step forwards the dry-run flag and reads the default sources
