@@ -1,6 +1,8 @@
 # Eval Trial Harness - Technical Spec
 
-## 792b38a Orientation
+## 792b38 Eval Trial Harness
+
+### 792b38a Orientation
 
 - Ownership: Repository component (dev tooling).
 - Responsibility: gives an eval trial a configuration that carries the skills it claims and an environment that keeps it off
@@ -13,13 +15,37 @@
   `dev/eval/cumulative/runbook_vs_skill/probe.py` (`build_cfg_template`), the phase 2 probe
   `dev/eval/cumulative/runbook_vs_skill/phase2/probe_phase2.py` with its fixtures, and `dev/eval/traps/retrieval_probe.py`
   (`rank_in_payload`). The Go harness behind `targ eval` (`dev/eval/*.go`) is not specified here.
-- Qualification: responsibility, the installed skills, the isolated environment, the leak guard and the scoring are stated
-  without naming a function; ownership, it owns what an eval trial is given and how its transcript is read, while the
-  engram binary the trial runs, the vault and the query payload it reads are other components'; independent verification,
+- Qualification: Purpose: a trial that reached the real [vault](../../GLOSSARY.md#vault) or ran without its
+  [skills](../../GLOSSARY.md#skill) would make every number the maintainer reads wrong without any sign of it. Contract:
+  it owns what an eval trial is given and how its [transcript](../../GLOSSARY.md#transcript) is read, while the engram
+  [binary](../../GLOSSARY.md#binary) the trial runs, the vault and the query payload it reads are other components', and
   every requirement is tested over a temporary directory, a synthetic payload or a synthetic transcript, with no model
-  call; stability, the contract survives a new harness, because each one builds its environment through one primitive;
-  necessity, a trial that reached the real vault or ran without its skills would make every number the maintainer reads
-  wrong without any sign of it.
+  call. Identity: the contract survives a new harness, because each one builds its environment through one primitive.
+  Value: one primitive builds and proves every trial's isolation, and one function installs a skill, because
+  hand-mirrored copies can drift and silently skip a copy. Responsibility (naming): the installed skills, the isolated
+  environment, the leak guard and the scoring are stated without naming a function.
+- Required behavior: Claude Code (external, run as `claude -p --permission-mode bypassPermissions`) is assumed to read
+  its configuration and its `skills/` from the directory `CLAUDE_CONFIG_DIR` names and to keep each
+  [session](../../GLOSSARY.md#session)'s transcript under that directory's `projects/`, with the assistant's text and
+  tool calls in it
+  ([792b38c1 Installing a skill into a trial configuration](#792b38c1-installing-a-skill-into-a-trial-configuration),
+  [792b38c3 The isolated environment of a trial](#792b38c3-the-isolated-environment-of-a-trial),
+  [792b38c8 A question stop](#792b38c8-a-question-stop)); authoritative contract: not recorded in this repository;
+  compatibility verification: none (no test makes a model call).
+- Required behavior: [Command Line Surface](./command-line-surface.md) resolves the vault from `ENGRAM_VAULT_PATH`
+  ([792b2c1 Vault path resolution](./command-line-surface.md#792b2c1-vault-path-resolution)) and the chunk index
+  directory from `ENGRAM_CHUNKS_DIR`
+  ([792b2c6 Chunk index directory resolution](./command-line-surface.md#792b2c6-chunk-index-directory-resolution)).
+- Required behavior: [Ingestion Source Discovery](./ingestion-source-discovery.md) takes the session-log directory from
+  `ENGRAM_TRANSCRIPT_DIR`
+  ([792b17c6 Session-log directory](./ingestion-source-discovery.md#792b17c6-session-log-directory)).
+- Required behavior: [Query Payload Renderer](./query-payload-renderer.md) gives the payload an `items` list whose items
+  carry their `path` ([792b23c1 The document](./query-payload-renderer.md#792b23c1-the-document),
+  [792b23c2 Item labels](./query-payload-renderer.md#792b23c2-item-labels)).
+- Required behavior: `tempfile.mkdtemp` (Python standard library, external) is assumed to end a directory name with a
+  random suffix of 8 characters ([792b38c5 The leak guard](#792b38c5-the-leak-guard)); authoritative contract: not
+  recorded in this repository; compatibility verification: `dev/eval/test_isolation.py` (`test_792b38c5a5` makes real
+  directories with `tempfile.mkdtemp`).
 - Supported capabilities: [memory-effectiveness-evaluation](../product/memory-effectiveness-evaluation.md).
 
 Rationale: every harness here spawns `claude -p --permission-mode bypassPermissions` with the engram binary reachable,
@@ -28,9 +54,9 @@ and its `engram query` reads the real chunk index. The environment is therefore 
 isolation before it returns and records the trial's marker as it does. The skill installation is likewise one
 function, because hand-mirrored copies can drift and silently skip a copy.
 
-## 792b38c Behavior Requirements
+### 792b38c Behavior Requirements
 
-### 792b38c1 Installing a skill into a trial configuration
+#### 792b38c1 Installing a skill into a trial configuration
 
 Requirement: [792b38c1 Installing a skill into a trial configuration](#792b38c1-installing-a-skill-into-a-trial-configuration) The eval-trial-harness MUST, to install a skill into a trial configuration's `skills/` directory from a skills
 root, raise an error that names the skill and the path checked when the skill's source directory does not exist, and one
@@ -43,7 +69,7 @@ Supports: [792a23a1a Successful skill installation is verified](../product/memor
 Rationale: a copy that silently does nothing because its source path is wrong looks the same as a successful copy of an empty
 directory unless the source and the destination are each checked.
 
-#### 792b38c1a Scenarios
+##### 792b38c1a Scenarios
 
 ```gherkin
 Scenario: 792b38c1a1 A missing source raises
@@ -62,7 +88,7 @@ Scenario: 792b38c1a3 The copy is verified at the destination
   Then the destination holds the same SKILL.md, and an installation that leaves none raises
 ```
 
-### 792b38c2 The warm-configuration builders
+#### 792b38c2 The warm-configuration builders
 
 Requirement: [792b38c2 The warm-configuration builders](#792b38c2-the-warm-configuration-builders) Every function of the eval-trial-harness that builds a warm trial configuration MUST install each requested
 skill through the one installation of [792b38c1 Installing a skill into a trial configuration](#792b38c1-installing-a-skill-into-a-trial-configuration), from `agent-instructions/skills/<skill>` under a repository root that it
@@ -76,7 +102,7 @@ Supports: [792a23a1c Every warm-configuration builder verifies the same way](../
 Rationale: shared installation keeps the copies from drifting apart, and the repository root derived from `__file__`
 is what keeps the source path right when the skills move.
 
-#### 792b38c2a Scenarios
+##### 792b38c2a Scenarios
 
 ```gherkin
 Scenario: 792b38c2a1 The trap harness verifies a successful installation
@@ -140,7 +166,7 @@ Scenario: 792b38c2a12 The repository root comes from the file's own location
   Then the skills root is computed from the file's own location and no absolute path is hard-coded
 ```
 
-### 792b38c3 The isolated environment of a trial
+#### 792b38c3 The isolated environment of a trial
 
 Requirement: [792b38c3 The isolated environment of a trial](#792b38c3-the-isolated-environment-of-a-trial) The eval-trial-harness MUST build a trial's environment so that `ENGRAM_VAULT_PATH`, `ENGRAM_CHUNKS_DIR` and
 `ENGRAM_TRANSCRIPT_DIR` point inside the per-trial directory (the transcript directory at the session directory of the trial's
@@ -160,7 +186,7 @@ probe would measure his real memory competing with its own fixture. Walking the 
 sweep operator-global sources into a per-trial index. The marker is recorded by the primitive that proves the
 isolation, so no caller has to collect it.
 
-#### 792b38c3a Scenarios
+##### 792b38c3a Scenarios
 
 ```gherkin
 Scenario: 792b38c3a1 Every state variable points into the trial
@@ -234,7 +260,7 @@ Scenario: 792b38c3a14 A direct call's environment registers its vault
   Then its vault is in the registry
 ```
 
-### 792b38c4 The real-vault fingerprint
+#### 792b38c4 The real-vault fingerprint
 
 Requirement: [792b38c4 The real-vault fingerprint](#792b38c4-the-real-vault-fingerprint) The eval-trial-harness MUST fingerprint a vault as the number of its `.md` notes and the SHA-256 of their sorted
 basenames, ignoring sidecars and every other file, and a vault directory that does not exist MUST have the empty fingerprint.
@@ -245,7 +271,7 @@ Supports: [792a23f1c A same-filename in-place mutation is not caught](../product
 Rationale: the fingerprint is the cheap before-picture for the leak guard. Because it hashes names and not modification times, an
 in-place edit of an existing note does not move it, a limit that [792a23f The leak guard's limits are stated](../product/memory-effectiveness-evaluation.md#792a23f-the-leak-guards-limits-are-stated) states.
 
-#### 792b38c4a Scenarios
+##### 792b38c4a Scenarios
 
 ```gherkin
 Scenario: 792b38c4a1 Notes are counted and sidecars ignored
@@ -259,7 +285,7 @@ Scenario: 792b38c4a2 A missing vault is empty
   Then the fingerprint is that of an empty vault
 ```
 
-### 792b38c5 The leak guard
+#### 792b38c5 The leak guard
 
 Requirement: [792b38c5 The leak guard](#792b38c5-the-leak-guard) The eval-trial-harness MUST, given the fingerprint from before a run, return without a finding when the real vault's fingerprint is
 unchanged and when no note was added, and otherwise read the notes that appeared and raise an error that
@@ -277,7 +303,7 @@ note that names no marker, a non-distinctive basename and an in-place mutation, 
 stated](../product/memory-effectiveness-evaluation.md#792a23f-the-leak-guards-limits-are-stated) state as accepted
 limits.
 
-#### 792b38c5a Scenarios
+##### 792b38c5a Scenarios
 
 ```gherkin
 Scenario: 792b38c5a1 A new note naming no registered marker is ignored
@@ -321,7 +347,7 @@ Scenario: 792b38c5a8 A leak the guard cannot see is not raised
   Then it does not raise
 ```
 
-### 792b38c6 Every harness guards the real vault
+#### 792b38c6 Every harness guards the real vault
 
 Requirement: [792b38c6 Every harness guards the real vault](#792b38c6-every-harness-guards-the-real-vault) Each of the seven tier-A harnesses of [792b38c11 Every spawn site builds its environment through the primitive](#792b38c11-every-spawn-site-builds-its-environment-through-the-primitive) and each runbook-versus-skill probe MUST take the real vault's fingerprint before it runs its trials and call the leak guard after, and no harness MUST still compare a whole-vault fingerprint of its own: the retired `_real_vault_fingerprint` MUST be absent from the two files that used it. The older experiment harnesses (`dev/eval/traps/c4.py`, `c5.py`, `c6.py`, `cake.py`, `compound_eval.py`, `wrun.py` and their kin) isolate their environment by hand and take no fingerprint; they are outside this requirement.
 
@@ -329,7 +355,7 @@ Supports: [792a23d1c Every harness snapshots the real vault and asserts no leak]
 
 Rationale: a harness that forgets the guard is the failure the guard exists for, so a test over the harness sources makes the omission fail.
 
-#### 792b38c6a Scenarios
+##### 792b38c6a Scenarios
 
 ```gherkin
 Scenario: 792b38c6a1 Every harness snapshots the real vault
@@ -348,7 +374,7 @@ Scenario: 792b38c6a3 The retired whole-vault comparison is gone
   Then neither references _real_vault_fingerprint
 ```
 
-### 792b38c7 Detecting a step in every form of its command
+#### 792b38c7 Detecting a step in every form of its command
 
 Requirement: [792b38c7 Detecting a step in every form of its command](#792b38c7-detecting-a-step-in-every-form-of-its-command) The eval-trial-harness MUST match the `history-rewrite` fixture's step 3 on a bash command that runs `git filter-branch`,
 `git filter-repo` or `git-filter-repo`, with whitespace or a hyphen between `git` and the tool, and only when `git` is not
@@ -359,7 +385,7 @@ Supports: [792a23g1a The hyphenated git-filter-repo form is matched](../product/
 
 Rationale: a pattern for one valid form scores every success that used another as a miss and cascades the miss to every step behind it.
 
-#### 792b38c7a Scenarios
+##### 792b38c7a Scenarios
 
 ```gherkin
 Scenario: 792b38c7a1 The hyphenated form matches
@@ -383,7 +409,7 @@ Scenario: 792b38c7a4 A full trial with the hyphenated form scores every step as 
   Then steps 3 to 6 all score as followed
 ```
 
-### 792b38c8 A question stop
+#### 792b38c8 A question stop
 
 Requirement: [792b38c8 A question stop](#792b38c8-a-question-stop) The eval-trial-harness MUST report `question_stop` as false when the trial's end-state check passes. Otherwise it MUST
 report it as true exactly when the last assistant text that poses an ambiguity (the ambiguity wording, or a `?` anywhere) has
@@ -397,7 +423,7 @@ Rationale: if the final state already satisfies the checks, every mutation the t
 mutation after it cannot have blocked one. An agent that raises an ambiguity and mutates anyway is a silent deviation and
 never a stop.
 
-#### 792b38c8a Scenarios
+##### 792b38c8a Scenarios
 
 ```gherkin
 Scenario: 792b38c8a1 Ambiguity text ending the transcript is a stop
@@ -451,7 +477,7 @@ Scenario: 792b38c8a10 Re-scoring wires the end state
   Then question_stop is false
 ```
 
-### 792b38c9 A fixture's local follow-up target
+#### 792b38c9 A fixture's local follow-up target
 
 Requirement: [792b38c9 A fixture's local follow-up target](#792b38c9-a-fixtures-local-follow-up-target) The `bisect-before-fix` fixture of the eval-trial-harness MUST contain `ISSUES.md` from its initial commit, MUST name `ISSUES.md` in its task prompt as
 the place to file a follow-up issue for a pre-existing regression, and its step 8 MUST score a trial as having filed the issue when it
@@ -463,7 +489,7 @@ Supports: [792a23i1a The bisect-before-fix fixture names a local issue-filing ta
 Rationale: without a local target a shim-following agent must stop and ask merely because the fixture omitted the means to comply, and the
 runbook is not changed to work around a fixture gap.
 
-#### 792b38c9a Scenarios
+##### 792b38c9a Scenarios
 
 ```gherkin
 Scenario: 792b38c9a1 The prompt names the target
@@ -497,7 +523,7 @@ Scenario: 792b38c9a6 An unanchored append or a mention does not score
   Then it does not score as followed
 ```
 
-### 792b38c10 The rank of a surfaced note
+#### 792b38c10 The rank of a surfaced note
 
 Requirement: [792b38c10 The rank of a surfaced note](#792b38c10-the-rank-of-a-surfaced-note) The eval-trial-harness MUST, to decide whether a target note surfaced in an `engram query` payload, look for the target
 among the payload's top-level `items[]` by path or basename and report `surfaced` true with its one-based rank there, and `surfaced`
@@ -508,7 +534,7 @@ Supports: [792a23j1a A target present in items[] counts as surfaced](../product/
 
 Rationale: `candidate_l2s` is a capped subset chosen for synthesis ([792b24c10 Candidate notes](./query-engine.md#792b24c10-candidate-notes)), so reading it reports a correctly matched note as a miss.
 
-#### 792b38c10a Scenarios
+##### 792b38c10a Scenarios
 
 ```gherkin
 Scenario: 792b38c10a1 A target in items[] surfaces at its rank
@@ -532,7 +558,7 @@ Scenario: 792b38c10a4 Escalation is per phrase and the corpus loads
   Then it escalates per phrase and loads every runbook of the corpus
 ```
 
-### 792b38c11 Every spawn site builds its environment through the primitive
+#### 792b38c11 Every spawn site builds its environment through the primitive
 
 Requirement: [792b38c11 Every spawn site builds its environment through the primitive](#792b38c11-every-spawn-site-builds-its-environment-through-the-primitive) Each of the seven tier-A sites of the eval-trial-harness that spawn a trial MUST build its environment with the isolated-environment
 primitive of [792b38c3 The isolated environment of a trial](#792b38c3-the-isolated-environment-of-a-trial) and import it, and MUST NOT hand-roll `env = dict(os.environ)`. A tier-B Python site that sets a vault MUST also set the chunk directory, by building its direct-call environment with `engram_env`, and a tier-B shell site that sets a vault MUST set the chunk directory too. The Claude harness's own environment building MUST delegate to the isolation module. The older experiment harnesses (`dev/eval/traps/c4.py`, `c5.py`, `c6.py`, `cake.py`, `compound_eval.py`, `wrun.py` and their kin) build their environment by hand and set the vault and the chunk directory together; they are outside the two site lists.
@@ -543,7 +569,7 @@ Rationale: a site that sets only `CLAUDE_CONFIG_DIR` can write notes into the ma
 the vault alone leaves the chunk index at the maintainer's global one. The sites share no entry point to instrument,
 so the assertion is on the source text: a weak test of behavior and a strong one of the property that regressed.
 
-#### 792b38c11a Scenarios
+##### 792b38c11a Scenarios
 
 ```gherkin
 Scenario: 792b38c11a1 Tier A sites import the isolation module

@@ -1,4 +1,4 @@
-# Nil Check Run Flow - Technical Spec
+# Nil Check Run Technical Workflow - Technical Spec
 
 A developer runs a nil check or fix through the existing entry points. Orchestration obtains the
 mode's arguments from the invocation policy, hands one request to the NilAway subprocess, and

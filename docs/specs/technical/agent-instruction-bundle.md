@@ -1,6 +1,8 @@
 # Agent Instruction Bundle - Technical Spec
 
-## 792b32a Orientation
+## 792b32 Agent Instruction Bundle
+
+### 792b32a Orientation
 
 - Ownership: Repository component (the shipped skill and guidance markdown).
 - Responsibility: constrains the instruction artifacts that engram ships to an agent harness: the metadata a harness
@@ -8,14 +10,20 @@
   reaches engram only through its command line and writes the vault only through a sync-preserving command.
 - Current realization (informational): `agent-instructions/skills/*/SKILL.md` and
   `agent-instructions/guidance/*.md`, checked by `dev/skillsmeta/metadata_test.go`.
-- Qualification: responsibility, the shape of what is shipped to an agent is stated without naming any file;
-  ownership, no other component constrains the text of a skill, while [harness-deploy-sync](./harness-deploy-sync.md) only copies it and each
-  skill capability owns its own procedure; independent verification, the metadata limit is checked directly
-  against the shipped files; stability, the constraints survive a new skill or a new harness; necessity, a
-  harness loads a skill only when its metadata fits, and a command template that breaks on a dash-led value fails
-  silently at the agent.
+- Qualification: Purpose: a [harness](../../GLOSSARY.md#harness) loads a [skill](../../GLOSSARY.md#skill) only when its
+  metadata fits, and a command template that breaks on a dash-led value fails silently at the agent. Contract: no other
+  component constrains the text of a skill ([Harness Deploy Sync](./harness-deploy-sync.md) only copies it, each skill
+  capability owns its own procedure) and the metadata limit is checked directly against the shipped files. Identity:
+  the constraints survive a new skill or a new harness. Value: the constraints the skills share are written here once
+  and not repeated in every skill capability. Responsibility (naming): the shape of what is shipped to an agent is
+  stated without naming any file.
+- Required behavior: the agent harness skill loader (external) is assumed to load a skill whose description is shorter
+  than the limit and not to load a longer one
+  ([792b32c1 Skill metadata fits the harness limit](#792b32c1-skill-metadata-fits-the-harness-limit)); authoritative
+  contract: not recorded in this repository; compatibility verification: none beyond the shipped-file check
+  (`dev/skillsmeta/metadata_test.go`).
 - Supported capabilities: [write-memory](../product/write-memory.md). Also supported: [recall](../product/recall.md), [learn](../product/learn.md),
-  [lessons-contract](../product/lessons-contract.md), [route](../product/route.md), [please](../product/please.md), [ambient-guidance](../product/ambient-guidance.md) and curate.
+  [lessons-contract](../product/lessons-contract.md), [route](../product/route.md), [please](../product/please.md), [ambient-guidance](../product/ambient-guidance.md) and [Curate](../product/curate.md).
 
 Rationale: behavior lives in markdown skills that the agent executes, and deterministic compute lives in the
 binary. The two communicate only through the command line (arguments in, standard output out) and the vault on
@@ -24,9 +32,9 @@ leaves the invariant checker, which gates the binary, with only deterministic co
 acceptance tests and measured baselines instead of contract tests, so the constraints they share are written here
 once and not repeated in every skill capability.
 
-## 792b32c Behavior Requirements
+### 792b32c Behavior Requirements
 
-### 792b32c1 Skill metadata fits the harness limit
+#### 792b32c1 Skill metadata fits the harness limit
 
 Requirement: [792b32c1 Skill metadata fits the harness limit](#792b32c1-skill-metadata-fits-the-harness-limit) The agent-instruction-bundle MUST ship every skill as a `SKILL.md` that begins with YAML
 frontmatter, whose parsed `description` is non-empty and shorter than 1024 characters (counted as characters, not
@@ -36,7 +44,7 @@ Supports: none. The limit belongs to the harness that loads the skill, not to a 
 
 Rationale: a harness loads a skill from its metadata, and a description past the limit is not loaded.
 
-#### 792b32c1a Scenarios
+##### 792b32c1a Scenarios
 
 ```gherkin
 Scenario: 792b32c1a1 Every shipped skill has frontmatter
@@ -55,7 +63,7 @@ Scenario: 792b32c1a3 A description stays under the limit
   Then the count is fewer than 1024
 ```
 
-### 792b32c2 Free-text flag values use the attached form
+#### 792b32c2 Free-text flag values use the attached form
 
 Requirement: [792b32c2 Free-text flag values use the attached form](#792b32c2-free-text-flag-values-use-the-attached-form) The agent-instruction-bundle MUST write every free-text `engram` flag value in a shipped
 instruction, whether in a skill, a guidance document or a string the binary emits to an agent, as `--flag="value"`
@@ -70,7 +78,7 @@ Rationale: the command-line parser reads a value that begins with `-` as a new f
 `flag needs an argument`. A free-text value, such as a user's message or an agent's phrasing of a situation, can
 begin with `-` with no control over its shape, and the space-separated form has no defense against that.
 
-#### 792b32c2a Scenarios
+##### 792b32c2a Scenarios
 
 ```gherkin
 Scenario: 792b32c2a1 A skill's example command uses the attached form
@@ -89,7 +97,7 @@ Scenario: 792b32c2a3 A binary-emitted instruction uses the attached form
   Then the value is written --flag="value"
 ```
 
-### 792b32c3 A skill states the attached form once
+#### 792b32c3 A skill states the attached form once
 
 Requirement: [792b32c3 A skill states the attached form once](#792b32c3-a-skill-states-the-attached-form-once) The agent-instruction-bundle MUST have every skill whose body shows an `engram` command with a
 free-text flag state, at least once and in its own words, that the value must be passed as `--flag="value"` because a
@@ -100,7 +108,7 @@ Supports: [792a13h1a A value beginning with a dash survives](../product/write-me
 
 Rationale: an agent that improvises its own command, instead of copying an example, still uses the attached form.
 
-#### 792b32c3a Scenarios
+##### 792b32c3a Scenarios
 
 ```gherkin
 Scenario: 792b32c3a1 A skill states the rule and its reason
@@ -114,7 +122,7 @@ Scenario: 792b32c3a2 An improvised command uses the attached form
   Then the value is attached to its flag as --flag="value"
 ```
 
-### 792b32c4 Skills reach the vault only through the command line
+#### 792b32c4 Skills reach the vault only through the command line
 
 Requirement: [792b32c4 Skills reach the vault only through the command line](#792b32c4-skills-reach-the-vault-only-through-the-command-line) The agent-instruction-bundle MUST have every shipped skill reach engram's deterministic
 compute only by running the `engram` command line and reading its standard output and the vault on disk, and MUST
@@ -127,7 +135,7 @@ Rationale: a hand edit can desync a note from its sidecar and from the two copie
 invariant checker cannot see in the skill layer. Reading member files directly stays allowed because the agent
 decides, per cluster, whether the abstract signal is worth investigating; that lazy, judgment-based read is intended.
 
-#### 792b32c4a Scenarios
+##### 792b32c4a Scenarios
 
 ```gherkin
 Scenario: 792b32c4a1 A new note is written by learn

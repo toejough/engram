@@ -1,6 +1,8 @@
 # Memory Loop Auditor - Technical Spec
 
-## 792b39a Orientation
+## 792b39 Memory Loop Auditor
+
+### 792b39a Orientation
 
 - Ownership: Repository component (dev tooling).
 - Responsibility: reads a real agent transcript in context and records, moment by moment, where the loop of recall, action and
@@ -13,12 +15,33 @@
   `_run_engram_query_at_moment`, `_resolve_fork_parent_context`) and `dev/eval/audit/generate_outcome_records.py`. The mechanical
   extractor (`extract.py`), the full-corpus runner (`run_audit.py`), the scorecard (`build_scorecard.py`) and the parent-capture
   and re-judging scripts of the same directory are not specified here.
-- Qualification: responsibility, the windows, the detection, the record, the existence check and the outcome records are stated
-  without naming a function; ownership, it owns how a transcript becomes records, while the model call it makes, the vault
-  and the chunk index it searches, and the engram binary it queries are others'; independent verification, every requirement is
-  tested with a stub in place of the model and a scratch vault and chunk index, so no test makes a model call; stability, the
-  contract survives a change of model or of window size; necessity, without it the maintainer has no measurement of where the
-  memory loop loses what it should have kept.
+- Qualification: Purpose: without it the maintainer has no measurement of where the memory loop loses what it should
+  have kept. Contract: it owns how a [transcript](../../GLOSSARY.md#transcript) becomes records, while the model call it
+  makes, the [vault](../../GLOSSARY.md#vault) and the chunk index it searches, and the engram
+  [binary](../../GLOSSARY.md#binary) it queries are others', and every requirement is tested with a stub in place of the
+  model and a scratch vault and chunk index, so no test makes a model call. Identity: the contract survives a change of
+  model or of window size. Responsibility (naming): the windows, the detection, the record, the existence check and the
+  outcome records are stated without naming a function.
+- Required behavior: `claude -p` (Claude Code, external) is assumed to answer a prompt with a JSON response that flags
+  an error and gives its cost, and to reject a prompt past its size limit at once as `prompt_too_long`
+  ([792b39c1 Windows](#792b39c1-windows), [792b39c2 Detecting moments](#792b39c2-detecting-moments)); authoritative
+  contract: not recorded in this repository; compatibility verification: none (a stub replaces the model in every
+  test).
+- Required behavior: git (external) is assumed to find the last commit of a vault repository at or before a time, to
+  tell whether one commit is an ancestor of another, and to add and remove a detached worktree at a commit without
+  touching the vault's live working tree
+  ([792b39c4 Existence as of the moment's time](#792b39c4-existence-as-of-the-moments-time)); authoritative contract:
+  not recorded in this repository; compatibility verification: `dev/eval/audit/test_audit_moments.py`
+  (`test_792b39c4a2`, `test_792b39c4a3`) runs real `git` commands over a vault repository and skips when none exists.
+- Required behavior: [Eval Trial Harness](./eval-trial-harness.md) builds the sandbox environment in which
+  `engram query` runs, so that the query reads only the vault and the chunk index it is given
+  ([792b38c3 The isolated environment of a trial](./eval-trial-harness.md#792b38c3-the-isolated-environment-of-a-trial)).
+- Required behavior: [Command Line Surface](./command-line-surface.md) reports a failed command's error and exits with
+  a non-zero status ([792b2c4 Result reporting](./command-line-surface.md#792b2c4-result-reporting)).
+- Required behavior: [Query Payload Renderer](./query-payload-renderer.md) gives the payload an `items` list
+  ([792b23c1 The document](./query-payload-renderer.md#792b23c1-the-document)).
+- Required behavior: [Chunk Index Store](./chunk-index-store.md) keeps each source's chunks in a file of one JSON record
+  per line, holding `ingested_at` when set ([792b18c1 Index layout](./chunk-index-store.md#792b18c1-index-layout)).
 - Supported capabilities: [memory-effectiveness-evaluation](../product/memory-effectiveness-evaluation.md).
 
 Rationale: engram is meant to close the loop that lets a fixed-weight model learn from experience, and the audit is
@@ -30,9 +53,9 @@ fired and targeted the right thing, whether the memory surfaced and was applied,
 learn fired and wrote a good note. Credit is judged-only: the audit emits records and nothing in the vault changes
 unjudged, so there is no automatic decay, promotion or prune.
 
-## 792b39c Behavior Requirements
+### 792b39c Behavior Requirements
 
-### 792b39c1 Windows
+#### 792b39c1 Windows
 
 Requirement: [792b39c1 Windows](#792b39c1-windows) The memory-loop-auditor MUST return a transcript file of at most `max_kb` (150 KB) as a single window, and MUST split a
 larger file into windows of at most `max_kb` at line boundaries, never inside a line, with the single-window threshold the
@@ -46,7 +69,7 @@ Rationale: a transcript that qualifies for a single window but exceeds the cap p
 rejects instantly and deterministically (`prompt_too_long`); pinning the threshold to the cap closes the gap between
 "too big to read whole" and "not big enough to split".
 
-#### 792b39c1a Scenarios
+##### 792b39c1a Scenarios
 
 ```gherkin
 Scenario: 792b39c1a1 A small file is one window
@@ -80,7 +103,7 @@ Scenario: 792b39c1a6 An oversized line is detected
   Then the oversized line is detected in the window that holds it
 ```
 
-### 792b39c2 Detecting moments
+#### 792b39c2 Detecting moments
 
 Requirement: [792b39c2 Detecting moments](#792b39c2-detecting-moments) The memory-loop-auditor MUST ask a model to read a window, with its lines numbered by their absolute location in the
 file, and to return the moments it finds as failures, corrections, rework, successes and dispatches, each with its location, and
@@ -99,7 +122,7 @@ sustained auth or API outage would otherwise produce many windows of clean-looki
 deterministic failure such as an oversized prompt would burn a backoff for nothing, so each failure has its own
 exception.
 
-#### 792b39c2a Scenarios
+##### 792b39c2a Scenarios
 
 ```gherkin
 Scenario: 792b39c2a1 Moments are detected from a window
@@ -148,7 +171,7 @@ Scenario: 792b39c2a9 A stub makes no subprocess call
   Then no subprocess is run
 ```
 
-### 792b39c3 The moment record
+#### 792b39c3 The moment record
 
 Requirement: [792b39c3 The moment record](#792b39c3-the-moment-record) The memory-loop-auditor MUST ask a model to judge each candidate moment and MUST return a record that carries the
 moment's stable identifier (derived from its transcript and location), its type, description, timestamp (read from the window), location,
@@ -167,7 +190,7 @@ Rationale: a bare null is ambiguous between "not asked" and "not applicable", so
 with a reason, and the record says which instrument produced it so that before-and-after comparisons declare their
 sides.
 
-#### 792b39c3a Scenarios
+##### 792b39c3a Scenarios
 
 ```gherkin
 Scenario: 792b39c3a1 A candidate is judged into a record
@@ -231,7 +254,7 @@ Scenario: 792b39c3a12 Judgment failures raise their own errors
   Then ExhaustedRetriesError and PromptTooLongError are raised respectively
 ```
 
-### 792b39c4 Existence as of the moment's time
+#### 792b39c4 Existence as of the moment's time
 
 Requirement: [792b39c4 Existence as of the moment's time](#792b39c4-existence-as-of-the-moments-time) The memory-loop-auditor MUST judge whether a relevant memory existed by running `engram query` in the sandbox of
 [792b38c3 The isolated environment of a trial](./eval-trial-harness.md#792b38c3-the-isolated-environment-of-a-trial) against the vault as of the moment's timestamp T. When the vault's git history has a commit at or before T and the flat-vault
@@ -247,7 +270,7 @@ Rationale: a memory written after a moment cannot have been missed at it. A work
 vault's git registry, so the live working tree is never touched. A relevance grade, rather than counting any returned
 item, is what makes a returned-but-irrelevant item count as a miss.
 
-#### 792b39c4a Scenarios
+##### 792b39c4a Scenarios
 
 ```gherkin
 Scenario: 792b39c4a1 An empty scratch vault returns nothing
@@ -291,7 +314,7 @@ Scenario: 792b39c4a8 The top five are captured and graded
   Then the top five items and their grade are on the record, no grading call is made for the empty result, and an invalid grade leaves the grade null
 ```
 
-### 792b39c5 The existence check's query
+#### 792b39c5 The existence check's query
 
 Requirement: [792b39c5 The existence check's query](#792b39c5-the-existence-checks-query) The memory-loop-auditor MUST build its `engram query --lazy-chunks` invocation with each phrase as one `--phrase=<value>`
 argument, so that no value, one beginning with `--` included, can be read as a new flag, and the diagnostic rerun of the window
@@ -305,7 +328,7 @@ Supports: [792a23n1a A phrase starting with -- does not break the invocation](..
 Rationale: `engram`'s own errors print to standard output and a phrase beginning with `--` is parsed as a flag, so the
 check would record a failure with an empty error; there is one builder so the copies cannot drift apart.
 
-#### 792b39c5a Scenarios
+##### 792b39c5a Scenarios
 
 ```gherkin
 Scenario: 792b39c5a1 A phrase is one argument
@@ -334,7 +357,7 @@ Scenario: 792b39c5a5 A judged moment records a query error and an empty result
   Then the first records the error and the second records an empty result
 ```
 
-### 792b39c6 What a forked subagent inherited
+#### 792b39c6 What a forked subagent inherited
 
 Requirement: [792b39c6 What a forked subagent inherited](#792b39c6-what-a-forked-subagent-inherited) The memory-loop-auditor MUST, for a forked subagent, read the fork-context line that starts its transcript to
 find the parent transcript and the point in it the fork branched from, find the last recall that happened at or before that
@@ -348,7 +371,7 @@ Supports: [792a23o1a An injected memory counts as found for the subagent](../pro
 Rationale: a fork inherits its parent's whole conversation, so the memories recalled there count as found for it, but the model that
 judges the fork is shown only the fork's own window, which holds none of it.
 
-#### 792b39c6a Scenarios
+##### 792b39c6a Scenarios
 
 ```gherkin
 Scenario: 792b39c6a1 The last recall before the fork point is found
@@ -392,7 +415,7 @@ Scenario: 792b39c6a8 An unresolvable fork has no dangling section
   Then it has no inherited-context section
 ```
 
-### 792b39c7 A dispatch prompt's memories
+#### 792b39c7 A dispatch prompt's memories
 
 Requirement: [792b39c7 A dispatch prompt's memories](#792b39c7-a-dispatch-prompts-memories) The memory-loop-auditor MUST, for a fresh, workflow or Pi subagent whose dispatching parent's dispatch event is given, scan the
 dispatch prompt for vault notes and record the ones it finds in `memories_in_dispatch_prompt`, count them as a search that ran
@@ -405,7 +428,7 @@ Rationale: a memory in the prompt counts as found for the subagent, and what the
 from its side, at the dispatch, so the per-transcript runner, which cannot see the parent, leaves the field to the
 full-corpus work.
 
-#### 792b39c7a Scenarios
+##### 792b39c7a Scenarios
 
 ```gherkin
 Scenario: 792b39c7a1 A fresh subagent's injected memories count as found
@@ -414,7 +437,7 @@ Scenario: 792b39c7a1 A fresh subagent's injected memories count as found
   Then memories_in_dispatch_prompt lists them, the search is recorded as injected and the memory as surfaced, and the left-out field is null
 ```
 
-### 792b39c8 Outcome records
+#### 792b39c8 Outcome records
 
 Requirement: [792b39c8 Outcome records](#792b39c8-outcome-records) The memory-loop-auditor MUST derive draft outcome records from finished moment records and the extractor's events, as plain data files and
 deterministically, with each record `{moment_id, note_ref, situation_text, outcome, ts, evidence{transcript, anchor}}`. For a success, failure or rework moment whose
@@ -428,7 +451,7 @@ Supports: [792a23p1a Output only, no side effects](../product/memory-effectivene
 Rationale: acting on the records takes a human judgment, so the audit labels and a person acts. Determinism means the same inputs
 reproduce the same file byte for byte.
 
-#### 792b39c8a Scenarios
+##### 792b39c8a Scenarios
 
 ```gherkin
 Scenario: 792b39c8a1 A followed memory is applied-helped and a contradicted one applied-hurt
