@@ -1,11 +1,8 @@
 # Engram Glossary
 
-Standardized vocabulary for the engram project. Where a term has variants in
-the wild, the **canonical form** is named here; variants are listed for
-recognition. Inconsistencies that need a decision are tracked in this file's
-trailing [Open Questions](#open-questions) section.
+Standardized vocabulary for the engram project, in two sections: business terms (what a user or owner of agent memory names when stating the problem and the product's promises) and technical terms (the mechanisms of the implementation). The shared model vocabulary (outcome, capability, component, contract and the rest) is defined in [Model and Vocabulary](./CONVENTIONS-GUIDE.md#model-and-vocabulary) and is not redefined here. Where a term has variants in the wild, the **canonical form** is named here; variants are listed for recognition. The terms of automatic memory are specified in [Automatic Memory](./specs/product/automatic-memory.md) and [Automatic Memory Mod](./specs/technical/automatic-memory-mod.md).
 
-## Top-level concepts
+## Business terms
 
 ### engram
 The project, the CLI binary, and the broader system of "skills + binary +
@@ -47,37 +44,11 @@ a plan, read red flags, verify `done_when`) in addition to, not instead of, bein
 Distinct from **skill** — a `SKILL.md` deployed to each harness's skills directory; a skill and its runbook mirror coexist.
 Strictly, declarative memory *about* a procedure, not procedural memory (which is compiled and automatic; in an agent stack only weights and executable code qualify): the agent re-enters the novice "reading the recipe" stage on each retrieval, and a runbook's value concentrates where the model lacks priors.
 
-### atom
-The skill-decomposition concept from the roadmap's guiding framing: one behavior, one skill
-(read-memory, write-memory, route-a-task, orchestrate-a-workflow). Only `write-memory`
-was extracted — as a worker invoked at the write seams, not a mid-procedure reference
-fetch. The full design history (the superseded reference-card form, the decision to stop
-at the write seam) is recorded in [write-memory](specs/product/write-memory.md), with its validation
-in `dev/eval/LEDGER.md`.
-
 ### write-memory (skill)
 The `write-memory` skill (`agent-instructions/skills/write-memory/SKILL.md`, restored), invoked natively by recall/learn at their write sites — not reached via `engram query`'s trigger/similarity match. Also carries a registered vault runbook note (`skill-claude-write-memory`, key `claude:write-memory`, frontmatter `skill_hash`/`skill_key`/`skill_source`) mirroring the SKILL.md, reachable by basename/wikilink for a session that received only the note. Executes a vault write handed off by recall or learn: composes the
 `engram learn fact|feedback|qa|runbook` command from the handoff fields, runs it, retries on
 CLI errors (max 2), and reports the written note path. Parents judge; the worker writes.
 Amends stay in recall (single-site).
-
-### handoff contract
-The field set a parent skill passes when invoking write-memory: **kind**
-(`fact|feedback|qa|runbook`), the kind's content fields, **source** (provenance string),
-optional **chunk-sources**, optional **tags**, optional **supersedes** (`basename|type|claim`),
-optional **position**/**target** placement, and for a runbook optional **red flags** and
-**triggers**. The worker asks for missing required fields rather than inventing content.
-
-### non-triggering description
-A skill `description:` that names only parent-instructed invocation ("requires a
-handoff — do not fire on your own judgment") so the skill never competes for
-autonomous firing. Uncharted in official guidance and the ecosystem; validated
-here by non-fire arms (see `dev/eval/LEDGER.md#write-memory-worker-fire-rates`,
-which records the zero-spurious-fire result). Related measured
-anti-pattern: pointer-style "apply X verbatim" references to out-of-context
-text (e.g. "see the postscript for details") are unreliable — the referenced
-content may not be read in the target's actual deployed context; prefer
-inlining the content a skill needs directly in its own prose.
 
 ### reversal (capture kind)
 A conclusion, design, or verdict that was presented (to the user, a review gate,
@@ -144,15 +115,6 @@ A coding-agent host that runs skills. Engram supports two: **Claude Code** and
 **Pi**. The plural is *harnesses*. Session transcripts are read by
 `internal/transcript` (Claude Code and Pi JSONL; consumed by `engram ingest`).
 
-### binary
-The compiled `engram` Go program. It handles all I/O (vault read/write, chunk indexing,
-file locking); skills handle behavior and prompting. The full subcommand and flag
-reference lives in `README.md` (Binary commands).
-
----
-
-## Vault structure
-
 ### Permanent (note)
 An atomic, principle-stated note — *one coherent topic with its full
 load-bearing detail and complete sets*, not one micro-fact (over-fragmenting a
@@ -203,44 +165,6 @@ metadata files) on first `engram learn`. Creates `.obsidian/` (so
 Obsidian recognizes the directory), `.gitignore`, and a `README.md`.
 Other subcommands do **not** bootstrap — they error out so the user notices.
 
-### sidecar (embedding sidecar)
-The `.vec.json` file written alongside each note (e.g.
-`87.2026-06-01.foo.vec.json`). Holds a **dual-vector** representation:
-`situation_vector` (embedding of the note's `situation:` frontmatter
-field, falling back to body if absent) and `body_vector` (embedding of
-the markdown body). At query time, `bestVector` picks the axis with the
-higher cosine against the query phrase. Also stores `embedding_model_id`,
-`dims`, `content_hash` (sha256 over situation + body text), and
-`last_used` (YYYY-MM-DD date last activated — drives ACT-R-style recency
-decay). Note + sidecar writes are atomic (temp-file + rename) and serialized
-under the vault flock (`.luhmann.lock`) across all vault writers — `engram
-learn`, `amend`, `resituate`, and `activate`. Chunk-index writes (the separate
-`manifest.json` + per-source indices) use a different lock, `.manifest.lock`,
-to avoid contention with note writes. `engram embed apply` re-embeds notes in bulk.
-
-### vocab.centroids.json lifecycle fields
-
-Lifecycle fields written to `vocab.centroids.json` by the write-time trigger check
-(2026-07-03; growth-only + `origin` since the 2026-07-28 derivational refit):
-
-- **`refit_pending`** (`bool`, omitted when false): set by `checkAndPersistVocabRefitTrigger`
-  when the growth trigger trips (the sole trigger — untagged-rate and hub concentration are
-  `vocab stats` diagnostics only); cleared by `engram vocab refit` and `engram vocab bootstrap`.
-- **`refit_reason`** (`string`): human-readable reason recorded with the flag; only the growth
-  form remains, e.g. `"growth: 42 notes, 15 days"` (the exact format emitted by
-  `evaluateVocabTriggers`). Present only when `refit_pending` is true.
-- **`last_refit`** (`{note_count: int, date: YYYY-MM-DD}`): vault state at the time of the
-  last bootstrap or refit — the baseline the growth trigger measures against. Seeded at
-  bootstrap and refreshed on each refit.
-- **`origin`** (per-term, `"derived"` or `"proposed"`): provenance shield recorded on each
-  term entry — `derived` terms come from refit's whole-vault clustering and are eligible for
-  retirement when no cluster centroid matches them; `proposed` terms (minted via
-  `engram vocab propose`) are never auto-retired. Missing origin defaults to `derived`.
-
----
-
-## Vocab
-
 ### vocab definition note
 The current representation of a vocab term (shipped 2026-07-10, #678, superseding the vocab term-note,
 vocab-index, and `Vocab:` line below): an ordinary `vocab`-tagged fact note, dash-slug naming. Two shapes: a **per-term definition** (`vocab-<term>-definition`, e.g.
@@ -255,54 +179,6 @@ exclusion was deleted with the migration). A member note's own vocab terms live 
 `vocab/<term>` entries (see `--tag`, below). A member note with no qualifying term carries no `vocab/` tag — absence = untagged, counted by `engram vocab stats`. Plural:
 **vocab definition notes**.
 
-### naming request
-Emitted by derivational `engram vocab refit` (2026-07-28) for each derived cluster whose centroid
-matched no existing term vector (greedy match, cosine ≥ 0.80): structured JSON on stdout
-(`naming_requests`) carrying the cluster index, member count, and centroid-nearest exemplar snippets.
-The agent names each cluster (kebab-case term + one-line description) and re-runs
-`engram vocab refit --names <file>`; the answer must echo the payload's **fingerprint** — a hash of
-the derivation inputs proving the answer names *this* vault state's clusters (a moved vault rejects
-the stale answer). Every new cluster must be named; unclaimed derived-origin terms are retired on
-apply (family-note supersession + major version bump).
-
-### explore sampling
-The recall-query mechanism (shipped 2026-07-29, [792a7i Half of the notes are explored](specs/product/memory-query.md#792a7i-half-of-the-notes-are-explored), superseding **vocab
-nomination**/tag nomination below) that surfaces additional note candidates from vocab-term
-centroids by proximity to the query, instead of by shared vocab term with the top-3 delivered
-notes. Budget B equals the exploit half's (matched-note) count; allocation across terms is
-`softmax(cosine(query vector, term centroid) / τ)`, with a flat δ=0.05 additive bonus for terms
-already evidenced by ≥1 exploit-half member (non-stacking). Within a term, members (`vocab/<term>`
-notes, definitions excluded) are selected core-first by descending cosine to the term centroid.
-Explore picks dedupe against the exploit half and across terms, backfilling freed slots in
-allocation order. Delivered as top-level `items[]` entries — never cluster members, never in
-`candidate_l2s` — carrying `provenance: explore` and `source_term`; budget reported in
-`explore_allocated` (term → delivered-count map, always present, `{}` on missing/unreadable
-centroid data — degrading visibly to exploit-only rather than failing silently). See [792b24c16 Delivering the explore half](specs/technical/query-engine.md#792b24c16-delivering-the-explore-half).
-
-### vocab nomination (retired)
-The tag-match extension to `candidate_l2s` (shipped 2026-07-03, retired 2026-07-29 by **explore
-sampling**, above): notes sharing ≥1 vocab term with the top-3 delivered notes were **nominated**
-into each cluster's candidate pool regardless of their cosine to the cluster centroid. Budget fields
-`tag_nominations_added` / `dropped` reported the count (pool cap 40/cluster). Zero collateral: notes
-with no shared vocab term were unaffected. A nominated note could cross cluster boundaries.
-Mechanism unchanged by the 2026-07-10 tags migration (#678) — only the term-membership
-representation moved, from `vocab:` frontmatter to `tags: [vocab/<term>]`.
-
-*The (retired)-marked entries below are the retired pre-#678 vocab representations (migrated to the tags convention 2026-07-10). Current form: **vocab definition note**, above.*
-
-### vocab term-note (retired)
-Was a `vocab.<term>.md` file (no Luhmann number) with frontmatter `type: vocab`; migrated to a per-term bare-`vocab`-tagged fact note.
-
-### vocab-index (retired)
-Was `vocab.index.md`, a binary-generated Map of Content listing every term; superseded by the emergent index (`engram count --group-by type --filter tags=vocab`) — no maintained enumeration file.
-
-### `Vocab:` line (retired)
-Was a body line on a member note (`Vocab: [[vocab.<term>]], [[vocab.<term2>]], ...`) plus a parallel `vocab: [<term>, <term2>]` frontmatter key, both written by the binary's write-time vocab assigner. Migrated to a `vocab/<term>` entry per term in the shared `tags:` list (see `--tag`, below).
-
----
-
-## Recall
-
 ### recall (skill)
 The skill at `agent-instructions/skills/recall/SKILL.md`, invoked as `/recall` in a harness or
 self-fired by the agent. Issues `engram query` with 10 phrases (deep mode)
@@ -315,95 +191,12 @@ writes): ~3 phrases; *applies* memory to the decision without growing the vault.
 to `deep` for C5 (recency-channel standards) — it surfaces the recent marker but won't elevate it
 to a requirement (#661). Automatic memory gives each [recall moment](#recall-moment) one of these as its [depth](#depth-recall-moment), or none.
 
-
-### Step 0 / Step 1 / …
-Numbered pipeline stages in the recall skill. Step 0 = print Ask/Situation/Plan;
-Step 0.5 = sweep (`engram ingest --auto`); Step 1 = generate phrases (10 in
-`deep` mode, ~3 in `glance`); Step 2 = run one unified `engram query`; Step 2.5
-= per-cluster synthesis — 2.5A reads candidates, 2.5B applies the recency
-weight, 2.5C judges coverage and writes (amend/write-memory — **skipped in
-`glance`**); Step 2.7 = `engram activate` on the notes actually drawn on;
-Step 3 = closing synthesis (how memories changed the plan); Step 3.5 = re-entry
-query — a recommendation not in the Step-0 plan (conceived mid-work) gets its own
-lever-keyed `engram query` before it ships, with a forced `Re-entry:` line
-directly above the final recommendation (#655); Step 4 = persist a sound synthesis
-conclusion via write-memory (**skipped in `glance`**). See
-**recall modes**, above, for the glance/deep split.
-
-### honored-when-fired
-C7 GREEN-validation metric: of the trials where the Step 3.5 re-entry query fired and returned the
-closure note, the fraction whose recommendation then honored it (acknowledged the prior attempt and
-dropped the lever, or justified revisiting on named new evidence — i.e. scored RECONCILED).
-Separates "the query ran" (fire-rate) from "the result was applied." Measured 24/24 across the #655
-v2+v3 batches (`dev/eval/LEDGER.md#c7-reentry-query-green`).
-
 ### surfaced notes
 Notes returned in the `items[]` payload from `engram query`. Includes both
 matched notes (Channel 1, relevance), recent chunks (Channel 2, recency,
 tagged `recent`), and runbook *trigger hits* (provenance `trigger`, listed first). Coverage
 synthesis is judged from matched clusters only (Channel 1); the recency channel is situational
 context the agent reads, not clustered.
-
-### matched set
-The bounded set of notes and chunks fed to clustering in the query path.
-Built by: per-phrase top-30 (notes+chunks combined, recency-biased cosine) → union
-across 10 phrases with dedup keeping max score → drop items below the relevance
-floor (baseScore < 0.25) → hard cap at `matchSetCap`=300. Only the matched set
-enters clustering (D1 preserved). Recency-channel chunks are appended after
-clustering, deduped against the matched set, and never appear in any cluster's
-`members[]`.
-
-### matched-note floor
-The per-phrase reservation (`noteFloorK`=5, implemented by `capWithNoteFloor` in
-`internal/cli/query.go`) that guarantees up to 5 relevance-qualified notes
-(baseScore ≥ the relevance floor, below) survive each phrase's top-30
-(`matchPhraseLimit`) truncation, evicting the lowest-scoring chunks to make
-room. Exists because chunks vastly outnumber notes in the vault: without the
-reservation, a crystallized lesson the embedder itself ranks top among notes
-could still be evicted from the per-phrase ranking before ever reaching the
-union step across phrases. Only ever promotes notes that already clear the
-relevance floor, so it never surfaces an irrelevant note — it changes which
-items survive the per-phrase cut, not their relative order. Measured effect:
-`dev/eval/LEDGER.md#matched-note-floor`.
-
-### relevance floor
-The minimum raw cosine (baseScore, pre-recency-decay) required for an item to
-enter the matched set: 0.25. Dropping below the floor removes topically-irrelevant
-items before clustering. Recency-biased ranking — not the floor — handles
-superseded notes (they rank below fresh competition and fall out of the cap).
-
-### recency channel
-The second retrieval channel in `engram query`: the newest chunks by
-`IngestedAt` (`recentFillChunks`, default 25, configurable via `--recent-fill` / `ENGRAM_RECENT_FILL`), deduped against the matched set, appended to `items[]` with
-provenance `recent`, and not added to any cluster. Surfaces recent raw session
-context so a post-context-loss agent re-encounters its own narration. Coverage
-synthesis is not run against recency-channel items.
-
-### lazy-chunks (query mode)
-The `--lazy-chunks` flag (recall's default invocation) on `engram query` renders
-matched **and** recency-channel **chunk** items path/source-only — no `content`
-field — while notes (`fact`/`feedback`) keep full content inline. Surfaced as
-`budget.lazy_chunks: true`. The agent fetches a specific chunk's text on demand via
-`engram show-chunk <source#anchor>`. Shrinks the query payload ~−34% (chunks are
-supplementary, notes load-bearing — measured 0 chunk fetches in 13/13 realistic
-recalls, with on-target fetch when a chunk is the sole carrier of a needed fact).
-**Exception: zero-note clusters (matched set containing no notes) are a mandatory
-read case — the agent must call `engram show-chunk` for every cluster-member chunk
-regardless of general rarity** (C5 compliance, verified 20/20 honored post-fix,
-2026-08-27).
-
-### candidate_l2s
-The `[{path, cosine, content}]` field on each cluster in the query payload (content inlined per O2/#657).
-Surfaces candidates for the agent's covered/near/absent coverage decision from a **single source**:
-the **within-cluster top-5** by centroid cosine from the cluster's own matched note members. A
-**superseded-note ride-along** inserts the superseder at the next rank when a delivered note has a
-superseder. A cluster with no matched note members has an empty `candidate_l2s`. Since 2026-07-29
-(**explore sampling**, above), cross-cluster candidates no longer join `candidate_l2s` at all — they
-arrive as separate top-level `items[]` entries (`provenance: explore`). Full-vault nomination was
-dropped in recall-v2 (DECISION-2, reversing D7) because it surfaced unrelated notes the agent had
-not matched; tag nomination (retired, above) then restored targeted cross-cluster reach on the
-shared-vocabulary axis, and explore sampling in turn replaced tag nomination's co-occurrence join
-with proximity-weighted centroid sampling.
 
 ### cluster (query-time)
 A partition of the matched set produced by AutoK k-means (k=2..7 chosen
@@ -412,13 +205,6 @@ vault. Each cluster has a `representative` (member closest to centroid),
 `members` (path + score + is_representative), and `candidate_l2s`
 (top-5 vault notes from within-cluster note members, by centroid cosine).
 Matched sets smaller than 6 items skip clustering and return `clusters: []`.
-
-### provenances (item roles)
-A query item's `provenances` list names every role it fills: `direct`
-(top-k cosine hit), `cluster_rep` (cluster representative), `recent`
-(recency-channel chunk, un-clustered), `trigger` (runbook whose `triggers:` matched
-`--text` — see *trigger hit*; ranks above `direct`). Items dedup across roles; a path
-appears once regardless of how many roles it fills.
 
 ### trigger
 An author-declared literal cue on a `type: runbook` note: an entry of its optional
@@ -449,10 +235,6 @@ built from the compatible-sidecar set, and a query errors before matching when a
 vault has none). A hit is a candidate only — the agent still judges it against the runbook's own
 applicability text. On the served path (a parent's `/query`), `text` is capped at 2 KB (silent
 truncation).
-
----
-
-## Learn
 
 ### learn (skill)
 The skill at `agent-instructions/skills/learn/SKILL.md`, invoked as `/learn` or fired after
@@ -589,15 +371,6 @@ handle, inverse of `answered_by`) and `certainty: high|medium|low` (frontmatter-
 no body-line counterpart; written from the `--certainty` flag, default
 `medium`).
 
-### D5′ (design decision — asymmetric QA participation)
-
-The rule governing which QA-pair halves compete in recall's main matched set:
-qa-answer notes COMPETE (they are synthesis notes — pre-reasoned conclusions
-with provenance); qa-question notes are EXCLUDED (reachable instead via a
-dedicated q-space channel with an `answered_by` ride-along, round 3, gated).
-Supersedes the original full-exclusion D5. Decision record and rationale:
-[792a3q Question-and-answer pairs](specs/product/note-writing.md#792a3q-question-and-answer-pairs).
-
 ### contributors (QA frontmatter + body field)
 A frontmatter list (`contributors: [<basename>, ...]`) and a matching
 body line (`Contributors: [[<basename>]], ...`) on `qa-answer` notes.
@@ -607,12 +380,6 @@ vault). Machine-written and excluded from `BodyText`/`ContentHash` so a
 contributors-only update leaves the embedding and content hash unchanged.
 Powers `vaultgraph.InDegreeIn` usage counting as a graded signal that
 scales with accumulated Q&A capture.
-
----
-
-## Automatic memory terms
-
-Terms of the automatic channel of recall and learn; specified in [automatic-memory](./specs/product/automatic-memory.md) and [automatic-memory-mod](./specs/technical/automatic-memory-mod.md).
 
 ### agent (automatic memory)
 The AI the user works with in a Claude Code [session](#session), not a [subagent](#subagent).
@@ -633,7 +400,7 @@ How much of the recall skill a recall moment calls for: none, which is not a rec
 A stretch of an earlier conversation that the [sweep](#sweep) made searchable.
 
 ### applies to a recall moment
-A [note](#permanent-note) or a passage applies to a recall moment when the recall skill, run at the depth the moment calls for, for that moment in a [session](#session) on the same [vault](#vault) in which [automatic memory](#automatic-memory) is not on, draws on it from the vault of the session alone; of two notes that conflict because the newer reverses the older, only the newer applies. A note of a parent vault ([`ENGRAM_PARENT`](#parent-sync-engram_parent)) never applies, since automatic memory looks up the vault of the session only. The user can run the skill at that depth on that vault, ask the agent to name what it drew on, and read it.
+A [note](#permanent-note) or a passage applies to a recall moment when the recall skill, run at the depth the moment calls for, for that moment in a [session](#session) on the same [vault](#vault) in which [automatic memory](#automatic-memory) is not on, draws on it from the vault of the session alone; of two notes that conflict because the newer reverses the older, only the newer applies. A note of a parent vault ([`ENGRAM_PARENT`](#parent-link)) never applies, since automatic memory looks up the vault of the session only. The user can run the skill at that depth on that vault, ask the agent to name what it drew on, and read it.
 
 ### automatic memory
 What is done without the user or the agent asking: notes and passages that apply to a recall moment arrive in the agent's context ([793a2b Memory arrives with the prompt](./specs/product/automatic-memory.md#793a2b-memory-arrives-with-the-prompt)), lessons are written as notes ([793a2c Lessons are written without the agent](./specs/product/automatic-memory.md#793a2c-lessons-are-written-without-the-agent)) and the conversation becomes searchable ([793a2f The conversation becomes searchable memory](./specs/product/automatic-memory.md#793a2f-the-conversation-becomes-searchable-memory)).
@@ -643,46 +410,6 @@ One of these, as a [turn](#turn-automatic-memory) holds it: a private key block;
 
 ### sweep
 The indexing of a [session](#session)'s conversation that makes it findable by `engram query` ([793a2f The conversation becomes searchable memory](./specs/product/automatic-memory.md#793a2f-the-conversation-becomes-searchable-memory)).
-
-### mod
-A mod is a folder Claude Code loads as a plugin of function hooks when it sits in `~/.claude/skills/<name>` (also as a link): its hooks module registers functions for session events, and `prompt.submit` runs for each prompt before it enters the session, where a function may add context that the model reads beside the prompt and the user does not see.
-
-### step (automatic memory)
-An `engram auto <step>` command: `moment`, `phrases`, `recall`, `deliver`, `write`, `judge`, `place` or `sweep`.
-
-### request (automatic memory)
-The object a step prints for a judgement: `model`, `effort` (cheap tier only), `system`, `prompt`, `maxTokens`, and, in a capture only, `timeoutMs`.
-
-### carry
-The object a step prints beside a request, which the mod gives back to the next step with the model's reply and reads no part of.
-
-### cue
-What raised a moment: `prompt`, `before-tool`, `failure`, `batch-done` or `turn-end`.
-
-### seen note
-A [note](#permanent-note) written, delivered or looked up earlier in the same [session](#session).
-
-### row (automatic memory)
-One line of a budget table: the bound of one wait, in seconds.
-
-### reply (automatic memory)
-A reply that a step reads, a moment reply included (`{"depth":...}`, `{"learn":...}`), is a JSON value, fenced or not, or one that follows the model's reasoning: it is read as the reply unfenced when that is valid JSON, and otherwise as the last JSON value that begins with a brace or a bracket and runs to the end of the reply; one rule reads them all.
-
-### failed step
-A step that exits with other than 0 or cannot be run, or prints what is neither nothing nor a request (for `deliver`, nor a block), or a model call that gives no text or rejects, or a wait that passes its bound without an answer.
-
-### held (delivered IDs)
-The IDs of the notes and passages the mod delivered in the session within a [turn](#turn-automatic-memory) ([855d2c Mid-turn recall flow](./specs/technical/mid-turn-recall-workflow.md#855d2c-mid-turn-recall-flow)).
-
-### date (automatic memory)
-The day a candidate line carries: for a note the day it was written (its `created` field), for a chunk the time the index holds, which is the time of the last row of its session for a [transcript](#transcript) ([855d4b Looking up the candidates for the phrases](./specs/technical/recall-lookup.md#855d4b-looking-up-the-candidates-for-the-phrases)).
-
-### report of a failure
-When the session's ID is known, `engram auto write` with the session's ID, the turn's ID when there is one, and a `failure`, a sentence that names the step and how it failed, run from a timer (`$.clock.after`) so that no call of the host is in flight when the hook settles.
-
----
-
-## Route evidence
 
 ### evidence note (route)
 An ordinary fact note recording one route dispatch, written via write-memory when the dispatch
@@ -704,10 +431,6 @@ carrying the BARE family tag (e.g. `tags: [work-kind]`). Convention: a bare fami
 family's definition note; a nested `family/value` tag marks a member. Three ship with #674:
 `work-kind` (open kebab-case set), `tier` (cheap|mid|deep), `outcome` (pass|fail) — slugs
 `work-kind-definition`, `tier-definition`, `outcome-definition`. Vault data, not repo files.
-
----
-
-## Transcripts and sessions
 
 ### transcript
 The recorded content of one session, read by the binary (via `engram
@@ -793,22 +516,6 @@ individually). A per-item removal failure is reported and does not stop the
 run, but the run exits non-zero. Convergent: a second run removes nothing.
 `--dry-run` reports the same counts without deleting anything.
 
-### non-persistent workspace
-A project directory located under a throwaway filesystem root
-(`/private/tmp`, `/tmp`, or macOS `$TMPDIR` at `/var/folders` and its
-`/private/var/folders` canonical form). `engram ingest --auto` identifies
-and skips these by checking whether the slugified project-directory name
-starts with one of the configured `non_persistent_prefixes`
-(`-private-tmp-`, `-tmp-`, `-var-folders-`, `-private-var-folders-`),
-preventing eval/test sessions from bloating the main chunk index.
-Explicit sweep roots (`--sweep`, `--transcript`, `--markdown`) and an
-isolated index (`ENGRAM_CHUNKS_DIR`) bypass the exclusion for deliberate
-test ingestion.
-
----
-
-## Parent sync (`ENGRAM_PARENT`)
-
 ### offer
 A pending note created by exchange, in either direction: a **learn-offer** (a new note with no
 parent counterpart) or an **amend-offer** (targets an existing parent counterpart via its primary
@@ -816,40 +523,6 @@ parent counterpart) or an **amend-offer** (targets an existing parent counterpar
 parent pulled down by `engram activate` (a **pull**, `via: pulled`). Every offer lands with the
 pending-offer marker and is judged by curation the same way, regardless of direction (design D5,
 D7, D8).
-
-### outbox
-`<vault>/.engram/outbox.json`: the child-side queue of offers the parent hasn't yet accepted. An
-offerable write (`learn`, a content `amend`/`resituate`, or accepting a served offer whose origin
-isn't the configured parent) stamps the note's `xid` and adds or refreshes its entry under the
-vault lock, in the same critical section as the note write — so a local write never fails because
-of the parent. The drain builds each entry's payload from the note's *current* content at send
-time (an offline learn followed by amends goes up as one offer), sends oldest-`queued`-first with
-no lock held, then re-locks and merges the result. A transport error or 5xx keeps the entry queued
-and backs the parent off (`.engram/parent.json`'s `backoff_until`); a 4xx marks it `rejected` until
-the note's exchange hash changes (design D6). When the parent accepts an offer but the local note
-refuses its receipt (an anchored `parent:`, or frontmatter that does not decode), the entry moves to
-`attention`: it keeps the receipt, warns once, is never re-sent, is listed by `engram update`'s
-notice, and records the kept receipt locally — before the backoff gate, never contacting the parent —
-on a later drain once the note is fixed; a kept receipt from a parent other than the configured one is
-discarded with a warning and the offer queued again. An offer that cannot be built because the note
-has no `user:` and no user is detected also waits in `attention` (one warning: set git
-`user.email`), is never sent, and returns to queued as soon as its payload builds (#789).
-
-### exchange hash
-`xh1:` + a SHA-256 over the canonical JSON of every **offered** content field (`type`, `situation`,
-the fact/feedback/runbook-specific fields, `done_when`, `red_flags`, `triggers`, and the body) —
-never identity, `pending`, `tags`, `sources`, `supersedes`, or any exchange bookkeeping field
-(design D3). It replaces `embed.ContentHash` everywhere exchange compares two versions of a note:
-loop suppression, `offer.key`, pull-down skip/decline matching, the rejected-offer re-arm, and
-dedupe rule 2. A version-prefix mismatch compares as *unknown*. **Loop suppression, dedupe rule 2,
-and `--expect-hash` all require an *equal* hash** — an *unknown* comparison never passes any of
-them. Only the pull-down skip, decline matching, the rejected-entry re-arm, and the send/apply
-change check treat *unknown* as *not changed* — so a hash-format upgrade never causes a mass
-re-pull or re-offer, without ever letting an unknown hash stand in for a match. Shown by
-`engram show` as a `# exchange_hash: xh1:…` header line on any note carrying `xid`, and required as
-`--expect-hash` on `engram amend --clear-pending`/`--discard`/`--discard --into` of a note carrying
-`offer.origin` (design D10) — a curator's judged version, not the exchange's own change-tracking,
-so only an *equal* hash passes.
 
 ### parent link
 The `parent:` frontmatter block (`vault`, `links: [{note, via, hash}]`, `author`) that ties a note
@@ -883,22 +556,6 @@ time an existing vault contacts a parent or serves one. Exchange links and the o
 hostname, so a DNS/IP change breaks nothing. `engram vault-id` prints the ID and a copy/clone
 check against `home.json`; `--regenerate` mints a fresh ID for a copy (`cp -R`), `--claim`
 re-records the same vault's new location (design D2).
-
-### xid
-A note's own random exchange ID, stamped lazily the first time it takes part in exchange (queued,
-pulled, or served-received) and never backfilled or changed afterward. The outbox is keyed by
-`xid` rather than basename, so a local rename never orphans a queued offer (design D4, D6).
-
-### ENGRAM_SERVER (removed)
-The old thin-client mode: set, the CLI ran entirely against a remote vault over HTTP with zero
-local file access. Removed. Setting `ENGRAM_SERVER` is now a hard error for every `engram`
-command, including `engram serve` itself, before any vault or network access. **Migration:** set
-`ENGRAM_PARENT` to the same URL — every environment now keeps its own local vault and exchanges
-notes with that parent instead of proxying every command to it (design D1).
-
----
-
-## CLI conventions
 
 ### subcommand
 A named operation on the binary: `learn`, `query`, `ingest`, `update`,
@@ -1015,39 +672,11 @@ Engram follows XDG basedir conventions:
 - Data: `$XDG_DATA_HOME/engram/` (vault at `vault/`, chunk index at `chunks/`).
 Fallback: `~/.local/share/...`.
 
-### DI (dependency injection)
-Architectural rule: no function in `internal/` calls `os.*`, `http.*`, or
-any I/O directly. All I/O goes through injected interfaces, wired at the
-CLI edges. Tests use `imptest`-generated mocks.
-
-### targ
-The build tool wrapping `go test`/`go vet` for testing, linting, and coverage
-checks — and also the CLI framework the `engram` binary itself is built on
-(`internal/cli/targets.go` wires its subcommands). **Always** invoke
-`targ test`, `targ check-full` — never the underlying Go commands directly.
-targ has no `build` target: it covers test/lint/check, not binary install.
-Install or refresh the compiled binary with `go install ./cmd/engram`.
-
----
-
-## Authoring & process vocabulary
-
 ### candidate (note)
 A potential note identified from completed work (transcript content
 surfaced by recall, or the current session's activity), before it clears
 learn's Step 2 gate or recall's Step 2.5C coverage judgment. Becomes a
 written note or is dropped with a reason.
-
-### subagent
-A fresh-context worker spawned via the Agent tool to do isolated object-level
-or review work without polluting the parent's context. Current uses:
-**please**'s gate reviewers (please is a skill, also mirrored as a registered runbook; a fresh subagent per gate — plan, refactors,
-docs, outward prose) and any executor/planner a skill fans out to; agent
-type, model, and effort selection for a dispatch follow the **route** skill's
-doctrine. The retired parallel-writer architecture — subagents synthesizing
-notes in parallel, reconciled afterward by a serial coordinator pass — is
-gone: recall's Step 2.5 crystallizes inline from the query payload's own
-clusters, and learn's Step 2 hands off inline to write-memory.
 
 ### contradiction
 Two surfaced notes making incompatible claims about the same thing. The
@@ -1062,6 +691,337 @@ re-statements) · **C4** learn-from-changes-over-time (**C4i** = the recency-sup
 sub-variant) · **C5** remember-recent-history · **C6** compounding / emergent synthesis (A+B→C).
 **C7** is not a capability but the lever-recheck regression gate (does a shipped lever stay shipped).
 
+*Not a guide [Capability](./CONVENTIONS-GUIDE.md#capability) (an ability to perform business work): these are the owner's measured memory-value claims.*
+
+## Technical terms
+
+### atom
+The skill-decomposition concept from the roadmap's guiding framing: one behavior, one skill
+(read-memory, write-memory, route-a-task, orchestrate-a-workflow). Only `write-memory`
+was extracted — as a worker invoked at the write seams, not a mid-procedure reference
+fetch. The full design history (the superseded reference-card form, the decision to stop
+at the write seam) is recorded in [write-memory](specs/product/write-memory.md), with its validation
+in `dev/eval/LEDGER.md`.
+
+### handoff contract
+The field set a parent skill passes when invoking write-memory: **kind**
+(`fact|feedback|qa|runbook`), the kind's content fields, **source** (provenance string),
+optional **chunk-sources**, optional **tags**, optional **supersedes** (`basename|type|claim`),
+optional **position**/**target** placement, and for a runbook optional **red flags** and
+**triggers**. The worker asks for missing required fields rather than inventing content.
+
+*Not a guide [Handoff](./CONVENTIONS-GUIDE.md#handoff) (a transfer between business-workflow participants): this is a skill-to-skill parameter set.*
+
+### non-triggering description
+A skill `description:` that names only parent-instructed invocation ("requires a
+handoff — do not fire on your own judgment") so the skill never competes for
+autonomous firing. Uncharted in official guidance and the ecosystem; validated
+here by non-fire arms (see `dev/eval/LEDGER.md#write-memory-worker-fire-rates`,
+which records the zero-spurious-fire result). Related measured
+anti-pattern: pointer-style "apply X verbatim" references to out-of-context
+text (e.g. "see the postscript for details") are unreliable — the referenced
+content may not be read in the target's actual deployed context; prefer
+inlining the content a skill needs directly in its own prose.
+
+### binary
+The compiled `engram` Go program. It handles all I/O (vault read/write, chunk indexing,
+file locking); skills handle behavior and prompting. The full subcommand and flag
+reference lives in `README.md` (Binary commands).
+
+### sidecar (embedding sidecar)
+The `.vec.json` file written alongside each note (e.g.
+`87.2026-06-01.foo.vec.json`). Holds a **dual-vector** representation:
+`situation_vector` (embedding of the note's `situation:` frontmatter
+field, falling back to body if absent) and `body_vector` (embedding of
+the markdown body). At query time, `bestVector` picks the axis with the
+higher cosine against the query phrase. Also stores `embedding_model_id`,
+`dims`, `content_hash` (sha256 over situation + body text), and
+`last_used` (YYYY-MM-DD date last activated — drives ACT-R-style recency
+decay). Note + sidecar writes are atomic (temp-file + rename) and serialized
+under the vault flock (`.luhmann.lock`) across all vault writers — `engram
+learn`, `amend`, `resituate`, and `activate`. Chunk-index writes (the separate
+`manifest.json` + per-source indices) use a different lock, `.manifest.lock`,
+to avoid contention with note writes. `engram embed apply` re-embeds notes in bulk.
+
+### vocab.centroids.json lifecycle fields
+
+Lifecycle fields written to `vocab.centroids.json` by the write-time trigger check
+(2026-07-03; growth-only + `origin` since the 2026-07-28 derivational refit):
+
+- **`refit_pending`** (`bool`, omitted when false): set by `checkAndPersistVocabRefitTrigger`
+  when the growth trigger trips (the sole trigger — untagged-rate and hub concentration are
+  `vocab stats` diagnostics only); cleared by `engram vocab refit` and `engram vocab bootstrap`.
+- **`refit_reason`** (`string`): human-readable reason recorded with the flag; only the growth
+  form remains, e.g. `"growth: 42 notes, 15 days"` (the exact format emitted by
+  `evaluateVocabTriggers`). Present only when `refit_pending` is true.
+- **`last_refit`** (`{note_count: int, date: YYYY-MM-DD}`): vault state at the time of the
+  last bootstrap or refit — the baseline the growth trigger measures against. Seeded at
+  bootstrap and refreshed on each refit.
+- **`origin`** (per-term, `"derived"` or `"proposed"`): provenance shield recorded on each
+  term entry — `derived` terms come from refit's whole-vault clustering and are eligible for
+  retirement when no cluster centroid matches them; `proposed` terms (minted via
+  `engram vocab propose`) are never auto-retired. Missing origin defaults to `derived`.
+
+### naming request
+Emitted by derivational `engram vocab refit` (2026-07-28) for each derived cluster whose centroid
+matched no existing term vector (greedy match, cosine ≥ 0.80): structured JSON on stdout
+(`naming_requests`) carrying the cluster index, member count, and centroid-nearest exemplar snippets.
+The agent names each cluster (kebab-case term + one-line description) and re-runs
+`engram vocab refit --names <file>`; the answer must echo the payload's **fingerprint** — a hash of
+the derivation inputs proving the answer names *this* vault state's clusters (a moved vault rejects
+the stale answer). Every new cluster must be named; unclaimed derived-origin terms are retired on
+apply (family-note supersession + major version bump).
+
+### explore sampling
+The recall-query mechanism (shipped 2026-07-29, [792a7i Half of the notes are explored](specs/product/memory-query.md#792a7i-half-of-the-notes-are-explored), superseding **vocab
+nomination**/tag nomination below) that surfaces additional note candidates from vocab-term
+centroids by proximity to the query, instead of by shared vocab term with the top-3 delivered
+notes. Budget B equals the exploit half's (matched-note) count; allocation across terms is
+`softmax(cosine(query vector, term centroid) / τ)`, with a flat δ=0.05 additive bonus for terms
+already evidenced by ≥1 exploit-half member (non-stacking). Within a term, members (`vocab/<term>`
+notes, definitions excluded) are selected core-first by descending cosine to the term centroid.
+Explore picks dedupe against the exploit half and across terms, backfilling freed slots in
+allocation order. Delivered as top-level `items[]` entries — never cluster members, never in
+`candidate_l2s` — carrying `provenance: explore` and `source_term`; budget reported in
+`explore_allocated` (term → delivered-count map, always present, `{}` on missing/unreadable
+centroid data — degrading visibly to exploit-only rather than failing silently). See [792b24c16 Delivering the explore half](specs/technical/query-engine.md#792b24c16-delivering-the-explore-half).
+
+### vocab nomination (retired)
+The tag-match extension to `candidate_l2s` (shipped 2026-07-03, retired 2026-07-29 by **explore
+sampling**, above): notes sharing ≥1 vocab term with the top-3 delivered notes were **nominated**
+into each cluster's candidate pool regardless of their cosine to the cluster centroid. Budget fields
+`tag_nominations_added` / `dropped` reported the count (pool cap 40/cluster). Zero collateral: notes
+with no shared vocab term were unaffected. A nominated note could cross cluster boundaries.
+Mechanism unchanged by the 2026-07-10 tags migration (#678) — only the term-membership
+representation moved, from `vocab:` frontmatter to `tags: [vocab/<term>]`.
+
+*The (retired)-marked entries below are the retired pre-#678 vocab representations (migrated to the tags convention 2026-07-10). Current form: **vocab definition note**, above.*
+
+### vocab term-note (retired)
+Was a `vocab.<term>.md` file (no Luhmann number) with frontmatter `type: vocab`; migrated to a per-term bare-`vocab`-tagged fact note.
+
+### vocab-index (retired)
+Was `vocab.index.md`, a binary-generated Map of Content listing every term; superseded by the emergent index (`engram count --group-by type --filter tags=vocab`) — no maintained enumeration file.
+
+### `Vocab:` line (retired)
+Was a body line on a member note (`Vocab: [[vocab.<term>]], [[vocab.<term2>]], ...`) plus a parallel `vocab: [<term>, <term2>]` frontmatter key, both written by the binary's write-time vocab assigner. Migrated to a `vocab/<term>` entry per term in the shared `tags:` list (see `--tag`, below).
+
+### Step 0 / Step 1 / …
+Numbered pipeline stages in the recall skill. Step 0 = print Ask/Situation/Plan;
+Step 0.5 = sweep (`engram ingest --auto`); Step 1 = generate phrases (10 in
+`deep` mode, ~3 in `glance`); Step 2 = run one unified `engram query`; Step 2.5
+= per-cluster synthesis — 2.5A reads candidates, 2.5B applies the recency
+weight, 2.5C judges coverage and writes (amend/write-memory — **skipped in
+`glance`**); Step 2.7 = `engram activate` on the notes actually drawn on;
+Step 3 = closing synthesis (how memories changed the plan); Step 3.5 = re-entry
+query — a recommendation not in the Step-0 plan (conceived mid-work) gets its own
+lever-keyed `engram query` before it ships, with a forced `Re-entry:` line
+directly above the final recommendation (#655); Step 4 = persist a sound synthesis
+conclusion via write-memory (**skipped in `glance`**). See
+**recall modes**, above, for the glance/deep split.
+
+### honored-when-fired
+C7 GREEN-validation metric: of the trials where the Step 3.5 re-entry query fired and returned the
+closure note, the fraction whose recommendation then honored it (acknowledged the prior attempt and
+dropped the lever, or justified revisiting on named new evidence — i.e. scored RECONCILED).
+Separates "the query ran" (fire-rate) from "the result was applied." Measured 24/24 across the #655
+v2+v3 batches (`dev/eval/LEDGER.md#c7-reentry-query-green`).
+
+### matched set
+The bounded set of notes and chunks fed to clustering in the query path.
+Built by: per-phrase top-30 (notes+chunks combined, recency-biased cosine) → union
+across 10 phrases with dedup keeping max score → drop items below the relevance
+floor (baseScore < 0.25) → hard cap at `matchSetCap`=300. Only the matched set
+enters clustering (D1 preserved). Recency-channel chunks are appended after
+clustering, deduped against the matched set, and never appear in any cluster's
+`members[]`.
+
+### matched-note floor
+The per-phrase reservation (`noteFloorK`=5, implemented by `capWithNoteFloor` in
+`internal/cli/query.go`) that guarantees up to 5 relevance-qualified notes
+(baseScore ≥ the relevance floor, below) survive each phrase's top-30
+(`matchPhraseLimit`) truncation, evicting the lowest-scoring chunks to make
+room. Exists because chunks vastly outnumber notes in the vault: without the
+reservation, a crystallized lesson the embedder itself ranks top among notes
+could still be evicted from the per-phrase ranking before ever reaching the
+union step across phrases. Only ever promotes notes that already clear the
+relevance floor, so it never surfaces an irrelevant note — it changes which
+items survive the per-phrase cut, not their relative order. Measured effect:
+`dev/eval/LEDGER.md#matched-note-floor`.
+
+### relevance floor
+The minimum raw cosine (baseScore, pre-recency-decay) required for an item to
+enter the matched set: 0.25. Dropping below the floor removes topically-irrelevant
+items before clustering. Recency-biased ranking — not the floor — handles
+superseded notes (they rank below fresh competition and fall out of the cap).
+
+### recency channel
+The second retrieval channel in `engram query`: the newest chunks by
+`IngestedAt` (`recentFillChunks`, default 25, configurable via `--recent-fill` / `ENGRAM_RECENT_FILL`), deduped against the matched set, appended to `items[]` with
+provenance `recent`, and not added to any cluster. Surfaces recent raw session
+context so a post-context-loss agent re-encounters its own narration. Coverage
+synthesis is not run against recency-channel items.
+
+### lazy-chunks (query mode)
+The `--lazy-chunks` flag (recall's default invocation) on `engram query` renders
+matched **and** recency-channel **chunk** items path/source-only — no `content`
+field — while notes (`fact`/`feedback`) keep full content inline. Surfaced as
+`budget.lazy_chunks: true`. The agent fetches a specific chunk's text on demand via
+`engram show-chunk <source#anchor>`. Shrinks the query payload ~−34% (chunks are
+supplementary, notes load-bearing — measured 0 chunk fetches in 13/13 realistic
+recalls, with on-target fetch when a chunk is the sole carrier of a needed fact).
+**Exception: zero-note clusters (matched set containing no notes) are a mandatory
+read case — the agent must call `engram show-chunk` for every cluster-member chunk
+regardless of general rarity** (C5 compliance, verified 20/20 honored post-fix,
+2026-08-27).
+
+### candidate_l2s
+The `[{path, cosine, content}]` field on each cluster in the query payload (content inlined per O2/#657).
+Surfaces candidates for the agent's covered/near/absent coverage decision from a **single source**:
+the **within-cluster top-5** by centroid cosine from the cluster's own matched note members. A
+**superseded-note ride-along** inserts the superseder at the next rank when a delivered note has a
+superseder. A cluster with no matched note members has an empty `candidate_l2s`. Since 2026-07-29
+(**explore sampling**, above), cross-cluster candidates no longer join `candidate_l2s` at all — they
+arrive as separate top-level `items[]` entries (`provenance: explore`). Full-vault nomination was
+dropped in recall-v2 (DECISION-2, reversing D7) because it surfaced unrelated notes the agent had
+not matched; tag nomination (retired, above) then restored targeted cross-cluster reach on the
+shared-vocabulary axis, and explore sampling in turn replaced tag nomination's co-occurrence join
+with proximity-weighted centroid sampling.
+
+### provenances (item roles)
+A query item's `provenances` list names every role it fills: `direct`
+(top-k cosine hit), `cluster_rep` (cluster representative), `recent`
+(recency-channel chunk, un-clustered), `trigger` (runbook whose `triggers:` matched
+`--text` — see *trigger hit*; ranks above `direct`). Items dedup across roles; a path
+appears once regardless of how many roles it fills.
+
+### D5′ (design decision — asymmetric QA participation)
+
+The rule governing which QA-pair halves compete in recall's main matched set:
+qa-answer notes COMPETE (they are synthesis notes — pre-reasoned conclusions
+with provenance); qa-question notes are EXCLUDED (reachable instead via a
+dedicated q-space channel with an `answered_by` ride-along, round 3, gated).
+Supersedes the original full-exclusion D5. Decision record and rationale:
+[792a3q Question-and-answer pairs](specs/product/note-writing.md#792a3q-question-and-answer-pairs).
+
+### mod
+A mod is a folder Claude Code loads as a plugin of function hooks when it sits in `~/.claude/skills/<name>` (also as a link): its hooks module registers functions for session events, and `prompt.submit` runs for each prompt before it enters the session, where a function may add context that the model reads beside the prompt and the user does not see.
+
+### step (automatic memory)
+An `engram auto <step>` command: `moment`, `phrases`, `recall`, `deliver`, `write`, `judge`, `place` or `sweep`.
+
+### request (automatic memory)
+The object a step prints for a judgement: `model`, `effort` (cheap tier only), `system`, `prompt`, `maxTokens`, and, in a capture only, `timeoutMs`.
+
+### carry
+The object a step prints beside a request, which the mod gives back to the next step with the model's reply and reads no part of.
+
+### cue
+What raised a moment: `prompt`, `before-tool`, `failure`, `batch-done` or `turn-end`.
+
+### seen note
+A [note](#permanent-note) written, delivered or looked up earlier in the same [session](#session).
+
+### row (automatic memory)
+One line of a budget table: the bound of one wait, in seconds.
+
+### reply (automatic memory)
+A reply that a step reads, a moment reply included (`{"depth":...}`, `{"learn":...}`), is a JSON value, fenced or not, or one that follows the model's reasoning: it is read as the reply unfenced when that is valid JSON, and otherwise as the last JSON value that begins with a brace or a bracket and runs to the end of the reply; one rule reads them all.
+
+### failed step
+A step that exits with other than 0 or cannot be run, or prints what is neither nothing nor a request (for `deliver`, nor a block), or a model call that gives no text or rejects, or a wait that passes its bound without an answer.
+
+### held (delivered IDs)
+The IDs of the notes and passages the mod delivered in the session within a [turn](#turn-automatic-memory) ([855d2c Mid-turn recall flow](./specs/technical/mid-turn-recall-workflow.md#855d2c-mid-turn-recall-flow)).
+
+### date (automatic memory)
+The day a candidate line carries: for a note the day it was written (its `created` field), for a chunk the time the index holds, which is the time of the last row of its session for a [transcript](#transcript) ([855d4b Looking up the candidates for the phrases](./specs/technical/recall-lookup.md#855d4b-looking-up-the-candidates-for-the-phrases)).
+
+### report of a failure
+When the session's ID is known, `engram auto write` with the session's ID, the turn's ID when there is one, and a `failure`, a sentence that names the step and how it failed, run from a timer (`$.clock.after`) so that no call of the host is in flight when the hook settles.
+
+### non-persistent workspace
+A project directory located under a throwaway filesystem root
+(`/private/tmp`, `/tmp`, or macOS `$TMPDIR` at `/var/folders` and its
+`/private/var/folders` canonical form). `engram ingest --auto` identifies
+and skips these by checking whether the slugified project-directory name
+starts with one of the configured `non_persistent_prefixes`
+(`-private-tmp-`, `-tmp-`, `-var-folders-`, `-private-var-folders-`),
+preventing eval/test sessions from bloating the main chunk index.
+Explicit sweep roots (`--sweep`, `--transcript`, `--markdown`) and an
+isolated index (`ENGRAM_CHUNKS_DIR`) bypass the exclusion for deliberate
+test ingestion.
+
+### outbox
+`<vault>/.engram/outbox.json`: the child-side queue of offers the parent hasn't yet accepted. An
+offerable write (`learn`, a content `amend`/`resituate`, or accepting a served offer whose origin
+isn't the configured parent) stamps the note's `xid` and adds or refreshes its entry under the
+vault lock, in the same critical section as the note write — so a local write never fails because
+of the parent. The drain builds each entry's payload from the note's *current* content at send
+time (an offline learn followed by amends goes up as one offer), sends oldest-`queued`-first with
+no lock held, then re-locks and merges the result. A transport error or 5xx keeps the entry queued
+and backs the parent off (`.engram/parent.json`'s `backoff_until`); a 4xx marks it `rejected` until
+the note's exchange hash changes (design D6). When the parent accepts an offer but the local note
+refuses its receipt (an anchored `parent:`, or frontmatter that does not decode), the entry moves to
+`attention`: it keeps the receipt, warns once, is never re-sent, is listed by `engram update`'s
+notice, and records the kept receipt locally — before the backoff gate, never contacting the parent —
+on a later drain once the note is fixed; a kept receipt from a parent other than the configured one is
+discarded with a warning and the offer queued again. An offer that cannot be built because the note
+has no `user:` and no user is detected also waits in `attention` (one warning: set git
+`user.email`), is never sent, and returns to queued as soon as its payload builds (#789).
+
+### exchange hash
+`xh1:` + a SHA-256 over the canonical JSON of every **offered** content field (`type`, `situation`,
+the fact/feedback/runbook-specific fields, `done_when`, `red_flags`, `triggers`, and the body) —
+never identity, `pending`, `tags`, `sources`, `supersedes`, or any exchange bookkeeping field
+(design D3). It replaces `embed.ContentHash` everywhere exchange compares two versions of a note:
+loop suppression, `offer.key`, pull-down skip/decline matching, the rejected-offer re-arm, and
+dedupe rule 2. A version-prefix mismatch compares as *unknown*. **Loop suppression, dedupe rule 2,
+and `--expect-hash` all require an *equal* hash** — an *unknown* comparison never passes any of
+them. Only the pull-down skip, decline matching, the rejected-entry re-arm, and the send/apply
+change check treat *unknown* as *not changed* — so a hash-format upgrade never causes a mass
+re-pull or re-offer, without ever letting an unknown hash stand in for a match. Shown by
+`engram show` as a `# exchange_hash: xh1:…` header line on any note carrying `xid`, and required as
+`--expect-hash` on `engram amend --clear-pending`/`--discard`/`--discard --into` of a note carrying
+`offer.origin` (design D10) — a curator's judged version, not the exchange's own change-tracking,
+so only an *equal* hash passes.
+
+### xid
+A note's own random exchange ID, stamped lazily the first time it takes part in exchange (queued,
+pulled, or served-received) and never backfilled or changed afterward. The outbox is keyed by
+`xid` rather than basename, so a local rename never orphans a queued offer (design D4, D6).
+
+### ENGRAM_SERVER (removed)
+The old thin-client mode: set, the CLI ran entirely against a remote vault over HTTP with zero
+local file access. Removed. Setting `ENGRAM_SERVER` is now a hard error for every `engram`
+command, including `engram serve` itself, before any vault or network access. **Migration:** set
+`ENGRAM_PARENT` to the same URL — every environment now keeps its own local vault and exchanges
+notes with that parent instead of proxying every command to it (design D1).
+
+### DI (dependency injection)
+Architectural rule: no function in `internal/` calls `os.*`, `http.*`, or
+any I/O directly. All I/O goes through injected interfaces, wired at the
+CLI edges. Tests use `imptest`-generated mocks.
+
+### targ
+The build tool wrapping `go test`/`go vet` for testing, linting, and coverage
+checks — and also the CLI framework the `engram` binary itself is built on
+(`internal/cli/targets.go` wires its subcommands). **Always** invoke
+`targ test`, `targ check-full` — never the underlying Go commands directly.
+targ has no `build` target: it covers test/lint/check, not binary install.
+Install or refresh the compiled binary with `go install ./cmd/engram`.
+
+### subagent
+A fresh-context worker spawned via the Agent tool to do isolated object-level
+or review work without polluting the parent's context. Current uses:
+**please**'s gate reviewers (please is a skill, also mirrored as a registered runbook; a fresh subagent per gate — plan, refactors,
+docs, outward prose) and any executor/planner a skill fans out to; agent
+type, model, and effort selection for a dispatch follow the **route** skill's
+doctrine. The retired parallel-writer architecture — subagents synthesizing
+notes in parallel, reconciled afterward by a serial coordinator pass — is
+gone: recall's Step 2.5 crystallizes inline from the query payload's own
+clusters, and learn's Step 2 hands off inline to write-memory.
+
 ### capture guards (G1–G6)
 The six proposed guards against the lesson-capture blind spot (a presented conclusion later
 overturned going uncaptured). Shipped 2026-07-04: **G1** reversals as a learn capture kind ·
@@ -1073,9 +1033,7 @@ number. Pre-registered upgrade
 paths (in `docs/ROADMAP.md` → Parked backlog → "Pre-registered guard upgrades" row): **G3** fresh-context lessons reviewer (upgrade of G2) ·
 **G5** enforced escalation gating (upgrade of G6); **G4** crystallize-on-discovery stays parked.
 
----
-
-## Status / disposition values
+### Status / disposition values
 
 | Term | Meaning |
 |------|---------|
@@ -1083,10 +1041,3 @@ paths (in `docs/ROADMAP.md` → Parked backlog → "Pre-registered guard upgrade
 | `continuation` | Luhmann position extending an existing note (e.g., `1` → `1a`) |
 | `sibling` | Luhmann position at the same level (e.g., `1a` → `1b`) |
 | `--dry-run` | Flag on `engram update` that previews without writing |
-
----
-
-## Open Questions
-
-None currently — `triage.md`'s items were all resolved 2026-07-05 (folded into
-the entries above); `docs/triage.md` was deleted 2026-07, git log recovers it.
