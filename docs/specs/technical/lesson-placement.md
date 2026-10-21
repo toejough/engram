@@ -1,8 +1,14 @@
 # Lesson Placement - Technical Spec
 
-## 855d3d Orientation
+## 855d3d Lesson Placement
 
 The command `engram auto place` ([855d4h Placing the lessons](#855d4h-placing-the-lessons)). Turns the lessons into the request of the mid-tier judgement of their placement and supersession against the [seen notes](../../GLOSSARY.md#seen-note). Called by [793d2b Turn capture flow](./turn-capture-workflow.md#793d2b-turn-capture-flow).
+
+- Ownership: repository-owned component (the command `engram auto place`).
+- Qualification: Purpose: the [request](../../GLOSSARY.md#request-automatic-memory) that has a model place each lesson against the seen [notes](../../GLOSSARY.md#permanent-note) of the [session](../../GLOSSARY.md#session) and name the notes it corrects, narrows or refutes, which [855a2c Lessons are placed as the learn skill places them](../product/automatic-memory.md#855a2c-lessons-are-placed-as-the-learn-skill-places-them) and [855a2d Lessons that correct a note say so](../product/automatic-memory.md#855a2d-lessons-that-correct-a-note-say-so) need. Contract: [855d4h Placing the lessons](#855d4h-placing-the-lessons) is the command's own, apart from the capture flow that calls it ([793d2b Turn capture flow](./turn-capture-workflow.md#793d2b-turn-capture-flow)), and its scenarios run the command directly through standard input and output. Identity: the requirement states only what the command reads, prints and fails with, not a function or an injected collaborator, so a refactoring or a change of injection leaves the boundary as it is.
+- Required behavior: [Session Context](./session-context.md) is assumed to return a text that names each note delivered to the session or looked up in it ([793d4d Telling what a session holds](./session-context.md#793d4d-telling-what-a-session-holds)); compatibility verification: [855d4h1a The lessons and the seen notes are in the request](#855d4h1-scenarios) runs the placement over a [transcript](../../GLOSSARY.md#transcript) that holds a delivered block, read by the provider's own code (`internal/cli/auto_place_test.go`).
+- Required behavior: [Lesson Writing](./lesson-writing.md) is assumed to read a [reply](../../GLOSSARY.md#reply-automatic-memory) of lessons as [793d4h Writing the lessons of a reply](./lesson-writing.md#793d4h-writing-the-lessons-of-a-reply) states, with the file name a lesson can give as covering it, and to give a note it writes the source `written automatically (session <the session's ID>)`; compatibility verification: none beyond [855d4h1b A note written automatically in the session is a seen note](#855d4h1-scenarios) and [858b2a1a A lesson the vault already states is not placed](#855d4h1-scenarios), which plant the marked note and the covering name.
+- Supported capabilities: [Automatic Memory](../product/automatic-memory.md).
 
 ## 855d4h Placing the lessons
 
@@ -46,6 +52,11 @@ Scenario: 855d4h1h A lesson supersedes a note only when it is about the note's o
   Given a request of the placement
   When the instructions are read
   Then a lesson about another claim supersedes nothing, even when it is near the note, and a lesson is never merged into a seen note
+
+Scenario: 858b2a1a A lesson the vault already states is not placed
+  Given a vault holding a note that states a lesson, a session that was delivered that note, and a reply of two whole lessons of which one, or both, give that note's basename as the note that covers them
+  When the placement is given the reply
+  Then the lesson the note covers is not asked about, and when every lesson is covered it prints nothing and succeeds
 ```
 
 ## Shared requirements

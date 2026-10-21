@@ -1,8 +1,14 @@
 # Phrase Judgement - Technical Spec
 
-## 855d3b Orientation
+## 855d3b Phrase Judgement
 
 The command `engram auto phrases`. Turns the [depth](../../GLOSSARY.md#depth-recall-moment) of the moment judgement into the request of the mid-tier judgement of the situation phrases; tested through standard input and output. Called by [793d2a Prompt delivery flow](./prompt-delivery-workflow.md#793d2a-prompt-delivery-flow).
+
+- Ownership: repository-owned component (the command `engram auto phrases`).
+- Qualification: Purpose: the [request](../../GLOSSARY.md#request-automatic-memory) that has a model write the lookup phrases that the [recall skill](../../GLOSSARY.md#recall-skill)'s Step 1 asks for, which [793a2b Memory arrives with the prompt](../product/automatic-memory.md#793a2b-memory-arrives-with-the-prompt) needs so that the [notes](../../GLOSSARY.md#permanent-note) and [passages](../../GLOSSARY.md#passage) that arrive are the ones the recall [skill](../../GLOSSARY.md#skill) draws on, and [855a2a Delivery writes what its depth writes](../product/automatic-memory.md#855a2a-delivery-writes-what-its-depth-writes) needs for a deep delivery. Contract: [855d4v Phrasing the lookup](#855d4v-phrasing-the-lookup) is the command's own, apart from the flow that calls it ([793d2a Prompt delivery flow](./prompt-delivery-workflow.md#793d2a-prompt-delivery-flow)), and its scenarios run the command directly through standard input and output. Identity: the requirement states only what the command reads, prints and fails with, not a function or an injected collaborator, so a refactoring or a change of injection leaves the boundary as it is.
+- Required behavior: [Moment Judgement](./moment-judgement.md) is assumed to ask for a [reply](../../GLOSSARY.md#reply-automatic-memory) of the shape `{"depth":...}` and to hand on a [carry](../../GLOSSARY.md#carry) that holds the [cue](../../GLOSSARY.md#cue) and the window ([855d4a Judging the moment](./moment-judgement.md#855d4a-judging-the-moment)); compatibility verification: none beyond the replies and carries written by hand in [855d4v1 Scenarios](#855d4v1-scenarios).
+- Required behavior: [Recall](../product/recall.md): the recall skill is assumed to ask, as [792a14e Ten phrases from ten angles](../product/recall.md#792a14e-ten-phrases-from-ten-angles) states, for one short phrase from each of the ten angles that the instructions of the request repeat; compatibility verification: none, the repeated text is `internal/auto/prompts/phrases.txt`, which no test compares with the skill.
+- Supported capabilities: [Automatic Memory](../product/automatic-memory.md).
 
 ## 855d4v Phrasing the lookup
 

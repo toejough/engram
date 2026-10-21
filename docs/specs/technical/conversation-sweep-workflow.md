@@ -39,7 +39,7 @@ Supports: [793a2f1a The conversation so far is findable after a turn](../product
 
 ```gherkin
 Scenario: 793d2c1a The mod sweeps the conversation after a turn, apart from the capture
-  Given the mod, a session whose ID is known, an engram whose auto judge does not answer, and an engram whose auto sweep exits with 0
+  Given the mod, a session whose ID is known, an engram whose auto moment does not answer, and an engram whose auto sweep exits with 0
   When a prompt is raised, the turn starts, and it completes
   Then the event's result is given back at once, and auto sweep received the session's ID and the origin of the prompt while the judgement was still running
 
