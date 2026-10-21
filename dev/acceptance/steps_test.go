@@ -811,12 +811,18 @@ func (m *machine) stepIsQuick() {
 	}
 }
 
-// stepNeverEnds makes a step of `engram auto` never exit, for as long as the file slow is in the wrapper's directory:
-// a real model call cannot be made to hang, so the step that stands in front of the first one does (855a3c1a).
+// stepNeverEnds makes the first run of a step of `engram auto` never exit, for as long as the file slow is in the
+// wrapper's directory: a real model call cannot be made to hang, so the step that stands in front of the first one does
+// (855a3c1a). Only the first run hangs, which in that row is the prompt's: the mod runs a moment of its own for each
+// tool event (855d2c), each bounded at 2 minutes, and a stand-in that hung them all would hold the turn past the
+// 5 minutes of the session. Every run notes that it started; the file hung marks that the first one did.
 func (m *machine) stepNeverEnds(step string) {
 	m.t.Helper()
 
-	m.stepWraps(step, "exec sleep "+strconv.Itoa(int(neverEnds.Seconds())))
+	hung := filepath.Join(m.root, "slow-step", "hung")
+
+	m.stepWraps(step, "if [ -e '"+hung+"' ]; then :; else : > '"+hung+"'; exec sleep "+
+		strconv.Itoa(int(neverEnds.Seconds()))+"; fi")
 }
 
 // stepPrinted returns what the recorded step printed, and whether it ran at all (see stepsAreRecorded).
