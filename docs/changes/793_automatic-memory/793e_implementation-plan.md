@@ -71,14 +71,14 @@ The groups, in the order of the catalog ([793b28 Depth-first order](./793b_decis
 
 | Group | Requirements | Interactions | Status |
 | --- | --- | --- | --- |
-| [793e6a On after update, and memory arrives with the prompt](#793e6a-on-after-update-and-memory-arrives-with-the-prompt) | [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update), [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) and the 8-second hold of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) | none | Complete |
-| [793e6b Lessons are written without the agent](#793e6b-lessons-are-written-without-the-agent) | [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), and the clause of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) about its own sessions ([793b58 The first group delivers for every origin of a prompt](./793b_decision-log.md#793b58-the-first-group-delivers-for-every-origin-of-a-prompt)) | [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later), [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again), [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working) | Complete |
-| [793e6g The fixes of the review round of the second group](#793e6g-the-fixes-of-the-review-round-of-the-second-group) | the defects the second group's one review round found in [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), its interactions and its technical requirements | none | Complete |
-| [793e6e The conversation becomes searchable memory](#793e6e-the-conversation-becomes-searchable-memory) | [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) | none | Complete |
-| [793e6c Never in the way](#793e6c-never-in-the-way) | the rest of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), without the clause about its own sessions | none | Complete |
-| [793e6d The user can see what it did](#793e6d-the-user-can-see-what-it-did) | [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) | none | Complete |
-| [793e6h The fixes of the review round of the third group](#793e6h-the-fixes-of-the-review-round-of-the-third-group) | the defects the third group's one review round found in [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) and [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), and in their technical requirements | none | Complete |
-| [793e6i The fixes of the review of the whole branch](#793e6i-the-fixes-of-the-review-of-the-whole-branch) | the defects the one review round of the whole branch found in [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did), [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), their technical requirements and the documents | none | Complete |
+| [793e6a On after update, and memory arrives with the prompt](#793e6a-on-after-update-and-memory-arrives-with-the-prompt) | [793a2a On after `engram update`](./793a_product-spec.md#793a2a-on-after-engram-update), [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) and the 8-second hold of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) | none | Merged |
+| [793e6b Lessons are written without the agent](#793e6b-lessons-are-written-without-the-agent) | [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), and the clause of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way) about its own sessions ([793b58 The first group delivers for every origin of a prompt](./793b_decision-log.md#793b58-the-first-group-delivers-for-every-origin-of-a-prompt)) | [793a3a What is written is delivered later](./793a_product-spec.md#793a3a-what-is-written-is-delivered-later), [793a3c Nothing the vault already says is written again](./793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again), [793a3e Explicit memory use keeps working](./793a_product-spec.md#793a3e-explicit-memory-use-keeps-working) | Merged |
+| [793e6g The fixes of the review round of the second group](#793e6g-the-fixes-of-the-review-round-of-the-second-group) | the defects the second group's one review round found in [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), its interactions and its technical requirements | none | Merged |
+| [793e6e The conversation becomes searchable memory](#793e6e-the-conversation-becomes-searchable-memory) | [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory) | none | Merged |
+| [793e6c Never in the way](#793e6c-never-in-the-way) | the rest of [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), without the clause about its own sessions | none | Merged |
+| [793e6d The user can see what it did](#793e6d-the-user-can-see-what-it-did) | [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) | none | Merged |
+| [793e6h The fixes of the review round of the third group](#793e6h-the-fixes-of-the-review-round-of-the-third-group) | the defects the third group's one review round found in [793a2d Never in the way](./793a_product-spec.md#793a2d-never-in-the-way), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did) and [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), and in their technical requirements | none | Merged |
+| [793e6i The fixes of the review of the whole branch](#793e6i-the-fixes-of-the-review-of-the-whole-branch) | the defects the one review round of the whole branch found in [793a2c Lessons are written without the agent](./793a_product-spec.md#793a2c-lessons-are-written-without-the-agent), [793a2e The user can see what it did](./793a_product-spec.md#793a2e-the-user-can-see-what-it-did), [793a2f The conversation becomes searchable memory](./793a_product-spec.md#793a2f-the-conversation-becomes-searchable-memory), their technical requirements and the documents | none | Merged |
 | [793e6f The delivery merges the parent vault](#793e6f-the-delivery-merges-the-parent-vault) | the clause of [793a2b Memory arrives with the prompt](./793a_product-spec.md#793a2b-memory-arrives-with-the-prompt) that the [notes](../../GLOSSARY.md#permanent-note) are those `engram query` returns, for a [vault](../../GLOSSARY.md#vault) that has a parent ([793c34 Does the delivery merge the parent vault, as `engram query` does?](./793c_open-questions.md#793c34-does-the-delivery-merge-the-parent-vault-as-engram-query-does)) | none | Blocked by: [793c34 Does the delivery merge the parent vault, as `engram query` does?](./793c_open-questions.md#793c34-does-the-delivery-merge-the-parent-vault-as-engram-query-does) |
 
 ## 793e9 Dependency graph
@@ -87,77 +87,77 @@ The graph is derived from the catalog of [793e6 Test catalog](#793e6-test-catalo
 
 ```mermaid
 flowchart TD
-    n793e6a1[793e6a1 The next session has memory after one engram update<br/>Complete] --> n793e6a2[793e6a2 The notes that bear on a prompt arrive with it<br/>Complete]
-    n793e6a2 --> n793e6a3[793e6a3 A note delivered earlier in the session is not delivered again<br/>Complete]
-    n793e6a3 --> n793e6a4[793e6a4 A note the agent looked up itself is not delivered<br/>Complete]
-    n793e6a4 --> n793e6a5[793e6a5 A prompt that matches no note arrives with nothing<br/>Complete]
-    n793e6a1 --> n793e6a6[793e6a6 A slow lookup does not hold a prompt for more than 8 seconds<br/>Complete] & n793e6a7[793e6a7 A vault that does not exist is not created<br/>Complete] & n793e6a8[793e6a8 Pi gets no automatic memory<br/>Complete] & n793e6a9[793e6a9 A dry run turns nothing on<br/>Complete] & n793e6a10[793e6a10 A second update still delivers each note once<br/>Complete] & n793e6a11[793e6a11 The conformance check of the first group<br/>Complete] & n793e6a12[793e6a12 The gate that parses the mod's JavaScript<br/>Complete]
-    n793e6a4 --> n793e6b1[793e6b1 A correction becomes a note<br/>Complete]
-    n793e6b1 --> n793e6b2[793e6b2 A request to remember becomes a note<br/>Complete] & n793e6b3[793e6b3 An approach the user confirmed becomes a note<br/>Complete] & n793e6b4[793e6b4 The agent's own correction becomes a note<br/>Complete] & n793e6b5[793e6b5 An approach that succeeded with evidence becomes a note<br/>Complete] & n793e6b6[793e6b6 Guesses, plans and chatter produce no note<br/>Complete] & n793e6b7[793e6b7 A credential in the turn is not in the note<br/>Complete] & n793e6b10[793e6b10 The agent's own lookups and saves keep working<br/>Complete] & n793e6b11[793e6b11 A written note is delivered with later prompts<br/>Complete] & n793e6b12[793e6b12 A second update still writes each lesson as one note<br/>Complete] & n793e6b13[793e6b13 A lesson is not written to a vault that does not exist<br/>Complete] & n793e6b14[793e6b14 Automatic memory's work starts no session of its own<br/>Complete]
+    n793e6a1[793e6a1 The next session has memory after one engram update<br/>Merged] --> n793e6a2[793e6a2 The notes that bear on a prompt arrive with it<br/>Merged]
+    n793e6a2 --> n793e6a3[793e6a3 A note delivered earlier in the session is not delivered again<br/>Merged]
+    n793e6a3 --> n793e6a4[793e6a4 A note the agent looked up itself is not delivered<br/>Merged]
+    n793e6a4 --> n793e6a5[793e6a5 A prompt that matches no note arrives with nothing<br/>Merged]
+    n793e6a1 --> n793e6a6[793e6a6 A slow lookup does not hold a prompt for more than 8 seconds<br/>Merged] & n793e6a7[793e6a7 A vault that does not exist is not created<br/>Merged] & n793e6a8[793e6a8 Pi gets no automatic memory<br/>Merged] & n793e6a9[793e6a9 A dry run turns nothing on<br/>Merged] & n793e6a10[793e6a10 A second update still delivers each note once<br/>Merged] & n793e6a11[793e6a11 The conformance check of the first group<br/>Merged] & n793e6a12[793e6a12 The gate that parses the mod's JavaScript<br/>Merged]
+    n793e6a4 --> n793e6b1[793e6b1 A correction becomes a note<br/>Merged]
+    n793e6b1 --> n793e6b2[793e6b2 A request to remember becomes a note<br/>Merged] & n793e6b3[793e6b3 An approach the user confirmed becomes a note<br/>Merged] & n793e6b4[793e6b4 The agent's own correction becomes a note<br/>Merged] & n793e6b5[793e6b5 An approach that succeeded with evidence becomes a note<br/>Merged] & n793e6b6[793e6b6 Guesses, plans and chatter produce no note<br/>Merged] & n793e6b7[793e6b7 A credential in the turn is not in the note<br/>Merged] & n793e6b10[793e6b10 The agent's own lookups and saves keep working<br/>Merged] & n793e6b11[793e6b11 A written note is delivered with later prompts<br/>Merged] & n793e6b12[793e6b12 A second update still writes each lesson as one note<br/>Merged] & n793e6b13[793e6b13 A lesson is not written to a vault that does not exist<br/>Merged] & n793e6b14[793e6b14 Automatic memory's work starts no session of its own<br/>Merged]
     n793e6a10 --> n793e6b12
     n793e6a7 --> n793e6b13
-    n793e6b6 --> n793e6b8[793e6b8 A lesson an earlier note states is not written again<br/>Complete] --> n793e6b9[793e6b9 A lesson the agent saved itself is not written again<br/>Complete]
-    n793e6b14 --> n793e6b15[793e6b15 The branches of the group that the gate of coverage found<br/>Complete]
+    n793e6b6 --> n793e6b8[793e6b8 A lesson an earlier note states is not written again<br/>Merged] --> n793e6b9[793e6b9 A lesson the agent saved itself is not written again<br/>Merged]
+    n793e6b14 --> n793e6b15[793e6b15 The branches of the group that the gate of coverage found<br/>Merged]
     n793e6b6 --> n793e6b15
-    n793e6b15 --> n793e6g1[793e6g1 The rows the harness wrote are no prompt<br/>Complete]
+    n793e6b15 --> n793e6g1[793e6g1 The rows the harness wrote are no prompt<br/>Merged]
     n793e6b14 --> n793e6g1
-    n793e6g1 --> n793e6g2[793e6g2 The transcript is read once, and only the window is redacted<br/>Complete] --> n793e6g3[793e6g3 A turn is found by the text it began with<br/>Complete]
+    n793e6g1 --> n793e6g2[793e6g2 The transcript is read once, and only the window is redacted<br/>Merged] --> n793e6g3[793e6g3 A turn is found by the text it began with<br/>Merged]
     n793e6b7 --> n793e6g2
-    n793e6g2 --> n793e6g4[793e6g4 The instructions are the system of the request, and a message cannot close the window<br/>Complete]
+    n793e6g2 --> n793e6g4[793e6g4 The instructions are the system of the request, and a message cannot close the window<br/>Merged]
     n793e6b8 --> n793e6g4
-    n793e6b7 --> n793e6g5[793e6g5 Every name that holds a word of a secret is redacted, and the promise names the forms<br/>Complete] --> n793e6g6[793e6g6 A field of a lesson is one line, and a reply that is cut keeps its whole lessons<br/>Complete]
-    n793e6b1 --> n793e6g7[793e6g7 A note written automatically says so in its line<br/>Complete]
-    n793e6g6 --> n793e6g8[793e6g8 A credential that characters that are not shown split is redacted whole<br/>Complete]
+    n793e6b7 --> n793e6g5[793e6g5 Every name that holds a word of a secret is redacted, and the promise names the forms<br/>Merged] --> n793e6g6[793e6g6 A field of a lesson is one line, and a reply that is cut keeps its whole lessons<br/>Merged]
+    n793e6b1 --> n793e6g7[793e6g7 A note written automatically says so in its line<br/>Merged]
+    n793e6g6 --> n793e6g8[793e6g8 A credential that characters that are not shown split is redacted whole<br/>Merged]
     n793e6g2 --> n793e6g8
-    n793e6b13 --> n793e6g9[793e6g9 A judgement without a vault or a transcript fails, and the model is not asked<br/>Complete]
-    n793e6b6 --> n793e6g10[793e6g10 A failure that is recorded is recorded once<br/>Complete]
-    n793e6b14 --> n793e6g11[793e6g11 A headless prompt is judged only when the user asks<br/>Complete]
-    n793e6b1 --> n793e6g12[793e6g12 Each stage of the capture has a bound of its own<br/>Complete]
-    n793e6a1 --> n793e6g13[793e6g13 The acceptance run can repeat a scenario<br/>Complete]
-    n793e6b6 --> n793e6g14[793e6g14 A thanks that names no approach produces no note, and the instructions carry the bar of the learn skill<br/>Complete]
+    n793e6b13 --> n793e6g9[793e6g9 A judgement without a vault or a transcript fails, and the model is not asked<br/>Merged]
+    n793e6b6 --> n793e6g10[793e6g10 A failure that is recorded is recorded once<br/>Merged]
+    n793e6b14 --> n793e6g11[793e6g11 A headless prompt is judged only when the user asks<br/>Merged]
+    n793e6b1 --> n793e6g12[793e6g12 Each stage of the capture has a bound of its own<br/>Merged]
+    n793e6a1 --> n793e6g13[793e6g13 The acceptance run can repeat a scenario<br/>Merged]
+    n793e6b6 --> n793e6g14[793e6g14 A thanks that names no approach produces no note, and the instructions carry the bar of the learn skill<br/>Merged]
     n793e6g13 --> n793e6g14
-    n793e6b8 --> n793e6g15[793e6g15 A lesson no earlier note states is written<br/>Complete]
+    n793e6b8 --> n793e6g15[793e6g15 A lesson no earlier note states is written<br/>Merged]
     n793e6g13 --> n793e6g15
-    n793e6g11 --> n793e6g16[793e6g16 A turn that a background task's notification starts is not judged<br/>Complete]
+    n793e6g11 --> n793e6g16[793e6g16 A turn that a background task's notification starts is not judged<br/>Merged]
     n793e6g13 --> n793e6g16
-    n793e6g13 --> n793e6g17[793e6g17 The runs of the judgement rows are tallied, and the probe behind the instructions is kept<br/>Complete]
+    n793e6g13 --> n793e6g17[793e6g17 The runs of the judgement rows are tallied, and the probe behind the instructions is kept<br/>Merged]
     n793e6g14 --> n793e6g17
-    n793e6g11 --> n793e6g18[793e6g18 The documents say what the group does<br/>Complete]
+    n793e6g11 --> n793e6g18[793e6g18 The documents say what the group does<br/>Merged]
     n793e6b6 --> n793e6g18
-    n793e6b2 --> n793e6g19[793e6g19 A request to remember is written, whatever the agent says about saving it<br/>Complete]
+    n793e6b2 --> n793e6g19[793e6g19 A request to remember is written, whatever the agent says about saving it<br/>Merged]
     n793e6g14 --> n793e6g19
     n793e6g17 --> n793e6g19
-    n793e6g12 --> n793e6e1[793e6e1 The conversation so far is findable after a turn<br/>Complete]
-    n793e6a6 --> n793e6c1[793e6c1 The work after a turn does not hold the next prompt<br/>Complete]
+    n793e6g12 --> n793e6e1[793e6e1 The conversation so far is findable after a turn<br/>Merged]
+    n793e6a6 --> n793e6c1[793e6c1 The work after a turn does not hold the next prompt<br/>Merged]
     n793e6g12 --> n793e6c1
     n793e6e1 --> n793e6c1
-    n793e6b11 --> n793e6c2[793e6c2 The prompt and the reply are as they were<br/>Complete]
-    n793e6b13 --> n793e6c3[793e6c3 A write that fails does not break the session<br/>Complete]
-    n793e6g10 --> n793e6d1[793e6d1 What was delivered and what was written for the previous turn is in the session by the next prompt<br/>Complete]
+    n793e6b11 --> n793e6c2[793e6c2 The prompt and the reply are as they were<br/>Merged]
+    n793e6b13 --> n793e6c3[793e6c3 A write that fails does not break the session<br/>Merged]
+    n793e6g10 --> n793e6d1[793e6d1 What was delivered and what was written for the previous turn is in the session by the next prompt<br/>Merged]
     n793e6b11 --> n793e6d1
-    n793e6d1 --> n793e6d2[793e6d2 A write that finishes after the next prompt is shown by the prompt after it finishes<br/>Complete]
-    n793e6d1 --> n793e6d3[793e6d3 A delivery that could not be done is shown with its reason<br/>Complete]
+    n793e6d1 --> n793e6d2[793e6d2 A write that finishes after the next prompt is shown by the prompt after it finishes<br/>Merged]
+    n793e6d1 --> n793e6d3[793e6d3 A delivery that could not be done is shown with its reason<br/>Merged]
     n793e6g12 --> n793e6d3
-    n793e6d1 --> n793e6d4[793e6d4 A write that failed is shown with its reason<br/>Complete]
-    n793e6e1 --> n793e6d5[793e6d5 A sweep that failed is shown with its reason<br/>Complete]
-    n793e6d1 --> n793e6d6[793e6d6 A turn that is not captured is shown with the reason<br/>Complete]
+    n793e6d1 --> n793e6d4[793e6d4 A write that failed is shown with its reason<br/>Merged]
+    n793e6e1 --> n793e6d5[793e6d5 A sweep that failed is shown with its reason<br/>Merged]
+    n793e6d1 --> n793e6d6[793e6d6 A turn that is not captured is shown with the reason<br/>Merged]
     n793e6g11 --> n793e6d6
-    n793e6d1 --> n793e6h1[793e6h1 What the user is shown goes through the host's log, and is not put in the prompt's context<br/>Complete]
-    n793e6h1 --> n793e6h2[793e6h2 The text of a prompt is in no failure<br/>Complete]
-    n793e6h1 --> n793e6h3[793e6h3 A failure is written as one line, redacted, and cut by the writing<br/>Complete]
-    n793e6h1 --> n793e6h4[793e6h4 A lesson that is left out keeps its slug only when it is one<br/>Complete]
-    n793e6h3 --> n793e6h5[793e6h5 A failure that is reported and cannot be recorded fails the command<br/>Complete]
-    n793e6h1 --> n793e6h6[793e6h6 The tests say what the scenarios say<br/>Complete]
-    n793e6h1 --> n793e6h7[793e6h7 The documents say what the group does<br/>Complete]
+    n793e6d1 --> n793e6h1[793e6h1 What the user is shown goes through the host's log, and is not put in the prompt's context<br/>Merged]
+    n793e6h1 --> n793e6h2[793e6h2 The text of a prompt is in no failure<br/>Merged]
+    n793e6h1 --> n793e6h3[793e6h3 A failure is written as one line, redacted, and cut by the writing<br/>Merged]
+    n793e6h1 --> n793e6h4[793e6h4 A lesson that is left out keeps its slug only when it is one<br/>Merged]
+    n793e6h3 --> n793e6h5[793e6h5 A failure that is reported and cannot be recorded fails the command<br/>Merged]
+    n793e6h1 --> n793e6h6[793e6h6 The tests say what the scenarios say<br/>Merged]
+    n793e6h1 --> n793e6h7[793e6h7 The documents say what the group does<br/>Merged]
     n793e6a2 --> n793e6f[793e6f The delivery merges the parent vault<br/>Blocked by: 793c34]
-    n793e6g7 --> n793e6i1[793e6i1 A note written by the earlier mod is marked as written automatically<br/>Complete]
-    n793e6h1 --> n793e6i2[793e6i2 The warnings of the lookup go to the debug log, not to the user<br/>Complete]
-    n793e6h1 --> n793e6i3[793e6i3 One line is shown for each of what was delivered, written, left out and failed<br/>Complete]
-    n793e6i3 --> n793e6i4[793e6i4 A turn with nothing to write leaves no record, and the records that were shown are removed<br/>Complete]
-    n793e6i4 --> n793e6i5[793e6i5 A sweep that is ended at its bound is not run again in the session, and the user is told once<br/>Complete]
+    n793e6g7 --> n793e6i1[793e6i1 A note written by the earlier mod is marked as written automatically<br/>Merged]
+    n793e6h1 --> n793e6i2[793e6i2 The warnings of the lookup go to the debug log, not to the user<br/>Merged]
+    n793e6h1 --> n793e6i3[793e6i3 One line is shown for each of what was delivered, written, left out and failed<br/>Merged]
+    n793e6i3 --> n793e6i4[793e6i4 A turn with nothing to write leaves no record, and the records that were shown are removed<br/>Merged]
+    n793e6i4 --> n793e6i5[793e6i5 A sweep that is ended at its bound is not run again in the session, and the user is told once<br/>Merged]
     n793e6d5 --> n793e6i5
-    n793e6g8 --> n793e6i6[793e6i6 The credentials that are redacted are the shapes the promise names<br/>Complete]
-    n793e6i1 --> n793e6i7[793e6i7 The documents say what the branch does<br/>Complete]
+    n793e6g8 --> n793e6i6[793e6i6 The credentials that are redacted are the shapes the promise names<br/>Merged]
+    n793e6i1 --> n793e6i7[793e6i7 The documents say what the branch does<br/>Merged]
     n793e6i2 --> n793e6i7
     n793e6i3 --> n793e6i7
     n793e6i4 --> n793e6i7
@@ -993,4 +993,4 @@ Deferred, not built ([793b57 The delivery looks up the local vault only, until a
 - Every refactor commit message names the code it removed or merged, or states that nothing could be removed.
 - The product and technical deltas are promoted to the canonical specifications without changing stable IDs, and this change directory is deleted, in the same merge as the implementation; the conformance check moves to the promoted specs or is deleted with the directory ([793e6a11 The conformance check of the first group](#793e6a11-the-conformance-check-of-the-first-group)).
 - The terms of [793a1a Terms](./793a_product-spec.md#793a1a-terms) and the term mod of [793d1 Orientation](./793d_technical-spec.md#793d1-orientation) are entered in `docs/GLOSSARY.md` in that merge, and the links to them point to the entries.
-- Every node is `Merged`.
+- Every node is `Merged`, but 793e6f, which is deferred by 793c34 and has no rows.
