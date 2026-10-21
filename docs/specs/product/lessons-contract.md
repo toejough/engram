@@ -9,13 +9,26 @@ dispatch targets have no Skill tool at all. So the subagent supplies raw content
 mechanism is skill and guidance markdown only, with a low bar at capture and quality control at a separate judgment
 step; a mandatory line in prose raises the capture rate and guarantees nothing.
 
-## 792a16a A completion report ends with a LESSONS line
+## 792a16 Lessons Contract
+
+**Participants and responsibilities.**
+- The [subagent](../../GLOSSARY.md#subagent): ends its completion report with a `LESSONS:` line and never decides that a lesson becomes a [vault](../../GLOSSARY.md#vault) [note](../../GLOSSARY.md#permanent-note) ([792a16a A completion report ends with a LESSONS line](#792a16a-a-completion-report-ends-with-a-lessons-line)).
+- The orchestrator: puts the contract in every dispatch ([792a16b Every dispatch is told to report lessons](#792a16b-every-dispatch-is-told-to-report-lessons)), records every line as it returns ([792a16d Every line is recorded as it returns](#792a16d-every-line-is-recorded-as-it-returns)) and judges each lesson at that moment ([792a16e Each lesson is judged when it returns](#792a16e-each-lesson-is-judged-when-it-returns)).
+- The software: carries the contract in [skill](../../GLOSSARY.md#skill) and guidance text only: the route skill hands it over, the please skill collects the lines, the [learn skill](../../GLOSSARY.md#learn-skill) judges them and the learn guidance fires the judgment at a return.
+
+**Interactions.** The orchestrator hands each subagent the completion-report contract in the dispatch handoff, and the subagent responds with the `LESSONS:` line at the end of its report ([792a16b Every dispatch is told to report lessons](#792a16b-every-dispatch-is-told-to-report-lessons)). The orchestrator hands each lesson that clears the bar to a fast-path learn before its next dispatch, and please hands the whole list, `none` entries included, to the closing learn ([792a16e Each lesson is judged when it returns](#792a16e-each-lesson-is-judged-when-it-returns), [792a16f The closing learn gets the whole list](#792a16f-the-closing-learn-gets-the-whole-list)).
+
+**Boundary assumptions.** The software assumes each subagent ends its report with the line; a mandatory line in prose raises the capture rate and guarantees nothing, so a missing line is asked for once, and when it is still missing the orchestrator records `LESSONS: none` and proceeds ([792a16c A missing line is asked for once](#792a16c-a-missing-line-is-asked-for-once)).
+
+**Shared rules.** The four kinds of lesson and the bar are owned by [Learn](./learn.md) ([792a15e The four kinds of explicit lesson](./learn.md#792a15e-the-four-kinds-of-explicit-lesson)); the handoff by [Route](./route.md); the collection and the hand-over at the close by [Please](./please.md); the ambient cue that fires learn at a return by [Ambient Guidance](./ambient-guidance.md) ([792a19e A returned subagent lesson is captured before the next dispatch](./ambient-guidance.md#792a19e-a-returned-subagent-lesson-is-captured-before-the-next-dispatch)).
+
+### 792a16a A completion report ends with a LESSONS line
 
 Requirement: [792a16a A completion report ends with a LESSONS line](#792a16a-a-completion-report-ends-with-a-lessons-line) Every subagent dispatched through route, whether a fork, a fresh-context agent or a workflow, MUST end its final report with a `LESSONS:` line that is `LESSONS: none`, or one to three one-line lessons separated by commas. Each lesson MUST be a confirmed correction, a surprising finding or a validated approach, summarized in one line. A subagent MUST NOT decide for itself that a lesson becomes a vault note.
 
 Rationale: the line is a disposable offer tier, intentionally a low bar. The orchestrator judges the offers; a subagent writing notes itself would put quality control at the wrong place.
 
-### 792a16a1 UAT Scenarios
+#### 792a16a1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a16a1a A subagent with lessons reports them
@@ -34,11 +47,11 @@ Scenario: 792a16a1c At most three lessons
   Then the line carries at most three one-line lessons
 ```
 
-## 792a16b Every dispatch is told to report lessons
+### 792a16b Every dispatch is told to report lessons
 
 Requirement: [792a16b Every dispatch is told to report lessons](#792a16b-every-dispatch-is-told-to-report-lessons) The handoff that route builds for every dispatch MUST include, among the items it must hand over (exact files and paths, acceptance checks, do-not-touch bounds and the subagent's recall-first instruction), the completion-report contract: the subagent's final report MUST end with a `LESSONS:` line in the format of [792a16a A completion report ends with a LESSONS line](#792a16a-a-completion-report-ends-with-a-lessons-line). The instruction MUST be prescriptive, and MUST be written out even for a fork, which inherits session context.
 
-### 792a16b1 UAT Scenarios
+#### 792a16b1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a16b1a A fresh-context dispatch carries the mandate
@@ -57,11 +70,11 @@ Scenario: 792a16b1c It follows the task description
   Then the task and its acceptance checks are followed by the completion-report contract
 ```
 
-## 792a16c A missing line is asked for once
+### 792a16c A missing line is asked for once
 
 Requirement: [792a16c A missing line is asked for once](#792a16c-a-missing-line-is-asked-for-once) When a returned report does not end with a `LESSONS:` line, the orchestrator MUST send exactly one targeted follow-up that asks only for the line, and MUST NOT re-ask a second time. A line supplied in response MUST be treated like an on-time line. When the line is still missing after the one follow-up, the orchestrator MUST record `LESSONS: none` and proceed without blocking.
 
-### 792a16c1 UAT Scenarios
+#### 792a16c1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a16c1a A missing line is re-asked
@@ -80,11 +93,11 @@ Scenario: 792a16c1c There is no second re-ask
   Then it records LESSONS: none for that dispatch and does not ask again
 ```
 
-## 792a16d Every line is recorded as it returns
+### 792a16d Every line is recorded as it returns
 
 Requirement: [792a16d Every line is recorded as it returns](#792a16d-every-line-is-recorded-as-it-returns) The orchestrator following please MUST record the `LESSONS:` line of every dispatched unit verbatim, including `LESSONS: none`, in a running list for the cycle at the moment each unit's result comes back and before it moves to the next unit, wherever in the workflow the dispatch lands. Judging a line MUST NOT remove or rewrite it, and the list MUST NOT carry marks of what was captured. The please gates MUST NOT block or filter the collection: a line is recorded even when its work is rejected at a gate.
 
-### 792a16d1 UAT Scenarios
+#### 792a16d1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a16d1a Lines are kept in order and verbatim
@@ -103,7 +116,7 @@ Scenario: 792a16d1c A gate does not filter the list
   Then the line is in the list
 ```
 
-## 792a16e Each lesson is judged when it returns
+### 792a16e Each lesson is judged when it returns
 
 Requirement: [792a16e Each lesson is judged when it returns](#792a16e-each-lesson-is-judged-when-it-returns) When a returned report's `LESSONS:` line is not `none`, the orchestrator MUST judge each lesson in it at that moment, and MUST capture each lesson that clears learn's bar with a fast-path learn (one note per lesson, no sweep, handed to write-memory) before the next dispatch, or before ending its turn when no dispatch is left. A lesson clears the bar when it is one of learn's four kinds of lesson ([792a15e The four kinds of explicit lesson](./learn.md#792a15e-the-four-kinds-of-explicit-lesson)), is confirmed and not hypothesized, and states a general reusable principle and not a session-specific narrative. The orchestrator MUST NOT capture `none`, a routine "done, tests pass" or an unconfirmed lesson.
 
@@ -112,7 +125,7 @@ parent makes in the middle of the session. Judging at the return, while the less
 the closing learn stays as a backstop. The rule lives in always-loaded guidance because it must hold at every
 delegation whichever skill mediated it.
 
-### 792a16e1 UAT Scenarios
+#### 792a16e1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a16e1a A confirmed correction is captured at the return
@@ -136,14 +149,14 @@ Scenario: 792a16e1d The last return is captured before the turn ends
   Then the orchestrator captures it before ending its turn
 ```
 
-## 792a16f The closing learn gets the whole list
+### 792a16f The closing learn gets the whole list
 
 Requirement: [792a16f The closing learn gets the whole list](#792a16f-the-closing-learn-gets-the-whole-list) At workflow step 7, please MUST hand the full list of `LESSONS:` lines collected across its dispatches, `none` entries included, to the closing learn, alongside the lessons-audit map ([please](./please.md)), and MUST drop no line. Please MUST run the closing learn when the session had no dispatches, handing it an empty collection. The closing learn MUST skip a line that a vault note written earlier this session already covers, MUST judge every other line against the bar of [792a16e Each lesson is judged when it returns](#792a16e-each-lesson-is-judged-when-it-returns), and MUST discard a line that does not clear it silently, with no note and no log. It MUST NOT write a second time a line captured at its return.
 
 Rationale: a line is a low-bar offer and not a pre-judged lesson, so discarding it is not a loss. Skipping is by vault
 coverage and not by a mark, because the list stays verbatim and unmarked.
 
-### 792a16f1 UAT Scenarios
+#### 792a16f1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a16f1a The closing learn receives the list
@@ -172,7 +185,7 @@ Scenario: 792a16f1e A mixed batch
   Then it writes the correction and the confirmed approach and discards the other two silently
 ```
 
-## 792a16g A confirmed approach is looked for at the moment of confirmation
+### 792a16g A confirmed approach is looked for at the moment of confirmation
 
 Requirement: [792a16g A confirmed approach is looked for at the moment of confirmation](#792a16g-a-confirmed-approach-is-looked-for-at-the-moment-of-confirmation) Learn MUST scan for a confirmed approach (kind 4) at the moment a unit of work's outcome is confirmed: a review or gate verdict lands, a check or test passes, or the user explicitly confirms something. That includes the moment the agent reads a dispatched subagent's completion report and its `LESSONS:` line once its outcome is known, and, at the closing learn, the session's completion reports and collected lines. The bar MUST NOT move: a resolved uncertainty or an explicit specific confirmation, never bare success.
 
@@ -181,7 +194,7 @@ bucket. Anchoring on the concrete event and calibrating with exemplars (a design
 search, a defect confirmed by a reproduction test, a vendor claim verified against evidence) improves how recognizable
 the pattern is, not how low the bar is.
 
-### 792a16g1 UAT Scenarios
+#### 792a16g1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a16g1a A completion anchors the scan

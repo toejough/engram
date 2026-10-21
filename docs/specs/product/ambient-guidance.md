@@ -9,7 +9,24 @@ install-and-update's ([792a11l Guidance is managed only after opt-in](./install-
 report tells the user about activating them. The skills they point at are [recall](./recall.md) (recall), [learn](./learn.md) (learn), [route](./route.md)
 (route) and [please](./please.md) (please).
 
-## 792a19a Recall fires at four decision moments
+## 792a19 Ambient Guidance
+
+**Participants and responsibilities.**
+- The user: imports the guidance documents into the config file of the agent [harness](../../GLOSSARY.md#harness), a file the user owns ([792a19v The update report says how to activate guidance](#792a19v-the-update-report-says-how-to-activate-guidance)).
+- The agent, with the recall guidance: runs `/recall glance` at four decision moments ([792a19a Recall fires at four decision moments](#792a19a-recall-fires-at-four-decision-moments)).
+- The agent, with the learn guidance: invokes the [learn skill](../../GLOSSARY.md#learn-skill) at a correction and at a [subagent](../../GLOSSARY.md#subagent) return ([792a19c Learn fires at the correction moment](#792a19c-learn-fires-at-the-correction-moment), [792a19e A returned subagent lesson is captured before the next dispatch](#792a19e-a-returned-subagent-lesson-is-captured-before-the-next-dispatch)).
+- The agent, with the delegate guidance: plans and routes every unit of work and reviews what returns with fresh context ([792a19g Every unit of work is planned and routed first](#792a19g-every-unit-of-work-is-planned-and-routed-first), [792a19i Returned work is reviewed fresh and reported with its evidence](#792a19i-returned-work-is-reviewed-fresh-and-reported-with-its-evidence)).
+- The agent, with the shim: makes `engram query` its first action and follows a [runbook](../../GLOSSARY.md#runbook) that the query returns under the shim's frame ([792a19j The first action on every request is an engram query](#792a19j-the-first-action-on-every-request-is-an-engram-query), [792a19m A matched runbook is announced and its steps are the plan](#792a19m-a-matched-runbook-is-announced-and-its-steps-are-the-plan)).
+- The software: ships `recall.md`, `learn.md`, `delegate.md` and `shim.md` in `agent-instructions/guidance/`, and `engram update` reports how to activate each ([792a19u The shim joins the other guidance additively](#792a19u-the-shim-joins-the-other-guidance-additively), [792a19v The update report says how to activate guidance](#792a19v-the-update-report-says-how-to-activate-guidance)).
+- Retained by people or other systems: the user edits the config file, which engram does not edit, and the harness asks the user to approve an import once ([792a19v The update report says how to activate guidance](#792a19v-the-update-report-says-how-to-activate-guidance)).
+
+**Interactions.** For each deployed document that its config file does not import, `engram update` hands the user the line to add, and the harness asks the user to approve the import once; an imported document is reported as refreshed ([792a19v The update report says how to activate guidance](#792a19v-the-update-report-says-how-to-activate-guidance)). A matched runbook hands the agent a procedure that it announces, restates as its plan and verifies against its `done_when` ([792a19m A matched runbook is announced and its steps are the plan](#792a19m-a-matched-runbook-is-announced-and-its-steps-are-the-plan), [792a19o A runbook's done_when is the completion bar](#792a19o-a-runbooks-done_when-is-the-completion-bar)); at a step that is genuinely uncertain the agent asks the user ([792a19p The agent stops and asks when a step is genuinely uncertain](#792a19p-the-agent-stops-and-asks-when-a-step-is-genuinely-uncertain)).
+
+**Boundary assumptions.** The software assumes the user adds the line it reports; a document that is not imported is reported as deployed, with the line to add, and a run that deployed nothing, was not given `--with-guidance` and found no import prints a one-line nudge ([792a19v The update report says how to activate guidance](#792a19v-the-update-report-says-how-to-activate-guidance)). It assumes that a message that arrived with an `[engram memory]` block was already looked up by [automatic memory](../../GLOSSARY.md#automatic-memory); the agent runs no query for that message ([792a19j The first action on every request is an engram query](#792a19j-the-first-action-on-every-request-is-an-engram-query)). It assumes a [session](../../GLOSSARY.md#session) can have the shim and no engram skill, so the commands are named literally ([792a19j The first action on every request is an engram query](#792a19j-the-first-action-on-every-request-is-an-engram-query)).
+
+**Shared rules.** How the documents reach a harness is owned by [Install and Update](./install-and-update.md) ([792a11l Guidance is managed only after opt-in](./install-and-update.md#792a11l-guidance-is-managed-only-after-opt-in), [792a11m Claude import paths keep working](./install-and-update.md#792a11m-claude-import-paths-keep-working)); the escalation on a recent standard by [Recall](./recall.md) ([792a14d Glance escalates to deep for a recent standard](./recall.md#792a14d-glance-escalates-to-deep-for-a-recent-standard)); the bar for a returned lesson by [Learn](./learn.md) ([792a15e The four kinds of explicit lesson](./learn.md#792a15e-the-four-kinds-of-explicit-lesson)); the line's format and hand-over by [Lessons Contract](./lessons-contract.md); routing by [Route](./route.md); the gates of work that please mediated by [Please](./please.md); the trigger text of a runbook by [Memory Query](./memory-query.md) ([792a7y Trigger text](./memory-query.md#792a7y-trigger-text), [792a7za A trigger hit comes first](./memory-query.md#792a7za-a-trigger-hit-comes-first)); the runbook note of a registered skill by [Skill Runbook Registration](./skill-runbook-registration.md); the resolution of a parent-vault note by [Parent Sync](./parent-sync.md).
+
+### 792a19a Recall fires at four decision moments
 
 Requirement: [792a19a Recall fires at four decision moments](#792a19a-recall-fires-at-four-decision-moments) An agent that has the recall guidance MUST run `/recall glance` before it proceeds at each of
 four moments: before it endorses or ranks a proposed approach, even when only discussing it; before it declares
@@ -19,7 +36,7 @@ and before it starts building a new approach.
 Rationale: recall at the start of a task cannot surface what only matters later. A lesson the vault already holds is
 most valuable right before a wrong call locks in, and shipping past one costs far more than a quick glance.
 
-### 792a19a1 UAT Scenarios
+#### 792a19a1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a19a1a A proposed approach is recalled before it is endorsed
@@ -43,7 +60,7 @@ Scenario: 792a19a1d A new approach is recalled before it is built
   Then it runs /recall glance for prior decisions and standards before it starts building
 ```
 
-## 792a19b Recall escalates from glance to deep
+### 792a19b Recall escalates from glance to deep
 
 Requirement: [792a19b Recall escalates from glance to deep](#792a19b-recall-escalates-from-glance-to-deep) An agent that has the recall guidance MUST escalate from `/recall glance` to `/recall deep`
 when the decision is weighty or irreversible, or when glance flags a gap it cannot resolve.
@@ -52,7 +69,7 @@ Rationale: glance is the cheap read-only rung and deep is the thorough one that 
 the thorough rung is reserved for decisions where a miss is expensive. The escalation on the recency channel is
 recall's own rule ([792a14d Glance escalates to deep for a recent standard](./recall.md#792a14d-glance-escalates-to-deep-for-a-recent-standard)).
 
-### 792a19b1 UAT Scenarios
+#### 792a19b1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a19b1a A weighty decision escalates
@@ -66,7 +83,7 @@ Scenario: 792a19b1b An unresolved gap escalates
   Then it escalates to /recall deep
 ```
 
-## 792a19c Learn fires at the correction moment
+### 792a19c Learn fires at the correction moment
 
 Requirement: [792a19c Learn fires at the correction moment](#792a19c-learn-fires-at-the-correction-moment) An agent that has the learn guidance MUST invoke the `learn` skill, before it applies the fix,
 when a review or the user rejects its approach, when a build, test or check fails and the non-obvious cause is now
@@ -76,7 +93,7 @@ Rationale: the confirmed lesson is in hand for exactly one moment. The agent the
 and the lesson is gone, so the next session pays to rediscover it. The value is in the rule the agent was just
 corrected on, which is identical whether the fix is one line or ten.
 
-### 792a19c1 UAT Scenarios
+#### 792a19c1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a19c1a A rejected approach is captured before the fix
@@ -100,7 +117,7 @@ Scenario: 792a19c1d A one-line fix still earns the note
   Then it has invoked the learn skill for the rule first
 ```
 
-## 792a19d The capture is learn's fast path
+### 792a19d The capture is learn's fast path
 
 Requirement: [792a19d The capture is learn's fast path](#792a19d-the-capture-is-learns-fast-path) When the learn guidance fires, the agent MUST capture the one confirmed lesson with the
 `learn` skill, invoked as a skill and not as a plain note file or the harness's own project memory, on the
@@ -112,7 +129,7 @@ cue. The sweep is a cycle-close job; running it mid-task is wasteful, can block 
 capture if it hangs. The rejection is known with confidence long before the full right answer, and an unconfirmed
 guess in the vault rots it.
 
-### 792a19d1 UAT Scenarios
+#### 792a19d1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a19d1a The learn skill is invoked, not a native memory write
@@ -136,7 +153,7 @@ Scenario: 792a19d1d A hunch is not captured
   Then it writes no note
 ```
 
-## 792a19e A returned subagent lesson is captured before the next dispatch
+### 792a19e A returned subagent lesson is captured before the next dispatch
 
 Requirement: [792a19e A returned subagent lesson is captured before the next dispatch](#792a19e-a-returned-subagent-lesson-is-captured-before-the-next-dispatch) When a dispatched subagent returns and its `LESSONS:` line is not `none`, the orchestrating agent
 MUST judge each lesson at that moment against the learn skill's bar ([792a15e The four kinds of explicit lesson](./learn.md#792a15e-the-four-kinds-of-explicit-lesson)): it is one of the four kinds, it is
@@ -150,7 +167,7 @@ report is read is when the confirmed lesson is cheapest to keep. The cue lives i
 dispatch, which no skill mediates, carries it too. The line's format and hand-over are the lessons contract
 ([lessons-contract](./lessons-contract.md)).
 
-### 792a19e1 UAT Scenarios
+#### 792a19e1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a19e1a A confirmed correction is captured before the next unit
@@ -179,7 +196,7 @@ Scenario: 792a19e1e The last return is captured before the turn ends
   Then it has captured the lesson first
 ```
 
-## 792a19f A returned line that fails the bar is not captured
+### 792a19f A returned line that fails the bar is not captured
 
 Requirement: [792a19f A returned line that fails the bar is not captured](#792a19f-a-returned-line-that-fails-the-bar-is-not-captured) The learn guidance MUST NOT fire for a returned `LESSONS:` line that is `none`, for a lesson
 that is a bare success or routine narrative, or for a lesson that is an unconfirmed hypothesis, which are left for
@@ -187,7 +204,7 @@ the closing learn to discard under the same bar.
 
 Rationale: capturing "done, tests pass" or "might be a race" would fill the vault with notes that are not lessons.
 
-### 792a19f1 UAT Scenarios
+#### 792a19f1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a19f1a LESSONS none is skipped
@@ -206,7 +223,7 @@ Scenario: 792a19f1c An unconfirmed hunch is skipped
   Then it does not invoke the learn skill before the next dispatch
 ```
 
-## 792a19g Every unit of work is planned and routed first
+### 792a19g Every unit of work is planned and routed first
 
 Requirement: [792a19g Every unit of work is planned and routed first](#792a19g-every-unit-of-work-is-planned-and-routed-first) An agent that has the delegate guidance MUST draft a plan and route every unit of work to a
 subagent before it takes any direct action on the work itself, whether the unit is a multi-file feature, a
@@ -218,7 +235,7 @@ Rationale: an agent that does the object-level work itself spends its own contex
 Opening a file to orient is starting the work, and building it because the repository is empty is the same. The
 routing is [route](./route.md).
 
-### 792a19g1 UAT Scenarios
+#### 792a19g1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a19g1a A multi-step change is decomposed
@@ -247,7 +264,7 @@ Scenario: 792a19g1e A dispatch is routed
   Then it has used the route skill to pick the tier and the handoff
 ```
 
-## 792a19h Solo work needs a recorded measurement
+### 792a19h Solo work needs a recorded measurement
 
 Requirement: [792a19h Solo work needs a recorded measurement](#792a19h-solo-work-needs-a-recorded-measurement) An agent that has the delegate guidance MUST NOT do object-level work itself on the strength of
 a forecast, such as "it's trivial", "it's just a rename", "a quick fix with the exact files known", "the overhead
@@ -259,7 +276,7 @@ Rationale: the forecast is the same each time and is the failure being guarded a
 skip, so the agent must know a quick fix is quick, not guess it. The red flag is a next tool call on the work with
 no plan routed.
 
-### 792a19h1 UAT Scenarios
+#### 792a19h1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a19h1a A trivial forecast does not license solo work
@@ -278,7 +295,7 @@ Scenario: 792a19h1c A measured record licenses inline work
   Then it may do the unit inline
 ```
 
-## 792a19i Returned work is reviewed fresh and reported with its evidence
+### 792a19i Returned work is reviewed fresh and reported with its evidence
 
 Requirement: [792a19i Returned work is reviewed fresh and reported with its evidence](#792a19i-returned-work-is-reviewed-fresh-and-reported-with-its-evidence) An agent that has the delegate guidance MUST review what a subagent returns with fresh
 context, and not on the strength of the builder's own claim that it is done, and MUST report the outcome with
@@ -287,7 +304,7 @@ route's evidence table, or with the please skill's gate verdicts when please med
 Rationale: reviewing what returns and reporting the outcome are the orchestrator's job; the subagent produces the
 artifact.
 
-### 792a19i1 UAT Scenarios
+#### 792a19i1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a19i1a A completed unit is reviewed fresh
@@ -301,7 +318,7 @@ Scenario: 792a19i1b The report carries the route evidence
   Then the report includes route's evidence table, and the gate verdicts when please mediated the work
 ```
 
-## 792a19j The first action on every request is an engram query
+### 792a19j The first action on every request is an engram query
 
 Requirement: [792a19j The first action on every request is an engram query](#792a19j-the-first-action-on-every-request-is-an-engram-query) An [agent](../../GLOSSARY.md#agent-automatic-memory) that has the shim MUST make its first tool call on every user request an
 `engram query` that carries at least two `--phrase` values (the request in the agent's own words, and the kind of
@@ -323,7 +340,7 @@ not a paraphrase, is what matches a literal trigger ([792a7y Trigger text](./mem
 [792a7za A trigger hit comes first](./memory-query.md#792a7za-a-trigger-hit-comes-first)).
 A block that opens `[engram memory]` shows that [automatic memory](../../GLOSSARY.md#automatic-memory) already looked up memory for that message.
 
-### 792a19j1 UAT Scenarios
+#### 792a19j1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a19j1a A shim-only session queries first
@@ -352,7 +369,7 @@ Scenario: 792a19j1e Deciding to delegate does not skip the query
   Then it runs the engram query first, and the decision to delegate is not an exemption
 ```
 
-### 855a3t1 UAT Scenarios
+#### 855a3t1 UAT Scenarios
 
 ```gherkin
 Scenario: 855a3t1a A message that arrived with a delivered block is not queried for again
@@ -361,7 +378,7 @@ Scenario: 855a3t1a A message that arrived with a delivered block is not queried 
   Then it runs no engram query for that message, and its re-entry moments still run the query
 ```
 
-## 792a19k The second phrase names a kind of work-handling decision
+### 792a19k The second phrase names a kind of work-handling decision
 
 Requirement: [792a19k The second phrase names a kind of work-handling decision](#792a19k-the-second-phrase-names-a-kind-of-work-handling-decision) The shim MUST tell the agent that the second phrase of the first query names the kind of
 situation, in the wording a runbook's own `situation` uses, and not the concrete ticket, and MUST tell it to
@@ -374,7 +391,7 @@ Rationale: casual task wording alone does not reliably surface a process runbook
 does, and a second phrase that restates the ticket reliably fails to. The re-check is generic so that it neither
 overfits to one runbook nor regresses another's retrieval.
 
-### 792a19k1 UAT Scenarios
+#### 792a19k1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a19k1a A deliverable-laden phrase is rewritten
@@ -393,7 +410,7 @@ Scenario: 792a19k1c The re-check does not regress another runbook's retrieval
   Then the runbook is retrieved at the same rate as before
 ```
 
-## 792a19l Each returned kind is treated for what it is
+### 792a19l Each returned kind is treated for what it is
 
 Requirement: [792a19l Each returned kind is treated for what it is](#792a19l-each-returned-kind-is-treated-for-what-it-is) The shim MUST tell the agent how to treat each kind a query returns, and the follow-frame
 obligations ([792a19m A matched runbook is announced and its steps are the plan](#792a19m-a-matched-runbook-is-announced-and-its-steps-are-the-plan) to [792a19q Linked and truncated runbooks get the same frame](#792a19q-linked-and-truncated-runbooks-get-the-same-frame)) MUST apply to `kind: runbook` only. A `fact` is knowledge and context, taken as
@@ -409,7 +426,7 @@ feedback note in storage and ranking. The frame lives in the shim and not in the
 before any runbook is loaded; were it in recall, recall would itself become a runbook. The shim's first action fires
 on every request, which is affordable once per task and not once per tool call, so it is guidance and not a hook.
 
-### 792a19l1 UAT Scenarios
+#### 792a19l1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a19l1a A fact with steps gets no frame
@@ -428,7 +445,7 @@ Scenario: 792a19l1c Chunks are not instructions
   Then it acts on the notes and fetches a chunk only to fill a gap the notes leave
 ```
 
-## 792a19m A matched runbook is announced and its steps are the plan
+### 792a19m A matched runbook is announced and its steps are the plan
 
 Requirement: [792a19m A matched runbook is announced and its steps are the plan](#792a19m-a-matched-runbook-is-announced-and-its-steps-are-the-plan) When a returned note has `kind: runbook` and its `situation` matches the task at hand, and not
 merely a related one, the agent MUST state in a text block which runbook it is executing, by its basename, and MUST
@@ -440,7 +457,7 @@ end state, and the frame closes that gap. A fact with the same body gets no fram
 extension of the recall guidance, because that guidance names `/recall glance`, which a shim-only session does not
 have.
 
-### 792a19m1 UAT Scenarios
+#### 792a19m1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a19m1a The announcement precedes the first mutating action
@@ -459,13 +476,13 @@ Scenario: 792a19m1c A related runbook is not followed
   Then it does not announce it as the runbook it is executing
 ```
 
-## 792a19n A runbook's red flags are read first and stop the agent
+### 792a19n A runbook's red flags are read first and stop the agent
 
 Requirement: [792a19n A runbook's red flags are read first and stop the agent](#792a19n-a-runbooks-red-flags-are-read-first-and-stop-the-agent) The agent MUST read a matched runbook's `red_flags`, if it has any, before it starts, and when a
 listed condition occurs it MUST stop, name the red flag and the step it is rereading in its next text block, and
 reread that step before its next mutating command.
 
-### 792a19n1 UAT Scenarios
+#### 792a19n1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a19n1a A red flag stops the work
@@ -479,12 +496,12 @@ Scenario: 792a19n1b A runbook without red flags starts normally
   Then it proceeds without a red-flag step
 ```
 
-## 792a19o A runbook's done_when is the completion bar
+### 792a19o A runbook's done_when is the completion bar
 
 Requirement: [792a19o A runbook's done_when is the completion bar](#792a19o-a-runbooks-done_when-is-the-completion-bar) The agent MUST NOT report a task done until the matched runbook's `done_when` holds, and MUST
 verify each condition and not assume it.
 
-### 792a19o1 UAT Scenarios
+#### 792a19o1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a19o1a Completion waits for verification
@@ -498,7 +515,7 @@ Scenario: 792a19o1b An unmet condition blocks the report
   Then it does not report the task done
 ```
 
-## 792a19p The agent stops and asks when a step is genuinely uncertain
+### 792a19p The agent stops and asks when a step is genuinely uncertain
 
 Requirement: [792a19p The agent stops and asks when a step is genuinely uncertain](#792a19p-the-agent-stops-and-asks-when-a-step-is-genuinely-uncertain) When the outcome of a step of a matched runbook is genuinely uncertain, when the step names a target
 that plainly is not present (no remote, no ticket queue, no CI), or when two things the runbook requires are
@@ -514,7 +531,7 @@ context now and for next time, and never a failure or a reason to invent the loc
 before an action that cannot be undone, where an honest "I'm guessing" means ask. Stopping at a phase boundary of an
 agreed workflow is a failure of the opposite kind. The shim contains no "proceed anyway" language.
 
-### 792a19p1 UAT Scenarios
+#### 792a19p1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a19p1a An ambiguous step yields a question
@@ -538,7 +555,7 @@ Scenario: 792a19p1d A specific instruction beats its incidental example
   Then it follows the specific instruction and does not stop on the clash alone
 ```
 
-## 792a19q Linked and truncated runbooks get the same frame
+### 792a19q Linked and truncated runbooks get the same frame
 
 Requirement: [792a19q Linked and truncated runbooks get the same frame](#792a19q-linked-and-truncated-runbooks-get-the-same-frame) The agent MUST fetch with `engram show <basename>` and apply the whole frame ([792a19m A matched runbook is announced and its steps are the plan](#792a19m-a-matched-runbook-is-announced-and-its-steps-are-the-plan) to [792a19p The agent stops and asks when a step is genuinely uncertain](#792a19p-the-agent-stops-and-asks-when-a-step-is-genuinely-uncertain))
 to a runbook that a matched runbook wikilinks, before the step that linked it. It MUST fetch a matched runbook in
@@ -550,7 +567,7 @@ a runbook that the query returned from a parent vault (`from_parent`) and the ru
 Rationale: the frame is stated for the kind and not for a source, so the agent does not need to know where a note came
 from. That a bare `engram show <basename>` resolves a note held only in the parent vault is parent-sync's ([parent-sync](./parent-sync.md)).
 
-### 792a19q1 UAT Scenarios
+#### 792a19q1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a19q1a A linked runbook is fetched and followed
@@ -574,7 +591,7 @@ Scenario: 792a19q1e A registered skill's runbook is followed
   Then it applies the frame to the matched runbook and does not defer to the skill's own description-based firing
 ```
 
-## 792a19r One floor beneath every runbook
+### 792a19r One floor beneath every runbook
 
 Requirement: [792a19r One floor beneath every runbook](#792a19r-one-floor-beneath-every-runbook) The shim MUST state, once, the rules that apply to every runbook uniformly: the urge to shortcut a
 step is the cue to reread it and not a reason to skip it; substituting a related action for the one the step names is
@@ -585,7 +602,7 @@ MUST NOT restate these rules.
 Rationale: stating the floor once keeps every note down to its situation, steps, completion bar and task-specific
 red flags, so a runbook cannot drift from the floor by rewording it.
 
-### 792a19r1 UAT Scenarios
+#### 792a19r1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a19r1a The floor is in the shim and not in the notes
@@ -599,7 +616,7 @@ Scenario: 792a19r1b A related action is not a completion
   Then it asks rather than doing something that accomplishes the same goal
 ```
 
-## 792a19s A signal of unrequested work is a standing instruction
+### 792a19s A signal of unrequested work is a standing instruction
 
 Requirement: [792a19s A signal of unrequested work is a standing instruction](#792a19s-a-signal-of-unrequested-work-is-a-standing-instruction) The shim MUST tell the agent to treat a tool result that names pending work it was not asked to do,
 such as the `pending_offers` flag and hint of `engram query`, as a standing instruction, and after finishing the
@@ -609,7 +626,7 @@ no skill or runbook, so that a later signal of the same shape needs no further e
 
 Rationale: a result outside the scope of the request is easy to read as optional context. Pending offers are curate's.
 
-### 792a19s1 UAT Scenarios
+#### 792a19s1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a19s1a Pending work is acted on after the request
@@ -628,7 +645,7 @@ Scenario: 792a19s1c The rule is generic
   Then it names no specific skill or runbook
 ```
 
-## 792a19t The query runs again at four moments mid-task
+### 792a19t The query runs again at four moments mid-task
 
 Requirement: [792a19t The query runs again at four moments mid-task](#792a19t-the-query-runs-again-at-four-moments-mid-task) The shim MUST tell the agent to run `engram query` again, with the same two phrase shapes re-keyed to
 what is in front of it, before it endorses or ranks a proposed approach, even when only discussing it; before it
@@ -639,7 +656,7 @@ offers one, when the decision is weighty or irreversible or the pass surfaces a 
 Rationale: the first query does not cover the rest of the task. These are the same four moments as [792a19a Recall fires at four decision moments](#792a19a-recall-fires-at-four-decision-moments), for a
 session whose recall is carried by the shim.
 
-### 792a19t1 UAT Scenarios
+#### 792a19t1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a19t1a Work is queried before it is declared done
@@ -658,7 +675,7 @@ Scenario: 792a19t1c A weighty decision escalates to deep
   Then it uses the deep procedure
 ```
 
-## 792a19u The shim joins the other guidance additively
+### 792a19u The shim joins the other guidance additively
 
 Requirement: [792a19u The shim joins the other guidance additively](#792a19u-the-shim-joins-the-other-guidance-additively) The set of guidance documents that engram expects a harness's own config file to import MUST be
 `recall.md`, `delegate.md`, `learn.md` and `shim.md`, with `shim.md` added to the other three and not substituted
@@ -669,7 +686,7 @@ cover work that is not in a runbook, so the four are an additive set. Activating
 deployed documents a session's own config imports, and is distinct from getting the files onto disk ([792a11l Guidance
 is managed only after opt-in](./install-and-update.md#792a11l-guidance-is-managed-only-after-opt-in)).
 
-### 792a19u1 UAT Scenarios
+#### 792a19u1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a19u1a A config with three imports gains the shim
@@ -683,7 +700,7 @@ Scenario: 792a19u1b The shim does not replace the other documents
   Then recall.md, delegate.md and learn.md remain imported
 ```
 
-## 792a19v The update report says how to activate guidance
+### 792a19v The update report says how to activate guidance
 
 Requirement: [792a19v The update report says how to activate guidance](#792a19v-the-update-report-says-how-to-activate-guidance) When guidance is deployed for a harness whose config file can import it, `engram update` MUST print
 one line per deployed document: `guidance refreshed: ~/<guidance dir>/<name>` when that harness's config already imports
@@ -698,7 +715,7 @@ Rationale: an import is a line in a file the user owns, which engram does not ed
 exactly what to add. The nudge is shown only to a user who has neither opted in nor wired an import, and so has not
 yet been told guidance exists. The canonical-path suffix on Claude Code lines is install-and-update's ([install-and-update](./install-and-update.md); [792a11m1d The report states the canonical path](./install-and-update.md#792a11m1-uat-scenarios)).
 
-### 792a19v1 UAT Scenarios
+#### 792a19v1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a19v1a A Claude Code document not yet imported is deployed with its line to add

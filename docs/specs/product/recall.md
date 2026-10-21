@@ -2,13 +2,28 @@
 
 `recall` is the skill an agent runs before work that takes more than a single tool call or quick thought. It states the agent's plan, retrieves raw conversation chunks and crystallized vault notes in one ranking, judges what the retrieved items say against the plan, and reports out loud whether memory changed the plan. At its deeper rung it also grows the vault: it refreshes or rewrites the notes that cover a cluster of evidence and writes a note where none does. The retrieval it runs is memory-query's ([memory-query](./memory-query.md)), and the writes go through learn's worker ([write-memory](./write-memory.md)) and note revision ([note-revision](./note-revision.md)); this capability is what the agent does with them. The shipped procedure is `agent-instructions/skills/recall/SKILL.md`. Its steps are numbered in the skill (Step 0 to Step 4) and cited here by those numbers.
 
-## 792a14a The plan is stated before anything is retrieved
+## 792a14 Recall
+
+**Participants and responsibilities.**
+- The caller: names the depth, `deep` when it names none ([792a14c Recall has two depths](#792a14c-recall-has-two-depths)).
+- The agent: runs the [recall skill](../../GLOSSARY.md#recall-skill), stating its plan before it retrieves, judging the retrieved items against the plan and telling the user whether memory changed it ([792a14a The plan is stated before anything is retrieved](#792a14a-the-plan-is-stated-before-anything-is-retrieved), [792a14m The closing synthesis says whether memory changed the plan](#792a14m-the-closing-synthesis-says-whether-memory-changed-the-plan)).
+- The agent, in deep mode: judges whether a [candidate](../../GLOSSARY.md#candidate-note) [note](../../GLOSSARY.md#permanent-note) covers each [cluster](../../GLOSSARY.md#cluster-query-time), amends or writes notes accordingly and persists a sound conclusion ([792a14j Coverage is judged by the agent and written once per cluster](#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster), [792a14p A sound conclusion is persisted as a derived note](#792a14p-a-sound-conclusion-is-persisted-as-a-derived-note)).
+- The software: ships the procedure as `agent-instructions/skills/recall/SKILL.md`, and the [binary](../../GLOSSARY.md#binary) retrieves the matches in one ranking, amends notes and activates the notes used ([792a14f One unified query](#792a14f-one-unified-query), [792a14j Coverage is judged by the agent and written once per cluster](#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster)).
+- Retained by people or other systems: the parent [vault](../../GLOSSARY.md#vault) keeps its notes, which recall activates and never amends ([792a14k A note from the parent vault is activated, never amended](#792a14k-a-note-from-the-parent-vault-is-activated-never-amended)).
+
+**Interactions.** The agent hands the software its query phrases in one `engram query`, and the software returns the matched items with their clusters and candidate notes, beside a recent-activity block ([792a14f One unified query](#792a14f-one-unified-query), [792a14g The payload is read by kind and by channel](#792a14g-the-payload-is-read-by-kind-and-by-channel)). For a cluster that no candidate states, the agent hands one note to the [write-memory](../../GLOSSARY.md#write-memory-skill) skill; for a covered or near candidate it runs `engram amend` itself ([792a14j Coverage is judged by the agent and written once per cluster](#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster)). After the clusters, the agent hands the software the notes it used to activate, and shows the user the closing synthesis ([792a14l Only the notes that were used are activated](#792a14l-only-the-notes-that-were-used-are-activated), [792a14m The closing synthesis says whether memory changed the plan](#792a14m-the-closing-synthesis-says-whether-memory-changed-the-plan)).
+
+**Boundary assumptions.** The software assumes the index can be swept; when the [sweep](../../GLOSSARY.md#sweep) fails, recall says so and still runs the query ([792a14b The index is swept once per session](#792a14b-the-index-is-swept-once-per-session)). It assumes the matched channel holds something; when it is empty, recall says so in one sentence, skips the coverage step and proceeds with its plan ([792a14g The payload is read by kind and by channel](#792a14g-the-payload-is-read-by-kind-and-by-channel)). It assumes a note from the parent vault is not the agent's to amend; recall activates it and writes no note that restates it ([792a14k A note from the parent vault is activated, never amended](#792a14k-a-note-from-the-parent-vault-is-activated-never-amended)).
+
+**Shared rules.** The retrieval is owned by [Memory Query](./memory-query.md); the write handoff by [Write Memory](./write-memory.md); the amending of a note by [Note Revision](./note-revision.md); the curation of a pulled-down copy, run as a separate step afterward, by [Curate](./curate.md).
+
+### 792a14a The plan is stated before anything is retrieved
 
 Requirement: [792a14a The plan is stated before anything is retrieved](#792a14a-the-plan-is-stated-before-anything-is-retrieved) Recall MUST print, before any `engram` call, three blocks in plain prose: the Ask (what is being asked, in the agent's own words, in one or two sentences), the Situation (the concrete context, such as the repository, the branch, the operation underway and what is loaded) and the Plan (the numbered actions the agent would take next absent any guidance from memory).
 
 Rationale: an unstated plan cannot be tested against memory. The synthesis at the end walks this plan item by item, so skipping the step leaves the rest of the procedure with nothing to compare.
 
-### 792a14a1 UAT Scenarios
+#### 792a14a1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a14a1a The three blocks come first
@@ -22,13 +37,13 @@ Scenario: 792a14a1b The plan is the unguided plan
   Then the plan lists the actions it would take with no help from memory, as a numbered list
 ```
 
-## 792a14b The index is swept once per session
+### 792a14b The index is swept once per session
 
 Requirement: [792a14b The index is swept once per session](#792a14b-the-index-is-swept-once-per-session) Recall MUST run `engram ingest --auto` before it queries, so that the index holds the latest sessions and document edits, MUST NOT run it again when a sweep already ran earlier in the same session, and MUST continue to query when the sweep fails, saying so.
 
 Rationale: a sweep takes seconds when nothing changed. A re-sweep inside a session indexes only turns already in the agent's context, and a change made elsewhere is picked up by the next sweep, so suspicion of one is not a reason to sweep again. A slightly stale index still beats no retrieval.
 
-### 792a14b1 UAT Scenarios
+#### 792a14b1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a14b1a The first recall of a session sweeps
@@ -47,7 +62,7 @@ Scenario: 792a14b1c A failed sweep does not stop recall
   Then it says the sweep failed and still runs the query
 ```
 
-## 792a14c Recall has two depths
+### 792a14c Recall has two depths
 
 Requirement: [792a14c Recall has two depths](#792a14c-recall-has-two-depths) Recall MUST run in one of two modes chosen by the caller: `deep`, which MUST be the mode when the caller names none, and `glance`, which MUST be used when the caller names it. Deep MUST run the whole procedure, applying memory to the decision and growing the vault. Glance MUST apply memory to the decision without writing vault knowledge: it MUST use about three query phrases instead of ten, MUST keep the reading of candidates (Step 2.5A), the recency weighting (Step 2.5B), the activation (Step 2.7), the closing synthesis (Step 3) and the re-entry query (Step 3.5), and MUST skip the coverage writes (Step 2.5C) and the persisting of a conclusion (Step 4).
 
@@ -55,7 +70,7 @@ Rationale: glance exists so that recall can fire often at everyday decision poin
 irreversible ones, or when recall should also learn. Glance's activation still bumps the used notes' recency metadata
 and pulls a used parent note down as a pending copy, which are kept; neither is a knowledge write.
 
-### 792a14c1 UAT Scenarios
+#### 792a14c1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a14c1a No mode means deep
@@ -79,14 +94,14 @@ Scenario: 792a14c1d Glance still reads, weights, activates and synthesizes
   Then it reads the candidates, applies the recency weight, activates the notes it used and closes with the plan synthesis
 ```
 
-## 792a14d Glance escalates to deep for a recent standard
+### 792a14d Glance escalates to deep for a recent standard
 
 Requirement: [792a14d Glance escalates to deep for a recent standard](#792a14d-glance-escalates-to-deep-for-a-recent-standard) Recall in glance mode MUST switch to deep when its decision turns on honoring a standard that surfaced in the recent-activity channel (an item such as "use X going forward" or "the new convention is Y"), and MUST NOT escalate for applying conventions, for recency supersession within the matched set, or for abduction and synthesis.
 
 Rationale: glance reliably surfaces a recent-channel item but does not elevate it to a requirement, so deep is the
 rung that honors such a standard.
 
-### 792a14d1 UAT Scenarios
+#### 792a14d1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a14d1a A recent convention that the decision turns on
@@ -100,7 +115,7 @@ Scenario: 792a14d1b Ordinary conventions do not escalate
   Then it stays in glance and completes
 ```
 
-## 792a14e Ten phrases from ten angles
+### 792a14e Ten phrases from ten angles
 
 Requirement: [792a14e Ten phrases from ten angles](#792a14e-ten-phrases-from-ten-angles) Recall in deep mode MUST generate exactly ten short, specific query phrases, one from each of these angles: the situation or setting, the user's intent or goal, the current concrete action, the problem or blocker, a candidate solution or approach, the tooling or technology in play, prior related work, an adjacent technique, a failure mode to avoid and the domain or concept. It MUST NOT pre-filter them beyond dropping obvious dross such as a bare noun, and MUST phrase them by the task and not by fear.
 
@@ -109,7 +124,7 @@ candidates. "Implementing Claude Code hooks" retrieves the lessons for the task,
 hooks" retrieves only warnings. The binary caps each phrase to its top 30 matches. Glance's three phrases are the
 retrieval floor.
 
-### 792a14e1 UAT Scenarios
+#### 792a14e1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a14e1a Ten phrases, one per angle
@@ -123,14 +138,14 @@ Scenario: 792a14e1b Phrases name the task, not the fear
   Then the phrase names a task or failure as it would occur in work, not a generic warning about hooks
 ```
 
-## 792a14f One unified query
+### 792a14f One unified query
 
 Requirement: [792a14f One unified query](#792a14f-one-unified-query) Recall MUST run ONE `engram query --lazy-chunks` that carries every phrase as a repeatable `--phrase="<phrase>"`, MUST NOT run one query per phrase, and MUST NOT pass `--vault` or `--chunks-dir`, because the binary resolves the vault and the chunk index itself. It MUST NOT dispatch subagents to synthesize clusters.
 
 Rationale: the query clusters the matched notes and chunks together in one pass, which phrase-by-phrase calls would
 split. Cluster synthesis runs inline in the recall skill.
 
-### 792a14f1 UAT Scenarios
+#### 792a14f1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a14f1a All phrases in one call
@@ -149,11 +164,11 @@ Scenario: 792a14f1c Values are attached to their flags
   Then it is --phrase="-..." with the quote touching the equals sign
 ```
 
-## 792a14g The payload is read by kind and by channel
+### 792a14g The payload is read by kind and by channel
 
 Requirement: [792a14g The payload is read by kind and by channel](#792a14g-the-payload-is-read-by-kind-and-by-channel) Recall MUST read the items of the matched channel by kind and MUST treat the recent-activity channel as situational context only. A chunk item is evidence from which the agent extracts the convention, decision or correction it shows, and MUST NOT be quoted wholesale. A fact, feedback or runbook note is a crystallized lesson that the agent applies directly from its inline content. An item with `provenance: explore` is judged with the notes the clusters nominate. Items with `provenance: recent` MUST NOT be used for coverage or synthesis judgment, are the agent's own recent activity and MUST NOT be re-derived or met with surprise. When the matched channel is empty, recall MUST say so in one sentence, skip the coverage step and proceed with its plan, and a non-empty recent block alone MUST NOT count as something surfacing.
 
-### 792a14g1 UAT Scenarios
+#### 792a14g1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a14g1a Chunks are evidence, not quotations
@@ -177,7 +192,7 @@ Scenario: 792a14g1d An empty matched set is reported
   Then it says in one sentence that nothing matched, skips the coverage step and proceeds with its plan
 ```
 
-## 792a14h Chunk content is read before a cluster is judged
+### 792a14h Chunk content is read before a cluster is judged
 
 Requirement: [792a14h Chunk content is read before a cluster is judged](#792a14h-chunk-content-is-read-before-a-cluster-is-judged) Recall MUST read the content of every chunk member of a cluster with `engram show-chunk <source#anchor>` before stating any relevance or coverage judgment about that cluster, including a cluster whose candidate list is empty. It MUST read a note candidate's content directly from the payload, MUST NOT run `engram show` for it, and MUST NOT judge a chunk from its path, title or anchor alone.
 
@@ -185,7 +200,7 @@ Rationale: under `--lazy-chunks` a chunk item carries no content, so a judgment 
 evidence. The rule is in the skill's own text and not in a vault note, because a note about correctly running that
 step has no trigger surface during the step's own execution.
 
-### 792a14h1 UAT Scenarios
+#### 792a14h1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a14h1a A zero-note cluster still gets its chunks read
@@ -209,11 +224,11 @@ Scenario: 792a14h1d Candidate notes are read from the payload
   Then it runs no engram show for them and reads their content before judging coverage
 ```
 
-## 792a14i A newer claim wins only when it conflicts
+### 792a14i A newer claim wins only when it conflicts
 
 Requirement: [792a14i A newer claim wins only when it conflicts](#792a14i-a-newer-claim-wins-only-when-it-conflicts) Recall MUST treat evidence as conflicting only when a newer member explicitly negates or reverses an older claim (for example "no longer", "replaced by", "use X not Y", or the same subject and predicate with a different object in a newer item), and when it conflicts MUST let the newer win. When it does not conflict, recall MUST treat older and newer evidence as independently valid and MUST NOT demote a stable convention because it lacks a recent instance.
 
-### 792a14i1 UAT Scenarios
+#### 792a14i1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a14i1a A reversal favors the newer note
@@ -232,13 +247,13 @@ Scenario: 792a14i1c A candidate that only matches the superseded claim is near
   Then it judges the candidate near and not covered
 ```
 
-## 792a14j Coverage is judged by the agent and written once per cluster
+### 792a14j Coverage is judged by the agent and written once per cluster
 
 Requirement: [792a14j Coverage is judged by the agent and written once per cluster](#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster) In deep mode, [recall](../../GLOSSARY.md#recall-skill) MUST judge, for each [cluster](../../GLOSSARY.md#cluster-query-time) and then for the explore items, whether a [candidate](../../GLOSSARY.md#candidate-note) [note](../../GLOSSARY.md#permanent-note) covers the cluster's principle, from the content read and not from cosine alone, and MUST act on the outcome. When a candidate states the principle with no material omission against the recency-weighted view, the outcome is covered and recall MUST run `engram amend --target <candidate> --activate --chunk-source <ids>` and MUST NOT rewrite its content. When a candidate addresses the same situation and omits at least one substantive part of its own claim (the same subject and the same principle) that the members evidence, the outcome is near and recall MUST run `engram amend` with the chunk sources and content flags that sharpen the note's own claim from all members, recency-weighted, and MUST NOT add a different claim to it. When no candidate states the cluster's principle (a candidate on the same situation with a different claim does not), the outcome is absent: recall MUST then hand off to the [write-memory](../../GLOSSARY.md#write-memory-skill) skill one note of kind [fact](../../GLOSSARY.md#fact-note-type) or [feedback](../../GLOSSARY.md#feedback-note-type) with the cluster's chunk-source IDs and a descriptive source only when the principle is durable (still true and useful to a future task that has nothing to do with this one: not status, a plan, a branch, worktree or ticket name, a timestamp, a finding about this [session](../../GLOSSARY.md#session)'s incident or an episode) and atomic (one claim), and otherwise MUST write nothing, and the situation of the note MUST name no ticket or change number unless the lesson is about it. When the write corrects, narrows or refutes a surfaced note, recall MUST also pass `--supersedes="<basename>|<type>|<claim>"` with type `updates`, `narrows` or `refutes`. Recall MUST write at most one note per cluster, the representative being a note and never a chunk, MUST wait for each write before the next cluster, and MUST NOT hand-author vocabulary tags.
 
 Rationale: coverage is judged by the agent, not by a cosine threshold, because cosine only nominates the within-cluster top-five candidates. An empty candidate list is a reason to create when the principle is durable and atomic, not to skip the cluster. Near sharpens a note's own claim and never adds another, so that a note does not collect unrelated claims. A write is blocking because the note created or updated for one cluster may be a candidate for another. Updates use `engram amend` and `engram learn` creates only, so the amend path is the one that keeps both copies of a note in step.
 
-### 792a14j1 UAT Scenarios
+#### 792a14j1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a14j1a Covered refreshes provenance and recency only
@@ -282,7 +297,7 @@ Scenario: 792a14j1h Updates never use learn
   Then it uses engram amend and not engram learn --target
 ```
 
-### 855a3s1 UAT Scenarios
+#### 855a3s1 UAT Scenarios
 
 ```gherkin
 Scenario: 855a3s1a A different claim on the same situation is absent and not near
@@ -296,11 +311,11 @@ Scenario: 855a3s1b A cluster that is not durable writes nothing
   Then it writes no note for it
 ```
 
-## 792a14k A note from the parent vault is activated, never amended
+### 792a14k A note from the parent vault is activated, never amended
 
 Requirement: [792a14k A note from the parent vault is activated, never amended](#792a14k-a-note-from-the-parent-vault-is-activated-never-amended) Recall MUST NOT run `engram amend` on an item with `from_parent: true` or on its pending pulled copy, MUST NOT write a new note that restates it, and MUST activate it when it covers a cluster. This holds even when the user asks to enrich or record against that note: the copy becomes an amend target only after curation accepts it.
 
-### 792a14k1 UAT Scenarios
+#### 792a14k1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a14k1a A parent note covers a cluster
@@ -314,7 +329,7 @@ Scenario: 792a14k1b A pending copy is not amended
   Then the agent curates first and amends the copy only afterward
 ```
 
-## 792a14l Only the notes that were used are activated
+### 792a14l Only the notes that were used are activated
 
 Requirement: [792a14l Only the notes that were used are activated](#792a14l-only-the-notes-that-were-used-are-activated) After processing the clusters, recall MUST run one `engram activate` with a `--note` for each note it actually drew on (a candidate judged covered or near, and any note cited in the closing synthesis), and MUST skip the call when it drew on no notes. It MUST NOT activate every returned note, MUST NOT activate a chunk or a recent-channel item, and MUST activate a used `from_parent` note the same way, by its path. Activation applies in both modes. Recall MUST NOT curate the pulled copies as part of the recall in either mode: it MUST leave them pending, finish the user's request, run the curate skill as a separate step afterward, and say in its reply that it did or that the copies await curation.
 
@@ -323,7 +338,7 @@ goes stale and it fades by recency rank, which is the supersede-by-competition m
 note would defeat it. Regularly useful memory stays fresh and never-retrieved memory decays and loses rank. The "vault
 holds pending offer(s) awaiting curation" warning that activation may print is expected, not an error.
 
-### 792a14l1 UAT Scenarios
+#### 792a14l1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a14l1a Used notes are activated
@@ -352,11 +367,11 @@ Scenario: 792a14l1e No notes drawn, no activation
   Then it runs no engram activate
 ```
 
-## 792a14m The closing synthesis says whether memory changed the plan
+### 792a14m The closing synthesis says whether memory changed the plan
 
 Requirement: [792a14m The closing synthesis says whether memory changed the plan](#792a14m-the-closing-synthesis-says-whether-memory-changed-the-plan) Recall MUST close with a synthesis shown to the user that opens with one sentence counting what the query surfaced and what was crystallized ("Query surfaced N items (K chunks, M notes); crystallized J lessons."), walks the Step 0 plan in order marking each numbered action confirmed, adjusted (and how), contradicted or silent, leads the load-bearing conventions with "Apply these as requirements:" drawn from lessons and chunk evidence alike, and surfaces contradictions inline where they affect the action. It MUST NOT dump the payload, MUST NOT paste whole chunks or list raw scores or paths, and MUST be one sentence when memory was silent on everything.
 
-### 792a14m1 UAT Scenarios
+#### 792a14m1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a14m1a The count opens the synthesis
@@ -385,13 +400,13 @@ Scenario: 792a14m1e No payload dump
   Then the reply contains no re-emitted payload, pasted chunk or list of raw scores or paths
 ```
 
-## 792a14n A recommendation is reconciled against the asked task
+### 792a14n A recommendation is reconciled against the asked task
 
 Requirement: [792a14n A recommendation is reconciled against the asked task](#792a14n-a-recommendation-is-reconciled-against-the-asked-task) Before recall states any option, lever or recommendation that the work generated, it MUST reconcile it against the asked task and the decisions already in context, MUST default to the asked task, and MAY deviate only by naming a genuinely new fact and stating that it is reversing direction. It MUST NOT substitute a prerequisite, a better test or a more rigorous foundation as the thing to do first, and MUST NOT treat reasoning already in context as new evidence.
 
 Rationale: substituting a prerequisite feels like diligence but relitigates the settled task. Reconcile against prior outcomes, not mere mentions.
 
-### 792a14n1 UAT Scenarios
+#### 792a14n1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a14n1a The asked task stays first
@@ -405,13 +420,13 @@ Scenario: 792a14n1b Old reasoning is not new evidence
   Then it does not count that reasoning as the new fact
 ```
 
-## 792a14o An emergent recommendation is checked against the vault
+### 792a14o An emergent recommendation is checked against the vault
 
 Requirement: [792a14o An emergent recommendation is checked against the vault](#792a14o-an-emergent-recommendation-is-checked-against-the-vault) Before the synthesis is shown, when it is about to ship a recommendation, lever or approach, named as the thing to do, that does not appear in the Step 0 plan, recall MUST run one more `engram query --lazy-chunks` keyed to the recommendation itself with three phrases (the recommendation in its own words, the recommendation with "rolled back rejected not worth it superseded", and the recommendation with "tried measured outcome"), applying the recency weight to what returns. The synthesis MUST carry one `Re-entry:` line per emergent recommendation directly above the final recommendation statement, in one of three forms: clean (with the best-match basename or "no items"), CLOSED with the prior outcome and "drop", or CLOSED with the prior outcome and "revisit because" named new evidence. A recommendation MUST NOT ship without its line. A CLOSED recommendation marked drop MUST be withdrawn, with the synthesis saying what replaces it. A revisit MUST be valid only with new evidence that did not exist when the note was written, and re-weighing the note's own tradeoffs MUST NOT count. A note this query surfaced and the agent cites MUST be included in the activation, which MUST run again if it already ran. The step MUST run in both modes.
 
 Rationale: this checks the vault for evidence outside the agent's context. The reconcile of [792a14n A recommendation is reconciled against the asked task](#792a14n-a-recommendation-is-reconciled-against-the-asked-task) checks reasoning already in context. The line is the proof that the check ran.
 
-### 792a14o1 UAT Scenarios
+#### 792a14o1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a14o1a A new recommendation triggers a re-entry query
@@ -445,13 +460,13 @@ Scenario: 792a14o1f A recommendation without its line violates the step
   Then it violates the step
 ```
 
-## 792a14p A sound conclusion is persisted as a derived note
+### 792a14p A sound conclusion is persisted as a derived note
 
 Requirement: [792a14p A sound conclusion is persisted as a derived note](#792a14p-a-sound-conclusion-is-persisted-as-a-derived-note) In deep mode, when the closing synthesis reaches a sound, non-trivial conclusion that no existing note states, recall MUST hand one synthesis note per conclusion to the write-memory skill as a fact or feedback, in which the note is the conclusion itself and not a restatement of an input. Recall MUST state a deduction as following necessarily and MUST mark an abduction or induction as probable, a best explanation or defeasible. It MUST mark the source as derived (for example `--source="synthesis (abduction) from recalled memory"`) and, when the conclusion corrects, narrows or refutes a surfaced note, include that note's basename, type and claim in the handoff. It MUST NOT persist a hunch, a conclusion it would hedge below probable, or a conclusion that merely re-aggregates one note, and MUST NOT hand-author a vocabulary tag or a supersession backlink. It MAY type an inline `[[full-basename]]` citation of an input note into the body.
 
 Rationale: reasoning that is never written down evaporates; the note records the outcome and grows the web. A non-truth-preserving inference is a hypothesis, not a fact (vault note 69), and persisting only sound conclusions keeps the vault from rotting (vault note 68).
 
-### 792a14p1 UAT Scenarios
+#### 792a14p1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a14p1a A sound new conclusion is handed off
@@ -480,13 +495,13 @@ Scenario: 792a14p1e Citations are typed inline
   Then it types [[full-basename]] itself and writes no vocab tag or Supersedes line
 ```
 
-## 792a14q A cited synthesis is also captured as a question and answer
+### 792a14q A cited synthesis is also captured as a question and answer
 
 Requirement: [792a14q A cited synthesis is also captured as a question and answer](#792a14q-a-cited-synthesis-is-also-captured-as-a-question-and-answer) When a persisted synthesis body contains at least one `[[full-basename]]` wikilink, recall MUST also hand off to the write-memory skill a note of kind qa carrying the verbatim question, the synthesis conclusion as the answer, a certainty matching the synthesis note's label, as contributors the wikilink basenames found in the body, and the source "recall Step 4, session <date>". It MUST NOT ask the agent to list its inputs freely, and MUST skip the capture when the body has no wikilink.
 
 Rationale: contributors are extracted from wikilinks the agent already wrote. A body with no citation has no provenance to record, so at least one citation is the bar.
 
-### 792a14q1 UAT Scenarios
+#### 792a14q1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a14q1a A cited synthesis gets a qa note

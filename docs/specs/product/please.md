@@ -4,7 +4,23 @@
 
 Rationale: LLM-generated artifacts do not self-certify. Catching one's own plan's flaws is necessary and not sufficient, because the author's context carries the author's blind spots; the gates put a fresh reviewer per angle outside that context. The workflow is non-waivable because the cost of a step scales with the work, so a small ask makes a cheap workflow and never an exemption.
 
-## 792a18a The skill fires on a handed-over multi-step ask
+## 792a18 Please
+
+**Participants and responsibilities.**
+- The user: hands over the ask, answers the clarifying questions and is asked to settle a finding that stays unresolved after about two rounds ([792a18a The skill fires on a handed-over multi-step ask](#792a18a-the-skill-fires-on-a-handed-over-multi-step-ask), [792a18n Findings are argued to resolution](#792a18n-findings-are-argued-to-resolution)).
+- The orchestrator, the agent following the please [skill](../../GLOSSARY.md#skill): keeps the seven steps on the task list in order, challenges the ask once, and writes, commits and gates the plan ([792a18c The seven steps are tracked, ordered and non-waivable](#792a18c-the-seven-steps-are-tracked-ordered-and-non-waivable), [792a18e The ask is challenged once, directly, then committed to](#792a18e-the-ask-is-challenged-once-directly-then-committed-to), [792a18g The plan is written, committed and gated](#792a18g-the-plan-is-written-committed-and-gated)).
+- The orchestrator: delegates object-level work and gate reviews to [subagents](../../GLOSSARY.md#subagent) routed per [Route](./route.md) ([792a18s Object-level work is delegated](#792a18s-object-level-work-is-delegated)), and runs the closing learn with the collected lessons and the [lessons audit](../../GLOSSARY.md#lessons-audit) ([792a18r The closing learn gets the lessons and the audit](#792a18r-the-closing-learn-gets-the-lessons-and-the-audit)).
+- The reviewers: fresh-context subagents, one per angle at each of four gates, each charged to refute the artifact and to argue its findings to resolution ([792a18l Four gates, each with a fresh reviewer per angle](#792a18l-four-gates-each-with-a-fresh-reviewer-per-angle), [792a18n Findings are argued to resolution](#792a18n-findings-are-argued-to-resolution)).
+- The software: ships the procedure as `agent-instructions/skills/please/SKILL.md`, one skill with one registered [runbook](../../GLOSSARY.md#runbook) note and no subcommand of its own.
+- Retained by people or other systems: the user decides whether the ask goes ahead once it is challenged; please proceeds on a reaffirmation and records the dissent ([792a18e The ask is challenged once, directly, then committed to](#792a18e-the-ask-is-challenged-once-directly-then-committed-to)).
+
+**Interactions.** The user hands the ask to please; with no concrete ask, please asks the one question "What would you like me to work on?" and waits ([792a18a The skill fires on a handed-over multi-step ask](#792a18a-the-skill-fires-on-a-handed-over-multi-step-ask), [792a18b An ask is required](#792a18b-an-ask-is-required)). Please hands the artifact of each gate to one fresh reviewer per angle, the reviewers return findings, and the author fixes or rebuts each until the reviewer acknowledges it ([792a18l Four gates, each with a fresh reviewer per angle](#792a18l-four-gates-each-with-a-fresh-reviewer-per-angle), [792a18n Findings are argued to resolution](#792a18n-findings-are-argued-to-resolution)). A finding still unresolved after about two rounds goes to the user through `AskUserQuestion` with both positions ([792a18n Findings are argued to resolution](#792a18n-findings-are-argued-to-resolution)). Please hands the collected `LESSONS:` lines and the audit's map to the closing learn, and shows the audit list to the user in the closing report ([792a18p The closing learn is preceded by a lessons audit](#792a18p-the-closing-learn-is-preceded-by-a-lessons-audit), [792a18r The closing learn gets the lessons and the audit](#792a18r-the-closing-learn-gets-the-lessons-and-the-audit)).
+
+**Boundary assumptions.** The software assumes the mechanism of each step exists in the environment; a step is marked not applicable only when it does not, with a one-line rationale naming the missing mechanism ([792a18c The seven steps are tracked, ordered and non-waivable](#792a18c-the-seven-steps-are-tracked-ordered-and-non-waivable)). It assumes no particular skill is installed: a skill for planning, test-driven development, plan execution, verification or committing is used when one is, and otherwise please applies the discipline directly ([792a18g The plan is written, committed and gated](#792a18g-the-plan-is-written-committed-and-gated), [792a18i Execution follows test-driven development](#792a18i-execution-follows-test-driven-development)). It assumes the subject of a review angle exists; an angle whose subject is absent is marked not applicable and the missing subject is named out loud ([792a18n Findings are argued to resolution](#792a18n-findings-are-argued-to-resolution)).
+
+**Shared rules.** Routing, including the model of each reviewer, is owned by [Route](./route.md); the completion-report contract and the collection of subagent lessons by [Lessons Contract](./lessons-contract.md) ([792a16f The closing learn gets the whole list](./lessons-contract.md#792a16f-the-closing-learn-gets-the-whole-list)); the closing learn and the question-and-answer capture by [Learn](./learn.md) ([792a15k An answered question is captured once](./learn.md#792a15k-an-answered-question-is-captured-once)); the reconcile of a recommendation against the asked task by [Recall](./recall.md) ([792a14n A recommendation is reconciled against the asked task](./recall.md#792a14n-a-recommendation-is-reconciled-against-the-asked-task)); the trigger cues of a runbook note by [Write Memory](./write-memory.md) ([792a13m Trigger cues are specific, author-chosen strings](./write-memory.md#792a13m-trigger-cues-are-specific-author-chosen-strings)).
+
+### 792a18a The skill fires on a handed-over multi-step ask
 
 Requirement: [792a18a The skill fires on a handed-over multi-step ask](#792a18a-the-skill-fires-on-a-handed-over-multi-step-ask) Please MUST fire on the explicit form `/please <ask>` however trivial the ask looks, because the user chose the workflow deliberately, and on natural-language phrasings of the same intent ("please do X", "please work through X", "please take care of X", "work through X end-to-end", "take this end-to-end", "drive X to completion", "see this through"). It MUST NOT fire on a casual "please" attached to a single trivial action ("please read this file", "please rename this var"). For a natural-language ask, it MUST fire when the ask plausibly entails any of planning, more than one file, testing, documentation, a commit or closing an issue, MUST NOT fire when the ask plausibly resolves to a single file edit or tool call with no follow-up, and MUST fire when the boundary is genuinely unclear.
 
@@ -15,7 +31,7 @@ strings](./write-memory.md#792a13m-trigger-cues-are-specific-author-chosen-strin
 only discriminator retrieval sees, so it is positive-only and process-shaped: embeddings do not encode negation, so a
 never-for-a-casual-please clause would attract the excluded phrases.
 
-### 792a18a1 UAT Scenarios
+#### 792a18a1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a18a1a The slash form always fires
@@ -39,11 +55,11 @@ Scenario: 792a18a1d An unclear boundary fires
   Then it runs the workflow
 ```
 
-## 792a18b An ask is required
+### 792a18b An ask is required
 
 Requirement: [792a18b An ask is required](#792a18b-an-ask-is-required) When `/please` is invoked bare, or the natural-language request has no concrete ask, please MUST ask exactly one targeted question ("What would you like me to work on?") through `AskUserQuestion` and wait, and MUST take no other action in the meantime: it MUST NOT create tasks, run recall or learn, read files, or open the transcript.
 
-### 792a18b1 UAT Scenarios
+#### 792a18b1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a18b1a A bare invocation gets one question
@@ -57,13 +73,13 @@ Scenario: 792a18b1b Nothing happens meanwhile
   Then no task was created, no recall or learn ran, and no file was read
 ```
 
-## 792a18c The seven steps are tracked, ordered and non-waivable
+### 792a18c The seven steps are tracked, ordered and non-waivable
 
 Requirement: [792a18c The seven steps are tracked, ordered and non-waivable](#792a18c-the-seven-steps-are-tracked-ordered-and-non-waivable) At the start of execution, please MUST push all seven steps to the task list in a single `TaskCreate` call, mark each step in progress when it begins and completed when it finishes, and start each step only after the previous step is completed. A step MUST be marked not applicable only when its mechanism does not exist in the environment (for example step 6's commit when the repository is not under version control, or step 7's closing learn when the engram binary is absent), with a one-line rationale naming the missing mechanism written into the task description. "Too small to bother", "nothing to document" and "no memories will be relevant" MUST NOT count. The user MUST NOT be able to waive steps by saying "no ceremony", "skip the plan" or "hurry". When the user interrupts and redirects, please MUST update the task list to the new shape and MUST NOT abandon open steps without an explicit close.
 
 Rationale: a step that produces nothing costs little, and the closing learn records that it did. The workflow is fast when there is little to capture.
 
-### 792a18c1 UAT Scenarios
+#### 792a18c1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a18c1a Seven tasks in one call
@@ -97,11 +113,11 @@ Scenario: 792a18c1f A redirect updates the list
   Then the task list reflects the new shape and no open step is dropped without an explicit close
 ```
 
-## 792a18d The workflow opens with learn and orients with recall
+### 792a18d The workflow opens with learn and orients with recall
 
 Requirement: [792a18d The workflow opens with learn and orients with recall](#792a18d-the-workflow-opens-with-learn-and-orients-with-recall) Please MUST begin with step 1, the `learn` skill, to preserve anything pending from the session so far, before starting new work. Step 2 MUST begin with a literal invocation of recall, with queries derived from the ask, and MUST NOT substitute reading the working tree for it ("I already know this repo", "small ask", "I'll just grep" are the moments recall matters most): file reads surface working-tree content and recall surfaces vault content. Step 2 MUST loop until the ask is understood: it MUST read the repository's relevant markdown (the project instructions, the files under `docs/`, any glossary, architecture or design notes), MUST ask the user clarifying questions about intent or new concepts through `AskUserQuestion`, MUST NOT move on while material doubt remains about the ask's meaning or whether it should be done as stated, and MUST state the agent's own assessment of the ask (sound, flawed or underspecified).
 
-### 792a18d1 UAT Scenarios
+#### 792a18d1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a18d1a Learn first
@@ -120,13 +136,13 @@ Scenario: 792a18d1c Orientation loops on doubt
   Then it asks the user and repeats the loop until understanding is solid
 ```
 
-## 792a18e The ask is challenged once, directly, then committed to
+### 792a18e The ask is challenged once, directly, then committed to
 
 Requirement: [792a18e The ask is challenged once, directly, then committed to](#792a18e-the-ask-is-challenged-once-directly-then-committed-to) Please MUST evaluate the ask on its merits during orientation, treating flaws, cheaper alternatives, contradictions with repository norms or recalled memory, and unnamed risks as findings to raise. It MUST challenge plainly and directly before planning around the problem, stating the issue and its concrete stakes in declarative sentences, and MUST NOT soften it into a leading question, bury it mid-plan or preface it with reflexive praise. A reply MUST NOT open with praise or agreement before analysis. It MUST challenge once, clearly; when the user weighs the challenge and reaffirms, it MUST proceed wholeheartedly and record the dissent in the plan ("considered X; user chose Y because Z") and MUST NOT relitigate it later or hedge passively in the work.
 
 Rationale: a collaborator is not a yes-machine. Silent execution of a flawed ask is the core sycophancy failure.
 
-### 792a18e1 UAT Scenarios
+#### 792a18e1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a18e1a A flaw is stated with stakes
@@ -145,13 +161,13 @@ Scenario: 792a18e1c The user's reaffirmation is recorded and honored
   Then the plan records "considered X; user chose Y because Z" and the agent does not raise the challenge again
 ```
 
-## 792a18f A challenge does not displace the asked task
+### 792a18f A challenge does not displace the asked task
 
 Requirement: [792a18f A challenge does not displace the asked task](#792a18f-a-challenge-does-not-displace-the-asked-task) Once the user gives the ask, or a gate approves the plan, please MUST treat the asked task as settled and begin it. It MUST NOT substitute adjacent, deferred or "more rigorous" prerequisite work (a better test, "the real blocker") for what was asked, and MUST NOT treat a dependency-order or "we can't fully verify yet" argument as new evidence. It MUST NOT deviate except by naming a genuinely new fact and stating that it is reversing direction.
 
 Rationale: challenging the ask means stress-testing it in place. Recommending a prerequisite first feels like diligence but relitigates the settled task. The same rule binds recall's recommendations ([792a14n A recommendation is reconciled against the asked task](./recall.md#792a14n-a-recommendation-is-reconciled-against-the-asked-task)).
 
-### 792a18f1 UAT Scenarios
+#### 792a18f1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a18f1a The asked task begins
@@ -165,11 +181,11 @@ Scenario: 792a18f1b A reversal needs a new fact
   Then it names a genuinely new fact and says it is reversing direction
 ```
 
-## 792a18g The plan is written, committed and gated
+### 792a18g The plan is written, committed and gated
 
 Requirement: [792a18g The plan is written, committed and gated](#792a18g-the-plan-is-written-committed-and-gated) Step 3 MUST write a plan that accomplishes the ask, using a plan-writing skill when one is installed and writing it directly otherwise. When the user already supplied a plan, please MUST NOT skip the step: it MUST capture the plan as the planning artifact, review it, fill gaps and write it down. When the repository is under version control, it MUST commit the plan, and the plan MUST NOT count as approved until gate A closes. It MUST NOT write code before the plan is committed.
 
-### 792a18g1 UAT Scenarios
+#### 792a18g1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a18g1a A user-supplied plan is still captured
@@ -183,7 +199,7 @@ Scenario: 792a18g1b The plan is committed before code
   Then the plan is committed and gate A has closed before any code is written
 ```
 
-## 792a18h A change to a repeated invariant gets an enumeration grep
+### 792a18h A change to a repeated invariant gets an enumeration grep
 
 Requirement: [792a18h A change to a repeated invariant gets an enumeration grep](#792a18h-a-change-to-a-repeated-invariant-gets-an-enumeration-grep) When a planned change alters a repeated invariant (a payload shape, a sweep cadence, a command set, a count or a naming convention echoed across docs, diagrams or skills), please MUST run, before writing the documentation-scrub task, a search of the repository for the term itself, its synonyms, its hyphenated or compound forms and the old text's echoes in diagram labels and comments, and MUST paste the resulting per-file disposition list into the plan. Each entry MUST name the file, a disposition (keep, update, rewrite or N/A) and a one-line reason. The grep MUST run however large the surface looks or however small the change appears.
 
@@ -191,7 +207,7 @@ Rationale: the failure it targets is salience under load, not a capability gap: 
 when the scrub is the salient task, and misses it when the scrub is an incidental consequence of a larger feature ask.
 The rule's cost scales with the surface, so a small surface is a cheap grep and never an exemption.
 
-### 792a18h1 UAT Scenarios
+#### 792a18h1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a18h1a A repeated invariant changes
@@ -215,11 +231,11 @@ Scenario: 792a18h1d A minimal change to a widely referenced concept
   Then the full grep runs and the cost does not exempt the change
 ```
 
-## 792a18i Execution follows test-driven development
+### 792a18i Execution follows test-driven development
 
 Requirement: [792a18i Execution follows test-driven development](#792a18i-execution-follows-test-driven-development) Step 4 MUST take each unit through red, green and refactor, using a test-driven-development skill when one is installed and applying the discipline directly otherwise. Red MUST validate the challenge with a repeatable test (or the closest analogue for non-code work), green MUST make it pass with the minimal change, and refactor MUST keep the result DRY, SRP-respecting and YAGNI-compliant so that updates fit as if written as part of the whole. Each refactor MUST pass gate B before the unit is declared done. Please MUST drive the plan from step 3 with a plan-execution skill when one is installed and by working it task by task otherwise, and MUST verify before declaring any unit done, by a verification skill when installed and otherwise by running the actual commands and reading their output.
 
-### 792a18i1 UAT Scenarios
+#### 792a18i1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a18i1a RED is not skipped as too simple
@@ -238,11 +254,11 @@ Scenario: 792a18i1c Each refactor is gated
   Then gate B has closed over the refactored diff
 ```
 
-## 792a18j The documentation matches the new reality
+### 792a18j The documentation matches the new reality
 
 Requirement: [792a18j The documentation matches the new reality](#792a18j-the-documentation-matches-the-new-reality) Step 5 MUST update every piece of documentation the change touches (`README.md`, `CLAUDE.md`, `docs/`, glossaries, skill references) so that the documentation matches the new reality, and the step MUST complete only when gate C closes over every touched document.
 
-### 792a18j1 UAT Scenarios
+#### 792a18j1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a18j1a Touched docs are updated and gated
@@ -251,11 +267,11 @@ Scenario: 792a18j1a Touched docs are updated and gated
   Then every doc that names the command is updated and gate C has closed over each one
 ```
 
-## 792a18k Completion closes the issue, cleans up and commits
+### 792a18k Completion closes the issue, cleans up and commits
 
 Requirement: [792a18k Completion closes the issue, cleans up and commits](#792a18k-completion-closes-the-issue-cleans-up-and-commits) Step 6 MUST close the originating issue when the work came from one, MUST delete any planning or temporary build and test artifacts created along the way, and when the repository is under version control MUST stage and commit the changes, through a commit-focused skill when one is installed and directly otherwise. Commit messages and any outward prose MUST pass gate D before the commit or close.
 
-### 792a18k1 UAT Scenarios
+#### 792a18k1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a18k1a Completion cleans up and commits
@@ -264,13 +280,13 @@ Scenario: 792a18k1a Completion cleans up and commits
   Then the issue is closed, temporary artifacts are deleted, the changes are committed, and the commit messages passed gate D first
 ```
 
-## 792a18l Four gates, each with a fresh reviewer per angle
+### 792a18l Four gates, each with a fresh reviewer per angle
 
 Requirement: [792a18l Four gates, each with a fresh reviewer per angle](#792a18l-four-gates-each-with-a-fresh-reviewer-per-angle) Please MUST run four adversarial review gates. Gate A fires at the end of step 3, before any execution, over the committed plan or spec. Gate B fires in step 4 after every refactor phase, over the refactored unit's diff. Gate C fires at the end of step 5, over every documentation file touched. Gate D fires in step 6 before the commit or close, over commit messages, issue text and any outward prose. At each gate please MUST fan out one fresh-context reviewer subagent per angle, sharing no author context, and the gated step MUST NOT be completed until every finding is resolved. The angles MUST be: for gate A, ask-alignment, code-alignment, docs/diagrams-alignment and clarity/standards; for gate B, design-fit; for gate C, relevance and clarity/cohesion; for gate D, clarity/standards. Running a gate MUST be non-waivable, MUST NOT merge angles into one reviewer, and MUST NOT be skipped because the artifact is "obviously fine" or small; the model for each reviewer MUST be routed per angle by route, with the defaults sonnet for ask-alignment, code-alignment and design-fit and haiku for the others.
 
 Rationale: a small artifact is a cheap review, and "obviously fine" is the author's blind spot. Merging angles merges blind spots.
 
-### 792a18l1 UAT Scenarios
+#### 792a18l1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a18l1a Gate A fans out four reviewers
@@ -309,11 +325,11 @@ Scenario: 792a18l1g Staffing is routed
   Then it applies the route rubric to confirm or adjust the default
 ```
 
-## 792a18m Each reviewer tries to refute the artifact
+### 792a18m Each reviewer tries to refute the artifact
 
 Requirement: [792a18m Each reviewer tries to refute the artifact](#792a18m-each-reviewer-tries-to-refute-the-artifact) Each reviewer MUST be charged to refute the artifact and not to bless it, by its angle. Ask-alignment MUST trace every element of the user's verbatim ask to a plan item and every plan item back to the ask, with gaps and scope creep as findings, and ask whether the point of the ask is front-and-center. Code-alignment MUST check the plan against the actual working tree (paths, interfaces, patterns, conventions) and verify against the code and not the plan's claims. Docs/diagrams-alignment MUST check the plan against the architecture diagrams, design docs and glossaries, MUST verify every disposition of an author-pasted enumeration-grep list against the files, and MUST still run its own independent discovery pass, because the reviewer is never the list's source and the list never narrows its scan. Clarity/standards MUST check that the prose is clear, concise and per the repository's writing standards. Design-fit MUST check that the refactored result is DRY, SRP-respecting and YAGNI-compliant and reads as if written as part of the whole. Relevance MUST check that each updated document needs the change and whether any other document is now stale. Clarity/cohesion MUST check that each change is clear, concise and cohesive with the surrounding document.
 
-### 792a18m1 UAT Scenarios
+#### 792a18m1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a18m1a Ask-alignment finds a gap and scope creep
@@ -332,11 +348,11 @@ Scenario: 792a18m1c A clean pass says what was checked
   Then its report states what it checked and does not just bless the artifact
 ```
 
-## 792a18n Findings are argued to resolution
+### 792a18n Findings are argued to resolution
 
 Requirement: [792a18n Findings are argued to resolution](#792a18n-findings-are-argued-to-resolution) Each reviewer MUST recall first, with phrases drawn from the artifact and its angle, before it reviews. Its findings MUST be refutations with concrete stakes (a quote or `file:line`, why it fails the angle, and what better looks like), and a clean pass MUST state what was checked. The author MUST address every finding by fixing it or rebutting it with reasons, the reviewer MUST ACK or counter, and the reviewer MUST be kept alive until its gate closes. A finding MUST NOT be dropped silently. After about two unresolved rounds, please MUST stop, summarize both positions and escalate through `AskUserQuestion`. The gate itself (a fresh reviewer per angle, recall-first, argued to resolution) MUST NOT be waived by the availability of a review-focused skill, which a reviewer may apply as its discipline source. An angle MUST be marked not applicable only when its subject is absent from the environment (no diagrams in the repository, no documents touched) and the missing subject MUST be named out loud; "the artifact is small" MUST NOT be a skip.
 
-### 792a18n1 UAT Scenarios
+#### 792a18n1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a18n1a A reviewer recalls first
@@ -360,13 +376,13 @@ Scenario: 792a18n1d An absent subject is named
   Then it marks the angle not applicable and says out loud that no diagrams exist
 ```
 
-## 792a18o Measured claims in an escalation carry provenance
+### 792a18o Measured claims in an escalation carry provenance
 
 Requirement: [792a18o Measured claims in an escalation carry provenance](#792a18o-measured-claims-in-an-escalation-carry-provenance) Any measured claim (a count, rate, cost or duration) in a mid-cycle escalation, an `AskUserQuestion` or a stop report, MUST carry its evidence pointer (the file or command that produced it) and a one-line validity statement that answers "verified how?". A claim whose honest validity line is "not verified" MUST NOT ship as a finding: it MUST be verified first or presented explicitly as an unverified hypothesis.
 
 Rationale: the user decides on escalations, and they get provenance.
 
-### 792a18o1 UAT Scenarios
+#### 792a18o1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a18o1a A measured claim has a pointer
@@ -380,13 +396,13 @@ Scenario: 792a18o1b An unverified figure is labeled
   Then it presents it as an unverified hypothesis and not a finding
 ```
 
-## 792a18p The closing learn is preceded by a lessons audit
+### 792a18p The closing learn is preceded by a lessons audit
 
 Requirement: [792a18p The closing learn is preceded by a lessons audit](#792a18p-the-closing-learn-is-preceded-by-a-lessons-audit) Before the closing learn at step 7, please MUST audit the cycle's mechanical corpus: every pre-registered stop that fired, every gate FAIL verdict, every commit whose message contains CORRECTION, supersede or superseded, instrument-invalid, or redraw or redrawn, and every mid-cycle escalation to the user. It MUST map each item to the vault note that captures its lesson, or write the one-line "no lesson: <why>"; MUST treat an unmapped item as a reversal handoff for the closing learn ([792a15e The four kinds of explicit lesson](./learn.md#792a15e-the-four-kinds-of-explicit-lesson)); and MUST show the audit list (item → note or no-lesson) in the cycle's closing report to the user. It MUST NOT use the audit for positive reinforcement, which has no mechanical marker and belongs to the closing learn's confirmed-approach scan.
 
 Rationale: the audit is failure-shaped by design.
 
-### 792a18p1 UAT Scenarios
+#### 792a18p1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a18p1a The corpus is enumerated
@@ -410,14 +426,14 @@ Scenario: 792a18p1d The list is in the closing report
   Then the report includes the item → note-or-no-lesson list
 ```
 
-## 792a18q A lesson about to be captured asks what should have surfaced it
+### 792a18q A lesson about to be captured asks what should have surfaced it
 
 Requirement: [792a18q A lesson about to be captured asks what should have surfaced it](#792a18q-a-lesson-about-to-be-captured-asks-what-should-have-surfaced-it) For each lesson the cycle is about to capture, please MUST ask which artifact that already existed should have surfaced it first, MUST search the vault for a note that already covers the situation before writing a new one, and MUST, when a note existed but did not surface at the moment it was needed, check whether its `situation:` line matches how the moment actually presented and reword the note when it does not, in preference to writing a second note on the same lesson. It MUST propose a change that ships from the repository (code, skills, guidance) only as a last resort, and MUST NOT file it automatically.
 
 Rationale: a vault note is the user's own and takes effect on their next recall, while anything that ships from the
 repository makes the user wait on a release.
 
-### 792a18q1 UAT Scenarios
+#### 792a18q1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a18q1a An existing note is searched for first
@@ -436,11 +452,11 @@ Scenario: 792a18q1c A repository change is a last resort
   Then it proposes the change only as a last resort and files nothing automatically
 ```
 
-## 792a18r The closing learn gets the lessons and the audit
+### 792a18r The closing learn gets the lessons and the audit
 
 Requirement: [792a18r The closing learn gets the lessons and the audit](#792a18r-the-closing-learn-gets-the-lessons-and-the-audit) Please MUST run the `learn` skill again at step 7 and hand it the full list of `LESSONS:` lines collected across step 4's dispatches ([792a16f The closing learn gets the whole list](./lessons-contract.md#792a16f-the-closing-learn-gets-the-whole-list)) together with the audit's map, and MUST NOT duplicate learn's ad-hoc question-and-answer capture ([792a15k An answered question is captured once](./learn.md#792a15k-an-answered-question-is-captured-once)), which learn performs for substantive answered questions.
 
-### 792a18r1 UAT Scenarios
+#### 792a18r1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a18r1a The closing learn receives both inputs
@@ -454,11 +470,11 @@ Scenario: 792a18r1b The question-and-answer capture is learn's
   Then it does not write the pair itself
 ```
 
-## 792a18s Object-level work is delegated
+### 792a18s Object-level work is delegated
 
 Requirement: [792a18s Object-level work is delegated](#792a18s-object-level-work-is-delegated) Please MUST delegate object-level work and gate reviews to subagents per the route skill, and the orchestrator MUST route, decompose and synthesize without doing the object-level work itself.
 
-### 792a18s1 UAT Scenarios
+#### 792a18s1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a18s1a Reviews and building are dispatched
