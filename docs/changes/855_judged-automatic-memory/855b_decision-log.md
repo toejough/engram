@@ -505,3 +505,47 @@ The dogfood of 2026-10-20 showed three deliveries for one message, two of them f
 ## 855b123 The shim guidance skips its query for a message that arrived with a delivered block
 
 When the [prompt](../793_automatic-memory/793a_product-spec.md#793a1a-terms) cue delivered a block, the shim's `engram query` for the same message found essentially the same [notes](../../GLOSSARY.md#permanent-note). `shim.md` now says that a block opening `[engram memory]` attached to the user's message means the delivery ran the query, so the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms) does not run it for that message; every other rule, the re-entry moments among them, stands. Rejected: the mod withholding the prompt delivery when the shim will run, because the memory would vanish when the agent skips the shim; both sides, because of double maintenance. The pressure rows are in [855e6j2](./855e_implementation-plan.md#855e6j2-the-shim-query-is-skipped-after-a-delivery). The shim query's other outputs, the `pending_offers` instruction among them, are lost on those [turns](../793_automatic-memory/793a_product-spec.md#793a1a-terms): the accepted cost of the skip. The guidance reaches a machine by `[engram update](../../GLOSSARY.md#engram-update) --with-guidance`. Decided by: Author; the owner may flip it.
+
+## 855b124 The acceptance run is one run, not ten
+
+The owner dropped the 10-run tallies on 2026-10-20: the full `targ acceptance` suite runs once at the merge, and a judgement row that fails is rerun once, both results reported. This supersedes 855b49 and 793b86 for this merge; the gate of 855e7, every `Runs` cell and the text of 855e2 are amended to say so. Rejected: the tally of 10 runs against the bar of 9. Decided by: Owner (2026-10-20).
+
+## 855b125 One fast-forward merge promotes 793 and 855 together
+
+793 and 855 are promoted on `feat/judged-automatic-memory`, 793's deltas first and 855's after, and both change directories are deleted in the same merge. The gate of 855e7 (793 promoted and merged first, then a rebase) is met in substance: main has not moved since `d2ddbbb7`, so the rebase is a no-op; the links into `../793_automatic-memory/` and the conformance check are re-pointed in the same step. Rejected: promoting 793 on `feat/automatic-memory`, merging it, and rebasing 855 (the owner ordered one merge point, and the rebase would rewrite 877 commits). Decided by: Author (default; owner may override).
+
+## 855b126 Canonical requirements are modified to match the shipped skills and the delta
+
+`792a15e` (learn: durable and atomic, a save request for status writes no note), `792a14j` (recall: near is the note's own claim, absent only when durable and atomic; scenarios 1b and 1c restated) and `792a19j` (the shim skips its query for a message that arrived with a delivered block) get the operations 855a3r to 855a3v and four new scenarios (855a3r1a, 855a3s1a, 855a3s1b, 855a3t1a, each with a test in `dev/skillrules_integration_internal_test.go`); the requirement 793a2c of the delta gets 855a3w (`asked it to remember something` becomes `asked it to remember something durable`), because 855a2g makes every note durable and the two would contradict. No test is named with the canonical IDs 792a15e, 792a14j or 792a19j, so none had to be kept passing. Rejected: leaving the canonical text contradicting the shipped skills. Decided by: Author (default; owner may override).
+
+## 855b127 Four memory skills in 855a2e
+
+The requirement names recall, learn, curate and write-memory, as the code, the tests and 855b122 do. Rejected: three. Decided by: Author (default; owner may override).
+
+## 855b128 Partial Modified operations are promoted as complete texts
+
+855d4f is applied as an edit of the `auto` command list of 792b2c3 (Supports and Rationale of 793d4e kept); 855d4m and 855d4w are composed from the 793 text and the 855 changes. Rejected: applying 855d4f verbatim (it would drop seven Supports and the Rationale). Decided by: Author (default; owner may override).
+
+## 855b129 The hypotheses are measurements and are not promoted
+
+The nine scenarios of 855d7a are not promoted; their tests stay as built. The formats of 855d8a and the candidate details of 855d8b stay as sub-sections of `prompt-delivery.md` and `recall-lookup.md` (D10 says to fold them into the requirement text; they keep their IDs so that the links of the requirements stay valid, PD4); the verified host facts the mod relies on are in the Orientation of `automatic-memory-mod.md`. Rejected: promoting measurements. Decided by: Author (default; owner may override).
+
+## 855b130 Links to deleted documents are removed and rationale is trimmed
+
+Citations of `793b`, `793c`, `793e`, `793f`, `855b`, `855c`, `855e`, `855f` are removed with their parenthesis; rationale keeps the sentence that says why and drops dates, history, measurements and alternatives; the two renamed scenario titles are used everywhere. Rejected: keeping dead links. Decided by: Author (default; owner may override).
+
+## 855b131 The conformance check reads the canonical specifications
+
+It reads every file under `docs/specs/product` and `docs/specs/technical`, asserts a `Test<ID>_` function for every `Scenario: (793|855)[ad]...` ID, drops the Removed exemption, and asserts 178 IDs of 793 and 133 of 855; the text reference `(855c8)` of `measure_cost_test.go` is reworded; comments that cite deleted documents are reworded. Rejected: deleting the check. Decided by: Author (default; owner may override).
+
+## 855b132 The plans are set to Merged before the directories go
+
+Every node of 793e (but 793e6f, deferred, see 793b133) and 855e is set to `Merged`, the stale `Blocked by` labels of 855e6g1-g8 are corrected, in one commit; the deletion commit carries `Fixes #793` and `Fixes #855`; #856 stays open. Rejected: deleting without the commit (git history would hold plans with stale states). Decided by: Author (default; owner may override).
+
+## 855b133 Validation of the promotion
+
+`mdlinkcheck.py` over `docs/` (0 broken), `verify_promotion.py` (0 failures), `dupslugs.py` over the new and changed files, `git grep` for the deleted documents and the retired IDs (none outside `dev/eval/`), in place of `check_docs.py`, which reads one change directory (PD15), the conformance test, `targ test` and `targ check-full` on the final commit, all through the isolated runners. Rejected: no validation (the repository has no wired docs validator). Decided by: Author (default; owner may override).
+
+## 855b134 Stale counts and malformed rows of 855e get one-line fixes
+
+Only where a one-line fix makes the row parse; the plan is deleted with the directory. Rejected: rewriting the plan. Decided by: Author (default; owner may override).

@@ -518,3 +518,39 @@ The documents of this change called three things a record: the [transcript](../.
 ## 793b125 The bound of a long transcript's judgement is a gap between two readings, and the test holds 20 seconds
 
 [793d4g1q A long transcript is judged in time](./793d_technical-spec.md#793d4g1-scenarios) promises a time, so the test measures one; nothing else it could count tells a reading that redacts the whole [transcript](../../GLOSSARY.md#transcript) from one that redacts the window, for the redaction is called inside `Judge` and not handed in. The 2 seconds of the scenario held on an idle machine (0.3 s) and failed at 2.998 s in a parallel run under load, with the behavior intact. The test keeps `t.Parallel()` and holds 20 seconds: more than six times what a loaded run took, and under the 42 s of the reading that redacted every message twice. The scenario's 2 seconds stay the expectation of an idle machine. A, after the pre-push gate failed on it.
+
+## 793b126 A requirement with several owning components stays one requirement
+
+`793d4j` (redaction, owners moment-judgement, recall-lookup, turn-judgement, lesson-placement, lesson-writing) and `793d4m` (the prompts the user sends, owners moment-judgement, prompt-delivery, conversation-sweep) are each stated once, in the file of the first-named owner, `moment-judgement.md`, with an Owner line naming every owner; each other owner's file holds a one-line pointer under `Shared requirements`. This closes 793c66 for this merge. Rejected: a redaction component of its own, which no change names; minting one at promotion is a design change. A.
+
+## 793b127 The 18 default-suite tests that cross the real filesystem keep their tags
+
+They keep the tags 793b99 recorded; the guide rule is an open defect to be filed as a follow-up GitHub issue after the merge, not stated in the canonical specifications. Closes 793c67. Rejected: retagging 18 tests in the promotion. A.
+
+## 793b128 `dev/eval/auto-judge/` stays outside every gate, unchanged
+
+As built, outside every gate (793b120's default); its references to the deleted decision logs stay as recorded measurements. Closes 793c89. Rejected: gating the probe. A.
+
+## 793b129 The terms enter the glossary in the merge
+
+The ten terms of 793a1a as 855a3a modifies them, the term mod of 793d1 and the eleven terms of 855d1b are entered in `docs/GLOSSARY.md` under `## Automatic memory terms` (named so that the entry `automatic memory` keeps its own slug); every link that pointed at a Terms anchor points at the entry; the entry `depth (recall moment)` and the existing `recall modes` entry refer to each other. Closes 793c90. Rejected: leaving the terms in the change documents. A.
+
+## 793b130 The interaction requirements are four technical workflow specs
+
+`793d2a`, `793d2b`, `793d2c` and `855d2c` become `prompt-delivery-workflow.md`, `turn-capture-workflow.md`, `conversation-sweep-workflow.md` and `mid-turn-recall-workflow.md`, each titled `<Name> Technical Workflow - Technical Spec`, with a final-state diagram; their owner is the mod, whose file `automatic-memory-mod.md` holds only an Orientation. Rejected: the current guide's `-flow.md` names (the guides are replaced next). A.
+
+## 793b131 New component files and one product file
+
+`prompt-delivery`, `session-context`, `turn-judgement`, `lesson-writing`, `conversation-sweep`, `moment-judgement`, `recall-lookup`, `lesson-placement`, `phrase-judgement` under `docs/specs/technical/`, each with a minted defining ID (`793d3b`-`793d3f`, `855d3a`-`855d3d`); `automatic-memory.md` under `docs/specs/product/` holds 793a2, 793a3 and 855a2. Rejected: scattering the nodes over existing files. A.
+
+## 793b132 Stale canonical context is corrected
+
+`install-and-update.md` line 4 and its cross-link, the Orientation and the texts of 792b29c2 and 792b29c17 in `harness-deploy-sync.md`, the command list of `command-line-surface.md`, and the merged Rationale of 792a2e. The sentences added to 792b29c2 and 792b29c17 are the Modified operations of D13 (their Supports lists are unchanged: no delta gives them any), and 793a2a1f is added to the Supports of 793d4b, which the mapping 793d5u says realizes it. Rejected: leaving them stale. A.
+
+## 793b133 793c34 stays deferred
+
+The owner answered 793c1 and 793c21 on 2026-10-18 (no time bound on the hold; applied by 855a3c, 855a3d, 855d2a); the promoted text carries the 855 wording. The delivery looks up the local vault only (793b57), so the notes of a parent vault that the recall skill merges (the glossary entry `applies to a recall moment`) are not delivered; the entry says so in one sentence. 793e6f stays unbuilt, with a follow-up GitHub issue. Rejected: building the parent merge in this merge. A.
+
+## 793b134 The shapes of the promoted files
+
+The planner defaults of `promotion-plan.md` (workflow files take the flow heading as their defining heading; requirement headings at level 2 and scenario blocks at level 3 in the new technical files; scenario blocks of a Modified requirement stay as two headings, the 793 ids and the 855 ids; 855d8a/8b kept as sub-sections; glossary section `## Automatic memory terms` and headings with `(automatic memory)` for generic words, agent, prompt and turn among them; four new D7 scenarios with text-presence tests; the operation 855a3w; 793e6f not set to Merged). Rejected: the alternatives recorded there. A.
