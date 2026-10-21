@@ -318,7 +318,7 @@ func Test793a2c1i_ARequestToRememberIsWrittenWhenTheAgentSaysItDidNotSaveIt(t *t
 		chat = machine.startSession("zorblax").converse()
 	})
 
-	step(t, "When the user asks the agent in a prompt to remember something and not to save it itself, "+
+	step(t, "When the user asks the agent in a prompt to remember something durable and not to save it itself, "+
 		"the agent says that it did not save it, and the turn ends", func() {
 		replied := chat.tell(askToRememberAndNotSave)
 

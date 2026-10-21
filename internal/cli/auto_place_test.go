@@ -142,7 +142,7 @@ func Test855d4h1e_Place_AReplyThatIsNotAListFailsTheCommand(t *testing.T) {
 	}
 }
 
-func TestPlace_ALessonTheVaultAlreadyStatesIsNotPlaced(t *testing.T) {
+func Test858b2a1a_Place_ALessonTheVaultAlreadyStatesIsNotPlaced(t *testing.T) {
 	t.Parallel()
 
 	vault := t.TempDir()
