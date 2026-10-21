@@ -208,7 +208,8 @@ func firstOf(text, fallback string) string {
 	return text
 }
 
-// refusal returns why a note is never amended, or nothing: a note of the parent vault and a pending copy are not amended.
+// refusal returns why a note is never amended, or nothing: a note of the parent vault and a pending copy are not
+// amended.
 func refusal(note Candidate) string {
 	name := oneLine(note.ID)
 

@@ -73,9 +73,9 @@ func PhrasesOf(reply, depth string) ([]string, error) {
 
 // Recall returns the request that judges the candidates the lookup matched (855d4b): the window of the carry and a
 // line for each candidate, and false when no candidate fits the budget. The matched set is in the order of the scores:
-// the cap on the count keeps a floor of passages, and the budget ends the list at the first candidate that does not fit.
-// The request shows the situation and the text of a candidate redacted and written as one line, and its ID as
-// it is, since a path is no credential; the carry holds each candidate as it is, raw and not cut.
+// the cap on the count keeps a floor of passages, and the budget ends the list at the first candidate that does not
+// fit. The request shows the situation and the text of a candidate redacted and written as one line, and its ID as it
+// is, since a path is no credential; the carry holds each candidate as it is, raw and not cut.
 func Recall(input RecallInput, matched []Candidate) (Step, bool) {
 	matched = underCap(matched)
 	lines := make([]string, 0, len(matched))
