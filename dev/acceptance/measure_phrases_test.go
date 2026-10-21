@@ -67,8 +67,8 @@ func Test855d7a1g_Hyp_ThePhrasesFindWhatTheRecallSkillFinds(t *testing.T) {
 			ratio(amongSkillsOwn, drawn))
 
 		// refuted when the share among the candidates is lower than the share the skill's phrases reach: it was, and
-		// the numbers are in 855b109, so the row keeps a record-only assertion
-		t.Logf("the hypothesis is refuted when %.2f < %.2f: %v (855b109)", ratio(amongCandidates, drawn),
+		// the numbers were recorded when it was measured, so the row keeps a record-only assertion
+		t.Logf("the hypothesis is refuted when %.2f < %.2f: %v", ratio(amongCandidates, drawn),
 			ratio(amongSkillsOwn, drawn), ratio(amongCandidates, drawn) < ratio(amongSkillsOwn, drawn))
 
 		g.Expect(unknownDepths(arrived)).To(BeEmpty(), "the depths of the prompts that are none of none, glance and deep")
@@ -78,7 +78,7 @@ func Test855d7a1g_Hyp_ThePhrasesFindWhatTheRecallSkillFinds(t *testing.T) {
 
 // unexported variables.
 var (
-	// skillPrompts are 10 prompts that notes of the vault apply to (855d7a1g).
+	// skillPrompts are 10 prompts that notes of the vault apply to.
 	skillPrompts = []string{
 		"Plan a migration of the Zorblax staging database for tonight, around whatever is scheduled on that database.",
 		"Prepare a test run against the Zorblax staging database tonight.",

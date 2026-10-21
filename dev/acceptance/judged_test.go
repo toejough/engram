@@ -301,7 +301,7 @@ const (
 		"Then reply with the file names of the notes the skill drew on, one to a line, and nothing else."
 	// olderDay is the day the older of two conflicting notes is dated, long before the newer one.
 	olderDay = "2026-01-05"
-	// stallBound is the bound of a wait of the prompt's flow (855d2a).
+	// stallBound is the bound of a wait of the prompt's flow (793d2a).
 	stallBound = 2 * time.Minute
 	// stalledLimit is how long a prompt may wait when one judgement never answers (855a3c1a).
 	stalledLimit = 3 * time.Minute

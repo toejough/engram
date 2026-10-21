@@ -158,7 +158,7 @@ type writeInput struct {
 	reply     string
 	seen      []string
 	placement string
-	// placementFailure is why the placement could not be had, when it could not (855d2b).
+	// placementFailure is why the placement could not be had, when it could not (793d2b).
 	placementFailure string
 	records          *recordedFiles
 }

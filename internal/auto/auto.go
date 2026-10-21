@@ -26,15 +26,15 @@ const (
 
 // Exported variables.
 var (
-	// ErrCandidatesReply is the failure of a delivery given a reply that is not the candidate judgement's (855d4c).
+	// ErrCandidatesReply is the failure of a delivery given a reply that is not the candidate judgement's (793d4a).
 	ErrCandidatesReply = errors.New(`the reply of the candidate judgement is not {"candidates": [...]}`)
 )
 
 // Activate marks a note delivered as used and, for a note of the parent vault, pulls it down as a pending copy, as
-// `engram activate` does (855d4c). A failure is the activation's to report: the note is delivered all the same.
+// `engram activate` does (793d4a). A failure is the activation's to report: the note is delivered all the same.
 type Activate func(ctx context.Context, note Candidate)
 
-// Delivery is what a prompt is answered with (855d4c, 793d4p): the block for the agent, the lines for the user, and the
+// Delivery is what a prompt is answered with (793d4a, 793d4p): the block for the agent, the lines for the user, and the
 // records whose lines they are.
 type Delivery struct {
 	// Block is the framing line and a line for each note and passage, or nothing when there is none.
@@ -62,7 +62,7 @@ type Note struct {
 	Type      string // fact or feedback
 }
 
-// Request is a delivery asked for, as the memory mod hands it over (855d4c): the session, the origin of the prompt, the
+// Request is a delivery asked for, as the memory mod hands it over (793d4a): the session, the origin of the prompt, the
 // cue, the IDs the mod delivered already, and, when a candidate request was answered, the model's reply and the carry.
 type Request struct {
 	Session string   `json:"session"`
@@ -74,7 +74,7 @@ type Request struct {
 }
 
 // Deliver returns the block of the candidates the judgement chose, and the lines that tell the user what was delivered
-// and what automatic memory did and the user was not shown (855d4c, 793d4p). A candidate is delivered when its verdict
+// and what automatic memory did and the user was not shown (793d4a, 793d4p). A candidate is delivered when its verdict
 // is covered, near or evidence, no candidate of the carry reverses it, and neither the mod nor the session holds it. It
 // activates each note it delivers.
 func Deliver(ctx context.Context, request Request, held Held, activity Activity, activate Activate) (Delivery, error) {
@@ -142,14 +142,14 @@ const (
 )
 
 // verdict is the entry of the reply of the candidate judgement for a candidate: its ID, its verdict, and the candidate
-// that reverses it, if one does (855d4c).
+// that reverses it, if one does (793d4a).
 type verdict struct {
 	ID      string `json:"id"`
 	Verdict string `json:"verdict"`
 	Newer   string `json:"newer"`
 }
 
-// chosenOf returns the candidates of the carry that the reply delivers, in the order of the carry (855d4c). A request
+// chosenOf returns the candidates of the carry that the reply delivers, in the order of the carry (793d4a). A request
 // with no reply delivers none. The session's held text is read only when there is a candidate to drop by it.
 func chosenOf(request Request, held Held) ([]Candidate, error) {
 	if strings.TrimSpace(request.Reply) == "" {
@@ -183,8 +183,8 @@ func chosenOf(request Request, held Held) ([]Candidate, error) {
 }
 
 // delivers reports whether the verdicts deliver a candidate: it has a verdict that is not unrelated, no candidate of
-// the carry reverses it, and the mod has not delivered it (855d4c). The reply names a candidate by its ID as the carry
-// holds it: an ID is no credential, so the request showed it as it is (855b69).
+// the carry reverses it, and the mod has not delivered it (793d4a). The reply names a candidate by its ID as the carry
+// holds it: an ID is no credential, so the request showed it as it is.
 func delivers(request Request, verdicts []verdict, candidate Candidate) bool {
 	index := slices.IndexFunc(verdicts, func(entry verdict) bool { return entry.ID == candidate.ID })
 
@@ -216,7 +216,7 @@ func markOf(note Candidate) string {
 }
 
 // namedIn reports whether the text names a note by its basename, its file name without the suffix `.md`, or a passage
-// by its chunk ID (793d4a, 855d4c).
+// by its chunk ID (793d4a).
 func namedIn(text, id string) bool {
 	basename := strings.TrimSuffix(id, ".md")
 
@@ -237,10 +237,8 @@ func oneLine(text string) string {
 	return strings.Join(strings.Fields(kept), " ")
 }
 
-// render writes the block: the framing line and exactly one line for each note and then for each passage (793d4c,
-// 855d4d), or nothing when there is none. A note is written as it is, as `engram show` gives it to the agent; a
-// passage is redacted, since a chunk of an earlier conversation can hold a credential that was pasted into it
-// (855b55).
+// render writes the block: the framing line and exactly one line for each note and then for each passage (793d4c), or nothing when there is none. A note is written as it is, as `engram show` gives it to the agent; a
+// passage is redacted, since a chunk of an earlier conversation can hold a credential that was pasted into it.
 func render(notes, passages []Candidate) string {
 	if len(notes)+len(passages) == 0 {
 		return ""

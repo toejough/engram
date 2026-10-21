@@ -49,7 +49,7 @@ func Test855d7a1e_Hyp_TheChainsOfATurnsToolCallsAreTimed(t *testing.T) {
 		rows := make([][]string, 0, len(modSpans))
 		saved := make([]time.Duration, 0, len(modSpans))
 
-		// a call is let run while its chain does (855b102): the call and its chain end together, so the chain is
+		// a call is let run while its chain does: the call and its chain end together, so the chain is
 		// hidden behind the call by as much as the shorter of the two
 		for _, call := range modSpans {
 			name := callName(call.command)

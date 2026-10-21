@@ -68,13 +68,13 @@ func Test855d7a1j_Hyp_TheMomentJudgementsFalseNoneIsRecorded(t *testing.T) {
 // unexported constants.
 const (
 	// maxFalseNone is the share of the prompts the skill draws on a note for that the moment judgement may answer none
-	// for: one half (855d7a1j).
+	// for: one half.
 	maxFalseNone = 0.5
 )
 
 // unexported variables.
 var (
-	// noneCandidatePrompts are 20 prompts that notes of the vault apply to (855d7a1j).
+	// noneCandidatePrompts are 20 prompts that notes of the vault apply to.
 	noneCandidatePrompts = append(slices.Clone(skillPrompts),
 		"Is it okay to run the Zorblax staging load test on Sunday night?",
 		"What backup do I need before migrating the staging database?",

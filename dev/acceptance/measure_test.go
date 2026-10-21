@@ -14,7 +14,7 @@ import (
 
 // unexported constants.
 const (
-	// measureBound is the 2 minutes of every wait of the flow of a prompt (855d2a).
+	// measureBound is the 2 minutes of every wait of the flow of a prompt (793d2a).
 	measureBound = 2 * time.Minute
 	// the kinds of the lines of the meter that only the tagged rows read
 	meterTool = "tool"

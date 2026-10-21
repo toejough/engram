@@ -1,4 +1,4 @@
-// The probe of the gates (855b46): the smallest hooks module that adds a block within a turn. At the first `tool.call`
+// The probe of the gates: the smallest hooks module that adds a block within a turn. At the first `tool.call`
 // of the session it adds, as the context that the model reads after the tool's result, a block that begins
 // `[engram memory]` and names one note, and it adds none at any later call. At its second call it reads the session's
 // transcript and reports how many `hook_additional_context` attachments the transcript already holds, before the

@@ -14,7 +14,7 @@ var (
 	}
 )
 
-// HeldText returns the text of what a session's agent holds of the vault, from the session's record (793d4d, 855d4e):
+// HeldText returns the text of what a session's agent holds of the vault, from the session's record (793d4d):
 // the file name on each note line and the chunk ID on each passage line of the blocks delivered beside prompts, which
 // the record keeps as `hook_additional_context` attachments, and the command and the result of each lookup or save the
 // agent ran itself, a Bash command that runs a lookup or a save, whose result is the `tool_result` block that carries
@@ -33,7 +33,7 @@ func HeldText(record []byte) string {
 	return held.text.String()
 }
 
-// IsMemoryCommand reports whether a Bash command runs one of the MemoryCommands at the position of a command (855b122):
+// IsMemoryCommand reports whether a Bash command runs one of the MemoryCommands at the position of a command:
 // at the start, after `;`, `&`, `|` or `(`, or after `-c` and a quote, with a path before `engram` allowed, so that a
 // commit message or a grep that names a command is not one.
 func IsMemoryCommand(command string) bool {

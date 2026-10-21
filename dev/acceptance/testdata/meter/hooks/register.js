@@ -1,4 +1,4 @@
-// The meter of the measurements of change 855 (855d7a): a hooks module that changes nothing and appends one line to
+// The meter of the measurements of change 855: a hooks module that changes nothing and appends one line to
 // meter.jsonl, beside the machine's home, for each model call of any mod (its time, its request's size and the usage
 // the host reports), for each tool call of the main loop (its time) and for each turn of the main loop (the usage of
 // the agent's own requests). A fixture of the acceptance tests, shipped by nothing and installed by none of `engram

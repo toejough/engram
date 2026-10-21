@@ -15,7 +15,7 @@ const (
 	KindNote    = "note"
 	KindPassage = "passage"
 	// LookupLimit is how many items the lookup is asked for: twice the most candidates, so that the floor of passages
-	// has passages to keep when the notes score higher (855b59).
+	// has passages to keep when the notes score higher.
 	LookupLimit = 2 * MaxCandidates
 	// MaxCandidates is how many candidates the judgement holds at most (855d8b).
 	MaxCandidates = 30
@@ -38,7 +38,7 @@ type Candidate struct {
 	Text      string `json:"text"`
 	Parent    bool   `json:"parent"`
 	Pending   bool   `json:"pending"`
-	// Source is where a note came from, which the delivery marks a note written automatically by (855d4d); a passage
+	// Source is where a note came from, which the delivery marks a note written automatically by (793d4c); a passage
 	// has none.
 	Source string `json:"source,omitempty"`
 }
@@ -73,9 +73,9 @@ func PhrasesOf(reply, depth string) ([]string, error) {
 
 // Recall returns the request that judges the candidates the lookup matched (855d4b): the window of the carry and a
 // line for each candidate, and false when no candidate fits the budget. The matched set is in the order of the scores:
-// the cap on the count keeps a floor of passages, and the budget ends the list at the first candidate that does not fit
-// (855b59). The request shows the situation and the text of a candidate redacted and written as one line, and its ID as
-// it is, since a path is no credential; the carry holds each candidate as it is, raw and not cut (855b55, 855b69).
+// the cap on the count keeps a floor of passages, and the budget ends the list at the first candidate that does not fit.
+// The request shows the situation and the text of a candidate redacted and written as one line, and its ID as
+// it is, since a path is no credential; the carry holds each candidate as it is, raw and not cut.
 func Recall(input RecallInput, matched []Candidate) (Step, bool) {
 	matched = underCap(matched)
 	lines := make([]string, 0, len(matched))
@@ -134,13 +134,13 @@ const (
 	glancePhrases   = 3
 	// parentMarker stands in the line of a candidate that comes from the parent vault.
 	parentMarker = "parent"
-	// passageFloor is how many of the candidates under the cap are passages at least, when so many matched (855b59).
+	// passageFloor is how many of the candidates under the cap are passages at least, when so many matched.
 	passageFloor = 10
 	// passageLimit is how many characters of a chunk a candidate line holds at most: a stretch of conversation is
-	// longer than a note's lines (855b33).
+	// longer than a note's lines.
 	passageLimit = 1200
 	// recallMaxTokens holds a deep reply for the most candidates with fields and lessons: 21,900 characters at the
-	// most, 7,300 tokens at 3 characters to the token (855b61).
+	// most, 7,300 tokens at 3 characters to the token.
 	recallMaxTokens = 8000
 	// undated stands in the line of a candidate for the date of one that has none: a chunk indexed before the index
 	// kept the time.
@@ -157,7 +157,7 @@ var deepInstructions string
 
 // candidateLine is the line of a candidate: its ID, then in parentheses its date, for a note its type and a marker when
 // it comes from the parent vault and its situation, or for a passage the word passage, and then its text, written as
-// one line and redacted; the ID is written as one line and not redacted (855d8b, 793d4j, 855b69).
+// one line and redacted; the ID is written as one line and not redacted (855d8b, 793d4j).
 func candidateLine(candidate Candidate, text string) string {
 	date := candidate.Date
 	if date == "" {

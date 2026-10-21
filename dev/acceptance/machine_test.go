@@ -1,11 +1,11 @@
 //go:build network
 
 // Package acceptance_test drives real Claude Code sessions in isolated homes, one test for each scenario of the
-// product spec and for the technical scenarios that need a real session (793b9). Every test here starts processes
+// product spec and for the technical scenarios that need a real session. Every test here starts processes
 // that may reach the network (`claude`, `go install`), so the package carries the network build tag and no default
 // target runs it; `targ acceptance` does.
 //
-// Isolation (793f7): every `engram` and `claude` run gets its own HOME, CLAUDE_CONFIG_DIR, GOBIN, ENGRAM_VAULT_PATH,
+// Isolation: every `engram` and `claude` run gets its own HOME, CLAUDE_CONFIG_DIR, GOBIN, ENGRAM_VAULT_PATH,
 // ENGRAM_CHUNKS_DIR and ENGRAM_TRANSCRIPT_DIR under a temporary directory, and a working directory outside any
 // `.claude`, `.git`, `.hg` or `.jj` ancestor; the owner's own ~/.claude, ~/.local/share/engram, ~/.pi and GOBIN are
 // never reached.
@@ -40,7 +40,7 @@ func TestMain(m *testing.M) {
 }
 
 // TestSharedSource_NoFileIsSharedWithTheWorktree: the checkout that engram update runs in is a copy of the worktree's
-// files, not links to them, so nothing a run writes in it can change the worktree (793f7).
+// files, not links to them, so nothing a run writes in it can change the worktree.
 func TestSharedSource_NoFileIsSharedWithTheWorktree(t *testing.T) {
 	t.Parallel()
 
@@ -270,7 +270,7 @@ func (m *machine) runWithInput(dir, input string, extraEnv []string, name string
 
 // update runs `engram update` as the user does: the machine's own engram, from a checkout of this branch, with the
 // machine's home. The checkout is the git-less copy of the module, so the working directory is outside any
-// repository (793f7).
+// repository.
 func (m *machine) update(args ...string) result {
 	m.t.Helper()
 

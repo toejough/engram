@@ -151,7 +151,7 @@ func (d *DeepWrite) addLessons(list string, carry Carry) {
 
 // ReadDeep reads what the reply of the candidate judgement at deep depth says to write (855d4j). Only an ID the carry
 // holds is acted on: a passage as a chunk source, a note as a supersession or an amendment, and a note of the parent
-// vault or a pending copy is never amended (855b34).
+// vault or a pending copy is never amended.
 func ReadDeep(reply string, carry Carry) DeepWrite {
 	var parsed struct {
 		Candidates *[]json.RawMessage `json:"candidates"`
@@ -208,8 +208,7 @@ func firstOf(text, fallback string) string {
 	return text
 }
 
-// refusal returns why a note is never amended, or nothing: a note of the parent vault and a pending copy are not
-// (855b34).
+// refusal returns why a note is never amended, or nothing: a note of the parent vault and a pending copy are not amended.
 func refusal(note Candidate) string {
 	name := oneLine(note.ID)
 

@@ -20,8 +20,7 @@ var (
 )
 
 // checkModuleSyntax parses each module, a path and its source, and returns an error that names node when it is not
-// found, and the path and the complaint of each module that does not parse. A check that cannot run does not pass
-// (793b55).
+// found, and the path and the complaint of each module that does not parse. A check that cannot run does not pass.
 func checkModuleSyntax(
 	ctx context.Context,
 	modules map[string]string,

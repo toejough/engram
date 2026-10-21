@@ -13,7 +13,7 @@ import (
 
 // Exported constants.
 const (
-	// ReasonAmended is the reason of the record of a note a deep delivery amended and did not write (855b95).
+	// ReasonAmended is the reason of the record of a note a deep delivery amended and did not write.
 	ReasonAmended = "amended"
 	RecordFailed  = "failed"
 	RecordSkipped = "skipped"
@@ -113,11 +113,11 @@ type Reply struct {
 	Text    string `json:"reply"`
 	Failure string `json:"failure"`
 	// Placement is the reply of the placement judgement, and Carry the placement's carry, which names the notes the
-	// session has seen (855d4i).
+	// session has seen (793d4h).
 	Placement string `json:"placement"`
 	Carry     Carry  `json:"carry"`
 	// PlacementFailure is why the placement could not be had, when it could not: the lessons are written at the top
-	// (855d2b).
+	// (793d2b).
 	PlacementFailure string `json:"placementFailure"`
 }
 
@@ -259,7 +259,7 @@ func readList(text string) (lessons []Lesson, skipped []Skipped, ended, isList b
 	return lessons, skipped, true, errors.Is(afterErr, io.EOF)
 }
 
-// replyValue is the JSON value of a model's reply, the one rule for every reply (855b83): the reply, unfenced, when it
+// replyValue is the JSON value of a model's reply, the one rule for every reply: the reply, unfenced, when it
 // is valid JSON, and otherwise, when the model reasoned before it, the last value that begins with a brace or a bracket
 // and runs to the end of the reply. A reply with no such value, such as a list that was cut off, is the unfenced reply.
 func replyValue(reply string) string {

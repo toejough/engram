@@ -182,8 +182,8 @@ func TestSessionLimits_TheMeasurementsRaiseTheirOwnAndTheSharedOnesStayAtThoseOf
 
 	g.Expect(liveLimits.budgetUSD).To(Equal("2"), "the budget of 793's rows")
 	g.Expect(liveLimits.timeout).To(Equal(5*time.Minute), "the timeout of 793's rows")
-	g.Expect(measureLimits.budgetUSD).To(Equal("10"), "the budget of 855d7a1")
-	g.Expect(measureLimits.timeout).To(Equal(30*time.Minute), "the timeout of 855d7a1")
+	g.Expect(measureLimits.budgetUSD).To(Equal("10"), "the budget of the measurement rows")
+	g.Expect(measureLimits.timeout).To(Equal(30*time.Minute), "the timeout of the measurement rows")
 }
 
 func TestStepsWrapper_NamesTheFilesOfARunByItsProcessAndTheSecondItBegan(t *testing.T) {

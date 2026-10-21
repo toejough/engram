@@ -357,7 +357,7 @@ func (m *machine) whatWasJudged(sent *turn) string {
 }
 
 // requestCost is the model calls the machine's steps asked for in a session and the size of their requests, by cue:
-// the steps print one request for each call (855d2a), and the size is the characters of its system and prompt.
+// the steps print one request for each call (793d2a), and the size is the characters of its system and prompt.
 type requestCost struct {
 	calls int
 	chars int

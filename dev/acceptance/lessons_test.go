@@ -180,7 +180,7 @@ func Test793a2c1d_TheAgentsOwnCorrectionBecomesANote(t *testing.T) {
 		"automatically", func() {
 		machine.awaitAutomaticNote(chat.turnEnds, "that states what the file says", "7731")
 
-		// the cost of the judgements of the turn, by cue: the model calls and the characters of their requests (855e6g6)
+		// the cost of the judgements of the turn, by cue: the model calls and the characters of their requests
 		machine.awaitSettled(chat.session.id, chat.turnEnds, 1)
 
 		for cue, cost := range machine.requestCosts() {

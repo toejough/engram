@@ -66,7 +66,7 @@ type AutoJudgeDeps struct {
 	// Query runs the lookup of notes, the one `engram query` runs, and prints its payload.
 	Query QueryRun
 	// ReadDir and ReadFile read the session-log directory, where Claude Code keeps the record of each session, and the
-	// vault, whose notes the session wrote the judgement is shown (855b119).
+	// vault, whose notes the session wrote the judgement is shown.
 	ReadDir  func(path string) ([]fs.DirEntry, error)
 	ReadFile func(path string) ([]byte, error)
 	// Now is the time a record is made at.
@@ -132,7 +132,7 @@ type LearnRun func(ctx context.Context, args LearnArgs) (string, error)
 type QueryRun func(ctx context.Context, args QueryArgs, stdout io.Writer) error
 
 // RunAutoDeliver reads a delivery asked for from standard input and prints the block of the candidates the judgement
-// chose on standard output (855d4c), and prints on standard error the lines that show the user what it delivered and
+// chose on standard output (793d4a), and prints on standard error the lines that show the user what it delivered and
 // what automatic memory did that the user was not shown yet, marking the records whose lines it printed (793d4p).
 func RunAutoDeliver(
 	ctx context.Context, args AutoDeliverArgs, deps AutoDeliverDeps, stdout, stderr io.Writer,
@@ -177,7 +177,7 @@ func RunAutoDeliver(
 		}
 	}
 
-	// a delivery within a turn shows its line only: the records are read, marked and removed at a prompt (855d4p)
+	// a delivery within a turn shows its line only: the records are read, marked and removed at a prompt (793d4p)
 	if request.Cue == auto.CuePrompt {
 		markShown(deps.WriteRecord, args.RecordsDir, request.Session, delivery.Told)
 		pruneShown(deps, args.RecordsDir, request.Session)
@@ -189,7 +189,7 @@ func RunAutoDeliver(
 // RunAutoJudge reads a turn that ended and the reply of the learn-moment judgement from standard input and prints the
 // request for the model that judges it, or nothing when the reply says the turn is no learn moment or the session's
 // record holds no prompt. It fails, printing nothing, when the reply is no moment reply, no vault exists at the path or
-// no record of the session is found, so that the model is not asked for a turn that cannot be judged (793d4g, 855d4g).
+// no record of the session is found, so that the model is not asked for a turn that cannot be judged (793d4g).
 func RunAutoJudge(ctx context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, stdout io.Writer) error {
 	var turn judgedTurn
 
@@ -239,7 +239,7 @@ func RunAutoJudge(ctx context.Context, args AutoJudgeArgs, deps AutoJudgeDeps, s
 	}
 
 	if !found {
-		// the end of a capture that no write follows is told by this line (855b52)
+		// the end of a capture that no write follows is told by this line
 		debuglog.Log(ctx, "auto.judge", "session=%s nothing", turn.Session)
 
 		return nil
@@ -332,7 +332,7 @@ func RunAutoWrite(ctx context.Context, args AutoWriteArgs, deps AutoWriteDeps, s
 
 // unexported constants.
 const (
-	// maxWrittenNotes is how many of the notes written in the session the judgement is shown at most (855b119).
+	// maxWrittenNotes is how many of the notes written in the session the judgement is shown at most.
 	maxWrittenNotes = 20
 	// minSiblingSegments is how many segments the ID of a note has at least to have a sibling: a note at the top has
 	// none, and a sibling of it is another note at the top.
@@ -413,7 +413,7 @@ type sweepTurn struct {
 
 // activationFrom returns the activation of a note delivered: `engram activate` for a note of the vault, and with the
 // parent flag for a note of the parent vault. Its output and its warnings are no line for the user, and a failure is
-// the debug log's: the note is delivered all the same (855d4c).
+// the debug log's: the note is delivered all the same (793d4a).
 func activationFrom(d Deps) func(ctx context.Context, vault string, note auto.Candidate) {
 	quiet := d
 	quiet.Stdout, quiet.Stderr = io.Discard, io.Discard
@@ -555,7 +555,7 @@ func lookUpNotes(ctx context.Context, vault, text string, query QueryRun) ([]aut
 
 	queryErr := query(ctx, args, &payload)
 	if queryErr != nil {
-		// the text is a prompt, and a failure is forwarded by the mod and stored: it names none of it (793b107)
+		// the text is a prompt, and a failure is forwarded by the mod and stored: it names none of it
 		return nil, fmt.Errorf("lookup: %w", queryErr)
 	}
 
@@ -711,7 +711,7 @@ func payloadItems(payload []byte) ([]queryItem, error) {
 }
 
 // placementsOf reads the placement a writing was given, and records that it was not used when it is no list or could
-// not be had (855d4i, 855d2b): the lessons are then written at the top.
+// not be had (793d4h, 793d2b): the lessons are then written at the top.
 func placementsOf(reply auto.Reply, results *outcomes) []auto.Placement {
 	if reply.PlacementFailure != "" {
 		results.add(auto.RecordSkipped, "", "", "the placement was not used: "+reply.PlacementFailure)
@@ -787,7 +787,7 @@ func recordCandidates(readDir func(path string) ([]fs.DirEntry, error), dir, ses
 	return candidates
 }
 
-// recordLeftOut records that the moment left a headless turn out, and why (855d4m). A record that cannot be written is
+// recordLeftOut records that the moment left a headless turn out, and why (793d4m). A record that cannot be written is
 // the end of it, as it is for the writing (793d4k).
 func recordLeftOut(
 	now func() time.Time, write func(path string, data []byte) error, dir string, moment auto.MomentInput,
@@ -930,7 +930,7 @@ func sweepEndedMark(dir, session string) string {
 }
 
 // withWritten is the notes nearest to a turn with the notes the session wrote earlier, the last maxWrittenNotes of
-// them by creation, after them: a note that is both is shown once (855b119).
+// them by creation, after them: a note that is both is shown once.
 func withWritten(near, written []auto.Note) []auto.Note {
 	notes := make([]auto.Note, 0, len(near)+len(written))
 	notes = append(notes, near...)
@@ -1078,7 +1078,7 @@ func writeRecords(write func(path string, data []byte) error, dir string, record
 }
 
 // writtenIn returns the notes of the vault that a session wrote itself, the last maxWrittenNotes of them in the order
-// they were created (855b119).
+// they were created.
 func writtenIn(vault []auto.Note, session string) []auto.Note {
 	return lastWritten(auto.SeenNotes(vault, "", session))
 }

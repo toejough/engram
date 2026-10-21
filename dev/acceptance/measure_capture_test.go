@@ -100,7 +100,7 @@ func Test855d7a1b_Hyp_ACaptureIsTimedAgainstItsRowsAndThe2Minutes(t *testing.T) 
 
 // unexported variables.
 var (
-	// lessonPrompts are the 10 turns that hold a lesson: a request to remember, and a correction (855d7a1b).
+	// lessonPrompts are the 10 turns that hold a lesson: a request to remember, and a correction.
 	lessonPrompts = []string{
 		"Remember that the Zorblax build cache is flushed every Tuesday at 02:15 UTC. Reply with one short sentence.",
 		"Remember that the Zorblax queue worker must be restarted after every config change. " +
@@ -122,7 +122,7 @@ var (
 	}
 )
 
-// captureLimits are the rows of the waits of a capture (855d2b), in seconds.
+// captureLimits are the rows of the waits of a capture (793d2b), in seconds.
 type captureLimits struct {
 	idCall, moment, momentCall, judge, judgeCall, place, placeCall, write, all, toNote time.Duration
 }
@@ -175,7 +175,7 @@ func (m *machine) noteTimes() map[string]time.Time {
 	return times
 }
 
-// captureRows are the rows of 855d2b.
+// captureRows are the rows of the waits of a capture.
 func captureRows() captureLimits {
 	return captureLimits{
 		idCall: 5 * time.Second, moment: 5 * time.Second, momentCall: 10 * time.Second, judge: 10 * time.Second,

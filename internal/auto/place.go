@@ -34,7 +34,7 @@ func LessonsOf(reply string) ([]Lesson, error) {
 }
 
 // Place returns the request that places the lessons against the notes the session has seen (855d4h), and false when
-// there is no lesson to place or no note seen: every lesson is then written at the top and ties no note (855b31).
+// there is no lesson to place or no note seen: every lesson is then written at the top and ties no note.
 func Place(lessons []Lesson, seen []Note) (Step, bool) {
 	if len(lessons) == 0 || len(seen) == 0 {
 		return Step{}, false
@@ -60,7 +60,7 @@ func Place(lessons []Lesson, seen []Note) (Step, bool) {
 	}, true
 }
 
-// SeenNotes returns the notes of the vault a session has seen (855d4h, 855b16): those whose file name its transcript
+// SeenNotes returns the notes of the vault a session has seen (855d4h): those whose file name its transcript
 // shows as delivered or looked up (held), and those whose source says they were written automatically in it.
 func SeenNotes(vault []Note, held, session string) []Note {
 	written := SourceFor(session)
@@ -86,7 +86,7 @@ const (
 	placeMaxTokens = 1500
 	// placeShape is the prompt of the request: the lessons and the seen notes, each between its tags.
 	placeShape = "<lessons>\n%s\n</lessons>\n<notes>\n%s\n</notes>"
-	// placeTimeoutMs is the row of the model call of the placement judgement (855d2b).
+	// placeTimeoutMs is the row of the model call of the placement judgement (793d2b).
 	placeTimeoutMs = 15000
 )
 
@@ -94,7 +94,7 @@ const (
 var placeInstructions string
 
 // seenLines writes the seen notes, one line each, in the form of a line of a block: a file name as it is, since a name
-// is no credential (855b69), the situation and the body written as one line and redacted, and the body cut to the
+// is no credential, the situation and the body written as one line and redacted, and the body cut to the
 // limit of a note (855d4h).
 func seenLines(notes []Note) string {
 	lines := make([]string, 0, len(notes))

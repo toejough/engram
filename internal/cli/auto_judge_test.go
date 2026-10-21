@@ -174,7 +174,7 @@ func Test793d4g1q_RunAutoJudge_ALongRecordIsJudgedInTime(t *testing.T) {
 		messages    = 350
 		messageSize = 3000
 		// the idle time is 0.3 s and the reading it replaced took 42 s; the bound sits between, clear of a loaded
-		// machine, which took 3 s (793b125)
+		// machine, which took 3 s
 		bound = 20 * time.Second
 	)
 

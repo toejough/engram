@@ -21,7 +21,7 @@ const (
 	CueTurnEnd = "turn-end"
 )
 
-// Carry is what a step hands the next one with a request, and the mod reads no part of (855d1b).
+// Carry is what a step hands the next one with a request, and the mod reads no part of.
 type Carry struct {
 	Cue    string `json:"cue,omitempty"`
 	Depth  string `json:"depth,omitempty"`
@@ -104,7 +104,7 @@ func Moment(record []byte, input MomentInput) Step {
 const (
 	// callAndFailure is the lines of the event of a call that failed: the call and the failure.
 	callAndFailure = 2
-	// learnMomentTimeoutMs is the row of the model call of the learn-moment judgement (855d2b).
+	// learnMomentTimeoutMs is the row of the model call of the learn-moment judgement (793d2b).
 	learnMomentTimeoutMs = 10000
 	// linesPerCall is the lines of a call of a batch: the call and its response.
 	linesPerCall    = 2
@@ -122,7 +122,7 @@ var recallMoment string
 
 // compact is the text of a JSON value on one line, redacted after it is decoded: a credential written in the escaped
 // form of JSON is redacted as the text it spells, in every string and key of the value, the value of a sensitive name
-// is replaced whole, and the value is written again without escaping the characters of HTML (855b98). A value that is
+// is replaced whole, and the value is written again without escaping the characters of HTML. A value that is
 // not JSON is returned as it is, for the line to redact.
 func compact(raw json.RawMessage) string {
 	value, isJSON := decoded(string(raw))
@@ -257,7 +257,7 @@ func redactedValue(value any) any {
 	}
 }
 
-// toolWindow is the context and the turn's lines of the window of a tool cue (855b54, 855b97): the last lines of the
+// toolWindow is the context and the turn's lines of the window of a tool cue: the last lines of the
 // conversation, the text the turn began with before them when they do not hold it, and the lines of the event.
 func toolWindow(before []string, turnLine string, event []string) ([]string, []string) {
 	if !slices.Contains(before, turnLine) {

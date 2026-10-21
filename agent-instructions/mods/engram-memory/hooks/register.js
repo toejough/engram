@@ -1,23 +1,23 @@
-// Automatic memory: the notes and passages of the vault that apply to a prompt arrive beside it (855a3b), and after the
+// Automatic memory: the notes and passages of the vault that apply to a prompt arrive beside it (793a2b), and after the
 // turn the lessons it holds become notes (793a2c) and its conversation is indexed (793a2f). The logic is in the engram
 // binary (`engram auto moment`, `phrases`, `recall`, `deliver`, `judge`, `place`, `write` and `sweep`); this module
 // routes to it, asks the model for the requests the steps print, puts the block the delivery prints beside the prompt,
-// and shows the user the lines it prints for the user, through the host's log (855d2a).
+// and shows the user the lines it prints for the user, through the host's log (793d2a).
 
-// Each wait of the flow of a prompt, a step or a model call, has 2 minutes of its own (855a3c): a wait that is only
+// Each wait of the flow of a prompt, a step or a model call, has 2 minutes of its own (793a2d): a wait that is only
 // slow is waited for, and one that has not answered by then has stalled, and the flow steps aside.
 const STEP_BOUND_MS = 120000
 
-// The steps of the flow of a prompt that print a request, in order; the delivery follows them (855d2a).
+// The steps of the flow of a prompt that print a request, in order; the delivery follows them (793d2a).
 const CHAIN = ['moment', 'phrases', 'recall']
 
-// Every request a step of the flow of a prompt prints begins with this (855d1b); anything else is not a request.
+// Every request a step of the flow of a prompt prints begins with this; anything else is not a request.
 const STEP = '{"request":'
 
 // Every block the command prints opens with this (793d4c); anything else is not a block.
 const MARKER = '[engram memory]'
 
-// The bounds of the stages of the capture of a turn (855d2b): the call for the session's ID, the steps `engram auto
+// The bounds of the stages of the capture of a turn (793d2b): the call for the session's ID, the steps `engram auto
 // moment`, `judge` and `place`, `engram auto write` and the run of it that reports a failure. The three model calls
 // hold the limits of their requests, 10, 30 and 15 seconds; together they are 115 seconds, under the 2 minutes of the
 // product (793a2c).
@@ -28,7 +28,7 @@ const PLACE_BOUND_MS = 5000
 const WRITE_BOUND_MS = 20000
 const REPORT_BOUND_MS = 15000
 
-// The write that follows a deep delivery has a bound of its own (855d2a): it holds neither the prompt nor the agent.
+// The write that follows a deep delivery has a bound of its own (793d2a): it holds neither the prompt nor the agent.
 const DEEP_WRITE_BOUND_MS = 60000
 
 // The sweep of the conversation has a bound of its own (793d2c): the call for the ID, the sweep and the report of its
@@ -51,7 +51,7 @@ const delivered = new Map()
 
 // The last delivery of each session, as a promise that settles when it is over: the deliveries of one session run one
 // after another, so that each reads the set after the one before added to it, and a note is marked as used once
-// (855d2a).
+// (793d2a).
 const deliveries = new Map()
 
 // The writes after the deliveries of a session, each chained after the one before it, for the same reason.
@@ -69,12 +69,12 @@ const failed = new Set()
 const RESERVED = ['tool', 'tool_use_id', 'agentId', 'requestMeta', 'consent']
 
 // The Bash commands that are the agent's own use of the memory, which the binary holds the text and result of as well
-// (855d2c1o, 855b122), and the skills that are: a call that is one is not looked up for.
+// (855d2c1o), and the skills that are: a call that is one is not looked up for.
 const MEMORY_COMMANDS = ['engram query', 'engram show', 'engram show-chunk', 'engram recall', 'engram learn',
   'engram amend']
 const MEMORY_SKILLS = ['recall', 'learn', 'curate', 'write-memory']
 
-// A Bash command is one of the memory commands only at the position of a command (855b122): at the start, after `;`,
+// A Bash command is one of the memory commands only at the position of a command: at the start, after `;`,
 // `&`, `|` or `(`, or after `-c` and a quote, with a path before `engram` allowed, so that a commit message or a grep
 // that names a command is not one.
 const MEMORY_COMMAND = new RegExp(String.raw`(?:^|[;&|(]|-c\s+['"])\s*(?:\S*/)?engram\s+(?:${
@@ -118,7 +118,7 @@ export function register(on) {
 
     const input = Object.fromEntries(Object.entries(e).filter(([key]) => !RESERVED.includes(key)))
     const event = { tool: e.tool, input }
-    // the call is let run while its chain runs (855b102); the block rides the result once both are over
+    // the call is let run while its chain runs; the block rides the result once both are over
     const [delivery, result] = await Promise.all([
       cueDelivery($, 'before-tool', () => bounded($.session.id(), ID_BOUND_MS, "the call for the session's ID"), event),
       next(e),
@@ -222,7 +222,7 @@ async function ask($, request) {
 
 // askModel is the text of the model's answer to a request of the flow of a prompt, and fails when the model gives none.
 // The request is asked exactly as the step printed it; the call is aborted through its signal when it has not answered
-// within 2 minutes (855d2a).
+// within 2 minutes (793d2a).
 async function askModel($, request) {
   const stop = new AbortController()
   const timer = setTimeout(() => stop.abort(), STEP_BOUND_MS)
@@ -279,7 +279,7 @@ async function afterTurn($, e, job) {
   }
 }
 
-// captureLessons judges a turn that ended and has the lessons written (855d2b): the moment, the judgement and the
+// captureLessons judges a turn that ended and has the lessons written (793d2b): the moment, the judgement and the
 // placement each print the request for the model, which is asked exactly as printed, and the writing is given the
 // replies and the carry of the placement. It ends quietly when the moment or the judgement prints nothing, and writes
 // the lessons at the top when the placement prints nothing. Each stage has its bound.
@@ -315,7 +315,7 @@ async function captureLessons($, e, turn, session) {
   await run($, 'write', written, WRITE_BOUND_MS)
 }
 
-// asked runs a step of the capture and asks the model for the request it prints (855d2b): the reply and the carry, or
+// asked runs a step of the capture and asks the model for the request it prints (793d2b): the reply and the carry, or
 // nothing when the step prints nothing. A request that is not an object is a failure of the step.
 async function asked($, step, input, bound) {
   const { stdout } = await run($, step, input, bound)
@@ -359,7 +359,7 @@ function describe(error) {
 }
 
 // deliveryFor is the block and the lines for the user for a prompt or a tool event, or nothing when the flow does not
-// finish or fails: the work goes on as if automatic memory were not installed, and the failure is reported (855d2a,
+// finish or fails: the work goes on as if automatic memory were not installed, and the failure is reported (793d2a,
 // 855d2c). The chain is given the state, in which the session's ID is left as soon as it is known, for the report.
 async function deliveryFor($, what, chainOf) {
   const state = { session: '', write: null }
@@ -399,14 +399,14 @@ function withBlock(result, key, block) {
   return block ? { ...result, [key]: [...(result[key] ?? []), block] } : result
 }
 
-// promptChain runs the chain of a prompt (855d2a).
+// promptChain runs the chain of a prompt (793d2a).
 async function promptChain($, e, state) {
   state.session = await bounded($.session.id(), ID_BOUND_MS, "the call for the session's ID")
 
   return chain($, state, { origin: originOf(e), cue: 'prompt' }, { text: e.text })
 }
 
-// chain runs the steps of the flow in order (855d2a): the moment, the phrases and the recall, each given the reply to
+// chain runs the steps of the flow in order (793d2a): the moment, the phrases and the recall, each given the reply to
 // the request before it and its carry and asking the model for the request it prints, and then the delivery with the
 // last reply and its carry. A step that prints nothing ends the chain there, and the delivery is run with the fields
 // of the moment alone: the prompt's text, or for a tool event the event and the text the turn began with.
@@ -427,7 +427,7 @@ async function chain($, state, who, fields) {
 
     answer = { reply: await askModel($, printed.request), carry: printed.carry }
 
-    // a deep recall says that a write follows the delivery (855d2a)
+    // a deep recall says that a write follows the delivery (793d2a)
     state.write = printed.write === true ? { cue: base.cue, ...answer } : null
   }
 
@@ -443,7 +443,7 @@ async function chain($, state, who, fields) {
 
 // writeAfter has the lessons and the notes of a deep delivery written from a timer once the block is given, so that the
 // writing holds neither the prompt nor the agent and no call is in flight when the hook settles; a write that fails is
-// reported (855d2a, 855b29). The writes of a session are run one after the other, so that two deep cues in a turn do
+// reported (793d2a). The writes of a session are run one after the other, so that two deep cues in a turn do
 // not crystallize the same lesson twice.
 function writeAfter($, state) {
   if (state.write === null) {
@@ -465,7 +465,7 @@ function writeAfter($, state) {
   })
 }
 
-// inOrder runs a job of a session after the one before it in the chains is over, whatever became of that one (855d2a).
+// inOrder runs a job of a session after the one before it in the chains is over, whatever became of that one (793d2a).
 async function inOrder(chains, session, job) {
   const before = chains.get(session) ?? Promise.resolve()
   let over
@@ -495,7 +495,7 @@ function reportDelivery($, session, what, error) {
 }
 
 // stepOf is what a step printed: the request for the model and the carry, or a failure that names the step when what it
-// printed is not one (855d2a, 855d2b).
+// printed is not one (793d2a, 793d2b).
 function stepOf(printed, step) {
   if (!printed.startsWith(STEP)) {
     throw new Error(`engram auto ${step} printed what is not a request`)
@@ -511,7 +511,7 @@ function stepOf(printed, step) {
 // keepNew is the block less each line whose ID the session's set holds, and the lines for the user, less the notes and
 // passages that line of theirs names which the block left out, with the IDs of the lines left added to the set in the
 // same step, so that a note or a passage is delivered once however many chains find it; no block when no line is left
-// (855d2c, 855d2a).
+// (855d2c, 793d2a).
 function keepNew(session, block, shown) {
   const ids = delivered.get(session) ?? new Set()
   const lines = block.split('\n')
@@ -579,7 +579,7 @@ function entryOf(line) {
 }
 
 // deliveredLineOf is the line for the user that names what was delivered, written again for the entries that are left,
-// or nothing when none is left; any other line goes through (855d2a).
+// or nothing when none is left; any other line goes through (793d2a).
 function deliveredLineOf(line, left) {
   if (!line.startsWith('delivered ')) {
     return [line]

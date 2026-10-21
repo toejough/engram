@@ -140,7 +140,7 @@ type hostEvent struct {
 	detail string
 }
 
-// hasProbe installs the probe of the gates in the place of the mod (855b46).
+// hasProbe installs the probe of the gates in the place of the mod.
 func (m *machine) hasProbe() {
 	m.t.Helper()
 

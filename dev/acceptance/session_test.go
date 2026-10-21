@@ -256,8 +256,7 @@ func (c *conversation) tell(prompt string) *turn {
 	return answered
 }
 
-// startMeasuredSession starts a session as startSession does, with the budget and the timeout the measurements need
-// (855b112).
+// startMeasuredSession starts a session as startSession does, with the budget and the timeout the measurements need.
 func (m *machine) startMeasuredSession(project string) *session {
 	m.t.Helper()
 
@@ -920,7 +919,7 @@ func (t *turn) withinTurn() []string {
 }
 
 // claudeToken returns the login the live tests use, from the environment or the owner's credential file, and
-// fails the test when there is none (793b53). It is handed to the child's environment only, never to a command line
+// fails the test when there is none. It is handed to the child's environment only, never to a command line
 // or a log.
 func claudeToken(t *testing.T) string {
 	t.Helper()
@@ -986,7 +985,7 @@ func redact(text, secret string) string {
 	return strings.ReplaceAll(text, secret, "[redacted]")
 }
 
-// requireClaude fails the test when Claude Code is not installed (793b53).
+// requireClaude fails the test when Claude Code is not installed.
 func requireClaude(t *testing.T) {
 	t.Helper()
 

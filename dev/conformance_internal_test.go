@@ -24,7 +24,7 @@ func TestScenarioIDs_ReadsTheScenariosOfBothChanges(t *testing.T) {
 		},
 		{
 			name: "a scenario restated in a mapping is listed once, where it first appears",
-			spec: "Scenario: 793a2a1a One\nScenario: 793a2b1a Two\n### 793d5a Mapping\nScenario: 793a2a1a One\n",
+			spec: "Scenario: 793a2a1a One\nScenario: 793a2b1a Two\n### Mapping\nScenario: 793a2a1a One\n",
 			want: []string{"793a2a1a", "793a2b1a"},
 		},
 		{
@@ -39,12 +39,12 @@ func TestScenarioIDs_ReadsTheScenariosOfBothChanges(t *testing.T) {
 		},
 		{
 			name: "a scenario of 793 that 855 restates is counted once",
-			spec: "Scenario: 793d2a1d Replaced\n### 855d2a Modified\nScenario: 793d2a1d Replaced\nScenario: 855d2a1a New\n",
+			spec: "Scenario: 793d2a1d Replaced\n### Modified\nScenario: 793d2a1d Replaced\nScenario: 855d2a1a New\n",
 			want: []string{"793d2a1d", "855d2a1a"},
 		},
 		{
 			name: "prose and headings that name an ID, and the scenarios of other changes, are left out",
-			spec: "### 793d5a Mapping of 793a2a1a\nThe line Scenario: 793a2a1a in prose\nScenario: 792b28c1a1 Other\n",
+			spec: "### Mapping of 793a2a1a\nThe line Scenario: 793a2a1a in prose\nScenario: 792b28c1a1 Other\n",
 			want: nil,
 		},
 	}
@@ -60,38 +60,8 @@ func TestScenarioIDs_ReadsTheScenariosOfBothChanges(t *testing.T) {
 	}
 }
 
-// TestScenariosWithoutTest_ARemovedScenarioNeedsNoTest: the specs of 793 still hold the scenarios that 855 removes, and
-// their tests are deleted, so a scenario that a Removed operation names is exempt (855b45).
-func TestScenariosWithoutTest_ARemovedScenarioNeedsNoTest(t *testing.T) {
-	t.Parallel()
-
-	spec := "### 855d4q Removed: 793d4a1c A note that only the explore half picked does not bear on the prompt\n\n" +
-		"Target: [793d4a1c A note](../793/793d.md#793d4a1-scenarios). The lookup is the recall-lookup's now.\n\n" +
-		"### 855d4c Modified: 793d4a Delivering the notes\n\nThe scenarios 793d4a1a is replaced, Removed: 793d4a1b\n"
-	ids := []string{"793d4a1a", "793d4a1b", "793d4a1c"}
-
-	t.Run("a scenario a Removed heading names is exempt, one no heading names is not", func(t *testing.T) {
-		t.Parallel()
-
-		g := NewWithT(t)
-
-		g.Expect(removedScenarioIDs(spec)).To(Equal([]string{"793d4a1c"}))
-		g.Expect(scenariosWithoutTest(exceptIDs(ids, removedScenarioIDs(spec)), nil)).
-			To(Equal([]string{"793d4a1a", "793d4a1b"}))
-	})
-
-	t.Run("a spec with no Removed heading exempts nothing", func(t *testing.T) {
-		t.Parallel()
-
-		g := NewWithT(t)
-
-		g.Expect(removedScenarioIDs("### 855d4c Modified: 793d4a Delivering\n")).To(BeEmpty())
-		g.Expect(exceptIDs(ids, nil)).To(Equal(ids))
-	})
-}
-
 // TestScenariosWithoutTest_AScenarioOf855IsNamedOnlyWhereItsSpecIsRead: a check that reads the specs of 793 alone does
-// not name a scenario of 855 that has no test (855b45).
+// not name a scenario of 855 that has no test.
 func TestScenariosWithoutTest_AScenarioOf855IsNamedOnlyWhereItsSpecIsRead(t *testing.T) {
 	t.Parallel()
 

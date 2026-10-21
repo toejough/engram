@@ -64,7 +64,7 @@ func Test855d7a1i_Hyp_TheCostOfTheJudgementsIsRecorded(t *testing.T) {
 			sonnetPrice.output*perMillion, sonnetPrice.cacheRead*perMillion, sonnetPrice.cacheWrite*perMillion,
 			haikuPrice.input*perMillion, haikuPrice.output*perMillion, haikuPrice.cacheRead*perMillion,
 			haikuPrice.cacheWrite*perMillion)
-		t.Logf("the cheap calls of each turn by cue, and the blocks that landed at the same request (855c8):\n%s",
+		t.Logf("the cheap calls of each turn by cue, and the blocks that landed at the same request of the model:\n%s",
 			table([]string{"turn", "prompt", "before-tool", "failure", "batch-done", "turn-end", "blocks",
 				"requests with a block", "requests with 2 or more"}, overlapRows(costPrompts, chains, with)))
 
@@ -87,7 +87,7 @@ const (
 // unexported variables.
 var (
 	// costPrompts are the 10 prompts of the session of the cost: tool calls that succeed, one that fails, an edit, and
-	// prompts of no tool call (855d7a1i).
+	// prompts of no tool call.
 	costPrompts = []string{
 		"Run make ci by itself, with no pipe or redirect, and tell me what happened. Reply with one short sentence.",
 		"Run `cat notes.txt` and tell me the first line. Reply with one short sentence.",

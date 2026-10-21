@@ -52,12 +52,12 @@ func init() {
 
 // unexported constants.
 const (
-	// acceptanceMinutes is the time limit of one repetition of the whole set of those tests (793b86).
+	// acceptanceMinutes is the time limit of one repetition of the whole set of those tests.
 	acceptanceMinutes = 30
-	// acceptancePackage holds the tests that drive real Claude Code sessions in isolated homes (793b9); they carry
+	// acceptancePackage holds the tests that drive real Claude Code sessions in isolated homes; they carry
 	// the network build tag, so no default target runs them.
 	acceptancePackage = "./dev/acceptance"
-	// acceptanceParallel is how many of those tests run at once: more than 6 make the timed ones fail (793b49).
+	// acceptanceParallel is how many of those tests run at once: more than 6 make the timed ones fail.
 	acceptanceParallel = "4"
 	acceptanceTags     = "network"
 	evalOutDirPerm     = 0o750

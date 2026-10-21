@@ -129,7 +129,7 @@ func Test855d4b1l_Recall_TheCandidatesAreHeldToACountAndABudget(t *testing.T) {
 	rapid.Check(t, checkCandidatesAreHeld)
 }
 
-// Test855d4b1m_Recall_AMixedMatchedSetKeepsAFloorOfPassages proves the floor of passages under the cap (855b59).
+// Test855d4b1m_Recall_AMixedMatchedSetKeepsAFloorOfPassages proves the floor of passages under the cap.
 func Test855d4b1m_Recall_AMixedMatchedSetKeepsAFloorOfPassages(t *testing.T) {
 	t.Parallel()
 
@@ -291,7 +291,7 @@ func checkCandidatesAreHeld(rt *rapid.T) {
 }
 
 // checkCarryIsRaw fails when the carry is not the matched candidates as they are, credentials and line breaks
-// included: only the request is redacted, and the delivery shows the agent the same notes raw (855b55).
+// included: only the request is redacted, and the delivery shows the agent the same notes raw.
 func checkCarryIsRaw(rt *rapid.T, held, matched []auto.Candidate) {
 	rt.Helper()
 

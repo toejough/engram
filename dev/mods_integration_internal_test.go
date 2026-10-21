@@ -788,47 +788,6 @@ func Test793d2c1f_Mod_ASweepThatGaveUpBeforeIsNotReportedAgain(t *testing.T) {
 	g.Expect(outcome.reports()).To(BeEmpty(), "the reports to the writing")
 }
 
-// Test855b92_Mod_ADeepDeliveryWritesWhenItsDeliveryIsEmptyAndNotWhenItFails runs the mod under node against a stand-in
-// host whose delivery prints nothing, or exits with 1.
-func Test855b92_Mod_ADeepDeliveryWritesWhenItsDeliveryIsEmptyAndNotWhenItFails(t *testing.T) {
-	t.Parallel()
-
-	steps := map[string]map[string]any{
-		"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": aStep(2)},
-		"recall": {"exitCode": 0, "stdout": aDeepStep()},
-	}
-
-	t.Run("an empty delivery", func(t *testing.T) {
-		t.Parallel()
-
-		g := NewWithT(t)
-		outcome := runDeliveryDriver(t, deliveryScenario{Steps: steps, Deliver: map[string]any{"exitCode": 0, "stdout": ""}})
-
-		g.Expect(outcome.Passed.Context).To(BeEmpty(), "no block")
-
-		writes := outcome.reports()
-
-		g.Expect(writes).To(HaveLen(1), "the write")
-
-		if len(writes) == 1 {
-			g.Expect(writes[0]).To(HaveKey("cue"))
-		}
-	})
-
-	t.Run("a delivery that fails", func(t *testing.T) {
-		t.Parallel()
-
-		g := NewWithT(t)
-		outcome := runDeliveryDriver(t, deliveryScenario{
-			Steps: steps, Deliver: map[string]any{"exitCode": 1, "stdout": "", "stderr": "auto deliver: no\n"},
-		})
-
-		for _, report := range outcome.reports() {
-			g.Expect(report).NotTo(HaveKey("cue"), "only the report of the failure, no write")
-		}
-	})
-}
-
 // Test855d2a1a_Mod_TheStepsRunInOrderEachGivenTheReplyAndTheCarryBefore runs the mod under node against a stand-in host
 // that records every command the mod runs and every request it asks the model for, in order.
 func Test855d2a1a_Mod_TheStepsRunInOrderEachGivenTheReplyAndTheCarryBefore(t *testing.T) {
@@ -1226,7 +1185,7 @@ func Test855d2a1j_Mod_DeliveriesOfOneSessionRunOneAfterAnotherEachGivenWhatTheOn
 }
 
 // Test855d2a1k_Mod_TwoDeepDeliveriesOfASessionWriteOneAfterTheOther runs the mod under node against a stand-in host
-// whose writing takes a while: the second write starts when the first has ended (855b29).
+// whose writing takes a while: the second write starts when the first has ended.
 func Test855d2a1k_Mod_TwoDeepDeliveriesOfASessionWriteOneAfterTheOther(t *testing.T) {
 	t.Parallel()
 
@@ -1707,7 +1666,7 @@ func Test855d2c1o_Mod_ACallThatIsAMemoryCommandIsNotLookedUpFor(t *testing.T) {
 }
 
 // Test855d2c1o_Mod_TheMemoryCommandsOfTheModAreThoseTheBinaryHolds: the commands the mod skips and the commands the
-// binary holds the text and result of are one list, which the mod writes in its source (855b122).
+// binary holds the text and result of are one list, which the mod writes in its source.
 func Test855d2c1o_Mod_TheMemoryCommandsOfTheModAreThoseTheBinaryHolds(t *testing.T) {
 	t.Parallel()
 
@@ -1779,7 +1738,7 @@ func Test855d2c1p_Mod_ABatchWithAnotherCallAmongTheMemoryCommandsIsLookedUpFor(t
 }
 
 // Test855d2c1q_Mod_ACommandThatOnlyMentionsAMemoryCommandIsLookedUpFor: a commit message, a grep or a heredoc that
-// names a memory command is not the agent's use of the memory (855b122).
+// names a memory command is not the agent's use of the memory.
 func Test855d2c1q_Mod_ACommandThatOnlyMentionsAMemoryCommandIsLookedUpFor(t *testing.T) {
 	t.Parallel()
 
@@ -1840,8 +1799,49 @@ func Test855d2c1r_Mod_AFailedMemoryCommandAndAFailedCallInOneBatchAreSkippedAsFa
 	g.Expect(cues).To(Equal([]any{"failure"}), "only the failed Read was looked up for, and its batch was not")
 }
 
+// TestMod_ADeepDeliveryWritesWhenItsDeliveryIsEmptyAndNotWhenItFails runs the mod under node against a stand-in
+// host whose delivery prints nothing, or exits with 1.
+func TestMod_ADeepDeliveryWritesWhenItsDeliveryIsEmptyAndNotWhenItFails(t *testing.T) {
+	t.Parallel()
+
+	steps := map[string]map[string]any{
+		"moment": {"exitCode": 0, "stdout": aStep(1)}, "phrases": {"exitCode": 0, "stdout": aStep(2)},
+		"recall": {"exitCode": 0, "stdout": aDeepStep()},
+	}
+
+	t.Run("an empty delivery", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+		outcome := runDeliveryDriver(t, deliveryScenario{Steps: steps, Deliver: map[string]any{"exitCode": 0, "stdout": ""}})
+
+		g.Expect(outcome.Passed.Context).To(BeEmpty(), "no block")
+
+		writes := outcome.reports()
+
+		g.Expect(writes).To(HaveLen(1), "the write")
+
+		if len(writes) == 1 {
+			g.Expect(writes[0]).To(HaveKey("cue"))
+		}
+	})
+
+	t.Run("a delivery that fails", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+		outcome := runDeliveryDriver(t, deliveryScenario{
+			Steps: steps, Deliver: map[string]any{"exitCode": 1, "stdout": "", "stderr": "auto deliver: no\n"},
+		})
+
+		for _, report := range outcome.reports() {
+			g.Expect(report).NotTo(HaveKey("cue"), "only the report of the failure, no write")
+		}
+	})
+}
+
 // TestMods_EveryJavaScriptModuleParses: the real mods parse under the real node, and the real node rejects a broken
-// module, which the stand-in node of the unit tests cannot show (793b55).
+// module, which the stand-in node of the unit tests cannot show.
 func TestMods_EveryJavaScriptModuleParses(t *testing.T) {
 	t.Parallel()
 

@@ -15,12 +15,12 @@ const (
 
 // Exported variables.
 var (
-	// ErrPlacementReply is the failure of a writing given a placement reply that is no list (855d4i).
+	// ErrPlacementReply is the failure of a writing given a placement reply that is no list (793d4h).
 	ErrPlacementReply = errors.New("the reply of the placement judgement is not a list")
 )
 
 // Placed is where a lesson is written: its position in the order of the vault, the seen note it is a continuation or a
-// sibling of, and the seen notes it supersedes (855d4i).
+// sibling of, and the seen notes it supersedes (793d4h).
 type Placed struct {
 	Position   string
 	Target     string
@@ -76,7 +76,7 @@ func (t *Ties) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// ParsePlacements reads the placement judgement's reply: a JSON list, with or without a code fence around it (855d4i).
+// ParsePlacements reads the placement judgement's reply: a JSON list, with or without a code fence around it (793d4h).
 func ParsePlacements(reply string) ([]Placement, error) {
 	var placements []Placement
 
@@ -88,9 +88,9 @@ func ParsePlacements(reply string) ([]Placement, error) {
 	return placements, nil
 }
 
-// PlacedAt returns where the lesson with a slug is written (855d4i): as a continuation or a sibling of the target the
+// PlacedAt returns where the lesson with a slug is written (793d4h): as a continuation or a sibling of the target the
 // placement gave it only when the target is a seen note, with the supersessions of seen notes only; any other placement
-// or supersession is ignored, and the lesson is written at the top (855b31).
+// or supersession is ignored, and the lesson is written at the top.
 func PlacedAt(placements []Placement, slug string, seen []string) Placed {
 	index := slices.IndexFunc(placements, func(placement Placement) bool { return placement.Slug == slug })
 	if index < 0 {

@@ -224,7 +224,7 @@ func autoTargets(
 ) []any {
 	home := homeOrEmpty(deps)
 
-	// no first-use step in any of the four: a prompt or a turn must not create the vault the user removed (793d4e);
+	// no first-use step in any of the four: a prompt or a turn must not create the vault the user removed (792b2c3);
 	// paths is the vault and the directory of the records of sessions that the delivery and the judgement read
 	paths := func(vault, sessions string) (string, string) {
 		if sessions == "" {

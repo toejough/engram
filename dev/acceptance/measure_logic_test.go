@@ -33,7 +33,7 @@ var (
 	haikuPrice = price{input: 0.10e-6, output: 0.50e-6, cacheRead: 0.01e-6, cacheWrite: 0.20e-6}
 	// liveLimits are the limits of every live row of 793 and 855 that is not a measurement.
 	liveLimits = sessionLimits{budgetUSD: "2", timeout: 5 * time.Minute}
-	// measureLimits are the limits of the conversations of the measurement rows of 855d7a1 (855b112).
+	// measureLimits are the limits of the conversations of the measurement rows.
 	measureLimits = sessionLimits{budgetUSD: "10", timeout: 30 * time.Minute}
 	sonnetPrice   = price{input: 2e-6, output: 10e-6, cacheRead: 0.10e-6, cacheWrite: 4e-6}
 )
@@ -375,8 +375,8 @@ func captureOf(first stepRun, ordered []stepRun) []stepRun {
 	return linked
 }
 
-// chainsOf links the runs of the steps into the chains of the delivery flow (855d2a, 855d2c) and of the capture
-// (855d2b), each in the order of its first step. A step is linked to the one before it by the carry the one before
+// chainsOf links the runs of the steps into the chains of the delivery flow (793d2a, 855d2c) and of the capture
+// (793d2b), each in the order of its first step. A step is linked to the one before it by the carry the one before
 // printed; a delivery that follows a step that printed nothing is the earliest one for the same session, cue and text
 // and event that began after it; a write is linked to a capture by the turn.
 func chainsOf(runs []stepRun, meter []meterRecord) []chain {

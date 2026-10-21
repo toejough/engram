@@ -48,7 +48,7 @@ func Test793d4j1b_Redact_TheNameOfAnAssignmentIsKeptAndWhatIsNotACredentialIsNot
 	g.Expect(auto.Redact("SECRET_TOKEN is s3cr3t-value")).To(Equal("SECRET_TOKEN is [redacted]"))
 	g.Expect(auto.Redact(`token = "a quoted value" end`)).To(Equal(`token = [redacted] end`))
 
-	// the forms that the promise leaves out (793c41), and the shapes one character short of their lower bound
+	// the forms that the promise leaves out, and the shapes one character short of their lower bound
 	for _, kept := range []string{
 		"9fceb02d0ae598e95dc970b74767f19372d61af8",
 		strings.Repeat("supercalifragilistic", 3),
@@ -261,7 +261,7 @@ type credential struct {
 	name   string
 }
 
-// credentialSpec is one shape of the recognised credentials of 793a1a, with a generator of texts of the shape whose
+// credentialSpec is one shape of the recognised credentials, with a generator of texts of the shape whose
 // parts run up from their lower bound.
 type credentialSpec struct {
 	name string
@@ -284,7 +284,7 @@ func credentialShape() *rapid.Generator[credential] {
 	})
 }
 
-// credentialSpecs lists the shapes of a credential that the promise names ([793a1a Terms]), one for each prefix of an
+// credentialSpecs lists the shapes of a credential that the promise names, one for each prefix of an
 // issuer, built here and never written whole in this file: a scanner of the repository would take a literal for a
 // credential.
 func credentialSpecs() []credentialSpec {

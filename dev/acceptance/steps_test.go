@@ -27,7 +27,7 @@ const (
 	// does not (855a3b1d).
 	askPlanMigration = "Plan a migration of the Zorblax staging database for tonight, around whatever is scheduled " +
 		"on that database. Reply with one short sentence."
-	// askPrepareRun is a recall moment that the stagingReset note applies to (855b10): a task of more than one step.
+	// askPrepareRun is a recall moment that the stagingReset note applies to: a task of more than one step.
 	askPrepareRun = "Prepare a test run against the Zorblax staging database tonight. Reply with one short sentence."
 	// askPrepareSecondRun is another prompt that the stagingReset note applies to.
 	askPrepareSecondRun = "Prepare a second test run against the Zorblax staging database tonight. " +
@@ -57,7 +57,7 @@ const (
 	// neverEnds is how long a step that never exits sleeps: far past any bound.
 	neverEnds = 24 * time.Hour
 	// ownTurnSettle is how long the test of a turn of the session's own waits for a record of that turn that would
-	// come: three times the longest capture of the live runs (793b85).
+	// come: three times the longest capture of the live runs.
 	ownTurnSettle = 20 * time.Second
 	piDirectory   = ".pi"
 	// settleTime is how long a test of an absence waits, after the records of a write exist, for a second write to
@@ -964,7 +964,7 @@ func (m *machine) writeTakes(wait time.Duration) {
 
 // writesLogged returns how many captures have ended for a session, as the debug log of the machine records it: a turn
 // that is no learn moment ends at the moment or at the judgement, which log one line when they print nothing, and any
-// other ends at the writing, which logs one line for each run, whatever it recorded (855b52).
+// other ends at the writing, which logs one line for each run, whatever it recorded.
 func (m *machine) writesLogged(session string) int {
 	return m.linesLogged(session, "auto.moment", "auto.judge", "auto.write")
 }
@@ -1047,7 +1047,7 @@ func reportSection(report, harness string) []string {
 	return section
 }
 
-// step logs one line of the scenario a test mirrors, and runs it: the test's output reads as the Gherkin (793b9).
+// step logs one line of the scenario a test mirrors, and runs it: the test's output reads as the Gherkin.
 func step(t *testing.T, line string, run func()) {
 	t.Helper()
 	t.Log(line)

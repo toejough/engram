@@ -28,7 +28,7 @@ type AutoRecallDeps struct {
 	Stdin io.Reader
 	// Query runs the lookup of `engram query` and prints its payload.
 	Query QueryRun
-	// ReadDir and ReadFile read the vault, whose notes the session wrote the deep judgement is shown (855b119).
+	// ReadDir and ReadFile read the vault, whose notes the session wrote the deep judgement is shown.
 	ReadDir  func(path string) ([]fs.DirEntry, error)
 	ReadFile func(path string) ([]byte, error)
 	// ReadChunks reads the records of the index file of a source in a directory of chunk indexes.
@@ -57,7 +57,7 @@ func RunAutoRecall(ctx context.Context, args AutoRecallArgs, deps AutoRecallDeps
 		LazyChunks: true, RecentFill: -1, Limit: auto.LookupLimit,
 	}, &payload)
 	if queryErr != nil {
-		// a failure is forwarded by the mod and stored: it names none of the prompt (793b107)
+		// a failure is forwarded by the mod and stored: it names none of the prompt
 		return fmt.Errorf("auto recall: lookup: %w", queryErr)
 	}
 
@@ -103,7 +103,7 @@ func candidatesOf(
 		return nil, itemsErr
 	}
 
-	// the candidates are in the order of their scores, and the payload lists the notes before the chunks (855b59)
+	// the candidates are in the order of their scores, and the payload lists the notes before the chunks
 	slices.SortStableFunc(items, byScore)
 
 	bySource := make(map[string]map[string]chunk.Record)
@@ -213,7 +213,7 @@ func newAutoRecallDeps(d Deps) AutoRecallDeps {
 
 // withWrittenCandidates adds the notes the session wrote earlier to the candidates of a deep judgement, after the last
 // note that matched and before the passages, each once: a lesson the session wrote already is then covered by a
-// candidate, whatever its wording (855b119).
+// candidate, whatever its wording.
 func withWrittenCandidates(matched []auto.Candidate, written []auto.Note) []auto.Candidate {
 	insertAt := 0
 

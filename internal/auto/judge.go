@@ -17,7 +17,7 @@ import (
 
 // Exported variables.
 var (
-	// ErrLearnReply is the failure of a judgement given a reply that is not the learn-moment judgement's (855d4g).
+	// ErrLearnReply is the failure of a judgement given a reply that is not the learn-moment judgement's (793d4g).
 	ErrLearnReply = errors.New(`the reply is not {"learn":true|false}`)
 )
 
@@ -29,12 +29,12 @@ type TurnEnd struct {
 	Answer  string `json:"answer"`
 	Text    string `json:"text"`
 	Origin  string `json:"origin"`
-	// Reply is the learn-moment judgement's reply (855d4g); the carry of the moment is read by no part of the judgement.
+	// Reply is the learn-moment judgement's reply (793d4g); the carry of the moment is read by no part of the judgement.
 	Reply string `json:"reply"`
 }
 
 // Judge returns the request for the model that judges the turn a session's record holds, and false when the reply of
-// the learn-moment judgement says the turn is no learn moment or the record holds no prompt (793d4g, 855d4g). It
+// the learn-moment judgement says the turn is no learn moment or the record holds no prompt (793d4g). It
 // reads the record once, and redacts the lines of the window only. The turn begins at the last prompt that has the
 // text the turn began with, or at the last prompt of the record when none has, and ends before the next prompt and
 // after its final text; the lines before it are the context, and the final text is the turn's last line when no line
@@ -68,7 +68,7 @@ func Judge(ctx context.Context, record []byte, end TurnEnd, lookup Lookup) (Step
 	}}, true, nil
 }
 
-// LearnMoment reads the reply of the learn-moment judgement: whether the turn is a learn moment (855d4g). A reply that
+// LearnMoment reads the reply of the learn-moment judgement: whether the turn is a learn moment (793d4g). A reply that
 // is neither {"learn":true} nor {"learn":false} is an error that holds the reply's first and last 40 characters,
 // redacted (855d4g1f).
 func LearnMoment(reply string) (bool, error) {
@@ -95,9 +95,9 @@ const (
 	divider = "--- the turn ---"
 	// humanKind is the origin kind the host stamps in the transcript on a prompt the user typed (855d4g1e).
 	humanKind = "human"
-	// judgeMaxTokens is a ceiling and not a spend: the lessons of a turn with a runbook and its steps (855b86).
+	// judgeMaxTokens is a ceiling and not a spend: the lessons of a turn with a runbook and its steps.
 	judgeMaxTokens = 3000
-	// judgeTimeoutMs is the row of the model call of the lessons judgement (855d2b).
+	// judgeTimeoutMs is the row of the model call of the lessons judgement (793d2b).
 	judgeTimeoutMs = 30000
 	// leftOut stands in the turn for the lines of its middle that the window could not hold.
 	leftOut = "--- some of the turn is left out ---"

@@ -11,7 +11,7 @@ import (
 	"github.com/toejough/imptest/match"
 )
 
-// TestModuleSyntax_FailsWhenNodeIsNotFound: a check that cannot run does not pass (793b55).
+// TestModuleSyntax_FailsWhenNodeIsNotFound: a check that cannot run does not pass.
 func TestModuleSyntax_FailsWhenNodeIsNotFound(t *testing.T) {
 	t.Parallel()
 

@@ -78,7 +78,7 @@ func Test855d7a1a_Hyp_ARecallChainIsTimed(t *testing.T) {
 // unexported variables.
 var (
 	// recallPrompts are the 20 prompts of the measurements of the chain of a prompt: tasks the vault's notes apply to,
-	// decisions that cannot be undone, and prompts no note applies to (855d7a1a).
+	// decisions that cannot be undone, and prompts no note applies to.
 	recallPrompts = []string{
 		askPrepareRun,
 		askPlanMigration,
