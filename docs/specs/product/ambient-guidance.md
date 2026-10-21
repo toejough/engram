@@ -303,11 +303,11 @@ Scenario: 792a19i1b The report carries the route evidence
 
 ## 792a19j The first action on every request is an engram query
 
-Requirement: [792a19j The first action on every request is an engram query](#792a19j-the-first-action-on-every-request-is-an-engram-query) An agent that has the shim MUST make its first tool call on every user request an
+Requirement: [792a19j The first action on every request is an engram query](#792a19j-the-first-action-on-every-request-is-an-engram-query) An [agent](../../GLOSSARY.md#agent-automatic-memory) that has the shim MUST make its first tool call on every user request an
 `engram query` that carries at least two `--phrase` values (the request in the agent's own words, and the kind of
 situation it is in) and a `--text` value holding the user's message verbatim (its first 300 characters or so when
 long), before it reads a file, answers or asks a clarifying question, and whether or not it has decided to
-delegate. The one exception is a user message that arrived with a block opening `[engram memory]`: the mod already looked up memory for that message, so the agent MUST NOT run this query again for that message, and every other rule of the shim, including its re-entry moments, stands.
+delegate. The one exception is a user message that arrived with a block opening `[engram memory]`: the [mod](../../GLOSSARY.md#mod) already looked up memory for that message, so the agent MUST NOT run this query again for that message, and every other rule of the shim, including its re-entry moments, stands.
 It MUST NOT gate the query on a judgment that the task is multi-step, recurring or done before. It MUST
 write every `--text` and `--phrase` value as `--flag="value"`, never `--flag "value"`, and MUST NOT rewrite or
 summarize the message in `--text`, whose paraphrase belongs only in `--phrase`.
@@ -327,8 +327,8 @@ A block that opens `[engram memory]` shows that [automatic memory](../../GLOSSAR
 
 ```gherkin
 Scenario: 792a19j1a A shim-only session queries first
-  Given an agent with the shim in its config and no engram skill installed
-  When it receives a user request
+  Given an agent with the shim in its config and no engram skill installed, and a user request that arrived with no block opening [engram memory]
+  When it receives the request
   Then its first tool call is an engram query carrying the request phrase, the situation phrase and --text with the user's message, before any other tool call
 
 Scenario: 792a19j1b A one-shot request still queries

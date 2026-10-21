@@ -217,7 +217,7 @@ revision as in [792b28c4 Installing from a local source](#792b28c4-installing-fr
 satisfying `update.ErrGitNotFound`, a failed removal an error naming the clone directory, and any other
 clone failure an error that wraps it and names `git clone`.
 
-Supports: [792a11a1b Outside a checkout the repository is cloned](../product/install-and-update.md#792a11a1-uat-scenarios), [792a11a1f Git is missing](../product/install-and-update.md#792a11a1-uat-scenarios), [792a11d1c A remote source reports its revision](../product/install-and-update.md#792a11d1-uat-scenarios).
+Supports: [792a11a1b Outside a checkout the repository is cloned](../product/install-and-update.md#792a11a1-uat-scenarios), [792a11a1h Git is missing](../product/install-and-update.md#792a11a1-uat-scenarios), [792a11d1c A remote source reports its revision](../product/install-and-update.md#792a11d1-uat-scenarios).
 
 Rationale: the module proxy serves repository blobs raw, so the git-lfs model arrives as a 133-byte
 pointer and a proxy build embeds it; a clone runs git's smudge filter.

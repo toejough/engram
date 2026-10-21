@@ -10,7 +10,7 @@ Requirement: 855d4b The `recall-lookup` MUST read one JSON object from standard 
 
 The instructions of the candidate judgement MUST say that a note is near only when the moment sharpens its own claim, the same subject and the same principle, and that a note that merely shares a situation or words and would need a different claim is unrelated; those of a deep request MUST say that a revision sharpens the note's own claim and never adds a different claim, a status, a plan, a branch, worktree or ticket name, a timestamp or an episode, and that a lesson must be durable and atomic with no ticket or change number in its situation.
 
-Owner: `recall-lookup`.
+Owner: [Recall Lookup](./recall-lookup.md).
 
 Supports: [855a3b1a A prompt that is not a recall moment arrives with nothing](../product/automatic-memory.md#855a3b1-uat-scenarios), [855a3b1b A note whose words match but that does not apply is not delivered](../product/automatic-memory.md#855a3b1-uat-scenarios), [855a3b1c Of two notes that conflict, only the newer is delivered](../product/automatic-memory.md#855a3b1-uat-scenarios), [855a3b1d The notes that arrive are the notes the recall skill draws on](../product/automatic-memory.md#855a3b1-uat-scenarios), [855a3b1e A passage of an earlier conversation arrives when it applies](../product/automatic-memory.md#855a3b1-uat-scenarios), [855a2a1a A glance leaves the vault's notes as they were](../product/automatic-memory.md#855a2a1-uat-scenarios), [855a2a1b A deep delivery writes the lesson the vault lacks](../product/automatic-memory.md#855a2a1-uat-scenarios), [793a2b1d A prompt that matches no note arrives with nothing](../product/automatic-memory.md#793a2b1-uat-scenarios).
 
@@ -115,11 +115,11 @@ Scenario: 855d4b1t A deep request holds the notes the session wrote
 
 ### 855d8b The candidates of the lookup
 
-- Verdicts: `covered`, a [note](../../GLOSSARY.md#permanent-note) that states what applies to the moment; `near`, a note that addresses the same situation and omits a substantive claim, or that only matches content a newer candidate reverses ([recall skill](../../GLOSSARY.md#recall-skill) Step 2.5C); `evidence`, a passage that applies; `unrelated`.
+- Verdicts: `covered`, a [note](../../GLOSSARY.md#permanent-note) that states what applies to the moment; `near`, a note that addresses the same situation and omits a substantive part of its own claim, the same subject and the same principle, or that only matches content a newer candidate reverses ([recall skill](../../GLOSSARY.md#recall-skill) Step 2.5C), and not a note that merely shares a situation or words and would need a different claim, which is `unrelated`; `evidence`, a passage that applies; `unrelated`.
 - Budget: the lookup is asked for 60 items; the matched set is in the order of the scores; a note whole; a chunk cut to 1,200 characters; at most 30 candidates, at least 10 of them passages when so many matched, and 60,000 characters of text in all, the list ending at the first candidate that does not fit.
 - Candidate line: `- <file name or chunk ID> (<date>; <type>; parent; <situation>): <body>` for a note, `parent` only for one from the parent [vault](../../GLOSSARY.md#vault), and `- <chunk ID> (<date>; passage): <text>` for a chunk, written as one line.
 - Carry: for each candidate, its ID, kind, type, date, situation, full text (redacted and written as one line, not cut) and whether it came from the parent [vault](../../GLOSSARY.md#vault) or is pending.
 
 ## Shared requirements
 
-- [793d4j Redacting credentials](./moment-judgement.md#793d4j-redacting-credentials): stated once, in [moment-judgement](./moment-judgement.md); recall-lookup is one of its owners.
+- [793d4j Redacting credentials](./moment-judgement.md#793d4j-redacting-credentials): stated once, in [Moment Judgement](./moment-judgement.md); recall-lookup is one of its owners.

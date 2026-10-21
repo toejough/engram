@@ -100,7 +100,7 @@ Requirement: [792b2c3 First-use gating](#792b2c3-first-use-gating) For every [va
 
 Supports: [792a2e1a A read command creates the vault](../product/vault-identity.md#792a2e1-uat-scenarios), [792a2e1b amend and activate fail only on their own merits](../product/vault-identity.md#792a2e1-uat-scenarios), [792a2e1c A child host gets its own vault](../product/vault-identity.md#792a2e1-uat-scenarios), [792a2e1d A second run creates nothing](../product/vault-identity.md#792a2e1-uat-scenarios), [792a2f1a An existing vault is untouched by read-only use](../product/vault-identity.md#792a2f1-uat-scenarios), [792a2g1a A half-created vault gets its ID](../product/vault-identity.md#792a2g1-uat-scenarios), [792a6t1a Stats on an empty vault](../product/controlled-vocabulary.md#792a6t1-uat-scenarios), [793a2a1e A vault that does not exist is not created](../product/automatic-memory.md#793a2a1-uat-scenarios), [793a2a1g A lesson is not written to a vault that does not exist](../product/automatic-memory.md#793a2a1-uat-scenarios).
 
-Rationale: one shared first-use step in dispatch, rather than one per command, makes every command create a missing vault the same way; the commands of the group `auto` are run by the mod, not by the user, and a missing vault is the user's to create.
+Rationale: one shared first-use step in dispatch, rather than one per command, makes every command create a missing vault the same way; the commands of the group `auto` are run by the [mod](../../GLOSSARY.md#mod), not by the user, and a missing vault is the user's to create.
 
 #### 792b2c3a Scenarios
 

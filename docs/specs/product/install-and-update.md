@@ -64,7 +64,7 @@ Scenario: 792a11a1g The first GOPATH entry is used
   When the user runs engram update
   Then the report names /gp1/bin/engram as the install location
 
-Scenario: 792a11a1f Git is missing
+Scenario: 792a11a1h Git is missing
   Given git is not installed and the working directory is outside a checkout
   When the user runs engram update
   Then it fails with an error that the git binary is not on PATH

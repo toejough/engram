@@ -504,7 +504,7 @@ among the payload's top-level `items[]` by path or basename and report `surfaced
 false when it is absent, and MUST NOT consult any cluster's `candidate_l2s`. A probe over a set of runbooks MUST do this for each
 and report a batch outcome per runbook, a miss included, and MUST raise `RuntimeError` naming the runbook, the exit code and the error output when the query subprocess exits non-zero. A runbook that missed MAY then be escalated, one query per phrase.
 
-Supports: [792a23j1a A target present in items() counts as surfaced](../product/memory-effectiveness-evaluation.md#792a23j1-uat-scenarios), [792a23j1b candidate_l2s absence does not count as a miss](../product/memory-effectiveness-evaluation.md#792a23j1-uat-scenarios).
+Supports: [792a23j1a A target present in items[] counts as surfaced](../product/memory-effectiveness-evaluation.md#792a23j1-uat-scenarios), [792a23j1b candidate_l2s absence does not count as a miss](../product/memory-effectiveness-evaluation.md#792a23j1-uat-scenarios).
 
 Rationale: `candidate_l2s` is a capped subset chosen for synthesis ([792b24c10 Candidate notes](./query-engine.md#792b24c10-candidate-notes)), so reading it reports a correctly matched note as a miss.
 
