@@ -11,8 +11,9 @@
 - Commands: `learn` (`fact`, `feedback`, `qa`, `runbook`), `query`, `query-chunks`, `show`,
   `show-chunk`, `amend`, `activate`, `resituate`, `ingest`, `prune`, `count`, `check`, `embed`
   (`apply`, `status`), `vocab` (`bootstrap`, `tag-definitions`, `propose`, `stats`, `refit`),
-  `update`, `register-skills`, `serve` and `vault-id`. Every command except `prune`, `query-chunks`
-  and `show-chunk` resolves a vault. Each command's behavior is specified by its capability.
+  `update`, `register-skills`, `serve`, `vault-id` and `auto` (`moment`, `phrases`, `recall`, `deliver`, `judge`,
+  `place`, `write` and `sweep`). Every command except `prune`, `query-chunks`, `show-chunk` and the `auto` commands
+  `moment`, `phrases` and `sweep` resolves a vault. Each command's behavior is specified by its capability.
 - Current realization (informational): `internal/cli/targets.go` (`Targets`, `runInVault`,
   `newErrHandler`), `internal/cli/cli.go`, `resolveVault` in `internal/cli/learn.go`,
   `resolveVaultName` in `internal/cli/identity.go`, `DataDirFromHome` in `internal/cli/targets.go`,
@@ -95,14 +96,11 @@ Scenario: 792b2c2a3 The flag wins
 
 ### 792b2c3 First-use gating
 
-Requirement: [792b2c3 First-use gating](#792b2c3-first-use-gating) For every vault-resolving command, the command-line-surface MUST ask the
-[vault-identity-registry](./vault-identity-registry.md) to ensure the vault at the resolved path before running the command, and
-MUST NOT run the command when that step fails.
+Requirement: [792b2c3 First-use gating](#792b2c3-first-use-gating) For every [vault](../../GLOSSARY.md#vault)-resolving command other than the commands of the group `auto` (`auto moment`, `auto phrases`, `auto recall`, `auto deliver`, `auto judge`, `auto place`, `auto write` and `auto sweep`), the command-line-surface MUST ask the [vault-identity-registry](./vault-identity-registry.md) to ensure the vault at the resolved path before running the command, and MUST NOT run the command when that step fails. For a command of the group `auto` it MUST NOT ask: the command runs against the path as it is, and creates nothing when the path holds no vault.
 
-Supports: [792a2e1a A read command creates the vault](../product/vault-identity.md#792a2e1-uat-scenarios), [792a2e1b amend and activate fail only on their own merits](../product/vault-identity.md#792a2e1-uat-scenarios), [792a2e1c A child host gets its own vault](../product/vault-identity.md#792a2e1-uat-scenarios), [792a2e1d A second run creates nothing](../product/vault-identity.md#792a2e1-uat-scenarios), [792a2f1a An existing vault is untouched by read-only use](../product/vault-identity.md#792a2f1-uat-scenarios), [792a2g1a A half-created vault gets its ID](../product/vault-identity.md#792a2g1-uat-scenarios), [792a6t1a Stats on an empty vault](../product/controlled-vocabulary.md#792a6t1-uat-scenarios).
+Supports: [792a2e1a A read command creates the vault](../product/vault-identity.md#792a2e1-uat-scenarios), [792a2e1b amend and activate fail only on their own merits](../product/vault-identity.md#792a2e1-uat-scenarios), [792a2e1c A child host gets its own vault](../product/vault-identity.md#792a2e1-uat-scenarios), [792a2e1d A second run creates nothing](../product/vault-identity.md#792a2e1-uat-scenarios), [792a2f1a An existing vault is untouched by read-only use](../product/vault-identity.md#792a2f1-uat-scenarios), [792a2g1a A half-created vault gets its ID](../product/vault-identity.md#792a2g1-uat-scenarios), [792a6t1a Stats on an empty vault](../product/controlled-vocabulary.md#792a6t1-uat-scenarios), [793a2a1e A vault that does not exist is not created](../product/automatic-memory.md#793a2a1-uat-scenarios), [793a2a1g A lesson is not written to a vault that does not exist](../product/automatic-memory.md#793a2a1-uat-scenarios).
 
-Rationale: one shared first-use step in dispatch, rather than one per command, makes every command create a missing
-vault the same way.
+Rationale: one shared first-use step in dispatch, rather than one per command, makes every command create a missing vault the same way; the commands of the group `auto` are run by the mod, not by the user, and a missing vault is the user's to create.
 
 #### 792b2c3a Scenarios
 
@@ -116,6 +114,39 @@ Scenario: 792b2c3a2 A failed first-use step stops the command
   Given the resolved vault path names a regular file
   When a vault-resolving command is dispatched
   Then the error is reported and the command does not run
+```
+
+#### 793d4e1 Scenarios
+
+```gherkin
+Scenario: 793d4e1a The delivery command creates no vault
+  Given no vault exists at the resolved path
+  When engram auto deliver is dispatched
+  Then no vault exists at the path afterwards, nothing is printed to standard output and no creation line is printed
+
+Scenario: 793d4e1b The judgement command creates no vault
+  Given no vault exists at the resolved path, and a session whose transcript holds a prompt
+  When engram auto judge is dispatched
+  Then no vault exists at the path afterwards and no creation line is printed
+
+Scenario: 793d4e1c The writing command creates no vault and writes no note
+  Given no vault exists at the resolved path, and a reply that holds one lesson
+  When engram auto write is dispatched
+  Then no vault exists at the path afterwards, no note was written, nothing is printed to standard output and no creation line is printed
+
+Scenario: 793d4e1d The sweep command creates no vault
+  Given no vault exists at the resolved path, and the transcript of a session
+  When engram auto sweep is dispatched
+  Then no vault exists at the path afterwards, nothing is printed to standard output and no creation line is printed
+```
+
+#### 855d4f1 Scenarios
+
+```gherkin
+Scenario: 855d4f1a The moment, phrases, recall and placement commands create no vault
+  Given no vault exists at the resolved path, a session whose transcript holds a prompt, a reply of depth glance, a reply of one phrase and a reply that holds one lesson
+  When engram auto moment, auto phrases, auto recall and auto place are dispatched with them
+  Then no vault exists at the path afterwards and no creation line is printed
 ```
 
 ### 792b2c4 Result reporting

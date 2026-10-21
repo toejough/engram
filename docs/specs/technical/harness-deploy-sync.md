@@ -5,7 +5,7 @@
 - Ownership: Repository-owned dependency-boundary interaction (the harness configuration directories
   `~/.claude` and `~/.pi`).
 - Responsibility: for each detected harness, keeps an engram-owned root equal to the deploy set
-  computed from the source (skills, and guidance while it is managed), makes the harness's discovery
+  computed from the source (skills, mods, and guidance while it is managed), makes the harness's discovery
   paths links into that root, adopts earlier copies of deploy-set artifacts, removes what left the
   source and the links that dangle, deletes nothing it cannot prove it owns, and reports what it did
   and what it left alone.
@@ -96,6 +96,7 @@ directory and naming its top-level skill directory, and MUST fail with an error 
 `update.ErrSkillsSrcMissing` and naming the directory when that source directory does not exist. It MUST
 plan one copy for every `.md` file directly in `agent-instructions/guidance/` for every harness that has a
 guidance directory, and none, without an error, when that source directory does not exist.
+For Claude Code it MUST also plan one copy for every file under `agent-instructions/mods/` of the source, as [793d4b Deploying the mods of the source](#793d4b-deploying-the-mods-of-the-source) states.
 
 Supports: [792a11g1e A missing skills source is an error](../product/install-and-update.md#792a11g1-uat-scenarios), [792a11h1a A skill deploys as a directory link](../product/install-and-update.md#792a11h1-uat-scenarios), [792a11l1a The flag deploys guidance](../product/install-and-update.md#792a11l1-uat-scenarios).
 
@@ -954,6 +955,7 @@ per removal. It MUST print nothing for a harness with nothing to report, MUST pr
 deletion, adoption and cleanup lines of a dry run, and MUST NOT prefix the refusal, unattributable,
 unmanaged and skill lines. For Claude Code, whose guidance directory is its root, each guidance line MUST
 end with `(canonical: ~/.claude/engram/guidance/<name>)`, and Pi's MUST NOT.
+For Claude Code it MUST also give the line of each mod it deploys and the line after the rows that [793d4b Deploying the mods of the source](#793d4b-deploying-the-mods-of-the-source) states.
 
 Supports: [792a11f1b Action lines carry the prefix, notices do not](../product/install-and-update.md#792a11f1-uat-scenarios), [792a11g1d One failing harness does not stop the other](../product/install-and-update.md#792a11g1-uat-scenarios), [792a11h1d The report lists each skill and its file count](../product/install-and-update.md#792a11h1-uat-scenarios), [792a11i1a A removed skill disappears](../product/install-and-update.md#792a11i1-uat-scenarios), [792a11j1a An unmarked root is not purged](../product/install-and-update.md#792a11j1-uat-scenarios), [792a11j1c A dangling engram link is removed and a foreign link kept](../product/install-and-update.md#792a11j1-uat-scenarios), [792a11k1a A copied skill becomes a link](../product/install-and-update.md#792a11k1-uat-scenarios), [792a11k1b An unmanaged entry is reported, not deleted](../product/install-and-update.md#792a11k1-uat-scenarios), [792a11m1d The report states the canonical path](../product/install-and-update.md#792a11m1-uat-scenarios).
 
@@ -1076,4 +1078,68 @@ Scenario: 792b29c18a10 A dry run prefixes the guidance lines
   Given a dry run with guidance deployed and not imported
   When the report is written
   Then the line begins "[dry-run] guidance deployed to"
+```
+
+### 793d4b Deploying the mods of the source
+
+Requirement: 793d4b The `harness-deploy-sync` MUST plan one copy for every file under `agent-instructions/mods/` of the source for Claude Code, keeping the file's relative path and naming its top-level directory as the [skill](../../GLOSSARY.md#skill) directory it is deployed in, so that a mod is deployed, linked, reported and removed as a skill directory is; plan none for Pi, and none without an error when the directory does not exist; and report each mod directory it deploys, in the Claude Code section of the report of [`engram update`](../../GLOSSARY.md#engram-update), as a mod, with `agent-instructions/mods/<name>/` as its source (a skill has `agent-instructions/skills/<name>/`). A dry run MUST plan and report the mod and write none of its files; a second `engram update` MUST leave the deployed mod as the first left it (the same files and link, no second copy, listed once). It MUST also count, for each skill directory and mod, the files this run changed (created, deleted or rewritten with other content), and write after the rows of the Claude Code section of the report of [`engram update`](../../GLOSSARY.md#engram-update) one line for each mod with a changed file, `open sessions reload the mod <name> on their own; restart one that reports the mod as stale`, since the host reloads a changed mod in a [session](../../GLOSSARY.md#session) that is open on its own about 0.4 seconds after its files change, and a [turn](../../GLOSSARY.md#turn-automatic-memory) that ends in between is skipped. A dry run MUST write no such line, nor may an update that changed no file of the mod.
+
+Supports: [793a2a1a The next session has memory after one engram update](../product/automatic-memory.md#793a2a1-uat-scenarios), [793a2a1b A second update still delivers each note once](../product/automatic-memory.md#793a2a1-uat-scenarios), [793a2a1c A dry run turns nothing on](../product/automatic-memory.md#793a2a1-uat-scenarios), [793a2a1d Pi gets no automatic memory](../product/automatic-memory.md#793a2a1-uat-scenarios), [793a2a1f A second update still writes each lesson as one note](../product/automatic-memory.md#793a2a1-uat-scenarios).
+
+#### 793d4b1 Scenarios
+
+```gherkin
+Scenario: 793d4b1a Every file of a mod is planned for Claude Code
+  Given a source whose agent-instructions/mods holds the mod engram-memory with three files
+  When the mod copies are planned for Claude Code
+  Then each file is planned once under Claude Code's skills directory, in the engram-memory directory
+
+Scenario: 793d4b1b A source with no mods plans none
+  Given a source with no agent-instructions/mods directory
+  When the mod copies are planned
+  Then none is planned and there is no error
+
+Scenario: 793d4b1c An update deploys and links the mod
+  Given a checkout whose agent-instructions/mods holds the mod engram-memory, and a machine with Claude Code
+  When engram update runs
+  Then the engram-owned root holds the mod's files, and Claude Code's skills directory links engram-memory to them
+
+Scenario: 793d4b1d Pi is planned no mod
+  Given a source whose agent-instructions/mods holds the mod engram-memory, and the harnesses Claude Code and Pi
+  When the mod copies are planned
+  Then they are planned for Claude Code only
+
+Scenario: 793d4b1e A deployed mod is reported as a mod
+  Given a checkout whose agent-instructions/mods holds the mod engram-memory and whose agent-instructions/skills holds the skill learn, and a machine with Claude Code
+  When engram update runs
+  Then the report of Claude Code lists learn as a skill directory and engram-memory as a mod directory
+
+Scenario: 793d4b1f The report names the mods directory as the source of a mod
+  Given a report of Claude Code with the skill directory learn and the mod directory engram-memory
+  When the report is written
+  Then the skill is listed from agent-instructions/skills/learn/ and the mod from agent-instructions/mods/engram-memory/
+
+Scenario: 793d4b1g A dry run plans the mod and writes none of it
+  Given a checkout whose agent-instructions/mods holds the mod engram-memory, and a machine with Claude Code
+  When engram update --dry-run runs
+  Then the report lists the mod, and no file of it and no link to it has been written
+
+Scenario: 793d4b1h A second update leaves the mod as the first left it
+  Given a checkout whose agent-instructions/mods holds the mod engram-memory, a machine with Claude Code, and engram update run once
+  When engram update runs again
+  Then the files of the mod and the link to it are those the first run left, and the report lists the mod once
+```
+
+#### 855d4w1 Scenarios
+
+```gherkin
+Scenario: 855d4w1a An update tells that open sessions reload the mod when its files changed
+  Given a report of Claude Code with the mod directory engram-memory and one changed file, the same report with none changed, and the same report of a dry run
+  When the report is written
+  Then it holds the line open sessions reload the mod engram-memory on their own, and restart one that reports the mod as stale once, and the other two reports hold none
+
+Scenario: 855d4w1b The update counts the files of a mod that it changed
+  Given a checkout with the skill learn and the mod engram-memory, an update that deployed them, and one file of the mod changed in the checkout
+  When the update runs again
+  Then the report counts one changed file for the mod and none for the skill
 ```
