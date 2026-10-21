@@ -6,7 +6,25 @@ in the vault's Luhmann hierarchy, and `qa` pairs of a question note and an answe
 capability ([note-revision](./note-revision.md)); deciding which lessons to capture, and how to phrase them, belongs to the [learn](./learn.md) and
 [write-memory](./write-memory.md) skills.
 
-## 792a3a Fact notes
+## 792a3 Note Writing
+
+**Participants and responsibilities.**
+- The agent: decides which lessons to capture and how to phrase them, through the [learn](../../GLOSSARY.md#learn-skill) and [write-memory](../../GLOSSARY.md#write-memory-skill) skills, and gives [`engram learn`](../../GLOSSARY.md#engram-learn-subcommand) the content, the source and the placement.
+- The user: runs `engram learn` directly, naming the [slug](../../GLOSSARY.md#slug), the source and the position ([792a3g Argument validation](#792a3g-argument-validation), [792a3j Luhmann placement](#792a3j-luhmann-placement)).
+- The software: writes a [fact](../../GLOSSARY.md#fact-note-type), a [feedback](../../GLOSSARY.md#feedback-note-type) or a [runbook](../../GLOSSARY.md#runbook) note with the fields and metadata it is given, promised by [792a3a Fact notes](#792a3a-fact-notes), [792a3b Feedback notes](#792a3b-feedback-notes), [792a3c Runbook notes](#792a3c-runbook-notes), [792a3d Runbook red flags and triggers](#792a3d-runbook-red-flags-and-triggers), [792a3h Optional metadata](#792a3h-optional-metadata) and [792a3i Tier field](#792a3i-tier-field).
+- The software: places each note in the [vault](../../GLOSSARY.md#vault)'s [Luhmann ID](../../GLOSSARY.md#luhmann-id) hierarchy and keeps concurrent writers apart, promised by [792a3j Luhmann placement](#792a3j-luhmann-placement), [792a3k Placement refusals](#792a3k-placement-refusals) and [792a3m Concurrent writes never collide](#792a3m-concurrent-writes-never-collide).
+- The software: embeds each note on write and stamps its repository and user, promised by [792a3n Embed on write](#792a3n-embed-on-write), [792a3o Repository provenance](#792a3o-repository-provenance) and [792a3p User provenance](#792a3p-user-provenance).
+- The software: writes a question-and-answer pair with [`engram learn qa`](../../GLOSSARY.md#engram-learn-qa-subcommand), returns only the answer to a query and tags each kind but the question with the vocabulary, promised by [792a3q Question-and-answer pairs](#792a3q-question-and-answer-pairs), [792a3s Question-and-answer partial failure](#792a3s-question-and-answer-partial-failure), [792a3t Question-and-answer retrieval](#792a3t-question-and-answer-retrieval) and [792a3u Vocabulary tagging by kind](#792a3u-vocabulary-tagging-by-kind).
+- The software: refuses invalid input, and a task-type or input-signature field on a runbook, before it writes, promised by [792a3e No task-type or input fields](#792a3e-no-task-type-or-input-fields), [792a3f Required content](#792a3f-required-content), [792a3g Argument validation](#792a3g-argument-validation), [792a3k Placement refusals](#792a3k-placement-refusals) and [792a3r Question-and-answer validation](#792a3r-question-and-answer-validation).
+- Retained by people or other systems: git and the operating system report the repository and the user of the writer's environment, and the software records what they report without verifying it ([792a3o Repository provenance](#792a3o-repository-provenance)).
+
+**Interactions.** The agent hands `engram learn fact`, `feedback` or `runbook` the content fields, a source and a position; the software writes one note at the vault root with its [sidecar](../../GLOSSARY.md#sidecar-embedding-sidecar) and prints the note's path ([792a3a Fact notes](#792a3a-fact-notes), [792a3b Feedback notes](#792a3b-feedback-notes), [792a3c Runbook notes](#792a3c-runbook-notes), [792a3n Embed on write](#792a3n-embed-on-write)). The agent hands `engram learn qa` a question, an answer, a source and optional [contributors](../../GLOSSARY.md#contributors-qa-frontmatter--body-field); the software writes the linked pair, prints both paths and removes the question note if the answer note cannot be written ([792a3q Question-and-answer pairs](#792a3q-question-and-answer-pairs), [792a3s Question-and-answer partial failure](#792a3s-question-and-answer-partial-failure)). Two writers hand notes to one vault at the same time; the software gives them distinct Luhmann IDs and overwrites neither ([792a3m Concurrent writes never collide](#792a3m-concurrent-writes-never-collide)).
+
+**Boundary assumptions.** The software assumes from the caller a non-blank `--situation`, a `--done-when` for a runbook, a `--source`, a kebab-case `--slug` and well-formed optional flags; when one is missing or malformed, [792a3f Required content](#792a3f-required-content) and [792a3g Argument validation](#792a3g-argument-validation) refuse with an error naming it and write nothing. It assumes a valid `--position` and, for a continuation or a sibling, a valid `--target`; when either is not, [792a3k Placement refusals](#792a3k-placement-refusals) refuses with no note written, and it does not assume that the `--target` names an existing note ([792a3l Placement under an absent target](#792a3l-placement-under-an-absent-target)). It assumes for a pair a question, exactly one answer, a source, a certainty of `high`, `medium` or `low` and contributors that are notes in the vault; when not, [792a3r Question-and-answer validation](#792a3r-question-and-answer-validation) refuses before writing either note. It assumes that embedding works; when embedding fails, [792a3n Embed on write](#792a3n-embed-on-write) still writes the note, warns and succeeds. It assumes that git and the operating system name a repository and a user; when they do not, [792a3o Repository provenance](#792a3o-repository-provenance) omits `repo:` and [792a3p User provenance](#792a3p-user-provenance) writes no `user:` and warns once.
+
+**Shared rules.** The vault name stamped on `vault:` is owned by [Vault Identity](./vault-identity.md) ([792a2b Vault name](./vault-identity.md#792a2b-vault-name)). Changing an existing note is owned by [Note Revision](./note-revision.md). Deciding which lessons to capture and how to phrase them is owned by [Learn](./learn.md) and [Write Memory](./write-memory.md). How [triggers](../../GLOSSARY.md#trigger) surface a runbook is owned by [Memory Query](./memory-query.md) ([792a7za A trigger hit comes first](./memory-query.md#792a7za-a-trigger-hit-comes-first)). The write-time vocabulary tagging that [792a3u Vocabulary tagging by kind](#792a3u-vocabulary-tagging-by-kind) applies by kind is owned by [Controlled Vocabulary](./controlled-vocabulary.md) ([792a6d Write-time vocabulary tagging](./controlled-vocabulary.md#792a6d-write-time-vocabulary-tagging)).
+
+### 792a3a Fact notes
 
 Requirement: [792a3a Fact notes](#792a3a-fact-notes) `engram learn fact` MUST write one note named
 `<luhmann>.<YYYY-MM-DD>.<slug>.md` at the vault root, whose frontmatter carries `type: fact`, the
@@ -14,7 +32,7 @@ situation, subject, predicate and object, the Luhmann ID, the creation date and 
 whose body reads `Information learned: when in <situation>, <subject> <predicate> <object>.` with
 any leading `When ` dropped from the situation, and MUST print the note's path on stdout.
 
-### 792a3a1 UAT Scenarios
+#### 792a3a1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a3a1a A fact note is written
@@ -28,14 +46,14 @@ Scenario: 792a3a1b A leading When is not doubled
   Then the note's body reads "Information learned: when in testing, s p o."
 ```
 
-## 792a3b Feedback notes
+### 792a3b Feedback notes
 
 Requirement: [792a3b Feedback notes](#792a3b-feedback-notes) `engram learn feedback` MUST write one note with the same filename shape, whose
 frontmatter carries `type: feedback`, the situation, behavior, impact and action, the Luhmann ID,
 the creation date and the source, and whose body reads `Lesson learned: when <situation>, <action>.`
 with any leading `When ` dropped from the situation, and MUST print the note's path on stdout.
 
-### 792a3b1 UAT Scenarios
+#### 792a3b1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a3b1a A feedback note is written
@@ -49,7 +67,7 @@ Scenario: 792a3b1b A leading When is not doubled
   Then the note's body reads "Lesson learned: when x, a."
 ```
 
-## 792a3c Runbook notes
+### 792a3c Runbook notes
 
 Requirement: [792a3c Runbook notes](#792a3c-runbook-notes) `engram learn runbook` MUST write one note with the same filename shape, whose
 frontmatter carries `type: runbook`, the situation, `done_when`, the Luhmann ID, the creation date
@@ -64,7 +82,7 @@ filename and Luhmann placement rather than the `qa` scheme: a top-level position
 yet" never requires a separate scheme, and `qa` is the one kind built to skip the hierarchy and be partly excluded
 from retrieval.
 
-### 792a3c1 UAT Scenarios
+#### 792a3c1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a3c1a A runbook note is written
@@ -73,7 +91,7 @@ Scenario: 792a3c1a A runbook note is written
   Then stdout prints the path of 1.<today>.rb.md, whose frontmatter has type: runbook, situation and done_when, and whose body is "1. Run the checks"
 ```
 
-## 792a3d Runbook red flags and triggers
+### 792a3d Runbook red flags and triggers
 
 Requirement: [792a3d Runbook red flags and triggers](#792a3d-runbook-red-flags-and-triggers) `engram learn runbook` MUST write each `--red-flag` value, in order, to a
 `red_flags:` list and each `--trigger` value, in order, to a `triggers:` list after it, and MUST
@@ -84,7 +102,7 @@ catch; the general floor is not restated on each runbook. How triggers surface a
 capability ([memory-query](./memory-query.md)). `red_flags` is a structured field and not a body heading, because the
 follow frame treats it as a standing condition to recheck and so it carries weight that template wording does not.
 
-### 792a3d1 UAT Scenarios
+#### 792a3d1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a3d1a Red flags are kept in order
@@ -103,11 +121,11 @@ Scenario: 792a3d1c Neither flag means neither field
   Then the note is written with no red_flags: and no triggers: field
 ```
 
-## 792a3e No task-type or input fields
+### 792a3e No task-type or input fields
 
 Requirement: [792a3e No task-type or input fields](#792a3e-no-task-type-or-input-fields) `engram learn runbook` MUST NOT accept a task-type or input-signature field.
 
-### 792a3e1 UAT Scenarios
+#### 792a3e1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a3e1a A task type is refused
@@ -116,7 +134,7 @@ Scenario: 792a3e1a A task type is refused
   Then it fails naming --task-type as an undefined flag, and no note is written
 ```
 
-## 792a3f Required content
+### 792a3f Required content
 
 Requirement: [792a3f Required content](#792a3f-required-content) `engram learn fact`, `feedback` and `runbook` MUST refuse to write a note whose
 `--situation` is missing or blank, and `engram learn runbook` MUST also refuse one whose
@@ -125,7 +143,7 @@ Requirement: [792a3f Required content](#792a3f-required-content) `engram learn f
 Rationale: the situation is the note's retrieval handle. Recall finds a note by a query phrased as
 its situation, so a note without one cannot be recalled that way.
 
-### 792a3f1 UAT Scenarios
+#### 792a3f1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a3f1a A missing situation is refused
@@ -144,7 +162,7 @@ Scenario: 792a3f1c A runbook without done-when is refused
   Then it fails naming --done-when, and no note is written
 ```
 
-## 792a3g Argument validation
+### 792a3g Argument validation
 
 Requirement: [792a3g Argument validation](#792a3g-argument-validation) `engram learn fact`, `feedback` and `runbook` MUST require `--source` and a
 `--slug` matching `[a-z0-9-]+`, and MUST refuse, before writing anything, a `--project` that is not
@@ -153,7 +171,7 @@ kebab-case, an `--issue` containing whitespace, a `--tag` that is not `<family>`
 trimming, a `--tier` other than `L1`, `L2` or `L3`, and a `--supersedes` that is not
 `<note>|<type>|<claim>` with a type of `updates`, `narrows` or `refutes`.
 
-### 792a3g1 UAT Scenarios
+#### 792a3g1 UAT Scenarios
 
 ```gherkin
 Scenario Outline: 792a3g1a An invalid argument is refused before any write
@@ -174,7 +192,7 @@ Scenario Outline: 792a3g1a An invalid argument is refused before any write
     | fact    | --supersedes "a\|bogus\|c" | supersedes type must be updates, narrows or refutes |
 ```
 
-## 792a3h Optional metadata
+### 792a3h Optional metadata
 
 Requirement: [792a3h Optional metadata](#792a3h-optional-metadata) `engram learn fact`, `feedback` and `runbook` MUST write a given `--project` to
 `project:`, `--issue` to `issue:`, each `--tag` to `tags:`, each `--chunk-source` to `sources:`, and
@@ -186,7 +204,7 @@ Rationale: `learn` records `--chunk-source` IDs without checking the chunk index
 a note is written from may not be indexed yet when it is written. `engram amend`, which runs later,
 checks them.
 
-### 792a3h1 UAT Scenarios
+#### 792a3h1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a3h1a Optional metadata is written
@@ -200,14 +218,14 @@ Scenario: 792a3h1b Absent metadata writes no field
   Then the note has no project:, issue:, tags:, sources: or supersedes: field
 ```
 
-## 792a3i Tier field
+### 792a3i Tier field
 
 Requirement: [792a3i Tier field](#792a3i-tier-field) `engram learn fact`, `feedback` and `runbook` MUST write `tier: L2` when `--tier`
 is absent, and the given value when `--tier` is `L1`, `L2` or `L3`.
 
 Rationale: `L1` and `L3` are still accepted so that hand-edited notes carrying them stay valid.
 
-### 792a3i1 UAT Scenarios
+#### 792a3i1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a3i1a The tier defaults to L2
@@ -221,7 +239,7 @@ Scenario: 792a3i1b A legacy tier is written as given
   Then the note carries tier: L3
 ```
 
-## 792a3j Luhmann placement
+### 792a3j Luhmann placement
 
 Requirement: [792a3j Luhmann placement](#792a3j-luhmann-placement) `engram learn fact`, `feedback` and `runbook` MUST give the new note, for
 `--position top`, the top-level number one above the highest existing one (`1` when there is
@@ -234,7 +252,7 @@ the highest existing numeric child. A gap left by a missing ID is never refilled
 Rationale: runbooks take part in the hierarchy exactly as facts and feedback do, with no
 kind-specific opt-out.
 
-### 792a3j1 UAT Scenarios
+#### 792a3j1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a3j1a Top takes the next top-level number
@@ -263,14 +281,14 @@ Scenario: 792a3j1e Letters roll over from z to aa
   Then the new note's ID is 1aa
 ```
 
-## 792a3k Placement refusals
+### 792a3k Placement refusals
 
 Requirement: [792a3k Placement refusals](#792a3k-placement-refusals) `engram learn fact`, `feedback` and `runbook` MUST refuse, with no note written,
 a missing or unknown `--position`, a `continuation` or `sibling` without `--target`, a `--target`
 that is not a Luhmann ID, and a `sibling` of a top-level ID, which must use `--position top`
 instead.
 
-### 792a3k1 UAT Scenarios
+#### 792a3k1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a3k1a A missing position is refused
@@ -294,11 +312,11 @@ Scenario: 792a3k1d A malformed target is refused
   Then it fails saying the ID must start with a digit, and no note is written
 ```
 
-## 792a3l Placement under an absent target
+### 792a3l Placement under an absent target
 
 Requirement: [792a3l Placement under an absent target](#792a3l-placement-under-an-absent-target) `engram learn` MAY place a note under a `--target` that names no existing note.
 
-## 792a3m Concurrent writes never collide
+### 792a3m Concurrent writes never collide
 
 Requirement: [792a3m Concurrent writes never collide](#792a3m-concurrent-writes-never-collide) Two `engram learn` runs against one vault at the same time MUST give their notes
 distinct Luhmann IDs and MUST NOT overwrite each other's note.
@@ -306,7 +324,7 @@ distinct Luhmann IDs and MUST NOT overwrite each other's note.
 Rationale: without the vault lock, two concurrent writers can corrupt vault and index state. The guarantee matters
 most when many sub-recalls write the vault in parallel.
 
-### 792a3m1 UAT Scenarios
+#### 792a3m1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a3m1a Concurrent learns get distinct IDs
@@ -315,7 +333,7 @@ Scenario: 792a3m1a Concurrent learns get distinct IDs
   Then two notes exist with different Luhmann IDs, each holding its own content
 ```
 
-## 792a3n Embed on write
+### 792a3n Embed on write
 
 Requirement: [792a3n Embed on write](#792a3n-embed-on-write) Every note `engram learn` writes MUST have a sibling `.vec.json` embedding
 sidecar, named after the note, by the time the command returns. When embedding the note fails, the
@@ -325,7 +343,7 @@ Rationale: each note carries its own sidecar, so there is no separate index to b
 sync. A missing sidecar is recoverable later, because the note itself was written in one atomic
 step.
 
-### 792a3n1 UAT Scenarios
+#### 792a3n1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a3n1a A learned note has its sidecar
@@ -339,7 +357,7 @@ Scenario: 792a3n1b A failed embedding keeps the note
   Then the note is written, stderr carries a warning naming it, and the command succeeds
 ```
 
-## 792a3o Repository provenance
+### 792a3o Repository provenance
 
 Requirement: [792a3o Repository provenance](#792a3o-repository-provenance) `engram learn fact`, `feedback` and `runbook` MUST stamp `repo:` with the
 working directory's git `origin` remote URL, or, when there is no `origin` remote, with the basename
@@ -350,7 +368,7 @@ person or vault produced it. Structured, auto-detected provenance lets filtering
 parent exchange rely on a note's origin. Detection is self-reported by the writer's environment,
 not verified. Being outside a git repository is not an error, so the field is simply omitted.
 
-### 792a3o1 UAT Scenarios
+#### 792a3o1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a3o1a The origin remote names the repo
@@ -369,14 +387,14 @@ Scenario: 792a3o1c Outside a git repository there is no repo
   Then the note has no repo: field
 ```
 
-## 792a3p User provenance
+### 792a3p User provenance
 
 Requirement: [792a3p User provenance](#792a3p-user-provenance) `engram learn fact`, `feedback` and `runbook` MUST stamp `user:` with
 `git config user.email`, or, when that resolves to nothing, with the OS username. When neither
 resolves, the note MUST be written without a `user:` field, never with an empty one, and the command
 MUST print one warning that user detection resolved empty.
 
-### 792a3p1 UAT Scenarios
+#### 792a3p1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a3p1a The git email names the user
@@ -395,7 +413,7 @@ Scenario: 792a3p1c No detectable user
   Then the note has no user: field, vault: is stamped as usual, and stderr carries one warning that user detection resolved empty
 ```
 
-## 792a3q Question-and-answer pairs
+### 792a3q Question-and-answer pairs
 
 Requirement: [792a3q Question-and-answer pairs](#792a3q-question-and-answer-pairs) `engram learn qa` MUST write two notes at the vault root,
 `qa.<YYYY-MM-DD>.<slug>.q.md` and `qa.<YYYY-MM-DD>.<slug>.a.md`, and print both paths, the question's
@@ -412,7 +430,7 @@ retrieval against notes with content. So the pair is linked both ways, the answe
 question is reachable only through its answer ([792a3t Question-and-answer
 retrieval](#792a3t-question-and-answer-retrieval)).
 
-### 792a3q1 UAT Scenarios
+#### 792a3q1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a3q1a A pair is captured
@@ -431,7 +449,7 @@ Scenario: 792a3q1c The answer can come from a file
   Then the answer note's body is that file's text
 ```
 
-## 792a3r Question-and-answer validation
+### 792a3r Question-and-answer validation
 
 Requirement: [792a3r Question-and-answer validation](#792a3r-question-and-answer-validation) `engram learn qa` MUST refuse, before writing either note, a missing or invalid
 `--slug`, a missing or blank `--question`, anything other than exactly one of `--answer` and
@@ -439,7 +457,7 @@ Requirement: [792a3r Question-and-answer validation](#792a3r-question-and-answer
 `--contributors` value that is not the basename of a note in the vault. An absent `--certainty`
 MUST be written as `medium`.
 
-### 792a3r1 UAT Scenarios
+#### 792a3r1 UAT Scenarios
 
 ```gherkin
 Scenario Outline: 792a3r1a An invalid pair is refused before any write
@@ -463,12 +481,12 @@ Scenario: 792a3r1b Certainty defaults to medium
   Then the answer note carries certainty: medium
 ```
 
-## 792a3s Question-and-answer partial failure
+### 792a3s Question-and-answer partial failure
 
 Requirement: [792a3s Question-and-answer partial failure](#792a3s-question-and-answer-partial-failure) When the answer note cannot be written, `engram learn qa` MUST remove the
 question note it has just written and fail with an error saying the answer note failed.
 
-### 792a3s1 UAT Scenarios
+#### 792a3s1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a3s1a A failed answer removes the question
@@ -477,12 +495,12 @@ Scenario: 792a3s1a A failed answer removes the question
   Then it fails saying the answer note could not be written, and no question note for why-x remains
 ```
 
-## 792a3t Question-and-answer retrieval
+### 792a3t Question-and-answer retrieval
 
 Requirement: [792a3t Question-and-answer retrieval](#792a3t-question-and-answer-retrieval) `engram query` MUST return answer notes as it returns any other note, and MUST
 NOT return question notes.
 
-### 792a3t1 UAT Scenarios
+#### 792a3t1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a3t1a The answer is found and the question is not
@@ -491,7 +509,7 @@ Scenario: 792a3t1a The answer is found and the question is not
   Then the answer note can appear in the results, and the question note never does
 ```
 
-## 792a3u Vocabulary tagging by kind
+### 792a3u Vocabulary tagging by kind
 
 Requirement: [792a3u Vocabulary tagging by kind](#792a3u-vocabulary-tagging-by-kind) The vault's write-time vocabulary tagging MUST apply to every fact, feedback,
 runbook and answer note `engram learn` writes, and MUST NOT apply to question notes.
@@ -499,7 +517,7 @@ runbook and answer note `engram learn` writes, and MUST NOT apply to question no
 Rationale: the answer is the half that competes for retrieval, so it is tagged like any other note;
 the question carries no vocabulary, so it stays reachable only through its answer.
 
-### 792a3u1 UAT Scenarios
+#### 792a3u1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a3u1a A runbook is tagged

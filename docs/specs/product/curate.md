@@ -1,8 +1,10 @@
 # Curate - Product Spec
 
-An offer is a note that another vault proposes: a child's served `learn` ([vault-serving](./vault-serving.md)) or a parent note pulled down by
-`engram activate` ([parent-sync](./parent-sync.md)). It lands as a **pending offer**: a real note file marked `pending: true` that is not yet
-knowledge, because nobody has judged it against what the vault already holds. Curation is that judgment. It is carried by
+An offer is a note that another vault or a skill file proposes: a child's served `learn` ([vault-serving](./vault-serving.md)), a parent note pulled down by
+`engram activate` ([parent-sync](./parent-sync.md)), or a pending skill runbook note that skill registration writes when an offer to register or refresh a skill
+is accepted ([Skill Runbook Registration](./skill-runbook-registration.md)). It lands as a **pending offer**: a real note file marked `pending: true` that is not yet
+knowledge, because nobody has judged it against what the vault already holds. Curation is that judgment; for a skill runbook note it authors the runbook fields instead
+([792a22k A pending skill runbook note is authored, not judged](#792a22k-a-pending-skill-runbook-note-is-authored-not-judged)). It is carried by
 the `curate` skill (`agent-instructions/skills/curate/SKILL.md`, which a vault runbook note also mirrors), which uses the
 same covered, near and absent reasoning that `recall` applies to its candidates ([recall](./recall.md)), and settles each offer with
 `engram amend` flags: `--clear-pending`, `--discard`, `--into` and `--expect-hash`. The binary supplies the flags and the
@@ -13,7 +15,24 @@ offer, after the request that created it, and never inside it. How an offer is w
 Rationale: a covered offer is discarded, and a near offer is folded into the existing note and then discarded, because
 leaving it live creates a second redundant note. The marker is cleared only on an offer that is kept.
 
-## 792a22a Pending offers are left out of normal query results
+## 792a22 Curate
+
+**Participants and responsibilities.**
+- A child [vault](../../GLOSSARY.md#vault) or the parent vault: is where an [offer](../../GLOSSARY.md#offer) comes from, a served `learn` or a [pull-down](../../GLOSSARY.md#pull-down) ([792a22b A note becomes pending only by an exchange](#792a22b-a-note-becomes-pending-only-by-an-exchange)).
+- The user: accepts a [skill](../../GLOSSARY.md#skill)'s registration or refresh offer, which makes its [runbook](../../GLOSSARY.md#runbook) note pending ([792a22b A note becomes pending only by an exchange](#792a22b-a-note-becomes-pending-only-by-an-exchange)).
+- The agent: curates each pending offer on the host that holds it, after it finishes the user's request and without asking ([792a22o Pending offers are surfaced at three points](#792a22o-pending-offers-are-surfaced-at-three-points)), judges it by its content as covered, near, absent or wrong, an amend-offer against its target first ([792a22d Curation judges each offer by its content against the host vault](#792a22d-curation-judges-each-offer-by-its-content-against-the-host-vault), [792a22e An amend-offer is judged against its target first](#792a22e-an-amend-offer-is-judged-against-its-target-first)), settles it with `engram amend` and never composes a new learn ([792a22j Curation edits existing notes and never composes a new learn](#792a22j-curation-edits-existing-notes-and-never-composes-a-new-learn)), and authors the runbook fields of a pending skill note ([792a22k A pending skill runbook note is authored, not judged](#792a22k-a-pending-skill-runbook-note-is-authored-not-judged)).
+- The software: keeps pending offers out of normal query results, marks a note pending only by an exchange and commits the activation of a local note directly, promised by [792a22a Pending offers are left out of normal query results](#792a22a-pending-offers-are-left-out-of-normal-query-results), [792a22b A note becomes pending only by an exchange](#792a22b-a-note-becomes-pending-only-by-an-exchange) and [792a22c Activating a note commits directly](#792a22c-activating-a-note-commits-directly).
+- The software: supplies the `engram amend` flags and checks that settle an offer safely, promised by [792a22f A covered offer is reinforced and folded away](#792a22f-a-covered-offer-is-reinforced-and-folded-away), [792a22g A near offer is folded away first, then its claim is folded in](#792a22g-a-near-offer-is-folded-away-first-then-its-claim-is-folded-in), [792a22h An absent offer is accepted with its declared author](#792a22h-an-absent-offer-is-accepted-with-its-declared-author), [792a22i A rejected offer is discarded outright](#792a22i-a-rejected-offer-is-discarded-outright), [792a22l A bookkeeping step names the version that was judged](#792a22l-a-bookkeeping-step-names-the-version-that-was-judged) and [792a22m Folding an offer keeps its identity and reads a CRLF note as LF](#792a22m-folding-an-offer-keeps-its-identity-and-reads-a-crlf-note-as-lf).
+- The software: surfaces pending offers at three points and confirms only the receipt of an offer, promised by [792a22o Pending offers are surfaced at three points](#792a22o-pending-offers-are-surfaced-at-three-points) and [792a22n The outcome of a curation is not reported back](#792a22n-the-outcome-of-a-curation-is-not-reported-back).
+- Retained by people or other systems: the offering caller learns what became of its offer by reading the parent's notes or the next merged query, and the software reports no outcome ([792a22n The outcome of a curation is not reported back](#792a22n-the-outcome-of-a-curation-is-not-reported-back)).
+
+**Interactions.** A child hands the host a served `learn`; the software lands it as a pending offer and answers with a receipt before any curation has run ([792a22b A note becomes pending only by an exchange](#792a22b-a-note-becomes-pending-only-by-an-exchange), [792a22n The outcome of a curation is not reported back](#792a22n-the-outcome-of-a-curation-is-not-reported-back)). The software hands the agent the query payload's pending-offer flag and hint, the [`engram update`](../../GLOSSARY.md#engram-update) notice and the write-path nudge when a vault holds pending offers; the agent curates them ([792a22o Pending offers are surfaced at three points](#792a22o-pending-offers-are-surfaced-at-three-points)). The agent hands `engram amend` its settlement of an offer with the [exchange hash](../../GLOSSARY.md#exchange-hash) it judged; the software folds, clears or discards the offer, or refuses and changes nothing when the offer was updated since ([792a22l A bookkeeping step names the version that was judged](#792a22l-a-bookkeeping-step-names-the-version-that-was-judged)). The user hands the software the acceptance of a skill's registration offer; the software writes the runbook note pending and the agent authors its runbook fields and clears the marker ([792a22b A note becomes pending only by an exchange](#792a22b-a-note-becomes-pending-only-by-an-exchange), [792a22k A pending skill runbook note is authored, not judged](#792a22k-a-pending-skill-runbook-note-is-authored-not-judged)).
+
+**Boundary assumptions.** The software assumes from the agent that every bookkeeping step on a note that carries `offer.origin` passes the hash that was judged; when it does not, or the offer changed since, [792a22l A bookkeeping step names the version that was judged](#792a22l-a-bookkeeping-step-names-the-version-that-was-judged) refuses the step and changes nothing. It assumes from the agent that `--into` comes with `--discard` and names a note other than the offer; when it does not, [792a22m Folding an offer keeps its identity and reads a CRLF note as LF](#792a22m-folding-an-offer-keeps-its-identity-and-reads-a-crlf-note-as-lf) fails without changing anything. It assumes from the agent that curation runs on the host and not inside a served request; no response is specified ([792a22d Curation judges each offer by its content against the host vault](#792a22d-curation-judges-each-offer-by-its-content-against-the-host-vault)).
+
+**Shared rules.** How an offer is written, offered and answered is owned by [Vault Serving](./vault-serving.md) ([792a20d A served learn lands as a pending offer and returns a receipt](./vault-serving.md#792a20d-a-served-learn-lands-as-a-pending-offer-and-returns-a-receipt)) and [Parent Sync](./parent-sync.md) ([792a21zd A pulled-down note is an exact-content local pending offer](./parent-sync.md#792a21zd-a-pulled-down-note-is-an-exact-content-local-pending-offer), [792a21n A local write is offered to the parent](./parent-sync.md#792a21n-a-local-write-is-offered-to-the-parent), [792a21ze A pull-down is idempotent, remembers declines and cannot loop](./parent-sync.md#792a21ze-a-pull-down-is-idempotent-remembers-declines-and-cannot-loop)). The covered, near and absent reasoning that curation applies to a pending offer is owned by [Recall](./recall.md) ([792a14j Coverage is judged by the agent and written once per cluster](./recall.md#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster)). The registration and refresh offers that create pending skill notes are owned by [Skill Runbook Registration](./skill-runbook-registration.md) ([792a12d Accepting a registration creates a pending note](./skill-runbook-registration.md#792a12d-accepting-a-registration-creates-a-pending-note), [792a12e Accepting a refresh replaces the body, keeps the fields, and marks the note pending](./skill-runbook-registration.md#792a12e-accepting-a-refresh-replaces-the-body-keeps-the-fields-and-marks-the-note-pending)).
+
+### 792a22a Pending offers are left out of normal query results
 
 Requirement: [792a22a Pending offers are left out of normal query results](#792a22a-pending-offers-are-left-out-of-normal-query-results) `engram query` MUST NOT return a pending offer as part of its normal results, whatever its kind and
 whether or not it is a skill runbook note.
@@ -23,7 +42,7 @@ offers exist ([792a22o Pending offers are surfaced at three points](#792a22o-pen
 A pending offer is a normal note carrying a marker and not a separate queue. This reuses frontmatter parsing,
 `query` and `amend`, so only the marker's presence changes behavior.
 
-### 792a22a1 UAT Scenarios
+#### 792a22a1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a22a1a A pending offer does not surface in recall
@@ -37,7 +56,7 @@ Scenario: 792a22a1b A pending skill runbook note does not surface either
   Then the note is absent from the returned results
 ```
 
-## 792a22b A note becomes pending only by an exchange
+### 792a22b A note becomes pending only by an exchange
 
 Requirement: [792a22b A note becomes pending only by an exchange](#792a22b-a-note-becomes-pending-only-by-an-exchange) A local `engram learn` and a local `engram amend` MUST NOT write the pending-offer marker. A served `learn` ([792a20d A served learn lands as a pending offer and returns a receipt](./vault-serving.md#792a20d-a-served-learn-lands-as-a-pending-offer-and-returns-a-receipt)),
 a pull-down ([792a21zd A pulled-down note is an exact-content local pending offer](./parent-sync.md#792a21zd-a-pulled-down-note-is-an-exact-content-local-pending-offer)), accepting a skill's registration offer
@@ -50,7 +69,7 @@ Rationale: the marker means that the note came from another vault, or from a ski
 writes in their own vault is never held back from recall. Only the exchanges and the skill registration write it; `engram learn` has no flag for it, and the
 only amend flag that touches the marker clears it.
 
-### 792a22b1 UAT Scenarios
+#### 792a22b1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a22b1a A local learn is never pending
@@ -64,7 +83,7 @@ Scenario: 792a22b1b A local amend never sets the marker
   Then the note carries no pending marker afterwards
 ```
 
-## 792a22c Activating a note commits directly
+### 792a22c Activating a note commits directly
 
 Requirement: [792a22c Activating a note commits directly](#792a22c-activating-a-note-commits-directly) `engram activate` of a note that exists in the vault it runs against, locally or served, MUST commit
 directly: it MUST bump the note's sidecar `LastUsed` without creating a pending offer and without going through curation.
@@ -73,7 +92,7 @@ which writes a pending copy and marks no existing note pending.
 
 Rationale: activation never changes a note's content, so there is no new claim for curation to judge.
 
-### 792a22c1 UAT Scenarios
+#### 792a22c1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a22c1a A served activate commits immediately
@@ -87,7 +106,7 @@ Scenario: 792a22c1b A local activate commits immediately
   Then the note's sidecar LastUsed is updated and the note carries no pending marker
 ```
 
-## 792a22d Curation judges each offer by its content against the host vault
+### 792a22d Curation judges each offer by its content against the host vault
 
 Requirement: [792a22d Curation judges each offer by its content against the host vault](#792a22d-curation-judges-each-offer-by-its-content-against-the-host-vault) Curation MUST judge each pending offer as covered, near or absent against the host vault's existing,
 non-pending notes, by reading the offer and the candidates in full and judging their content, never by a similarity score
@@ -101,7 +120,7 @@ positive while a low one can still be the same claim in different words. A serve
 persist the pending marker and answer, so judgment happens later and on the host's own initiative, when one of the three
 signals of [792a22o Pending offers are surfaced at three points](#792a22o-pending-offers-are-surfaced-at-three-points) appears or when asked.
 
-### 792a22d1 UAT Scenarios
+#### 792a22d1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a22d1a A served offer and a pulled-down offer are judged alike
@@ -130,7 +149,7 @@ Scenario: 792a22d1e The vault is checked afterwards
   Then engram check passes and engram query no longer shows the settled offers as pending
 ```
 
-## 792a22e An amend-offer is judged against its target first
+### 792a22e An amend-offer is judged against its target first
 
 Requirement: [792a22e An amend-offer is judged against its target first](#792a22e-an-amend-offer-is-judged-against-its-target-first) A pending offer that carries `offer.for` MUST be judged against the note it names before any query, and
 a near judgment MUST fold it into that note.
@@ -138,7 +157,7 @@ a near judgment MUST fold it into that note.
 Rationale: an amend-offer is a child's change to a note that the parent holds, so the parent note is the candidate
 that matters, and it is usually near, since it adds a claim, or covered.
 
-### 792a22e1 UAT Scenarios
+#### 792a22e1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a22e1a An amend-offer is judged against its target
@@ -147,7 +166,7 @@ Scenario: 792a22e1a An amend-offer is judged against its target
   Then it is judged against E first, and a near judgment folds it into E
 ```
 
-## 792a22f A covered offer is reinforced and folded away
+### 792a22f A covered offer is reinforced and folded away
 
 Requirement: [792a22f A covered offer is reinforced and folded away](#792a22f-a-covered-offer-is-reinforced-and-folded-away) When curation judges an offer covered by an existing note, it MUST reinforce that note with `engram amend
 --activate` and then delete the offer with `engram amend --discard --into <existing>`, so that the offer's basename and
@@ -158,7 +177,7 @@ Rationale: a pending offer, unlike a recall candidate, is already a file. Cleari
 elsewhere would create a second, live, redundant note, which is the duplication curation exists to prevent. `--into` keeps
 the offer's identity, so a merged query dedupes the parent's copy and an unchanged parent note is never pulled down again.
 
-### 792a22f1 UAT Scenarios
+#### 792a22f1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a22f1a A covered offer is discarded
@@ -172,7 +191,7 @@ Scenario: 792a22f1b A pulled-down offer covered by a local note
   Then the offer is discarded with --into L, L gains a link to the parent note, and later merged queries dedupe it and it is not pulled again unchanged
 ```
 
-## 792a22g A near offer is folded away first, then its claim is folded in
+### 792a22g A near offer is folded away first, then its claim is folded in
 
 Requirement: [792a22g A near offer is folded away first, then its claim is folded in](#792a22g-a-near-offer-is-folded-away-first-then-its-claim-is-folded-in) When curation judges an offer near an existing note, it MUST first delete the offer with `engram amend --discard
 --into <existing>` and then amend the existing note to incorporate the offer's additional claim, in that order, so that no
@@ -181,7 +200,7 @@ second live note remains and the amend is offered to the parent as an amend of t
 Rationale: the content amend is offered to the parent at once, and only after the fold does the existing note carry a pulled
 offer's parent link, so folding first makes the amend go up as an amend-offer and not as a new note ([792a21n A local write is offered to the parent](./parent-sync.md#792a21n-a-local-write-is-offered-to-the-parent)).
 
-### 792a22g1 UAT Scenarios
+#### 792a22g1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a22g1a A near offer is folded into an existing note
@@ -195,7 +214,7 @@ Scenario: 792a22g1b The fold comes before the amend
   Then in the first order E carries O's pulled link when the amend is offered, so the amend goes up as an amend-offer, and in the second E is still unlinked, so the amend goes up as a new note
 ```
 
-## 792a22h An absent offer is accepted with its declared author
+### 792a22h An absent offer is accepted with its declared author
 
 Requirement: [792a22h An absent offer is accepted with its declared author](#792a22h-an-absent-offer-is-accepted-with-its-declared-author) When curation judges an offer absent from the vault, it MUST accept it by clearing its own pending-offer marker with
 `engram amend --clear-pending`, which MUST keep the offer's declared `repo`, `user` and `vault`, and MUST NOT write a new note.
@@ -205,7 +224,7 @@ own parent, accepting a served offer MUST also offer the note onward ([792a21n A
 Rationale: the note already exists as the offer, so clearing the marker is the entire action. The bookkeeping amends do not
 re-stamp identity, so an accepted offer keeps its author, which is the person who learned it and not the curator.
 
-### 792a22h1 UAT Scenarios
+#### 792a22h1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a22h1a An absent offer is accepted
@@ -219,7 +238,7 @@ Scenario: 792a22h1b Accepting an offer keeps its author
   Then O's user: is still alice
 ```
 
-## 792a22i A rejected offer is discarded outright
+### 792a22i A rejected offer is discarded outright
 
 Requirement: [792a22i A rejected offer is discarded outright](#792a22i-a-rejected-offer-is-discarded-outright) When curation judges an offer wrong, because an existing note or a user correction contradicts it or because it is
 advice the agent would never apply, it MUST delete it with a bare `engram amend --discard`, never `--into`. For a pulled-down
@@ -229,7 +248,7 @@ unless the parent changes it.
 Rationale: `--into` means covered by, so folding a wrong offer into the note that contradicts it would record the bad note
 as covered by the good one ([792a21ze A pull-down is idempotent, remembers declines and cannot loop](./parent-sync.md#792a21ze-a-pull-down-is-idempotent-remembers-declines-and-cannot-loop)).
 
-### 792a22i1 UAT Scenarios
+#### 792a22i1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a22i1a A rejected pulled-down offer is remembered
@@ -243,7 +262,7 @@ Scenario: 792a22i1b A rejected offer is never folded in
   Then it is deleted with a bare --discard and not with --into
 ```
 
-## 792a22j Curation edits existing notes and never composes a new learn
+### 792a22j Curation edits existing notes and never composes a new learn
 
 Requirement: [792a22j Curation edits existing notes and never composes a new learn](#792a22j-curation-edits-existing-notes-and-never-composes-a-new-learn) Every curation action MUST be an `engram amend` call on existing files, with no `engram learn` and no handoff to
 `write-memory`, and a free-text flag value MUST be attached to its flag as `--flag="value"`.
@@ -251,7 +270,7 @@ Requirement: [792a22j Curation edits existing notes and never composes a new lea
 Rationale: `write-memory` composes brand-new `engram learn` calls from scratch content fields, and an offer's content already
 exists as a file, so even the absent case has nothing to compose.
 
-### 792a22j1 UAT Scenarios
+#### 792a22j1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a22j1a Curation never composes a new learn
@@ -265,7 +284,7 @@ Scenario: 792a22j1b A free-text value is attached to its flag
   Then the value is attached as --flag="value" and the command succeeds
 ```
 
-## 792a22k A pending skill runbook note is authored, not judged
+### 792a22k A pending skill runbook note is authored, not judged
 
 Requirement: [792a22k A pending skill runbook note is authored, not judged](#792a22k-a-pending-skill-runbook-note-is-authored-not-judged) A pending skill runbook note (a runbook note that carries `skill_hash`) MUST NOT be judged covered, near or absent and
 MUST NOT be discarded. Curation MUST author its `situation`, `done_when`, `triggers` and `red_flags` from its body when it has
@@ -277,7 +296,7 @@ reports the budget it MUST measure it in rendered bytes.
 Rationale: a skill note is a registration offer and not a served write, so another note covering similar ground is no reason to
 lose it ([skill-runbook-registration](./skill-runbook-registration.md)). `engram show` always returns every red flag, so the budget limits only the preview.
 
-### 792a22k1 UAT Scenarios
+#### 792a22k1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a22k1a A new skill note gets its runbook fields
@@ -301,7 +320,7 @@ Scenario: 792a22k1d Clearing a skill note's marker makes it live
   Then the note is live and engram query can return it
 ```
 
-## 792a22l A bookkeeping step names the version that was judged
+### 792a22l A bookkeeping step names the version that was judged
 
 Requirement: [792a22l A bookkeeping step names the version that was judged](#792a22l-a-bookkeeping-step-names-the-version-that-was-judged) Every bookkeeping step (`--clear-pending`, `--discard`, `--discard --into`) on a note that carries `offer.origin`, pending or live,
 MUST pass `--expect-hash` with the exchange hash that `engram show` printed on its first line, and the binary MUST refuse the
@@ -312,7 +331,7 @@ the new hash, and MUST NOT copy the new hash from the error or from the first li
 Rationale: an offer can be updated in place after a curator judged it, so acting on the old judgment would accept or discard
 content nobody reviewed. A note without an `xid` has no such line and needs no hash.
 
-### 792a22l1 UAT Scenarios
+#### 792a22l1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a22l1a A step on a served offer without the hash is refused
@@ -336,7 +355,7 @@ Scenario: 792a22l1d A note with no exchange header needs no hash
   Then it succeeds
 ```
 
-## 792a22m Folding an offer keeps its identity and reads a CRLF note as LF
+### 792a22m Folding an offer keeps its identity and reads a CRLF note as LF
 
 Requirement: [792a22m Folding an offer keeps its identity and reads a CRLF note as LF](#792a22m-folding-an-offer-keeps-its-identity-and-reads-a-crlf-note-as-lf) `engram amend --target O --discard --into E` MUST delete O and its sidecar after recording O's basename and aliases in E's
 `aliases` and merging O's parent links into E's, MUST fail without changing anything for `--into` without `--discard`, for an
@@ -348,7 +367,7 @@ Rationale: the fold is for an offer that curation judged covered or near, where 
 and links grow; the links keep the parent note from being pulled down again and the aliases keep a later reference to O
 resolving. A hand-edited or Windows-edited note with CRLF line endings must still be foldable.
 
-### 792a22m1 UAT Scenarios
+#### 792a22m1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a22m1a A fold unions aliases and links
@@ -377,7 +396,7 @@ Scenario: 792a22m1e A fold that changes nothing leaves E alone
   Then E is not written and O is deleted
 ```
 
-## 792a22n The outcome of a curation is not reported back
+### 792a22n The outcome of a curation is not reported back
 
 Requirement: [792a22n The outcome of a curation is not reported back](#792a22n-the-outcome-of-a-curation-is-not-reported-back) The served API's response to a `learn` that creates or updates a pending offer MUST confirm only that the offer was received,
 and MUST NOT report the offer's eventual curation outcome. No later notification of the outcome MUST be sent to the offering
@@ -386,7 +405,7 @@ caller.
 Rationale: the response is a receipt ([792a20d A served learn lands as a pending offer and returns a receipt](./vault-serving.md#792a20d-a-served-learn-lands-as-a-pending-offer-and-returns-a-receipt)), and curation happens later on the host, so the caller learns what became of its
 offer only by reading the parent's notes or by the next merged query.
 
-### 792a22n1 UAT Scenarios
+#### 792a22n1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a22n1a The server responds before curation happens
@@ -395,7 +414,7 @@ Scenario: 792a22n1a The server responds before curation happens
   Then the response is returned before curation has run, and no subsequent message reports the offer's disposition
 ```
 
-## 792a22o Pending offers are surfaced at three points
+### 792a22o Pending offers are surfaced at three points
 
 Requirement: [792a22o Pending offers are surfaced at three points](#792a22o-pending-offers-are-surfaced-at-three-points) `engram query` MUST include a pending-offer flag in its payload on every call, true exactly when a pending offer exists in
 the vault it answers for, and when the flag is true MUST also include a `pending_offers_hint` carrying the curate instruction,
@@ -416,7 +435,7 @@ description the harness reads, so each cue carries the query that surfaces it. `
 first keys of the payload because a cue at the tail of a large payload goes unseen: the shell preview saves the rest
 to a file.
 
-### 792a22o1 UAT Scenarios
+#### 792a22o1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a22o1a The query payload reflects current state

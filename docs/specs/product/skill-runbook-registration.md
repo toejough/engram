@@ -2,7 +2,24 @@
 
 Skills remain the shipping form of every procedure, and their files stay exactly as the harnesses that load them expect. Engram's own skills ship from `agent-instructions/skills/` through `engram update`. Registration lets memory surface a procedure by situation and trigger: each skill, command and Pi prompt template in the folders a harness loads may have one runbook note in the vault that mirrors its text and carries the runbook fields authored on the note, so the runbook shim's follow-frame can drive it and it can flow across vault-graph edges. Engram offers to create, refresh and remove these notes, the user decides, and a declined offer is not repeated. `engram update` runs the offers after deploying ([792a12t Update runs registration after deploying the skills](#792a12t-update-runs-registration-after-deploying-the-skills)), and `engram register-skills` runs them on their own. A note mirrors a skill and does not replace it. Curating the pending notes belongs to the curate capability, and the skills' own procedures to recall, learn, route, please, curate and write-memory.
 
-## 792a12a Skill files are never changed
+## 792a12 Skill Runbook Registration
+
+**Participants and responsibilities.**
+- The user: accepts, declines or skips each offer, by key, pattern or scope selector ([792a12c Registration offers and remembers declines by hash](#792a12c-registration-offers-and-remembers-declines-by-hash), [792a12r Offers are grouped by scope and answered by key, pattern or selector](#792a12r-offers-are-grouped-by-scope-and-answered-by-key-pattern-or-selector)), and adopts an existing [runbook](../../GLOSSARY.md#runbook) note as a [skill](../../GLOSSARY.md#skill)'s note ([792a12i An existing runbook note can be adopted as a skill's note](#792a12i-an-existing-runbook-note-can-be-adopted-as-a-skills-note)).
+- The agent: relays the user's answers with `--accept` and `--decline` when no terminal is available ([792a12g Registration never prompts or writes without a terminal](#792a12g-registration-never-prompts-or-writes-without-a-terminal), [792a12h Registration can run on its own with explicit answers](#792a12h-registration-can-run-on-its-own-with-explicit-answers)).
+- The software: finds the skills, commands and prompt templates in the folders of each detected [harness](../../GLOSSARY.md#harness) and gives each a source-qualified key, promised by [792a12j Claude Code skills, commands and synced skills are found](#792a12j-claude-code-skills-commands-and-synced-skills-are-found), [792a12k Pi, agents and Pi-configured skills, commands and prompts are found](#792a12k-pi-agents-and-pi-configured-skills-commands-and-prompts-are-found), [792a12l Installed Claude Code plugins' skills and commands are found](#792a12l-installed-claude-code-plugins-skills-and-commands-are-found), [792a12m Project skills and commands are found](#792a12m-project-skills-and-commands-are-found), [792a12n Sources are read only for detected harnesses, and names come from the file system](#792a12n-sources-are-read-only-for-detected-harnesses-and-names-come-from-the-file-system) and [792a12o Every scanned entry has a source-qualified key](#792a12o-every-scanned-entry-has-a-source-qualified-key).
+- The software: matches each entry to its note by key, offers to register, refresh or remove it and remembers declines by hash, promised by [792a12b One runbook note per skill, identified by its key](#792a12b-one-runbook-note-per-skill-identified-by-its-key), [792a12c Registration offers and remembers declines by hash](#792a12c-registration-offers-and-remembers-declines-by-hash), [792a12p Copies of one skill collapse and key conflicts are reported](#792a12p-copies-of-one-skill-collapse-and-key-conflicts-are-reported), [792a12q Removal is offered only for successfully read sources](#792a12q-removal-is-offered-only-for-successfully-read-sources), [792a12r Offers are grouped by scope and answered by key, pattern or selector](#792a12r-offers-are-grouped-by-scope-and-answered-by-key-pattern-or-selector) and [792a12s Declines are keyed by skill key under schema version 2](#792a12s-declines-are-keyed-by-skill-key-under-schema-version-2).
+- The software: carries out an accepted offer and changes no skill file, promised by [792a12a Skill files are never changed](#792a12a-skill-files-are-never-changed), [792a12d Accepting a registration creates a pending note](#792a12d-accepting-a-registration-creates-a-pending-note), [792a12e Accepting a refresh replaces the body, keeps the fields, and marks the note pending](#792a12e-accepting-a-refresh-replaces-the-body-keeps-the-fields-and-marks-the-note-pending), [792a12f Accepting a removal deletes the note and its sidecar](#792a12f-accepting-a-removal-deletes-the-note-and-its-sidecar) and [792a12i An existing runbook note can be adopted as a skill's note](#792a12i-an-existing-runbook-note-can-be-adopted-as-a-skills-note).
+- The software: runs after the deploy of [`engram update`](../../GLOSSARY.md#engram-update) or on its own, neither prompts nor writes for an unanswered offer when no terminal is available, and keeps a skill note's identity fields and runbook behavior, promised by [792a12g Registration never prompts or writes without a terminal](#792a12g-registration-never-prompts-or-writes-without-a-terminal), [792a12h Registration can run on its own with explicit answers](#792a12h-registration-can-run-on-its-own-with-explicit-answers), [792a12t Update runs registration after deploying the skills](#792a12t-update-runs-registration-after-deploying-the-skills), [792a12u Skill identity fields belong to registration](#792a12u-skill-identity-fields-belong-to-registration) and [792a12v Skill notes behave like captured runbooks](#792a12v-skill-notes-behave-like-captured-runbooks).
+- Retained by people or other systems: the harnesses own the schema of skill files, curation authors the runbook fields of a registered note afterward, and the user deletes by hand a note whose source root left the source set ([792a12a Skill files are never changed](#792a12a-skill-files-are-never-changed), [792a12d Accepting a registration creates a pending note](#792a12d-accepting-a-registration-creates-a-pending-note), [792a12q Removal is offered only for successfully read sources](#792a12q-removal-is-offered-only-for-successfully-read-sources)); the software assumes all three.
+
+**Interactions.** The software hands the user an offer to register a skill with no note, to refresh a note whose hash differs or to remove a note whose entry is gone; the user answers accept, decline or skip, and the software carries out an acceptance, records a decline against the key and the current hash and records nothing for a skip ([792a12c Registration offers and remembers declines by hash](#792a12c-registration-offers-and-remembers-declines-by-hash), [792a12r Offers are grouped by scope and answered by key, pattern or selector](#792a12r-offers-are-grouped-by-scope-and-answered-by-key-pattern-or-selector)). After it deploys the skills, `engram update` hands registration the resolved [vault](../../GLOSSARY.md#vault); registration prompts for each outstanding offer in a terminal and otherwise writes nothing and reports the outstanding offers ([792a12t Update runs registration after deploying the skills](#792a12t-update-runs-registration-after-deploying-the-skills), [792a12g Registration never prompts or writes without a terminal](#792a12g-registration-never-prompts-or-writes-without-a-terminal)). The agent hands `engram register-skills` the user's answers as `--accept` and `--decline`; the software acts on the matching offers without prompting and reports any answer that matches none ([792a12h Registration can run on its own with explicit answers](#792a12h-registration-can-run-on-its-own-with-explicit-answers)). When an acceptance leaves a note pending, the software hands curation the note; curation authors or re-checks its runbook fields and clears the marker ([792a12d Accepting a registration creates a pending note](#792a12d-accepting-a-registration-creates-a-pending-note), [792a12e Accepting a refresh replaces the body, keeps the fields, and marks the note pending](#792a12e-accepting-a-refresh-replaces-the-body-keeps-the-fields-and-marks-the-note-pending)).
+
+**Boundary assumptions.** The software assumes from the user a terminal or explicit answers; when stdin is not a terminal and no `--accept` or `--decline` covers an offer, [792a12g Registration never prompts or writes without a terminal](#792a12g-registration-never-prompts-or-writes-without-a-terminal) prompts nothing, writes nothing, records no decline and prints the outstanding offers. It assumes that each source root can be read; when a read fails, [792a12q Removal is offered only for successfully read sources](#792a12q-removal-is-offered-only-for-successfully-read-sources) counts the root as not read and offers no removal for the notes under it. It assumes that one key names one note and one set of bytes; when two notes carry a key, [792a12b One runbook note per skill, identified by its key](#792a12b-one-runbook-note-per-skill-identified-by-its-key) reports an error naming them, and when copies of one key differ, [792a12p Copies of one skill collapse and key conflicts are reported](#792a12p-copies-of-one-skill-collapse-and-key-conflicts-are-reported) reports a key conflict, offers nothing for the key and fails the run after handling the other offers. It assumes that `skill-registrations.json` is absent or at schema version 2; otherwise [792a12s Declines are keyed by skill key under schema version 2](#792a12s-declines-are-keyed-by-skill-key-under-schema-version-2) reports an error and writes nothing. It assumes that the keys it sets on a note carry no YAML anchor; when one does, [792a12e Accepting a refresh replaces the body, keeps the fields, and marks the note pending](#792a12e-accepting-a-refresh-replaces-the-body-keeps-the-fields-and-marks-the-note-pending) and [792a12i An existing runbook note can be adopted as a skill's note](#792a12i-an-existing-runbook-note-can-be-adopted-as-a-skills-note) refuse and leave the note untouched.
+
+**Shared rules.** Curating the pending notes is owned by [Curate](./curate.md) ([792a22k A pending skill runbook note is authored, not judged](./curate.md#792a22k-a-pending-skill-runbook-note-is-authored-not-judged)). The skills' own procedures are owned by [Recall](./recall.md), [Learn](./learn.md), [Route](./route.md), [Please](./please.md), [Curate](./curate.md) and [Write Memory](./write-memory.md). The deploy that registration follows is owned by [Install and Update](./install-and-update.md) ([792a11h Skills are deployed to an engram-owned root and linked](./install-and-update.md#792a11h-skills-are-deployed-to-an-engram-owned-root-and-linked)). The Luhmann placement and the embedding of a runbook note are owned by [Note Writing](./note-writing.md) ([792a3j Luhmann placement](./note-writing.md#792a3j-luhmann-placement), [792a3n Embed on write](./note-writing.md#792a3n-embed-on-write)), its vocabulary tagging by [Controlled Vocabulary](./controlled-vocabulary.md) ([792a6d Write-time vocabulary tagging](./controlled-vocabulary.md#792a6d-write-time-vocabulary-tagging)), its retrieval and [triggers](../../GLOSSARY.md#trigger) by [Memory Query](./memory-query.md) ([792a7y Trigger text](./memory-query.md#792a7y-trigger-text), [792a7za A trigger hit comes first](./memory-query.md#792a7za-a-trigger-hit-comes-first)) and the follow-frame of the runbook shim by [Ambient Guidance](./ambient-guidance.md) ([792a19m A matched runbook is announced and its steps are the plan](./ambient-guidance.md#792a19m-a-matched-runbook-is-announced-and-its-steps-are-the-plan)).
+
+### 792a12a Skill files are never changed
 
 Requirement: [792a12a Skill files are never changed](#792a12a-skill-files-are-never-changed) Registration MUST NOT read, require or write any frontmatter field of a skill's `SKILL.md`, a command's
 `.md` file or a Pi prompt template, other than using the file's bytes as the note body and as the hash
@@ -11,7 +28,7 @@ input, and MUST NOT require or add any file beside them.
 Rationale: the harness owns the schema of those files, and the runbook fields (`situation`, `triggers`,
 `done_when`, `red_flags`) are authored on the note, never in the skill.
 
-### 792a12a1 UAT Scenarios
+#### 792a12a1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a12a1a A deployed skill is byte-identical
@@ -25,7 +42,7 @@ Scenario: 792a12a1b Command and prompt files are untouched
   Then both files are byte-identical afterward, no file is added beside them, and their keys do not depend on any frontmatter field
 ```
 
-## 792a12b One runbook note per skill, identified by its key
+### 792a12b One runbook note per skill, identified by its key
 
 Requirement: [792a12b One runbook note per skill, identified by its key](#792a12b-one-runbook-note-per-skill-identified-by-its-key) Each registered skill, command or prompt template MUST have at most one runbook note, which registration
 MUST identify as the note of type runbook whose basename slug begins `skill-`, that carries a non-empty
@@ -41,7 +58,7 @@ Rationale: One skill is one procedure, so it gets one note; a sub-note would hav
 in the skill directory. The slug identifies the note, so no frontmatter key is scanned across the vault, and runbook
 fields live on the note and not in `SKILL.md` because the harness owns that schema.
 
-### 792a12b1 UAT Scenarios
+#### 792a12b1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a12b1a Note located by skill_key
@@ -80,7 +97,7 @@ Scenario: 792a12b1g A keyed note with another slug is not found
   Then it is not the note of claude:curate, so registering claude:curate is offered
 ```
 
-## 792a12c Registration offers and remembers declines by hash
+### 792a12c Registration offers and remembers declines by hash
 
 Requirement: [792a12c Registration offers and remembers declines by hash](#792a12c-registration-offers-and-remembers-declines-by-hash) For each scanned skill, command or prompt template that is not an alias and has no key conflict,
 registration MUST offer to register it when it has no note, and to refresh its note when the note's
@@ -94,7 +111,7 @@ Rationale: Declines live in one vault-root file keyed by skill key, because a de
 to hold the decline. A changed skill gets a new hash, so the offer returns once. Declines are per key and not
 per scope, so declining all records each key.
 
-### 792a12c1 UAT Scenarios
+#### 792a12c1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a12c1a A new skill is offered once
@@ -118,7 +135,7 @@ Scenario: 792a12c1d A declined removal is not offered again
   Then no removal is offered for that note
 ```
 
-## 792a12d Accepting a registration creates a pending note
+### 792a12d Accepting a registration creates a pending note
 
 Requirement: [792a12d Accepting a registration creates a pending note](#792a12d-accepting-a-registration-creates-a-pending-note) Accepting a registration offer MUST create a runbook note through the normal capture path: a fresh
 top-level Luhmann ID, the slug derived from the key, a sidecar embedded on write, the `source:` line
@@ -134,7 +151,7 @@ at registration. Creating the note pending and letting curation author the field
 in every conversion, and the user is asked once for one decision. Pending keeps the incomplete note out of retrieval
 until it has a situation.
 
-### 792a12d1 UAT Scenarios
+#### 792a12d1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a12d1a Accepted registration
@@ -153,7 +170,7 @@ Scenario: 792a12d1c A command is registered from its file
   Then the note's body is .claude/commands/opsx/apply.md after a preamble naming that file, and its basename ends in .skill-project-github-com-toejough-engram-cmd-opsx-apply.md
 ```
 
-## 792a12e Accepting a refresh replaces the body, keeps the fields, and marks the note pending
+### 792a12e Accepting a refresh replaces the body, keeps the fields, and marks the note pending
 
 Requirement: [792a12e Accepting a refresh replaces the body, keeps the fields, and marks the note pending](#792a12e-accepting-a-refresh-replaces-the-body-keeps-the-fields-and-marks-the-note-pending) Accepting a refresh offer MUST replace the note's body with the current source file after the preamble,
 set `skill_hash` to the current hash, set `skill_source` to the current resolved source while keeping
@@ -165,7 +182,7 @@ naming the key, when a key it is about to set or delete (`skill_hash`, `skill_ke
 `pending`), or that key's value, carries a YAML anchor, and MUST NOT write frontmatter that does not
 decode.
 
-### 792a12e1 UAT Scenarios
+#### 792a12e1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a12e1a Accepted refresh
@@ -199,12 +216,12 @@ Scenario: 792a12e1f Authored fields survive a refresh
   Then the amended red_flags are still present
 ```
 
-## 792a12f Accepting a removal deletes the note and its sidecar
+### 792a12f Accepting a removal deletes the note and its sidecar
 
 Requirement: [792a12f Accepting a removal deletes the note and its sidecar](#792a12f-accepting-a-removal-deletes-the-note-and-its-sidecar) Accepting a removal offer MUST delete the skill note and its `.vec.json` sidecar. Registration MUST NOT
 delete any note without an accepted offer.
 
-### 792a12f1 UAT Scenarios
+#### 792a12f1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a12f1a A skill no longer shipped
@@ -213,7 +230,7 @@ Scenario: 792a12f1a A skill no longer shipped
   Then the note and its sidecar are gone
 ```
 
-## 792a12g Registration never prompts or writes without a terminal
+### 792a12g Registration never prompts or writes without a terminal
 
 Requirement: [792a12g Registration never prompts or writes without a terminal](#792a12g-registration-never-prompts-or-writes-without-a-terminal) When stdin is not a terminal and no `--accept` or `--decline` answer covers an offer, registration MUST
 NOT prompt, MUST NOT write a note, and MUST NOT record a decline for that offer. It MUST print one line
@@ -222,7 +239,7 @@ selector with its count, and the commands that answer them: ``engram: <N> skill 
 an answer: @<scope> <count>, … — run `engram register-skills` in a terminal, or `engram register-skills
 --accept <key|prefix*|@scope>` / `--decline <key|prefix*|@scope>` ``.
 
-### 792a12g1 UAT Scenarios
+#### 792a12g1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a12g1a An agent runs update through a shell
@@ -231,7 +248,7 @@ Scenario: 792a12g1a An agent runs update through a shell
   Then nothing is written, skill-registrations.json is unchanged, and the output names the skill's scope selector with its count and the answering command
 ```
 
-## 792a12h Registration can run on its own with explicit answers
+### 792a12h Registration can run on its own with explicit answers
 
 Requirement: [792a12h Registration can run on its own with explicit answers](#792a12h-registration-can-run-on-its-own-with-explicit-answers) `engram register-skills` MUST run the same comparison over the same default source set as `engram
 update`. `--accept <key|pattern|@scope>` and `--decline <key|pattern|@scope>` (each repeatable) MUST
@@ -246,7 +263,7 @@ behaves as `--dry-run`, refuses `--accept`, `--decline` and `--adopt` before sca
 or --adopt`, and makes no removal offer. The same key, pattern or selector named in both `--accept` and
 `--decline` MUST be refused before anything is acted on.
 
-### 792a12h1 UAT Scenarios
+#### 792a12h1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a12h1a An agent relays the user's answer
@@ -280,7 +297,7 @@ Scenario: 792a12h1f One answer in both flags is refused
   Then it is refused before anything is acted on
 ```
 
-## 792a12i An existing runbook note can be adopted as a skill's note
+### 792a12i An existing runbook note can be adopted as a skill's note
 
 Requirement: [792a12i An existing runbook note can be adopted as a skill's note](#792a12i-an-existing-runbook-note-can-be-adopted-as-a-skills-note) `engram register-skills --adopt <key>=<note-ref>` MUST, for a runbook note named by Luhmann ID or
 basename, rename it to the slug derived from `<key>` keeping its Luhmann ID and date and recording its
@@ -296,7 +313,7 @@ or one note, when the note's basename has no Luhmann ID and date, and, before an
 is about to set or delete (or that key's value) carries a YAML anchor or the rewritten frontmatter would
 not decode. All `--adopt` entries MUST run before the offers are computed.
 
-### 792a12i1 UAT Scenarios
+#### 792a12i1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a12i1a Adopting a previously promoted note
@@ -350,7 +367,7 @@ Scenario: 792a12i1j Adopt refuses a skill that Pi disables
   Then it is refused as naming no scanned skill and nothing is written
 ```
 
-## 792a12j Claude Code skills, commands and synced skills are found
+### 792a12j Claude Code skills, commands and synced skills are found
 
 Requirement: [792a12j Claude Code skills, commands and synced skills are found](#792a12j-claude-code-skills-commands-and-synced-skills-are-found) Registration MUST find, for a detected Claude Code harness (`~/.claude`), its user skills as
 `~/.claude/skills/<name>/SKILL.md` from immediate children that are directories or symlinks resolving to
@@ -360,7 +377,7 @@ under `~/.claude/skills/synced/` whose `manifest.json` parses. It MUST ignore ro
 itself as a skill, dangling symlinks and directories without `SKILL.md` among the user skills, and
 non-directory entries among the buckets.
 
-### 792a12j1 UAT Scenarios
+#### 792a12j1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a12j1a A symlinked user skill is found
@@ -384,7 +401,7 @@ Scenario: 792a12j1d Synced skills come from manifest buckets
   Then pdf is scanned as a synced skill and the stray file is ignored
 ```
 
-## 792a12k Pi, agents and Pi-configured skills, commands and prompts are found
+### 792a12k Pi, agents and Pi-configured skills, commands and prompts are found
 
 Requirement: [792a12k Pi, agents and Pi-configured skills, commands and prompts are found](#792a12k-pi-agents-and-pi-configured-skills-commands-and-prompts-are-found) Registration MUST find, for a detected Pi harness (`~/.pi`), its user skills in `~/.pi/agent/skills/`
 (recursively discovered skill directories, plus root `.md` files), the skills in `~/.agents/skills/`
@@ -400,7 +417,7 @@ recursively and include its own root `.md` files, and a prompt directory recursi
 settings entry, a `!pattern` or `-path` over a default folder, or an object-form package filter switches
 off MUST be kept as disabled: it MUST NOT be offered, and it counts as present for removal.
 
-### 792a12k1 UAT Scenarios
+#### 792a12k1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a12k1a A Pi prompt template
@@ -444,7 +461,7 @@ Scenario: 792a12k1h A configured package with a missing path contributes nothing
   Then no skill is scanned from it and registration does not fail
 ```
 
-## 792a12l Installed Claude Code plugins' skills and commands are found
+### 792a12l Installed Claude Code plugins' skills and commands are found
 
 Requirement: [792a12l Installed Claude Code plugins' skills and commands are found](#792a12l-installed-claude-code-plugins-skills-and-commands-are-found) Registration MUST find the skills and commands of each installed Claude Code plugin that is enabled by
 its `enabledPlugins` entry or, when the entry is absent, by its `plugin.json` `defaultEnabled` (default
@@ -455,7 +472,7 @@ path or an array, from those paths instead. A declared path that is absolute, le
 lexically or through a symlink, or does not exist MUST be refused with a warning and make that plugin
 count as not scanned. No other cached version MUST be read.
 
-### 792a12l1 UAT Scenarios
+#### 792a12l1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a12l1a plugin.json commands replace the commands directory
@@ -479,7 +496,7 @@ Scenario: 792a12l1d Only the installed version is read
   Then only that installPath's skills and commands are scanned
 ```
 
-## 792a12m Project skills and commands are found
+### 792a12m Project skills and commands are found
 
 Requirement: [792a12m Project skills and commands are found](#792a12m-project-skills-and-commands-are-found) Inside a git repository, registration MUST find the Claude Code project skills and commands
 `.claude/skills/<name>/SKILL.md` and `.claude/commands/**/*.md` in the working directory and each
@@ -491,7 +508,7 @@ is trusted when the nearest saved decision in `~/.pi/agent/trust.json` for the f
 so, or, with no saved decision, when the global `defaultProjectTrust` is `always`. Outside a git
 repository registration MUST find no project entry.
 
-### 792a12m1 UAT Scenarios
+#### 792a12m1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a12m1a Agents skills in an ancestor
@@ -525,7 +542,7 @@ Scenario: 792a12m1f Outside a repository there are no project entries
   Then no project skill is scanned
 ```
 
-## 792a12n Sources are read only for detected harnesses, and names come from the file system
+### 792a12n Sources are read only for detected harnesses, and names come from the file system
 
 Requirement: [792a12n Sources are read only for detected harnesses, and names come from the file system](#792a12n-sources-are-read-only-for-detected-harnesses-and-names-come-from-the-file-system) Registration MUST read the Claude Code sources only when `~/.claude` exists and the Pi and `~/.agents`
 sources only when `~/.pi` exists. A name MUST be the directory name, file stem or command path, never a
@@ -533,7 +550,7 @@ frontmatter field. An entry whose name contains `:` (other than a command's name
 be skipped with a warning, and an entry whose key is not recognized ([792a12b One runbook note per skill, identified by its key](#792a12b-one-runbook-note-per-skill-identified-by-its-key)) MUST be skipped with a
 warning.
 
-### 792a12n1 UAT Scenarios
+#### 792a12n1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a12n1a A machine without Pi reads no Pi sources
@@ -547,7 +564,7 @@ Scenario: 792a12n1b A name with a colon is skipped
   Then it is skipped with a warning and no offer is made for it
 ```
 
-## 792a12o Every scanned entry has a source-qualified key
+### 792a12o Every scanned entry has a source-qualified key
 
 Requirement: [792a12o Every scanned entry has a source-qualified key](#792a12o-every-scanned-entry-has-a-source-qualified-key) Each scanned entry MUST have a key determined by the source folder it was found in, and no key MUST be
 bare: Claude Code user skill `claude:<name>`; Claude Code user command `claude:cmd:<name>`;
@@ -568,7 +585,7 @@ found in. An enabled plugin named `claude`, `pi`, `agents`, `project`, `anthropi
 contribute nothing and print nothing. The note slug MUST be `skill-` followed by the key lowercased,
 every run of characters outside `[a-z0-9]` replaced by `-`, and leading and trailing `-` trimmed.
 
-### 792a12o1 UAT Scenarios
+#### 792a12o1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a12o1a A plugin skill's key and slug
@@ -622,7 +639,7 @@ Scenario: 792a12o1j A prompt template's key
   Then its key is pi-prompt:review
 ```
 
-## 792a12p Copies of one skill collapse and key conflicts are reported
+### 792a12p Copies of one skill collapse and key conflicts are reported
 
 Requirement: [792a12p Copies of one skill collapse and key conflicts are reported](#792a12p-copies-of-one-skill-collapse-and-key-conflicts-are-reported) Scanned entries resolving to the same file MUST be one entry. Entries with the same key MUST collapse
 when byte-identical, and when they differ MUST be reported as a key conflict naming every path, with no
@@ -639,7 +656,7 @@ chain and no engram-owned exception, because engram's copies on different harnes
 conflicted key makes no offer at all. Aliases are never written to notes, because that would write on runs
 where the procedure did not change.
 
-### 792a12p1 UAT Scenarios
+#### 792a12p1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a12p1a A Pi copy of an engram skill makes no offer
@@ -678,7 +695,7 @@ Scenario: 792a12p1g A diverged plugin skill of the same name is its own skill
   Then both skill-creator:skill-creator and anthropic-skills:skill-creator are offered
 ```
 
-## 792a12q Removal is offered only for successfully read sources
+### 792a12q Removal is offered only for successfully read sources
 
 Requirement: [792a12q Removal is offered only for successfully read sources](#792a12q-removal-is-offered-only-for-successfully-read-sources) A source root MUST count as read only when its read succeeded: a read error of any kind, including
 not-exist, means not read, never empty. A skill note MUST be eligible for removal only as follows. For
@@ -699,7 +716,7 @@ Rationale: an unreadable directory must not look empty and flood the user with r
 sources that were read successfully. The cost is that a note whose source root left the source set is never offered
 for removal, so the user deletes it by hand.
 
-### 792a12q1 UAT Scenarios
+#### 792a12q1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a12q1a A project skill note from another directory
@@ -778,7 +795,7 @@ Scenario: 792a12q1o A machine without the harness
   Then no removal offer is made for it
 ```
 
-## 792a12r Offers are grouped by scope and answered by key, pattern or selector
+### 792a12r Offers are grouped by scope and answered by key, pattern or selector
 
 Requirement: [792a12r Offers are grouped by scope and answered by key, pattern or selector](#792a12r-offers-are-grouped-by-scope-and-answered-by-key-pattern-or-selector) Each offer MUST belong to a scope: `claude-user` for `claude:` skill keys, `claude-cmd` for
 `claude:cmd:` keys, `synced`, `pi-user`, `agents-user`, `pi-settings` and `pi-prompt` for those sources,
@@ -799,7 +816,7 @@ Rationale: Offers are grouped by scope because dozens of per-skill prompts are u
 by accept-all, a pattern or a selector; each needs its exact key or its own prompt. Scopes are not opt-in: all default
 folders are scanned.
 
-### 792a12r1 UAT Scenarios
+#### 792a12r1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a12r1a Decline a whole plugin
@@ -843,7 +860,7 @@ Scenario: 792a12r1h End of input at a prompt records nothing
   Then no offer is accepted or declined
 ```
 
-## 792a12s Declines are keyed by skill key under schema version 2
+### 792a12s Declines are keyed by skill key under schema version 2
 
 Requirement: [792a12s Declines are keyed by skill key under schema version 2](#792a12s-declines-are-keyed-by-skill-key-under-schema-version-2) `skill-registrations.json` MUST map keys to declined hashes under `schema_version: 2`. A file whose
 `schema_version` is anything other than 2 (missing, below 2 or above 2), that has an unrecognized field,
@@ -853,7 +870,7 @@ nothing. A missing file MUST mean no declines.
 Rationale: Version 1 files are a loud error and are not mapped to `claude:<name>`, because v1 never shipped. An older
 binary still reads a v2 file, since it ignores the extra keys.
 
-### 792a12s1 UAT Scenarios
+#### 792a12s1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a12s1a A version-1 file fails loudly
@@ -872,7 +889,7 @@ Scenario: 792a12s1c A missing file is no declines
   Then every scanned skill without a note is offered
 ```
 
-## 792a12t Update runs registration after deploying the skills
+### 792a12t Update runs registration after deploying the skills
 
 Requirement: [792a12t Update runs registration after deploying the skills](#792a12t-update-runs-registration-after-deploying-the-skills) After the engram-owned root sync completes, `engram update` MUST run skill registration against the
 resolved vault over the same default source set that `engram register-skills` scans, resolved by the
@@ -882,7 +899,7 @@ offer when stdin is a terminal, and otherwise write nothing and report the outst
 registration failure MUST be reported as `skill registration error: <message>` and MUST NOT roll back
 the deploy or fail the update.
 
-### 792a12t1 UAT Scenarios
+#### 792a12t1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a12t1a An interactive update
@@ -911,7 +928,7 @@ Scenario: 792a12t1e A registration failure does not roll back the deploy
   Then the report holds a skill registration error line and the deployed skills remain
 ```
 
-## 792a12u Skill identity fields belong to registration
+### 792a12u Skill identity fields belong to registration
 
 Requirement: [792a12u Skill identity fields belong to registration](#792a12u-skill-identity-fields-belong-to-registration) A runbook note created, adopted or refreshed by registration MUST carry `skill_hash`, `skill_key` and
 `skill_source`, and every path that rewrites a note's frontmatter without being registration MUST
@@ -920,7 +937,7 @@ re-parenting, the rename-and-rewrite of wikilinks, the identity backfill and the
 rewrites. A note captured by `engram learn` outside registration MUST carry none of them, and `engram
 learn` MUST NOT accept them as arguments.
 
-### 792a12u1 UAT Scenarios
+#### 792a12u1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a12u1a Amend preserves the identity fields
@@ -959,7 +976,7 @@ Scenario: 792a12u1g Ordinary capture carries none
   Then it carries no skill_hash, skill_key or skill_source, and no learn flag sets them
 ```
 
-## 792a12v Skill notes behave like captured runbooks
+### 792a12v Skill notes behave like captured runbooks
 
 Requirement: [792a12v Skill notes behave like captured runbooks](#792a12v-skill-notes-behave-like-captured-runbooks) A runbook note mirroring a skill MUST participate in the Luhmann hierarchy, embedding, vocabulary
 tagging, retrieval, triggers and the follow-frame of the runbook shim exactly as a captured runbook
@@ -968,7 +985,7 @@ does, with its `situation`, `done_when`, `red_flags` and `triggers` authored on 
 body preamble MUST name the file it mirrors, which is its home-relative `skill_source`, for a skill,
 command or prompt template alike.
 
-### 792a12v1 UAT Scenarios
+#### 792a12v1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a12v1a A skill note surfaces like a captured one

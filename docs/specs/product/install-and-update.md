@@ -12,7 +12,24 @@ after the deploy belongs to [skill-runbook-registration](./skill-runbook-registr
 the report around them.
 Turning on [automatic memory](../../GLOSSARY.md#automatic-memory) for Claude Code is part of the deploy and is specified by [automatic-memory](./automatic-memory.md).
 
-## 792a11a Installing from a local clone or a fresh clone
+## 792a11 Install and Update
+
+**Participants and responsibilities.**
+- The operator: runs [`engram update`](../../GLOSSARY.md#engram-update) from a clone or elsewhere ([792a11a Installing from a local clone or a fresh clone](#792a11a-installing-from-a-local-clone-or-a-fresh-clone)), previews it with `--dry-run` ([792a11f Previewing an update](#792a11f-previewing-an-update)), opts into guidance with `--with-guidance` ([792a11l Guidance is managed only after opt-in](#792a11l-guidance-is-managed-only-after-opt-in)), overrides a refused downgrade with `--allow-downgrade` ([792a11c A provable downgrade is refused](#792a11c-a-provable-downgrade-is-refused)) and runs [`engram prune`](../../GLOSSARY.md#engram-prune-subcommand) when a notice names it ([792a11n Backlog notices for the chunk index](#792a11n-backlog-notices-for-the-chunk-index)).
+- The software: installs the [binary](../../GLOSSARY.md#binary) from a clone, refuses a clone without the model and a provable downgrade, reports the source and the install, and hands the rest of the update to the new binary, promised by [792a11a Installing from a local clone or a fresh clone](#792a11a-installing-from-a-local-clone-or-a-fresh-clone), [792a11b A clone without the model is refused](#792a11b-a-clone-without-the-model-is-refused), [792a11c A provable downgrade is refused](#792a11c-a-provable-downgrade-is-refused), [792a11d The report names the source and the install](#792a11d-the-report-names-the-source-and-the-install) and [792a11e The rest of the update runs in the new binary](#792a11e-the-rest-of-the-update-runs-in-the-new-binary).
+- The software: deploys the [skills](../../GLOSSARY.md#skill) to an engram-owned root of each [harness](../../GLOSSARY.md#harness) and links them, propagates removals, deletes only what engram owns and adopts earlier copies, promised by [792a11g The harnesses that are updated](#792a11g-the-harnesses-that-are-updated), [792a11h Skills are deployed to an engram-owned root and linked](#792a11h-skills-are-deployed-to-an-engram-owned-root-and-linked), [792a11i Removal propagates](#792a11i-removal-propagates), [792a11j Only what engram owns is deleted](#792a11j-only-what-engram-owns-is-deleted) and [792a11k The first update adopts earlier copies](#792a11k-the-first-update-adopts-earlier-copies).
+- The software: manages the guidance documents after opt-in and keeps Claude import paths working, promised by [792a11l Guidance is managed only after opt-in](#792a11l-guidance-is-managed-only-after-opt-in) and [792a11m Claude import paths keep working](#792a11m-claude-import-paths-keep-working).
+- The software: prints the deploy plan under `--dry-run` without changing anything, prints the chunk-index backlog notices and lists its options, promised by [792a11f Previewing an update](#792a11f-previewing-an-update), [792a11n Backlog notices for the chunk index](#792a11n-backlog-notices-for-the-chunk-index) and [792a11o The update options](#792a11o-the-update-options).
+- Retained by people or other systems: the operator keeps the Go toolchain, git and git-lfs that the install needs ([792a11a Installing from a local clone or a fresh clone](#792a11a-installing-from-a-local-clone-or-a-fresh-clone), [792a11b A clone without the model is refused](#792a11b-a-clone-without-the-model-is-refused)) and wires an import line into a harness config to opt into guidance ([792a11l Guidance is managed only after opt-in](#792a11l-guidance-is-managed-only-after-opt-in)); the software assumes both.
+- Retained by people or other systems: Claude Code and Pi find a deployed skill through the link in their skills directory ([792a11h Skills are deployed to an engram-owned root and linked](#792a11h-skills-are-deployed-to-an-engram-owned-root-and-linked)); the software assumes it.
+
+**Interactions.** The operator hands `engram update` a working directory; the software installs from the nearest enclosing clone of the engram module, or from a fresh shallow clone, and responds with a report that names the source and the install ([792a11a Installing from a local clone or a fresh clone](#792a11a-installing-from-a-local-clone-or-a-fresh-clone), [792a11d The report names the source and the install](#792a11d-the-report-names-the-source-and-the-install)). After a successful install the software hands the rest of the update to the freshly installed binary and exits with its status ([792a11e The rest of the update runs in the new binary](#792a11e-the-rest-of-the-update-runs-in-the-new-binary)). The software hands each detected harness its skills through the engram-owned root and the links, and the harness finds them there ([792a11h Skills are deployed to an engram-owned root and linked](#792a11h-skills-are-deployed-to-an-engram-owned-root-and-linked)). The operator hands `--with-guidance`, or an import line already in a harness config, to the software; the software then manages the guidance documents ([792a11l Guidance is managed only after opt-in](#792a11l-guidance-is-managed-only-after-opt-in)). The software hands the operator a notice, and removes nothing, when `engram prune` would clear duplicate index files or the chunk index holds empty ones ([792a11n Backlog notices for the chunk index](#792a11n-backlog-notices-for-the-chunk-index)).
+
+**Boundary assumptions.** The software assumes from the operator a Go toolchain, and git for a fresh clone; when one is missing, [792a11a Installing from a local clone or a fresh clone](#792a11a-installing-from-a-local-clone-or-a-fresh-clone) fails naming the missing program. It assumes a clone that holds the real embedding model; when the model file is a git-lfs pointer or under one mebibyte, [792a11b A clone without the model is refused](#792a11b-a-clone-without-the-model-is-refused) fails without installing and names git-lfs. It assumes a clone that is not older than the installed binary; when git proves it is, [792a11c A provable downgrade is refused](#792a11c-a-provable-downgrade-is-refused) refuses unless `--allow-downgrade` is given. It assumes that `~/.claude` or `~/.pi` exists; when neither does, [792a11g The harnesses that are updated](#792a11g-the-harnesses-that-are-updated) fails before installing anything. It assumes the ownership marker in an engram-owned root before it deletes there; without it, [792a11j Only what engram owns is deleted](#792a11j-only-what-engram-owns-is-deleted) writes the marker, deletes nothing that run and reports the unattributable files. It assumes that the installed binary starts for the hand-off; when it does not, [792a11e The rest of the update runs in the new binary](#792a11e-the-rest-of-the-update-runs-in-the-new-binary) completes the update itself and reports that the re-exec failed.
+
+**Shared rules.** Registering skills as [runbook](../../GLOSSARY.md#runbook) notes after the deploy is owned by [Skill Runbook Registration](./skill-runbook-registration.md) ([792a12t Update runs registration after deploying the skills](./skill-runbook-registration.md#792a12t-update-runs-registration-after-deploying-the-skills)). Turning on [automatic memory](../../GLOSSARY.md#automatic-memory) for Claude Code is owned by [Automatic Memory](./automatic-memory.md). The import lines, the hints that name them and the guidance documents are owned by [Ambient Guidance](./ambient-guidance.md). The re-parenting that `--reparent-luhmann` runs is owned by [Vault Migration](./vault-migration.md) ([792a10b Re-parenting only on request](./vault-migration.md#792a10b-re-parenting-only-on-request)). The [vault](../../GLOSSARY.md#vault) notices that `engram update` prints belong to the capabilities whose state they report: [Controlled Vocabulary](./controlled-vocabulary.md) ([792a6v Update notices](./controlled-vocabulary.md#792a6v-update-notices)), [Vault Migration](./vault-migration.md) ([792a10a The flat-vault notice](./vault-migration.md#792a10a-the-flat-vault-notice), [792a10j The identity-backfill notice](./vault-migration.md#792a10j-the-identity-backfill-notice)), [Vault Identity](./vault-identity.md) ([792a2i Uncommitted vault ID notice](./vault-identity.md#792a2i-uncommitted-vault-id-notice)), [Curate](./curate.md) ([792a22o Pending offers are surfaced at three points](./curate.md#792a22o-pending-offers-are-surfaced-at-three-points)) and [Parent Sync](./parent-sync.md) ([792a21za The update report shows the outbox](./parent-sync.md#792a21za-the-update-report-shows-the-outbox)).
+
+### 792a11a Installing from a local clone or a fresh clone
 
 Requirement: [792a11a Installing from a local clone or a fresh clone](#792a11a-installing-from-a-local-clone-or-a-fresh-clone) `engram update` MUST install the engram binary from the nearest enclosing
 directory of the working directory whose `go.mod` names the module `github.com/toejough/engram`, and
@@ -26,7 +43,7 @@ repository blobs raw and the embedded model is a git-lfs object, so a proxy buil
 embedding call then fails. Running `engram update` from inside a clone installs what that clone holds, which lets a
 contributor test a branch.
 
-### 792a11a1 UAT Scenarios
+#### 792a11a1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a11a1a A local clone is installed in place
@@ -70,7 +87,7 @@ Scenario: 792a11a1h Git is missing
   Then it fails with an error that the git binary is not on PATH
 ```
 
-## 792a11b A clone without the model is refused
+### 792a11b A clone without the model is refused
 
 Requirement: [792a11b A clone without the model is refused](#792a11b-a-clone-without-the-model-is-refused) `engram update` MUST fail without installing when the cloned embedding model file
 is a git-lfs pointer or holds less than one mebibyte, and its error MUST name git-lfs and tell the user
@@ -79,7 +96,7 @@ to install it and rerun `engram update`.
 Rationale: git-lfs absent on the machine means the clone's smudge filter never ran, and building from
 the pointer would produce a binary whose embedder fails at its first use.
 
-### 792a11b1 UAT Scenarios
+#### 792a11b1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a11b1a A pointer file stops the install
@@ -98,7 +115,7 @@ Scenario: 792a11b1c An unreadable model is an error
   Then it fails with an error that the cloned model could not be read
 ```
 
-## 792a11c A provable downgrade is refused
+### 792a11c A provable downgrade is refused
 
 Requirement: [792a11c A provable downgrade is refused](#792a11c-a-provable-downgrade-is-refused) When it installs from a local clone and a binary is already installed at the install
 location, `engram update` MUST read that binary's embedded source revision and MUST refuse to install,
@@ -114,7 +131,7 @@ Ancestry answers whether the new build contains everything the old one did, wher
 under clock skew and rebases. A feature-branch worktree that has not merged the main tip is also blocked, with
 `--allow-downgrade` as the escape.
 
-### 792a11c1 UAT Scenarios
+#### 792a11c1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a11c1a A provable downgrade is refused
@@ -143,7 +160,7 @@ Scenario: 792a11c1e An unreadable revision does not block
   Then the binary is installed
 ```
 
-## 792a11d The report names the source and the install
+### 792a11d The report names the source and the install
 
 Requirement: [792a11d The report names the source and the install](#792a11d-the-report-names-the-source-and-the-install) `engram update` MUST begin its report with the line `engram update`, then a source
 line naming `local clone at <path> (rev <short SHA>)` or `remote module github.com/toejough/engram <short
@@ -153,7 +170,7 @@ as `unknown` when git cannot resolve one. The offer lines of skill registration 
 are written as they arise, not as part of the report, so on a dry run, or when this process deploys without a terminal, they precede the
 `engram update` line, and in a handed-off run ([792a11e The rest of the update runs in the new binary](#792a11e-the-rest-of-the-update-runs-in-the-new-binary)) they follow the three header lines.
 
-### 792a11d1 UAT Scenarios
+#### 792a11d1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a11d1a A local install reports its revision
@@ -172,7 +189,7 @@ Scenario: 792a11d1c A remote source reports its revision
   Then the report's source line is "remote module github.com/toejough/engram abc1234"
 ```
 
-## 792a11e The rest of the update runs in the new binary
+### 792a11e The rest of the update runs in the new binary
 
 Requirement: [792a11e The rest of the update runs in the new binary](#792a11e-the-rest-of-the-update-runs-in-the-new-binary) After a successful install, `engram update` MUST print the install result once,
 then hand the rest of the update (deploying to the harnesses and checking the vault and chunk index) to
@@ -192,7 +209,7 @@ inherit stdio or pass an environment and the parent must relay the child's exit 
 variable, not a flag, so it stays off the public command line. A successful install always hands off with no version
 comparison: an unchanged binary costs one local spawn.
 
-### 792a11e1 UAT Scenarios
+#### 792a11e1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a11e1a The deploy runs in the new binary
@@ -221,7 +238,7 @@ Scenario: 792a11e1e A dry run never hands off
   Then nothing is installed and no second process is started
 ```
 
-## 792a11f Previewing an update
+### 792a11f Previewing an update
 
 Requirement: [792a11f Previewing an update](#792a11f-previewing-an-update) `engram update --dry-run` MUST install nothing, MUST create, change and delete no
 file, directory or link in a harness, an engram-owned root or the vault (including a root's marker, and
@@ -234,7 +251,7 @@ Rationale: the same prefix discipline applies to every action line, so a reader 
 happen without knowing which operation produced the line. A dry run from outside a checkout still clones the
 repository into its scratch directory, because the plan is read from the clone; it builds nothing.
 
-### 792a11f1 UAT Scenarios
+#### 792a11f1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a11f1a A dry run on a never-synced harness leaves no trace
@@ -253,7 +270,7 @@ Scenario: 792a11f1c A dry run installs nothing
   Then the installed binary is unchanged and the binary line shows the planned install command without "ok"
 ```
 
-## 792a11g The harnesses that are updated
+### 792a11g The harnesses that are updated
 
 Requirement: [792a11g The harnesses that are updated](#792a11g-the-harnesses-that-are-updated) `engram update` MUST update each of Claude Code (detected by `~/.claude`) and Pi
 (detected by `~/.pi`) whose directory exists, MUST NOT create the directory of one that is absent, and
@@ -262,7 +279,7 @@ exists, before installing anything. It MUST NOT deploy to any other harness. A f
 NOT stop the other from being updated, MUST be reported under that harness as `error: <reason>`, MUST be
 left out of the `installed:` line, and MUST make the command exit non-zero.
 
-### 792a11g1 UAT Scenarios
+#### 792a11g1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a11g1a Only the harnesses present are updated
@@ -291,7 +308,7 @@ Scenario: 792a11g1e A missing skills source is an error
   Then it fails with an error that the skills source directory is missing
 ```
 
-## 792a11h Skills are deployed to an engram-owned root and linked
+### 792a11h Skills are deployed to an engram-owned root and linked
 
 Requirement: [792a11h Skills are deployed to an engram-owned root and linked](#792a11h-skills-are-deployed-to-an-engram-owned-root-and-linked) `engram update` MUST copy every file under `agent-instructions/skills/` of the
 source into the `skills/` subtree of the harness's engram-owned root (`~/.claude/engram/` for Claude Code,
@@ -301,7 +318,7 @@ in the root, one link per skill directory, never a copy. It MUST repoint a link 
 and MUST leave a correct link alone. Its report MUST list each skill as `agent-instructions/skills/<skill>/
 → <skills dir>/<skill>/  (<N> file[s])`, then `installed: <harnesses>`.
 
-### 792a11h1 UAT Scenarios
+#### 792a11h1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a11h1a A skill deploys as a directory link
@@ -330,7 +347,7 @@ Scenario: 792a11h1e Re-running changes nothing
   Then every root file and link is the same as after the first run
 ```
 
-## 792a11i Removal propagates
+### 792a11i Removal propagates
 
 Requirement: [792a11i Removal propagates](#792a11i-removal-propagates) `engram update` MUST delete from a harness's engram-owned root every file in a
 managed subtree (`skills/`, `commands/` and, while guidance is managed, `guidance/`) that is not in the
@@ -342,7 +359,7 @@ Rationale: the deployment mirrors the source, so an artifact deleted from the so
 stray file in the source does not persist once it is deleted there. Removing a skill is a source change followed by an
 update.
 
-### 792a11i1 UAT Scenarios
+#### 792a11i1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a11i1a A removed skill disappears
@@ -356,7 +373,7 @@ Scenario: 792a11i1b A removed file inside a kept skill disappears
   Then the file and any directory it leaves empty are deleted from the engram root
 ```
 
-## 792a11j Only what engram owns is deleted
+### 792a11j Only what engram owns is deleted
 
 Requirement: [792a11j Only what engram owns is deleted](#792a11j-only-what-engram-owns-is-deleted) `engram update` MUST NOT delete a file in an engram-owned root that lacks the
 ownership marker `.engram-owned` at the start of the run, and MUST NOT delete a real (non-link) file or
@@ -372,7 +389,7 @@ harness's engram root and whose target no longer exists, reporting each as `clea
 Rationale: engram is the only writer inside its root, and the only deletions outside it are links that
 provably point into it. The marker is what proves a directory named `engram/` is engram's.
 
-### 792a11j1 UAT Scenarios
+#### 792a11j1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a11j1a An unmarked root is not purged
@@ -401,7 +418,7 @@ Scenario: 792a11j1e A root that is a file is refused
   Then that harness reports an error that the engram root exists and is not a directory, and the file is untouched
 ```
 
-## 792a11k The first update adopts earlier copies
+### 792a11k The first update adopts earlier copies
 
 Requirement: [792a11k The first update adopts earlier copies](#792a11k-the-first-update-adopts-earlier-copies) `engram update` MUST replace each deploy-set skill that is a real directory in the
 harness skills directory (a copy made by an earlier version) with a link to the root's copy, and MUST
@@ -413,7 +430,7 @@ changing it. Later runs MUST NOT list unmanaged entries again.
 Rationale: the repository is the source of truth, so an earlier copy is replaced without comparing its content. Engram
 cannot prove it wrote an entry it never recorded, so it does not call one engram's debris.
 
-### 792a11k1 UAT Scenarios
+#### 792a11k1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a11k1a A copied skill becomes a link
@@ -432,7 +449,7 @@ Scenario: 792a11k1c The unmanaged list is not repeated
   Then the report does not list it
 ```
 
-## 792a11l Guidance is managed only after opt-in
+### 792a11l Guidance is managed only after opt-in
 
 Requirement: [792a11l Guidance is managed only after opt-in](#792a11l-guidance-is-managed-only-after-opt-in) `engram update` MUST include the guidance documents of `agent-instructions/guidance/`
 (the `.md` files directly in it) in the deploy set of every detected harness only when `--with-guidance`
@@ -450,7 +467,7 @@ keeps their guidance current as it does skills. Not being in the deploy set mean
 The import lines, the hints that name them and the guidance documents themselves belong to
 [ambient-guidance](./ambient-guidance.md).
 
-### 792a11l1 UAT Scenarios
+#### 792a11l1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a11l1a The flag deploys guidance
@@ -489,7 +506,7 @@ Scenario: 792a11l1g One harness's import manages guidance for every harness
   Then guidance is also deployed for Pi
 ```
 
-## 792a11m Claude import paths keep working
+### 792a11m Claude import paths keep working
 
 Requirement: [792a11m Claude import paths keep working](#792a11m-claude-import-paths-keep-working) For Claude Code, whose guidance directory is its engram root, `engram update` MUST
 leave for each managed guidance document a symbolic link at `~/.claude/engram/<name>.md` pointing at
@@ -501,7 +518,7 @@ path of each deployed Claude Code document.
 Rationale: user-authored import lines name the flat path verbatim, so the canonical move into `guidance/` must not
 break them.
 
-### 792a11m1 UAT Scenarios
+#### 792a11m1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a11m1a An existing import still resolves
@@ -525,7 +542,7 @@ Scenario: 792a11m1d The report states the canonical path
   Then each guidance line for Claude Code ends with "(canonical: ~/.claude/engram/guidance/<name>)", and Pi's lines carry no such suffix
 ```
 
-## 792a11n Backlog notices for the chunk index
+### 792a11n Backlog notices for the chunk index
 
 Requirement: [792a11n Backlog notices for the chunk index](#792a11n-backlog-notices-for-the-chunk-index) `engram update` MUST print the line ``duplicate chunk-index files found — run `engram
 prune --duplicates` to clear them (preview with `engram prune --duplicates --dry-run`)`` when running
@@ -542,7 +559,7 @@ reports the live backlog every run and goes quiet once it is cleared. It runs pr
 fires only when a removal would happen, and a backlog whose every group would be refused stays silent because no
 command resolves it.
 
-### 792a11n1 UAT Scenarios
+#### 792a11n1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a11n1a Update reports the prune command when duplicates exist
@@ -571,7 +588,7 @@ Scenario: 792a11n1e The notices coexist with the other upgrade notices
   Then the report contains the empty-files notice, the duplicates notice and the vocabulary notice
 ```
 
-## 792a11o The update options
+### 792a11o The update options
 
 Requirement: [792a11o The update options](#792a11o-the-update-options) `engram update --help` MUST describe the update as refreshing the engram binary and
 harness skills, and MUST list `--dry-run`, `--with-guidance`, `--allow-downgrade`, `--regen-vocab`,
@@ -580,7 +597,7 @@ harness skills, and MUST list `--dry-run`, `--with-guidance`, `--allow-downgrade
 NOT pass `--dry-run`, which never hands off. `--reparent-luhmann` MUST run only the re-parenting of
 [vault-migration](./vault-migration.md), without installing or deploying anything ([792a10b Re-parenting only on request](./vault-migration.md#792a10b-re-parenting-only-on-request)).
 
-### 792a11o1 UAT Scenarios
+#### 792a11o1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a11o1a The help lists every option

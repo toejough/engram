@@ -8,7 +8,24 @@ involved. Searching chunks and fetching one chunk's text (`engram query`, `query
 duplicate index files belongs to [install-and-update](./install-and-update.md). A chunk is named by its chunk ID,
 `<source path>#<anchor>`.
 
-## 792a5a Chunk index location
+## 792a5 Chunk Indexing
+
+**Participants and responsibilities.**
+- The user: runs [`engram ingest`](../../GLOSSARY.md#engram-ingest-subcommand) on the files and directories to index, edits `.engram/sweep.json` to tune the automatic sweep for a repository ([792a5e Repository sweep configuration](#792a5e-repository-sweep-configuration)), and runs [`engram prune`](../../GLOSSARY.md#engram-prune-subcommand) to maintain the index.
+- The agent: runs `engram ingest --auto` at the start of every [learn](../../GLOSSARY.md#learn-skill) ([792a5i Incremental re-indexing](#792a5i-incremental-re-indexing)) and reads the chunks back as evidence ([792a5g Transcript content](#792a5g-transcript-content)).
+- The software: finds the chunk index and the sources to index, and skips throwaway workspaces and stray copies of vault notes, promised by [792a5a Chunk index location](#792a5a-chunk-index-location), [792a5b Explicitly named sources](#792a5b-explicitly-named-sources), [792a5c Swept directories](#792a5c-swept-directories), [792a5d Automatic sweep roots](#792a5d-automatic-sweep-roots), [792a5f Throwaway workspaces are not swept](#792a5f-throwaway-workspaces-are-not-swept) and [792a5n Stray vault-note copies are not indexed](#792a5n-stray-vault-note-copies-are-not-indexed).
+- The software: cuts each source into chunks and embeds them without an LLM, re-indexes only what changed, never drops a chunk and writes no index file for a source without chunks, promised by [792a5g Transcript content](#792a5g-transcript-content), [792a5h Chunk boundaries and IDs](#792a5h-chunk-boundaries-and-ids), [792a5i Incremental re-indexing](#792a5i-incremental-re-indexing), [792a5j A source's chunks are never dropped](#792a5j-a-sources-chunks-are-never-dropped) and [792a5k Sources without chunks leave no index file](#792a5k-sources-without-chunks-leave-no-index-file).
+- The software: indexes identical content once and loses no update when index writers run together, promised by [792a5l Identical content is indexed once](#792a5l-identical-content-is-indexed-once), [792a5m A later, preferred copy replaces an indexed one](#792a5m-a-later-preferred-copy-replaces-an-indexed-one) and [792a5o Concurrent index writers never lose an update](#792a5o-concurrent-index-writers-never-lose-an-update).
+- The software: detaches vanished sources and removes empty and duplicate index files when asked, promised by [792a5p Prune detaches vanished sources](#792a5p-prune-detaches-vanished-sources), [792a5q Prune removes empty index files](#792a5q-prune-removes-empty-index-files) and [792a5r Prune removes duplicate index files](#792a5r-prune-removes-duplicate-index-files).
+- Retained by people or other systems: the [harnesses](../../GLOSSARY.md#harness) (Claude Code and Pi) record the [session transcripts](../../GLOSSARY.md#transcript) that the sweeps read ([792a5b Explicitly named sources](#792a5b-explicitly-named-sources), [792a5d Automatic sweep roots](#792a5d-automatic-sweep-roots)); the software assumes them.
+
+**Interactions.** The user or the agent hands `engram ingest` named files, swept directories or `--auto`; the software responds with an `ingest <path>: <N> chunks (<R> reused, <E> embedded)` line for each source it re-chunks and with nothing for a source it does not ([792a5i Incremental re-indexing](#792a5i-incremental-re-indexing)). The agent hands `engram ingest --auto` its working directory at the start of every learn; the software sweeps the repository root, every ancestor `.claude` and `.pi` directory and the session-log directory ([792a5d Automatic sweep roots](#792a5d-automatic-sweep-roots)). The user hands `engram prune` the index to maintain; the software responds with a `prune:` report line, and under `--dry-run` prefixes the line with `[dry-run] ` and changes nothing ([792a5p Prune detaches vanished sources](#792a5p-prune-detaches-vanished-sources)).
+
+**Boundary assumptions.** The software assumes from the user that each file named by `--transcript` or `--markdown` is readable; when it is not, [792a5b Explicitly named sources](#792a5b-explicitly-named-sources) fails the command with an error naming the file. It assumes from the harness that a swept file is still readable when the sweep reaches it; when it is not, [792a5c Swept directories](#792a5c-swept-directories) skips the file with a `skip` line and continues. It assumes from the user that `.engram/sweep.json`, when present, is valid JSON; when it is not, [792a5e Repository sweep configuration](#792a5e-repository-sweep-configuration) fails the command with an error naming the file.
+
+**Shared rules.** Searching chunks and fetching one chunk's text is owned by [Memory Query](./memory-query.md) ([792a7t Reading one chunk](./memory-query.md#792a7t-reading-one-chunk), [792a7zf Searching chunks alone](./memory-query.md#792a7zf-searching-chunks-alone)). The backlog notice that [`engram update`](../../GLOSSARY.md#engram-update) prints for duplicate index files is owned by [Install and Update](./install-and-update.md) ([792a11n Backlog notices for the chunk index](./install-and-update.md#792a11n-backlog-notices-for-the-chunk-index)). The [vault](../../GLOSSARY.md#vault) location, which tells a stray copy from a vault note, is owned by [Vault Identity](./vault-identity.md) ([792a2a Vault location](./vault-identity.md#792a2a-vault-location)).
+
+### 792a5a Chunk index location
 
 Requirement: [792a5a Chunk index location](#792a5a-chunk-index-location) Every engram command that reads or writes the chunk index MUST use the
 directory given by `--chunks-dir` when it is non-empty, else `ENGRAM_CHUNKS_DIR` when it is
@@ -19,7 +36,7 @@ Rationale: the index follows the same precedence as the vault, so a test or eval
 at an isolated location (`ENGRAM_CHUNKS_DIR` with `ENGRAM_VAULT_PATH`) without touching the real
 index.
 
-### 792a5a1 UAT Scenarios
+#### 792a5a1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a5a1a The flag wins over the environment
@@ -43,7 +60,7 @@ Scenario: 792a5a1d The home directory is the last fallback
   Then notes.md is indexed under ~/.local/share/engram/chunks
 ```
 
-## 792a5b Explicitly named sources
+### 792a5b Explicitly named sources
 
 Requirement: [792a5b Explicitly named sources](#792a5b-explicitly-named-sources) `engram ingest` MUST index each file named by a repeatable `--transcript`
 (a session transcript) or `--markdown` (a Markdown document), and each `.md` and `.jsonl` file under
@@ -52,7 +69,7 @@ each directory named by a repeatable `--pi-sessions`, skipping that directory's 
 is not a directory, and MUST fail with an error naming the file when a file named by `--transcript`
 or `--markdown` cannot be read.
 
-### 792a5b1 UAT Scenarios
+#### 792a5b1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a5b1a A named transcript and document are indexed
@@ -81,7 +98,7 @@ Scenario Outline: 792a5b1d An unreadable named file fails the command
     | --transcript | missing.jsonl |
 ```
 
-## 792a5c Swept directories
+### 792a5c Swept directories
 
 Requirement: [792a5c Swept directories](#792a5c-swept-directories) `engram ingest --sweep <dir>`, repeatable, MUST index every `.md` and `.jsonl`
 file under the directory, skipping hidden subdirectories, subdirectories named `node_modules`,
@@ -94,7 +111,7 @@ vanish between the walk and the read, for example a session that a harness delet
 file must not stop the sweep. Skipping the index directory keeps a sweep root that contains the
 index from indexing the index itself.
 
-### 792a5c1 UAT Scenarios
+#### 792a5c1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a5c1a A swept directory's documents and transcripts are indexed
@@ -113,7 +130,7 @@ Scenario: 792a5c1c The chunk index directory is never indexed
   Then no file under r/chunks is indexed
 ```
 
-## 792a5d Automatic sweep roots
+### 792a5d Automatic sweep roots
 
 Requirement: [792a5d Automatic sweep roots](#792a5d-automatic-sweep-roots) `engram ingest --auto` MUST sweep, as in [792a5c Swept directories](#792a5c-swept-directories), the repository root (the
 nearest ancestor of the working directory, itself included, that contains `.git`, `.hg` or `.jj`, or
@@ -130,7 +147,7 @@ third-party plugin content are not user memory, and `projects/` holds every proj
 through the session-log root instead. `jobs/` is agent-harness scratch that can hold whole snapshot copies of the
 vault, and indexing it would fill the index with duplicates.
 
-### 792a5d1 UAT Scenarios
+#### 792a5d1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a5d1a The repository, its ancestors and the session logs are swept
@@ -154,7 +171,7 @@ Scenario: 792a5d1d ENGRAM_TRANSCRIPT_DIR names the session logs
   Then /logs/a.jsonl is indexed, and no transcript under ~/.claude/projects is
 ```
 
-## 792a5e Repository sweep configuration
+### 792a5e Repository sweep configuration
 
 Requirement: [792a5e Repository sweep configuration](#792a5e-repository-sweep-configuration) `engram ingest --auto` MUST read `.engram/sweep.json` at the repository root
 when it exists, letting each key it sets replace that setting's default: `repo_markdown`,
@@ -167,7 +184,7 @@ error naming the file.
 Rationale: the sweep is declarative and inspectable. Its defaults are compiled in, and a repository
 tunes them by editing data rather than code.
 
-### 792a5e1 UAT Scenarios
+#### 792a5e1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a5e1a A repository adds a root and turns one off
@@ -181,7 +198,7 @@ Scenario: 792a5e1b A malformed sweep file is refused
   Then the command fails with an error naming .engram/sweep.json, and nothing is indexed
 ```
 
-## 792a5f Throwaway workspaces are not swept
+### 792a5f Throwaway workspaces are not swept
 
 Requirement: [792a5f Throwaway workspaces are not swept](#792a5f-throwaway-workspaces-are-not-swept) `engram ingest --auto` MUST NOT index a session-log project directory whose name
 starts with `-private-tmp-`, `-tmp-`, `-var-folders-` or `-private-var-folders-`, and MUST NOT sweep a
@@ -198,7 +215,7 @@ Claude Code records sessions, so a session run in `/private/tmp/...` lands in a 
 name check only reaches a root's subdirectories. Deliberate test ingestion uses an explicit source
 or an isolated index (`ENGRAM_CHUNKS_DIR`, `ENGRAM_VAULT_PATH`).
 
-### 792a5f1 UAT Scenarios
+#### 792a5f1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a5f1a Sessions recorded in a throwaway directory are skipped
@@ -222,7 +239,7 @@ Scenario: 792a5f1d Explicit sources are indexed anywhere
   Then both files are indexed
 ```
 
-## 792a5g Transcript content
+### 792a5g Transcript content
 
 Requirement: [792a5g Transcript content](#792a5g-transcript-content) `engram ingest` MUST index a session transcript as its user and assistant text,
 each turn's text prefixed `USER: ` or `ASSISTANT: `, with each tool call whose result is recorded as
@@ -235,7 +252,7 @@ Rationale: a transcript row carries far more harness bookkeeping than conversati
 evidence an agent reads back, so they keep what was said and done, compressed to a line per tool
 call, and drop what the harness injected.
 
-### 792a5g1 UAT Scenarios
+#### 792a5g1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a5g1a A conversation is indexed as text with tool summaries
@@ -244,7 +261,7 @@ Scenario: 792a5g1a A conversation is indexed as text with tool summaries
   Then the chunk text has a USER: line, an ASSISTANT: line and a "[tool] Bash(command=...) → exit 0 | ok" line, and no system-reminder text
 ```
 
-## 792a5h Chunk boundaries and IDs
+### 792a5h Chunk boundaries and IDs
 
 Requirement: [792a5h Chunk boundaries and IDs](#792a5h-chunk-boundaries-and-ids) `engram ingest` MUST cut a Markdown document into one chunk per heading section,
 ignoring headings inside fenced code, with the heading's text as the anchor and `preamble` for text
@@ -255,7 +272,7 @@ in order and starting a new piece when the next line would take the piece past 1
 single line longer than 1500 characters stays whole), and MUST NOT index a chunk shorter than 40
 characters.
 
-### 792a5h1 UAT Scenarios
+#### 792a5h1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a5h1a Markdown is chunked by heading
@@ -279,7 +296,7 @@ Scenario: 792a5h1d A long section is split under one anchor
   Then the index holds several chunks d.md#Big, each at most 1500 characters long
 ```
 
-## 792a5i Incremental re-indexing
+### 792a5i Incremental re-indexing
 
 Requirement: [792a5i Incremental re-indexing](#792a5i-incremental-re-indexing) `engram ingest` MUST NOT read or re-embed a source whose modification time and
 size match its last ingest, MUST re-chunk a source whose content changed and embed only the chunks
@@ -291,7 +308,7 @@ Rationale: the automatic sweep runs at the start of every learn, over every sess
 the user has, so an unchanged source must cost only a stat. Reusing the vectors of unchanged chunk
 text means editing one section of a long document re-embeds only that section.
 
-### 792a5i1 UAT Scenarios
+#### 792a5i1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a5i1a An unchanged source costs nothing
@@ -305,7 +322,7 @@ Scenario: 792a5i1b A changed source embeds only its new text
   Then stdout reads "ingest <path>: 3 chunks (1 reused, 1 embedded)", the third chunk being B's earlier text (792a5j)
 ```
 
-## 792a5j A source's chunks are never dropped
+### 792a5j A source's chunks are never dropped
 
 Requirement: [792a5j A source's chunks are never dropped](#792a5j-a-sources-chunks-are-never-dropped) When a source's content changes, `engram ingest` MUST keep every chunk the source
 yielded on earlier ingests, alongside the chunks of its new content.
@@ -314,7 +331,7 @@ Rationale: an embedded chunk is the memory; its source is only where it came fro
 chunks means rewriting or truncating a document never erases what the index learned from it. The
 cost is that a document edited many times keeps every earlier version of its edited sections.
 
-### 792a5j1 UAT Scenarios
+#### 792a5j1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a5j1a Edited-away text stays searchable
@@ -323,7 +340,7 @@ Scenario: 792a5j1a Edited-away text stays searchable
   Then the index holds both the old paragraph's chunk and the new text's chunk
 ```
 
-## 792a5k Sources without chunks leave no index file
+### 792a5k Sources without chunks leave no index file
 
 Requirement: [792a5k Sources without chunks leave no index file](#792a5k-sources-without-chunks-leave-no-index-file) `engram ingest` MUST NOT write an index file for a source that yields no
 chunks.
@@ -331,7 +348,7 @@ chunks.
 Rationale: every query opens every index file, so an empty file costs a read on every query and adds
 nothing to any result.
 
-### 792a5k1 UAT Scenarios
+#### 792a5k1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a5k1a An empty transcript writes no index file
@@ -340,7 +357,7 @@ Scenario: 792a5k1a An empty transcript writes no index file
   Then stdout reads "ingest e.jsonl: 0 chunks (0 reused, 0 embedded)", and no index file exists for e.jsonl
 ```
 
-## 792a5l Identical content is indexed once
+### 792a5l Identical content is indexed once
 
 Requirement: [792a5l Identical content is indexed once](#792a5l-identical-content-is-indexed-once) When sources of the same kind (transcript or Markdown) have byte-identical
 content, `engram ingest` MUST index only one of them, chosen by precedence: a source named by
@@ -356,7 +373,7 @@ precedence is a fixed function of the copies found, so the same content always r
 order the sweep finds them in. A transcript is chunked differently from a Markdown document with the same bytes, so
 treating them as copies would lose one of the two chunkings.
 
-### 792a5l1 UAT Scenarios
+#### 792a5l1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a5l1a A repository file outranks its copy in an ancestor .claude directory
@@ -380,7 +397,7 @@ Scenario: 792a5l1d A transcript and a document with the same bytes are both inde
   Then both files have chunks in the index
 ```
 
-## 792a5m A later, preferred copy replaces an indexed one
+### 792a5m A later, preferred copy replaces an indexed one
 
 Requirement: [792a5m A later, preferred copy replaces an indexed one](#792a5m-a-later-preferred-copy-replaces-an-indexed-one) When an already-indexed source becomes a copy of a newly found source that takes
 precedence over it ([792a5l Identical content is indexed once](#792a5l-identical-content-is-indexed-once)), `engram ingest` MUST index the preferred source and remove the other
@@ -394,7 +411,7 @@ earlier versions ([792a5j A source's chunks are never dropped](#792a5j-a-sources
 equal now can hold different histories, and removing one on the strength of the other would destroy chunks that exist
 nowhere else.
 
-### 792a5m1 UAT Scenarios
+#### 792a5m1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a5m1a A copy indexed first gives way to the preferred one
@@ -413,7 +430,7 @@ Scenario: 792a5m1c The remaining copy is indexed when the preferred one goes awa
   Then /r/.claude/doc.md is indexed
 ```
 
-## 792a5n Stray vault-note copies are not indexed
+### 792a5n Stray vault-note copies are not indexed
 
 Requirement: [792a5n Stray vault-note copies are not indexed](#792a5n-stray-vault-note-copies-are-not-indexed) `engram ingest` MUST NOT index a swept `.md` file that has a sibling `.vec.json`
 file and lies outside the vault ([792a2a Vault location](./vault-identity.md#792a2a-vault-location)), and MUST index such a file when it lies inside the vault or
@@ -423,7 +440,7 @@ Rationale: a vault note always has a `.vec.json` sidecar beside it, so such a fi
 vault note, for example in a snapshot or a backup. A copy of a note amended since it was taken no longer has the same
 bytes as the live note, so identical-content deduplication cannot catch it.
 
-### 792a5n1 UAT Scenarios
+#### 792a5n1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a5n1a A vault-note copy outside the vault is skipped
@@ -432,7 +449,7 @@ Scenario: 792a5n1a A vault-note copy outside the vault is skipped
   Then plain.md is indexed and 1.2026-10-09.x.md is not
 ```
 
-## 792a5o Concurrent index writers never lose an update
+### 792a5o Concurrent index writers never lose an update
 
 Requirement: [792a5o Concurrent index writers never lose an update](#792a5o-concurrent-index-writers-never-lose-an-update) `engram ingest` and `engram prune` runs against one chunk index at the same time
 MUST NOT lose either one's change to the index's record of sources.
@@ -440,7 +457,7 @@ MUST NOT lose either one's change to the index's record of sources.
 Rationale: concurrent ingest and prune runs each read the record of sources, and the later write would overwrite the
 earlier one's change.
 
-### 792a5o1 UAT Scenarios
+#### 792a5o1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a5o1a An ingest and a prune at the same time both take effect
@@ -449,7 +466,7 @@ Scenario: 792a5o1a An ingest and a prune at the same time both take effect
   Then afterwards the index records new.jsonl and no longer records the gone source
 ```
 
-## 792a5p Prune detaches vanished sources
+### 792a5p Prune detaches vanished sources
 
 Requirement: [792a5p Prune detaches vanished sources](#792a5p-prune-detaches-vanished-sources) `engram prune` MUST stop recording each indexed source whose file no longer
 exists, MUST keep that source's chunks in the index and searchable, and MUST print
@@ -462,7 +479,7 @@ Rationale: the embedded chunk is the asset and the source file only its provenan
 ingested files, for example a directory of restored transcripts, to reclaim disk without losing what
 was learned from them.
 
-### 792a5p1 UAT Scenarios
+#### 792a5p1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a5p1a A deleted source is detached and stays searchable
@@ -486,7 +503,7 @@ Scenario: 792a5p1d A dry run changes nothing
   Then it prints "[dry-run] prune: detached 1 source(s) — embedded chunks preserved (still searchable)", and the source is still recorded
 ```
 
-## 792a5q Prune removes empty index files
+### 792a5q Prune removes empty index files
 
 Requirement: [792a5q Prune removes empty index files](#792a5q-prune-removes-empty-index-files) `engram prune --empty` MUST remove every empty index file in the chunk index and
 print `prune: removed <N> empty chunk-index file(s) of <M> scanned`. With `--dry-run` it MUST print
@@ -495,7 +512,7 @@ the same line prefixed `[dry-run] ` and remove nothing.
 Rationale: indexes built before [792a5k Sources without chunks leave no index file](#792a5k-sources-without-chunks-leave-no-index-file) left an empty file for each source with no chunks. Removing
 them changes no search result, since they hold no chunks.
 
-### 792a5q1 UAT Scenarios
+#### 792a5q1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a5q1a Empty index files are removed
@@ -509,7 +526,7 @@ Scenario: 792a5q1b A dry run removes nothing
   Then the file remains, and it prints "[dry-run] prune: removed 1 empty chunk-index file(s) of 1 scanned"
 ```
 
-## 792a5r Prune removes duplicate index files
+### 792a5r Prune removes duplicate index files
 
 Requirement: [792a5r Prune removes duplicate index files](#792a5r-prune-removes-duplicate-index-files) `engram prune --duplicates` MUST group the recorded sources that are not already
 recorded as copies by content and kind ([792a5l Identical content is indexed once](#792a5l-identical-content-is-indexed-once)), keep one source of each group, choosing the path
@@ -531,7 +548,7 @@ memory store. It knows only the paths in the index's record, not how each was fo
 precedence; a later `engram ingest --auto` may then replace the copy it kept with a preferred one ([792a5m A later,
 preferred copy replaces an indexed one](#792a5m-a-later-preferred-copy-replaces-an-indexed-one)), once per group.
 
-### 792a5r1 UAT Scenarios
+#### 792a5r1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a5r1a A duplicate group is collapsed

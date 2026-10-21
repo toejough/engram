@@ -8,14 +8,31 @@ flags of `amend` (`--clear-pending`, `--discard`, `--into`, `--expect-hash`) bel
 belong to [parent-sync](./parent-sync.md). The vocabulary tagging that follows a revision belongs to
 [controlled-vocabulary](./controlled-vocabulary.md).
 
-## 792a4a Note references
+## 792a4 Note Revision
+
+**Participants and responsibilities.**
+- The user: names the note to revise by any reference form ([792a4a Note references](#792a4a-note-references)), replaces its fields, supersessions and chunk sources with `engram amend` ([792a4b Field replacement](#792a4b-field-replacement), [792a4d Supersession](#792a4d-supersession), [792a4e Chunk sources](#792a4e-chunk-sources)), rewrites its situation with `engram resituate` ([792a4l Resituation](#792a4l-resituation)) and records its use with `engram activate` ([792a4n Activation](#792a4n-activation)).
+- The agent: corrects one part of a lesson without restating the rest ([792a4b Field replacement](#792a4b-field-replacement)) and, through the [recall skill](../../GLOSSARY.md#recall-skill), activates only the notes it actually used ([792a4n Activation](#792a4n-activation)).
+- The software: finds the note and replaces only what it is given, promised by [792a4a Note references](#792a4a-note-references), [792a4b Field replacement](#792a4b-field-replacement), [792a4c Other note kinds are refused](#792a4c-other-note-kinds-are-refused), [792a4d Supersession](#792a4d-supersession), [792a4e Chunk sources](#792a4e-chunk-sources) and [792a4f Amend argument validation](#792a4f-amend-argument-validation).
+- The software: keeps the note and its [sidecar](../../GLOSSARY.md#sidecar-embedding-sidecar) consistent and the untouched frontmatter intact, promised by [792a4g Re-embedding after an amend](#792a4g-re-embedding-after-an-amend), [792a4j Untouched frontmatter is kept](#792a4j-untouched-frontmatter-is-kept), [792a4k Anchored keys are refused](#792a4k-anchored-keys-are-refused), [792a4l Resituation](#792a4l-resituation) and [792a4m CRLF notes](#792a4m-crlf-notes).
+- The software: stamps the identity of the environment that revised a note, promised by [792a4h Identity re-stamp](#792a4h-identity-re-stamp) and [792a4i Vault name on every amend](#792a4i-vault-name-on-every-amend).
+- The software: records a use in the sidecar and loses no concurrent revision, promised by [792a4n Activation](#792a4n-activation) and [792a4o Concurrent revisions never lose an update](#792a4o-concurrent-revisions-never-lose-an-update).
+- Retained by people or other systems: people and tools such as Obsidian edit notes by hand, so a note can carry keys engram does not define and CRLF line endings; the software keeps those keys and reads CRLF as LF ([792a4j Untouched frontmatter is kept](#792a4j-untouched-frontmatter-is-kept), [792a4m CRLF notes](#792a4m-crlf-notes)).
+
+**Interactions.** The user or the agent hands `engram amend --target` a note reference and the fields to replace; the software replaces only those fields, rebuilds the sidecar when a content field changed, re-stamps the identity fields on a content, supersession or chunk-source change and prints the note's path ([792a4a Note references](#792a4a-note-references), [792a4b Field replacement](#792a4b-field-replacement), [792a4g Re-embedding after an amend](#792a4g-re-embedding-after-an-amend), [792a4h Identity re-stamp](#792a4h-identity-re-stamp)). The user hands `engram resituate --note` a note and a new situation; the software rewrites the situation and the first line of the body, rebuilds the sidecar and prints the note's path ([792a4l Resituation](#792a4l-resituation)). The recall skill hands `engram activate --note` the notes it used; the software records today's date as each note's last-used date ([792a4n Activation](#792a4n-activation)).
+
+**Boundary assumptions.** The software assumes from the caller a reference that names a note; when none matches, [792a4a Note references](#792a4a-note-references) fails saying the note was not found and writes nothing. It assumes a [fact](../../GLOSSARY.md#fact-note-type), [feedback](../../GLOSSARY.md#feedback-note-type) or [runbook](../../GLOSSARY.md#runbook) note with frontmatter; for any other, [792a4c Other note kinds are refused](#792a4c-other-note-kinds-are-refused) refuses and writes nothing. It assumes valid arguments; when a supersession, a [trigger](../../GLOSSARY.md#trigger) or a chunk-source ID is invalid, [792a4f Amend argument validation](#792a4f-amend-argument-validation) refuses before any write. It assumes that the revising environment names a user; when detection resolves empty, [792a4h Identity re-stamp](#792a4h-identity-re-stamp) keeps the user the note has and warns. It assumes that an edited frontmatter key carries no YAML anchor; when one does, [792a4k Anchored keys are refused](#792a4k-anchored-keys-are-refused) refuses the edit and leaves the note unchanged. It assumes that embedding works; when rebuilding the sidecar fails, [792a4g Re-embedding after an amend](#792a4g-re-embedding-after-an-amend) still writes the amended note and warns, and [792a4l Resituation](#792a4l-resituation) fails naming the note.
+
+**Shared rules.** New notes, and the repository and user detection that a revision re-stamps, are owned by [Note Writing](./note-writing.md) ([792a3o Repository provenance](./note-writing.md#792a3o-repository-provenance), [792a3p User provenance](./note-writing.md#792a3p-user-provenance)). The [vault](../../GLOSSARY.md#vault) name is owned by [Vault Identity](./vault-identity.md) ([792a2b Vault name](./vault-identity.md#792a2b-vault-name)). The curation flags of `engram amend` are owned by [Curate](./curate.md). `engram activate --parent`, a [pull-down](../../GLOSSARY.md#pull-down) on a local miss and the [offers](../../GLOSSARY.md#offer) a revision queues for a parent are owned by [Parent Sync](./parent-sync.md). The vocabulary tagging that follows a revision is owned by [Controlled Vocabulary](./controlled-vocabulary.md).
+
+### 792a4a Note references
 
 Requirement: [792a4a Note references](#792a4a-note-references) `engram amend --target` and `engram resituate --note` MUST accept a note's full
 basename, the basename followed by `.md`, a `[[wikilink]]` to it (with or without a `|display`
 part), or its bare Luhmann ID, and MUST fail with an error saying the note was not found, naming
 the reference as given, and write nothing when no note matches.
 
-### 792a4a1 UAT Scenarios
+#### 792a4a1 UAT Scenarios
 
 ```gherkin
 Scenario Outline: 792a4a1a Every reference form finds the note
@@ -37,7 +54,7 @@ Scenario: 792a4a1b An unknown reference is refused
   Then it fails saying note "9" was not found, and no note is written
 ```
 
-## 792a4b Field replacement
+### 792a4b Field replacement
 
 Requirement: [792a4b Field replacement](#792a4b-field-replacement) `engram amend` MUST replace only the content fields it is given that belong to
 the note's kind — `--situation`, `--subject`, `--predicate` and `--object` for a fact;
@@ -50,7 +67,7 @@ Rationale: a field that is not given keeps its value, so an agent can correct on
 without restating the rest. The body formula repeats the situation and the lesson, so it is rebuilt
 whenever they change.
 
-### 792a4b1 UAT Scenarios
+#### 792a4b1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a4b1a A fact field is replaced
@@ -69,12 +86,12 @@ Scenario: 792a4b1c A runbook's steps and red flags are replaced
   Then the note's body is "1. new" and its red_flags: lists only C
 ```
 
-## 792a4c Other note kinds are refused
+### 792a4c Other note kinds are refused
 
 Requirement: [792a4c Other note kinds are refused](#792a4c-other-note-kinds-are-refused) `engram amend` MUST refuse, writing nothing, a note that is not a fact,
 feedback or runbook note, or that has no frontmatter.
 
-### 792a4c1 UAT Scenarios
+#### 792a4c1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a4c1a A question-and-answer note is refused
@@ -83,7 +100,7 @@ Scenario: 792a4c1a A question-and-answer note is refused
   Then it fails saying the note type is unknown, and the note is unchanged
 ```
 
-## 792a4d Supersession
+### 792a4d Supersession
 
 Requirement: [792a4d Supersession](#792a4d-supersession) `engram amend --supersedes <note>|<type>|<claim>`, repeatable, MUST replace the
 note's whole `supersedes:` list and all of its `Supersedes:` body lines with the given entries, and
@@ -96,7 +113,7 @@ line keeps no `.md` or it would not resolve to the note it names. The frontmatte
 than a graph link, so it keeps the filename. Replacing the whole list, rather than appending to it, makes repeating an
 amend harmless.
 
-### 792a4d1 UAT Scenarios
+#### 792a4d1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a4d1a A supersession is written in canonical form
@@ -110,13 +127,13 @@ Scenario: 792a4d1b The list is replaced, not appended to
   Then the note's supersedes: names only C, and its body has one Supersedes: line, for C
 ```
 
-## 792a4e Chunk sources
+### 792a4e Chunk sources
 
 Requirement: [792a4e Chunk sources](#792a4e-chunk-sources) `engram amend --chunk-source <source#anchor>`, repeatable, MUST add each chunk
 ID to the note's `sources:` once, after the IDs already there, and MUST keep every ID already
 there.
 
-### 792a4e1 UAT Scenarios
+#### 792a4e1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a4e1a Chunk sources are merged without duplicates
@@ -125,7 +142,7 @@ Scenario: 792a4e1a Chunk sources are merged without duplicates
   Then the note's sources: lists a#1 then b#2
 ```
 
-## 792a4f Amend argument validation
+### 792a4f Amend argument validation
 
 Requirement: [792a4f Amend argument validation](#792a4f-amend-argument-validation) `engram amend` MUST refuse, writing nothing, a `--supersedes` that is not
 `<note>|<type>|<claim>` with a type of `updates`, `narrows` or `refutes` and a non-empty claim, a `--trigger` shorter than
@@ -134,7 +151,7 @@ three characters after trimming, and a `--chunk-source` ID that the chunk index 
 Rationale: `engram learn` records chunk sources without checking them, because the chunks a note is
 written from may not be indexed yet ([792a3h Optional metadata](./note-writing.md#792a3h-optional-metadata)). An amend runs later, so it can check them.
 
-### 792a4f1 UAT Scenarios
+#### 792a4f1 UAT Scenarios
 
 ```gherkin
 Scenario Outline: 792a4f1a An invalid amend argument is refused before any write
@@ -151,7 +168,7 @@ Scenario Outline: 792a4f1a An invalid amend argument is refused before any write
     | --chunk-source nope#x        | unresolved chunk-source id "nope#x"            |
 ```
 
-## 792a4g Re-embedding after an amend
+### 792a4g Re-embedding after an amend
 
 Requirement: [792a4g Re-embedding after an amend](#792a4g-re-embedding-after-an-amend) When `engram amend` changes a content field of the note, it MUST rebuild the
 note's `.vec.json` sidecar, and when it changes only supersessions, chunk sources or identity, it
@@ -163,7 +180,7 @@ Rationale: the sidecar embeds the note's situation and body, and its content has
 sidecar current. A failed rebuild is recoverable later, because the note itself was written in one
 atomic step.
 
-### 792a4g1 UAT Scenarios
+#### 792a4g1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a4g1a A content amend re-embeds
@@ -182,7 +199,7 @@ Scenario: 792a4g1c A failed re-embed keeps the amend
   Then the note is amended, stderr carries a warning naming it, and the command succeeds
 ```
 
-## 792a4h Identity re-stamp
+### 792a4h Identity re-stamp
 
 Requirement: [792a4h Identity re-stamp](#792a4h-identity-re-stamp) An `engram amend` given any content flag, `--supersedes` or `--chunk-source`
 MUST overwrite the note's `repo:`, `user:` and `vault:` with the values detected in its own
@@ -199,7 +216,7 @@ the declared author. When user detection fails, refusing the amend would block c
 identity, and keeping the old value silently would hide the broken environment; keeping it with a warning does
 neither.
 
-### 792a4h1 UAT Scenarios
+#### 792a4h1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a4h1a Amend from another environment re-stamps
@@ -238,7 +255,7 @@ Scenario: 792a4h1g Recording a use keeps the declared identity
   Then the note's repo:, user: and vault: are unchanged
 ```
 
-## 792a4i Vault name on every amend
+### 792a4i Vault name on every amend
 
 Requirement: [792a4i Vault name on every amend](#792a4i-vault-name-on-every-amend) Every `engram amend` that writes a note, one that keeps its declared identity
 included, MUST write the resolved vault name ([792a2b Vault name](./vault-identity.md#792a2b-vault-name)) into a note whose `vault:` is absent or
@@ -247,7 +264,7 @@ empty, and MUST keep a `vault:` the note declares.
 Rationale: a `vault: ""` would look like a real value to every later reader, and a note written
 before identity existed would otherwise keep no vault at all.
 
-### 792a4i1 UAT Scenarios
+#### 792a4i1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a4i1a A use recorded on a note without vault fills it in
@@ -256,7 +273,7 @@ Scenario: 792a4i1a A use recorded on a note without vault fills it in
   Then the note gains vault: personal and gains no user: field
 ```
 
-## 792a4j Untouched frontmatter is kept
+### 792a4j Untouched frontmatter is kept
 
 Requirement: [792a4j Untouched frontmatter is kept](#792a4j-untouched-frontmatter-is-kept) `engram amend` and `engram resituate` MUST keep every frontmatter key they do
 not change, with its value, including keys engram does not define and YAML anchors on keys they do
@@ -267,7 +284,7 @@ define.
 Rationale: hand-edited, imported and Obsidian-edited notes carry keys that engram's note model does not know, so a
 revision must not drop them by re-rendering the frontmatter from that model.
 
-### 792a4j1 UAT Scenarios
+#### 792a4j1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a4j1a Amend keeps an unmodeled key
@@ -291,7 +308,7 @@ Scenario: 792a4j1d Resituate keeps every untouched field
   Then all of those are unchanged, and only situation: and the body's first line differ
 ```
 
-## 792a4k Anchored keys are refused
+### 792a4k Anchored keys are refused
 
 Requirement: [792a4k Anchored keys are refused](#792a4k-anchored-keys-are-refused) `engram amend` and `engram resituate` MUST refuse, leaving the note unchanged,
 an edit to a frontmatter key whose key or value, or anything beneath the value, carries a YAML
@@ -300,7 +317,7 @@ anchor, with an error naming the key.
 Rationale: replacing an anchored value would leave every alias to it dangling, so the frontmatter
 would no longer read back.
 
-### 792a4k1 UAT Scenarios
+#### 792a4k1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a4k1a Amend refuses an anchored edited key
@@ -314,7 +331,7 @@ Scenario: 792a4k1b Resituate refuses an anchored situation
   Then it fails naming the key, and the note is unchanged
 ```
 
-## 792a4l Resituation
+### 792a4l Resituation
 
 Requirement: [792a4l Resituation](#792a4l-resituation) `engram resituate --note <ref> --situation <text>` MUST replace a fact or
 feedback note's `situation:` with the text, rebuild the first line of its body around it, keep the
@@ -327,7 +344,7 @@ learn` only creates notes, so without resituate the two copies could be kept in 
 warning, a failed sidecar rebuild fails the command, because a resituate is an explicit request to change what the
 note is found by.
 
-### 792a4l1 UAT Scenarios
+#### 792a4l1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a4l1a A fact is resituated
@@ -346,7 +363,7 @@ Scenario: 792a4l1c A failed sidecar rebuild fails the command
   Then the command fails naming the note, and the note's situation is already new
 ```
 
-## 792a4m CRLF notes
+### 792a4m CRLF notes
 
 Requirement: [792a4m CRLF notes](#792a4m-crlf-notes) `engram amend` and `engram resituate` MUST read a note whose lines end in
 `\r\n` as its LF form, never refusing it for its line endings, MUST write it as LF in the single
@@ -358,7 +375,7 @@ if it has no frontmatter. A note is converted only inside a write the command ma
 note just to convert it. Conversion changes the note's text, so its sidecar is rebuilt even when the amend itself
 would not re-embed.
 
-### 792a4m1 UAT Scenarios
+#### 792a4m1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a4m1a Amend converts a CRLF note
@@ -372,7 +389,7 @@ Scenario: 792a4m1b Resituate converts a CRLF note
   Then the rewrite succeeds, the written note contains no \r, and only situation: and the body's first line changed
 ```
 
-## 792a4n Activation
+### 792a4n Activation
 
 Requirement: [792a4n Activation](#792a4n-activation) `engram activate --note <ref>`, repeatable, where each ref is a note's path,
 absolute or relative to the vault, with or without `.md`, MUST record today's date as the last-used
@@ -386,7 +403,7 @@ Rationale: activation is agent-driven. Query never marks a note used; the recall
 only the notes it actually used. The last-used date is kept out of the sidecar's content hash, so
 recording a use never makes the sidecar stale.
 
-### 792a4n1 UAT Scenarios
+#### 792a4n1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a4n1a A note's use is recorded
@@ -410,7 +427,7 @@ Scenario: 792a4n1d Amend records a use
   Then the sidecar's last_used is today
 ```
 
-## 792a4o Concurrent revisions never lose an update
+### 792a4o Concurrent revisions never lose an update
 
 Requirement: [792a4o Concurrent revisions never lose an update](#792a4o-concurrent-revisions-never-lose-an-update) Two vault writers — `engram amend`, `resituate`, `activate` or `learn` —
 running against one vault at the same time MUST NOT lose either one's change to a note, and MUST
@@ -419,7 +436,7 @@ NOT leave a note's sidecar holding the vectors of the note's earlier text.
 Rationale: without the vault lock, two concurrent writers can corrupt vault and index state. Many sub-recalls can
 amend and activate the same vault in parallel.
 
-### 792a4o1 UAT Scenarios
+#### 792a4o1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a4o1a Concurrent amends both take effect

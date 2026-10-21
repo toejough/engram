@@ -10,7 +10,24 @@ note-writing's [792a3u Vocabulary tagging by kind](./note-writing.md#792a3u-voca
 skill's ([learn](./learn.md)). Tagging the notes that a pull-down or a served learn writes belongs to [parent-sync](./parent-sync.md) and
 vault-serving ([792a20o The receiving vault tags a served offer](./vault-serving.md#792a20o-the-receiving-vault-tags-a-served-offer)).
 
-## 792a6a Definition notes
+## 792a6 Controlled Vocabulary
+
+**Participants and responsibilities.**
+- The user: seeds the vocabulary from a seed file ([792a6g Bootstrapping a vocabulary](#792a6g-bootstrapping-a-vocabulary)), previews a refit with `--dry-run` ([792a6l Dry run](#792a6l-dry-run)), and runs the backfill and migration commands ([792a6u Self-tag backfill](#792a6u-self-tag-backfill), [792a6w Migrating an old-format vocabulary](#792a6w-migrating-an-old-format-vocabulary)).
+- The agent: proposes a term ([792a6i Proposing a term](#792a6i-proposing-a-term)), answers the [naming requests](../../GLOSSARY.md#naming-request) of a refit ([792a6n Naming answers](#792a6n-naming-answers)) and, through the [learn skill](../../GLOSSARY.md#learn-skill), acts on a pending refit ([792a6s Refit trigger](#792a6s-refit-trigger)).
+- The software: records the vocabulary as [vocab definition notes](../../GLOSSARY.md#vocab-definition-note) and a family note, and keeps every categorical tag in one list, promised by [792a6a Definition notes](#792a6a-definition-notes), [792a6b The family note](#792a6b-the-family-note) and [792a6c Categorical tags share one list](#792a6c-categorical-tags-share-one-list).
+- The software: tags each note it writes with the terms closest to it, promised by [792a6d Write-time vocabulary tagging](#792a6d-write-time-vocabulary-tagging), [792a6e Tagging is skipped without a vocabulary or an embedding](#792a6e-tagging-is-skipped-without-a-vocabulary-or-an-embedding) and [792a6f CRLF notes](#792a6f-crlf-notes).
+- The software: seeds the vocabulary and re-derives the term set from the [vault](../../GLOSSARY.md#vault)'s own notes, keeping stable names and retiring unmatched terms but not a proposed one, promised by [792a6g Bootstrapping a vocabulary](#792a6g-bootstrapping-a-vocabulary), [792a6j Deriving the vocabulary](#792a6j-deriving-the-vocabulary), [792a6k Term names stay stable](#792a6k-term-names-stay-stable), [792a6o Applying a refit](#792a6o-applying-a-refit), [792a6p Retiring a term](#792a6p-retiring-a-term) and [792a6q Proposed terms survive derivation](#792a6q-proposed-terms-survive-derivation).
+- The software: notices when a refit is due without running one, reports statistics, and flags and repairs old-format vaults, promised by [792a6s Refit trigger](#792a6s-refit-trigger), [792a6t Vocabulary statistics](#792a6t-vocabulary-statistics), [792a6v Update notices](#792a6v-update-notices) and [792a6w Migrating an old-format vocabulary](#792a6w-migrating-an-old-format-vocabulary).
+- Retained by people or other systems: the agent decides whether a proposed term is worth adding and what to name a new cluster, and the software only writes what it is given ([792a6i Proposing a term](#792a6i-proposing-a-term), [792a6m Naming requests](#792a6m-naming-requests)).
+
+**Interactions.** The user hands `engram vocab bootstrap --seed` a YAML list of terms; the software creates the family note and a definition note for each term, tags the existing notes and prints `vocab bootstrap: <N> terms, <M> notes assigned` ([792a6g Bootstrapping a vocabulary](#792a6g-bootstrapping-a-vocabulary)). The agent hands `engram vocab propose` a term and a description; the software creates the definition note and raises the minor version ([792a6i Proposing a term](#792a6i-proposing-a-term)). When a refit finds new clusters, the software hands the agent a naming request for each; the agent hands back a `--names` file that echoes the fingerprint; the software applies the refit only when the answer matches ([792a6m Naming requests](#792a6m-naming-requests), [792a6n Naming answers](#792a6n-naming-answers)). The software marks a refit pending after a write once the vault has grown enough since its baseline, and `engram vocab stats` reports it for the learn skill to act on ([792a6s Refit trigger](#792a6s-refit-trigger), [792a6t Vocabulary statistics](#792a6t-vocabulary-statistics)). [`engram update`](../../GLOSSARY.md#engram-update) hands the user a notice when old-format vocabulary files exist or a definition lacks its self-tag and changes nothing; the user answers with `engram update --regen-vocab` or `engram vocab tag-definitions` ([792a6v Update notices](#792a6v-update-notices)).
+
+**Boundary assumptions.** The software assumes from the user a seed file that is a readable YAML list of entries; when it is not, [792a6h Bootstrap failures](#792a6h-bootstrap-failures) refuses or fails before writing anything. It assumes from the agent a naming answer that matches the vault and names every new cluster once with a term and a description; when it does not, [792a6n Naming answers](#792a6n-naming-answers) fails and writes nothing. It assumes that the vault holds a definition note with a [sidecar](../../GLOSSARY.md#sidecar-embedding-sidecar) and that the written note has one; when either is missing, [792a6e Tagging is skipped without a vocabulary or an embedding](#792a6e-tagging-is-skipped-without-a-vocabulary-or-an-embedding) writes the note with no vocabulary tag. It assumes that the vault holds enough notes with enough structure to cluster; when it does not, [792a6j Deriving the vocabulary](#792a6j-deriving-the-vocabulary) prints `vocab refit: no structure found; vocabulary unchanged` and writes nothing. It assumes the term set comes from the vault's notes and not from an authored plan; [792a6r Refit takes no term plan](#792a6r-refit-takes-no-term-plan) refuses `--plan` and `--emit-request`.
+
+**Shared rules.** The kinds of note that are tagged are owned by [Note Writing](./note-writing.md) ([792a3u Vocabulary tagging by kind](./note-writing.md#792a3u-vocabulary-tagging-by-kind)). Using the vocabulary at query time, including the query payload's `refit_pending` field, is owned by [Memory Query](./memory-query.md) ([792a7zd A refit is pending](./memory-query.md#792a7zd-a-refit-is-pending)). Acting on a pending refit is owned by [Learn](./learn.md) ([792a15d The vocabulary check and its autonomous refit](./learn.md#792a15d-the-vocabulary-check-and-its-autonomous-refit)). Tagging the notes that a [pull-down](../../GLOSSARY.md#pull-down) or a served learn writes is owned by [Parent Sync](./parent-sync.md) and [Vault Serving](./vault-serving.md) ([792a20o The receiving vault tags a served offer](./vault-serving.md#792a20o-the-receiving-vault-tags-a-served-offer)).
+
+### 792a6a Definition notes
 
 Requirement: [792a6a Definition notes](#792a6a-definition-notes) Every term definition that `engram vocab bootstrap`, `engram vocab propose` or
 `engram vocab refit` writes MUST be a top-level fact note with the slug `vocab-<term>-definition`,
@@ -27,7 +44,7 @@ counting and tagging path can leave definitions out and a term's own description
 `vocab/<term>` self-tag lets a term's definition appear with its members in Obsidian's tag pane and graph; it has no
 other effect.
 
-### 792a6a1 UAT Scenarios
+#### 792a6a1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a6a1a A definition note carries its self-tag
@@ -41,7 +58,7 @@ Scenario: 792a6a1b A definition is never assigned a term
   Then the cooking definition note's tags are still exactly [vocab, vocab/cooking]
 ```
 
-## 792a6b The family note
+### 792a6b The family note
 
 Requirement: [792a6b The family note](#792a6b-the-family-note) The vault's vocabulary MUST be recorded by one family note, slug
 `vocab-definition`, tagged only `vocab`, whose frontmatter carries the vault-wide `vocab_version`
@@ -54,7 +71,7 @@ Rationale: the vocabulary is emergent: the terms are the definition notes that e
 tags. A note that listed the terms would be the stale `vocab.index.md` again, so the family note
 holds only the convention and the version.
 
-### 792a6b1 UAT Scenarios
+#### 792a6b1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a6b1a Bootstrap creates the family note
@@ -68,7 +85,7 @@ Scenario: 792a6b1b The version follows propose and refit
   Then engram vocab stats reports version 2.1 after the propose and 3.0 after the refit
 ```
 
-## 792a6c Categorical tags share one list
+### 792a6c Categorical tags share one list
 
 Requirement: [792a6c Categorical tags share one list](#792a6c-categorical-tags-share-one-list) A note's categorical classifications MUST all live in its `tags:` list:
 vocabulary tagging, refit and `engram update --regen-vocab` MUST change only the `vocab/<term>`
@@ -85,7 +102,7 @@ defines the family, a `family/value` tag is a member). Route reads the aggregate
 drift, and it is never on the read path. The vocabulary uses the same convention: definitions are bare-`vocab`-tagged
 fact notes and members carry `vocab/<term>` tags.
 
-### 792a6c1 UAT Scenarios
+#### 792a6c1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a6c1a A categorical tag survives tagging
@@ -99,7 +116,7 @@ Scenario: 792a6c1b A categorical tag survives a refit
   Then the note still carries work-kind/review
 ```
 
-## 792a6d Write-time vocabulary tagging
+### 792a6d Write-time vocabulary tagging
 
 Requirement: [792a6d Write-time vocabulary tagging](#792a6d-write-time-vocabulary-tagging) After `engram learn`, `engram amend` or `engram resituate` writes a note, the
 note's `vocab/<term>` tags MUST be set to the terms whose vector has a cosine similarity of at least
@@ -112,7 +129,7 @@ its definition note's embedding otherwise.
 Rationale: tagging is pure cosine, so it costs no LLM call on the write path. Tags replace rather than accumulate, so
 a revised note carries only the terms it is close to now.
 
-### 792a6d1 UAT Scenarios
+#### 792a6d1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a6d1a A learned note is tagged with its closest terms
@@ -141,12 +158,12 @@ Scenario: 792a6d1e A resituated note is re-tagged
   Then its vocab/ tags are set from its rewritten text
 ```
 
-## 792a6e Tagging is skipped without a vocabulary or an embedding
+### 792a6e Tagging is skipped without a vocabulary or an embedding
 
 Requirement: [792a6e Tagging is skipped without a vocabulary or an embedding](#792a6e-tagging-is-skipped-without-a-vocabulary-or-an-embedding) A note write MUST succeed and write no vocabulary tag when the vault has no
 definition note with a sidecar, or when the written note has no sidecar.
 
-### 792a6e1 UAT Scenarios
+#### 792a6e1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a6e1a A vault without a vocabulary writes plain notes
@@ -160,7 +177,7 @@ Scenario: 792a6e1b A note whose embedding failed is not tagged
   Then the note is written, stderr carries a warning naming it, and the note has no vocab/ tag
 ```
 
-## 792a6f CRLF notes
+### 792a6f CRLF notes
 
 Requirement: [792a6f CRLF notes](#792a6f-crlf-notes) Vocabulary tagging, term removal and refit MUST read a note with CRLF line
 endings as its LF form. A tagging that changes a CRLF note's tags MUST write the note with LF
@@ -169,7 +186,7 @@ endings, and one that changes nothing MUST NOT write the note.
 Rationale: a note's text must not change meaning with its line endings, and no reader rewrites a note
 only to convert it: the conversion happens inside a write that is needed anyway.
 
-### 792a6f1 UAT Scenarios
+#### 792a6f1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a6f1a Vocab tagging reads a CRLF note
@@ -178,7 +195,7 @@ Scenario: 792a6f1a Vocab tagging reads a CRLF note
   Then the tag is written and the note is written as LF; a CRLF note whose tags do not change is not written
 ```
 
-## 792a6g Bootstrapping a vocabulary
+### 792a6g Bootstrapping a vocabulary
 
 Requirement: [792a6g Bootstrapping a vocabulary](#792a6g-bootstrapping-a-vocabulary) `engram vocab bootstrap --seed <file>` MUST read a YAML list of entries with
 `term`, `description` and optional `exemplars`, create the family note when absent ([792a6b The family note](#792a6b-the-family-note)), create a
@@ -195,7 +212,7 @@ Rationale: the second pass replaces each description embedding with the centroid
 where their notes actually are; the 0.35, three-term setting of [792a6d Write-time vocabulary
 tagging](#792a6d-write-time-vocabulary-tagging) is tuned for centroid assignment.
 
-### 792a6g1 UAT Scenarios
+#### 792a6g1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a6g1a Bootstrap seeds terms and tags existing notes
@@ -209,13 +226,13 @@ Scenario: 792a6g1b A second bootstrap creates nothing new
   Then no new definition note or family note is created
 ```
 
-## 792a6h Bootstrap failures
+### 792a6h Bootstrap failures
 
 Requirement: [792a6h Bootstrap failures](#792a6h-bootstrap-failures) `engram vocab bootstrap` MUST be refused when `--seed` is absent, and MUST fail
 with an error when the seed file cannot be read or is not a YAML list of entries, in each case
 before writing anything.
 
-### 792a6h1 UAT Scenarios
+#### 792a6h1 UAT Scenarios
 
 ```gherkin
 Scenario Outline: 792a6h1a A bad seed is refused
@@ -230,7 +247,7 @@ Scenario Outline: 792a6h1a A bad seed is refused
     | --seed with "term: [unclosed" | the seed YAML cannot be parsed     |
 ```
 
-## 792a6i Proposing a term
+### 792a6i Proposing a term
 
 Requirement: [792a6i Proposing a term](#792a6i-proposing-a-term) `engram vocab propose --term <term> --description <text>` MUST require both
 flags, create the term's definition note ([792a6a Definition notes](#792a6a-definition-notes)), raise the vocabulary's minor version ([792a6b The family note](#792a6b-the-family-note)),
@@ -243,7 +260,7 @@ still need a way in. Proposing is that one judgment-based path; whether a term i
 (no existing term covers it, and it would tag no more than a fifth of the vault) is decided by the
 agent before it runs the command, which only writes.
 
-### 792a6i1 UAT Scenarios
+#### 792a6i1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a6i1a A proposed term is created
@@ -262,7 +279,7 @@ Scenario: 792a6i1c Both flags are required
   Then it fails saying --description is a missing required flag, and nothing is written
 ```
 
-## 792a6j Deriving the vocabulary
+### 792a6j Deriving the vocabulary
 
 Requirement: [792a6j Deriving the vocabulary](#792a6j-deriving-the-vocabulary) `engram vocab refit` MUST cluster the embeddings of every note that is not a
 definition, choosing the number of clusters K between 2 and 40 that gives the highest silhouette
@@ -275,7 +292,7 @@ number of terms is the number the vault's clusters support. The 0.02 floor only 
 whole-vault MiniLM embeddings score low silhouette values at every K, so recall's 0.10 floor would make every refit a
 no-op. Keeping the previous K within 0.02 stops term names churning on near ties.
 
-### 792a6j1 UAT Scenarios
+#### 792a6j1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a6j1a The term count follows the vault's clusters
@@ -289,7 +306,7 @@ Scenario: 792a6j1b A vault without structure keeps its vocabulary
   Then it prints "vocab refit: no structure found; vocabulary unchanged" and no file changes
 ```
 
-## 792a6k Term names stay stable
+### 792a6k Term names stay stable
 
 Requirement: [792a6k Term names stay stable](#792a6k-term-names-stay-stable) A derived cluster MUST keep the name and definition note of the existing term
 whose vector has a cosine similarity of at least 0.80 with the cluster's centroid, pairing clusters
@@ -299,7 +316,7 @@ name; an existing term that no cluster matches is retired ([792a6p Retiring a te
 Rationale: names users and notes already rely on survive re-derivation when the concept is still
 there. Greedy best-first matching is auditable and stable at a few tens of terms.
 
-### 792a6k1 UAT Scenarios
+#### 792a6k1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a6k1a A cluster keeps its term's name
@@ -313,7 +330,7 @@ Scenario: 792a6k1b Unmatched clusters and terms are reported
   Then it prints "new: cluster <n> (<m> members, needs naming)" and "retired: astronomy"
 ```
 
-## 792a6l Dry run
+### 792a6l Dry run
 
 Requirement: [792a6l Dry run](#792a6l-dry-run) `engram vocab refit --dry-run` MUST print `vocab refit (dry-run): K=<k>
 silhouette=<s>`, one `matched:` line per kept term, one `new:` line per new cluster and one
@@ -322,7 +339,7 @@ silhouette=<s>`, one `matched:` line per kept term, one `new:` line per new clus
 Rationale: the first derivation on a vault can retire most of its terms, so reviewing the diff before applying it
 matters.
 
-### 792a6l1 UAT Scenarios
+#### 792a6l1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a6l1a Dry run reports the derivation diff without writing
@@ -331,7 +348,7 @@ Scenario: 792a6l1a Dry run reports the derivation diff without writing
   Then the K and silhouette line, the matched, new and retired lines are printed, and no vault file or centroids file is modified
 ```
 
-## 792a6m Naming requests
+### 792a6m Naming requests
 
 Requirement: [792a6m Naming requests](#792a6m-naming-requests) When a refit finds new clusters and no `--names` file is given, `engram vocab
 refit` MUST print a JSON document with a `naming_requests` list, one entry per new cluster holding its
@@ -342,7 +359,7 @@ an `instruction` for answering, and a `fingerprint` of the notes it clustered, a
 Rationale: the agent's LLM only names clusters; it never decides the term set. Nearest members make
 better naming evidence than random ones.
 
-### 792a6m1 UAT Scenarios
+#### 792a6m1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a6m1a New clusters are emitted as naming requests
@@ -351,7 +368,7 @@ Scenario: 792a6m1a New clusters are emitted as naming requests
   Then it prints a naming_requests document for that cluster with its member count, three exemplars and a fingerprint, and no vault file changes
 ```
 
-## 792a6n Naming answers
+### 792a6n Naming answers
 
 Requirement: [792a6n Naming answers](#792a6n-naming-answers) `engram vocab refit --names <file>` MUST apply the derivation only when the file
 is JSON `{"names":[{"cluster":N,"term":"...","description":"..."}],"fingerprint":"..."}` whose
@@ -365,7 +382,7 @@ Rationale: a cluster index means something only for the vault state that produce
 changed between the two runs, a name could land on the wrong cluster, so the stale answer is rejected
 and the requests must be regenerated.
 
-### 792a6n1 UAT Scenarios
+#### 792a6n1 UAT Scenarios
 
 ```gherkin
 Scenario Outline: 792a6n1a A bad naming answer is refused
@@ -383,7 +400,7 @@ Scenario Outline: 792a6n1a A bad naming answer is refused
     | a file that is not JSON                     | cannot parse --names JSON                                   |
 ```
 
-## 792a6o Applying a refit
+### 792a6o Applying a refit
 
 Requirement: [792a6o Applying a refit](#792a6o-applying-a-refit) A refit that has no new clusters, or whose `--names` answer is accepted, MUST
 raise the major version ([792a6b The family note](#792a6b-the-family-note)), retire the unmatched derived terms ([792a6p Retiring a term](#792a6p-retiring-a-term)), create a definition
@@ -392,7 +409,7 @@ definition nor a question against the derived centroids, record each term's cent
 origin with the derivation's K, silhouette and date and a new refit baseline, clear any pending refit,
 and print `vocab refit applied: version → <v> (K=<k>, matched=<m>, new=<n>, retired=<r>)`.
 
-### 792a6o1 UAT Scenarios
+#### 792a6o1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a6o1a A named cluster becomes a term
@@ -406,7 +423,7 @@ Scenario: 792a6o1b A refit with nothing to name applies at once
   Then it applies without emitting naming requests, and engram vocab stats reports the new major version and verdict: OK
 ```
 
-## 792a6p Retiring a term
+### 792a6p Retiring a term
 
 Requirement: [792a6p Retiring a term](#792a6p-retiring-a-term) Retiring a term MUST delete its definition note and the note's sidecar, remove
 its `vocab/<term>` tag from every note, and remove every reference to the deleted note from the other
@@ -419,7 +436,7 @@ Rationale: a dormant term keeps attracting members at tagging time and stops the
 retirement is active. A definition note is the term's identity, not a fact worth preserving, so it has no supersession
 story and leaves no demoted notes or dangling links in the vault.
 
-### 792a6p1 UAT Scenarios
+#### 792a6p1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a6p1a A retired term is deleted with its references
@@ -433,7 +450,7 @@ Scenario: 792a6p1b Retirement leaves no dangling body link
   Then engram check reports no dangling link to the deleted basename from a note body
 ```
 
-## 792a6q Proposed terms survive derivation
+### 792a6q Proposed terms survive derivation
 
 Requirement: [792a6q Proposed terms survive derivation](#792a6q-proposed-terms-survive-derivation) A term created by `engram vocab propose` MUST NOT be retired by a refit that
 finds no cluster for it: its definition note, its recorded origin `proposed` and its members' tags
@@ -442,7 +459,7 @@ MUST remain, and it MUST keep taking part in tagging.
 Rationale: proposed terms exist precisely to name concepts the clustering cannot see, so the clustering
 must not remove them.
 
-### 792a6q1 UAT Scenarios
+#### 792a6q1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a6q1a An unmatched proposed term is kept
@@ -451,7 +468,7 @@ Scenario: 792a6q1a An unmatched proposed term is kept
   Then the gardening definition note remains and engram vocab stats still lists gardening
 ```
 
-## 792a6r Refit takes no term plan
+### 792a6r Refit takes no term plan
 
 Requirement: [792a6r Refit takes no term plan](#792a6r-refit-takes-no-term-plan) `engram vocab refit` MUST NOT accept an externally authored term plan: the
 `--plan` and `--emit-request` flags MUST be refused as undefined.
@@ -459,7 +476,7 @@ Requirement: [792a6r Refit takes no term plan](#792a6r-refit-takes-no-term-plan)
 Rationale: an authored term list cannot coexist with [792a6j Deriving the
 vocabulary](#792a6j-deriving-the-vocabulary), which derives the term set from the vault's geometry.
 
-### 792a6r1 UAT Scenarios
+#### 792a6r1 UAT Scenarios
 
 ```gherkin
 Scenario Outline: 792a6r1a The plan flow is gone
@@ -473,7 +490,7 @@ Scenario Outline: 792a6r1a The plan flow is gone
     | --emit-request |
 ```
 
-## 792a6s Refit trigger
+### 792a6s Refit trigger
 
 Requirement: [792a6s Refit trigger](#792a6s-refit-trigger) After every `engram learn`, `engram amend` and `engram resituate` write, the vault
 MUST check whether a refit is due, without running one: when no refit baseline is recorded it MUST
@@ -487,7 +504,7 @@ Rationale: the check is token-free and runs in the write path, so the vault noti
 acts on the verdict. Growth is the only trigger because, under derivation, a high untagged rate or a hub term no
 longer means terms should be minted.
 
-### 792a6s1 UAT Scenarios
+#### 792a6s1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a6s1a Growth marks a refit pending
@@ -511,7 +528,7 @@ Scenario: 792a6s1d A high untagged rate alone does not trigger
   Then engram vocab stats reports the untagged rate with [high] and verdict: OK
 ```
 
-## 792a6t Vocabulary statistics
+### 792a6t Vocabulary statistics
 
 Requirement: [792a6t Vocabulary statistics](#792a6t-vocabulary-statistics) `engram vocab stats` MUST print, without writing anything:
 `vocab stats (version: <v>)` (`1.0` when there is no family note); `terms: <T>  member-notes: <M>
@@ -528,7 +545,7 @@ questions (which carry no vocabulary, [792a3u Vocabulary tagging by
 kind](./note-writing.md#792a3u-vocabulary-tagging-by-kind)) are left out. The untagged rate and hubs are diagnostics
 for a person reading the report.
 
-### 792a6t1 UAT Scenarios
+#### 792a6t1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a6t1a Stats on an empty vault
@@ -552,7 +569,7 @@ Scenario: 792a6t1d A pending refit is the verdict
   Then it prints "verdict: REFIT_PENDING (growth: 45 notes, 20 days)"
 ```
 
-## 792a6u Self-tag backfill
+### 792a6u Self-tag backfill
 
 Requirement: [792a6u Self-tag backfill](#792a6u-self-tag-backfill) `engram vocab tag-definitions` MUST add the missing `vocab/<term>` self-tag to
 every definition note, taking the term from its slug, and print `<basename>: added` for each, MUST
@@ -566,7 +583,7 @@ Rationale: vaults whose definitions predate the self-tag need it added once. Tag
 note's content hash (the hash covers the situation and body), so a tags-only rewrite needs no
 re-embedding. Mutating the vault stays an explicit command.
 
-### 792a6u1 UAT Scenarios
+#### 792a6u1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a6u1a Backfill adds missing self-tags
@@ -580,7 +597,7 @@ Scenario: 792a6u1b Backfill is idempotent
   Then no note changes and every definition is reported "already present", the family note "family note (skipped)"
 ```
 
-## 792a6v Update notices
+### 792a6v Update notices
 
 Requirement: [792a6v Update notices](#792a6v-update-notices) `engram update` MUST print the line
 ``old-format vocab files found — run `engram update --regen-vocab` to migrate them (preview with `engram update --regen-vocab --dry-run`)``
@@ -590,7 +607,7 @@ when a definition note lacks its self-tag. It MUST NOT change the vault to resol
 
 Rationale: update detects and notifies, and leaves rewriting the vault to an explicit command.
 
-### 792a6v1 UAT Scenarios
+#### 792a6v1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a6v1a An old-format vault is flagged
@@ -609,7 +626,7 @@ Scenario: 792a6v1c A current vault gets no vocab notice
   Then neither vocab notice is printed
 ```
 
-## 792a6w Migrating an old-format vocabulary
+### 792a6w Migrating an old-format vocabulary
 
 Requirement: [792a6w Migrating an old-format vocabulary](#792a6w-migrating-an-old-format-vocabulary) `engram update --regen-vocab` MUST migrate a vault that holds old-format
 vocabulary files: it MUST create the family note when absent and a definition note for each
@@ -626,7 +643,7 @@ Rationale: vaults from the earlier layout hold terms as `vocab.<term>.md` notes,
 them, and members with a `Vocab:` line and a `vocab:` key. The migration re-scores members from the regenerated
 centroids rather than copying the old assignment.
 
-### 792a6w1 UAT Scenarios
+#### 792a6w1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a6w1a An old-format vocabulary is migrated

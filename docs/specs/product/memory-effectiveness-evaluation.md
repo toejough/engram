@@ -10,7 +10,24 @@ trial measures what it says it measures, never reaches the maintainer's real vau
 records what it saw without changing a note. It is a capability of the repository, not of an engram user's vault, which is
 why the expected user is the maintainer.
 
-## 792a23a A warm trial carries the skills it claims
+## 792a23 Memory Effectiveness Evaluation
+
+**Participants and responsibilities.**
+- The maintainer: runs `targ eval <arm> [trials]`, the Python drivers and the memory-loop audit, and relies on their numbers.
+- The software (dev tooling in this repository): builds warm trials that carry the [skills](../../GLOSSARY.md#skill) they claim, promised by [792a23a A warm trial carries the skills it claims](#792a23a-a-warm-trial-carries-the-skills-it-claims), [792a23b A missing or empty skill source stops the build](#792a23b-a-missing-or-empty-skill-source-stops-the-build) and [792a23c Skill sources are found from the harness's own location](#792a23c-skill-sources-are-found-from-the-harnesss-own-location).
+- The software: detects a trial that reaches the real [vault](../../GLOSSARY.md#vault) and states the limits of that guard, promised by [792a23d A trial that reaches the real vault is detected from the trial's side](#792a23d-a-trial-that-reaches-the-real-vault-is-detected-from-the-trials-side), [792a23e A real leak through the standard primitive is caught and fails loud](#792a23e-a-real-leak-through-the-standard-primitive-is-caught-and-fails-loud) and [792a23f The leak guard's limits are stated](#792a23f-the-leak-guards-limits-are-stated).
+- The software: scores each trial as it behaved, promised by [792a23g A step is detected in every valid form of its command](#792a23g-a-step-is-detected-in-every-valid-form-of-its-command), [792a23h A question stop is judged in the order of the task's completion](#792a23h-a-question-stop-is-judged-in-the-order-of-the-tasks-completion), [792a23i A fixture gives a runbook's follow-up action a local target](#792a23i-a-fixture-gives-a-runbooks-follow-up-action-a-local-target) and [792a23j A surfacing probe reads the rank of the item list](#792a23j-a-surfacing-probe-reads-the-rank-of-the-item-list).
+- The software: audits the memory loop from real [transcripts](../../GLOSSARY.md#transcript), moment by moment, promised by [792a23k The audit detects moments by reading them](#792a23k-the-audit-detects-moments-by-reading-them), [792a23l Every audited moment carries a complete record](#792a23l-every-audited-moment-carries-a-complete-record), [792a23m Whether a memory existed is judged against the vault of that time](#792a23m-whether-a-memory-existed-is-judged-against-the-vault-of-that-time), [792a23n The existence check's query cannot be broken by a phrase and does not swallow a failure](#792a23n-the-existence-checks-query-cannot-be-broken-by-a-phrase-and-does-not-swallow-a-failure) and [792a23o Prompt-injected memories count as searched and surfaced](#792a23o-prompt-injected-memories-count-as-searched-and-surfaced).
+- The software: records what the audit saw as outcome records and ledger rows and changes no note, promised by [792a23p The audit emits credit records and never consumes them](#792a23p-the-audit-emits-credit-records-and-never-consumes-them) and [792a23q Audit results land additively in the ledger](#792a23q-audit-results-land-additively-in-the-ledger).
+- Retained by people or other systems: a person hand-labels the calibration examples and agrees the miss-rate bar before any full audit run ([792a23k The audit detects moments by reading them](#792a23k-the-audit-detects-moments-by-reading-them)), and a person acts on the outcome records ([792a23p The audit emits credit records and never consumes them](#792a23p-the-audit-emits-credit-records-and-never-consumes-them)); the software assumes both.
+
+**Interactions.** The maintainer hands `targ eval` an arm (`nothing`, `skills-only` or `current-state`); the arm decides which skills a trial carries and whether the [binary](../../GLOSSARY.md#binary) is reachable, and the software runs the trials and scores what the agent did. After a run the software checks the real vault against the isolation state that the standard primitive recorded when it built each trial's environment, and raises an error naming the note and the trial marker when a note newly present there names a trial ([792a23d A trial that reaches the real vault is detected from the trial's side](#792a23d-a-trial-that-reaches-the-real-vault-is-detected-from-the-trials-side), [792a23e A real leak through the standard primitive is caught and fails loud](#792a23e-a-real-leak-through-the-standard-primitive-is-caught-and-fails-loud)). The maintainer hands the audit real transcripts; the audit responds with a complete record for each detected moment, draft outcome records as plain data files and new ledger rows ([792a23l Every audited moment carries a complete record](#792a23l-every-audited-moment-carries-a-complete-record), [792a23p The audit emits credit records and never consumes them](#792a23p-the-audit-emits-credit-records-and-never-consumes-them), [792a23q Audit results land additively in the ledger](#792a23q-audit-results-land-additively-in-the-ledger)).
+
+**Boundary assumptions.** The software assumes from the repository that each skill a warm trial names has a source directory holding a `SKILL.md`; when it does not, [792a23b A missing or empty skill source stops the build](#792a23b-a-missing-or-empty-skill-source-stops-the-build) raises an error naming the skill and the path. It assumes that each harness builds its trials' environments through the standard isolation primitive and that a leaked note names a registered trial directory or [session](../../GLOSSARY.md#session) identifier; a leak through another path, or one whose note names neither, is not detected, and the limit stays documented ([792a23f The leak guard's limits are stated](#792a23f-the-leak-guards-limits-are-stated)). It assumes from the vault that its git history covers a moment's timestamp; when it does not, [792a23m Whether a memory existed is judged against the vault of that time](#792a23m-whether-a-memory-existed-is-judged-against-the-vault-of-that-time) filters notes by creation date and labels the answer ESTIMATE. It assumes from the maintainer's machine that the headless agent a trial runs is available; no response is specified.
+
+**Shared rules.** The candidate notes of a query payload, which a surfacing probe does not use as its signal, are owned by [Query Engine](../technical/query-engine.md) ([792b24c10 Candidate notes](../technical/query-engine.md#792b24c10-candidate-notes)).
+
+### 792a23a A warm trial carries the skills it claims
 
 Requirement: [792a23a A warm trial carries the skills it claims](#792a23a-a-warm-trial-carries-the-skills-it-claims) Any eval code that builds a warm trial configuration (one with skills and memory installed) MUST confirm,
 for each skill it installs, that the skill's source directory exists and holds a `SKILL.md` before it installs the skill, and
@@ -21,7 +38,7 @@ destination are checked independently.
 Rationale: a warm-config builder that silently skips its copy leaves warm trials running with no skills, to be read as
 warm results. The check is shared (`isolation.install_skill`) so that there is one place left to get it wrong.
 
-### 792a23a1 UAT Scenarios
+#### 792a23a1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a23a1a Successful skill installation is verified
@@ -40,7 +57,7 @@ Scenario: 792a23a1c Every warm-configuration builder verifies the same way
   Then each leaves both skills' SKILL.md files under its skills directory
 ```
 
-## 792a23b A missing or empty skill source stops the build
+### 792a23b A missing or empty skill source stops the build
 
 Requirement: [792a23b A missing or empty skill source stops the build](#792a23b-a-missing-or-empty-skill-source-stops-the-build) When a named skill's source directory does not exist, or exists and holds no `SKILL.md`, the construction of a
 warm trial configuration MUST raise an error that names the skill and the path it checked. It MUST NOT log a warning and
@@ -50,7 +67,7 @@ claims success. This holds for every function that builds a warm configuration.
 Rationale: a silent skip makes a warm arm indistinguishable from a cold one in the results, which is the failure the previous
 requirement closes.
 
-### 792a23b1 UAT Scenarios
+#### 792a23b1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a23b1a A missing skill source raises
@@ -69,7 +86,7 @@ Scenario: 792a23b1c Every builder raises on a missing source
   Then each raises an error naming the skill and the path, and does not skip the copy
 ```
 
-## 792a23c Skill sources are found from the harness's own location
+### 792a23c Skill sources are found from the harness's own location
 
 Requirement: [792a23c Skill sources are found from the harness's own location](#792a23c-skill-sources-are-found-from-the-harnesss-own-location) The eval harness MUST compute the repository root it uses to locate skill sources from the calling module's own
 file location, and MUST NOT hard-code a machine- or session-specific absolute path for it. The skill sources are
@@ -78,7 +95,7 @@ file location, and MUST NOT hard-code a machine- or session-specific absolute pa
 Rationale: a hard-coded absolute path is the fragility that lets a silent skip go unnoticed, in two independent
 functions that share one contract.
 
-### 792a23c1 UAT Scenarios
+#### 792a23c1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a23c1a The path resolves independent of the working directory
@@ -92,7 +109,7 @@ Scenario: 792a23c1b The cumulative harness resolves its path the same way
   Then it is agent-instructions/skills/<skill> under the root computed from the harness file's own location
 ```
 
-## 792a23d A trial that reaches the real vault is detected from the trial's side
+### 792a23d A trial that reaches the real vault is detected from the trial's side
 
 Requirement: [792a23d A trial that reaches the real vault is detected from the trial's side](#792a23d-a-trial-that-reaches-the-real-vault-is-detected-from-the-trials-side) Any harness that spawns isolated eval trials and guards against a trial reaching the maintainer's real vault MUST
 detect a leak by checking trial-side evidence, the isolation state each trial's environment actually carried, and MUST NOT
@@ -104,7 +121,7 @@ worker function whose result the harness's top level never sees.
 Rationale: a whole-vault diff cannot tell a trial's leak from the orchestrating session's own legitimate writes to the
 real vault while a run is in progress (route evidence notes, recall-glance sidecars), so it false-alarms on them.
 
-### 792a23d1 UAT Scenarios
+#### 792a23d1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a23d1a The orchestrating session's own writes do not trigger a leak report
@@ -123,7 +140,7 @@ Scenario: 792a23d1c Every harness snapshots the real vault and asserts no leak
   Then it takes the real vault's fingerprint before the run and calls the leak guard after it, and no harness still holds the former whole-vault comparison
 ```
 
-## 792a23e A real leak through the standard primitive is caught and fails loud
+### 792a23e A real leak through the standard primitive is caught and fails loud
 
 Requirement: [792a23e A real leak through the standard primitive is caught and fails loud](#792a23e-a-real-leak-through-the-standard-primitive-is-caught-and-fails-loud) When a note is newly present in the real vault after a run, and its content names a trial directory or session identifier of a
 trial built through the standard isolation primitive, the leak guard MUST raise an error that names the note and the trial
@@ -135,7 +152,7 @@ Rationale: replacing whole-vault diffing with trial-side detection must not weak
 and a note that quotes a trial's full path is the dominant real shape of one. A short basename such as `plumbing-0`
 could false-match an orchestrator note that mentioned the fixture by name.
 
-### 792a23e1 UAT Scenarios
+#### 792a23e1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a23e1a A new real-vault note naming a trial is flagged
@@ -154,7 +171,7 @@ Scenario: 792a23e1c A note naming only a short deterministic basename is not fla
   Then the guard does not raise
 ```
 
-## 792a23f The leak guard's limits are stated
+### 792a23f The leak guard's limits are stated
 
 Requirement: [792a23f The leak guard's limits are stated](#792a23f-the-leak-guards-limits-are-stated) The trial-side guard MUST NOT be described or relied on as a complete leak-proof: its detection is scoped to leaks that
 a registered trial marker in the leaked note's own content traces, and the limits that follow MUST stay documented. A leak
@@ -166,7 +183,7 @@ Rationale: stating the limits keeps a green guard from being read as a proof. Th
 only through the unmediated path already named; the short-basename case is accepted in exchange for not false-matching
 an orchestrator note.
 
-### 792a23f1 UAT Scenarios
+#### 792a23f1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a23f1a A leak through an unmediated path is not caught
@@ -190,7 +207,7 @@ Scenario: 792a23f1d A leak naming only a non-distinctive basename is not caught
   Then the guard does not flag it, and this is a documented limit
 ```
 
-## 792a23g A step is detected in every valid form of its command
+### 792a23g A step is detected in every valid form of its command
 
 Requirement: [792a23g A step is detected in every valid form of its command](#792a23g-a-step-is-detected-in-every-valid-form-of-its-command) The step definitions of the `runbook_vs_skill` phase 2 probe's fixtures MUST recognize every commonly used invocation
 form of the command a step is meant to detect, when a later step's detection depends on it, and MUST NOT match a command
@@ -200,7 +217,7 @@ by a word character is not a real invocation and MUST NOT match.
 Rationale: a step that matches one valid form of a command scores every genuine success that used another form as a miss, and
 cascades the miss to every step gated behind it.
 
-### 792a23g1 UAT Scenarios
+#### 792a23g1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a23g1a The hyphenated git-filter-repo form is matched
@@ -224,7 +241,7 @@ Scenario: 792a23g1d A letter-adjacent substring is not matched
   Then step 3 does not score as followed, because the pattern requires a left boundary before git
 ```
 
-## 792a23h A question stop is judged in the order of the task's completion
+### 792a23h A question stop is judged in the order of the task's completion
 
 Requirement: [792a23h A question stop is judged in the order of the task's completion](#792a23h-a-question-stop-is-judged-in-the-order-of-the-tasks-completion) The phase 2 probe MUST report a trial's `question_stop` as true only when the last ambiguity-posing text in its transcript
 precedes the trial's task completion, and not merely when no mutating tool call follows that text. A genuinely separate
@@ -234,7 +251,7 @@ NOT be scored as a trial that stopped before finishing.
 Rationale: otherwise a trial that finished the work and then asked a question is scored as a stop, which mixes a clean
 success with a stop to ask.
 
-### 792a23h1 UAT Scenarios
+#### 792a23h1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a23h1a A trailing follow-up question after full completion is not a stop
@@ -248,7 +265,7 @@ Scenario: 792a23h1b A genuine pre-completion stop is still detected
   Then question_stop is true
 ```
 
-## 792a23i A fixture gives a runbook's follow-up action a local target
+### 792a23i A fixture gives a runbook's follow-up action a local target
 
 Requirement: [792a23i A fixture gives a runbook's follow-up action a local target](#792a23i-a-fixture-gives-a-runbooks-follow-up-action-a-local-target) When a runbook that a trial follows prescribes an action that the fixture gives no local way to perform, such as filing a
 follow-up issue in a fixture repository with no issue tracker, the fixture MUST provide a minimal local convention that
@@ -257,7 +274,7 @@ satisfies the action and the task prompt MUST name it. The runbook MUST NOT be c
 Rationale: otherwise a shim-following agent is forced to stop and ask merely because the fixture omitted the means to comply,
 which the score would read as the agent's failure.
 
-### 792a23i1 UAT Scenarios
+#### 792a23i1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a23i1a The bisect-before-fix fixture names a local issue-filing target
@@ -266,7 +283,7 @@ Scenario: 792a23i1a The bisect-before-fix fixture names a local issue-filing tar
   Then the prompt names ISSUES.md as the place to file it, and the fixture repository contains that file from its initial commit onward
 ```
 
-## 792a23j A surfacing probe reads the rank of the item list
+### 792a23j A surfacing probe reads the rank of the item list
 
 Requirement: [792a23j A surfacing probe reads the rank of the item list](#792a23j-a-surfacing-probe-reads-the-rank-of-the-item-list) A harness or script that decides whether a target note surfaced for an `engram query` MUST read the query payload's
 top-level `items[]` list, matching on path or basename, and report the note's one-based rank there. It MUST NOT use
@@ -276,7 +293,7 @@ Rationale: `candidate_l2s` is a capped top-five, within-cluster subset chosen fo
 correctly matched and present in `items[]` while absent from every cluster's list because its cluster holds more than five
 members closer to the centroid.
 
-### 792a23j1 UAT Scenarios
+#### 792a23j1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a23j1a A target present in items[] counts as surfaced
@@ -290,7 +307,7 @@ Scenario: 792a23j1b candidate_l2s absence does not count as a miss
   Then it still reports the note as surfaced
 ```
 
-## 792a23k The audit detects moments by reading them
+### 792a23k The audit detects moments by reading them
 
 Requirement: [792a23k The audit detects moments by reading them](#792a23k-the-audit-detects-moments-by-reading-them) An audit of the memory loop against real transcripts MUST detect moments, which are failures, corrections, rework,
 successes (a case where a surfaced or injected memory visibly shaped what the agent did) and dispatches (a subagent launch),
@@ -301,7 +318,7 @@ hand-labeled examples and agreed before any full-corpus run, and never how often
 Rationale: most corrections are subtle enough that word-matching alone misses most of them, and the successes are the
 reinforcement half of the loop.
 
-### 792a23k1 UAT Scenarios
+#### 792a23k1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a23k1a A subtle correction is detected
@@ -320,7 +337,7 @@ Scenario: 792a23k1c The miss rate is agreed before the real run
   Then a hand-labeled calibration sample of at least 10 to 20 windows, stratified by role and repository, exists, its measured miss rate is recorded, and the tolerance was committed before the full run began
 ```
 
-## 792a23l Every audited moment carries a complete record
+### 792a23l Every audited moment carries a complete record
 
 Requirement: [792a23l Every audited moment carries a complete record](#792a23l-every-audited-moment-carries-a-complete-record) Each detected moment's record MUST answer every question needed to see where the memory loop broke down for it. On the
 finding side it MUST say whether a relevant memory existed, with its kind (chunk, fact, feedback, runbook or qa), whether it
@@ -341,7 +358,7 @@ available).
 Rationale: the loop's funnel names the loss stages of the loop, and a record that skips one cannot show where the loss
 happened. A rate with no stated unit is a number nobody can check.
 
-### 792a23l1 UAT Scenarios
+#### 792a23l1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a23l1a A complete moment record
@@ -355,7 +372,7 @@ Scenario: 792a23l1b A rate without a fixed counting unit is a violation
   Then it names what is counted and labels the number DERIVED or ESTIMATE
 ```
 
-## 792a23m Whether a memory existed is judged against the vault of that time
+### 792a23m Whether a memory existed is judged against the vault of that time
 
 Requirement: [792a23m Whether a memory existed is judged against the vault of that time](#792a23m-whether-a-memory-existed-is-judged-against-the-vault-of-that-time) The audit MUST judge "was a relevant memory in the vault" by searching the vault as it was at the moment's own timestamp, with
 search phrases the auditor writes from the moment itself, and the agent's own phrases at the time are judged separately. For
@@ -368,7 +385,7 @@ under the eval harness's sandboxing (#708).
 Rationale: a memory written after a moment cannot have been missed at it, and an exact answer is worth a checkout where history
 allows one.
 
-### 792a23m1 UAT Scenarios
+#### 792a23m1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a23m1a An exact answer via git checkout
@@ -392,7 +409,7 @@ Scenario: 792a23m1d Chunks are always judged by ingestion date
   Then only the chunks ingested at or before it are searched, and the answer is DERIVED
 ```
 
-## 792a23n The existence check's query cannot be broken by a phrase and does not swallow a failure
+### 792a23n The existence check's query cannot be broken by a phrase and does not swallow a failure
 
 Requirement: [792a23n The existence check's query cannot be broken by a phrase and does not swallow a failure](#792a23n-the-existence-checks-query-cannot-be-broken-by-a-phrase-and-does-not-swallow-a-failure) The existence check's `engram query` invocation, and any function that builds one from auditor-generated phrase or text
 strings, MUST pass each value in a form `engram`'s flag parser cannot mistake for a new flag, whatever the value's content,
@@ -403,7 +420,7 @@ recorded error field.
 Rationale: `engram`'s own errors print to standard output, and a phrase beginning with `--` is parsed as a flag, which
 records a failure with an empty error.
 
-### 792a23n1 UAT Scenarios
+#### 792a23n1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a23n1a A phrase starting with -- does not break the invocation
@@ -417,7 +434,7 @@ Scenario: 792a23n1b A real query failure's error text is preserved
   Then its error field contains that message and is never empty or uninformative
 ```
 
-## 792a23o Prompt-injected memories count as searched and surfaced
+### 792a23o Prompt-injected memories count as searched and surfaced
 
 Requirement: [792a23o Prompt-injected memories count as searched and surfaced](#792a23o-prompt-injected-memories-count-as-searched-and-surfaced) For a subagent moment, any memory present in the dispatch prompt MUST count as found: it is recorded as "a search ran
 (injected)" and "surfaced: yes", and a forked subagent, which inherits the whole parent conversation, MUST have everything in it
@@ -428,7 +445,7 @@ sample judged by a model that tells genuinely missing content from content parap
 Rationale: what matters for the subagent is whether it followed a memory it had, and what matters for the orchestrator
 is what it left out.
 
-### 792a23o1 UAT Scenarios
+#### 792a23o1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a23o1a An injected memory counts as found for the subagent
@@ -447,7 +464,7 @@ Scenario: 792a23o1c Paraphrased content is told from missing content
   Then it judges the content paraphrased in, genuinely missing, or ambiguous, and the structural rate is adjusted before the gap is reported
 ```
 
-## 792a23p The audit emits credit records and never consumes them
+### 792a23p The audit emits credit records and never consumes them
 
 Requirement: [792a23p The audit emits credit records and never consumes them](#792a23p-the-audit-emits-credit-records-and-never-consumes-them) The audit MUST emit draft outcome records, each `{moment_id, note_ref, situation_text, outcome, ts,
 evidence{transcript, anchor}}` with `outcome` one of `applied-helped`, `applied-hurt`, `surfaced-ignored`, `injected-unused` and
@@ -457,7 +474,7 @@ records takes a human judgment and belongs to a separate, later capability.
 Rationale: engram's learning loop is judged-only: nothing in the vault changes unjudged, so the audit labels what happened and a person
 acts on it.
 
-### 792a23p1 UAT Scenarios
+#### 792a23p1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a23p1a Output only, no side effects
@@ -466,7 +483,7 @@ Scenario: 792a23p1a Output only, no side effects
   Then an outcome record for that note exists in the output files and the note itself is byte-identical to before the run
 ```
 
-## 792a23q Audit results land additively in the ledger
+### 792a23q Audit results land additively in the ledger
 
 Requirement: [792a23q Audit results land additively in the ledger](#792a23q-audit-results-land-additively-in-the-ledger) Audit findings MUST be recorded as `dev/eval/LEDGER.md` rows, one claim per row in the existing format, each pointing at its
 raw data, and reflected in a coverage-map index that maps each memory function and kind to the rows backing it and the measured
@@ -475,7 +492,7 @@ row or anchor.
 
 Rationale: other documents cite the ledger's anchors, so the ledger grows and is never rebuilt.
 
-### 792a23q1 UAT Scenarios
+#### 792a23q1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a23q1a Adding without disturbing what is there
