@@ -376,3 +376,93 @@ Scenario: 793a2b1d A prompt that matches no note arrives with nothing
   When the user sends the prompt
   Then the prompt arrives with nothing from the vault, and the agent answers it
 ```
+
+### 855a3r Modified: 792a15e The four kinds of explicit lesson
+
+Target: [792a15e The four kinds of explicit lesson](../../specs/product/learn.md#792a15e-the-four-kinds-of-explicit-lesson)
+
+Requirement: 792a15e Learn MUST scan the session for exactly four kinds of moment and MUST hand each to write-memory, only when its note is durable (still true and useful to a future task that has nothing to do with the one in hand: not status or progress of the work, a plan, a decision about the work in hand, a branch, worktree, ticket or change name, a timestamp, a finding about the session's own incident or an episode) and atomic (one claim; a second claim is its own lesson that clears both tests, or is dropped, and is never folded into the note beside it), and its situation MUST name no ticket, issue or change number or branch unless the lesson is about it. A correction (the user corrected the agent's approach or behavior) MUST be handed off as a feedback note carrying the situation, the behavior, its cost as the impact and what to do instead as the action. An explicit save-request ("remember this", "save that", "note for next time", "write this down") for a durable lesson MUST be handed off immediately as a fact note carrying the situation, the subject, the predicate and the object; an explicit save-request for status MUST NOT be handed off, and learn MUST tell the user that it was not saved to the vault and that it belongs in the change's docs or the project's memory. A reversal MUST be handed off as a feedback note whose situation says when the failure mode applies, whose behavior is what the original reasoning did wrong, whose impact is what the reversal cost and whose action is the guard that would have prevented it. A confirmed approach MUST be handed off as a feedback note, or as a runbook note when its shape calls for one ([792a15g A confirmed approach needs a bet or specific praise, and takes the kind its shape calls for](../../specs/product/learn.md#792a15g-a-confirmed-approach-needs-a-bet-or-specific-praise-and-takes-the-kind-its-shape-calls-for)). Every handoff MUST carry a slug and a source of the form "session <date>, context: <one-line what-was-happening>", and the supersession details when the lesson corrects an existing vault note.
+
+The scenarios of the target stay, and this is added.
+
+#### 855a3r1 UAT Scenarios
+
+```gherkin
+Scenario: 855a3r1a A save-request for status writes no note
+  Given the user said "remember the status of this branch and its worktree"
+  When learn runs
+  Then write-memory receives nothing for it, and the user is told that the status was not saved to the vault and that it belongs in the change's docs or the project's memory
+```
+
+### 855a3s Modified: 792a14j Coverage is judged by the agent and written once per cluster
+
+Target: [792a14j Coverage is judged by the agent and written once per cluster](../../specs/product/recall.md#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster)
+
+Requirement: 792a14j In deep mode, recall MUST judge, for each cluster and then for the explore items, whether a candidate note covers the cluster's principle, from the content read and not from cosine alone, and MUST act on the outcome. When a candidate states the principle with no material omission against the recency-weighted view, the outcome is covered and recall MUST run `engram amend --target <candidate> --activate --chunk-source <ids>` and MUST NOT rewrite its content. When a candidate addresses the same situation and omits at least one substantive part of its own claim (the same subject and the same principle) that the members evidence, the outcome is near and recall MUST run `engram amend` with the chunk sources and content flags that sharpen the note's own claim from all members, recency-weighted, and MUST NOT add a different claim to it. When no candidate states the cluster's principle (a candidate on the same situation with a different claim does not), the outcome is absent: recall MUST then hand off to the write-memory skill one note of kind fact or feedback with the cluster's chunk-source IDs and a descriptive source only when the principle is durable (still true and useful to a future task that has nothing to do with this one: not status, a plan, a branch, worktree or ticket name, a timestamp, a finding about this session's incident or an episode) and atomic (one claim), and otherwise MUST write nothing, and the situation of the note MUST name no ticket or change number unless the lesson is about it. When the write corrects, narrows or refutes a surfaced note, recall MUST also pass `--supersedes="<basename>|<type>|<claim>"` with type `updates`, `narrows` or `refutes`. Recall MUST write at most one note per cluster, the representative being a note and never a chunk, MUST wait for each write before the next cluster, and MUST NOT hand-author vocabulary tags.
+
+Rationale: coverage is judged by the agent, not by a cosine threshold, because cosine only nominates the within-cluster top-five candidates. An empty candidate list is a reason to create when the principle is durable and atomic, not to skip the cluster. Near sharpens a note's own claim and never adds another, so that a note does not collect unrelated claims. A write is blocking because the note created or updated for one cluster may be a candidate for another. Updates use `engram amend` and `engram learn` creates only, so the amend path is the one that keeps both copies of a note in step.
+
+The scenarios 792a14j1b and 792a14j1c are replaced by [855a3u](#855a3u-modified-792a14j1b-near-re-synthesizes) and [855a3v](#855a3v-modified-792a14j1c-absent-creates-through-the-worker), the others stay, and these are added.
+
+#### 855a3s1 UAT Scenarios
+
+```gherkin
+Scenario: 855a3s1a A different claim on the same situation is absent and not near
+  Given a candidate that addresses the cluster's situation but states a different claim than the cluster's principle
+  When the agent judges coverage
+  Then it judges the cluster absent, runs no engram amend on that candidate, and hands off the cluster's own claim when it is durable and atomic
+
+Scenario: 855a3s1b A cluster that is not durable writes nothing
+  Given a cluster whose content is the status of the work, a plan, or a branch, worktree or ticket name
+  When the agent judges it absent
+  Then it writes no note for it
+```
+
+### 855a3t Modified: 792a19j The first action on every request is an engram query
+
+Target: [792a19j The first action on every request is an engram query](../../specs/product/ambient-guidance.md#792a19j-the-first-action-on-every-request-is-an-engram-query)
+
+Requirement: 792a19j An agent that has the shim MUST make its first tool call on every user request an `engram query` that carries at least two `--phrase` values (the request in the agent's own words, and the kind of situation it is in) and a `--text` value holding the user's message verbatim (its first 300 characters or so when long), before it reads a file, answers or asks a clarifying question, and whether or not it has decided to delegate. The one exception is a user message that arrived with a block opening `[engram memory]`: the mod already looked up memory for that message, so the agent MUST NOT run this query again for that message, and every other rule of the shim, including its re-entry moments, stands. It MUST NOT gate the query on a judgment that the task is multi-step, recurring or done before. It MUST write every `--text` and `--phrase` value as `--flag="value"`, never `--flag "value"`, and MUST NOT rewrite or summarize the message in `--text`, whose paraphrase belongs only in `--phrase`.
+
+Rationale: whether the task is one a runbook covers is what the query answers, so the judgment cannot be a gate in front of it. A one-line request still gets a query, and the agent proceeds without a runbook when none matches. The over-fire on one-shot requests is accepted: each fire costs one query with no crystallization. The command is named literally so it is executable when no engram skill is installed. A user's message can begin with `-` (a markdown bullet) with no control over its shape, and the space-separated form reads it as a flag and exits; the attached form survives it ([792b32c2 Free-text flag values use the attached form](../../specs/technical/agent-instruction-bundle.md#792b32c2-free-text-flag-values-use-the-attached-form)). The raw text, not a paraphrase, is what matches a literal trigger ([792a7y Trigger text](../../specs/product/memory-query.md#792a7y-trigger-text), [792a7za A trigger hit comes first](../../specs/product/memory-query.md#792a7za-a-trigger-hit-comes-first)). A block that opens `[engram memory]` shows that [automatic memory](../793_automatic-memory/793a_product-spec.md#793a1a-terms) already looked up memory for that message.
+
+The scenarios of the target stay, and this is added.
+
+#### 855a3t1 UAT Scenarios
+
+```gherkin
+Scenario: 855a3t1a A message that arrived with a delivered block is not queried for again
+  Given an agent with the shim in its config, and a user message that arrived with a block opening [engram memory]
+  When the agent receives it
+  Then it runs no engram query for that message, and its re-entry moments still run the query
+```
+
+### 855a3u Modified: 792a14j1b Near re-synthesizes
+
+Target: [792a14j1b Near re-synthesizes](../../specs/product/recall.md#792a14j1-uat-scenarios)
+
+```gherkin
+Scenario: 792a14j1b Near re-synthesizes
+  Given a candidate that addresses the cluster's situation and omits part of its own claim that the members evidence
+  When the agent judges it near
+  Then it runs engram amend with the chunk sources and content flags that sharpen that claim, and adds no different claim
+```
+
+### 855a3v Modified: 792a14j1c Absent creates through the worker
+
+Target: [792a14j1c Absent creates through the worker](../../specs/product/recall.md#792a14j1-uat-scenarios)
+
+```gherkin
+Scenario: 792a14j1c Absent creates through the worker
+  Given a cluster whose principle is durable and atomic and that no candidate states
+  When the agent judges it absent
+  Then it hands one fact or feedback note, with the chunk sources and a source string, to the write-memory skill
+```
+
+### 855a3w Modified: 793a2c Lessons are written without the agent
+
+Target: [793a2c Lessons are written without the agent](../793_automatic-memory/793a_product-spec.md#793a2c-lessons-are-written-without-the-agent)
+
+Requirement: 793a2c When a [turn](../793_automatic-memory/793a_product-spec.md#793a1a-terms) holds a confirmed lesson that the [vault](../../GLOSSARY.md#vault) does not already state ([793a3c Nothing the vault already says is written again](../793_automatic-memory/793a_product-spec.md#793a3c-nothing-the-vault-already-says-is-written-again)), a [note](../../GLOSSARY.md#permanent-note) stating it MUST be in the vault within 2 minutes ([793c2 How soon after a turn must automatic memory have finished writing?](../793_automatic-memory/793c_open-questions.md#793c2-how-soon-after-a-turn-must-automatic-memory-have-finished-writing)) after the turn ends, while the [session](../../GLOSSARY.md#session) stays open for those 2 minutes ([793c14 Is a turn that is followed by the end of the session covered?](../793_automatic-memory/793c_open-questions.md#793c14-is-a-turn-that-is-followed-by-the-end-of-the-session-covered)), written by [automatic memory](../793_automatic-memory/793a_product-spec.md#793a1a-terms) and not by the [agent](../793_automatic-memory/793a_product-spec.md#793a1a-terms), and marked as written automatically. For a headless session (`claude -p`) this applies only when `ENGRAM_AUTO_CAPTURE_SDK` is set to `1` ([793c39 Which origins count as the prompts the user sends?](../793_automatic-memory/793c_open-questions.md#793c39-which-origins-count-as-the-prompts-the-user-sends)). A turn holds a confirmed lesson when the user corrected the agent, asked it to remember something durable (even if the agent says it did not save it) or confirmed that an approach worked, when the agent plainly corrected its own earlier claim, or when an uncertain approach succeeded with evidence in the turn. A turn that holds only guesses, plans or chatter MUST NOT produce a note; a thanks or "it worked" that names no approach is chatter. A note MUST NOT contain a [recognised credential](../793_automatic-memory/793a_product-spec.md#793a1a-terms) that appeared in the turn ([793c49 Should the promise that a note holds no credential stay absolute?](../793_automatic-memory/793c_open-questions.md#793c49-should-the-promise-that-a-note-holds-no-credential-stay-absolute)). A credential in any other form, such as a password a sentence gives without `is` or `:`, a token split over two lines, a run of 40 hexadecimal digits, or a run of letters only or of digits only, is not promised away ([793c41 Is the risk of a secret of another shape acceptable?](../793_automatic-memory/793c_open-questions.md#793c41-is-the-risk-of-a-secret-of-another-shape-acceptable)).
+
+The scenarios of the target stay (793a2c1b is already replaced by 855a2h).
