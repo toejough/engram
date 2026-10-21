@@ -1,8 +1,27 @@
 # Prompt Delivery - Technical Spec
 
-## 793d3b Orientation
+## 793d3b Prompt Delivery
 
 The command `engram auto deliver` (`internal/cli/auto.go`, `internal/auto`, informational). Turns the candidate judgement of a [recall moment](../../GLOSSARY.md#recall-moment) into the block of [notes](../../GLOSSARY.md#permanent-note) and passages that arrives beside a [prompt](../../GLOSSARY.md#prompt-automatic-memory) or within a [turn](../../GLOSSARY.md#turn-automatic-memory), and into the lines that show the user what [automatic memory](../../GLOSSARY.md#automatic-memory) did, owning the choice and rendering of both and the marks of the records shown (the hook is the [mod](../../GLOSSARY.md#mod)'s). It marks the notes it delivers as used and looks nothing up. Tested through standard input and output over an in-memory [vault](../../GLOSSARY.md#vault) and records. Called by [793d2a Prompt delivery flow](./prompt-delivery-workflow.md#793d2a-prompt-delivery-flow) and [855d2c Mid-turn recall flow](./mid-turn-recall-workflow.md#855d2c-mid-turn-recall-flow).
+
+- Ownership: repository-owned component (the command `engram auto deliver`).
+- Qualification: Purpose: the block of notes and [passages](../../GLOSSARY.md#passage) that arrives beside a prompt and the lines that show the user what automatic memory did are promised by
+  [793a2b Memory arrives with the prompt](../product/automatic-memory.md#793a2b-memory-arrives-with-the-prompt) and [793a2e The user can see what it did](../product/automatic-memory.md#793a2e-the-user-can-see-what-it-did),
+  and this component chooses and renders both. Contract: it owns the choice and rendering of the block and of the lines and the marks of the records shown,
+  the hook being the mod's, and it is tested directly through standard input and output. Identity: the requirements state only what the command reads, writes, prints and fails with,
+  and the files that realize it are informational, so a refactoring or a change of injection leaves the boundary as it is.
+- Required behavior: [Session Context](./session-context.md) returns the text that holds what the [session](../../GLOSSARY.md#session) already holds
+  ([793d4d Telling what a session holds](./session-context.md#793d4d-telling-what-a-session-holds)).
+- Required behavior: [Moment Judgement](./moment-judgement.md) states the redaction of [credentials](../../GLOSSARY.md#recognised-credential) that the text of a passage and the reason of a record are put through
+  ([793d4j Redacting credentials](./moment-judgement.md#793d4j-redacting-credentials)).
+- Required behavior: [Lesson Writing](./lesson-writing.md) records what became of each [reply](../../GLOSSARY.md#reply-automatic-memory), of the kinds `written`, `skipped` and `failed`, as a file of its own in a
+  directory named for the session ([793d4k Recording what automatic memory did](./lesson-writing.md#793d4k-recording-what-automatic-memory-did)).
+- Required behavior: [Note Amendment](./note-amendment.md) records the use of a note and pulls a parent note down as a pending copy, as `engram activate` does
+  ([792b14c9 Recording a use](./note-amendment.md#792b14c9-recording-a-use), [792b14c12 Activation against the parent](./note-amendment.md#792b14c12-activation-against-the-parent)).
+- Required behavior: Claude Code (external) is assumed to write the [transcripts](../../GLOSSARY.md#transcript) of sessions in the `projects` directory of the directory `CLAUDE_CONFIG_DIR` names
+  when set, else in `<home>/.claude/projects` ([793d4f Finding the transcripts of sessions](#793d4f-finding-the-transcripts-of-sessions)); authoritative contract: not recorded in this
+  repository; compatibility verification: `dev/acceptance/product_test.go`.
+- Supported capabilities: [Automatic Memory](../product/automatic-memory.md).
 
 ## 793d4a Delivering the notes that apply to a prompt
 

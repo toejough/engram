@@ -1,6 +1,8 @@
 # Harness Deploy Sync - Technical Spec
 
-## 792b29a Orientation
+## 792b29 Harness Deploy Sync
+
+### 792b29a Orientation
 
 - Ownership: Repository-owned dependency-boundary interaction (the harness configuration directories
   `~/.claude` and `~/.pi`).
@@ -15,15 +17,24 @@
   `surfaceStrays`, `detectGuidanceImports`, `supportedHarnesses`), and the harness sections of
   `internal/cli/update.go` (`writeHarnessSections`, `writeEngramRootNotice`, `writeSkillRows`,
   `writeHarnessGuidanceHints`), over the injected `update.Filesystem`.
-- Qualification: responsibility, converging a harness onto a deploy set without deleting foreign files
-  is stated without naming any function; ownership, it owns the roots, links and findings, while the
-  source choice, install and hand-off belong to [self-installer](./self-installer.md) and the guidance documents and the hints
-  that activate them to [ambient-guidance](../product/ambient-guidance.md); independent verification, every step runs over an in-memory
-  filesystem with injected faults; stability, the contract survives any change to the harness list or the
-  deploy mode; necessity, a skill reaches a harness only through it.
-- Supported capabilities: [install-and-update](../product/install-and-update.md). Skill-runbook-registration ([skill-runbook-registration](../product/skill-runbook-registration.md)) and [ambient-guidance](../product/ambient-guidance.md)
+- Qualification: Purpose: a skill reaches a harness only through it. Contract: it owns the roots, links and findings,
+  while the source choice, install and hand-off belong to [self-installer](./self-installer.md) and the guidance documents and the hints
+  that activate them to [ambient-guidance](../product/ambient-guidance.md); every step is tested directly, with the failures of the
+  filesystem included. Identity: the contract survives any change to the harness list or the deploy mode. Value: the
+  only deletions are inside a root engram proved is its own and of links that provably point into it, so the sync can
+  propagate removals without risking user files. Responsibility (naming): converging a harness onto a deploy set
+  without deleting foreign files is stated without naming any function.
+- Required behavior: the [harnesses](../../GLOSSARY.md#harness) (external: Claude Code and Pi, through their configuration directories `~/.claude` and `~/.pi`)
+  are assumed to discover a [skill](../../GLOSSARY.md#skill) or a [mod](../../GLOSSARY.md#mod) through a link in their skills directory, both running in link mode
+  ([792b29c1 Harness detection](#792b29c1-harness-detection), [792b29c7 Skill links](#792b29c7-skill-links)); authoritative contract: not recorded in
+  this repository; compatibility verification: `dev/acceptance/product_test.go` for Claude Code, none for Pi.
+- Required behavior: Claude Code (external) is assumed to reload a changed mod in an open [session](../../GLOSSARY.md#session) on its own about 0.4 seconds
+  after its files change, and to skip a [turn](../../GLOSSARY.md#turn-automatic-memory) that ends in between ([793d4b Deploying the mods of the source](#793d4b-deploying-the-mods-of-the-source));
+  authoritative contract: not recorded in this repository; compatibility verification: none.
+- Supported capabilities: [install-and-update](../product/install-and-update.md). [Skill Runbook Registration](../product/skill-runbook-registration.md) and [ambient-guidance](../product/ambient-guidance.md)
   extend it (the registration sources read the deployed skills, and the activation hints name the
-  guidance it deploys).
+  guidance it deploys). [Automatic Memory](../product/automatic-memory.md) relies on it for the mods it deploys
+  ([793d4b Deploying the mods of the source](#793d4b-deploying-the-mods-of-the-source)).
 
 Rationale: real files live only in one root per harness that engram alone writes, and every discovery path is a link
 into it or a file the user owns. Because the only deletions are inside a root engram proved is its own and of links
@@ -32,9 +43,9 @@ through links fails runs in manifest mode, which keeps the same removal semantic
 Claude Code's guidance directory is its engram root, so its guidance is linked at the root's top level rather than
 into a separate directory.
 
-## 792b29c Behavior Requirements
+### 792b29c Behavior Requirements
 
-### 792b29c1 Harness detection
+#### 792b29c1 Harness detection
 
 Requirement: [792b29c1 Harness detection](#792b29c1-harness-detection) The harness-deploy-sync MUST detect Claude Code when `~/.claude` is a directory and Pi
 when `~/.pi` is a directory, MUST return the detected harnesses in the order Claude Code then Pi, and MUST
@@ -49,7 +60,7 @@ Supports: [792a11g1a Only the harnesses present are updated](../product/install-
 Rationale: the same detection is used by [skill-source-discovery](./skill-source-discovery.md) so the two never
 disagree on which harnesses exist.
 
-#### 792b29c1a Scenarios
+##### 792b29c1a Scenarios
 
 ```gherkin
 Scenario: 792b29c1a1 Both harnesses are found in a stable order
@@ -88,7 +99,7 @@ Scenario: 792b29c1a7 An unreadable probe is an error
   Then detection fails with an error naming the probe
 ```
 
-### 792b29c2 The deploy set
+#### 792b29c2 The deploy set
 
 Requirement: [792b29c2 The deploy set](#792b29c2-the-deploy-set) The harness-deploy-sync MUST plan one copy for every file under
 `agent-instructions/skills/` of the source, for every harness, keeping its path relative to the skills
@@ -100,7 +111,7 @@ For Claude Code the mods of the source are planned too, as [793d4b Deploying the
 
 Supports: [792a11g1e A missing skills source is an error](../product/install-and-update.md#792a11g1-uat-scenarios), [792a11h1a A skill deploys as a directory link](../product/install-and-update.md#792a11h1-uat-scenarios), [792a11l1a The flag deploys guidance](../product/install-and-update.md#792a11l1-uat-scenarios).
 
-#### 792b29c2a Scenarios
+##### 792b29c2a Scenarios
 
 ```gherkin
 Scenario: 792b29c2a1 Every skill file is planned for every harness
@@ -124,7 +135,7 @@ Scenario: 792b29c2a4 A missing guidance source plans nothing
   Then no copy is planned and there is no error
 ```
 
-### 792b29c3 Guidance management
+#### 792b29c3 Guidance management
 
 Requirement: [792b29c3 Guidance management](#792b29c3-guidance-management) The harness-deploy-sync MUST manage guidance, so that the guidance copies are in the
 deploy set and the root's `guidance/` subtree is synced including deletions, only when `--with-guidance`
@@ -140,7 +151,7 @@ Rationale: opting in once is enough because the import in the user's config file
 it, so a plain update keeps the guidance current as it does skills. A harness that is not opted in keeps
 whatever it holds: not managed is not removed.
 
-#### 792b29c3a Scenarios
+##### 792b29c3a Scenarios
 
 ```gherkin
 Scenario: 792b29c3a1 The flag deploys guidance
@@ -184,7 +195,7 @@ Scenario: 792b29c3a8 One harness's import manages guidance for every harness
   Then guidance is deployed for Pi as well as for Claude Code
 ```
 
-### 792b29c4 Import detection
+#### 792b29c4 Import detection
 
 Requirement: [792b29c4 Import detection](#792b29c4-import-detection) For each detected harness that has an imports file, the harness-deploy-sync MUST read
 that file and MUST record as imported each line, outside a fenced code block (a line beginning with three
@@ -196,7 +207,7 @@ missing, and MUST derive both prefixes from the harness specification.
 
 Supports: [792a11l1b An existing import keeps guidance current](../product/install-and-update.md#792a11l1-uat-scenarios), [792a11l1d An import inside a code fence does not count](../product/install-and-update.md#792a11l1-uat-scenarios).
 
-#### 792b29c4a Scenarios
+##### 792b29c4a Scenarios
 
 ```gherkin
 Scenario: 792b29c4a1 An import is detected
@@ -240,7 +251,7 @@ Scenario: 792b29c4a8 Prefixes come from the specification
   Then they are built from its guidance directory in the tilde and expanded forms
 ```
 
-### 792b29c5 Root ownership
+#### 792b29c5 Root ownership
 
 Requirement: [792b29c5 Root ownership](#792b29c5-root-ownership) The harness-deploy-sync MUST give each detected harness its own engram-owned root
 (`~/.claude/engram`, `~/.pi/agent/engram`). When the root does not exist it MUST create the root and the
@@ -258,7 +269,7 @@ Supports: [792a11j1a An unmarked root is not purged](../product/install-and-upda
 Rationale: the marker, not the path, proves a directory named `engram/` is engram's. A user who deletes the
 marker degrades to refused deletion, which is a fail-safe and not a failure.
 
-#### 792b29c5a Scenarios
+##### 792b29c5a Scenarios
 
 ```gherkin
 Scenario: 792b29c5a1 An absent root is created with its marker
@@ -307,7 +318,7 @@ Scenario: 792b29c5a9 The marker is stamped after the adoption pass and then enab
   Then the first run writes the marker after adopting, and the second treats the root as owned and deletes the stale file
 ```
 
-### 792b29c6 Root synchronization
+#### 792b29c6 Root synchronization
 
 Requirement: [792b29c6 Root synchronization](#792b29c6-root-synchronization) The harness-deploy-sync MUST sync a root to the deploy set with deletion allowed by
 creating each deploy-set file that is missing, overwriting each that exists, and deleting each file in the
@@ -325,7 +336,7 @@ Rationale: a directory holding no intended file is as unintended as a file, and 
 a stale link still resolve through it, so the link would look healthy while the skill was gone. `commands/` remains a
 managed subtree though engram deploys no commands, so anything found there is deleted.
 
-#### 792b29c6a Scenarios
+##### 792b29c6a Scenarios
 
 ```gherkin
 Scenario: 792b29c6a1 The root equals the deploy set
@@ -384,7 +395,7 @@ Scenario: 792b29c6a11 A subtree that cannot be listed fails the harness
   Then the harness reports the error
 ```
 
-### 792b29c7 Skill links
+#### 792b29c7 Skill links
 
 Requirement: [792b29c7 Skill links](#792b29c7-skill-links) For each skill directory of the deploy set, the harness-deploy-sync MUST make
 `<skills dir>/<skill>` a symbolic link to `<engram root>/skills/<skill>`: creating it, with its parent
@@ -395,7 +406,7 @@ fail the harness with the underlying error when it cannot inspect, create, read,
 
 Supports: [792a11h1a A skill deploys as a directory link](../product/install-and-update.md#792a11h1-uat-scenarios), [792a11h1c A link that points elsewhere is repointed](../product/install-and-update.md#792a11h1-uat-scenarios), [792a11j1d User-owned real files are never deleted](../product/install-and-update.md#792a11j1-uat-scenarios).
 
-#### 792b29c7a Scenarios
+##### 792b29c7a Scenarios
 
 ```gherkin
 Scenario: 792b29c7a1 An absent link is created
@@ -474,7 +485,7 @@ Scenario: 792b29c7a15 A repoint failure fails that harness
   Then the harness reports the removal error
 ```
 
-### 792b29c8 Adopting earlier copies
+#### 792b29c8 Adopting earlier copies
 
 Requirement: [792b29c8 Adopting earlier copies](#792b29c8-adopting-earlier-copies) Where a deploy-set skill directory, Pi guidance file or Claude Code flat guidance
 file is a real file or directory at its link path, the harness-deploy-sync MUST replace it, by removing it
@@ -487,7 +498,7 @@ Supports: [792a11k1a A copied skill becomes a link](../product/install-and-updat
 Rationale: the repository is the source of truth, so no comparison is needed, and the deploy set is the
 only thing that can be replaced: a real entry outside it is never adopted ([792b29c11 Unmanaged entries](#792b29c11-unmanaged-entries)).
 
-#### 792b29c8a Scenarios
+##### 792b29c8a Scenarios
 
 ```gherkin
 Scenario: 792b29c8a1 An absent link is created, not adopted
@@ -546,7 +557,7 @@ Scenario: 792b29c8a11 A real flat Claude guidance file is adopted
   Then it is replaced by a link to the canonical copy and reported adopted
 ```
 
-### 792b29c9 Guidance links
+#### 792b29c9 Guidance links
 
 Requirement: [792b29c9 Guidance links](#792b29c9-guidance-links) For a harness whose guidance directory is its engram root (Claude Code), the
 harness-deploy-sync MUST link `<root>/<name>.md` to `<root>/guidance/<name>.md` for each managed guidance
@@ -558,7 +569,7 @@ guidance file of the harness.
 
 Supports: [792a11l1f Pi guidance is linked into Pi's guidance directory](../product/install-and-update.md#792a11l1-uat-scenarios), [792a11m1a An existing import still resolves](../product/install-and-update.md#792a11m1-uat-scenarios), [792a11m1b A real flat file from an earlier version is adopted](../product/install-and-update.md#792a11m1-uat-scenarios), [792a11m1c A link whose document left the source is removed](../product/install-and-update.md#792a11m1-uat-scenarios).
 
-#### 792b29c9a Scenarios
+##### 792b29c9a Scenarios
 
 ```gherkin
 Scenario: 792b29c9a1 Claude Code gets compat links at the top of its root
@@ -582,7 +593,7 @@ Scenario: 792b29c9a4 A compat link is deleted when its file leaves the source
   Then the link is deleted
 ```
 
-### 792b29c10 Dangling-link cleanup
+#### 792b29c10 Dangling-link cleanup
 
 Requirement: [792b29c10 Dangling-link cleanup](#792b29c10-dangling-link-cleanup) On every run, the harness-deploy-sync MUST scan, one level deep, the skills
 directory and, for a harness with guidance, either its guidance directory (Pi) or its engram root (Claude
@@ -600,7 +611,7 @@ Rationale: lexical resolution is essential: `filepath.EvalSymlinks` on macOS rew
 `/private/var`, which would corrupt the prefix match even for a tree with no links, so every recorded path
 must be the exact logical spelling.
 
-#### 792b29c10a Scenarios
+##### 792b29c10a Scenarios
 
 ```gherkin
 Scenario: 792b29c10a1 A dangling engram link is removed
@@ -724,7 +735,7 @@ Scenario: 792b29c10a24 A tree with no links records only exact logical paths
   Then every recorded path is the exact joined and cleaned spelling, with no rewritten prefix
 ```
 
-### 792b29c11 Unmanaged entries
+#### 792b29c11 Unmanaged entries
 
 Requirement: [792b29c11 Unmanaged entries](#792b29c11-unmanaged-entries) On the first sync of a harness, the harness-deploy-sync MUST scan, one level deep,
 its skills directory and, for a harness whose guidance directory is separate from its root, its guidance
@@ -737,7 +748,7 @@ Supports: [792a11k1b An unmanaged entry is reported, not deleted](../product/ins
 Rationale: a link is the cleanup's concern, and an entry the sync has no record of writing may be the user's own, so
 it is listed neutrally ("unmanaged, left alone") and never as debris.
 
-#### 792b29c11a Scenarios
+##### 792b29c11a Scenarios
 
 ```gherkin
 Scenario: 792b29c11a1 An entry in the deploy set is not reported
@@ -776,7 +787,7 @@ Scenario: 792b29c11a7 An unmanaged entry is reported and never deleted
   Then the report lists it as unmanaged, it still exists, and it is not in the adopted list
 ```
 
-### 792b29c12 First sync without a trace
+#### 792b29c12 First sync without a trace
 
 Requirement: [792b29c12 First sync without a trace](#792b29c12-first-sync-without-a-trace) In a dry run the harness-deploy-sync MUST plan every first-sync step (the root, the
 marker, the sync, the adoptions and the links) without creating the root, the marker, a link or a file, both
@@ -784,7 +795,7 @@ for a harness never synced and for one whose root exists without the marker.
 
 Supports: [792a11f1a A dry run on a never-synced harness leaves no trace](../product/install-and-update.md#792a11f1-uat-scenarios).
 
-#### 792b29c12a Scenarios
+##### 792b29c12a Scenarios
 
 ```gherkin
 Scenario: 792b29c12a1 A never-synced harness leaves no trace
@@ -798,7 +809,7 @@ Scenario: 792b29c12a2 A pre-existing unmarked root leaves no trace
   Then no marker is written and no file is changed
 ```
 
-### 792b29c13 Manifest mode
+#### 792b29c13 Manifest mode
 
 Requirement: [792b29c13 Manifest mode](#792b29c13-manifest-mode) For a harness in manifest mode, the harness-deploy-sync MUST copy each skill file
 and each guidance file to its harness path, clearing a skill directory once before writing its files,
@@ -814,7 +825,7 @@ Supports: [792a11i1a A removed skill disappears](../product/install-and-update.m
 Rationale: a harness whose discovery fails the link check must still get removals that propagate; recording
 what was written replaces link identity as the proof of ownership.
 
-#### 792b29c13a Scenarios
+##### 792b29c13a Scenarios
 
 ```gherkin
 Scenario: 792b29c13a1 Files are copied and recorded
@@ -873,7 +884,7 @@ Scenario: 792b29c13a11 A clear, copy, create or write failure is a harness error
   Then that harness reports the error
 ```
 
-### 792b29c14 Dry run
+#### 792b29c14 Dry run
 
 Requirement: [792b29c14 Dry run](#792b29c14-dry-run) In a dry run the harness-deploy-sync MUST create, write, link, repoint, adopt and
 delete nothing, in the root, the marker and the harness directories, while still reporting what it would
@@ -881,7 +892,7 @@ do (the root deletions, the adoptions and the dangling-link removals).
 
 Supports: [792a11f1a A dry run on a never-synced harness leaves no trace](../product/install-and-update.md#792a11f1-uat-scenarios), [792a11f1b Action lines carry the prefix, notices do not](../product/install-and-update.md#792a11f1-uat-scenarios).
 
-#### 792b29c14a Scenarios
+##### 792b29c14a Scenarios
 
 ```gherkin
 Scenario: 792b29c14a1 The root sync writes nothing
@@ -900,7 +911,7 @@ Scenario: 792b29c14a3 A dry-run deploy plans the skills
   Then the report counts the skill's files and nothing is written
 ```
 
-### 792b29c15 Harness isolation
+#### 792b29c15 Harness isolation
 
 Requirement: [792b29c15 Harness isolation](#792b29c15-harness-isolation) The harness-deploy-sync MUST record a failure of one harness's deploy on that
 harness's report, MUST still deploy every other harness, and MUST NOT turn the failure into an error of
@@ -908,7 +919,7 @@ the whole run.
 
 Supports: [792a11g1d One failing harness does not stop the other](../product/install-and-update.md#792a11g1-uat-scenarios).
 
-#### 792b29c15a Scenarios
+##### 792b29c15a Scenarios
 
 ```gherkin
 Scenario: 792b29c15a1 A failing harness is reported and the run continues
@@ -922,14 +933,14 @@ Scenario: 792b29c15a2 The failure does not stop the other harness
   Then Pi is deployed
 ```
 
-### 792b29c16 Idempotence
+#### 792b29c16 Idempotence
 
 Requirement: [792b29c16 Idempotence](#792b29c16-idempotence) Running the harness-deploy-sync twice over the same source MUST leave the same files
 and links after the second run as after the first, whether or not the harness held earlier content.
 
 Supports: [792a11h1e Re-running changes nothing](../product/install-and-update.md#792a11h1-uat-scenarios).
 
-#### 792b29c16a Scenarios
+##### 792b29c16a Scenarios
 
 ```gherkin
 Scenario: 792b29c16a1 A second run changes nothing
@@ -943,7 +954,7 @@ Scenario: 792b29c16a2 A second run through the report tail succeeds and changes 
   Then both runs succeed and the destination is the same
 ```
 
-### 792b29c17 Harness sections of the report
+#### 792b29c17 Harness sections of the report
 
 Requirement: [792b29c17 Harness sections of the report](#792b29c17-harness-sections-of-the-report) For each harness the harness-deploy-sync MUST give the report: one line per skill,
 `agent-instructions/skills/<skill>/ → <skills dir>/<skill>/  (<N> file[s])`, with `file` for 1 and `files`
@@ -959,7 +970,7 @@ For Claude Code the lines of the [mods](../../GLOSSARY.md#mod) are given too, as
 
 Supports: [792a11f1b Action lines carry the prefix, notices do not](../product/install-and-update.md#792a11f1-uat-scenarios), [792a11g1d One failing harness does not stop the other](../product/install-and-update.md#792a11g1-uat-scenarios), [792a11h1d The report lists each skill and its file count](../product/install-and-update.md#792a11h1-uat-scenarios), [792a11i1a A removed skill disappears](../product/install-and-update.md#792a11i1-uat-scenarios), [792a11j1a An unmarked root is not purged](../product/install-and-update.md#792a11j1-uat-scenarios), [792a11j1c A dangling engram link is removed and a foreign link kept](../product/install-and-update.md#792a11j1-uat-scenarios), [792a11k1a A copied skill becomes a link](../product/install-and-update.md#792a11k1-uat-scenarios), [792a11k1b An unmanaged entry is reported, not deleted](../product/install-and-update.md#792a11k1-uat-scenarios), [792a11m1d The report states the canonical path](../product/install-and-update.md#792a11m1-uat-scenarios).
 
-#### 792b29c17a Scenarios
+##### 792b29c17a Scenarios
 
 ```gherkin
 Scenario: 792b29c17a1 Deletions, the refusal and unattributable files are reported
@@ -1008,7 +1019,7 @@ Scenario: 792b29c17a9 The skill rows map source to skills directory
   Then each row reads "agent-instructions/skills/<skill>/ → ~/<harness skills dir>/<skill>/  (<N> file[s])"
 ```
 
-### 792b29c18 Guidance activation hints
+#### 792b29c18 Guidance activation hints
 
 Requirement: [792b29c18 Guidance activation hints](#792b29c18-guidance-activation-hints) For each harness that has an imports file, and for each guidance file in its deploy set,
 the harness-deploy-sync MUST give the report one line: `guidance refreshed: ~/<guidance dir>/<name>` when that
@@ -1026,7 +1037,7 @@ Supports: [792a19u1a A config with three imports gains the shim](../product/ambi
 Rationale: an import is a line in a file that the user owns, so the report names the exact line to add. The
 canonical-path suffix of Claude Code's lines is [792b29c17 Harness sections of the report](#792b29c17-harness-sections-of-the-report).
 
-#### 792b29c18a Scenarios
+##### 792b29c18a Scenarios
 
 ```gherkin
 Scenario: 792b29c18a1 A Claude Code file not imported is deployed with its line to add
@@ -1080,13 +1091,13 @@ Scenario: 792b29c18a10 A dry run prefixes the guidance lines
   Then the line begins "[dry-run] guidance deployed to"
 ```
 
-### 793d4b Deploying the mods of the source
+#### 793d4b Deploying the mods of the source
 
 Requirement: 793d4b The `harness-deploy-sync` MUST plan one copy for every file under `agent-instructions/mods/` of the source for Claude Code, keeping the file's relative path and naming its top-level directory as the [skill](../../GLOSSARY.md#skill) directory it is deployed in, so that a [mod](../../GLOSSARY.md#mod) is deployed, linked, reported and removed as a skill directory is; plan none for Pi, and none without an error when the directory does not exist; and report each mod directory it deploys, in the Claude Code section of the report of [`engram update`](../../GLOSSARY.md#engram-update), as a mod, with `agent-instructions/mods/<name>/` as its source (a skill has `agent-instructions/skills/<name>/`). A dry run MUST plan and report the mod and write none of its files; a second `engram update` MUST leave the deployed mod as the first left it (the same files and link, no second copy, listed once). It MUST also count, for each skill directory and mod, the files this run changed (created, deleted or rewritten with other content), and write after the rows of the Claude Code section of the report of [`engram update`](../../GLOSSARY.md#engram-update) one line for each mod with a changed file, `open sessions reload the mod <name> on their own; restart one that reports the mod as stale`, since the host reloads a changed mod in a [session](../../GLOSSARY.md#session) that is open on its own about 0.4 seconds after its files change, and a [turn](../../GLOSSARY.md#turn-automatic-memory) that ends in between is skipped. A dry run MUST write no such line, nor may an update that changed no file of the mod.
 
 Supports: [793a2a1a The next session has memory after one engram update](../product/automatic-memory.md#793a2a1-uat-scenarios), [793a2a1b A second update still delivers each note once](../product/automatic-memory.md#793a2a1-uat-scenarios), [793a2a1c A dry run turns nothing on](../product/automatic-memory.md#793a2a1-uat-scenarios), [793a2a1d Pi gets no automatic memory](../product/automatic-memory.md#793a2a1-uat-scenarios), [793a2a1f A second update still writes each lesson as one note](../product/automatic-memory.md#793a2a1-uat-scenarios).
 
-#### 793d4b1 Scenarios
+##### 793d4b1 Scenarios
 
 ```gherkin
 Scenario: 793d4b1a Every file of a mod is planned for Claude Code
@@ -1130,7 +1141,7 @@ Scenario: 793d4b1h A second update leaves the mod as the first left it
   Then the files of the mod and the link to it are those the first run left, and the report lists the mod once
 ```
 
-#### 855d4w1 Scenarios
+##### 855d4w1 Scenarios
 
 ```gherkin
 Scenario: 855d4w1a An update tells that open sessions reload the mod when its files changed

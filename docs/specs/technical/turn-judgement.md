@@ -1,8 +1,27 @@
 # Turn Judgement - Technical Spec
 
-## 793d3d Orientation
+## 793d3d Turn Judgement
 
 The command `engram auto judge` (`internal/cli/auto.go`, `internal/auto`, informational). Turns a learn moment into the request of the mid-tier judgement of the lessons of four kinds, redacting credentials first ([793d4j Redacting credentials](./moment-judgement.md#793d4j-redacting-credentials)), owning the choice of the turn's lines and the instructions (the call is the [mod](../../GLOSSARY.md#mod)'s); tested through standard input and output over [transcripts](../../GLOSSARY.md#transcript) of a session. Called by [793d2b Turn capture flow](./turn-capture-workflow.md#793d2b-turn-capture-flow).
+
+- Ownership: repository-owned component (the command `engram auto judge`).
+- Qualification: Purpose: [793a2c Lessons are written without the agent](../product/automatic-memory.md#793a2c-lessons-are-written-without-the-agent) promises that a confirmed lesson of a [turn](../../GLOSSARY.md#turn-automatic-memory) is written, and the [request](../../GLOSSARY.md#request-automatic-memory) that judges
+  the turn is this component's. Contract: it owns the choice of the turn's lines and the instructions, redacting [credentials](../../GLOSSARY.md#recognised-credential) first, the call being the mod's, and it is tested
+  directly through standard input and output over transcripts of a session. Identity: the requirement states only what the command reads, writes, prints and fails with, and the
+  files that realize it are informational, so a refactoring or a change of injection leaves the boundary as it is.
+- Required behavior: [Session Context](./session-context.md) finds the [session](../../GLOSSARY.md#session)'s transcript by the session's ID ([793d4d Telling what a session holds](./session-context.md#793d4d-telling-what-a-session-holds)) in the
+  directory that [Prompt Delivery](./prompt-delivery.md) gives ([793d4f Finding the transcripts of sessions](./prompt-delivery.md#793d4f-finding-the-transcripts-of-sessions)).
+- Required behavior: [Prompt Delivery](./prompt-delivery.md) shows the line of a failure cut in its middle at 240 characters, so that both ends stay
+  ([793d4p Telling what automatic memory did](./prompt-delivery.md#793d4p-telling-what-automatic-memory-did)).
+- Required behavior: [Query Engine](./query-engine.md) returns the matched set for a text given as the message and only phrase ([792b24c5 The matched set](./query-engine.md#792b24c5-the-matched-set)).
+- Required behavior: [Moment Judgement](./moment-judgement.md) states which origins are the user's ([793d4m Telling the prompts the user sends](./moment-judgement.md#793d4m-telling-the-prompts-the-user-sends)).
+- Required behavior: [Transcript Reader](./transcript-reader.md) drops the text of the [harness](../../GLOSSARY.md#harness)'s own rows and keeps a slash command's arguments ([792b15c3 Harness noise](./transcript-reader.md#792b15c3-harness-noise)).
+- Required behavior: [Lesson Writing](./lesson-writing.md) states the record of what [automatic memory](../../GLOSSARY.md#automatic-memory) did, which this component writes for a turn handed over without a [reply](../../GLOSSARY.md#reply-automatic-memory)
+  ([793d4k Recording what automatic memory did](./lesson-writing.md#793d4k-recording-what-automatic-memory-did)).
+- Required behavior: [Learn](../product/learn.md): the [learn skill](../../GLOSSARY.md#learn-skill) is assumed to state, as [792a15e The four kinds of explicit lesson](../product/learn.md#792a15e-the-four-kinds-of-explicit-lesson) states, the four kinds
+  of lesson and the quality bar that the instructions of the request repeat; compatibility verification: none, the repeated text is `internal/auto/prompts/judge.txt`, which no test compares
+  with the skill.
+- Supported capabilities: [Automatic Memory](../product/automatic-memory.md).
 
 ## 793d4g Judging a turn
 
@@ -143,6 +162,10 @@ Scenario: 793d4g1v A message or a note cannot close the window or open a section
   When the request is made
   Then no line of the window or of the section of notes holds that character, each holds &lt; in its place, and the prompt holds each tag of the window and of the notes once
 ```
+
+#### 858b2b1 Reading rule
+
+The scenarios of [793d4g1 Scenarios](#793d4g1-scenarios) other than [793d4g1a The request holds the instructions, the context and the turn](#793d4g1-scenarios) are read with the reply `{"learn":true}` beside the fields they name.
 
 ### 855d4g1 Scenarios
 

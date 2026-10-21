@@ -119,12 +119,12 @@ Scenario: 793d2b1k A request that is not JSON is a failure of the step that prin
   Then the model was not asked for it, and auto write received a failure that names the step
 
 Scenario: 793d2b1l The work after a turn is started from a timer, with no call in flight when the event settles
-  Given the mod, a host that counts the calls it has in flight when the hook of an event settles and runs the mod's timers only when the driver lets them, and an engram whose auto judge and auto sweep do not answer
+  Given the mod, a host that counts the calls it has in flight when the hook of an event settles and runs the mod's timers only when the driver lets them, and an engram whose auto moment and auto sweep do not answer
   When a turn completes
-  Then no call of the host was made or in flight when the event's hook settled, and auto judge and auto sweep were run when the timers were let go
+  Then no call of the host was made or in flight when the event's hook settled, and auto moment and auto sweep were run when the timers were let go
 
 Scenario: 793d2b1m A long failure is reported whole
-  Given the mod, and an engram whose auto judge exits with 1 and prints on standard error a line of 1000 characters that begins by naming the step and ends with a cause
+  Given the mod, and an engram whose auto moment exits with 1 and prints on standard error a line of 1000 characters that begins by naming the step and ends with a cause
   When a turn completes
   Then auto write received a failure that holds the whole line, from the name of the judgement and the status to the cause
 ```

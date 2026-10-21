@@ -1,8 +1,21 @@
 # Session Context - Technical Spec
 
-## 793d3c Orientation
+## 793d3c Session Context
 
 What a [session](../../GLOSSARY.md#session)'s [agent](../../GLOSSARY.md#agent-automatic-memory) already holds of the [vault](../../GLOSSARY.md#vault): the notes and passages delivered beside prompts or within turns, and what its own memory commands returned, read from the session's [transcript](../../GLOSSARY.md#transcript) (`internal/auto`, `internal/cli/auto.go`, informational). Owns the transcript's format and the rule for what counts as held (which notes to deliver is the delivery's); tested over transcripts of a session. Used by [Prompt Delivery](./prompt-delivery.md), [Turn Judgement](./turn-judgement.md), [Lesson Placement](./lesson-placement.md) and [Conversation Sweep](./conversation-sweep.md).
+
+- Ownership: repository-owned component (`internal/auto` and `internal/cli/auto.go`).
+- Qualification: Purpose: what a session already holds decides which [notes](../../GLOSSARY.md#permanent-note) are not delivered again ([793a2b Memory arrives with the prompt](../product/automatic-memory.md#793a2b-memory-arrives-with-the-prompt)) and which
+  notes a lesson continues or corrects ([855a2c Lessons are placed as the learn skill places them](../product/automatic-memory.md#855a2c-lessons-are-placed-as-the-learn-skill-places-them),
+  [855a2d Lessons that correct a note say so](../product/automatic-memory.md#855a2d-lessons-that-correct-a-note-say-so)). Contract: it owns the transcript's format and the rule for what counts as held,
+  which notes to deliver being the delivery's, and it is tested directly over transcripts of a session. Identity: the requirement states only what it reads and returns, and the
+  files that realize it are informational, so a refactoring or a change of injection leaves the boundary as it is.
+- Required behavior: Claude Code (external) is assumed to record a session as the file `<session ID>.jsonl` in the directory of transcripts or a subdirectory of it, with an `attachment` entry of type
+  `hook_additional_context` for each block delivered beside a [prompt](../../GLOSSARY.md#prompt-automatic-memory) or within a [turn](../../GLOSSARY.md#turn-automatic-memory), and a `tool_use` block and its `tool_result` for each Bash command the agent ran
+  ([793d4d Telling what a session holds](#793d4d-telling-what-a-session-holds)); authoritative contract: not recorded in this repository; compatibility verification:
+  `dev/acceptance/product_test.go`.
+- Required behavior: [Prompt Delivery](./prompt-delivery.md) gives the directory of transcripts ([793d4f Finding the transcripts of sessions](./prompt-delivery.md#793d4f-finding-the-transcripts-of-sessions)).
+- Supported capabilities: [Automatic Memory](../product/automatic-memory.md).
 
 ## 793d4d Telling what a session holds
 

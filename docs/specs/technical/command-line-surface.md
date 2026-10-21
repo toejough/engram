@@ -1,13 +1,17 @@
 # Command Line Surface - Technical Spec
 
-## 792b2a Orientation
+## 792b2 Command Line Surface
+
+### 792b2a Orientation
 
 - Ownership: Repository component (caller), crossing the process argv, environment and stdio
   boundary through the targ library.
 - Responsibility: turns one process invocation into one command run. It parses arguments and
   environment into a typed request, resolves the vault path, the vault name and the chunk index
-  directory, runs the first-use vault step before every vault-resolving command, routes to the
-  command, and maps the result to the output streams and the exit status.
+  directory, runs the first-use vault step before every vault-resolving command other than the commands of the group `auto`, routes to the
+  command, and maps the result to the output streams and the exit status. It also reads the [note](../../GLOSSARY.md#permanent-note) a reference names for `show`,
+  asking the parent [vault](../../GLOSSARY.md#vault) when told to or when the local lookup finds nothing ([792b2c7 Note lookup](#792b2c7-note-lookup), [792b2c10 Parent routing of note lookup](#792b2c10-parent-routing-of-note-lookup)),
+  and the chunk a reference names for `show-chunk` ([792b2c8 Chunk lookup](#792b2c8-chunk-lookup)).
 - Commands: `learn` (`fact`, `feedback`, `qa`, `runbook`), `query`, `query-chunks`, `show`,
   `show-chunk`, `amend`, `activate`, `resituate`, `ingest`, `prune`, `count`, `check`, `embed`
   (`apply`, `status`), `vocab` (`bootstrap`, `tag-definitions`, `propose`, `stats`, `refit`),
@@ -19,22 +23,43 @@
   `resolveVaultName` in `internal/cli/identity.go`, `DataDirFromHome` in `internal/cli/targets.go`,
   `ResolveChunksDir` in `internal/cli/ingest.go`;
   `cmd/engram/main.go` wires the production primitives.
-- Qualification: responsibility, it owns parsing, precedence and routing for every command without
-  depending on how any command works; ownership, its routing, gating and exit mapping are distinct
-  from each command's own behavior; independent verification, its precedence and gating are tested
-  through dispatch with injected environment and filesystem; stability, the surface survives any
-  refactoring of command internals; necessity, every product capability is reached through it.
-- Supported capabilities: [vault-identity](../product/vault-identity.md), [note-writing](../product/note-writing.md), [note-revision](../product/note-revision.md), [chunk-indexing](../product/chunk-indexing.md)
-  chunk-indexing, [controlled-vocabulary](../product/controlled-vocabulary.md), [memory-query](../product/memory-query.md), [parent-sync](../product/parent-sync.md) ([792b2c9 A removed environment variable is refused](#792b2c9-a-removed-environment-variable-is-refused), [792b2c10 Parent routing of note lookup](#792b2c10-parent-routing-of-note-lookup)).
+- Qualification: Purpose: every product capability is reached through it. Contract: its routing, gating and exit
+  mapping are distinct from each command's own behavior, and its precedence and gating are tested directly through
+  dispatch. Identity: the surface survives any refactoring of command internals. Value: the first-use step is shared
+  in dispatch rather than repeated per command, so that every command that meets a missing vault creates it the same
+  way ([792b2c3 First-use gating](#792b2c3-first-use-gating)), and the refusal of a removed variable sits ahead of
+  every target, so that nothing can reach a vault, a lock, a fetch or a bind first
+  ([792b2c9 A removed environment variable is refused](#792b2c9-a-removed-environment-variable-is-refused)).
+  Responsibility (naming): it owns parsing, precedence and routing for every command without depending on how any
+  command works.
+- Required behavior: [targ](../../GLOSSARY.md#targ) (external) is assumed to refuse an invocation that passes a flag the command does not define
+  or omits a flag the command marks required, with an error naming the flag and without running the command
+  ([792b2c5 Argument refusal](#792b2c5-argument-refusal)); authoritative contract: not recorded in this repository; compatibility verification:
+  `internal/cli/targets_test.go` for the refusal of an undefined flag, none for an omitted required flag or the error naming the flag.
+- Required behavior: [Vault Identity Registry](./vault-identity-registry.md) ensures the vault at the resolved path, creating a missing one,
+  and fails when it cannot ([792b5c1 First-use ensure](./vault-identity-registry.md#792b5c1-first-use-ensure)); for a contact with the parent it stamps a
+  missing vault ID, checks the vault's location, gates the contact by its backoff and records the outcome
+  ([792b5c4 Vault ID stamping](./vault-identity-registry.md#792b5c4-vault-id-stamping), [792b5c7 Location record and check](./vault-identity-registry.md#792b5c7-location-record-and-check),
+  [792b5c14 The parent cache and the contact backoff](./vault-identity-registry.md#792b5c14-the-parent-cache-and-the-contact-backoff)).
+- Required behavior: [Wikilink Graph](./wikilink-graph.md) lists the targets of the links in a note's text
+  ([792b13c3 Link targets](./wikilink-graph.md#792b13c3-link-targets)).
+- Required behavior: [Chunk Index Store](./chunk-index-store.md) lists the index files of the chunk index directory
+  ([792b18c12 Listing index files](./chunk-index-store.md#792b18c12-listing-index-files)).
+- Required behavior: [Parent Vault Client](./parent-vault-client.md) sends a request to the parent and reports an unreachable parent or an
+  error answer ([792b37c2 A request to the parent](./parent-vault-client.md#792b37c2-a-request-to-the-parent)).
+- Supported capabilities: [vault-identity](../product/vault-identity.md), [note-writing](../product/note-writing.md), [note-revision](../product/note-revision.md), [chunk-indexing](../product/chunk-indexing.md),
+  [controlled-vocabulary](../product/controlled-vocabulary.md), [memory-query](../product/memory-query.md), [parent-sync](../product/parent-sync.md) ([792b2c9 A removed environment variable is refused](#792b2c9-a-removed-environment-variable-is-refused), [792b2c10 Parent routing of note lookup](#792b2c10-parent-routing-of-note-lookup)),
+  [Vault Counting](../product/vault-counting.md), [Vault Health](../product/vault-health.md) and [Vault Migration](../product/vault-migration.md) (their failures are reported as [792b2c4 Result reporting](#792b2c4-result-reporting) states),
+  and [Automatic Memory](../product/automatic-memory.md) (its commands, the group `auto`, run without the first-use step: [792b2c3 First-use gating](#792b2c3-first-use-gating)).
 
 Rationale: each `engram <subcommand>` is its own process. Commands never call each other in process; a skill reads one
 command's stdout and runs the next. Each skill step runs the CLI as a fresh subprocess, and the skill layer reaches
 the vault only through it: it reads notes through `engram show`, `engram show-chunk` and the query payload, and writes
 through `engram amend` and `engram learn`, never by editing vault files directly.
 
-## 792b2c Behavior Requirements
+### 792b2c Behavior Requirements
 
-### 792b2c1 Vault path resolution
+#### 792b2c1 Vault path resolution
 
 Requirement: [792b2c1 Vault path resolution](#792b2c1-vault-path-resolution) The command-line-surface MUST resolve the vault path to the `--vault` flag
 when it is non-empty, else to `ENGRAM_VAULT_PATH` when it is non-empty, else to
@@ -44,7 +69,7 @@ when it is non-empty, else to `ENGRAM_VAULT_PATH` when it is non-empty, else to
 
 Supports: [792a2a1a The flag wins over the environment](../product/vault-identity.md#792a2a1-uat-scenarios), [792a2a1b The environment variable is used without a flag](../product/vault-identity.md#792a2a1-uat-scenarios), [792a2a1c The XDG data directory is the default](../product/vault-identity.md#792a2a1-uat-scenarios), [792a2a1d The home directory is the last fallback](../product/vault-identity.md#792a2a1-uat-scenarios), [792a6t1a Stats on an empty vault](../product/controlled-vocabulary.md#792a6t1-uat-scenarios).
 
-#### 792b2c1a Scenarios
+##### 792b2c1a Scenarios
 
 ```gherkin
 Scenario: 792b2c1a1 The flag wins
@@ -68,14 +93,14 @@ Scenario: 792b2c1a4 The home directory is the last fallback
   Then the path is /home/u/.local/share/engram/vault
 ```
 
-### 792b2c2 Vault name resolution
+#### 792b2c2 Vault name resolution
 
 Requirement: [792b2c2 Vault name resolution](#792b2c2-vault-name-resolution) The command-line-surface MUST resolve the vault name to the `--vault-name`
 flag when it is non-empty, else to `ENGRAM_VAULT_NAME` when it is non-empty, else to `personal`.
 
 Supports: [792a2b1a The default vault name is personal](../product/vault-identity.md#792a2b1-uat-scenarios), [792a2b1b The environment names the vault](../product/vault-identity.md#792a2b1-uat-scenarios), [792a2b1c The flag wins over the environment](../product/vault-identity.md#792a2b1-uat-scenarios), [792a4h1f Without a vault name the default is stamped](../product/note-revision.md#792a4h1-uat-scenarios).
 
-#### 792b2c2a Scenarios
+##### 792b2c2a Scenarios
 
 ```gherkin
 Scenario: 792b2c2a1 The default is personal
@@ -94,7 +119,7 @@ Scenario: 792b2c2a3 The flag wins
   Then the name is work
 ```
 
-### 792b2c3 First-use gating
+#### 792b2c3 First-use gating
 
 Requirement: [792b2c3 First-use gating](#792b2c3-first-use-gating) For every [vault](../../GLOSSARY.md#vault)-resolving command other than the commands of the group `auto` (`auto moment`, `auto phrases`, `auto recall`, `auto deliver`, `auto judge`, `auto place`, `auto write` and `auto sweep`), the command-line-surface MUST ask the [vault-identity-registry](./vault-identity-registry.md) to ensure the vault at the resolved path before running the command, and MUST NOT run the command when that step fails. For a command of the group `auto` it MUST NOT ask: the command runs against the path as it is, and creates nothing when the path holds no vault.
 
@@ -102,7 +127,7 @@ Supports: [792a2e1a A read command creates the vault](../product/vault-identity.
 
 Rationale: one shared first-use step in dispatch, rather than one per command, makes every command create a missing vault the same way; the commands of the group `auto` are run by the [mod](../../GLOSSARY.md#mod), not by the user, and a missing vault is the user's to create.
 
-#### 792b2c3a Scenarios
+##### 792b2c3a Scenarios
 
 ```gherkin
 Scenario: 792b2c3a1 Every vault-resolving command ensures the vault first
@@ -116,7 +141,7 @@ Scenario: 792b2c3a2 A failed first-use step stops the command
   Then the error is reported and the command does not run
 ```
 
-#### 793d4e1 Scenarios
+##### 793d4e1 Scenarios
 
 ```gherkin
 Scenario: 793d4e1a The delivery command creates no vault
@@ -140,7 +165,7 @@ Scenario: 793d4e1d The sweep command creates no vault
   Then no vault exists at the path afterwards, nothing is printed to standard output and no creation line is printed
 ```
 
-#### 855d4f1 Scenarios
+##### 855d4f1 Scenarios
 
 ```gherkin
 Scenario: 855d4f1a The moment, phrases, recall and placement commands create no vault
@@ -149,7 +174,7 @@ Scenario: 855d4f1a The moment, phrases, recall and placement commands create no 
   Then no vault exists at the path afterwards and no creation line is printed
 ```
 
-### 792b2c4 Result reporting
+#### 792b2c4 Result reporting
 
 Requirement: [792b2c4 Result reporting](#792b2c4-result-reporting) The command-line-surface MUST write a failed command's error to stderr and exit
 with a non-zero status, and MUST neither exit nor write to stderr on the command's behalf when the
@@ -160,7 +185,7 @@ Supports: [792a2e1b amend and activate fail only on their own merits](../product
 [792a4n1c A missing note fails only its own ref](../product/note-revision.md#792a4n1-uat-scenarios), [792a6h1a A bad seed is refused](../product/controlled-vocabulary.md#792a6h1-uat-scenarios), [792a6i1c Both flags are required](../product/controlled-vocabulary.md#792a6i1-uat-scenarios), [792a6r1a The plan flow is gone](../product/controlled-vocabulary.md#792a6r1-uat-scenarios), [792a6t1a Stats on an empty vault](../product/controlled-vocabulary.md#792a6t1-uat-scenarios), [792a8c1f A filter without = is refused](../product/vault-counting.md#792a8c1-uat-scenarios), [792a8e1j An unreadable note fails the report](../product/vault-counting.md#792a8e1-uat-scenarios), [792a8f1a Both flags are refused](../product/vault-counting.md#792a8f1-uat-scenarios), [792a8f1b Neither flag is refused](../product/vault-counting.md#792a8f1-uat-scenarios), [792a8f1c A filter alone is not a mode](../product/vault-counting.md#792a8f1-uat-scenarios),
 [792a9a1b A FAIL line fails the command](../product/vault-health.md#792a9a1-uat-scenarios), [792a9a1e An unreadable note stops the check](../product/vault-health.md#792a9a1-uat-scenarios), [792a9g1c An unreadable note stops the census](../product/vault-health.md#792a9g1-uat-scenarios), [792a9i1f An unreadable note stops the run](../product/vault-health.md#792a9i1-uat-scenarios), [792a10d1a A missing answers file](../product/vault-migration.md#792a10d1-uat-scenarios), [792a10d1b Malformed answers](../product/vault-migration.md#792a10d1-uat-scenarios), [792a10d1c Stale answers](../product/vault-migration.md#792a10d1-uat-scenarios), [792a10d1d An unknown note](../product/vault-migration.md#792a10d1-uat-scenarios).
 
-#### 792b2c4a Scenarios
+##### 792b2c4a Scenarios
 
 ```gherkin
 Scenario: 792b2c4a1 A failure is reported and exits non-zero
@@ -174,7 +199,7 @@ Scenario: 792b2c4a2 A success neither exits nor writes stderr
   Then nothing is written to stderr and no exit is requested
 ```
 
-### 792b2c5 Argument refusal
+#### 792b2c5 Argument refusal
 
 Requirement: [792b2c5 Argument refusal](#792b2c5-argument-refusal) The command-line-surface MUST refuse an invocation that passes a flag the
 command does not define, or omits a flag the command marks required, by writing an error naming the
@@ -182,7 +207,7 @@ flag to stderr and exiting non-zero without running the command.
 
 Supports: [792a3e1a A task type is refused](../product/note-writing.md#792a3e1-uat-scenarios), [792a3f1a A missing situation is refused](../product/note-writing.md#792a3f1-uat-scenarios), [792a3f1c A runbook without done-when is refused](../product/note-writing.md#792a3f1-uat-scenarios), [792a3g1a An invalid argument is refused before any write](../product/note-writing.md#792a3g1-uat-scenarios), [792a3r1a An invalid pair is refused before any write](../product/note-writing.md#792a3r1-uat-scenarios), [792a6h1a A bad seed is refused](../product/controlled-vocabulary.md#792a6h1-uat-scenarios), [792a6i1c Both flags are required](../product/controlled-vocabulary.md#792a6i1-uat-scenarios), [792a6r1a The plan flow is gone](../product/controlled-vocabulary.md#792a6r1-uat-scenarios).
 
-#### 792b2c5a Scenarios
+##### 792b2c5a Scenarios
 
 ```gherkin
 Scenario: 792b2c5a1 An undefined flag is refused
@@ -196,7 +221,7 @@ Scenario: 792b2c5a2 A missing required flag is refused
   Then stderr names --done-when, the exit status is non-zero, and the command does not run
 ```
 
-### 792b2c6 Chunk index directory resolution
+#### 792b2c6 Chunk index directory resolution
 
 Requirement: [792b2c6 Chunk index directory resolution](#792b2c6-chunk-index-directory-resolution) For `ingest`, `prune`, `query`, `query-chunks`, `show-chunk`, `amend` and
 `serve`, the command-line-surface MUST resolve the chunk index directory to the `--chunks-dir` flag
@@ -206,7 +231,7 @@ when it is non-empty, else to `ENGRAM_CHUNKS_DIR` when it is non-empty, else to
 
 Supports: [792a5a1a The flag wins over the environment](../product/chunk-indexing.md#792a5a1-uat-scenarios), [792a5a1b The environment variable is used without a flag](../product/chunk-indexing.md#792a5a1-uat-scenarios), [792a5a1c The XDG data directory is the default](../product/chunk-indexing.md#792a5a1-uat-scenarios), [792a5a1d The home directory is the last fallback](../product/chunk-indexing.md#792a5a1-uat-scenarios).
 
-#### 792b2c6a Scenarios
+##### 792b2c6a Scenarios
 
 ```gherkin
 Scenario: 792b2c6a1 The flag wins
@@ -230,7 +255,7 @@ Scenario: 792b2c6a4 The home directory is the last fallback
   Then the directory is /home/dev/.local/share/engram/chunks
 ```
 
-### 792b2c7 Note lookup
+#### 792b2c7 Note lookup
 
 Requirement: [792b2c7 Note lookup](#792b2c7-note-lookup) For `show`, the command-line-surface MUST read the note that the reference names,
 a full basename, a Luhmann ID, or either of them in `[[ ]]` with an optional `|display` or with a
@@ -247,7 +272,7 @@ Rationale: `engram show` is the full-fidelity source that the guidance shim name
 budget that bounds a query payload ([792a7w Red flags in the query preview](../product/memory-query.md#792a7w-red-flags-in-the-query-preview)) is not applied here. Resolving a note that is on the
 parent vault, by `--parent` or by a miss with a parent configured, is [792b2c10 Parent routing of note lookup](#792b2c10-parent-routing-of-note-lookup).
 
-#### 792b2c7a Scenarios
+##### 792b2c7a Scenarios
 
 ```gherkin
 Scenario Outline: 792b2c7a1 Every reference form resolves
@@ -289,7 +314,7 @@ Scenario: 792b2c7a6 The production filesystem is read
   Then the note's body and 2.other are printed
 ```
 
-### 792b2c8 Chunk lookup
+#### 792b2c8 Chunk lookup
 
 Requirement: [792b2c8 Chunk lookup](#792b2c8-chunk-lookup) For `show-chunk`, the command-line-surface MUST read every index file in the
 resolved chunk index directory ([792b2c6 Chunk index directory resolution](#792b2c6-chunk-index-directory-resolution), [792b18c12 Listing index files](./chunk-index-store.md#792b18c12-listing-index-files)) and print the text of the record whose
@@ -303,7 +328,7 @@ Supports: [792a7t1a A chunk's text is printed](../product/memory-query.md#792a7t
 Rationale: with `engram query --lazy-chunks` ([792a7s Lazy chunks](../product/memory-query.md#792a7s-lazy-chunks)) a payload omits chunk text, and the agent
 fetches one chunk's evidence on demand; the lookup is by ID and needs no model.
 
-#### 792b2c8a Scenarios
+##### 792b2c8a Scenarios
 
 ```gherkin
 Scenario: 792b2c8a1 A chunk's text is printed
@@ -322,7 +347,7 @@ Scenario: 792b2c8a3 A blank reference fails
   Then it fails
 ```
 
-### 792b2c9 A removed environment variable is refused
+#### 792b2c9 A removed environment variable is refused
 
 Requirement: [792b2c9 A removed environment variable is refused](#792b2c9-a-removed-environment-variable-is-refused) Before it builds any command, the command-line-surface MUST refuse every invocation, `serve` included,
 when the environment variable `ENGRAM_SERVER` is set to a non-empty value. The refusal MUST be an error that says
@@ -336,7 +361,7 @@ Rationale: the variable once selected a thin-client mode that no longer exists, 
 target, with no alias shim and no exemption for `serve`, and nothing can reach a vault, a lock, a fetch or a bind
 first. A fleet host that still sets it fails on its first command and is told the replacement.
 
-#### 792b2c9a Scenarios
+##### 792b2c9a Scenarios
 
 ```gherkin
 Scenario: 792b2c9a1 Every command is refused before anything is touched
@@ -350,7 +375,7 @@ Scenario: 792b2c9a2 The value is only echoed
   Then no fetch is issued, and the message names ENGRAM_PARENT with exactly the value ENGRAM_SERVER held
 ```
 
-### 792b2c10 Parent routing of note lookup
+#### 792b2c10 Parent routing of note lookup
 
 Requirement: [792b2c10 Parent routing of note lookup](#792b2c10-parent-routing-of-note-lookup) For `show`, the command-line-surface MUST, when `--parent` is set, resolve the reference against
 `ENGRAM_PARENT` alone and print the parent's answer unlabeled, and MUST fail with `--parent requires ENGRAM_PARENT to be
@@ -373,7 +398,7 @@ fallback that fires only after a local miss cannot return a wrong local note. Ch
 parent chunk lookup. The explicit `--parent` route is byte-identical to the parent's own answer, and only
 the fallback is labeled, because only the fallback leaves the reader unsure where the text came from.
 
-#### 792b2c10a Scenarios
+##### 792b2c10a Scenarios
 
 ```gherkin
 Scenario: 792b2c10a1 --parent asks the parent only

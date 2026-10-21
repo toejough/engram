@@ -1,8 +1,25 @@
 # Recall Lookup - Technical Spec
 
-## 855d3c Orientation
+## 855d3c Recall Lookup
 
 The command `engram auto recall`. Turns the phrases of the phrases judgement into the candidate [notes](../../GLOSSARY.md#permanent-note) and passages and the request of the mid-tier judgement of them, running the lookup of [792b24c5 The matched set](./query-engine.md#792b24c5-the-matched-set) of the [query-engine](./query-engine.md); tested through standard input and output over an injected lookup and chunk reader. Called by [793d2a Prompt delivery flow](./prompt-delivery-workflow.md#793d2a-prompt-delivery-flow).
+
+- Ownership: repository-owned component (the command `engram auto recall`).
+- Qualification: Purpose: [793a2b Memory arrives with the prompt](../product/automatic-memory.md#793a2b-memory-arrives-with-the-prompt) promises that the notes and [passages](../../GLOSSARY.md#passage) that apply to a [prompt](../../GLOSSARY.md#prompt-automatic-memory) arrive with it and
+  [855a2a Delivery writes what its depth writes](../product/automatic-memory.md#855a2a-delivery-writes-what-its-depth-writes) that a deep delivery writes the lesson the [vault](../../GLOSSARY.md#vault) lacks; the candidates and the [request](../../GLOSSARY.md#request-automatic-memory) that judges them are this
+  component's. Contract: it turns the phrases of the phrases judgement into the candidates and the request of the candidate judgement
+  ([855d4b Looking up the candidates for the phrases](#855d4b-looking-up-the-candidates-for-the-phrases)), and it is tested directly through standard input and output.
+  Identity: the requirement states only what the command reads, prints and fails with, and the files that realize it are informational, so a refactoring or a change of
+  injection leaves the boundary as it is.
+- Required behavior: [Query Engine](./query-engine.md) returns the matched set for the phrases ([792b24c5 The matched set](./query-engine.md#792b24c5-the-matched-set)) and tells the notes picked by the
+  explore half alone ([792b24c16 Delivering the explore half](./query-engine.md#792b24c16-delivering-the-explore-half)) and the newest chunks ([792b24c19 The newest chunks](./query-engine.md#792b24c19-the-newest-chunks)) from it.
+- Required behavior: [Chunk Index Store](./chunk-index-store.md) keeps the text of each chunk in the index file of its source ([792b18c1 Index layout](./chunk-index-store.md#792b18c1-index-layout)), the text that
+  `engram show-chunk` prints for the chunk ([792b2c8 Chunk lookup](./command-line-surface.md#792b2c8-chunk-lookup)).
+- Required behavior: [Lesson Writing](./lesson-writing.md) reads the lessons that a deep [reply](../../GLOSSARY.md#reply-automatic-memory) holds in the shape of [793d4h Writing the lessons of a reply](./lesson-writing.md#793d4h-writing-the-lessons-of-a-reply).
+- Required behavior: [Recall](../product/recall.md): the [recall skill](../../GLOSSARY.md#recall-skill) is assumed to define, as [792a14j Coverage is judged by the agent and written once per cluster](../product/recall.md#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster) states, when a
+  note is near, which the verdicts of [855d8b The candidates of the lookup](#855d8b-the-candidates-of-the-lookup) and the instructions of the request repeat; compatibility verification:
+  none, the repeated text is `internal/auto/prompts/candidates.txt`, which no test compares with the skill.
+- Supported capabilities: [Automatic Memory](../product/automatic-memory.md).
 
 ## 855d4b Looking up the candidates for the phrases
 
