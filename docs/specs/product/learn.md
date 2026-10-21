@@ -120,7 +120,7 @@ Scenario: 792a15d1g The QA round-2 gate is reported and not run
 
 ## 792a15e The four kinds of explicit lesson
 
-Requirement: [792a15e The four kinds of explicit lesson](#792a15e-the-four-kinds-of-explicit-lesson) Learn MUST scan the session for exactly four kinds of moment and MUST hand each to write-memory. A correction (the user corrected the agent's approach or behavior) MUST be handed off as a feedback note carrying the situation, the behavior, its cost as the impact and what to do instead as the action. An explicit save-request ("remember this", "save that", "note for next time", "write this down") MUST be handed off immediately as a fact note carrying the situation, the subject, the predicate and the object. A reversal MUST be handed off as a feedback note whose situation says when the failure mode applies, whose behavior is what the original reasoning did wrong, whose impact is what the reversal cost and whose action is the guard that would have prevented it. A confirmed approach MUST be handed off as a feedback note, or as a runbook note when its shape calls for one ([792a15g A confirmed approach needs a bet or specific praise, and takes the kind its shape calls for](#792a15g-a-confirmed-approach-needs-a-bet-or-specific-praise-and-takes-the-kind-its-shape-calls-for)). Every handoff MUST carry a slug and a source of the form "session <date>, context: <one-line what-was-happening>", and the supersession details when the lesson corrects an existing vault note.
+Requirement: [792a15e The four kinds of explicit lesson](#792a15e-the-four-kinds-of-explicit-lesson) Learn MUST scan the session for exactly four kinds of moment and MUST hand each to write-memory, only when its note is durable (still true and useful to a future task that has nothing to do with the one in hand: not status or progress of the work, a plan, a decision about the work in hand, a branch, worktree, ticket or change name, a timestamp, a finding about the session's own incident or an episode) and atomic (one claim; a second claim is its own lesson that clears both tests, or is dropped, and is never folded into the note beside it), and its situation MUST name no ticket, issue or change number or branch unless the lesson is about it. A correction (the user corrected the agent's approach or behavior) MUST be handed off as a feedback note carrying the situation, the behavior, its cost as the impact and what to do instead as the action. An explicit save-request ("remember this", "save that", "note for next time", "write this down") for a durable lesson MUST be handed off immediately as a fact note carrying the situation, the subject, the predicate and the object; an explicit save-request for status MUST NOT be handed off, and learn MUST tell the user that it was not saved to the vault and that it belongs in the change's docs or the project's memory. A reversal MUST be handed off as a feedback note whose situation says when the failure mode applies, whose behavior is what the original reasoning did wrong, whose impact is what the reversal cost and whose action is the guard that would have prevented it. A confirmed approach MUST be handed off as a feedback note, or as a runbook note when its shape calls for one ([792a15g A confirmed approach needs a bet or specific praise, and takes the kind its shape calls for](#792a15g-a-confirmed-approach-needs-a-bet-or-specific-praise-and-takes-the-kind-its-shape-calls-for)). Every handoff MUST carry a slug and a source of the form "session <date>, context: <one-line what-was-happening>", and the supersession details when the lesson corrects an existing vault note.
 
 ### 792a15e1 UAT Scenarios
 
@@ -149,6 +149,15 @@ Scenario: 792a15e1e A correction of an existing note carries a supersession
   Given a lesson that corrects, narrows or refutes an existing vault note
   When learn hands it off
   Then the handoff includes that note's basename, the type and the claim
+```
+
+### 855a3r1 UAT Scenarios
+
+```gherkin
+Scenario: 855a3r1a A save-request for status writes no note
+  Given the user said "remember the status of this branch and its worktree"
+  When learn runs
+  Then write-memory receives nothing for it, and the user is told that the status was not saved to the vault and that it belongs in the change's docs or the project's memory
 ```
 
 ## 792a15f Reversals and repo-doc corrections

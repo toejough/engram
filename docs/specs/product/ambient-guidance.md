@@ -307,7 +307,8 @@ Requirement: [792a19j The first action on every request is an engram query](#792
 `engram query` that carries at least two `--phrase` values (the request in the agent's own words, and the kind of
 situation it is in) and a `--text` value holding the user's message verbatim (its first 300 characters or so when
 long), before it reads a file, answers or asks a clarifying question, and whether or not it has decided to
-delegate. It MUST NOT gate the query on a judgment that the task is multi-step, recurring or done before. It MUST
+delegate. The one exception is a user message that arrived with a block opening `[engram memory]`: the mod already looked up memory for that message, so the agent MUST NOT run this query again for that message, and every other rule of the shim, including its re-entry moments, stands.
+It MUST NOT gate the query on a judgment that the task is multi-step, recurring or done before. It MUST
 write every `--text` and `--phrase` value as `--flag="value"`, never `--flag "value"`, and MUST NOT rewrite or
 summarize the message in `--text`, whose paraphrase belongs only in `--phrase`.
 
@@ -320,6 +321,7 @@ survives it ([792b32c2 Free-text flag values use the attached
 form](../technical/agent-instruction-bundle.md#792b32c2-free-text-flag-values-use-the-attached-form)). The raw text,
 not a paraphrase, is what matches a literal trigger ([792a7y Trigger text](./memory-query.md#792a7y-trigger-text),
 [792a7za A trigger hit comes first](./memory-query.md#792a7za-a-trigger-hit-comes-first)).
+A block that opens `[engram memory]` shows that [automatic memory](../../GLOSSARY.md#automatic-memory) already looked up memory for that message.
 
 ### 792a19j1 UAT Scenarios
 
@@ -348,6 +350,15 @@ Scenario: 792a19j1e Deciding to delegate does not skip the query
   Given an agent about to dispatch a subagent as its first action
   When it begins
   Then it runs the engram query first, and the decision to delegate is not an exemption
+```
+
+### 855a3t1 UAT Scenarios
+
+```gherkin
+Scenario: 855a3t1a A message that arrived with a delivered block is not queried for again
+  Given an agent with the shim in its config, and a user message that arrived with a block opening [engram memory]
+  When the agent receives it
+  Then it runs no engram query for that message, and its re-entry moments still run the query
 ```
 
 ## 792a19k The second phrase names a kind of work-handling decision

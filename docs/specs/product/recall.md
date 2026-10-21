@@ -234,12 +234,9 @@ Scenario: 792a14i1c A candidate that only matches the superseded claim is near
 
 ## 792a14j Coverage is judged by the agent and written once per cluster
 
-Requirement: [792a14j Coverage is judged by the agent and written once per cluster](#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster) In deep mode, recall MUST judge, for each cluster and then for the explore items, whether a candidate note covers the cluster's principle, from the content read and not from cosine alone, and MUST act on the outcome. When a candidate states the principle with no material omission against the recency-weighted view, the outcome is covered and recall MUST run `engram amend --target <candidate> --activate --chunk-source <ids>` and MUST NOT rewrite its content. When a candidate addresses the same situation but omits at least one substantive claim the members evidence, the outcome is near and recall MUST run `engram amend` with the chunk sources and re-synthesized content flags from all members, recency-weighted. When no candidate addresses the situation, the outcome is absent and recall MUST hand off to the write-memory skill one note of kind fact or feedback with the cluster's chunk-source IDs and a descriptive source. When the write corrects, narrows or refutes a surfaced note, recall MUST also pass `--supersedes="<basename>|<type>|<claim>"` with type `updates`, `narrows` or `refutes`. Recall MUST write at most one note per cluster, the representative being a note and never a chunk, MUST wait for each write before the next cluster, and MUST NOT hand-author vocabulary tags.
+Requirement: [792a14j Coverage is judged by the agent and written once per cluster](#792a14j-coverage-is-judged-by-the-agent-and-written-once-per-cluster) In deep mode, recall MUST judge, for each cluster and then for the explore items, whether a candidate note covers the cluster's principle, from the content read and not from cosine alone, and MUST act on the outcome. When a candidate states the principle with no material omission against the recency-weighted view, the outcome is covered and recall MUST run `engram amend --target <candidate> --activate --chunk-source <ids>` and MUST NOT rewrite its content. When a candidate addresses the same situation and omits at least one substantive part of its own claim (the same subject and the same principle) that the members evidence, the outcome is near and recall MUST run `engram amend` with the chunk sources and content flags that sharpen the note's own claim from all members, recency-weighted, and MUST NOT add a different claim to it. When no candidate states the cluster's principle (a candidate on the same situation with a different claim does not), the outcome is absent: recall MUST then hand off to the write-memory skill one note of kind fact or feedback with the cluster's chunk-source IDs and a descriptive source only when the principle is durable (still true and useful to a future task that has nothing to do with this one: not status, a plan, a branch, worktree or ticket name, a timestamp, a finding about this session's incident or an episode) and atomic (one claim), and otherwise MUST write nothing, and the situation of the note MUST name no ticket or change number unless the lesson is about it. When the write corrects, narrows or refutes a surfaced note, recall MUST also pass `--supersedes="<basename>|<type>|<claim>"` with type `updates`, `narrows` or `refutes`. Recall MUST write at most one note per cluster, the representative being a note and never a chunk, MUST wait for each write before the next cluster, and MUST NOT hand-author vocabulary tags.
 
-Rationale: coverage is judged by the agent, not by a cosine threshold, because cosine only nominates the
-within-cluster top-five candidates. An empty or absent candidate list is a reason to create, not to skip the cluster.
-A write is blocking because the note created or updated for one cluster may be a candidate for another. Updates use
-`engram amend` and `engram learn` creates only, so the amend path is the one that keeps both copies of a note in step.
+Rationale: coverage is judged by the agent, not by a cosine threshold, because cosine only nominates the within-cluster top-five candidates. An empty candidate list is a reason to create when the principle is durable and atomic, not to skip the cluster. Near sharpens a note's own claim and never adds another, so that a note does not collect unrelated claims. A write is blocking because the note created or updated for one cluster may be a candidate for another. Updates use `engram amend` and `engram learn` creates only, so the amend path is the one that keeps both copies of a note in step.
 
 ### 792a14j1 UAT Scenarios
 
@@ -250,12 +247,12 @@ Scenario: 792a14j1a Covered refreshes provenance and recency only
   Then it runs engram amend --target <candidate> --activate --chunk-source <new chunk IDs> with no content flags
 
 Scenario: 792a14j1b Near re-synthesizes
-  Given a candidate that omits one claim the members evidence
+  Given a candidate that addresses the cluster's situation and omits part of its own claim that the members evidence
   When the agent judges it near
-  Then it runs engram amend with the chunk sources and re-synthesized content flags
+  Then it runs engram amend with the chunk sources and content flags that sharpen that claim, and adds no different claim
 
 Scenario: 792a14j1c Absent creates through the worker
-  Given a cluster with no candidate that addresses its situation
+  Given a cluster whose principle is durable and atomic and that no candidate states
   When the agent judges it absent
   Then it hands one fact or feedback note, with the chunk sources and a source string, to the write-memory skill
 
@@ -283,6 +280,20 @@ Scenario: 792a14j1h Updates never use learn
   Given an existing note that needs new content
   When the agent updates it
   Then it uses engram amend and not engram learn --target
+```
+
+### 855a3s1 UAT Scenarios
+
+```gherkin
+Scenario: 855a3s1a A different claim on the same situation is absent and not near
+  Given a candidate that addresses the cluster's situation but states a different claim than the cluster's principle
+  When the agent judges coverage
+  Then it judges the cluster absent, runs no engram amend on that candidate, and hands off the cluster's own claim when it is durable and atomic
+
+Scenario: 855a3s1b A cluster that is not durable writes nothing
+  Given a cluster whose content is the status of the work, a plan, or a branch, worktree or ticket name
+  When the agent judges it absent
+  Then it writes no note for it
 ```
 
 ## 792a14k A note from the parent vault is activated, never amended
