@@ -707,7 +707,7 @@ family's definition note; a nested `family/value` tag marks a member. Three ship
 
 ---
 
-## Transcript
+## Transcripts and sessions
 
 ### transcript
 The recorded content of one session, read by the binary (via `engram
