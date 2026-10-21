@@ -1,7 +1,7 @@
 # Install and Update - Product Spec
 
 `engram update` is how an operator brings a machine to the current engram. It installs the engram
-binary from a source checkout, then deploys engram's skills (and, on request, its guidance documents)
+binary from a source checkout, then deploys engram's skills and mods (and, on request, its guidance documents)
 into each coding harness it finds, Claude Code and Pi. Engram keeps its own copy of what it deploys in
 a root of its own for each harness and links the harness's discovery paths to that copy, so that a skill
 removed from the source disappears from every harness on the next update, and a file engram does not
@@ -10,6 +10,7 @@ Luhmann branching, the missing note origin, the uncommitted vault ID, pending of
 outbox) belong to the capabilities whose state they report, and registering skills as runbook notes
 after the deploy belongs to [skill-runbook-registration](./skill-runbook-registration.md). This capability is the install, the deploy and
 the report around them.
+Turning on [automatic memory](../../GLOSSARY.md#automatic-memory) for Claude Code is part of the deploy and is specified by [automatic-memory](./automatic-memory.md).
 
 ## 792a11a Installing from a local clone or a fresh clone
 

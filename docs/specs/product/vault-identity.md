@@ -103,14 +103,14 @@ Scenario: 792a2d1b A user's README is a note
 
 ## 792a2e First-use vault creation
 
-Requirement: [792a2e First-use vault creation](#792a2e-first-use-vault-creation) Every command that resolves a vault path MUST, when no vault exists at that
+Requirement: [792a2e First-use vault creation](#792a2e-first-use-vault-creation) Every command that resolves a vault path, other than the commands that [automatic memory](../../GLOSSARY.md#automatic-memory) runs on its own, MUST, when no [vault](../../GLOSSARY.md#vault) exists at that
 path, create one before the command runs, whether or not `ENGRAM_PARENT` is set, and print exactly
 one stderr line, `engram: created new vault at <path>`. The new vault contains `.obsidian/app.json`,
 a `.gitignore`, a starter `README.md`, a vault ID ([792a2h Stable vault ID](#792a2h-stable-vault-id)) and the `.engram/` state directory
-([792a2k Exchange state outside tracked files](#792a2k-exchange-state-outside-tracked-files)).
+([792a2k Exchange state outside tracked files](#792a2k-exchange-state-outside-tracked-files)). A command that automatic memory runs on its own creates no vault ([793a2a On after `engram update`](./automatic-memory.md#793a2a-on-after-engram-update)).
 
-Rationale: any command creates a missing vault, and the single stderr line makes a mistyped `--vault` or
-`ENGRAM_VAULT_PATH` visible. The `.obsidian/` starter lets Obsidian open the directory as a vault.
+Rationale: any command that the user runs creates a missing vault, and the single stderr line makes a mistyped `--vault` or
+`ENGRAM_VAULT_PATH` visible. The `.obsidian/` starter lets Obsidian open the directory as a vault. A [prompt](../../GLOSSARY.md#prompt-automatic-memory) must not create a vault the user has not asked for, and a missing vault is the user's to create with a command they run (scenario [793a2a1e A vault that does not exist is not created](./automatic-memory.md#793a2a1-uat-scenarios)).
 
 ### 792a2e1 UAT Scenarios
 
