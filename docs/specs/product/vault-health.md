@@ -8,7 +8,55 @@ only the Markdown notes at the vault's root, run against the vault located by [7
 vault that does not exist first ([792a2e First-use vault creation](./vault-identity.md#792a2e-first-use-vault-creation)). The model change that makes an embed run necessary is the
 embedding-sidecar's [792b10c7 State classification](../technical/embedding-sidecar.md#792b10c7-state-classification).
 
-## 792a9a The check report
+## 792a9 Vault Health
+
+**Participants and responsibilities.**
+- The user: runs `engram check` to see where the [vault](../../GLOSSARY.md#vault) breaks its invariants,
+  `engram embed status` to count its [sidecars](../../GLOSSARY.md#sidecar-embedding-sidecar) by state, and
+  `engram embed apply` to write the sidecars of the notes they select
+  ([792a9a The check report](#792a9a-the-check-report), [792a9g The embedding census](#792a9g-the-embedding-census),
+  [792a9h Which notes get embedded](#792a9h-which-notes-get-embedded)).
+- The software: reports each invariant as a `PASS`, `WARN` or `FAIL` line and changes nothing in a check
+  ([792a9a The check report](#792a9a-the-check-report),
+  [792a9f A check changes nothing](#792a9f-a-check-changes-nothing)), counts the sidecars by state
+  ([792a9g The embedding census](#792a9g-the-embedding-census)), and embeds the selected notes, writing only sidecars
+  ([792a9h Which notes get embedded](#792a9h-which-notes-get-embedded),
+  [792a9i Embedding the selected notes](#792a9i-embedding-the-selected-notes)).
+- Retained by the user: running the remedy that a report names for a sidecar finding, and choosing the explicit
+  `--force` step that replaces another model's sidecars; a check runs neither
+  ([792a9e Sidecars that can be read](#792a9e-sidecars-that-can-be-read),
+  [792a9f A check changes nothing](#792a9f-a-check-changes-nothing),
+  [792a9h Which notes get embedded](#792a9h-which-notes-get-embedded)).
+
+**Interactions.** The user hands the software the vault by running `engram check`; the software responds with a line
+per invariant, at most ten offenders under a violated one, and a non-zero exit when a line begins `FAIL`
+([792a9a The check report](#792a9a-the-check-report)). The user hands `engram embed apply` a selection of modes; the
+software embeds exactly the selected notes in ascending basename order and prints a line for each, or with `--dry-run`
+only prints what it would embed ([792a9h Which notes get embedded](#792a9h-which-notes-get-embedded),
+[792a9i Embedding the selected notes](#792a9i-embedding-the-selected-notes)).
+
+**Boundary assumptions.** The software assumes every note at the vault root can be read; when one cannot,
+`engram check` prints no report and fails with `check: scan: <error>`
+([792a9a The check report](#792a9a-the-check-report)), `engram embed status` fails with `embed status: scan: <error>`
+([792a9g The embedding census](#792a9g-the-embedding-census)), and `engram embed apply` embeds nothing and fails with
+`embed apply: scan: <error>` ([792a9i Embedding the selected notes](#792a9i-embedding-the-selected-notes)). It assumes
+each sidecar decodes under the current schema; an old or invalid one is a `FAIL` that names
+`engram embed apply --force`, and a missing one a `WARN`
+([792a9e Sidecars that can be read](#792a9e-sidecars-that-can-be-read)).
+
+**Shared rules.** The sidecar beside each note is owned by [Note Writing](./note-writing.md)
+([792a3n Embed on write](./note-writing.md#792a3n-embed-on-write)), as is the situation of a
+[fact](../../GLOSSARY.md#fact-note-type) or [feedback](../../GLOSSARY.md#feedback-note-type) note
+([792a3f Required content](./note-writing.md#792a3f-required-content)); the vault the commands run against is located
+by [Vault Identity](./vault-identity.md) ([792a2a Vault location](./vault-identity.md#792a2a-vault-location)); a note
+is found by its own situation per [Memory Query](./memory-query.md)
+([792a7d1h A note is found by its own situation](./memory-query.md#792a7d1-uat-scenarios)); the state classification
+after a model change is owned by [Embedding Sidecar](../technical/embedding-sidecar.md)
+([792b10c7 State classification](../technical/embedding-sidecar.md#792b10c7-state-classification)) and the resolution
+of a link target by [Wikilink Graph](../technical/wikilink-graph.md)
+([792b13c3 Link targets](../technical/wikilink-graph.md#792b13c3-link-targets)).
+
+### 792a9a The check report
 
 Requirement: [792a9a The check report](#792a9a-the-check-report) `engram check` MUST print one line for each invariant it checks, beginning
 `PASS`, `WARN` or `FAIL` and naming the invariant, and under a violated invariant MUST list the
@@ -22,7 +70,7 @@ Rationale: a vault check is only useful if a violation cannot go unnoticed, so a
 a non-zero exit, while a corpus-health finding is a `WARN` that reports without blocking. The checker is Go code over
 bytes, not a `grep`, because a `grep` that stops at an invalid multibyte sequence silently skips notes.
 
-### 792a9a1 UAT Scenarios
+#### 792a9a1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a9a1a A clean vault passes
@@ -61,7 +109,7 @@ Scenario: 792a9a1g A note that is not valid UTF-8 is still checked
   Then the dangling link is reported, as it would be without the invalid bytes
 ```
 
-## 792a9b Links that should resolve
+### 792a9b Links that should resolve
 
 Requirement: [792a9b Links that should resolve](#792a9b-links-that-should-resolve) `engram check` MUST report `FAIL  G0 graph-resolution: <N> bare-id links that
 should resolve`, listing each as `<source> → [[<target>]]`, when a note's link target is a bare
@@ -76,7 +124,7 @@ must be a function of, or equal to, the write key, and a mismatch must be loud, 
 extension-less form, and the reader accepts the suffixed form already in the vault ([792b13c3 Link
 targets](../technical/wikilink-graph.md#792b13c3-link-targets)).
 
-### 792a9b1 UAT Scenarios
+#### 792a9b1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a9b1a A bare-ID link fails
@@ -95,7 +143,7 @@ Scenario: 792a9b1c A legacy suffixed link resolves
   Then the link is not reported, neither under G0 nor as dangling under G3
 ```
 
-## 792a9c Links to nothing
+### 792a9c Links to nothing
 
 Requirement: [792a9c Links to nothing](#792a9c-links-to-nothing) `engram check` MUST warn, without failing, with `WARN  G3 dangling: <N>
 authored links target no note`, listing each as `<source> → [[<target>]]`, for every distinct link
@@ -107,7 +155,7 @@ Rationale: the graph drops a dangling link without a sound, so a dangling link i
 edge. A deleted note's name, or a name such as `vocab.X`, is a legitimate finding, but a note may
 still stand alone, so this is corpus health and not correctness.
 
-### 792a9c1 UAT Scenarios
+#### 792a9c1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a9c1a A link to a missing note warns
@@ -136,7 +184,7 @@ Scenario: 792a9c1e A vault with no dangling link prints no G3 line
   Then stdout has no line mentioning G3
 ```
 
-## 792a9d Notes recall can match
+### 792a9d Notes recall can match
 
 Requirement: [792a9d Notes recall can match](#792a9d-notes-recall-can-match) `engram check` MUST report `FAIL  M5 situation-presence: <N> note(s) missing a
 situation`, listing the notes, when a note of type `fact` or `feedback` has a `situation:` that is
@@ -149,7 +197,7 @@ Rationale: recall matches a query against each note's situation, and the embeddi
 around it ([792a7d1h A note is found by its own situation](./memory-query.md#792a7d1-uat-scenarios)). Every write path refuses a blank one ([792a3f Required content](./note-writing.md#792a3f-required-content)), so this check finds a note that
 reached the vault another way.
 
-### 792a9d1 UAT Scenarios
+#### 792a9d1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a9d1a A fact without a situation fails
@@ -183,7 +231,7 @@ Scenario: 792a9d1f A CRLF note is judged
   Then M5 fails naming the note
 ```
 
-## 792a9e Sidecars that can be read
+### 792a9e Sidecars that can be read
 
 Requirement: [792a9e Sidecars that can be read](#792a9e-sidecars-that-can-be-read) `engram check` MUST report `FAIL  S1 sidecar-schema: <N> sidecar(s) on an
 old/invalid schema (run `engram embed apply --force`)`, listing the notes, when a note's sidecar
@@ -196,7 +244,7 @@ invalid.
 Rationale: a sidecar that cannot be decoded silently drops its note from retrieval. A missing sidecar
 is a gap that `engram embed apply` fills, and it is no corruption.
 
-### 792a9e1 UAT Scenarios
+#### 792a9e1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a9e1a An old-schema sidecar fails
@@ -220,11 +268,11 @@ Scenario: 792a9e1d A missing sidecar warns
   Then stdout has a WARN line for S1 sidecar-schema counting the notes and naming `engram embed apply`, and the exit status is zero
 ```
 
-## 792a9f A check changes nothing
+### 792a9f A check changes nothing
 
 Requirement: [792a9f A check changes nothing](#792a9f-a-check-changes-nothing) `engram check` MUST NOT create, modify or delete any note or sidecar.
 
-### 792a9f1 UAT Scenarios
+#### 792a9f1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a9f1a A check leaves the vault as it was
@@ -233,7 +281,7 @@ Scenario: 792a9f1a A check leaves the vault as it was
   Then every file in the vault is byte-identical afterwards, and no file was created
 ```
 
-## 792a9g The embedding census
+### 792a9g The embedding census
 
 Requirement: [792a9g The embedding census](#792a9g-the-embedding-census) `engram embed status` MUST print six lines: `total:`, `with-embeddings:`,
 `without:`, `stale:`, `incompatible:` and `broken:`, each with the number of notes at the vault root in
@@ -243,7 +291,7 @@ changed after its sidecar was written, incompatible when its sidecar was made by
 older schema, and broken when the note or its sidecar cannot be read or decoded. It MUST fail with
 `embed status: scan: <error>` and a non-zero exit when a note at the vault root cannot be read.
 
-### 792a9g1 UAT Scenarios
+#### 792a9g1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a9g1a Notes without sidecars are counted as without
@@ -262,7 +310,7 @@ Scenario: 792a9g1c An unreadable note stops the census
   Then it fails with an error beginning "embed status: scan:" and naming the file
 ```
 
-## 792a9h Which notes get embedded
+### 792a9h Which notes get embedded
 
 Requirement: [792a9h Which notes get embedded](#792a9h-which-notes-get-embedded) `engram embed apply` MUST embed, with no mode flag or with `--missing`, the notes
 that have no sidecar; with `--stale`, the notes whose content changed after their sidecar; with
@@ -274,7 +322,7 @@ Rationale: a re-embed under a new model also picks up any content change, so `--
 step that replaces another model's sidecars; the default and `--stale` leave them alone, which keeps a
 routine run from silently rewriting a vault under a model it did not choose.
 
-### 792a9h1 UAT Scenarios
+#### 792a9h1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a9h1a The default embeds only notes without a sidecar
@@ -308,7 +356,7 @@ Scenario: 792a9h1f A broken sidecar is always replaced
   Then the note is embedded each time
 ```
 
-## 792a9i Embedding the selected notes
+### 792a9i Embedding the selected notes
 
 Requirement: [792a9i Embedding the selected notes](#792a9i-embedding-the-selected-notes) `engram embed apply` MUST, for each selected note in ascending basename order,
 write the note's sidecar beside it and print `embedded  <note>.md (<state>)`, where `<state>` is the
@@ -323,7 +371,7 @@ Rationale: a sidecar is a derived file, not part of the note's content. It is re
 current note each time, so its content hash stays honest, and it is never stored in or versioned with
 the note file.
 
-### 792a9i1 UAT Scenarios
+#### 792a9i1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a9i1a A missing sidecar is written
@@ -357,13 +405,13 @@ Scenario: 792a9i1f An unreadable note stops the run
   Then it fails with an error beginning "embed apply: scan:" and nothing is embedded
 ```
 
-## 792a9j CRLF notes embed as LF
+### 792a9j CRLF notes embed as LF
 
 Requirement: [792a9j CRLF notes embed as LF](#792a9j-crlf-notes-embed-as-lf) `engram embed status` and `engram embed apply` MUST treat a note whose lines end in
 `\r\n` as the same note with LF line endings, so that its sidecar equals the one its LF form gets and
 is not reported stale for its line endings.
 
-### 792a9j1 UAT Scenarios
+#### 792a9j1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a9j1a A CRLF note is not stale

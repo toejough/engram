@@ -1,6 +1,34 @@
 # Development Checks - Product Spec
 
-## 794a2a Project analysis
+## 794a2 Development Checks
+
+**Ability and purpose.** The nil check and fix commands report on, and fix, only Engram's own module packages and
+analyze no third-party or standard-library package, because dependency package bodies are most of the analysis cost
+and nothing in them is Engram's to fix ([794a2a Project analysis](#794a2a-project-analysis)).
+
+**Participants and responsibilities.**
+- The developer: runs a nil check or fix command, directly or through an aggregate check, and sets `GOMEMLIMIT`,
+  `GOGC` and `GOMAXPROCS` in their own environment when their machine needs limits
+  ([794a2c Resource settings pass-through](#794a2c-resource-settings-pass-through)).
+- The software: keeps the existing command names and aggregate-check entry points
+  ([794a2a Project analysis](#794a2a-project-analysis)) and passes the developer's resource settings to NilAway
+  unchanged ([794a2c Resource settings pass-through](#794a2c-resource-settings-pass-through)).
+- Retained by other systems: NilAway (third party) runs as the analysis process of each command once it is installed
+  in the checkout; the software assumes it ([794a2a1 UAT Scenarios](#794a2a1-uat-scenarios),
+  [794a2c1 UAT Scenarios](#794a2c1-uat-scenarios)).
+
+**Interactions.** The developer hands an entry point to the software by invoking it; the software responds with the
+nil dereferences found in Engram's module packages and no finding in a third-party dependency, a module that shares
+only the path prefix, or a nested module ([794a2a1 UAT Scenarios](#794a2a1-uat-scenarios)). The developer hands
+resource settings to the software through the environment; the software hands them to NilAway as supplied and leaves
+an absent setting absent ([794a2c Resource settings pass-through](#794a2c-resource-settings-pass-through)).
+
+**Boundary assumptions.** The software assumes from the developer that NilAway is installed; no response is specified
+when it is not ([794a2a1 UAT Scenarios](#794a2a1-uat-scenarios)). It assumes the developer sets limits that suit their
+machine; whether a setting is absent, empty or set, it adds, changes and removes nothing
+([794a2c Resource settings pass-through](#794a2c-resource-settings-pass-through)).
+
+### 794a2a Project analysis
 
 Requirement: 794a2a The nil check and fix commands MUST report findings only in Engram's module
 packages: packages whose import path is Engram's module path or that path followed by `/`. They
@@ -13,7 +41,7 @@ Rationale: Dependency package bodies are most of the analysis cost and nothing i
 to fix. Dependencies whose path begins with Engram's are not expected, so analyzing one is an
 accepted cost of a simple scope.
 
-### 794a2a1 UAT Scenarios
+#### 794a2a1 UAT Scenarios
 
 ```gherkin
 Scenario Outline: 794a2a1a Existing check entry points report only on Engram's module packages
@@ -55,7 +83,7 @@ Scenario: 794a2a1d A nested module is not reported on
   And it reports no finding in the nested module
 ```
 
-## 794a2c Resource settings pass-through
+### 794a2c Resource settings pass-through
 
 Requirement: 794a2c Engram MUST pass the developer's `GOMEMLIMIT`, `GOGC` and `GOMAXPROCS` to
 NilAway unchanged. It MUST NOT add, change or remove any of them, whether a variable is absent, set
@@ -64,7 +92,7 @@ to a value, or set to an empty value.
 Rationale: suitable resource limits depend on the developer's machine, so Engram leaves them to the
 developer. A developer on a memory-constrained machine can set them in their own environment.
 
-### 794a2c1 UAT Scenarios
+#### 794a2c1 UAT Scenarios
 
 ```gherkin
 Scenario Outline: 794a2c1a Supplied settings are passed through

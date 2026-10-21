@@ -7,7 +7,44 @@ does not exist is created first ([792a2e First-use vault creation](./vault-ident
 relevant to this phrase", and returns a ranked, bounded sample of the vault ([memory-query](./memory-query.md)). The `route`
 skill uses `count` to audit the evidence tallies it reports.
 
-## 792a8a Count notes by attribute value
+## 792a8 Vault Counting
+
+**Participants and responsibilities.**
+- The user: counts the notes of the [vault](../../GLOSSARY.md#vault) by attribute value with
+  [`engram count`](../../GLOSSARY.md#engram-count-subcommand) `--group-by`, optionally narrowed by `--filter`, or
+  counts the notes that link to a note with `engram count --backlinks-of`
+  ([792a8a Count notes by attribute value](#792a8a-count-notes-by-attribute-value),
+  [792a8e Count the notes that link to a note](#792a8e-count-the-notes-that-link-to-a-note)).
+- The [agent](../../GLOSSARY.md#agent-automatic-memory): runs the `route` [skill](../../GLOSSARY.md#skill), which uses
+  `engram count` to audit the evidence tallies it reports ([Route](./route.md)).
+- The software: prints each value's count with an absent line and a total
+  ([792a8b Absent attributes and the total](#792a8b-absent-attributes-and-the-total)), skips a note it cannot count
+  ([792a8d Notes that cannot be counted](#792a8d-notes-that-cannot-be-counted)), fails on an invocation that names
+  both modes or neither ([792a8f One mode per invocation](#792a8f-one-mode-per-invocation)), and changes nothing in
+  the vault ([792a8h A count changes nothing and is exact](#792a8h-a-count-changes-nothing-and-is-exact)).
+
+**Interactions.** The user or the agent hands the software an attribute with any filters, or a note's basename, by
+running `engram count`; the software responds with a line per value, the absent line and the total, or with the
+in-degree and the linking notes' basenames
+([792a8a Count notes by attribute value](#792a8a-count-notes-by-attribute-value),
+[792a8b Absent attributes and the total](#792a8b-absent-attributes-and-the-total),
+[792a8e Count the notes that link to a note](#792a8e-count-the-notes-that-link-to-a-note)).
+
+**Boundary assumptions.** The software assumes an invocation with exactly one mode and filters written `attr=value`;
+otherwise it fails with a non-zero exit and prints nothing to stdout
+([792a8f One mode per invocation](#792a8f-one-mode-per-invocation),
+[792a8c Filter the counted notes](#792a8c-filter-the-counted-notes)). It assumes the notes at the vault root can be
+read and parsed: `--group-by` skips a note it cannot
+([792a8d Notes that cannot be counted](#792a8d-notes-that-cannot-be-counted)), and `--backlinks-of` fails naming the
+file when one cannot be read
+([792a8e Count the notes that link to a note](#792a8e-count-the-notes-that-link-to-a-note)).
+
+**Shared rules.** The vault the command runs against is located by [Vault Identity](./vault-identity.md)
+([792a2a Vault location](./vault-identity.md#792a2a-vault-location)); the audit of route's tallies with `engram count`
+is owned by [Route](./route.md)
+([792a17m Counting audits the tallies and never routes](./route.md#792a17m-counting-audits-the-tallies-and-never-routes)).
+
+### 792a8a Count notes by attribute value
 
 Requirement: [792a8a Count notes by attribute value](#792a8a-count-notes-by-attribute-value) `engram count --group-by <attr>` MUST print, for each distinct value of the
 frontmatter attribute `<attr>` among the notes at the vault root, one line `<value>`, a tab and the
@@ -19,7 +56,7 @@ Rationale: a question such as "how many notes carry this tag" needs an exact cou
 vault. A query returns a similarity-ranked, truncated sample with no sign that it is not the full
 set, so counting does not ride on it.
 
-### 792a8a1 UAT Scenarios
+#### 792a8a1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a8a1a A scalar attribute is counted per value
@@ -48,7 +85,7 @@ Scenario: 792a8a1e Only notes at the vault root are counted
   Then fact is printed with the count 1
 ```
 
-## 792a8b Absent attributes and the total
+### 792a8b Absent attributes and the total
 
 Requirement: [792a8b Absent attributes and the total](#792a8b-absent-attributes-and-the-total) `engram count --group-by <attr>` MUST print, after the value lines and before
 the total, the line `(<attr> absent): <N>` when `<N>` counted notes have no `<attr>` key. It MUST
@@ -57,7 +94,7 @@ values. A note whose `<attr>` is present but empty MUST count toward the total a
 value line and not in the absent line. When no note is counted it MUST print nothing, not even a
 total.
 
-### 792a8b1 UAT Scenarios
+#### 792a8b1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a8b1a Notes without the attribute are reported
@@ -81,7 +118,7 @@ Scenario: 792a8b1d An empty attribute counts only toward the total
   Then stdout is "total: 1"
 ```
 
-## 792a8c Filter the counted notes
+### 792a8c Filter the counted notes
 
 Requirement: [792a8c Filter the counted notes](#792a8c-filter-the-counted-notes) `engram count --group-by <attr>` MUST count only the notes that satisfy every
 `--filter <attr>=<value>` it is given; the flag MAY be repeated. A note satisfies a filter when its
@@ -89,7 +126,7 @@ attribute equals the value (a scalar) or lists the value among its elements (a l
 text is split at its first `=`. The command MUST refuse a filter that has no `=`, failing with
 `count: --filter must be attr=value: "<filter>"` and a non-zero exit.
 
-### 792a8c1 UAT Scenarios
+#### 792a8c1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a8c1a A scalar filter matches by equality
@@ -123,7 +160,7 @@ Scenario: 792a8c1f A filter without = is refused
   Then it fails with an error saying --filter must be attr=value and quoting "bad", and prints nothing to stdout
 ```
 
-## 792a8d Notes that cannot be counted
+### 792a8d Notes that cannot be counted
 
 Requirement: [792a8d Notes that cannot be counted](#792a8d-notes-that-cannot-be-counted) `engram count --group-by` MUST skip a note that it cannot read, a note with no
 frontmatter, and a note whose frontmatter is not valid YAML, counting it neither as a value, nor as
@@ -133,7 +170,7 @@ same note with LF line endings.
 Rationale: a note that cannot be parsed has no attribute to count, and one stray file must not
 stop a count of the rest. Notes written on a CRLF platform are valid notes.
 
-### 792a8d1 UAT Scenarios
+#### 792a8d1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a8d1a A note without usable frontmatter is skipped
@@ -152,7 +189,7 @@ Scenario: 792a8d1c A CRLF note is counted
   Then feedback is printed with the count 1, followed by "total: 1"
 ```
 
-## 792a8e Count the notes that link to a note
+### 792a8e Count the notes that link to a note
 
 Requirement: [792a8e Count the notes that link to a note](#792a8e-count-the-notes-that-link-to-a-note) `engram count --backlinks-of <basename>` MUST print `in-degree: <N>`, where
 `<N>` is the number of other notes at the vault root whose text links to the note named
@@ -167,7 +204,7 @@ Rationale: the wikilinks in a note's text are the vault's links, and the count a
 note's backlinks panel in Obsidian. A link inside a fenced code block is not a link there, and a
 link to a name with no note is not a backlink of any note.
 
-### 792a8e1 UAT Scenarios
+#### 792a8e1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a8e1a A note with incoming links
@@ -221,7 +258,7 @@ Scenario: 792a8e1j An unreadable note fails the report
   Then it fails with an error naming the unreadable file, and prints nothing to stdout
 ```
 
-## 792a8f One mode per invocation
+### 792a8f One mode per invocation
 
 Requirement: [792a8f One mode per invocation](#792a8f-one-mode-per-invocation) `engram count` MUST fail with a non-zero exit, printing nothing to stdout, when
 it is given both `--group-by` and `--backlinks-of` (`count: --group-by and --backlinks-of are
@@ -230,7 +267,7 @@ mutually exclusive`), and when it is given neither (`count: specify --group-by <
 
 Rationale: the two modes measure different things ([792a8g The two modes measure different things](#792a8g-the-two-modes-measure-different-things)), so one invocation does not mix them.
 
-### 792a8f1 UAT Scenarios
+#### 792a8f1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a8f1a Both flags are refused
@@ -249,7 +286,7 @@ Scenario: 792a8f1c A filter alone is not a mode
   Then it fails with "count: specify --group-by <attr> or --backlinks-of <basename>"
 ```
 
-## 792a8g The two modes measure different things
+### 792a8g The two modes measure different things
 
 Requirement: [792a8g The two modes measure different things](#792a8g-the-two-modes-measure-different-things) `engram count --backlinks-of` MUST count every note that links to the named
 note, whether or not that note carries a given attribute value, and `engram count --group-by` MUST
@@ -265,7 +302,7 @@ map-of-content page links every note on a topic without carrying the topic in it
 `--backlinks-of` and not toward `--group-by`. Reporting the two as "the same count" would make the modes look
 redundant when they are complementary.
 
-### 792a8g1 UAT Scenarios
+#### 792a8g1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a8g1a The modes agree when every linker is a member
@@ -279,7 +316,7 @@ Scenario: 792a8g1b The in-degree exceeds the count by the non-member linkers
   Then --group-by prints alpha with the count 1 and --backlinks-of prints "in-degree: 2" then n1 and idx
 ```
 
-## 792a8h A count changes nothing and is exact
+### 792a8h A count changes nothing and is exact
 
 Requirement: [792a8h A count changes nothing and is exact](#792a8h-a-count-changes-nothing-and-is-exact) `engram count` MUST NOT create, modify or delete any note or sidecar in the
 vault, and MUST NOT need a note's sidecar or an embedding to count it. It MUST count every note at
@@ -288,7 +325,7 @@ the vault root, not a ranked or truncated subset.
 Rationale: counting is a read-only aggregation, deliberately off the recall and similarity path. It
 never embeds, scores cosine similarity or clusters.
 
-### 792a8h1 UAT Scenarios
+#### 792a8h1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a8h1a A count leaves the vault as it was

@@ -11,13 +11,66 @@ merged in from a parent vault belong to [parent-sync](./parent-sync.md), and the
 vault-serving ([792a20m A served query takes the message and can return dedupe keys](./vault-serving.md#792a20m-a-served-query-takes-the-message-and-can-return-dedupe-keys)). Which kinds of note a query returns, and that it never returns a question note, is
 note-writing's [792a3t Question-and-answer retrieval](./note-writing.md#792a3t-question-and-answer-retrieval).
 
-## 792a7a Query input
+## 792a7 Memory Query
+
+**Participants and responsibilities.**
+- The [agent](../../GLOSSARY.md#agent-automatic-memory): sends phrases and, as `--text`, the user's message verbatim,
+  reads the one payload, and decides what to do with it through the [recall skill](../../GLOSSARY.md#recall-skill)
+  ([792a7a Query input](#792a7a-query-input), [792a7y Trigger text](#792a7y-trigger-text)).
+- The [runbook](../../GLOSSARY.md#runbook) author: declares the literal [triggers](../../GLOSSARY.md#trigger) that
+  surface a runbook ([792a7za A trigger hit comes first](#792a7za-a-trigger-hit-comes-first)).
+- The software: ranks the notes and chunks relevant to the phrases and
+  [clusters](../../GLOSSARY.md#cluster-query-time) them
+  ([792a7d Matched notes and chunks](#792a7d-matched-notes-and-chunks), [792a7g Clusters](#792a7g-clusters)), adds an
+  explore half of notes sampled from the vocabulary
+  ([792a7i Half of the notes are explored](#792a7i-half-of-the-notes-are-explored)), puts runbook
+  [trigger hits](../../GLOSSARY.md#trigger-hit) first
+  ([792a7za A trigger hit comes first](#792a7za-a-trigger-hit-comes-first)), prints one note
+  ([792a7x Reading one note](#792a7x-reading-one-note)) or one chunk
+  ([792a7t Reading one chunk](#792a7t-reading-one-chunk)) on request, and writes nothing
+  ([792a7zh A query changes nothing](#792a7zh-a-query-changes-nothing)).
+- Retained by the agent: judging whether a candidate covers the situation
+  ([792a7h Candidate notes](#792a7h-candidate-notes)), judging a trigger hit against the runbook's own applicability
+  text ([792a7za A trigger hit comes first](#792a7za-a-trigger-hit-comes-first)), fetching a chunk when it is the only
+  source of a needed fact ([792a7s Lazy chunks](#792a7s-lazy-chunks)), and marking a note as used
+  ([792a7zh A query changes nothing](#792a7zh-a-query-changes-nothing)); the software assumes all four.
+
+**Interactions.** The agent hands the software phrases, with the user's message as `--text` when it has one; the
+software responds with one YAML payload of items, clusters and a budget, the trigger hits first
+([792a7b The payload](#792a7b-the-payload), [792a7za A trigger hit comes first](#792a7za-a-trigger-hit-comes-first)).
+The agent hands `engram show` a note reference or
+[`engram show-chunk`](../../GLOSSARY.md#engram-show-chunk-subcommand) a chunk ID; the software responds with the whole
+note, every red flag included, or with the chunk's text ([792a7x Reading one note](#792a7x-reading-one-note),
+[792a7t Reading one chunk](#792a7t-reading-one-chunk)).
+
+**Boundary assumptions.** The software assumes a phrase or a non-blank `--text`; with neither it fails with
+`query: empty query string` ([792a7a Query input](#792a7a-query-input)). It assumes each note's
+[sidecar](../../GLOSSARY.md#sidecar-embedding-sidecar) was made by the current embedding model; a note on another
+model or an old schema is ignored with one warning, and a [vault](../../GLOSSARY.md#vault) with notes but no usable
+sidecar fails the query ([792a7c Embeddings of the current model](#792a7c-embeddings-of-the-current-model)). It
+assumes `vocab.centroids.json` for the explore half; when it is absent or unreadable the explore half is smaller and
+`explore_allocated` shows the shortfall
+([792a7i Half of the notes are explored](#792a7i-half-of-the-notes-are-explored)). It assumes the agent marks a note
+as used only when it used it, through `engram activate` or `engram amend --activate`; a note returned but not used
+goes stale and fades in rank ([792a7zh A query changes nothing](#792a7zh-a-query-changes-nothing)).
+
+**Shared rules.** Which kinds of note a query returns, and that it never returns a question note, is owned by
+[Note Writing](./note-writing.md)
+([792a3t Question-and-answer retrieval](./note-writing.md#792a3t-question-and-answer-retrieval)); the vocabulary the
+explore half samples from is owned by [Controlled Vocabulary](./controlled-vocabulary.md)
+([792a6a Definition notes](./controlled-vocabulary.md#792a6a-definition-notes)); chunk IDs by
+[Chunk Indexing](./chunk-indexing.md); the `pending_offers` flag and the exclusion of pending
+[offers](../../GLOSSARY.md#offer) by [Curate](./curate.md); results merged in from a parent vault by
+[Parent Sync](./parent-sync.md); the served form of a query by [Vault Serving](./vault-serving.md)
+([792a20m A served query takes the message and can return dedupe keys](./vault-serving.md#792a20m-a-served-query-takes-the-message-and-can-return-dedupe-keys)).
+
+### 792a7a Query input
 
 Requirement: [792a7a Query input](#792a7a-query-input) `engram query` MUST accept one or more `--phrase` values and an optional
 `--text`, and MUST fail with `query: empty query string` and a non-zero exit when it is given no
 phrase and a `--text` that is empty or only whitespace.
 
-### 792a7a1 UAT Scenarios
+#### 792a7a1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7a1a A query with nothing to search for fails
@@ -31,7 +84,7 @@ Scenario: 792a7a1b Several phrases are searched together
   Then the payload's phrases lists both phrases in order, and its items hold the note and the chunk
 ```
 
-## 792a7b The payload
+### 792a7b The payload
 
 Requirement: [792a7b The payload](#792a7b-the-payload) `engram query` MUST print one YAML document on stdout with `version: 1`, the
 `phrases` it was given, `items`, `clusters`, a `budget` and the `model_id` ([792a7zc The embedding model](#792a7zc-the-embedding-model)), and MUST give
@@ -48,7 +101,7 @@ Rationale: one call returns both "what is relevant" and "what just happened", so
 re-orienting after losing its context reads one document instead of making separate calls. Inline wikilink syntax is noise in the payload, because the matched set is already
 returned in `items`.
 
-### 792a7b1 UAT Scenarios
+#### 792a7b1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7b1a The payload has the documented shape
@@ -67,7 +120,7 @@ Scenario: 792a7b1c Wikilinks are flattened in the content
   Then its content contains 1.target and the other note, and no [[
 ```
 
-## 792a7c Embeddings of the current model
+### 792a7c Embeddings of the current model
 
 Requirement: [792a7c Embeddings of the current model](#792a7c-embeddings-of-the-current-model) `engram query` MUST ignore a note whose sidecar was made by another embedding
 model, and MUST print one warning on stderr naming the number dropped, their model IDs and
@@ -80,7 +133,7 @@ Rationale: a silent model swap would otherwise empty the results without saying 
 warning names the cause and the remedy. The all-mismatch case fails because an empty payload would
 read as "nothing relevant".
 
-### 792a7c1 UAT Scenarios
+#### 792a7c1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7c1a Notes of another model are dropped with a warning
@@ -99,7 +152,7 @@ Scenario: 792a7c1c Old-schema sidecars are skipped with their own warning
   Then stderr says "1 sidecar(s) on an old schema were skipped" and names engram embed apply --force
 ```
 
-## 792a7d Matched notes and chunks
+### 792a7d Matched notes and chunks
 
 Requirement: [792a7d Matched notes and chunks](#792a7d-matched-notes-and-chunks) For each phrase `engram query` MUST score every note by the higher of its
 situation and body cosine to the phrase, and every indexed chunk by its cosine, rank them together
@@ -116,7 +169,7 @@ bounds the cost of clustering the set, whose silhouette scoring is quadratic in 
 however large the vault and the chunk index grow. Notes and chunks are ranked together so that a transcript fragment
 and the lesson distilled from it compete on one scale.
 
-### 792a7d1 UAT Scenarios
+#### 792a7d1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7d1a Notes are ranked by their better axis
@@ -160,7 +213,7 @@ Scenario: 792a7d1h A note is found by its own situation
   Then that note is among the items, with cosine 1
 ```
 
-## 792a7e Matched-note floor
+### 792a7e Matched-note floor
 
 Requirement: [792a7e Matched-note floor](#792a7e-matched-note-floor) Before keeping a phrase's 30 best, `engram query` MUST reserve up to 5 of the
 slots for notes whose unscaled cosine is at least 0.25, promoting the best such notes ranked below
@@ -171,7 +224,7 @@ Rationale: without the reservation, a flood of transcript chunks with higher cos
 of the matched set entirely. The floor means a promoted note is relevant in its own right, so the reservation never
 surfaces an irrelevant one.
 
-### 792a7e1 UAT Scenarios
+#### 792a7e1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7e1a A relevant note survives a flood of chunks
@@ -195,7 +248,7 @@ Scenario: 792a7e1d A definition note is promoted like any other
   Then the definition note appears among the results
 ```
 
-## 792a7f Recency scaling
+### 792a7f Recency scaling
 
 Requirement: [792a7f Recency scaling](#792a7f-recency-scaling) `engram query` MUST multiply an item's cosine by a recency factor of
 2 to the power of minus its age in days over 60 before ranking, so that an item loses half its score
@@ -211,7 +264,7 @@ recency channel ([792a7o The newest chunks](#792a7o-the-newest-chunks)), so the 
 Notes that `engram learn` writes quote their `created` date, which cannot be read as a bare date, so such a note is
 not scaled until it has been used.
 
-### 792a7f1 UAT Scenarios
+#### 792a7f1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7f1a An old chunk is scaled down
@@ -240,7 +293,7 @@ Scenario: 792a7f1e A late turn is lifted
   Then the last turn's score is 1.2 times the first turn's
 ```
 
-## 792a7g Clusters
+### 792a7g Clusters
 
 Requirement: [792a7g Clusters](#792a7g-clusters) `engram query` MUST cluster the matched notes and chunks together, once for
 all the phrases and not once per phrase, into `clusters`. Each cluster MUST have an `id`, an empty
@@ -256,7 +309,7 @@ Rationale: the clusters group what was found by topic so that the reader judges 
 Clustering the union once keeps the number of clusters small, and the seed is derived from the
 phrases, so the result does not vary between runs.
 
-### 792a7g1 UAT Scenarios
+#### 792a7g1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7g1a Matches form clusters with a representative
@@ -280,7 +333,7 @@ Scenario: 792a7g1d The same query gives the same clusters
   Then both payloads hold the same clusters
 ```
 
-## 792a7h Candidate notes
+### 792a7h Candidate notes
 
 Requirement: [792a7h Candidate notes](#792a7h-candidate-notes) `engram query` MUST give each cluster that has note members a `candidate_l2s`
 list of its own notes, at most five, ranked by the higher of each note's situation and body cosine
@@ -293,7 +346,7 @@ Rationale: the cosine only nominates; whether a candidate covers the situation i
 is the unweighted mean of the cluster's vectors: weighting it by each member's recency would add a third recency lever
 on the same axis, and over-rotating toward recency is a real risk.
 
-### 792a7h1 UAT Scenarios
+#### 792a7h1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7h1a Candidates are the cluster's nearest notes
@@ -312,7 +365,7 @@ Scenario: 792a7h1c A small cluster lists all its notes
   Then candidate_l2s lists all three
 ```
 
-## 792a7i Half of the notes are explored
+### 792a7i Half of the notes are explored
 
 Requirement: [792a7i Half of the notes are explored](#792a7i-half-of-the-notes-are-explored) The notes `engram query` delivers MUST be an exploit half, the notes matched
 above ([792a7d Matched notes and chunks](#792a7d-matched-notes-and-chunks)), and an explore half sampled from the vocabulary's terms ([controlled-vocabulary](./controlled-vocabulary.md)) by their
@@ -327,7 +380,7 @@ Rationale: matches alone only find what resembles the query, so global reach com
 cosine to each term's centroid, which does not tie candidates to an accident of rank or give every term-sharing note
 equal footing. The missing-centroids case fails loudly, as an empty allocation, rather than silently.
 
-### 792a7i1 UAT Scenarios
+#### 792a7i1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7i1a The halves are equal on a healthy vault
@@ -351,7 +404,7 @@ Scenario: 792a7i1d A small vault shortens the explore half
   Then the explore half is smaller than the exploit half and explore_allocated sums to the number delivered
 ```
 
-## 792a7j Explore allocation follows the query
+### 792a7j Explore allocation follows the query
 
 Requirement: [792a7j Explore allocation follows the query](#792a7j-explore-allocation-follows-the-query) `engram query` MUST divide the explore budget among the vocabulary's terms in
 proportion to the softmax of the cosine between the mean of the phrases' vectors and the term's
@@ -364,7 +417,7 @@ Rationale: a hard radius is brittle in cosine space, whereas a softmax needs one
 continuously, so far terms approach an allocation of zero without a cutoff. The bonus gives reach to a term whose
 notes already matched, and is a constant so it cannot compound.
 
-### 792a7j1 UAT Scenarios
+#### 792a7j1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7j1a Nearer terms sample more
@@ -383,7 +436,7 @@ Scenario: 792a7j1c The bonus does not stack
   Then the two are allocated the same
 ```
 
-## 792a7k Explore picks the core of a term
+### 792a7k Explore picks the core of a term
 
 Requirement: [792a7k Explore picks the core of a term](#792a7k-explore-picks-the-core-of-a-term) `engram query` MUST pick a term's explore notes from the notes tagged
 `vocab/<term>`, leaving out definition notes ([792a6a Definition notes](./controlled-vocabulary.md#792a6a-definition-notes)), question notes and notes without a vector,
@@ -394,7 +447,7 @@ Rationale: members near the query are already in the exploit half, so the explor
 concept by its core, and the core excludes the fringe of notes that only just cleared the
 assignment floor of 0.35.
 
-### 792a7k1 UAT Scenarios
+#### 792a7k1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7k1a The core outranks the fringe
@@ -408,13 +461,13 @@ Scenario: 792a7k1b Definition notes are never picked
   Then the definition note is not among them
 ```
 
-## 792a7l Explore picks are not repeated
+### 792a7l Explore picks are not repeated
 
 Requirement: [792a7l Explore picks are not repeated](#792a7l-explore-picks-are-not-repeated) `engram query` MUST drop an explore pick that is already in the exploit half or
 that another term already picked, and MUST refill each freed slot from the terms in order of
 allocation, until the explore budget is met or no candidates remain.
 
-### 792a7l1 UAT Scenarios
+#### 792a7l1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7l1a A duplicate is replaced
@@ -433,7 +486,7 @@ Scenario: 792a7l1c Exhausted candidates leave the budget unmet
   Then every eligible note is picked and the half is smaller than its budget
 ```
 
-## 792a7m Explore picks are reported
+### 792a7m Explore picks are reported
 
 Requirement: [792a7m Explore picks are reported](#792a7m-explore-picks-are-reported) `engram query` MUST give every explore note the provenance `explore` and a
 `source_term` naming its term, the cosine to that term's centroid as its `score`, and its full
@@ -442,7 +495,7 @@ chunks. They MUST NOT be members of any cluster or appear in any `candidate_l2s`
 `explore_allocated` MUST map each contributing term to the number of notes delivered for it, after
 duplicates are dropped, and MUST be present in every payload.
 
-### 792a7m1 UAT Scenarios
+#### 792a7m1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7m1a An explore note names its term
@@ -461,7 +514,7 @@ Scenario: 792a7m1c The budget counts what was delivered
   Then explore_allocated maps that term to 2
 ```
 
-## 792a7n Superseding notes ride along
+### 792a7n Superseding notes ride along
 
 Requirement: [792a7n Superseding notes ride along](#792a7n-superseding-notes-ride-along) When a delivered matched note has been superseded, because a newer note's
 `supersedes:` list names it with `updates`, `narrows` or `refutes`, `engram query` MUST insert the
@@ -474,7 +527,7 @@ already inserted.
 Rationale: a note that corrects another should reach the reader with it. The provenance is distinct
 so that an analysis of rank shifts can tell an insertion from a match.
 
-### 792a7n1 UAT Scenarios
+#### 792a7n1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7n1a The newer note follows the older one
@@ -498,7 +551,7 @@ Scenario: 792a7n1d A missing superseder is skipped
   Then no item is inserted and the query succeeds
 ```
 
-## 792a7o The newest chunks
+### 792a7o The newest chunks
 
 Requirement: [792a7o The newest chunks](#792a7o-the-newest-chunks) `engram query` MUST append to `items`, after the matched items, the newest
 chunks of the chunk index by the time they were first indexed ([792a7p When a chunk was first indexed](#792a7p-when-a-chunk-was-first-indexed)), newest first and with ties
@@ -514,7 +567,7 @@ from recency, with no separate provenance mechanism. The channel is non-load-bea
 shrinks the payload. A zero value stands for the default, because an unset flag and an unset environment variable both
 read as zero; to turn the channel off the value must be negative.
 
-### 792a7o1 UAT Scenarios
+#### 792a7o1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7o1a Recent chunks follow the matches
@@ -548,7 +601,7 @@ Scenario: 792a7o1f A chunk without a time sorts last
   Then the chunk with a time is the one returned
 ```
 
-## 792a7p When a chunk was first indexed
+### 792a7p When a chunk was first indexed
 
 Requirement: [792a7p When a chunk was first indexed](#792a7p-when-a-chunk-was-first-indexed) Every chunk `engram ingest` indexes MUST record the time it was first indexed:
 for a Markdown source the time of the ingest, and for a transcript the timestamp of the last entry
@@ -560,7 +613,7 @@ Rationale: a per-chunk time orders chunks across and within sessions, where the 
 make every chunk in a source look new after one edit. All chunks of one transcript share the session's last timestamp,
 which is a sufficient approximation because each session is its own source.
 
-### 792a7p1 UAT Scenarios
+#### 792a7p1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7p1a A Markdown chunk takes the ingest time
@@ -584,7 +637,7 @@ Scenario: 792a7p1d An old chunk gets its source's modification time
   Then the record's ingested_at is 2026-01-20
 ```
 
-## 792a7q Limit
+### 792a7q Limit
 
 Requirement: [792a7q Limit](#792a7q-limit) `engram query` MUST keep at most `--limit` of the items that are neither trigger
 hits ([792a7za A trigger hit comes first](#792a7za-a-trigger-hit-comes-first)) nor recent chunks ([792a7o The newest chunks](#792a7o-the-newest-chunks)), the highest-ranked first, applied after the recency
@@ -597,7 +650,7 @@ matches never displaces them. It MUST apply in the same way to a query merged wi
 Rationale: counting the recent chunks under the same limit would displace the whole channel whenever the matches alone
 reached it, which in a vault of any size is routine, and so defeat `--recent-fill`.
 
-### 792a7q1 UAT Scenarios
+#### 792a7q1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7q1a The default caps a large result
@@ -626,7 +679,7 @@ Scenario: 792a7q1e The recent chunks survive a full set of matches
   Then items holds two matched items followed by the recent chunks
 ```
 
-## 792a7r Chunk content budget
+### 792a7r Chunk content budget
 
 Requirement: [792a7r Chunk content budget](#792a7r-chunk-content-budget) `engram query` MUST give the first `--content-budget` chunk items of `items`, in
 the order printed, their full content, and MUST reduce the content of every later chunk item to a
@@ -639,7 +692,7 @@ content as `items_with_full_content`, and the number reduced as `chunks_snippete
 
 Rationale: the budget sits at the knee of the cost and quality curve, with headroom for long-chunk recalls.
 
-### 792a7r1 UAT Scenarios
+#### 792a7r1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7r1a Later chunks become snippets
@@ -663,7 +716,7 @@ Scenario: 792a7r1d A negative budget means none
   Then every chunk keeps its full content
 ```
 
-## 792a7s Lazy chunks
+### 792a7s Lazy chunks
 
 Requirement: [792a7s Lazy chunks](#792a7s-lazy-chunks) When `--lazy-chunks` is set, or `ENGRAM_LAZY_CHUNKS` is true, `engram query`
 MUST print each chunk item with its `path` and `score` but no content, MUST leave note items
@@ -674,7 +727,7 @@ Rationale: a recall pass should carry less to read without losing reach, so the 
 `engram show-chunk` ([792a7t Reading one chunk](#792a7t-reading-one-chunk)) and not delivered up front. An agent
 fetches a chunk when it is the only source of a needed fact, and otherwise does not need it.
 
-### 792a7s1 UAT Scenarios
+#### 792a7s1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7s1a Chunks carry no content
@@ -698,14 +751,14 @@ Scenario: 792a7s1d Without the flag the field is absent
   Then the chunk item has its content and the budget has no lazy_chunks
 ```
 
-## 792a7t Reading one chunk
+### 792a7t Reading one chunk
 
 Requirement: [792a7t Reading one chunk](#792a7t-reading-one-chunk) `engram show-chunk <source>#<anchor>` MUST print the text of the chunk with
 that chunk ID, followed by a newline when the text lacks one, and MUST NOT write anything. It MUST
 fail with `chunk not found: <id>` when no chunk has that ID, and with `show-chunk: empty chunk ref`
 when the ID is empty or blank.
 
-### 792a7t1 UAT Scenarios
+#### 792a7t1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7t1a A chunk's text is printed
@@ -724,7 +777,7 @@ Scenario: 792a7t1c An empty ID is an error
   Then it fails with "show-chunk: empty chunk ref"
 ```
 
-## 792a7u Project filter
+### 792a7u Project filter
 
 Requirement: [792a7u Project filter](#792a7u-project-filter) `engram query --project <slug>` MUST restrict the result to notes of that project: it MUST drop every note
 item, whether matched, superseding, explore or ride-along, whose frontmatter `project:` line is not the slug or
@@ -735,7 +788,7 @@ and without `--project` it MUST drop nothing.
 Rationale: the flag restricts items to notes with a matching `project:` field, so it applies to every note the payload
 carries, including the explore half and the superseding notes.
 
-### 792a7u1 UAT Scenarios
+#### 792a7u1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7u1a Notes of other projects are dropped
@@ -759,7 +812,7 @@ Scenario: 792a7u1d Explore and ride-along notes of other projects are dropped
   Then the output holds no note whose project is not alpha, in the items or in the clusters
 ```
 
-## 792a7v Runbooks rank like other notes
+### 792a7v Runbooks rank like other notes
 
 Requirement: [792a7v Runbooks rank like other notes](#792a7v-runbooks-rank-like-other-notes) A `runbook` note MUST be a candidate for `engram query` on the same terms as a
 `fact` or `feedback` note, with the same floor, phrase limit and deduplication, and MUST appear in
@@ -772,7 +825,7 @@ Rationale: only `qa-question` notes are withheld from retrieval, so a runbook ne
 author declares is the one exception, because the agent paraphrases the user's request into its phrases and the
 paraphrase drops the cue, such as "please" and "end-to-end" in a `/please` ask.
 
-### 792a7v1 UAT Scenarios
+#### 792a7v1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7v1a A runbook is returned like a fact
@@ -791,7 +844,7 @@ Scenario: 792a7v1c A runbook has no kind boost
   Then their order follows their scores alone
 ```
 
-## 792a7w Red flags in the query preview
+### 792a7w Red flags in the query preview
 
 Requirement: [792a7w Red flags in the query preview](#792a7w-red-flags-in-the-query-preview) When a runbook is a direct match, a candidate note or a trigger hit, `engram query`
 MUST render its `red_flags` in its content. When the list takes more than 1200 bytes of rendered
@@ -806,7 +859,7 @@ truncation boundary applied outside engram would hide the newest entry from the 
 the entry most likely to matter now, and the marker tells the reader that it has not seen the whole list and how to
 get it.
 
-### 792a7w1 UAT Scenarios
+#### 792a7w1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7w1a Red flags are in the payload
@@ -830,7 +883,7 @@ Scenario: 792a7w1d A trigger hit is truncated the same way
   Then its content holds the same marker
 ```
 
-## 792a7x Reading one note
+### 792a7x Reading one note
 
 Requirement: [792a7x Reading one note](#792a7x-reading-one-note) `engram show <ref>` MUST print the content of the note the ref names,
 frontmatter and body exactly as the file holds them, with every `red_flags` entry and no omission marker, then a line
@@ -849,7 +902,7 @@ preview](#792a7w-red-flags-in-the-query-preview)). It therefore never applies th
 truncates red flags and `query`'s marker names the basename. Truncating inside engram is the only reliable fix,
 because a harness that persists large output keeps the full text.
 
-### 792a7x1 UAT Scenarios
+#### 792a7x1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7x1a A note is printed with its links
@@ -893,7 +946,7 @@ Scenario: 792a7x1h Each link is listed once
   Then the outbound links are 2.alpha, 3.beta and 4.gamma|the gamma note, in that order
 ```
 
-## 792a7y Trigger text
+### 792a7y Trigger text
 
 Requirement: [792a7y Trigger text](#792a7y-trigger-text) `engram query` MUST accept the user's message verbatim as `--text`, and MUST
 use it only to look for runbook triggers: it MUST NOT embed it or match it by similarity. With
@@ -905,7 +958,7 @@ Rationale: matching the agent's paraphrase of a request against a runbook misses
 `/please` too often for cue-triggered skills to rest on similarity alone, so the user's own words are
 passed unchanged. The served form of `--text` is [792a20m A served query takes the message and can return dedupe keys](./vault-serving.md#792a20m-a-served-query-takes-the-message-and-can-return-dedupe-keys).
 
-### 792a7y1 UAT Scenarios
+#### 792a7y1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7y1a Text alone is a trigger lookup
@@ -924,7 +977,7 @@ Scenario: 792a7y1c Text is not matched by similarity
   Then the runbook is not returned
 ```
 
-## 792a7za A trigger hit comes first
+### 792a7za A trigger hit comes first
 
 Requirement: [792a7za A trigger hit comes first](#792a7za-a-trigger-hit-comes-first) When any entry of a runbook's `triggers` occurs in `--text` ([792a7zb Triggers match whole words](#792a7zb-triggers-match-whole-words)), the
 runbook MUST be a trigger hit: it MUST appear in `items` before every other item, with `trigger`
@@ -940,7 +993,7 @@ Hits are items with a `trigger` provenance in `items[]` and not a separate key, 
 frame keys on `items[]`. A probe that checks surfacing must read the `items[]` rank;
 `clusters[].candidate_l2s` is only a capped top-5 for synthesis and is not a surfacing signal.
 
-### 792a7za1 UAT Scenarios
+#### 792a7za1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7za1a A hit with no similarity match is first
@@ -969,7 +1022,7 @@ Scenario: 792a7za1e A hit outside the project is not surfaced
   Then the runbook is not returned
 ```
 
-## 792a7zb Triggers match whole words
+### 792a7zb Triggers match whole words
 
 Requirement: [792a7zb Triggers match whole words](#792a7zb-triggers-match-whole-words) A trigger MUST occur in `--text` as a whole word, compared without regard to
 case after each run of whitespace in both is collapsed to one space. An occurrence is a whole word
@@ -986,7 +1039,7 @@ written with punctuation at its edge, such as `/please`, already carries its own
 while `/pleased` does not. The rule is two rune lookups and a hand-written scan, with no pattern compiled from author
 text. Inflected forms do not hit, because the author lists the forms that should: `curate` does not match `curated`.
 
-### 792a7zb1 UAT Scenarios
+#### 792a7zb1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7zb1a Case and whitespace are ignored
@@ -1035,7 +1088,7 @@ Scenario: 792a7zb1i Hyphen and underscore are boundaries
   Then the runbook is a trigger hit
 ```
 
-## 792a7zc The embedding model
+### 792a7zc The embedding model
 
 Requirement: [792a7zc The embedding model](#792a7zc-the-embedding-model) `engram query` MUST put in its payload the `model_id` of the embedding model that
 produced its results.
@@ -1043,7 +1096,7 @@ produced its results.
 Rationale: a consumer comparing or fusing results from more than one vault can then tell whether
 their models match before treating the scores as comparable.
 
-### 792a7zc1 UAT Scenarios
+#### 792a7zc1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7zc1a Every payload names its model
@@ -1052,13 +1105,13 @@ Scenario: 792a7zc1a Every payload names its model
   Then the payload's model_id is minilm-l6-v2@384
 ```
 
-## 792a7zd A refit is pending
+### 792a7zd A refit is pending
 
 Requirement: [792a7zd A refit is pending](#792a7zd-a-refit-is-pending) `engram query` MUST print `refit_pending: true` when the vault's
 `vocab.centroids.json` records a pending vocabulary refit ([792a6s Refit trigger](./controlled-vocabulary.md#792a6s-refit-trigger)), and MUST NOT print the field
 otherwise, including when the file is absent or unreadable.
 
-### 792a7zd1 UAT Scenarios
+#### 792a7zd1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7zd1a A pending refit is reported
@@ -1072,7 +1125,7 @@ Scenario: 792a7zd1b Otherwise the field is absent
   Then the payload has no refit_pending
 ```
 
-## 792a7ze Stage timings
+### 792a7ze Stage timings
 
 Requirement: [792a7ze Stage timings](#792a7ze-stage-timings) When `--timings` is set, `engram query` MUST add a `timings` block to the
 payload with `scan_ms`, `embed_ms`, `cluster_ms`, `nominate_ms` and `render_ms`, the wall-clock
@@ -1084,7 +1137,7 @@ anything else in it.
 Rationale: a measurement-only diagnostic, so that query speed can be decomposed before it is optimized. The stage key
 `nominate` measures explore sampling and ride-along assembly.
 
-### 792a7ze1 UAT Scenarios
+#### 792a7ze1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7ze1a Timings are reported on request
@@ -1098,7 +1151,7 @@ Scenario: 792a7ze1b Timings are absent by default
   Then the payload has no timings block
 ```
 
-## 792a7zf Searching chunks alone
+### 792a7zf Searching chunks alone
 
 Requirement: [792a7zf Searching chunks alone](#792a7zf-searching-chunks-alone) `engram query-chunks --phrase <p>` MUST score every chunk in the chunk index by
 its best cosine over the phrases, without recency scaling, and print the best `--limit` (20 by
@@ -1109,7 +1162,7 @@ members' `source`, `anchor` and `score`. It MUST end with a `budget` of `total_c
 `returned`. It MUST fail with `query chunks: at least one --phrase is required` without a phrase. An
 empty or absent chunk index MUST give an empty payload without embedding the phrase.
 
-### 792a7zf1 UAT Scenarios
+#### 792a7zf1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7zf1a Chunks are ranked by cosine
@@ -1138,14 +1191,14 @@ Scenario: 792a7zf1e An empty index is an empty payload
   Then the payload has no items, and the budget says total_chunks: 0
 ```
 
-## 792a7zg CRLF notes
+### 792a7zg CRLF notes
 
 Requirement: [792a7zg CRLF notes](#792a7zg-crlf-notes) `engram query` MUST read a note whose lines end in `\r\n` as its LF form (each
 `\r\n` read as `\n`), in its project filter, its recency date, the tags, supersessions and triggers it
 reads from frontmatter, the note's kind label, and the preview of its red flags, and MUST NOT
 write a note only to convert it.
 
-### 792a7zg1 UAT Scenarios
+#### 792a7zg1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7zg1a The project filter reads a CRLF note
@@ -1184,7 +1237,7 @@ Scenario: 792a7zg1g The lists in a CRLF note's frontmatter are read
   Then the tagged note can be an explore note, and the superseding note rides along
 ```
 
-## 792a7zh A query changes nothing
+### 792a7zh A query changes nothing
 
 Requirement: [792a7zh A query changes nothing](#792a7zh-a-query-changes-nothing) `engram query` MUST NOT write any note, sidecar or chunk-index file, and MUST NOT
 mark a note as used: it MUST NOT change a sidecar's `last_used`, and its payload MUST NOT carry an
@@ -1194,7 +1247,7 @@ Rationale: activation is agent-driven. A note that was returned but not used goe
 rank, which is the mechanism by which unhelpful memory loses its place; if every returned note were
 bumped, nothing would ever fade.
 
-### 792a7zh1 UAT Scenarios
+#### 792a7zh1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a7zh1a A query leaves the vault as it was

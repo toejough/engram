@@ -9,7 +9,57 @@ authentication of its own, so the network that can reach its address is the trus
 exchange (the outbox, merged queries and pull-down) is [parent-sync](./parent-sync.md). The unrelated multi-agent chat server of an
 earlier era and the Cloudflare dependency are gone, and nothing here depends on either.
 
-## 792a20a The served command set is fixed
+## 792a20 Vault Serving
+
+**Participants and responsibilities.**
+- The operator: starts `engram serve` with an explicit bind address; the network that can reach that address is the
+  trust boundary ([792a20b A bind address must be given](#792a20b-a-bind-address-must-be-given)).
+- A child (another environment with its own local [vault](../../GLOSSARY.md#vault)): reads this node's notes and
+  [offers](../../GLOSSARY.md#offer) the notes it learns through `query`, `show`, `activate` and `learn`, declaring the
+  identity its offers carry ([792a20a The served command set is fixed](#792a20a-the-served-command-set-is-fixed),
+  [792a20e A served learn is attributed to the identity the caller declares](#792a20e-a-served-learn-is-attributed-to-the-identity-the-caller-declares)).
+- Curation: judges each served offer, which waits as a pending note, before it counts as knowledge
+  ([792a20d A served learn lands as a pending offer and returns a receipt](#792a20d-a-served-learn-lands-as-a-pending-offer-and-returns-a-receipt)).
+- The software: serves exactly those four commands, each behaving as its local command
+  ([792a20a The served command set is fixed](#792a20a-the-served-command-set-is-fixed),
+  [792a20c Served commands behave as the local ones](#792a20c-served-commands-behave-as-the-local-ones)), writes a
+  served `learn` as a pending offer and answers with a receipt
+  ([792a20d A served learn lands as a pending offer and returns a receipt](#792a20d-a-served-learn-lands-as-a-pending-offer-and-returns-a-receipt)),
+  and finds the note an offer belongs to or refuses an invalid offer
+  ([792a20g A served learn finds the note an offer belongs to](#792a20g-a-served-learn-finds-the-note-an-offer-belongs-to),
+  [792a20h An invalid offer is refused with nothing written](#792a20h-an-invalid-offer-is-refused-with-nothing-written)).
+
+**Interactions.** A child hands `learn` an offer; the server writes it as a pending offer and answers with a receipt
+that carries no note content
+([792a20d A served learn lands as a pending offer and returns a receipt](#792a20d-a-served-learn-lands-as-a-pending-offer-and-returns-a-receipt)).
+A child hands `query` the user's message as `text`, with `dedupe-keys=1` when it dedupes a merged result; the server
+answers with the payload the local query gives, adding the [vault ID](../../GLOSSARY.md#vault-id) and each note's
+[exchange hash](../../GLOSSARY.md#exchange-hash) and any aliases on request
+([792a20m A served query takes the message and can return dedupe keys](#792a20m-a-served-query-takes-the-message-and-can-return-dedupe-keys)).
+A child hands `show` with `raw=1` a note name and gets a JSON envelope of the note
+([792a20k A served show returns a note, and a raw envelope on request](#792a20k-a-served-show-returns-a-note-and-a-raw-envelope-on-request)),
+and hands `activate` note names to have their last-used date bumped
+([792a20l A served activate takes note names only](#792a20l-a-served-activate-takes-note-names-only)).
+
+**Boundary assumptions.** The server assumes the operator names its bind address; without `--addr` it refuses to start
+([792a20b A bind address must be given](#792a20b-a-bind-address-must-be-given)). It assumes the caller declares its
+own identity and trusts it, since the caller and the server share a network trust boundary; an empty declared identity
+is refused with 400 and nothing is written
+([792a20e A served learn is attributed to the identity the caller declares](#792a20e-a-served-learn-is-attributed-to-the-identity-the-caller-declares)).
+It assumes a well-formed offer: a malformed path or origin, a key or path without an origin, or invalid note content
+is a 400, and an offer whose path already holds the server's own vault ID is a 409 with reason `loop`
+([792a20h An invalid offer is refused with nothing written](#792a20h-an-invalid-offer-is-refused-with-nothing-written)).
+It assumes note names in `activate` and a request body of at most 4 MiB: a path-shaped ref is a 400
+([792a20l A served activate takes note names only](#792a20l-a-served-activate-takes-note-names-only)) and a larger
+body a 413 ([792a20n Request and response bodies are capped](#792a20n-request-and-response-bodies-are-capped)).
+
+**Shared rules.** Offers are judged by [Curate](./curate.md); the children's side of the exchange is owned by
+[Parent Sync](./parent-sync.md); the first-write stamp of a served `learn` is owned by
+[Note Writing](./note-writing.md) ([792a3o Repository provenance](./note-writing.md#792a3o-repository-provenance),
+[792a3p User provenance](./note-writing.md#792a3p-user-provenance)); the vocabulary that tags a served offer is owned
+by [Controlled Vocabulary](./controlled-vocabulary.md).
+
+### 792a20a The served command set is fixed
 
 Requirement: [792a20a The served command set is fixed](#792a20a-the-served-command-set-is-fixed) `engram serve` MUST expose exactly `query` and `show` (by GET) and `activate` and `learn` (by
 POST) over HTTP, and MUST NOT expose `amend`, `query-chunks`, `show-chunk`, `ingest`, `vocab refit`, `prune`, `check`,
@@ -24,7 +74,7 @@ the caller declares ([792a20e A served learn is attributed to the identity the c
 declares](#792a20e-a-served-learn-is-attributed-to-the-identity-the-caller-declares)). Offer and curation judgment run
 off the request path, in a skill and not in server code.
 
-### 792a20a1 UAT Scenarios
+#### 792a20a1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a20a1a A served command is reachable
@@ -43,7 +93,7 @@ Scenario: 792a20a1c A served command refuses the wrong method
   Then the server answers 405
 ```
 
-## 792a20b A bind address must be given
+### 792a20b A bind address must be given
 
 Requirement: [792a20b A bind address must be given](#792a20b-a-bind-address-must-be-given) `engram serve` MUST require an explicit bind address in `--addr` and MUST NOT start without one,
 and MUST NOT default to the wildcard address `0.0.0.0` or to any address. `engram serve --help` MUST describe the four
@@ -53,7 +103,7 @@ and `--chunks-dir`.
 Rationale: a server that binds a default address can expose a vault to a network its operator never chose, so the
 operator names the address. The address has no environment fallback either.
 
-### 792a20b1 UAT Scenarios
+#### 792a20b1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a20b1a No address, no server
@@ -72,7 +122,7 @@ Scenario: 792a20b1c The help states the address rule
   Then it names query, show, activate and learn, says --addr is required and never defaults to 0.0.0.0, and lists --vault, --vault-name and --chunks-dir
 ```
 
-## 792a20c Served commands behave as the local ones
+### 792a20c Served commands behave as the local ones
 
 Requirement: [792a20c Served commands behave as the local ones](#792a20c-served-commands-behave-as-the-local-ones) Every served command MUST run through the same implementation and the same vault locks as the
 local command, MUST give the result the local command gives for the same arguments, and MUST NOT let a served request
@@ -83,7 +133,7 @@ Rationale: a second implementation of a command would drift from the first. Shar
 and a served write racing on one vault each apply, with neither lost. The vault, vault name and chunk index are fixed
 once at startup.
 
-### 792a20c1 UAT Scenarios
+#### 792a20c1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a20c1a A served query matches the local query
@@ -107,7 +157,7 @@ Scenario: 792a20c1d A request cannot redirect the server
   Then the server's own vault and chunk index are used
 ```
 
-## 792a20d A served learn lands as a pending offer and returns a receipt
+### 792a20d A served learn lands as a pending offer and returns a receipt
 
 Requirement: [792a20d A served learn lands as a pending offer and returns a receipt](#792a20d-a-served-learn-lands-as-a-pending-offer-and-returns-a-receipt) A served `learn` MUST write its note as a pending offer in the served vault, never as an
 immediately live note, and MUST answer with a receipt that is a JSON object carrying `status` (`offer received`),
@@ -119,7 +169,7 @@ The receipt MUST NOT carry the note's content or any curation outcome.
 Rationale: curation judges an offer before it counts as knowledge ([curate](./curate.md)), so the receiving side learns nothing it
 has not vetted. The receipt tells the child what the note became, so a retry or a later amend finds the same note.
 
-### 792a20d1 UAT Scenarios
+#### 792a20d1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a20d1a The receipt names the pending note
@@ -138,7 +188,7 @@ Scenario: 792a20d1c The receipt carries no content
   Then it holds no note content and no curation outcome
 ```
 
-## 792a20e A served learn is attributed to the identity the caller declares
+### 792a20e A served learn is attributed to the identity the caller declares
 
 Requirement: [792a20e A served learn is attributed to the identity the caller declares](#792a20e-a-served-learn-is-attributed-to-the-identity-the-caller-declares) A served `learn` MUST stamp the note's `user:` from the identity the calling instance declares in
 the request body, the same locally detected value that instance would use for a local write, and MUST NOT require or
@@ -154,7 +204,7 @@ is refused, since it is the one value that cannot be a real identity. Two `engra
 allowed, because the flock-covered writes and stateless pending-offer detection make that safe and the remaining cost
 is redundant resource use.
 
-### 792a20e1 UAT Scenarios
+#### 792a20e1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a20e1a The declared identity is stamped as given
@@ -173,7 +223,7 @@ Scenario: 792a20e1c No edge header is needed
   Then the request succeeds and the note's user: is the declared value
 ```
 
-## 792a20f A served learn stamps the caller's repo, the served vault's name and the first-write identity
+### 792a20f A served learn stamps the caller's repo, the served vault's name and the first-write identity
 
 Requirement: [792a20f A served learn stamps the caller's repo, the served vault's name and the first-write identity](#792a20f-a-served-learn-stamps-the-callers-repo-the-served-vaults-name-and-the-first-write-identity) A served `learn` MUST take `repo:` from the value the caller declares and MUST NOT substitute a
 value the server detects for itself. It MUST stamp `vault:` with the vault name the caller sent and otherwise with the
@@ -184,7 +234,7 @@ Rationale: the server's own repository context is the remote caller's wrong answ
 caller. The first-write stamp is the one every learn applies ([792a3o Repository provenance](./note-writing.md#792a3o-repository-provenance), [792a3p User provenance](./note-writing.md#792a3p-user-provenance)), and a served learn's rewrite of a pending
 offer is a first write of that content.
 
-### 792a20f1 UAT Scenarios
+#### 792a20f1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a20f1a repo reflects the caller's detection
@@ -203,7 +253,7 @@ Scenario: 792a20f1c An in-place rewrite is stamped from its own request
   Then the rewritten note carries no repo: and the user: of the new request
 ```
 
-## 792a20g A served learn finds the note an offer belongs to
+### 792a20g A served learn finds the note an offer belongs to
 
 Requirement: [792a20g A served learn finds the note an offer belongs to](#792a20g-a-served-learn-finds-the-note-an-offer-belongs-to) A served `learn` MUST do its lookup, any rewrite, any re-embed and the building of its receipt in
 one locked section, and MUST check these cases in order. An offer whose non-empty `offer.key` any note, live or
@@ -222,7 +272,7 @@ superseded key never rewrites a newer same-origin amend back to old content. An 
 pending note rather than queueing a second one. A different origin's pending note is never overwritten, because the
 caller does not own it.
 
-### 792a20g1 UAT Scenarios
+#### 792a20g1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a20g1a An amend before curation updates the pending offer
@@ -286,7 +336,7 @@ Scenario: 792a20g1l An unreadable note fails the request
   Then the server answers an error and writes nothing, so that the child retries
 ```
 
-## 792a20h An invalid offer is refused with nothing written
+### 792a20h An invalid offer is refused with nothing written
 
 Requirement: [792a20h An invalid offer is refused with nothing written](#792a20h-an-invalid-offer-is-refused-with-nothing-written) A served `learn` MUST answer 400 and write nothing when `offer.path` has more than 16 entries,
 when any `offer.path` entry is not exactly 32 lowercase hexadecimal characters, when `offer.origin` is not two such
@@ -299,7 +349,7 @@ Rationale: `offer.path` bounds how far an offer propagates and lets a server tha
 it. A malformed offer is a client error the child must not retry, so it is a 400 rather than a 5xx. The `loop` reason
 and the vault ID let a child that is its own parent, or sits on the cycle, recognize and cache the refusal.
 
-### 792a20h1 UAT Scenarios
+#### 792a20h1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a20h1a A key without an origin is rejected
@@ -328,7 +378,7 @@ Scenario: 792a20h1e Invalid note content is a client error
   Then the response is 400 and nothing is written
 ```
 
-## 792a20i Placement and tags are the server's
+### 792a20i Placement and tags are the server's
 
 Requirement: [792a20i Placement and tags are the server's](#792a20i-placement-and-tags-are-the-servers) A served `learn` MUST place every new pending note at top level and MUST ignore any `target` or
 `position` the caller sent, and MUST drop any `tags` in the request, both on a new pending note and on a same-origin
@@ -337,7 +387,7 @@ rewrite.
 Rationale: placement in the Luhmann tree is the receiving vault's, and tags are the vocabulary of the vault that holds
 the note, so the receiving vault assigns its own ([792a20o The receiving vault tags a served offer](#792a20o-the-receiving-vault-tags-a-served-offer)).
 
-### 792a20i1 UAT Scenarios
+#### 792a20i1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a20i1a Placement is ignored
@@ -351,7 +401,7 @@ Scenario: 792a20i1b Wire tags are dropped
   Then it carries none of those tags
 ```
 
-## 792a20j A caller cannot set link, identity or registration fields
+### 792a20j A caller cannot set link, identity or registration fields
 
 Requirement: [792a20j A caller cannot set link, identity or registration fields](#792a20j-a-caller-cannot-set-link-identity-or-registration-fields) A served `learn` MUST NOT let its request body populate a note's `parent`, `aliases`, `xid`,
 `offer.prior_keys`, `skill_hash`, `skill_key` or `skill_source`, whatever the spelling of the key in the body. The only
@@ -362,7 +412,7 @@ Rationale: a remote client that could set a link or an exchange ID could forge a
 or a registration identity it was never given. An offer can only create or update a pending note, never a live one, and
 curation reviews every one, so the worst a hostile caller does is queue work.
 
-### 792a20j1 UAT Scenarios
+#### 792a20j1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a20j1a Remote-set link and registration fields are ignored
@@ -376,7 +426,7 @@ Scenario: 792a20j1b A caller cannot forge a link
   Then it carries none of those values, and its xid is one the server minted
 ```
 
-## 792a20k A served show returns a note, and a raw envelope on request
+### 792a20k A served show returns a note, and a raw envelope on request
 
 Requirement: [792a20k A served show returns a note, and a raw envelope on request](#792a20k-a-served-show-returns-a-note-and-a-raw-envelope-on-request) The served `show` MUST, without `raw`, return exactly the local `engram show` output, including the
 exchange-hash header line for a note that carries an `xid`. With `raw=1` it MUST resolve `note` against basenames and
@@ -388,7 +438,7 @@ note MUST be treated as missing on the raw route, whether named by basename or b
 Rationale: the raw envelope is JSON with a `vault_id`, so it cannot be mistaken for the rendered output of an older
 parent. A pending note is an unvetted offer and not the vault's note, so it is never pulled down as one.
 
-### 792a20k1 UAT Scenarios
+#### 792a20k1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a20k1a Show without raw matches the local output
@@ -422,7 +472,7 @@ Scenario: 792a20k1f A missing ref is a bad request
   Then the response is 400
 ```
 
-## 792a20l A served activate takes note names only
+### 792a20l A served activate takes note names only
 
 Requirement: [792a20l A served activate takes note names only](#792a20l-a-served-activate-takes-note-names-only) The served `activate` MUST resolve each ref only against the vault's listed note names, with or
 without `.md`, and never join a ref into a filesystem path. A request with any ref that is an absolute path, contains a
@@ -436,7 +486,7 @@ Rationale: a ref joined into a path would let an unauthenticated caller reach ou
 changes a note's content, so there is no new claim for curation to judge, and a 5xx therefore only ever means a
 server-side failure.
 
-### 792a20l1 UAT Scenarios
+#### 792a20l1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a20l1a A path ref is rejected
@@ -470,7 +520,7 @@ Scenario: 792a20l1f Local activate keeps paths
   Then the note is activated
 ```
 
-## 792a20m A served query takes the message and can return dedupe keys
+### 792a20m A served query takes the message and can return dedupe keys
 
 Requirement: [792a20m A served query takes the message and can return dedupe keys](#792a20m-a-served-query-takes-the-message-and-can-return-dedupe-keys) The served `query` MUST accept the client's `--text` value as the `text` query-string parameter,
 and MUST truncate it to at most 2048 bytes on a UTF-8 rune boundary, never splitting a multi-byte character, before it
@@ -483,7 +533,7 @@ Without the parameter the payload MUST be unchanged.
 Rationale: trigger cues occur early in a message, so a silent cut at 2 KB loses none that matter, and the cap bounds the
 query string a caller can make the server hold. The keys are what a child dedupes a merged result by.
 
-### 792a20m1 UAT Scenarios
+#### 792a20m1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a20m1a Short text round-trips unchanged
@@ -507,7 +557,7 @@ Scenario: 792a20m1d A note whose keys cannot be computed loses only its own
   Then the other notes keep theirs, the query succeeds and the server warns once for the skipped note
 ```
 
-## 792a20n Request and response bodies are capped
+### 792a20n Request and response bodies are capped
 
 Requirement: [792a20n Request and response bodies are capped](#792a20n-request-and-response-bodies-are-capped) `engram serve` MUST read at most 4 MiB of a request body and MUST answer 413 on every route, writing
 nothing, when the body is over that cap, and MUST answer 400 for any other failure to read a body in full. A child MUST
@@ -517,7 +567,7 @@ Rationale: an unauthenticated caller must not be able to make the server buffer 
 must not exhaust a child's memory. An offer or an activate body is a few KB, so the caps leave ample room. The exchange
 that uses a parent's response is parent-sync's ([parent-sync](./parent-sync.md)).
 
-### 792a20n1 UAT Scenarios
+#### 792a20n1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a20n1a An oversized request is refused
@@ -536,7 +586,7 @@ Scenario: 792a20n1c An oversized parent response is refused
   Then the request fails as the parent's failure and nothing from it is stored
 ```
 
-## 792a20o The receiving vault tags a served offer
+### 792a20o The receiving vault tags a served offer
 
 Requirement: [792a20o The receiving vault tags a served offer](#792a20o-the-receiving-vault-tags-a-served-offer) After a served `learn` writes or rewrites a pending offer, the served vault MUST assign it
 `vocab/<term>` tags from the vault's own vocabulary as it does for any note it writes, and the offer's own tags MUST NOT
@@ -544,7 +594,7 @@ be kept ([792a20i Placement and tags are the server's](#792a20i-placement-and-ta
 
 Rationale: tags are the vocabulary of the vault that holds the note ([controlled-vocabulary](./controlled-vocabulary.md)), so a child's tags would mean nothing here.
 
-### 792a20o1 UAT Scenarios
+#### 792a20o1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a20o1a A served offer is tagged by the receiving vault

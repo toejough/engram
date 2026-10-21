@@ -4,16 +4,65 @@ Every engram command that reads or writes notes works against one vault: a direc
 notes on the local filesystem. This capability covers where that vault is, how it comes into
 existence, and the stable identity that keeps a copied, cloned or self-parented vault from
 exchanging notes under another vault's name. The chunk-only commands `prune`, `query-chunks` and
-`show-chunk` resolve no vault. Exchange with a parent vault itself is the parent-sync capability ([parent-sync](./parent-sync.md)).
+`show-chunk`, and the `auto` commands `moment`, `phrases` and `sweep`, resolve no vault. Exchange with a parent vault itself is the parent-sync capability ([parent-sync](./parent-sync.md)).
 
-## 792a2a Vault location
+## 792a2 Vault Identity
+
+**Participants and responsibilities.**
+- The user: chooses the [vault](../../GLOSSARY.md#vault)'s path and name by flag, environment variable or default
+  ([792a2a Vault location](#792a2a-vault-location), [792a2b Vault name](#792a2b-vault-name)), commits
+  `.engram-vault-id` once in a git-backed vault when [`engram update`](../../GLOSSARY.md#engram-update) asks
+  ([792a2i Uncommitted vault ID notice](#792a2i-uncommitted-vault-id-notice)), and answers a copy with
+  `engram vault-id --regenerate` and a moved vault with `engram vault-id --claim`
+  ([792a2m Regenerating the vault ID](#792a2m-regenerating-the-vault-id),
+  [792a2n Claiming a moved vault](#792a2n-claiming-a-moved-vault)).
+- The software: keeps notes at the vault root ([792a2c Flat vault layout](#792a2c-flat-vault-layout)), creates the
+  vault with its [vault ID](../../GLOSSARY.md#vault-id) and repairs an interrupted creation
+  ([792a2e First-use vault creation](#792a2e-first-use-vault-creation),
+  [792a2g Interrupted creation is repaired](#792a2g-interrupted-creation-is-repaired),
+  [792a2h Stable vault ID](#792a2h-stable-vault-id)), leaves an existing vault untouched by read-only use
+  ([792a2f Existing vaults are left alone](#792a2f-existing-vaults-are-left-alone)), and pauses exchange for a copied,
+  cloned or self-parented vault
+  ([792a2p Copied and cloned vaults pause exchange](#792a2p-copied-and-cloned-vaults-pause-exchange),
+  [792a2q A vault does not exchange with itself](#792a2q-a-vault-does-not-exchange-with-itself)).
+- Retained by other systems: a parent vault (third party) reports its own vault ID, which the software compares with
+  the local one; the software assumes the report
+  ([792a2q A vault does not exchange with itself](#792a2q-a-vault-does-not-exchange-with-itself)).
+
+**Interactions.** The user hands the software a vault path and a vault name by flag, environment variable or default,
+and the software uses the first one set ([792a2a Vault location](#792a2a-vault-location),
+[792a2b Vault name](#792a2b-vault-name)). The software hands the user a notice asking for a one-time vault commit when
+`.engram-vault-id` is untracked, ignored, staged or modified
+([792a2i Uncommitted vault ID notice](#792a2i-uncommitted-vault-id-notice)), and a warning naming
+`engram vault-id --regenerate` and `engram vault-id --claim` when the location record is missing or differs
+([792a2p Copied and cloned vaults pause exchange](#792a2p-copied-and-cloned-vaults-pause-exchange)); the user answers
+a copy with `--regenerate` and a moved or re-cloned vault with `--claim`
+([792a2m Regenerating the vault ID](#792a2m-regenerating-the-vault-id),
+[792a2n Claiming a moved vault](#792a2n-claiming-a-moved-vault)).
+
+**Boundary assumptions.** The software assumes `.engram-vault-id` holds 32 lowercase hex characters; when it does not,
+it reports the ID invalid, names `engram vault-id --regenerate`, leaves the file unchanged, and `engram serve` still
+starts ([792a2j Corrupt vault ID](#792a2j-corrupt-vault-id)). It assumes the vault's location record matches its path
+and ID; when the record is missing or differs, it sends no [offer](../../GLOSSARY.md#offer) and pulls nothing down
+([792a2p Copied and cloned vaults pause exchange](#792a2p-copied-and-cloned-vaults-pause-exchange)). It assumes a
+parent is another vault; when a parent reports the local vault's own ID, it merges, pulls down, sends and queues
+nothing and prints one warning
+([792a2q A vault does not exchange with itself](#792a2q-a-vault-does-not-exchange-with-itself)).
+
+**Shared rules.** Exchange with a parent vault is owned by [Parent Sync](./parent-sync.md)
+([792a21y A looping offer is refused](./parent-sync.md#792a21y-a-looping-offer-is-refused)); the commands that
+[automatic memory](../../GLOSSARY.md#automatic-memory) runs on its own create no vault by
+[Automatic Memory](./automatic-memory.md)
+([793a2a On after `engram update`](./automatic-memory.md#793a2a-on-after-engram-update)).
+
+### 792a2a Vault location
 
 Requirement: [792a2a Vault location](#792a2a-vault-location) Engram MUST use, as the vault path, the first of these that is set: the
 `--vault` flag, the `ENGRAM_VAULT_PATH` environment variable, `$XDG_DATA_HOME/engram/vault`, and
 `~/.local/share/engram/vault`. `engram update` defines no `--vault` flag and rejects one, so it
 takes its vault from the last three only.
 
-### 792a2a1 UAT Scenarios
+#### 792a2a1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a2a1a The flag wins over the environment
@@ -37,13 +86,13 @@ Scenario: 792a2a1d The home directory is the last fallback
   Then the command uses ~/.local/share/engram/vault
 ```
 
-## 792a2b Vault name
+### 792a2b Vault name
 
 Requirement: [792a2b Vault name](#792a2b-vault-name) Engram MUST record a vault name in the `vault:` field of every note it writes,
 taken from the first of these that is set: the `--vault-name` flag, the `ENGRAM_VAULT_NAME`
 environment variable, and the default `personal`.
 
-### 792a2b1 UAT Scenarios
+#### 792a2b1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a2b1a The default vault name is personal
@@ -62,7 +111,7 @@ Scenario: 792a2b1c The flag wins over the environment
   Then the note's vault: field is org
 ```
 
-## 792a2c Flat vault layout
+### 792a2c Flat vault layout
 
 Requirement: [792a2c Flat vault layout](#792a2c-flat-vault-layout) Engram MUST NOT treat a file inside a vault subdirectory as a note; notes live
 at the vault root.
@@ -70,7 +119,7 @@ at the vault root.
 Rationale: the vault is flat, with no `Permanent/` or `MOCs/` tiers, so a note's place in the vault is carried by its
 Luhmann ID, not by a folder.
 
-### 792a2c1 UAT Scenarios
+#### 792a2c1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a2c1a A Markdown file in a subdirectory is not a note
@@ -79,7 +128,7 @@ Scenario: 792a2c1a A Markdown file in a subdirectory is not a note
   Then it reports a total of 1 note
 ```
 
-## 792a2d Starter README
+### 792a2d Starter README
 
 Requirement: [792a2d Starter README](#792a2d-starter-readme) Engram MUST NOT treat the untouched starter `README.md` it writes into a new
 vault as a note, and MUST treat any other root `README.md` as a note.
@@ -87,7 +136,7 @@ vault as a note, and MUST treat any other root `README.md` as a note.
 Rationale: a freshly created vault must report itself clean; the starter README is recognized by
 its exact content, so a user's own README, or an edited starter, stays a normal note.
 
-### 792a2d1 UAT Scenarios
+#### 792a2d1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a2d1a A fresh vault has no notes
@@ -101,7 +150,7 @@ Scenario: 792a2d1b A user's README is a note
   Then embed status reports a total of 1 note and check reports 1 note missing a sidecar
 ```
 
-## 792a2e First-use vault creation
+### 792a2e First-use vault creation
 
 Requirement: [792a2e First-use vault creation](#792a2e-first-use-vault-creation) Every command that resolves a vault path, other than the commands that [automatic memory](../../GLOSSARY.md#automatic-memory) runs on its own, MUST, when no [vault](../../GLOSSARY.md#vault) exists at that
 path, create one before the command runs, whether or not `ENGRAM_PARENT` is set, and print exactly
@@ -112,7 +161,7 @@ a `.gitignore`, a starter `README.md`, a vault ID ([792a2h Stable vault ID](#792
 Rationale: the single stderr line makes a mistyped `--vault` or
 `ENGRAM_VAULT_PATH` visible, and the `.obsidian/` starter lets Obsidian open the directory as a vault. A [prompt](../../GLOSSARY.md#prompt-automatic-memory) must not create a vault the user has not asked for, and a missing vault is the user's to create with a command they run (scenario [793a2a1e A vault that does not exist is not created](./automatic-memory.md#793a2a1-uat-scenarios)).
 
-### 792a2e1 UAT Scenarios
+#### 792a2e1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a2e1a A read command creates the vault
@@ -136,7 +185,7 @@ Scenario: 792a2e1d A second run creates nothing
   Then no creation line is printed and the vault ID is unchanged
 ```
 
-## 792a2f Existing vaults are left alone
+### 792a2f Existing vaults are left alone
 
 Requirement: [792a2f Existing vaults are left alone](#792a2f-existing-vaults-are-left-alone) A command MUST NOT create or modify any file, or print the creation line, when it
 runs read-only against an existing vault while no parent is configured.
@@ -144,7 +193,7 @@ runs read-only against an existing vault while no parent is configured.
 Rationale: `.engram-vault-id` is tracked, so stamping it on read-only use would dirty a git-backed
 vault on every host that merely reads it.
 
-### 792a2f1 UAT Scenarios
+#### 792a2f1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a2f1a An existing vault is untouched by read-only use
@@ -153,7 +202,7 @@ Scenario: 792a2f1a An existing vault is untouched by read-only use
   Then no vault file is created or modified, and no creation line is printed
 ```
 
-## 792a2g Interrupted creation is repaired
+### 792a2g Interrupted creation is repaired
 
 Requirement: [792a2g Interrupted creation is repaired](#792a2g-interrupted-creation-is-repaired) When a vault has the `.engram/` state directory but no vault ID, because its
 first-use creation stopped part-way, the next command that resolves it MUST give it a vault ID and
@@ -162,7 +211,7 @@ print exactly one stderr line, `engram: stamped the missing vault ID of <path>`.
 Rationale: creation writes `.engram/` before the ID, so `.engram/` marks a vault engram created,
 and a pre-existing vault with neither stays untouched ([792a2f Existing vaults are left alone](#792a2f-existing-vaults-are-left-alone)).
 
-### 792a2g1 UAT Scenarios
+#### 792a2g1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a2g1a A half-created vault gets its ID
@@ -171,7 +220,7 @@ Scenario: 792a2g1a A half-created vault gets its ID
   Then .engram-vault-id is created and stderr carries one line saying the missing vault ID was stamped
 ```
 
-## 792a2h Stable vault ID
+### 792a2h Stable vault ID
 
 Requirement: [792a2h Stable vault ID](#792a2h-stable-vault-id) Every vault MUST have a random vault ID of 32 lowercase hex characters in the
 tracked file `<vault>/.engram-vault-id`. A new vault gets it when it is created. An existing vault
@@ -183,7 +232,7 @@ Rationale: links to a parent's notes are keyed by the parent's vault ID, never b
 or IP change breaks nothing. Lazy stamping keeps read-only use of an existing vault from creating a
 tracked file ([792a2f Existing vaults are left alone](#792a2f-existing-vaults-are-left-alone)).
 
-### 792a2h1 UAT Scenarios
+#### 792a2h1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a2h1a serve stamps an existing vault
@@ -202,7 +251,7 @@ Scenario: 792a2h1c Concurrent creation converges
   Then exactly one file is written, and both processes use its ID
 ```
 
-## 792a2i Uncommitted vault ID notice
+### 792a2i Uncommitted vault ID notice
 
 Requirement: [792a2i Uncommitted vault ID notice](#792a2i-uncommitted-vault-id-notice) `engram update` MUST print a notice asking for a one-time vault commit while
 `.engram-vault-id` exists in a git-backed vault and is untracked, ignored, staged, or modified
@@ -211,7 +260,7 @@ relative to the last commit, and MUST print no such notice otherwise.
 Rationale: the ID file's first creation in an existing git-backed vault is a deliberate one-time
 commit (`vault: add vault id`).
 
-### 792a2i1 UAT Scenarios
+#### 792a2i1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a2i1a Uncommitted ID is flagged
@@ -235,7 +284,7 @@ Scenario: 792a2i1d A vault outside git is not flagged
   Then its report includes no commit notice
 ```
 
-## 792a2j Corrupt vault ID
+### 792a2j Corrupt vault ID
 
 Requirement: [792a2j Corrupt vault ID](#792a2j-corrupt-vault-id) When `.engram-vault-id` is empty or does not hold 32 lowercase hex characters,
 engram MUST report it as invalid with a message naming `engram vault-id --regenerate`, and MUST
@@ -245,7 +294,7 @@ results.
 Rationale: a partial write or a git conflict can corrupt the file; refusing to serve would turn it
 into a host outage.
 
-### 792a2j1 UAT Scenarios
+#### 792a2j1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a2j1a serve starts despite a corrupt ID
@@ -264,7 +313,7 @@ Scenario: 792a2j1c vault-id reports the corrupt file
   Then it fails with an error saying the vault ID is invalid
 ```
 
-## 792a2k Exchange state outside tracked files
+### 792a2k Exchange state outside tracked files
 
 Requirement: [792a2k Exchange state outside tracked files](#792a2k-exchange-state-outside-tracked-files) Engram MUST keep transient exchange state in `<vault>/.engram/`, whose own
 `.gitignore` holds only the pattern `*`, and MUST NOT write exchange state to the vault root or
@@ -273,7 +322,7 @@ modify the vault's root `.gitignore`.
 Rationale: the outbox lives under `<vault>/.engram/`, which is untracked, so it never dirties the vault's repository
 on any host, and it travels with the vault when the vault moves.
 
-### 792a2k1 UAT Scenarios
+#### 792a2k1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a2k1a State does not dirty the vault's git
@@ -287,14 +336,14 @@ Scenario: 792a2k1b The root .gitignore is untouched
   Then the root .gitignore is byte-for-byte unchanged
 ```
 
-## 792a2l Inspecting the vault ID
+### 792a2l Inspecting the vault ID
 
 Requirement: [792a2l Inspecting the vault ID](#792a2l-inspecting-the-vault-id) `engram vault-id` with no flag MUST print the vault ID, or `none`, and the
 location check result (`ok`, `missing`, `mismatch` or `no vault id`), MUST also print a remedy line
 naming `engram vault-id --regenerate` and `engram vault-id --claim` when the check is `missing` or
 `mismatch`, and MUST write nothing.
 
-### 792a2l1 UAT Scenarios
+#### 792a2l1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a2l1a A healthy vault reports its ID
@@ -313,7 +362,7 @@ Scenario: 792a2l1c A vault without an ID is reported without writing
   Then stdout shows location: no vault id, and no file in the vault is created or changed
 ```
 
-## 792a2m Regenerating the vault ID
+### 792a2m Regenerating the vault ID
 
 Requirement: [792a2m Regenerating the vault ID](#792a2m-regenerating-the-vault-id) `engram vault-id --regenerate` MUST give the vault a new vault ID, record the
 vault's current location for it, and change no note.
@@ -321,7 +370,7 @@ vault's current location for it, and change no note.
 Rationale: this is the remedy for a copy. Links point at parent vault IDs and stay valid, and
 queued offers carry the new origin ID when they are sent.
 
-### 792a2m1 UAT Scenarios
+#### 792a2m1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a2m1a Regenerate gives a copy its own identity
@@ -330,14 +379,14 @@ Scenario: 792a2m1a Regenerate gives a copy its own identity
   Then its ID differs from the original's, exchange resumes, and no note file changed
 ```
 
-## 792a2n Claiming a moved vault
+### 792a2n Claiming a moved vault
 
 Requirement: [792a2n Claiming a moved vault](#792a2n-claiming-a-moved-vault) `engram vault-id --claim` MUST record the vault's current location for its
 existing vault ID without changing the ID, and MUST fail when the vault has no vault ID.
 
 Rationale: this is the remedy for the same vault moved or re-cloned.
 
-### 792a2n1 UAT Scenarios
+#### 792a2n1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a2n1a Claim accepts a moved vault
@@ -351,12 +400,12 @@ Scenario: 792a2n1b Claim needs an ID
   Then it fails with an error saying the vault has no vault ID
 ```
 
-## 792a2o Regenerate and claim are exclusive
+### 792a2o Regenerate and claim are exclusive
 
 Requirement: [792a2o Regenerate and claim are exclusive](#792a2o-regenerate-and-claim-are-exclusive) `engram vault-id` MUST refuse `--regenerate` and `--claim` together and leave
 the vault ID unchanged.
 
-### 792a2o1 UAT Scenarios
+#### 792a2o1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a2o1a Both flags are refused
@@ -365,7 +414,7 @@ Scenario: 792a2o1a Both flags are refused
   Then it fails naming --regenerate, and the vault ID is unchanged
 ```
 
-## 792a2p Copied and cloned vaults pause exchange
+### 792a2p Copied and cloned vaults pause exchange
 
 Requirement: [792a2p Copied and cloned vaults pause exchange](#792a2p-copied-and-cloned-vaults-pause-exchange) Before sending an offer or pulling a note down, a command MUST check that the
 vault's location record matches its current vault ID and canonical path. When the record is missing
@@ -381,7 +430,7 @@ because refusing would turn a false positive into a host outage: launchd restart
 again, children back off, and offers pile up. The record holds no hostname, because DHCP, `.local`
 renames and containers change hostnames without the vault moving.
 
-### 792a2p1 UAT Scenarios
+#### 792a2p1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a2p1a A cloned child is caught before it offers
@@ -410,7 +459,7 @@ Scenario: 792a2p1e A hostname change is not a false positive
   Then the check passes
 ```
 
-## 792a2q A vault does not exchange with itself
+### 792a2q A vault does not exchange with itself
 
 Requirement: [792a2q A vault does not exchange with itself](#792a2q-a-vault-does-not-exchange-with-itself) A vault MUST NOT act as its own parent. When a parent reports the same vault ID as
 the local vault, a command MUST NOT merge, pull down, send or queue any offer, and MUST otherwise behave as if no parent
@@ -422,7 +471,7 @@ passes the location check ([792a2p Copied and cloned vaults pause exchange](#792
 exchange with, so a write made in it queues no offer; an offer queued before the mistake was detected is left unsent and
 not rejected ([792a21y A looping offer is refused](./parent-sync.md#792a21y-a-looping-offer-is-refused)).
 
-### 792a2q1 UAT Scenarios
+#### 792a2q1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a2q1a A copied vault served back to itself

@@ -10,7 +10,81 @@ clone or a copy of itself from its parent, and what an exchange is allowed to to
 served side of the exchange is [vault-serving](./vault-serving.md). Setting `ENGRAM_SERVER` is an error
 ([792a21a ENGRAM_SERVER is refused](#792a21a-engram_server-is-refused)).
 
-## 792a21a ENGRAM_SERVER is refused
+## 792a21 Parent Sync
+
+**Participants and responsibilities.**
+- The user: names the one parent in `ENGRAM_PARENT` ([792a21b One parent per vault](#792a21b-one-parent-per-vault)),
+  reads the [outbox](../../GLOSSARY.md#outbox) in the [`engram update`](../../GLOSSARY.md#engram-update) report
+  ([792a21za The update report shows the outbox](#792a21za-the-update-report-shows-the-outbox)), and pulls a parent's
+  note down with `engram activate`
+  ([792a21zc Activate resolves a ref locally first, then against the parent](#792a21zc-activate-resolves-a-ref-locally-first-then-against-the-parent)).
+- The parent: another engram [vault](../../GLOSSARY.md#vault), served with `engram serve`, that answers a query, a
+  `show` and an `activate` request, and answers an [offer](../../GLOSSARY.md#offer) with a receipt or a refusal; its
+  side of the exchange is vault-serving's
+  ([792a21c A merged query returns the parent's notes, never its chunks, in one list](#792a21c-a-merged-query-returns-the-parents-notes-never-its-chunks-in-one-list),
+  [792a21zd A pulled-down note is an exact-content local pending offer](#792a21zd-a-pulled-down-note-is-an-exact-content-local-pending-offer),
+  [792a21zg A pull-down tells the parent the note was used](#792a21zg-a-pull-down-tells-the-parent-the-note-was-used),
+  [792a21y A looping offer is refused](#792a21y-a-looping-offer-is-refused)).
+- Local curation: judges each pulled note before it counts as knowledge
+  ([792a21zd A pulled-down note is an exact-content local pending offer](#792a21zd-a-pulled-down-note-is-an-exact-content-local-pending-offer)).
+- The software: keeps queries and writes working locally whether or not the parent is reachable
+  ([792a21k An unreachable parent leaves the local answer](#792a21k-an-unreachable-parent-leaves-the-local-answer),
+  [792a21q An offer is queued and never lost offline](#792a21q-an-offer-is-queued-and-never-lost-offline)), merges the
+  parent's notes into one ranked answer
+  ([792a21c A merged query returns the parent's notes, never its chunks, in one list](#792a21c-a-merged-query-returns-the-parents-notes-never-its-chunks-in-one-list)),
+  queues each offerable write and drains the outbox
+  ([792a21n A local write is offered to the parent](#792a21n-a-local-write-is-offered-to-the-parent),
+  [792a21r The outbox drains after the parent was reached, without the lock](#792a21r-the-outbox-drains-after-the-parent-was-reached-without-the-lock)),
+  records a receipt as a [parent link](../../GLOSSARY.md#parent-link)
+  ([792a21u A receipt links the local note to its counterpart](#792a21u-a-receipt-links-the-local-note-to-its-counterpart)),
+  and writes a parent's note as a local pending offer on a [pull-down](../../GLOSSARY.md#pull-down)
+  ([792a21zd A pulled-down note is an exact-content local pending offer](#792a21zd-a-pulled-down-note-is-an-exact-content-local-pending-offer)).
+- Retained by the user: fixing the frontmatter of a note that refuses a receipt
+  ([792a21w A receipt the note refuses needs attention](#792a21w-a-receipt-the-note-refuses-needs-attention)) and
+  setting `git user.email` for a note with no author
+  ([792a21x An offer with no author waits](#792a21x-an-offer-with-no-author-waits)); the software warns once and keeps
+  the entry.
+
+**Interactions.** The user hands the software the parent's base URL in `ENGRAM_PARENT`; every `engram query` then asks
+the parent for its answer, and the software returns one merged payload without the parent's chunks
+([792a21c A merged query returns the parent's notes, never its chunks, in one list](#792a21c-a-merged-query-returns-the-parents-notes-never-its-chunks-in-one-list)).
+The software hands the parent each offerable local write as an offer built when it is sent; the parent answers with a
+receipt, which the software records on the local note, or with a refusal
+([792a21p An offer is built for the parent vault](#792a21p-an-offer-is-built-for-the-parent-vault),
+[792a21u A receipt links the local note to its counterpart](#792a21u-a-receipt-links-the-local-note-to-its-counterpart),
+[792a21y A looping offer is refused](#792a21y-a-looping-offer-is-refused)). The user hands `engram activate` a note
+the vault lacks; the software fetches the parent's note, writes it as a local pending offer for curation, and tells
+the parent the note was used
+([792a21zc Activate resolves a ref locally first, then against the parent](#792a21zc-activate-resolves-a-ref-locally-first-then-against-the-parent),
+[792a21zd A pulled-down note is an exact-content local pending offer](#792a21zd-a-pulled-down-note-is-an-exact-content-local-pending-offer),
+[792a21zg A pull-down tells the parent the note was used](#792a21zg-a-pull-down-tells-the-parent-the-note-was-used)).
+
+**Boundary assumptions.** The software assumes the parent is reachable; when it is not, a query returns the local
+results with one warning, an offer stays queued, and the parent is backed off from 30 seconds up to 15 minutes
+([792a21k An unreachable parent leaves the local answer](#792a21k-an-unreachable-parent-leaves-the-local-answer),
+[792a21s An unreachable parent is backed off](#792a21s-an-unreachable-parent-is-backed-off)). It assumes the parent
+speaks the current exchange: a receipt without a [vault ID](../../GLOSSARY.md#vault-id) or a basename stops exchange
+with an error saying the parent is too old
+([792a21v A reply that is not a valid receipt is not recorded](#792a21v-a-reply-that-is-not-a-valid-receipt-is-not-recorded)).
+It assumes the local note can take its receipt; when its frontmatter cannot, the entry moves to `attention` and is not
+sent again
+([792a21w A receipt the note refuses needs attention](#792a21w-a-receipt-the-note-refuses-needs-attention)). It
+assumes a tree of single parents: a second parent cannot be configured and a looping offer is refused
+([792a21b One parent per vault](#792a21b-one-parent-per-vault),
+[792a21y A looping offer is refused](#792a21y-a-looping-offer-is-refused)).
+
+**Shared rules.** The served side of the exchange is owned by [Vault Serving](./vault-serving.md)
+([792a20g A served learn finds the note an offer belongs to](./vault-serving.md#792a20g-a-served-learn-finds-the-note-an-offer-belongs-to));
+the curation of offers by [Curate](./curate.md); how a vault tells a clone or a copy of itself from its parent by
+[Vault Identity](./vault-identity.md)
+([792a2p Copied and cloned vaults pause exchange](./vault-identity.md#792a2p-copied-and-cloned-vaults-pause-exchange));
+the base enforcement of `--limit` and the [matched-note floor](../../GLOSSARY.md#matched-note-floor) by
+[Memory Query](./memory-query.md) ([792a7q Limit](./memory-query.md#792a7q-limit)); activation by
+[Note Revision](./note-revision.md) ([792a4n Activation](./note-revision.md#792a4n-activation)); the
+[exchange hash](../../GLOSSARY.md#exchange-hash) and its classification of frontmatter keys by
+[Exchange Versioning](../technical/exchange-versioning.md).
+
+### 792a21a ENGRAM_SERVER is refused
 
 Requirement: [792a21a ENGRAM_SERVER is refused](#792a21a-engram_server-is-refused) When the `ENGRAM_SERVER` environment variable is set to a non-empty value, every `engram`
 subcommand, `engram serve` included, MUST exit non-zero before it reads or writes a vault or a chunk index or contacts a
@@ -21,7 +95,7 @@ thin-client mode MUST remain.
 Rationale: a host that still sets `ENGRAM_SERVER` fails loudly instead of quietly behaving as something else. The
 thin-client model it selected landed every write only on the remote and failed every command on a server outage.
 
-### 792a21a1 UAT Scenarios
+#### 792a21a1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21a1a A command run with ENGRAM_SERVER set fails fast
@@ -45,14 +119,14 @@ Scenario: 792a21a1d ENGRAM_SERVER is not honored as an alias
   Then no command contacts the ENGRAM_SERVER URL
 ```
 
-## 792a21b One parent per vault
+### 792a21b One parent per vault
 
 Requirement: [792a21b One parent per vault](#792a21b-one-parent-per-vault) `engram query` MUST accept an `ENGRAM_PARENT` environment variable that names exactly one parent
 vault's base URL, and MUST NOT offer any way to configure more than one parent at a time.
 
 Rationale: the vaults form a single-parent tree, so a mesh and its cycles cannot be configured.
 
-### 792a21b1 UAT Scenarios
+#### 792a21b1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21b1a ENGRAM_PARENT names the one parent
@@ -61,7 +135,7 @@ Scenario: 792a21b1a ENGRAM_PARENT names the one parent
   Then that URL is this node's one parent for merged results
 ```
 
-## 792a21c A merged query returns the parent's notes, never its chunks, in one list
+### 792a21c A merged query returns the parent's notes, never its chunks, in one list
 
 Requirement: [792a21c A merged query returns the parent's notes, never its chunks, in one list](#792a21c-a-merged-query-returns-the-parents-notes-never-its-chunks-in-one-list) With `ENGRAM_PARENT` set, every `engram query` MUST run its local query and ask the parent for
 its answer, MUST drop every item of the parent's answer whose `kind` is `chunk`, MUST remove the duplicates of [792a21j A linked or identical note appears once, as the local copy](#792a21j-a-linked-or-identical-note-appears-once-as-the-local-copy),
@@ -75,7 +149,7 @@ budgets are local-only. The merge fuses two complete payloads, so the parent nee
 sorts by raw score without normalizing it, because a within-batch rescale makes a weak match look as strong as a good
 one.
 
-### 792a21c1 UAT Scenarios
+#### 792a21c1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21c1a Local and parent results appear in one ranked list
@@ -89,7 +163,7 @@ Scenario: 792a21c1b A parent chunk never appears
   Then none of the parent's chunk items is in the payload
 ```
 
-## 792a21d A merged query orders its items
+### 792a21d A merged query orders its items
 
 Requirement: [792a21d A merged query orders its items](#792a21d-a-merged-query-orders-its-items) A merged query MUST place the trigger hits first, the local ones before the parent's, each in the
 order its source returned them. It MUST then order the other relevance items in two groups, the direct items (those
@@ -105,7 +179,7 @@ note floor keeps the minimum of qualifying notes that a local query keeps under 
 floor of memory-query, [792a7e Matched-note floor](./memory-query.md#792a7e-matched-note-floor)), now over both
 sources.
 
-### 792a21d1 UAT Scenarios
+#### 792a21d1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21d1a Trigger hits lead, local before parent
@@ -124,7 +198,7 @@ Scenario: 792a21d1c The note floor survives the merged cap
   Then the 5 relevance items include all 3 notes and the 2 highest-scoring chunks
 ```
 
-## 792a21e The budgets apply to the merged set
+### 792a21e The budgets apply to the merged set
 
 Requirement: [792a21e The budgets apply to the merged set](#792a21e-the-budgets-apply-to-the-merged-set) With `ENGRAM_PARENT` set, `engram query` MUST apply `--content-budget`, `--recent-fill` and `--limit`
 once, over the merged items, and MUST NOT apply them to each source before the merge. `--content-budget` MUST span both
@@ -139,7 +213,7 @@ fetched unbounded and the real values are applied once. The recency channel's ne
 one chronology, which the payload does not carry, and it is local-only for that reason as well ([792a7q Limit](./memory-query.md#792a7q-limit) owns
 `--limit`'s base enforcement; this requirement says only where in the merge the budgets apply).
 
-### 792a21e1 UAT Scenarios
+#### 792a21e1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21e1a content-budget caps full-content chunk items across the merged set
@@ -158,7 +232,7 @@ Scenario: 792a21e1c limit caps the merged relevance channel
   Then the relevance items total at most N, drawn from the combined score-ranked set and not N from each source, and the recency channel is not counted against N
 ```
 
-## 792a21f The merge does not depend on matching models
+### 792a21f The merge does not depend on matching models
 
 Requirement: [792a21f The merge does not depend on matching models](#792a21f-the-merge-does-not-depend-on-matching-models) `engram query` MUST merge the local and the parent results regardless of whether their `model_id`
 values match, and MUST NOT refuse to run, fail or drop either source's results solely because they differ. Each item of
@@ -168,7 +242,7 @@ Rationale: refusing or falling back to local-only on a model mismatch would brea
 upgrades its embedding model one environment at a time, which is a stated goal. The per-item `model_id` is a visible,
 non-gating signal, in the way a local stale-sidecar mismatch is a warning rather than an error.
 
-### 792a21f1 UAT Scenarios
+#### 792a21f1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21f1a Mismatched model_id does not block the merge
@@ -182,7 +256,7 @@ Scenario: 792a21f1b Every merged item carries its source's model
   Then every item includes the model_id of the node, local or parent, that produced it
 ```
 
-## 792a21g Merged items say where they came from
+### 792a21g Merged items say where they came from
 
 Requirement: [792a21g Merged items say where they came from](#792a21g-merged-items-say-where-they-came-from) Each item of a merged payload MUST carry a boolean `from_parent` that is true for an item the
 parent produced and false, written explicitly, for an item produced locally, and an item of a payload that no merge
@@ -192,7 +266,7 @@ Rationale: a caller that follows an item up with `engram show` needs to know whe
 Luhmann ID is minted per vault, so two vaults routinely hold unrelated notes under the same ID, and a guess made
 without the origin could return the wrong note with no error at all.
 
-### 792a21g1 UAT Scenarios
+#### 792a21g1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21g1a Parent-origin and local-origin items are distinguishable
@@ -206,7 +280,7 @@ Scenario: 792a21g1b A payload with no merge has no from_parent
   Then no item in the payload carries a from_parent key
 ```
 
-## 792a21h A merged answer does not re-cluster
+### 792a21h A merged answer does not re-cluster
 
 Requirement: [792a21h A merged answer does not re-cluster](#792a21h-a-merged-answer-does-not-re-cluster) A merged payload MUST present its combined items as one ranked list, with the clusters the local
 query found, and MUST NOT compute a new grouping that mixes local-origin and parent-origin items in one cluster. The
@@ -215,7 +289,7 @@ payload's `pending_offers` flag and its hint, and its refit flag, MUST reflect t
 Rationale: items of the two nodes are not re-clustered together. A child cannot curate its parent's offers or refit
 its parent's vocabulary, so a parent-side flag would tell the child to do something it cannot.
 
-### 792a21h1 UAT Scenarios
+#### 792a21h1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21h1a No cross-node cluster grouping
@@ -234,7 +308,7 @@ Scenario: 792a21h1c A local pending offer shows in a merged payload
   Then the merged payload has pending_offers true and its hint
 ```
 
-## 792a21i The merged payload reports the budget it applied
+### 792a21i The merged payload reports the budget it applied
 
 Requirement: [792a21i The merged payload reports the budget it applied](#792a21i-the-merged-payload-reports-the-budget-it-applied) A merged payload's `budget` block MUST report the values the merge applied and not zeros: the
 `limit`, `content_budget` and `lazy_chunks` it used, the `chunks_snippeted` its content pass counted, and
@@ -242,7 +316,7 @@ Requirement: [792a21i The merged payload reports the budget it applied](#792a21i
 
 Rationale: the block reports real values so that it shows whether a cap applied; all zeros would hide it.
 
-### 792a21i1 UAT Scenarios
+#### 792a21i1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21i1a The budget block is populated
@@ -251,7 +325,7 @@ Scenario: 792a21i1a The budget block is populated
   Then the payload's budget shows limit 5, content_budget 2, lazy_chunks true and the snippeted-chunk count the merge produced
 ```
 
-## 792a21j A linked or identical note appears once, as the local copy
+### 792a21j A linked or identical note appears once, as the local copy
 
 Requirement: [792a21j A linked or identical note appears once, as the local copy](#792a21j-a-linked-or-identical-note-appears-once-as-the-local-copy) Before it orders and caps, a merged query MUST treat a parent note P as the same note as a live
 (not pending) local note L when L's `parent.vault` equals the vault ID the parent reported in this query and any of L's
@@ -268,7 +342,7 @@ amend and curate. A link names a basename or an alias because the parent may hav
 pending copy is unjudged, so it must not hide the parent's note, and near-duplicates are left to curation, which heals
 them through the link graph; an unlinked near-duplicate may show twice until a later pull-down or fold links the pair.
 
-### 792a21j1 UAT Scenarios
+#### 792a21j1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21j1a A linked note appears once, as the local copy
@@ -317,7 +391,7 @@ Scenario: 792a21j1i The dedupe keys are not in the payload
   Then it carries no exchange_hash, aliases or parent vault_id
 ```
 
-## 792a21k An unreachable parent leaves the local answer
+### 792a21k An unreachable parent leaves the local answer
 
 Requirement: [792a21k An unreachable parent leaves the local answer](#792a21k-an-unreachable-parent-leaves-the-local-answer) When the parent is unreachable or answers with an error, `engram query` MUST still return the
 local vault's results as in local-only mode, and MUST print a non-fatal warning that the parent was unavailable,
@@ -327,7 +401,7 @@ local results with one warning.
 Rationale: a node's local recall should not depend on its parent's network availability, or one host outage takes down
 every environment's recall.
 
-### 792a21k1 UAT Scenarios
+#### 792a21k1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21k1a The parent does not respond
@@ -346,7 +420,7 @@ Scenario: 792a21k1c A client error is not an outage
   Then the second query still contacts the parent
 ```
 
-## 792a21l A note can be shown from the parent
+### 792a21l A note can be shown from the parent
 
 Requirement: [792a21l A note can be shown from the parent](#792a21l-a-note-can-be-shown-from-the-parent) `engram show` MUST accept a `--parent` flag. With `--parent` set and `ENGRAM_PARENT` configured it
 MUST resolve the ref against the parent vault instead of the local one, and with `--parent` set and `ENGRAM_PARENT`
@@ -358,7 +432,7 @@ not-found error as before. `engram show-chunk` MUST NOT accept `--parent` and MU
 Rationale: chunks never cross vaults, so there is no parent chunk lookup. A fallback that fires only on a local miss is
 safe by construction, and the origin tag of [792a21g Merged items say where they came from](#792a21g-merged-items-say-where-they-came-from) tells a caller when to ask for the parent explicitly.
 
-### 792a21l1 UAT Scenarios
+#### 792a21l1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21l1a --parent routes to the configured parent
@@ -397,7 +471,7 @@ Scenario: 792a21l1g The parent-sourced label comes before the parent's header
   Then the first line is the parent-sourced label and the second is the parent note's exchange-hash header
 ```
 
-## 792a21m A vault with no parent behaves as it always did
+### 792a21m A vault with no parent behaves as it always did
 
 Requirement: [792a21m A vault with no parent behaves as it always did](#792a21m-a-vault-with-no-parent-behaves-as-it-always-did) With `ENGRAM_PARENT` unset, `engram query` MUST make no network request, and its output and the
 output shape of `learn`, `amend` and `resituate` MUST be unchanged by the merge, the dedupe and the offer machinery,
@@ -406,7 +480,7 @@ and no exchange state MUST be written. The one difference from before the merge 
 
 Rationale: the exchange is additive. A set `ENGRAM_PARENT` adds a step to local behavior and never replaces it.
 
-### 792a21m1 UAT Scenarios
+#### 792a21m1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21m1a No parent configured
@@ -420,7 +494,7 @@ Scenario: 792a21m1b A write with no parent exchanges nothing
   Then each behaves as before this capability and no exchange state is written
 ```
 
-## 792a21n A local write is offered to the parent
+### 792a21n A local write is offered to the parent
 
 Requirement: [792a21n A local write is offered to the parent](#792a21n-a-local-write-is-offered-to-the-parent) With `ENGRAM_PARENT` set, `engram learn fact`, `engram learn feedback` and `engram learn runbook`,
 `engram amend` with any content flag (`--situation`, `--subject`, `--predicate`, `--object`, `--behavior`, `--impact`,
@@ -441,7 +515,7 @@ has no loop. A pulled note that local curation folds into a note of its own goes
 note, because the local addition is the point of the fold, and the parent's curated result comes back down only on the
 next use.
 
-### 792a21n1 UAT Scenarios
+#### 792a21n1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21n1a learn is written locally and offered
@@ -515,7 +589,7 @@ Scenario: 792a21n1n A link under another parent is not the parent's
   Then the offer is still queued, as a learn-offer with no offer.for, and no supersedes entry is translated through the old links
 ```
 
-## 792a21o Only a change to offered content is a change
+### 792a21o Only a change to offered content is a change
 
 Requirement: [792a21o Only a change to offered content is a change](#792a21o-only-a-change-to-offered-content-is-a-change) The exchange hash of a note (the comparison that decides whether an offer is queued, whether a rejected
 offer is sent again, whether a parent note is pulled again and whether two notes are the same) MUST change when
@@ -530,7 +604,7 @@ content having changed, so hashing them would report a change that is none. Trea
 the fleet a storm of spurious offers and pulls when the hash is revised. The hash itself, its comparison
 and the classification of every frontmatter key are exchange-versioning's ([exchange-versioning](../technical/exchange-versioning.md)).
 
-### 792a21o1 UAT Scenarios
+#### 792a21o1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21o1a Only offered fields move the hash
@@ -549,7 +623,7 @@ Scenario: 792a21o1c A hash version change is unknown, not changed
   Then the pull-down treats it as not changed and writes nothing, and a later exchange of that link records the current-version hash
 ```
 
-## 792a21p An offer is built for the parent vault
+### 792a21p An offer is built for the parent vault
 
 Requirement: [792a21p An offer is built for the parent vault](#792a21p-an-offer-is-built-for-the-parent-vault) An offer MUST be built from the note's current content at send time, and MUST NOT carry `target`,
 `position` or `chunkSources`. Each `supersedes` entry that names a local note MUST be rewritten to that note's
@@ -563,7 +637,7 @@ Rationale: placement is each vault's own (Luhmann IDs are minted per vault), tag
 vocabulary, and a note's declared author must survive the trip, so the drainer's identity is only a fallback. Building at
 send time sends the latest content and never a stale snapshot.
 
-### 792a21p1 UAT Scenarios
+#### 792a21p1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21p1a Placement is not sent
@@ -597,7 +671,7 @@ Scenario: 792a21p1f Tags are not offered
   Then the offer carries no tags
 ```
 
-## 792a21q An offer is queued and never lost offline
+### 792a21q An offer is queued and never lost offline
 
 Requirement: [792a21q An offer is queued and never lost offline](#792a21q-an-offer-is-queued-and-never-lost-offline) Every offerable write MUST stamp the note's `xid` when it has none and MUST add or refresh the
 note's outbox entry, keyed by `xid`, under the vault lock and in the same critical section as the note write, so the
@@ -610,7 +684,7 @@ files](./vault-identity.md#792a2k-exchange-state-outside-tracked-files)). Keying
 where a basename key would lose the entry. An offer is built when it is sent, so offline learn and amend coalesce into
 one offer, and a local write always succeeds even when the parent is down.
 
-### 792a21q1 UAT Scenarios
+#### 792a21q1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21q1a The parent is unreachable during learn
@@ -654,7 +728,7 @@ Scenario: 792a21q1h A note is written even when no exchange ID can be made
   Then the note is written and nothing is queued
 ```
 
-## 792a21r The outbox drains after the parent was reached, without the lock
+### 792a21r The outbox drains after the parent was reached, without the lock
 
 Requirement: [792a21r The outbox drains after the parent was reached, without the lock](#792a21r-the-outbox-drains-after-the-parent-was-reached-without-the-lock) After a command has successfully contacted the parent (`learn`, a content `amend`, `resituate`,
 `query` after the parent answers, `activate` after a pull-down, or `update`), it MUST send the queued entries in
@@ -672,7 +746,7 @@ Rationale: a drain that held the lock while it waited on the network would block
 parent took to answer. Re-reading the outbox before merging is what lets another process queue an entry mid-drain
 without losing it.
 
-### 792a21r1 UAT Scenarios
+#### 792a21r1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21r1a Query drains a backlog
@@ -736,7 +810,7 @@ Scenario: 792a21r1l A failed vault-ID probe keeps the offers queued
   Then the offers stay queued and one warning is printed
 ```
 
-## 792a21s An unreachable parent is backed off
+### 792a21s An unreachable parent is backed off
 
 Requirement: [792a21s An unreachable parent is backed off](#792a21s-an-unreachable-parent-is-backed-off) After a transport failure, a timeout or a 5xx against the parent, the vault MUST record a retry time that
 grows exponentially with the consecutive failures, from 30 seconds and capped at 15 minutes. Until that time every
@@ -749,7 +823,7 @@ other than the one backed off MUST NOT be affected.
 Rationale: without a backoff every command would wait up to the full connect timeout while a parent is down.
 `update` always tries so that a cleared outage is noticed. A 4xx or a refusal is an answer from a reachable parent.
 
-### 792a21s1 UAT Scenarios
+#### 792a21s1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21s1a Commands inside the backoff window make no request
@@ -783,7 +857,7 @@ Scenario: 792a21s1f The window ends
   Then the contact is allowed
 ```
 
-## 792a21t A retried offer is idempotent
+### 792a21t A retried offer is idempotent
 
 Requirement: [792a21t A retried offer is idempotent](#792a21t-a-retried-offer-is-idempotent) A retry of an offer that the parent already holds MUST NOT create a second pending note on the
 parent ([792a20g A served learn finds the note an offer belongs to](./vault-serving.md#792a20g-a-served-learn-finds-the-note-an-offer-belongs-to)): the offer's `offer.key` MUST be derived from `offer.origin` and the offered exchange hash, so that the
@@ -792,7 +866,7 @@ same content from the same note always carries the same key.
 Rationale: an offer whose response is lost is sent again, and the parent must answer with the receipt of the note it
 already has.
 
-### 792a21t1 UAT Scenarios
+#### 792a21t1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21t1a Lost response, then retry
@@ -801,7 +875,7 @@ Scenario: 792a21t1a Lost response, then retry
   Then the parent returns the receipt of the pending note it already has, and holds one pending note for that offer
 ```
 
-## 792a21u A receipt links the local note to its counterpart
+### 792a21u A receipt links the local note to its counterpart
 
 Requirement: [792a21u A receipt links the local note to its counterpart](#792a21u-a-receipt-links-the-local-note-to-its-counterpart) When the parent returns an offer receipt, the local note MUST record the parent's vault ID and
 MUST set its primary link to `{note, via: offered, hash}`, where `note` is the resolved target basename when the receipt
@@ -813,7 +887,7 @@ Rationale: the link is what later lets a query show the note once and a pull-dow
 what a future comparison sees from the parent's side, and a rewrite that re-embedded would change nothing the vectors
 depend on.
 
-### 792a21u1 UAT Scenarios
+#### 792a21u1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21u1a Receipt links the note
@@ -837,7 +911,7 @@ Scenario: 792a21u1d A receipt under another parent starts over
   Then the note's links are those of the answering parent only
 ```
 
-## 792a21v A reply that is not a valid receipt is not recorded
+### 792a21v A reply that is not a valid receipt is not recorded
 
 Requirement: [792a21v A reply that is not a valid receipt is not recorded](#792a21v-a-reply-that-is-not-a-valid-receipt-is-not-recorded) A receipt that lacks a vault ID or a basename MUST stop exchange with an error saying the parent is
 too old, and MUST leave the entry queued. A receipt whose `vault_id` is not 32 lowercase hexadecimal characters, or
@@ -853,7 +927,7 @@ that is not the expected shape would poison the cache that decides which links c
 from a parent that predates the exchange, and the same check detects it at pull-down. A merged query is not refused for
 this reason, it only degrades: the merge keeps the old parent's results and its dedupe finds no keys to match.
 
-### 792a21v1 UAT Scenarios
+#### 792a21v1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21v1a A pre-change parent is detected
@@ -872,7 +946,7 @@ Scenario: 792a21v1c A failed write keeps the entry
   Then the entry stays queued with the error and is sent again later, idempotently
 ```
 
-## 792a21w A receipt the note refuses needs attention
+### 792a21w A receipt the note refuses needs attention
 
 Requirement: [792a21w A receipt the note refuses needs attention](#792a21w-a-receipt-the-note-refuses-needs-attention) When the local note refuses a receipt because its frontmatter cannot take the edit (its `parent:`
 carries a YAML anchor, or its frontmatter does not decode), the note MUST be left untouched and the entry MUST move to the
@@ -888,7 +962,7 @@ sent. An entry whose note is gone or pending MUST be dropped, as for any other s
 Rationale: the parent accepted the offer, so sending it again would be wrong, and the note cannot take its link until
 its owner fixes the frontmatter. Keeping the receipt, rather than the offer, is what makes the repair automatic.
 
-### 792a21w1 UAT Scenarios
+#### 792a21w1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21w1a A refused receipt needs attention
@@ -932,7 +1006,7 @@ Scenario: 792a21w1h An attention entry of a deleted note is dropped
   Then the entry is dropped
 ```
 
-## 792a21x An offer with no author waits
+### 792a21x An offer with no author waits
 
 Requirement: [792a21x An offer with no author waits](#792a21x-an-offer-with-no-author-waits) An offer that cannot be built because the note has no `user:` and no user identity is detected MUST
 NOT be sent, because the parent would reject `user: ""`. Its entry MUST move to the `attention` state with the reason
@@ -944,7 +1018,7 @@ send leaves it queued and counted and not listed as needing attention.
 Rationale: an offer nobody can be asked about is refused by the parent ([792a20e A served learn is attributed to the identity the caller declares](./vault-serving.md#792a20e-a-served-learn-is-attributed-to-the-identity-the-caller-declares)), and holding it back with a reason is
 kinder than a 4xx that marks it rejected.
 
-### 792a21x1 UAT Scenarios
+#### 792a21x1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21x1a No user identity holds the offer
@@ -953,7 +1027,7 @@ Scenario: 792a21x1a No user identity holds the offer
   Then nothing is sent, the entry is in attention with the no-identity reason, and one warning was printed; after user detection starts to resolve, the next drain sends the offer
 ```
 
-## 792a21y A looping offer is refused
+### 792a21y A looping offer is refused
 
 Requirement: [792a21y A looping offer is refused](#792a21y-a-looping-offer-is-refused) When a parent refuses an offer with a 409 that marks a loop, because its own vault ID is already on
 the offer's `offer.path`, and the refusing vault is not this vault, the entry MUST be marked `rejected`, the drain MUST
@@ -968,7 +1042,7 @@ Rationale: a cycle in a misconfigured tree (A to B to C to A) is caught by the p
 fault that rejecting every retry would only repeat. A vault that is its own parent is a copy mistake that the user can
 repair, and it must not act as its own parent, so nothing is sent or rejected ([792a2q A vault does not exchange with itself](./vault-identity.md#792a2q-a-vault-does-not-exchange-with-itself)).
 
-### 792a21y1 UAT Scenarios
+#### 792a21y1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21y1a A cycle rejects the entry and continues
@@ -997,7 +1071,7 @@ Scenario: 792a21y1e A cached self-parent sends nothing
   Then nothing is sent and one warning names engram vault-id --regenerate
 ```
 
-## 792a21za The update report shows the outbox
+### 792a21za The update report shows the outbox
 
 Requirement: [792a21za The update report shows the outbox](#792a21za-the-update-report-shows-the-outbox) `engram update` MUST include a notify-only notice when the outbox is non-empty or a backoff is
 active. The notice MUST give the queued-entry count, the age of the oldest entry, each rejected entry with its error, each
@@ -1007,7 +1081,7 @@ vault MUST have no notice.
 
 Rationale: a stuck outbox is silent otherwise, and `update` is where the user already looks for notices.
 
-### 792a21za1 UAT Scenarios
+#### 792a21za1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21za1a Update reports a stuck outbox
@@ -1031,7 +1105,7 @@ Scenario: 792a21za1d Update drains through a backoff
   Then the backlog drains and the next update reports an idle outbox
 ```
 
-## 792a21zb A note with CRLF line endings exchanges as its LF form
+### 792a21zb A note with CRLF line endings exchanges as its LF form
 
 Requirement: [792a21zb A note with CRLF line endings exchanges as its LF form](#792a21zb-a-note-with-crlf-line-endings-exchanges-as-its-lf-form) Every reader that gates an exchange operation on a note's frontmatter MUST read the note as its LF
 form (each `\r\n` converted to `\n`), so a note with CRLF line endings takes part in exchange exactly as its LF form
@@ -1044,7 +1118,7 @@ note MUST write it as LF in that same write and rebuild its sidecar.
 Rationale: a vault edited on Windows, or by an editor that rewrites line endings, must not fall out of the exchange or
 make every note look changed (the curate side of this rule is [curate](./curate.md)).
 
-### 792a21zb1 UAT Scenarios
+#### 792a21zb1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21zb1a A CRLF note hashes as its LF form
@@ -1068,7 +1142,7 @@ Scenario: 792a21zb1d A CRLF parent note pulls down
   Then it is pulled down as an LF pending copy linked at the parent's hash
 ```
 
-## 792a21zc Activate resolves a ref locally first, then against the parent
+### 792a21zc Activate resolves a ref locally first, then against the parent
 
 Requirement: [792a21zc Activate resolves a ref locally first, then against the parent](#792a21zc-activate-resolves-a-ref-locally-first-then-against-the-parent) `engram activate --note <ref>` MUST treat a ref as a local hit when the note's `.md` file exists in
 the local vault, whether or not it has a sidecar, and on a local hit MUST bump the note's sidecar `LastUsed` as [792a4n Activation](./note-revision.md#792a4n-activation)
@@ -1082,7 +1156,7 @@ Rationale: Luhmann IDs are minted per vault, so the same ID in the parent names 
 one there could pull down the wrong note. A local hit never contacts the parent, so a note the vault already holds costs
 no network.
 
-### 792a21zc1 UAT Scenarios
+#### 792a21zc1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21zc1a A parent-only ref pulls down
@@ -1126,7 +1200,7 @@ Scenario: 792a21zc1h A miss with no parent fails the ref
   Then the ref is reported as failed and nothing is fetched
 ```
 
-## 792a21zd A pulled-down note is an exact-content local pending offer
+### 792a21zd A pulled-down note is an exact-content local pending offer
 
 Requirement: [792a21zd A pulled-down note is an exact-content local pending offer](#792a21zd-a-pulled-down-note-is-an-exact-content-local-pending-offer) A pull-down MUST fetch the parent note as the raw envelope of [792a20k A served show returns a note, and a raw envelope on request](./vault-serving.md#792a20k-a-served-show-returns-a-note-and-a-raw-envelope-on-request) while holding no vault lock,
 and MUST reject a response that is not a valid envelope (the parent is too old). It MUST also reject, writing nothing, an
@@ -1146,7 +1220,7 @@ lets the skip rule and the dedupe recognize the pair. The parent's identity fiel
 nothing in this vault, and local vocabulary reassigns the tags. A `parent:` path prefix in payloads would break consumers
 such as a bare `engram show <basename>`, and the rendered `show` output cannot carry a raw envelope because it is altered.
 
-### 792a21zd1 UAT Scenarios
+#### 792a21zd1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21zd1a Pulled note is pending and linked
@@ -1195,7 +1269,7 @@ Scenario: 792a21zd1i The pulled note is embedded and does not keep the parent's 
   Then its sidecar exists and the parent's tags are not on the local note
 ```
 
-## 792a21ze A pull-down is idempotent, remembers declines and cannot loop
+### 792a21ze A pull-down is idempotent, remembers declines and cannot loop
 
 Requirement: [792a21ze A pull-down is idempotent, remembers declines and cannot loop](#792a21ze-a-pull-down-is-idempotent-remembers-declines-and-cannot-loop) Under the vault lock a pull-down MUST re-check its skip rule and write nothing when a local note,
 live or pending, has any link (`offered`, `pulled` or `covered`) to the envelope's basename or one of its aliases and that
@@ -1214,7 +1288,7 @@ Rationale: re-pulling an unchanged note on every use would fill the vault with c
 vault ID and the hash, so a decline under one parent never suppresses a note of another, and it covers the aliases so that
 a rename on the parent does not bring a declined note back.
 
-### 792a21ze1 UAT Scenarios
+#### 792a21ze1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21ze1a Re-activating an unchanged parent note
@@ -1278,7 +1352,7 @@ Scenario: 792a21ze1l No sequence leaves two linked copies
   Then at most one local note is linked to the parent note
 ```
 
-## 792a21zf Activating a linked note re-checks its parent note
+### 792a21zf Activating a linked note re-checks its parent note
 
 Requirement: [792a21zf Activating a linked note re-checks its parent note](#792a21zf-activating-a-linked-note-re-checks-its-parent-note) When `engram activate` resolves a ref to a local note that has parent links under the configured
 parent's vault ID, and `ENGRAM_PARENT` is set, it MUST, after the local bump and while holding no vault lock, fetch each
@@ -1293,7 +1367,7 @@ and its failure (the parent unreachable, backed off or the note gone there) MUST
 Rationale: the merged query shows a linked local note in place of its parent note ([792a21j A linked or identical note appears once, as the local copy](#792a21j-a-linked-or-identical-note-appears-once-as-the-local-copy)), so a parent-side change
 reaches the child only through the local note's use.
 
-### 792a21zf1 UAT Scenarios
+#### 792a21zf1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21zf1a A changed parent note arrives through its local copy
@@ -1327,7 +1401,7 @@ Scenario: 792a21zf1f A served parent works end to end
   Then the pending parent note was never pulled, the live one was, and the change arrives through the raw route
 ```
 
-## 792a21zg A pull-down tells the parent the note was used
+### 792a21zg A pull-down tells the parent the note was used
 
 Requirement: [792a21zg A pull-down tells the parent the note was used](#792a21zg-a-pull-down-tells-the-parent-the-note-was-used) After a pull-down that wrote the note or a skip, once the vault lock is released, `activate` MUST send a best-effort
 `activate` request for the parent note to the parent, and MUST NOT send it when the local write failed. A failure of that request MUST NOT fail the command and MUST NOT be
@@ -1340,7 +1414,7 @@ drain the outbox.
 Rationale: the parent's recency ranks what its children use, so a note that was not written locally was not used and sends no signal. A signal that failed is only a lost hint, so it neither
 fails the command nor waits in a queue.
 
-### 792a21zg1 UAT Scenarios
+#### 792a21zg1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21zg1a Parent recency is bumped
@@ -1379,14 +1453,14 @@ Scenario: 792a21zg1g A failed local write sends no signal
   Then the command fails, and the parent receives no activate request for the note
 ```
 
-## 792a21zh A pull-down stamps the first-write identity
+### 792a21zh A pull-down stamps the first-write identity
 
 Requirement: [792a21zh A pull-down stamps the first-write identity](#792a21zh-a-pull-down-stamps-the-first-write-identity) A pull-down MUST stamp the new note with the same detection of `repo:`, `user:` and `vault:` that
 stamps every first write, and MUST NOT keep the parent note's own `user:` when user detection resolves empty.
 
 Rationale: the pulled note is this vault's note, and the parent's authorship is kept apart in `parent.author` ([792a21zd A pulled-down note is an exact-content local pending offer](#792a21zd-a-pulled-down-note-is-an-exact-content-local-pending-offer)).
 
-### 792a21zh1 UAT Scenarios
+#### 792a21zh1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21zh1a No user detectable on a pull-down
@@ -1395,7 +1469,7 @@ Scenario: 792a21zh1a No user detectable on a pull-down
   Then the note has no user: key, vault: is stamped as usual, and stderr carries one warning that user detection resolved empty
 ```
 
-## 792a21zi An exchanged note carries a stable exchange ID
+### 792a21zi An exchanged note carries a stable exchange ID
 
 Requirement: [792a21zi An exchanged note carries a stable exchange ID](#792a21zi-an-exchanged-note-carries-a-stable-exchange-id) A note MUST gain an `xid` frontmatter field, a random identifier, lazily, the first time it takes
 part in exchange (queued as an offer, pulled down, or received as a served offer). No migration, backfill or `update` step
@@ -1407,7 +1481,7 @@ it did before.
 Rationale: a rename-stable identifier lets the outbox and the idempotency keys survive a Luhmann re-parenting. Stamping
 lazily means no vault pays for exchange it never uses.
 
-### 792a21zi1 UAT Scenarios
+#### 792a21zi1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21zi1a No backfill
@@ -1421,7 +1495,7 @@ Scenario: 792a21zi1b The xid survives a rename
   Then the renamed note carries the same xid
 ```
 
-## 792a21zj An exchanged note carries vault-qualified parent links
+### 792a21zj An exchanged note carries vault-qualified parent links
 
 Requirement: [792a21zj An exchanged note carries vault-qualified parent links](#792a21zj-an-exchanged-note-carries-vault-qualified-parent-links) A note linked to parent notes MUST carry a nested `parent` key with `vault` (the parent's vault ID),
 `links` (a list of `{note, via, hash}` entries, where `note` is a parent basename, `via` is `offered`, `pulled` or
@@ -1434,7 +1508,7 @@ MUST set or change `parent`, and a note never exchanged MUST carry no `parent` k
 Rationale: keying links by URL would break on every hostname or address change, so they key on the parent's stable vault
 ID, and a second parent vault simply ignores the old links.
 
-### 792a21zj1 UAT Scenarios
+#### 792a21zj1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21zj1a Offered note is linked
@@ -1453,7 +1527,7 @@ Scenario: 792a21zj1c A different parent vault ignores old links
   Then notes linked to the old vault ID are treated as unlinked
 ```
 
-## 792a21zk Renames and folds record aliases
+### 792a21zk Renames and folds record aliases
 
 Requirement: [792a21zk Renames and folds record aliases](#792a21zk-renames-and-folds-record-aliases) A note's `aliases` list MUST record the basenames the note answers to in its own vault. A rename by
 Luhmann reparenting, or by skill adoption, MUST append the note's old basename to its `aliases` in the same write.
@@ -1465,7 +1539,7 @@ an offer.
 Rationale: a parent's or a child's reference to a renamed or folded note keeps resolving through the alias, and the
 merged query and the pull-down skip both follow aliases.
 
-### 792a21zk1 UAT Scenarios
+#### 792a21zk1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21zk1a A rename records the old name
@@ -1484,7 +1558,7 @@ Scenario: 792a21zk1c A fold keeps E's primary link
   Then E keeps P1 as its primary link and gains {note: P2, via: covered}
 ```
 
-## 792a21zl Exchange fields survive every other frontmatter rewrite
+### 792a21zl Exchange fields survive every other frontmatter rewrite
 
 Requirement: [792a21zl Exchange fields survive every other frontmatter rewrite](#792a21zl-exchange-fields-survive-every-other-frontmatter-rewrite) `xid`, `parent`, `aliases` and `offer` MUST be preserved unchanged by every path that rewrites a
 note's frontmatter and is not an exchange path (the offer receipt, the pull-down and the curation fold, and the rename's
@@ -1500,7 +1574,7 @@ anchors both MUST write the same bytes as before.
 Rationale: a link or an exchange ID lost to an unrelated rewrite would silently disconnect a note from its counterpart, and
 the next exchange would treat the note as new. Each rewrite site has its own survival test.
 
-### 792a21zl1 UAT Scenarios
+#### 792a21zl1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a21zl1a Amend preserves the exchange fields

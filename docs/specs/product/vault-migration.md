@@ -8,7 +8,57 @@ runs only when asked: `engram update --reparent-luhmann` re-parents top-level no
 The notices and the two flags belong to `engram update`, whose binary refresh and harness sync are
 install-and-update's ([install-and-update](./install-and-update.md)).
 
-## 792a10a The flat-vault notice
+## 792a10 Vault Migration
+
+**Participants and responsibilities.**
+- The user: asks for a remedy by running [`engram update`](../../GLOSSARY.md#engram-update) with `--reparent-luhmann`
+  or `--backfill-identity`, previews an apply with `--dry-run`, and applies the answers
+  ([792a10b Re-parenting only on request](#792a10b-re-parenting-only-on-request),
+  [792a10h Previewing an apply](#792a10h-previewing-an-apply)).
+- The [agent](../../GLOSSARY.md#agent-automatic-memory): judges each candidate pair by the
+  [learn skill](../../GLOSSARY.md#learn-skill)'s batch mode
+  ([792a15l The re-parent batch mode](./learn.md#792a15l-the-re-parent-batch-mode)) and writes the answers file, which
+  goes back to the user or the orchestrating agent to preview and apply
+  ([792a10c Candidates to judge](#792a10c-candidates-to-judge)).
+- The software: notices a flat [vault](../../GLOSSARY.md#vault) and notes missing their origin
+  ([792a10a The flat-vault notice](#792a10a-the-flat-vault-notice),
+  [792a10j The identity-backfill notice](#792a10j-the-identity-backfill-notice)), proposes candidate pairs
+  ([792a10c Candidates to judge](#792a10c-candidates-to-judge)), renames notes and rewrites links, keeping the chunk
+  index in step ([792a10e Renaming and rewriting links](#792a10e-renaming-and-rewriting-links),
+  [792a10f The chunk index follows the rename](#792a10f-the-chunk-index-follows-the-rename)), previews without writing
+  ([792a10h Previewing an apply](#792a10h-previewing-an-apply)), and stamps the missing origin
+  ([792a10k Stamping the missing origin](#792a10k-stamping-the-missing-origin)).
+
+**Interactions.** The software hands the user a one-line notice naming a remedy when the vault holds only top-level
+notes ([792a10a The flat-vault notice](#792a10a-the-flat-vault-notice)) or notes whose origin it could stamp
+([792a10j The identity-backfill notice](#792a10j-the-identity-backfill-notice)). The user hands the software
+`engram update --reparent-luhmann`; the software responds with a JSON payload of candidate pairs, a fingerprint and an
+instruction naming the learn skill's batch mode ([792a10c Candidates to judge](#792a10c-candidates-to-judge)). The
+agent answers in an answers file; once the user or the orchestrating agent applies it, the software responds with the
+renames, the rewritten links, the chunk-index update and what is left to judge
+([792a10e Renaming and rewriting links](#792a10e-renaming-and-rewriting-links),
+[792a10f The chunk index follows the rename](#792a10f-the-chunk-index-follows-the-rename),
+[792a10g What is left to judge](#792a10g-what-is-left-to-judge)).
+
+**Boundary assumptions.** The software assumes the answers file is readable, valid JSON, current and naming only notes
+the vault holds; otherwise it refuses, writes nothing and exits non-zero
+([792a10d Answers that are refused](#792a10d-answers-that-are-refused)). It assumes the agent gives exactly one entry
+per distinct candidate note, as the printed instruction and the batch mode say; no response is specified when it does
+not ([792a10c Candidates to judge](#792a10c-candidates-to-judge),
+[792a15l The re-parent batch mode](./learn.md#792a15l-the-re-parent-batch-mode)). It assumes each note it rewrites can
+be rewritten safely: when a rewritten note's frontmatter does not decode or its `luhmann:` is not the new ID, it
+refuses the whole invocation, names each refused note and renames nothing
+([792a10i Notes a rename will not touch](#792a10i-notes-a-rename-will-not-touch)); a backfill leaves a note with an
+anchored key untouched, goes on with the others and fails naming it
+([792a10l What a backfill keeps](#792a10l-what-a-backfill-keeps)).
+
+**Shared rules.** The vault is located by [Vault Identity](./vault-identity.md)
+([792a2a Vault location](./vault-identity.md#792a2a-vault-location)); the batch mode that judges the candidates is
+owned by [Learn](./learn.md) ([792a15l The re-parent batch mode](./learn.md#792a15l-the-re-parent-batch-mode)); the
+[binary](../../GLOSSARY.md#binary) refresh and [harness](../../GLOSSARY.md#harness) sync of `engram update` are
+[Install and Update](./install-and-update.md)'s.
+
+### 792a10a The flat-vault notice
 
 Requirement: [792a10a The flat-vault notice](#792a10a-the-flat-vault-notice) `engram update` MUST print a one-line notice naming `engram update
 --reparent-luhmann` and the learn skill's batch mode ([792a15l The re-parent batch mode](./learn.md#792a15l-the-re-parent-batch-mode)) when the vault holds at least one note and the
@@ -22,7 +72,7 @@ placing notes. The notice gives it a real remedy to point at. An empty vault has
 re-evaluate, and an ID that does not parse counts as not top-level, so a malformed vault is never
 called flat.
 
-### 792a10a1 UAT Scenarios
+#### 792a10a1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a10a1a Only top-level notes
@@ -46,7 +96,7 @@ Scenario: 792a10a1d The notice names the answering procedure
   Then the notice names both engram update --reparent-luhmann and the learn skill's batch mode ([792a15l The re-parent batch mode](#792a15l-the-re-parent-batch-mode))
 ```
 
-## 792a10b Re-parenting only on request
+### 792a10b Re-parenting only on request
 
 Requirement: [792a10b Re-parenting only on request](#792a10b-re-parenting-only-on-request) `engram update` MUST NOT rename a note or rewrite a link unless it is given
 `--reparent-luhmann`. With the flag it MUST run only the re-parenting and MUST NOT refresh the binary
@@ -57,7 +107,7 @@ and a bug could orphan a link or collide two notes onto one filename, which is w
 preview. There is no pre-run uncommitted-changes guard; the dry run plus git as the fallback is the safety
 net.
 
-### 792a10b1 UAT Scenarios
+#### 792a10b1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a10b1a Plain update never re-parents
@@ -71,7 +121,7 @@ Scenario: 792a10b1b The flag runs nothing else
   Then it derives candidates or applies answers, and does not fail for lack of a harness or a Go toolchain
 ```
 
-## 792a10c Candidates to judge
+### 792a10c Candidates to judge
 
 Requirement: [792a10c Candidates to judge](#792a10c-candidates-to-judge) `engram update --reparent-luhmann` without `--answers` MUST print a JSON payload
 and write no file. For each top-level note that has a sidecar, the payload MUST list up to three other
@@ -92,7 +142,7 @@ follows `vocab refit`'s derive, names, apply. The answering payload defers to th
 The re-parent batch mode](./learn.md#792a15l-the-re-parent-batch-mode)), and the apply step stays with the user or
 orchestrator after a `--dry-run`, which keeps the human checkpoint before bulk renames.
 
-### 792a10c1 UAT Scenarios
+#### 792a10c1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a10c1a Candidates are emitted for review
@@ -116,7 +166,7 @@ Scenario: 792a10c1d Only top-level notes with sidecars are considered
   Then neither appears as a candidate or a target
 ```
 
-## 792a10d Answers that are refused
+### 792a10d Answers that are refused
 
 Requirement: [792a10d Answers that are refused](#792a10d-answers-that-are-refused) `engram update --reparent-luhmann --answers <file>` MUST refuse, writing nothing
 and exiting non-zero, an answers file that cannot be read, one that is not valid JSON (`cannot parse
@@ -124,7 +174,7 @@ and exiting non-zero, an answers file that cannot be read, one that is not valid
 since they were derived), and one that names a note the vault does not hold (`--answers references an
 unknown note`). The stale refusal MUST say to re-run `engram update --reparent-luhmann`.
 
-### 792a10d1 UAT Scenarios
+#### 792a10d1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a10d1a A missing answers file
@@ -148,7 +198,7 @@ Scenario: 792a10d1d An unknown note
   Then it fails with "--answers references an unknown note" and the vault is unchanged
 ```
 
-## 792a10e Renaming and rewriting links
+### 792a10e Renaming and rewriting links
 
 Requirement: [792a10e Renaming and rewriting links](#792a10e-renaming-and-rewriting-links) `engram update --reparent-luhmann --answers <file>` MUST give each note the
 answers place as a `continuation` or `sibling` of a target the next ID that placement allocates, processing the
@@ -161,7 +211,7 @@ note's new basename. A note answered `top` MUST NOT change, and a note that neit
 renamed note MUST NOT be written. It MUST rebuild the sidecar of every note whose content it rewrote, so
 that no note is stale afterwards.
 
-### 792a10e1 UAT Scenarios
+#### 792a10e1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a10e1a A continuation answer renames the note and rewrites links
@@ -200,7 +250,7 @@ Scenario: 792a10e1g An untouched note is not written
   Then its file is byte-identical afterwards
 ```
 
-## 792a10f The chunk index follows the rename
+### 792a10f The chunk index follows the rename
 
 Requirement: [792a10f The chunk index follows the rename](#792a10f-the-chunk-index-follows-the-rename) When an apply renamed at least one note, `engram update --reparent-luhmann` MUST,
 in the same invocation, re-index the renamed notes and detach the chunk-manifest entries of their old
@@ -209,7 +259,7 @@ the rename. It MUST report which stage failed, that the vault rename is intact a
 that `engram ingest --auto` and `engram prune` remain as a manual fallback. When it renamed no note it
 MUST NOT touch the chunk index.
 
-### 792a10f1 UAT Scenarios
+#### 792a10f1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a10f1a The new path is indexed and the old entry detached
@@ -228,13 +278,13 @@ Scenario: 792a10f1c Nothing renamed, nothing re-indexed
   Then the chunk index is not touched
 ```
 
-## 792a10g What is left to judge
+### 792a10g What is left to judge
 
 Requirement: [792a10g What is left to judge](#792a10g-what-is-left-to-judge) After a successful apply, `engram update --reparent-luhmann` MUST report either the
 number of further candidates found in the vault's resulting state and the literal command to continue, or
 that the vault is fully evaluated, with no further instruction. It MUST print `renamed <N> note(s)` first.
 
-### 792a10g1 UAT Scenarios
+#### 792a10g1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a10g1a More candidates remain
@@ -248,7 +298,7 @@ Scenario: 792a10g1b The vault is fully evaluated
   Then the output says the vault is fully evaluated and gives no further command
 ```
 
-## 792a10h Previewing an apply
+### 792a10h Previewing an apply
 
 Requirement: [792a10h Previewing an apply](#792a10h-previewing-an-apply) `engram update --reparent-luhmann --answers <file> --dry-run` MUST print the
 old-to-new basename of each rename and the notes in which a link would be rewritten, and MUST NOT rename,
@@ -259,7 +309,7 @@ writes nothing.
 Rationale: a preview is an inspection tool and never a required step. An apply is gated by its own
 fingerprint.
 
-### 792a10h1 UAT Scenarios
+#### 792a10h1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a10h1a A preview changes nothing
@@ -278,7 +328,7 @@ Scenario: 792a10h1c A preview reports a refusal
   Then it fails reporting the same refusal as an apply, and writes nothing
 ```
 
-## 792a10i Notes a rename will not touch
+### 792a10i Notes a rename will not touch
 
 Requirement: [792a10i Notes a rename will not touch](#792a10i-notes-a-rename-will-not-touch) A rename and rewrite MUST check, before it renames or writes any file, every note it
 would rename, and MUST refuse the whole invocation, naming each refused note and its reason, when the
@@ -292,7 +342,7 @@ A CRLF note that it does not otherwise write MUST stay byte-identical. A convert
 MUST equal the hash of the same note authored with LF line endings, and a note whose frontmatter was
 already LF MUST keep its exchange hash.
 
-### 792a10i1 UAT Scenarios
+#### 792a10i1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a10i1a An anchored luhmann value is refused
@@ -331,7 +381,7 @@ Scenario: 792a10i1g An anchor-free note renames with every other key intact
   Then each decodes, its luhmann: is its new ID, and every top-level key other than aliases decodes to its earlier value
 ```
 
-## 792a10j The identity-backfill notice
+### 792a10j The identity-backfill notice
 
 Requirement: [792a10j The identity-backfill notice](#792a10j-the-identity-backfill-notice) `engram update` MUST print a one-line notice naming `engram update
 --backfill-identity` when the vault holds a fact or feedback note that the backfill could stamp now. A
@@ -340,7 +390,7 @@ resolves now, and a CRLF note counts as its LF form. It MUST NOT print the notic
 including when the only note without `user:` has `vault:` while detection still resolves empty, and
 MUST NOT print it on a run that has just backfilled.
 
-### 792a10j1 UAT Scenarios
+#### 792a10j1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a10j1a Notes missing identity are noticed
@@ -364,7 +414,7 @@ Scenario: 792a10j1d A CRLF note is noticed
   Then the notice appears
 ```
 
-## 792a10k Stamping the missing origin
+### 792a10k Stamping the missing origin
 
 Requirement: [792a10k Stamping the missing origin](#792a10k-stamping-the-missing-origin) `engram update --backfill-identity` MUST stamp `repo:`, `user:` and `vault:` onto each
 fact or feedback note that has no `user:` and no `vault:`, taking `user:` and `vault:` from the same
@@ -381,7 +431,7 @@ Rationale: one backfill run has one working directory but may stamp notes that c
 repositories, so the note's own `project:` is the better per-note signal than the run's directory. Amend
 always uses fresh detection.
 
-### 792a10k1 UAT Scenarios
+#### 792a10k1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a10k1a The current environment is stamped
@@ -420,7 +470,7 @@ Scenario: 792a10k1g Other note types are left alone
   Then neither is modified
 ```
 
-## 792a10l What a backfill keeps
+### 792a10l What a backfill keeps
 
 Requirement: [792a10l What a backfill keeps](#792a10l-what-a-backfill-keeps) A backfill MUST make its edit on the note's parsed frontmatter: it sets `repo:`,
 `user:` and `vault:` and re-emits `created:` in its quoted form when the file's text differs, and every other
@@ -436,7 +486,7 @@ endings. A note it stamps MUST be written as LF in its single atomic write and h
 since conversion changes its content hash. A note it does not write, whether already stamped, refused or
 under `--dry-run`, MUST NOT be converted.
 
-### 792a10l1 UAT Scenarios
+#### 792a10l1 UAT Scenarios
 
 ```gherkin
 Scenario: 792a10l1a An unmodeled key is kept
