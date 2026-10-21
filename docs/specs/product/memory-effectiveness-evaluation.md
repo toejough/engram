@@ -380,7 +380,7 @@ notes, a read-only checkout of the vault at the last commit at or before the tim
 git history does not exist or does not reach back that far, filtering notes by their creation date MUST give an ESTIMATE
 that is labeled as such, with the report's limits saying that later edits to a note do not show in it. For chunks, filtering by ingestion
 date MUST always give a DERIVED answer. The check MUST NOT write to the live vault, and every `engram` command it runs MUST run
-under the eval harness's sandboxing (#708).
+under the eval harness's sandboxing.
 
 Rationale: a memory written after a moment cannot have been missed at it, and an exact answer is worth a checkout where history
 allows one.
