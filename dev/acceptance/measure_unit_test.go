@@ -1,6 +1,7 @@
 package acceptance_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -49,6 +50,66 @@ func TestChainsOf_ACaptureEndsAtTheWriteOfItsTurn(t *testing.T) {
 
 	g.Expect(chains[0].steps).To(HaveLen(4))
 	g.Expect(chains[0].end()).To(Equal(offset(4.5)))
+}
+
+func TestChainsOf_ACaptureWhoseJudgePrintsAnEmptyCarryIsLinkedToThePlaceStepOfItsOwnTurn(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	origin := time.Unix(1000, 0)
+	offset := func(seconds float64) time.Time { return origin.Add(time.Duration(seconds * float64(time.Second))) }
+	emptyCarry := map[string]any{}
+	runs := make([]stepRun, 0, 8)
+	meter := make([]meterRecord, 0, 6)
+
+	// The judge prints the carry {} by specification (793d4g), so the place steps of every turn are given {}.
+	for index, turn := range []string{"t1", "t2"} {
+		begin := float64(index) * 10
+		window := map[string]any{"window": turn}
+		placePrompt := strings.Repeat("d", index+1) // a place request of the size of its own turn
+
+		runs = append(runs,
+			stepRun{step: stepMoment, input: map[string]any{"cue": cueTurnEnd, "turn": turn}, start: offset(begin),
+				end:    offset(begin + 0.1),
+				output: `{"request":{"model":"haiku","system":"a","prompt":"b"},"carry":{"window":"` + turn + `"}}`},
+			stepRun{step: stepJudge, input: map[string]any{"turn": turn, "carry": window}, start: offset(begin + 1),
+				end:    offset(begin + 1.1),
+				output: `{"request":{"model":"sonnet","system":"ab","prompt":"cd"},"carry":{}}`},
+			stepRun{step: stepPlace, input: map[string]any{"turn": turn, "carry": emptyCarry}, start: offset(begin + 2),
+				end:    offset(begin + 2.2),
+				output: `{"request":{"model":"sonnet","system":"abc","prompt":"` + placePrompt + `"},"carry":{}}`},
+			stepRun{step: stepWrite, input: map[string]any{"turn": turn, "reply": "x"}, start: offset(begin + 3),
+				end: offset(begin + 3.5)},
+		)
+
+		meter = append(meter,
+			meterRecord{Kind: meterModel, At: offset(begin + 0.3).UnixMilli(), Took: 1000, System: 1, Prompt: 1},
+			meterRecord{Kind: meterModel, At: offset(begin + 1.3).UnixMilli(), Took: 1000, System: 2, Prompt: 2},
+			meterRecord{Kind: meterModel, At: offset(begin + 2.5).UnixMilli(), Took: 1000, System: 3,
+				Prompt: len(placePrompt)},
+		)
+	}
+
+	chains := chainsOf(runs, meter)
+
+	g.Expect(chains).To(HaveLen(2))
+
+	if len(chains) != 2 {
+		return
+	}
+
+	g.Expect(unmatchedRequests(chains)).To(BeEmpty(), "each place step has its own model call")
+
+	for index, each := range chains {
+		g.Expect(each.steps).To(HaveLen(4), "moment, judge, place and write of one turn")
+
+		if len(each.steps) != 4 {
+			return
+		}
+
+		g.Expect(each.steps[2].step).To(Equal(stepPlace))
+		g.Expect(each.steps[2].start).To(Equal(offset(float64(index)*10+2)), "the place step of the capture's own turn")
+	}
 }
 
 func TestChainsOf_ADeliveryAfterAStepThatPrintedNothingIsTheEarliestOfItsCue(t *testing.T) {

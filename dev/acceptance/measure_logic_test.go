@@ -349,18 +349,23 @@ func canonical(value any) string {
 	return string(data)
 }
 
-// captureOf is the steps of the capture that begins with a moment: judge and place by the carry, and the write of the
-// same turn that follows them.
+// captureOf is the steps of the capture that begins with a moment: the judge by the carry the moment printed, the place
+// step of the same turn that began after the judge ended (the judge prints the carry {} by specification, 793d4g, so a
+// carry cannot tell the place steps of two turns apart) when the judge printed a request, and the write of the same
+// turn that follows them.
 func captureOf(first stepRun, ordered []stepRun) []stepRun {
 	linked := []stepRun{first}
 
-	for _, name := range []string{stepJudge, stepPlace} {
-		next, found := byCarry(linked[len(linked)-1], name, ordered)
-		if !found {
-			break
-		}
+	judge, found := byCarry(first, stepJudge, ordered)
+	if found {
+		linked = append(linked, judge)
 
-		linked = append(linked, next)
+		if _, printed := judge.request(); printed {
+			place, placed := placeAfter(first, judge, ordered)
+			if placed {
+				linked = append(linked, place)
+			}
+		}
 	}
 
 	last := linked[len(linked)-1]
@@ -378,7 +383,7 @@ func captureOf(first stepRun, ordered []stepRun) []stepRun {
 // chainsOf links the runs of the steps into the chains of the delivery flow (793d2a, 855d2c) and of the capture
 // (793d2b), each in the order of its first step. A step is linked to the one before it by the carry the one before
 // printed; a delivery that follows a step that printed nothing is the earliest one for the same session, cue and text
-// and event that began after it; a write is linked to a capture by the turn.
+// and event that began after it; a place step and a write are linked to a capture by the turn.
 func chainsOf(runs []stepRun, meter []meterRecord) []chain {
 	ordered := slices.SortedFunc(slices.Values(runs), func(a, b stepRun) int { return a.start.Compare(b.start) })
 	used := map[int]bool{}
@@ -499,6 +504,17 @@ func namedNotes(reply string, vault []string) []string {
 // overlap are the items of the first list that the second holds.
 func overlap(drawn, found []string) []string {
 	return slices.DeleteFunc(slices.Clone(drawn), func(item string) bool { return !slices.Contains(found, item) })
+}
+
+// placeAfter is the earliest place step of the turn of a capture's first step that began after the judge ended.
+func placeAfter(first, judge stepRun, ordered []stepRun) (stepRun, bool) {
+	for _, run := range ordered {
+		if run.step == stepPlace && run.field("turn") == first.field("turn") && !run.start.Before(judge.end) {
+			return run, true
+		}
+	}
+
+	return stepRun{}, false
 }
 
 // queryPhrases are the phrases of the engram queries that a shell command runs, each written `--phrase text` or
