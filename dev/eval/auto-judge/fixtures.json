@@ -301,7 +301,7 @@
     }
   },
   "dup-measurement-rows": {
-    "about": "855b117, note 1356/1357/1361: the agent's own correction states again, in other words, the lesson this session already wrote; the prompt is generic, so the lookup does not find the note",
+    "about": "note 1356/1357/1361: the agent's own correction states again, in other words, the lesson this session already wrote; the prompt is generic, so the lookup does not find the note",
     "fillers": [
       [
         "executing the next step of a plan and reporting back to the user",
@@ -407,7 +407,7 @@
     }
   },
   "dup-bare-cat": {
-    "about": "855b117, note 1360/1363/1369: the agent's own correction states again, in other words, the stdin-cat lesson this session already wrote; the prompt is generic, so the lookup does not find the note",
+    "about": "note 1360/1363/1369: the agent's own correction states again, in other words, the stdin-cat lesson this session already wrote; the prompt is generic, so the lookup does not find the note",
     "fillers": [
       [
         "executing the next step of a plan and reporting back to the user",
@@ -513,7 +513,7 @@
     }
   },
   "dup-live-budget": {
-    "about": "855b117, note 1358/1362: the agent's own correction states again, in other words, the live-budget lesson this session already wrote; the prompt is generic, so the lookup does not find the note",
+    "about": "note 1358/1362: the agent's own correction states again, in other words, the live-budget lesson this session already wrote; the prompt is generic, so the lookup does not find the note",
     "fillers": [
       [
         "executing the next step of a plan and reporting back to the user",
@@ -619,7 +619,7 @@
     }
   },
   "incident-finding": {
-    "about": "855b117, note 1373: a finding about the cause of this session's own incident, with the file and the time of the record, is no durable lesson",
+    "about": "note 1373: a finding about the cause of this session's own incident, with the file and the time of the record, is no durable lesson",
     "notes": [],
     "rows": [
       {
@@ -640,7 +640,7 @@
     "expect": {}
   },
   "status-to-remember": {
-    "about": "855b117, note 1309: the user asks to remember the status of the work, a branch and a worktree",
+    "about": "note 1309: the user asks to remember the status of the work, a branch and a worktree",
     "notes": [],
     "rows": [
       {
@@ -657,7 +657,7 @@
     "expect": {}
   },
   "two-claims": {
-    "about": "855b117: one correction holds a durable rule and a status; only the rule is written",
+    "about": "one correction holds a durable rule and a status; only the rule is written",
     "notes": [],
     "rows": [
       {
@@ -692,7 +692,7 @@
     }
   },
   "correction-in-ticket-work": {
-    "about": "855b117, notes 1356/1372: a real correction made during work on #855 is written, and its situation names no ticket",
+    "about": "notes 1356/1372: a real correction made during work on #855 is written, and its situation names no ticket",
     "notes": [],
     "rows": [
       {
@@ -723,7 +723,7 @@
   },
   "deep-amend-unrelated-claim": {
     "stage": "deep",
-    "about": "855b117, note 1309: passages about another failure of the same channel must not be amended into a note about a decision, and no lesson names the change (the original object is reconstructed)",
+    "about": "note 1309: passages about another failure of the same channel must not be amended into a note about a decision, and no lesson names the change (the original object is reconstructed)",
     "notes": [
       {
         "slug": "judged-automatic-memory-is-the-next-change",
@@ -776,7 +776,7 @@
   },
   "deep-amend-after-status-question": {
     "stage": "deep",
-    "about": "855b117, note 1309: the deep recall that a plain status question started must not amend the note either",
+    "about": "note 1309: the deep recall that a plain status question started must not amend the note either",
     "notes": [
       {
         "slug": "judged-automatic-memory-is-the-next-change",
@@ -829,7 +829,7 @@
   },
   "deep-sharpen-own-claim": {
     "stage": "deep",
-    "about": "855b117: a passage that sharpens the very claim of a note still revises it",
+    "about": "a passage that sharpens the very claim of a note still revises it",
     "notes": [
       {
         "slug": "zorblax-staging-reset",
@@ -870,7 +870,7 @@
   },
   "status-question": {
     "stage": "moment",
-    "about": "855b117: a plain question of what is next, with no decision in it, is never deep",
+    "about": "a plain question of what is next, with no decision in it, is never deep",
     "notes": [],
     "rows": [
       {
@@ -896,7 +896,7 @@
   },
   "status-question-where": {
     "stage": "moment",
-    "about": "855b117: a question of where the change stands, with no decision in it, is never deep",
+    "about": "a question of where the change stands, with no decision in it, is never deep",
     "notes": [],
     "rows": [
       {
@@ -918,7 +918,7 @@
   },
   "irreversible-decision": {
     "stage": "moment",
-    "about": "855b117: a weighty, irreversible decision is still deep",
+    "about": "a weighty, irreversible decision is still deep",
     "notes": [],
     "rows": [
       {
@@ -939,7 +939,7 @@
   },
   "status-after-weighty-context": {
     "stage": "moment",
-    "about": "855b117: after a conversation about a weighty change, a question of what is next, with no decision in it, is never deep",
+    "about": "after a conversation about a weighty change, a question of what is next, with no decision in it, is never deep",
     "notes": [],
     "rows": [
       {
@@ -971,7 +971,7 @@
   },
   "status-after-weighty-context-2": {
     "stage": "moment",
-    "about": "855b117: after a conversation about a weighty change, a question of what is next, with no decision in it, is never deep",
+    "about": "after a conversation about a weighty change, a question of what is next, with no decision in it, is never deep",
     "notes": [],
     "rows": [
       {

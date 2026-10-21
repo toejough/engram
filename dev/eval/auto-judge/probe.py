@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Probe of the turn judgement of automatic memory (793e6g14, 793e6g17).
+"""Probe of the turn judgement of automatic memory.
 
 The judgement of a turn is a call of a model, so a change to its instructions is measured by asking the model many
 times about a turn whose answer is known. This probe builds the request the way the product does, with the real
@@ -25,7 +25,7 @@ A fixture has a "stage": "judge" (the default, the lessons of a turn), "moment" 
 prompt: the reply is {"depth": ...}) or "deep" (the candidate judgement of a deep recall over the notes of the fixture
 and its "passages": the reply is the object of the candidates and the lessons). A note of a fixture is a fact, or a
 feedback note when it has a "behavior"; its "source" may hold {{SESSION}}, the session of the trial, so that the note
-reads as written automatically in it (855b117). "fillers" are facts that crowd the lookup as the many notes of a real
+reads as written automatically in it. "fillers" are facts that crowd the lookup as the many notes of a real
 vault do, so that a note of the session is not among the nearest.
 
 Each reply is counted as: none (the reply holds no lesson), lesson (a lesson with the words the fixture expects),
@@ -37,7 +37,7 @@ The login is read from CLAUDE_CODE_OAUTH_TOKEN or ~/.config/claude-key.env, and 
 call only. Every call is isolated by dev/eval/isolation.py: its home, vault, chunk index and records are in a directory
 of its own, outside any repository.
 
-Example, the sentence of 793b65 about an approach the agent was unsure of:
+Example, a sentence about an approach the agent was unsure of:
   python3 dev/eval/auto-judge/probe.py --engram /path/to/engram --fixture unsure-approach --runs 40 \\
       --without 'without-the-sentence=An approach the agent was unsure of, tried and saw succeed is a lesson even when
       the user asked for the try: "I do not know whether the flag makes the check pass", then a run, then "the check
@@ -250,7 +250,7 @@ def verdict(reply, expect):
         return "invalid"
     if expect.get("not_written"):
         # an empty list proves nothing (the reply may drop the lesson for another reason): suppression is a lesson
-        # whose covered names the note of the session (855b117, the note 1377a)
+        # whose covered names the note of the session (the note 1377a)
         if any(not lesson.get("covered") for lesson in lessons):
             return "written (a miss)"
         if not lessons:

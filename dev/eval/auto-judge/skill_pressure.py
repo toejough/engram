@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Pressure test of the learn and recall skills against the bar of 855b117: a note is durable and atomic, and of the shim
-guidance against 855b123: the shim query is skipped for a message that arrived with a delivered block.
+"""Pressure test of the learn and recall skills against the bar that a note is durable and atomic, and of the shim
+guidance against the rule that the shim query is skipped for a message that arrived with a delivered block.
 
 Each scenario is asked of a headless `claude -p` run, a fresh process with the skill's text as its only system prompt and
 no tools, so the run cannot inherit the session that wrote the skill (subagents do). A run states the notes it would write
