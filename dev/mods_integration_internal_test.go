@@ -142,10 +142,10 @@ func Test793d2a1i_Mod_ACommandThatFailsIsReportedToTheWriting(t *testing.T) {
 		ContainSubstring("the embedder is not there")), "the failure")
 }
 
-// Test793d2a1j_Mod_ADeliveryThatDoesNotFinishWithinItsBoundIsReportedToTheWriting runs the mod under node against a
+// Test793d2a1j_Mod_AFlowTheHostNeverLetsFinishIsSteppedAsideAfter2Minutes runs the mod under node against a
 // stand-in host whose model call never settles unless its signal aborts it, and whose timers fire at once: a live
 // session cannot be made to pass the bound without waiting for it.
-func Test793d2a1j_Mod_ADeliveryThatDoesNotFinishWithinItsBoundIsReportedToTheWriting(t *testing.T) {
+func Test793d2a1j_Mod_AFlowTheHostNeverLetsFinishIsSteppedAsideAfter2Minutes(t *testing.T) {
 	t.Parallel()
 
 	// the model's call that is aborted settles with no answer, or rejects: the report says the 2 minutes either way
@@ -207,10 +207,10 @@ func Test793d2a1k_Mod_TheLinesTheCommandPrintsForTheUserAreShownThroughTheHostsL
 	g.Expect(outcome.Passed.Context).To(Equal([]string{block}), "the context beside the prompt: the block alone")
 }
 
-// Test793d2b1a_Mod_JudgesATurnAndGivesTheReplyToTheWriting runs the mod under node against a stand-in host: a live
-// session cannot show what a stand-in records. The stand-in's moment does not answer until the driver lets it, so a
-// hook that waited for the job would not give the event's result back.
-func Test793d2b1a_Mod_JudgesATurnAndGivesTheReplyToTheWriting(t *testing.T) {
+// Test793d2b1a_Mod_TheModJudgesATurnPlacesTheLessonsAndGivesTheRepliesToTheWriting runs the mod under node against a
+// stand-in host: a live session cannot show what a stand-in records. The stand-in's moment does not answer until the
+// driver lets it, so a hook that waited for the job would not give the event's result back.
+func Test793d2b1a_Mod_TheModJudgesATurnPlacesTheLessonsAndGivesTheRepliesToTheWriting(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -257,7 +257,7 @@ func Test793d2b1a_Mod_JudgesATurnAndGivesTheReplyToTheWriting(t *testing.T) {
 	}), "the reply to the lessons, the carry of the placement and the reply to the placement")
 }
 
-func Test793d2b1b_Mod_AJudgementThatPrintsNothingEndsTheCapture(t *testing.T) {
+func Test793d2b1b_Mod_AMomentOrAJudgementThatPrintsNothingEndsTheCapture(t *testing.T) {
 	t.Parallel()
 
 	t.Run("a moment that prints nothing", func(t *testing.T) {
@@ -358,7 +358,7 @@ func Test793d2b1d_Mod_AModelThatDoesNotAnswerIsReportedToTheWriting(t *testing.T
 	}
 }
 
-func Test793d2b1e_Mod_TheJudgementReceivesTheOriginOfThePromptTheTurnBeganWith(t *testing.T) {
+func Test793d2b1e_Mod_TheFirstStepReceivesTheOriginOfThePromptTheTurnBeganWith(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -390,7 +390,7 @@ func Test793d2b1f_Mod_ATurnOfASubagentIsNotCaptured(t *testing.T) {
 	g.Expect(outcome.Calls).To(BeEmpty(), "nothing was asked: no step, no model and no writing")
 }
 
-func Test793d2b1g_Mod_TheJudgementReceivesTheTextTheTurnBeganWith(t *testing.T) {
+func Test793d2b1g_Mod_TheFirstStepReceivesTheTextTheTurnBeganWith(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -464,7 +464,7 @@ func Test793d2b1i_Mod_ATurnThatStartsWithNoTextHasNoOrigin(t *testing.T) {
 	}
 }
 
-func Test793d2b1j_Mod_AStageThatStallsIsEndedAtItsBoundAndReported(t *testing.T) {
+func Test793d2b1j_Mod_AStageThatStallsIsEndedAtItsRowAndReported(t *testing.T) {
 	t.Parallel()
 
 	t.Run("the call for the session's ID", func(t *testing.T) {
@@ -578,7 +578,7 @@ func Test793d2b1j_Mod_AStageThatStallsIsEndedAtItsBoundAndReported(t *testing.T)
 	})
 }
 
-func Test793d2b1k_Mod_ARequestThatIsNotJSONIsAFailureOfTheJudgement(t *testing.T) {
+func Test793d2b1k_Mod_ARequestThatIsNotJSONIsAFailureOfTheStepThatPrintedIt(t *testing.T) {
 	t.Parallel()
 
 	for _, step := range []string{"moment", "judge"} {

@@ -195,7 +195,7 @@ func Test793a2a1e_AVaultThatDoesNotExistIsNotCreated(t *testing.T) {
 	})
 }
 
-func Test793a2b1a_TheNotesThatBearOnAPromptArriveWithIt(t *testing.T) {
+func Test793a2b1a_TheNotesThatApplyToAPromptArriveWithIt(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

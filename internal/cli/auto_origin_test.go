@@ -19,7 +19,7 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-func Test793d4m1a_Auto_APromptOfAnOriginTheUserSendsIsDeliveredForAndItsTurnIsJudged(t *testing.T) {
+func Test793d4m1a_Auto_APromptOfAnOriginTheUserSendsIsJudgedAndDeliveredFor(t *testing.T) {
 	t.Parallel()
 
 	for _, origin := range []string{"composer", "bridge", "slack-ping", "sdk"} {
@@ -55,7 +55,7 @@ func Test793d4m1a_Auto_APromptOfAnOriginTheUserSendsIsDeliveredForAndItsTurnIsJu
 	}
 }
 
-func Test793d4m1b_Auto_APromptOfAnyOtherOriginIsDeliveredNothingAndItsTurnIsJudgedNothing(t *testing.T) {
+func Test793d4m1b_Auto_APromptOfAnyOtherOriginIsJudgedAndDeliveredNothing(t *testing.T) {
 	t.Parallel()
 
 	sessions := recordOfAPrompt(t)

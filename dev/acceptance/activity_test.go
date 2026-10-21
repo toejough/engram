@@ -25,8 +25,8 @@ func Test793a2e1a_WhatWasDeliveredAndWhatWasWrittenForThePreviousTurnIsInTheSess
 	)
 
 	step(t, "Given the user has run engram update, a vault holding a note that says when the staging database is "+
-		"reset, and a session in which the user asked in one prompt when it is reset and to remember that it is "+
-		"backed up every Monday at 05:00 UTC", func() {
+		"reset, and a session in which the user asked in one prompt to prepare a test run against the staging database "+
+		"tonight and to remember that it is backed up every Monday at 05:00 UTC", func() {
 		machine.hasRunUpdate()
 
 		stagingNote = machine.learnsFact(stagingReset)

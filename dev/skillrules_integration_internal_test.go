@@ -62,6 +62,7 @@ func Test855a3t1a_AMessageThatArrivedWithADeliveredBlockIsNotQueriedForAgain(t *
 
 	g.Expect(text).To(ContainSubstring("a block opening `[engram memory]` attached to the user's message means the mod " +
 		"already looked up memory for that message, so do not run this query again for that message."))
+	g.Expect(text).To(ContainSubstring("Every other rule here, including the re-entry moments below, stands."))
 }
 
 // shippedText returns the text of a file the repository ships, white space collapsed to single spaces.

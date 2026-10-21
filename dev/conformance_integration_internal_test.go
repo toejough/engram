@@ -101,6 +101,22 @@ func countWithPrefix(ids []string, prefix string) int {
 	return count
 }
 
+// isOtherCheckout tells whether a directory is the repository's own metadata, a place where worktrees are kept, or the
+// root of another checkout (a directory with a .git entry): the test files in those are not the repository's own.
+func isOtherCheckout(path, name string) bool {
+	if name == ".git" || name == ".claude" || name == ".worktrees" {
+		return true
+	}
+
+	if path == repositoryRoot {
+		return false
+	}
+
+	_, statErr := os.Stat(filepath.Join(path, ".git"))
+
+	return statErr == nil
+}
+
 // testSources returns the text of every Go test file of the repository, whatever its build tags.
 func testSources(t *testing.T) []string {
 	t.Helper()
@@ -112,7 +128,7 @@ func testSources(t *testing.T) []string {
 			return err
 		}
 
-		if entry.IsDir() && entry.Name() == ".git" {
+		if entry.IsDir() && isOtherCheckout(path, entry.Name()) {
 			return filepath.SkipDir
 		}
 

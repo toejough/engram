@@ -23,7 +23,7 @@ func TestScenarioIDs_ReadsTheScenariosOfBothChanges(t *testing.T) {
 			want: []string{"793a2a1a", "793d4b1h"},
 		},
 		{
-			name: "a scenario restated in a mapping is listed once, where it first appears",
+			name: "an ID that appears twice is listed once, where it first appears",
 			spec: "Scenario: 793a2a1a One\nScenario: 793a2b1a Two\n### Mapping\nScenario: 793a2a1a One\n",
 			want: []string{"793a2a1a", "793a2b1a"},
 		},
@@ -38,7 +38,7 @@ func TestScenarioIDs_ReadsTheScenariosOfBothChanges(t *testing.T) {
 			want: []string{"855a2a1a", "793a2a1a", "855d4b1m"},
 		},
 		{
-			name: "a scenario of 793 that 855 restates is counted once",
+			name: "an ID that appears again further on is counted once",
 			spec: "Scenario: 793d2a1d Replaced\n### Modified\nScenario: 793d2a1d Replaced\nScenario: 855d2a1a New\n",
 			want: []string{"793d2a1d", "855d2a1a"},
 		},
@@ -58,22 +58,6 @@ func TestScenarioIDs_ReadsTheScenariosOfBothChanges(t *testing.T) {
 			g.Expect(scenarioIDs(testCase.spec)).To(Equal(testCase.want))
 		})
 	}
-}
-
-// TestScenariosWithoutTest_AScenarioOf855IsNamedOnlyWhereItsSpecIsRead: a check that reads the specs of 793 alone does
-// not name a scenario of 855 that has no test.
-func TestScenariosWithoutTest_AScenarioOf855IsNamedOnlyWhereItsSpecIsRead(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	spec793 := "Scenario: 793a2a1a One\n"
-	spec855 := "Scenario: 855a2a1a A glance\nScenario: 855d4b1m A cap\n"
-	sources := []string{
-		"package a_test\n\nfunc Test793a2a1a_One(t *testing.T) {}\nfunc Test855a2a1a_Glance(t *testing.T) {}\n",
-	}
-
-	g.Expect(scenariosWithoutTest(scenarioIDs(spec793), sources)).To(BeEmpty(), "reading 793 alone misses it")
-	g.Expect(scenariosWithoutTest(scenarioIDs(spec793+spec855), sources)).To(Equal([]string{"855d4b1m"}))
 }
 
 func TestScenariosWithoutTest_NamesThoseNoTestSourceDeclares(t *testing.T) {
@@ -188,4 +172,20 @@ func TestScenariosWithoutTest_OnlyADeclaredFunctionIsATest(t *testing.T) {
 			g.Expect(scenariosWithoutTest(testCase.ids, testCase.sources)).To(Equal(testCase.want))
 		})
 	}
+}
+
+// TestScenariosWithoutTest_OnlyTheIDsGivenAreChecked: a scenario with no test is named only when its ID is among those
+// given.
+func TestScenariosWithoutTest_OnlyTheIDsGivenAreChecked(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	specWithTests := "Scenario: 793a2a1a One\n"
+	specWithoutTest := "Scenario: 855a2a1a A glance\nScenario: 855d4b1m A cap\n"
+	sources := []string{
+		"package a_test\n\nfunc Test793a2a1a_One(t *testing.T) {}\nfunc Test855a2a1a_Glance(t *testing.T) {}\n",
+	}
+
+	g.Expect(scenariosWithoutTest(scenarioIDs(specWithTests), sources)).To(BeEmpty(), "an ID not given is not checked")
+	g.Expect(scenariosWithoutTest(scenarioIDs(specWithTests+specWithoutTest), sources)).To(Equal([]string{"855d4b1m"}))
 }

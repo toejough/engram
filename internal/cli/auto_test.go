@@ -22,7 +22,7 @@ import (
 
 //go:generate impgen cli.QueryRun --dependency --import-path github.com/toejough/engram/internal/cli
 
-func Test793d4a1a_RunAutoDeliver_PrintsTheNotesThatBearOnThePromptAsOneBlock(t *testing.T) {
+func Test793d4a1a_RunAutoDeliver_TheCandidatesTheJudgementChoseComeBackAsOneBlock(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -106,7 +106,7 @@ func Test793d4a1d_RunAutoDeliver_ANoteTheSessionHoldsIsLeftOut(t *testing.T) {
 	g.Expect(out.String()).NotTo(ContainSubstring("1.2026-10-17.zorblax-staging-reset.md"))
 }
 
-func Test793d4a1e_RunAutoDeliver_NoNoteToDeliverPrintsNothing(t *testing.T) {
+func Test793d4a1e_RunAutoDeliver_NoCandidateToDeliverPrintsNothing(t *testing.T) {
 	t.Parallel()
 
 	sessions := t.TempDir()

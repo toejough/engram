@@ -154,9 +154,9 @@ func Test855a3b1d_TheNotesThatArriveAreTheNotesTheRecallSkillDraws(t *testing.T)
 
 	var stagingNote, backupNote, formatNote string
 
-	step(t, "Given the user has run engram update, and a vault holding a note that says when the staging database "+
-		"is reset, a note that says to take a backup before a database migration, and a note about formatting "+
-		"Python files", func() {
+	step(t, "Given the user has run engram update, and a vault holding a note that says when the staging database is "+
+		"reset, a note that says to take a backup before a database migration, and a note about formatting Python files, "+
+		"of which the first two plainly apply to the prompt below and the third plainly does not", func() {
 		machine.hasEngram()
 		machine.hasClaudeCode()
 		machine.agentMayRunEngramAndSkills()

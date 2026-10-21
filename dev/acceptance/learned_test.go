@@ -110,8 +110,8 @@ func Test855a2b1c_AConfirmedProcedureIsWrittenAsARunbook(t *testing.T) {
 	})
 
 	step(t, "When the user tells the agent in a prompt that releasing this project is always: run make ci, then tag "+
-		"with git tag vX.Y.Z, then push the tag with git push origin vX.Y.Z, and the agent does these in that order "+
-		"and the user confirms it is the way, and the turn ends", func() {
+		"with git tag vX.Y.Z, then push the tag with git push origin vX.Y.Z, and the agent says these three commands in "+
+		"that order and runs none of them, and the user confirms it is the way, and the turn ends", func() {
 		chat.tell(askToReleaseInOrder)
 		chat.tell(confirmTheRelease)
 	})
@@ -163,8 +163,8 @@ func Test855a2c1a_ASubPointOfANoteTheSessionHoldsContinues(t *testing.T) {
 			g.Expect(chat.tell(askPlanTheBuild).blocks()).To(HaveLen(1), "the note arrived with the prompt")
 		})
 
-	step(t, "When the user tells the agent in a prompt that the lint step of make ci needs LINT_STRICT=1, and the "+
-		"turn ends", func() {
+	step(t, "When the user corrects the agent in a prompt: make ci alone fails, because the lint step of make ci needs "+
+		"LINT_STRICT=1, and the turn ends", func() {
 		chat.tell(sayTheLintNeedsStrict)
 	})
 
@@ -208,8 +208,8 @@ func Test855a2c1b_TheSameThoughtAtTheSameLevelIsASibling(t *testing.T) {
 			"the black note arrived, and the note it continues did not")
 	})
 
-	step(t, "When the user tells the agent in a prompt to format Go files with gofmt before committing, and the turn "+
-		"ends", func() {
+	step(t, "When the user asks the agent in a prompt to remember to format Go files with gofmt before committing, and "+
+		"the turn ends", func() {
 		chat.tell(sayToFormatGo)
 	})
 
@@ -247,8 +247,8 @@ func Test855a2c1c_ANoteTheSessionHasNotSeenIsNotATarget(t *testing.T) {
 			chat = machine.startSession("zorblax").converse()
 		})
 
-	step(t, "When the user tells the agent in a prompt to format Go files with gofmt before committing, and the turn "+
-		"ends", func() {
+	step(t, "When the user asks the agent in a prompt to remember to format Go files with gofmt before committing, and "+
+		"the turn ends", func() {
 		g.Expect(chat.tell(sayToFormatGo).blocks()).To(BeEmpty(), "no note arrived with the prompt")
 	})
 

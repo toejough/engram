@@ -113,7 +113,7 @@ func Test793a2c1b_ARequestToRememberBecomesANote(t *testing.T) {
 		chat = machine.startSession("zorblax").converse()
 	})
 
-	step(t, "When the user asks the agent in a prompt to remember something, and the turn ends", func() {
+	step(t, "When the user asks the agent in a prompt to remember something durable, and the turn ends", func() {
 		chat.tell(askToRemember)
 	})
 
@@ -257,8 +257,8 @@ func Test793a2c1g_ACredentialInTheTurnIsNotInTheNote(t *testing.T) {
 		chat = machine.startSession("zorblax").converse()
 	})
 
-	step(t, "When the user asks the agent in a prompt to remember how to deploy, with the token and the password "+
-		"that the deploy needs, and the turn ends", func() {
+	step(t, "When the user asks the agent in a prompt to remember how to deploy, with the token and the password that "+
+		"the deploy needs, each in a recognised form, and the turn ends", func() {
 		chat.tell(askToRememberTheDeploy)
 	})
 

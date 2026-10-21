@@ -43,9 +43,8 @@ func Test855a2g1b_ALessonTheSessionWroteIsNotWrittenTwice(t *testing.T) {
 
 	var chat *conversation
 
-	step(t, "Given the user has run engram update, a vault crowded with notes about a user repeating an "+
-		"instruction, and a session in which the agent may not run engram commands and whose first turn became a "+
-		"note", func() {
+	step(t, "Given the user has run engram update, a vault crowded with notes about a user repeating an instruction, "+
+		"and a session whose first turn became a note", func() {
 		machine.hasEngram()
 
 		for _, filler := range planFillers {
@@ -61,8 +60,8 @@ func Test855a2g1b_ALessonTheSessionWroteIsNotWrittenTwice(t *testing.T) {
 		machine.awaitAutomaticNote(chat.turnEnds, "that states the correction", buildTarget)
 	})
 
-	step(t, "When the user corrects the agent again in a prompt of the session, with none of the lesson's words, and the "+
-		"turn ends", func() {
+	step(t, "When the user corrects the agent again in a prompt with none of the lesson's words, the agent's answer "+
+		"states the lesson again, and the turn ends", func() {
 		chat.tell(repeatTheCorrection)
 	})
 
@@ -89,19 +88,20 @@ func Test855a2g1c_ACorrectionMadeInWorkOnATicketIsWrittenWithNoTicketInItsSituat
 
 	var chat *conversation
 
-	step(t, "Given the user has run engram update, and a session in which the agent may not run engram commands and "+
-		"has answered a question about work on a ticket", func() {
+	step(t, "Given the user has run engram update, and a session in which the agent has answered a question about work "+
+		"on a ticket", func() {
 		machine.hasRunUpdate()
 
 		chat = machine.startSession("zorblax").converse()
 		chat.tell(askAboutTheTicketRows)
 	})
 
-	step(t, "When the user corrects the agent in a prompt, and the turn ends", func() {
+	step(t, "When the user corrects the agent in a prompt with a rule that holds beyond the ticket, "+
+		"and the turn ends", func() {
 		chat.tell(correctTheTicketRows)
 	})
 
-	step(t, "Then within 2 minutes the vault holds a note that states the correction and whose situation names no "+
+	step(t, "Then within 2 minutes the vault holds a note that states the rule and whose situation names no "+
 		"ticket", func() {
 		note, _ := machine.awaitNote(chat.turnEnds, "that states the correction", func(note vaultNote) bool {
 			return note.states("meter")
