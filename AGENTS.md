@@ -7,7 +7,29 @@ Automatic memory, on [Claude Code](docs/GLOSSARY.md#harness) only, is a mod, not
 ## Core Principles
 
 - **Verify, don't guess.** Always read source code and documentation before guessing at formats, paths, or API contracts. Never assume directory structures or payload fields — verify first.
-- **Follow the documentation workflow before implementation.** For every behavior change, including code, tooling, configuration, and agent instructions, read and follow the required implementation workflow in [docs/AGENTS.md](docs/AGENTS.md#required-implementation-workflow), even when no documentation edits were initially planned.
+- **Follow the documentation workflow before implementation.** For every behavior change, including code, tooling, configuration, and agent instructions, read and follow [Choose the Work Route](docs/WORKFLOW-GUIDE.md#choose-the-work-route) and the [Project Profile](#project-profile), even when no documentation edits were initially planned.
+
+## Project Profile
+
+Adopted guides: [Conventions](docs/CONVENTIONS-GUIDE.md), [Specification](docs/SPECIFICATION-GUIDE.md) and [Workflow](docs/WORKFLOW-GUIDE.md), copied unchanged from github.com/toejough/software-developer-guides, branch `codex/draft-guidance`, commit `cdc7d9ab1b25749cf8f4b65ad1c4b15387f29013`, adopted 2026-10-21. Edit them only in that repository; review its updates before replacing the copies.
+
+- **Required workflow.** Every behavior change, including code, tooling, configuration and agent instructions, follows [Choose the Work Route](docs/WORKFLOW-GUIDE.md#choose-the-work-route), whatever its size or type; shipped instructions (skills, guidance, mods) are code.
+- **Issue tracker.** GitHub issues in github.com/toejough/engram, through `gh` (see Agent skills). The issue number is the `<issue-key>` of `docs/changes/<issue-key>_<change-slug>/`.
+- **Language and toolchain.** Go, pure Go, no CGO. The approved commands are those of [Code Quality](#code-quality): `targ` for every build, test, lint and check operation (never `go test` or `go vet` directly, never `targ fmt-code`), `targ reorder-decls` for declaration order, `go install ./cmd/engram` for the binary.
+- **Test frameworks.** gomega assertions; tests are black-box (`package foo_test`) with `t.Parallel()` in every test and subtest, each with its own data (`.claude/rules/go.md`, `.claude/skills/engram-go-conventions.md`); a test of unexported code is white-box (`package foo`, mostly `*_internal_test.go`: 39 of the 304 test files outside `dev/eval` today). Mocks of injected collaborators are imptest mocks generated with impgen: an injection or impure-interaction test MUST use imptest, a dependency-contract test uses the real dependency, and standard output and error are captured with ordinary buffers. A property-based test MUST use rapid (`pgregory.net/rapid`), and every rapid entry of a test catalog MUST include a Properties column (its contents: [Choose Test Methods](docs/WORKFLOW-GUIDE.md#choose-test-methods)).
+- **Test suites** ([Test-Suite Classification](docs/CONVENTIONS-GUIDE.md#test-suite-classification); the Example Go Profile with `targ` as the runner, never `go test -tags` directly):
+
+  | Asserted boundary | Constraint | Command |
+  | --- | --- | --- |
+  | Pure and deterministic; the default suite holds only these | none | `targ test` (also inside `targ check-full`) |
+  | Local impure boundary, no live service | `//go:build integration` (`targ && integration` in `dev/`) | `targ test-dev-integration` runs the tagged `dev/` tests (`-tags=targ,integration`). The shared leg `targ test-integration` (inside `targ check-full`) runs `go test -tags=integration -run TestIntegration ./...`: it selects by the name `TestIntegration*`, no such function exists and no `integration`-tagged file exists outside `dev/`, so it executes nothing today |
+  | Live service: a real Claude Code session in an isolated home | `//go:build network`, only in `dev/acceptance` | `targ acceptance [--run REGEXP]`; part of no check: it needs a login and costs money |
+
+  Known deviations, not endorsements: the default suite still holds tests that use a real temporary directory ([#860](https://github.com/toejough/engram/issues/860)); the acceptance tests fail instead of skipping when no login exists; the `parity` build tag has no approved command; and nine `*_integration_test.go` files outside `dev/` carry no `integration` tag and run in the default suite, where tagging them as the table directs would drop them from every gate, because the shared leg selects by test name and none is named `TestIntegration*` (open question [858d99 Test-suite classification deviations](docs/changes/858_documentation-framework-adoption/858d_questions-and-decisions.md#questions-and-decisions)).
+- **Documentation.** The guides, `docs/GLOSSARY.md` (business terms and technical terms, separately) and `docs/ROADMAP.md` sit directly under `docs/`; images used by the README live in `docs/assets/` ([Specification Files](docs/CONVENTIONS-GUIDE.md#specification-files)).
+- **Deployment.** `go install ./cmd/engram`, then `engram update --with-guidance` syncs the skills, the mods and the guidance to the harness roots (`~/.claude/engram/`, `~/.pi/agent/engram/`).
+- **Branch and integration policy.** One worktree per branch. Implementation review (with argumentation) completes before any merge and before any push. Rebase on `main` and re-test before merging; if another branch merged first, rebase and re-test again. Merge with `git merge --ff-only` only, no merge commits. Never amend a pushed commit.
+- **Commits.** Subject `type(scope): sentence` (for example `feat`, `fix`, `docs`, `test`, `refactor`, `style`, `chore`); end the message with exactly one trailer line `AI-Used: [claude]`, never `Co-Authored-By`; close an issue with `Fixes #<n>` in the message.
 
 ## Directory Structure
 
@@ -31,7 +53,7 @@ engram/
 │   ├── mods/          # Source for the Claude Code mods `engram update` deploys beside the skills — `engram-memory`
 │   └── guidance/      # Source for the deployable ambient guidance docs — recall-firing (`recall.md`), delegation-firing (`delegate.md`), learn-firing (`learn.md`), and runbook-follow-frame (`shim.md`) — synced by `engram update --with-guidance` to canonical paths in `~/.claude/engram/guidance/` (Claude Code) and `~/.pi/agent/engram/guidance/` (Pi); compat symlinks at old flat paths keep existing `@import` lines in CLAUDE.md / AGENTS.md resolving (792a11m in docs/specs/product/install-and-update.md); activated via `@import`
 ├── dev/               # Build tooling (targ definitions, linter configs); `dev/acceptance/` holds the tests that drive a real Claude Code session (`targ acceptance`)
-└── docs/              # Organized per docs/AGENTS.md: changes/, specs/, the authoring guides, GLOSSARY.md, ROADMAP.md, images/
+└── docs/              # Adopted guides (CONVENTIONS-GUIDE, SPECIFICATION-GUIDE, WORKFLOW-GUIDE), changes/, specs/, assets/, GLOSSARY.md, ROADMAP.md
 ```
 
 ## Key Files
@@ -43,9 +65,9 @@ engram/
 - `agent-instructions/mods/engram-memory/hooks/register.js` — the automatic-memory mod's hooks
 - `internal/auto/auto.go` — `auto.Deliver`, the block of the notes that bear on a prompt
 - `dev/targs.go` — Build targets (targ definitions)
-- `docs/AGENTS.md` — documentation conventions and the index of authoring guides; start here for any `docs/` work
+- `docs/WORKFLOW-GUIDE.md`, `docs/SPECIFICATION-GUIDE.md`, `docs/CONVENTIONS-GUIDE.md` — the adopted guides: how work proceeds; specification content; shared vocabulary, IDs and links. Start with WORKFLOW-GUIDE for any `docs/` work or behavior change
 - `docs/GLOSSARY.md`, `docs/ROADMAP.md` — project terms; planned, parked and shipped work
-- `docs/specs/product/`, `docs/specs/technical/` — the canonical behavior record: one file per capability and per component
+- `docs/specs/product/`, `docs/specs/technical/` — the canonical behavior record: one file per outcome, capability, business workflow, component and technical workflow
 
 ## Design Principles
 
@@ -81,14 +103,6 @@ When working through issues, the preferred default is:
 5. Use as many relevant skills as possible at each stage (brainstorming, writing-plans, TDD, etc.)
 6. **Keep interacting agents alive together** — don't kill an executor until its reviewer ACKs (or argument resolves). Don't kill a planner until its reviewer signs off. Agents that need to argue must both be alive.
 
-## Worktree & Merge Rules
-
-- **Review before merge** — implementation review (with argumentation) must complete before any merge.
-- **ff-only merges only** — always `git merge --ff-only`. No merge commits.
-- **Rebase on main before merge** — after review passes, rebase the branch on main and re-test before merging.
-- **Rebase loop** — if another branch merged ahead of you, rebase on the new main and re-test again before retrying the merge.
-- **Never push without review** — all worktree work must be reviewed before pushing.
-
 ## Skill Editing
 
 - **ALWAYS use the `superpowers:writing-skills` skill when editing any SKILL.md file.** No exceptions.
@@ -117,7 +131,7 @@ The five canonical triage roles map one-to-one to label strings in this repo's t
 
 ### Domain docs
 
-Single-context repo with its own documentation system, not the `CONTEXT.md`/`docs/adr/` default. Before exploring, read `docs/AGENTS.md` (conventions and the index of guides), the relevant capability and component files of the behavior record (`docs/specs/product/` and `docs/specs/technical/`), `docs/GLOSSARY.md`, and this file. If a file does not exist, proceed silently.
+Single-context repo with its own documentation system, not the `CONTEXT.md`/`docs/adr/` default. Before exploring, read `docs/WORKFLOW-GUIDE.md` (work routes; shared vocabulary, IDs and links are in `docs/CONVENTIONS-GUIDE.md`), the relevant capability and component files of the behavior record (`docs/specs/product/` and `docs/specs/technical/`), `docs/GLOSSARY.md`, and this file. If a file does not exist, proceed silently.
 
 - Use the glossary's vocabulary when naming a domain concept in an issue title, refactor proposal, hypothesis or test name. If the concept is missing, either you are inventing language the project does not use or the glossary has a gap worth noting.
-- If your output contradicts a requirement or its rationale in the specs, surface it explicitly ("Contradicts 792b8c1, but worth reopening because...") rather than silently overriding. A behavior change goes through a change under `docs/changes/` per `docs/SPECIFICATION-LIFECYCLE-GUIDE.md`.
+- If your output contradicts a requirement or its rationale in the specs, surface it explicitly ("Contradicts 792b8c1, but worth reopening because...") rather than silently overriding. A behavior change goes through a change under `docs/changes/` per [Choose the Work Route](docs/WORKFLOW-GUIDE.md#choose-the-work-route) and [Normative Deltas](docs/SPECIFICATION-GUIDE.md#normative-deltas).

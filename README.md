@@ -13,7 +13,7 @@ Engram gives Claude Code and Pi agents persistent memory via a zettelkasten-styl
 
 After a few months of use, the vault's wikilink graph looks like this in Obsidian — each dot is a note, each line a `[[wikilink]]`; dense clusters are groups of related notes, and the connective tissue reflects thematic proximity:
 
-![Obsidian graph view of an engram vault](docs/images/vault-graph.png)
+![Obsidian graph view of an engram vault](docs/assets/vault-graph.png)
 
 *Screenshot pre-dates the 2026-07-10 vocab→tags migration (#678): the ~25 vocab term-note hubs visible here no longer exist — vocab membership now rides `tags: [vocab/<term>]`, not wikilinks, so a fresh graph view no longer shows these hubs.*
 
@@ -177,4 +177,4 @@ Design principles are summarized in [`AGENTS.md`](AGENTS.md), and their rational
 
 ## Documentation
 
-See [`docs/AGENTS.md`](docs/AGENTS.md) for the documentation conventions and the index of guides, [`docs/GLOSSARY.md`](docs/GLOSSARY.md) for terms, [`docs/ROADMAP.md`](docs/ROADMAP.md) for planned and parked work, and `dev/eval/LEDGER.md` for proven results.
+See [`docs/WORKFLOW-GUIDE.md`](docs/WORKFLOW-GUIDE.md) for how work proceeds, [`docs/SPECIFICATION-GUIDE.md`](docs/SPECIFICATION-GUIDE.md) and [`docs/CONVENTIONS-GUIDE.md`](docs/CONVENTIONS-GUIDE.md) for specification content, identity and conventions, [`docs/GLOSSARY.md`](docs/GLOSSARY.md) for terms, [`docs/ROADMAP.md`](docs/ROADMAP.md) for planned and parked work, and `dev/eval/LEDGER.md` for proven results.
