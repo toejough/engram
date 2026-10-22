@@ -211,10 +211,14 @@ func Test792b36c4a8_EnqueueOutbox_QueueingLeavesTheVaultsTrackedFilesAlone(t *te
 	env.parent.setDown(true)
 
 	commander := env.deps().Commander
+	// the running user's global git config must not reach the test: no signing, no hooks, no global excludes
+	isolation := []string{
+		"-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null", "-c", "core.excludesFile=/dev/null",
+	}
 	git := func(args ...string) string {
 		t.Helper()
 
-		stdout, stderr, err := commander.Run(t.Context(), env.vault, "git", args...)
+		stdout, stderr, err := commander.Run(t.Context(), env.vault, "git", append(isolation, args...)...)
 		g.Expect(err).NotTo(HaveOccurred(), string(stderr))
 
 		return string(stdout)
@@ -288,6 +292,7 @@ func Test792b36c4a9_OfferHooks_ASelfParentVaultQueuesNothing(t *testing.T) {
 			g.Expect(nonEmptyLines(env.lastStderr)).To(HaveLen(1), env.lastStderr)
 			g.Expect(env.lastStderr).To(ContainSubstring("engram vault-id --regenerate"))
 
+			// a learn mints its xid before the self-parent guard runs (861d32), so only the others are unstamped
 			if name != "learn" {
 				g.Expect(readFileString(t, notePath)).NotTo(ContainSubstring("xid:"), "the note is not staged")
 			}
