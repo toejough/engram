@@ -13,8 +13,8 @@ import (
 )
 
 // Test792a16a1a_LessonsContract_ASubagentWithLessonsReportsThem reads the route skill the repository ships: the
-// completion report ends with a LESSONS line of one to three comma-separated one-line lessons, and a confirmed
-// correction and a surprising finding are among the kinds of lesson.
+// completion report ends with a LESSONS line, and a confirmed correction and a surprising finding are among the kinds
+// of lesson. The count of lessons is Test792a16a1c's clause.
 func Test792a16a1a_LessonsContract_ASubagentWithLessonsReportsThem(t *testing.T) {
 	t.Parallel()
 
@@ -23,7 +23,6 @@ func Test792a16a1a_LessonsContract_ASubagentWithLessonsReportsThem(t *testing.T)
 	contract := lessonsContractRouteContract(t)
 
 	g.Expect(contract).To(ContainSubstring(lessonsContractEndsWithLine))
-	g.Expect(contract).To(ContainSubstring("1–3 comma-separated one-line lessons"))
 	g.Expect(contract).To(ContainSubstring("confirmed corrections"))
 	g.Expect(contract).To(ContainSubstring("surprising findings"))
 }
@@ -49,7 +48,7 @@ func Test792a16a1c_LessonsContract_AtMostThreeLessons(t *testing.T) {
 
 	contract := lessonsContractRouteContract(t)
 
-	g.Expect(contract).To(ContainSubstring("`LESSONS: none`, or 1–3 comma-separated one-line lessons"))
+	g.Expect(contract).To(ContainSubstring("1–3 comma-separated one-line lessons"))
 }
 
 // Test792a16b1a_LessonsContract_AFreshContextDispatchCarriesTheMandate reads the route skill the repository ships:
@@ -78,7 +77,6 @@ func Test792a16b1b_LessonsContract_AForksHandoffCarriesItToo(t *testing.T) {
 	text := shippedText(t, lessonsContractRoutePath)
 
 	g.Expect(text).To(ContainSubstring("Every dispatch MUST hand the subagent:"))
-	g.Expect(lessonsContractRouteContract(t)).To(ContainSubstring(lessonsContractEndsWithLine))
 	g.Expect(lessonsContractContradictions(t, lessonsContractExemptionScan)).To(BeEmpty())
 }
 
@@ -98,7 +96,8 @@ func Test792a16b1c_LessonsContract_ItFollowsTheTaskDescription(t *testing.T) {
 }
 
 // Test792a16c1a_LessonsContract_AMissingLineIsReAsked reads the route skill the repository ships: a returned report
-// without the line gets one targeted follow-up asking for it, in the format of the contract.
+// without the line gets one targeted follow-up asking for it. The format of the answer is Test792a16a1b's and
+// Test792a16a1c's clause.
 func Test792a16c1a_LessonsContract_AMissingLineIsReAsked(t *testing.T) {
 	t.Parallel()
 
@@ -108,7 +107,6 @@ func Test792a16c1a_LessonsContract_AMissingLineIsReAsked(t *testing.T) {
 
 	g.Expect(contract).To(ContainSubstring("If a returned report is missing the line, send ONE targeted follow-up " +
 		"asking for it"))
-	g.Expect(contract).To(ContainSubstring("`LESSONS: none`, or 1–3 comma-separated one-line lessons"))
 }
 
 // Test792a16c1c_LessonsContract_ThereIsNoSecondReAsk reads the route skill the repository ships: a line still
@@ -154,7 +152,6 @@ func Test792a16d1b_LessonsContract_ANoneIsStillRecorded(t *testing.T) {
 	guidance := shippedText(t, lessonsContractGuidancePath)
 
 	g.Expect(guidance).To(ContainSubstring("its report's `LESSONS:` line isn't `none`"))
-	g.Expect(guidance).To(ContainSubstring("Skip `none`,"))
 	g.Expect(lessonsContractContradictions(t, lessonsContractNoneScan)).To(BeEmpty())
 }
 
@@ -170,7 +167,7 @@ func Test792a16d1c_LessonsContract_AGateDoesNotFilterTheList(t *testing.T) {
 
 	g.Expect(text).To(ContainSubstring("Every dispatched unit's completion report ends with a `LESSONS:` line"))
 	g.Expect(text).To(ContainSubstring("The moment a unit's result comes back — before moving to the next unit — " +
-		"record that line verbatim"))
+		"record that line"))
 	g.Expect(text).To(ContainSubstring("step 7 drops no line"))
 	g.Expect(lessonsContractContradictions(t, lessonsContractGateDropScan)).To(BeEmpty())
 }
@@ -232,8 +229,7 @@ func Test792a16e1d_LessonsContract_TheLastReturnIsCapturedBeforeTheTurnEnds(t *t
 
 	guidance := shippedText(t, lessonsContractGuidancePath)
 
-	g.Expect(guidance).To(ContainSubstring("**before your next dispatch** (or before you end your turn, if no " +
-		"dispatch is left)"))
+	g.Expect(guidance).To(ContainSubstring("(or before you end your turn, if no dispatch is left)"))
 }
 
 // Test792a16f1a_LessonsContract_TheClosingLearnReceivesTheList reads the please skill and the learn skill the
@@ -291,8 +287,8 @@ func Test792a16f1c_LessonsContract_ALineCapturedAtItsReturnIsSkipped(t *testing.
 }
 
 // Test792a16f1d_LessonsContract_AMissedLineIsCaught reads the learn skill and the please skill the repository ships:
-// the closing learn scans every collected line, judges each line no note covers against the bar, and crystallizes
-// the lessons that clear it.
+// the closing learn scans every collected line, judges each line no note covers against the bar, and the closing learn
+// curates the rest against its own quality bar. The Step 2 heading is Test792a16f1b's clause.
 func Test792a16f1d_LessonsContract_AMissedLineIsCaught(t *testing.T) {
 	t.Parallel()
 
@@ -304,7 +300,6 @@ func Test792a16f1d_LessonsContract_AMissedLineIsCaught(t *testing.T) {
 		"dispatched work"))
 	g.Expect(learn).To(ContainSubstring("Judge every other line against the same four kinds and the same quality bar " +
 		"below"))
-	g.Expect(learn).To(ContainSubstring("## Step 2 — Crystallize explicit lessons (only when they exist)"))
 	g.Expect(shippedText(t, lessonsContractPleasePath)).To(ContainSubstring("and curates the rest against its own " +
 		"quality bar"))
 }
@@ -397,6 +392,10 @@ func TestLessonsContractHits(t *testing.T) {
 			g.Expect(lessonsContractHits(scan.imperative, scan)).NotTo(BeEmpty())
 			g.Expect(lessonsContractHits(scan.conditional, scan)).NotTo(BeEmpty())
 			g.Expect(lessonsContractHits(scan.stated, scan)).To(BeEmpty())
+
+			for _, further := range scan.further {
+				g.Expect(lessonsContractHits(further, scan)).NotTo(BeEmpty(), further)
+			}
 		})
 	}
 }
@@ -435,6 +434,26 @@ func TestLessonsContractHitsClauses(t *testing.T) {
 	}
 }
 
+// TestLessonsContractHitsScope supports the absence scans of this file: the exemption scan finds an exemption of a
+// handoff and not the omission of a line from a list that a gate decides, so a contradiction of one rule fails only
+// the test of that rule.
+func TestLessonsContractHitsScope(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	gateDrops := append([]string{lessonsContractGateDropScan.conditional}, lessonsContractGateDropScan.further...)
+	exemptions := append([]string{lessonsContractExemptionScan.conditional}, lessonsContractExemptionScan.further...)
+
+	for _, gateDrop := range gateDrops {
+		g.Expect(lessonsContractHits(gateDrop, lessonsContractExemptionScan)).To(BeEmpty(), gateDrop)
+	}
+
+	for _, exemption := range exemptions {
+		g.Expect(lessonsContractHits(exemption, lessonsContractGateDropScan)).To(BeEmpty(), exemption)
+	}
+}
+
 // unexported constants.
 const (
 	lessonsContractContractEnd   = "Vague handoffs are why"
@@ -467,26 +486,37 @@ var (
 	lessonsContractExemptionScan = lessonsContractScan{
 		name: "exempting a dispatch from the contract",
 		pattern: regexp.MustCompile(`(?i)` + lessonsContractOrdered(
-			`\b(?:omit\w*|skip\w*|leave\s+out|left\s+out|drop\w*|waive\w*|unnecessary|optional|redundant)\b`,
-			`(?:completion-report\s+contract|\b(?-i:LESSONS)(?::|\s+line|\s+mandate)|\bmandate\b)`)),
+			`\b(?:omit\w*|skip\w*|leave\s+out|left\s+out|drop\w*|waive\w*|unnecessary|optional|redundant|`+
+				lessonsContractNotNeeded+`)`,
+			`(?:completion-report\s+contract|\b(?-i:LESSONS)(?::|\s+line|\s+mandate)|\bmandate\b)`,
+			`\b(?:hand-?offs?|hand\s+off|dispatch\w*|briefs?|brief\w*|forks?|forked|subagents?)\b`)),
 		negation:    lessonsContractNegationKeepingSkip,
+		strip:       regexp.MustCompile(`(?i)` + lessonsContractNotNeeded),
 		paraphrase:  "A fork inherits the session context, so the handoff can leave out the LESSONS mandate.",
 		imperative:  "Omit the completion-report contract from the handoff of a fork.",
 		conditional: "If the unit is small, skip the LESSONS line in its handoff.",
-		stated:      "Every dispatch MUST hand the subagent the completion-report contract.",
+		further: []string{
+			"A fork inherits the session context, so its handoff does not need the completion-report contract.",
+			"A fork's handoff need not carry the LESSONS line.",
+		},
+		stated: "Every dispatch MUST hand the subagent the completion-report contract.",
 	}
 	// lessonsContractGateDropScan finds an instruction to drop the line of a unit that a gate rejected.
 	lessonsContractGateDropScan = lessonsContractScan{
 		name: "dropping the line of a rejected unit",
 		pattern: regexp.MustCompile(`(?i)` + lessonsContractOrdered(
 			`\b(?:reject\w*|gate|FAIL\w*)\b`,
-			`\b(?-i:LESSONS)\b`,
+			`(?:\b(?-i:LESSONS)\b|\b(?:its|the|that|their|each|every|\w+['’]s)\s+(?:completion\s+)?(?:lines?|lessons?)\b)`,
 			`\b(?:drop\w*|discard\w*|omit\w*|exclud\w+|filter\w*|leave\s+out|left\s+out|remov\w+|skip\w*|ignor\w+)\b`)),
 		negation:    lessonsContractNegationKeepingSkip,
 		paraphrase:  "A unit that fails a gate has its LESSONS line left out of the running list.",
 		imperative:  "Drop the LESSONS line of a unit that a gate rejected.",
 		conditional: "If the work isn't accepted, omit its LESSONS line when a gate fails.",
-		stated:      "A gate FAIL verdict never removes the LESSONS line of the unit from the running list.",
+		further: []string{
+			"When a gate rejects a unit, remove its line from the running list.",
+			"A rejected unit's lesson is left out of the list.",
+		},
+		stated: "A gate FAIL verdict never removes the LESSONS line of the unit from the running list.",
 	}
 	// lessonsContractNegation marks a clause that forbids or excludes what it names.
 	lessonsContractNegation = regexp.MustCompile(`(?i)\b(?:not|never|no|neither|nor|without|skip|skips)\b|n't\b`)
@@ -507,18 +537,28 @@ var (
 		conditional: "If the report isn't clear, capture a note for the `none` line.",
 		stated:      "Judge each lesson as you read the report. Skip `none`, \"done, tests pass\", and the rest.",
 	}
+	// lessonsContractNotNeeded matches wording that carries a negation word and permits skipping what it names.
+	lessonsContractNotNeeded = `(?:do(?:es)?\s+not\s+(?:need|have\s+to|require)|` +
+		`do(?:es)?n['’]t\s+(?:need|have\s+to|require)|need\s+not|needn['’]t|` +
+		`(?:is|are)\s+not\s+(?:needed|required)|(?:isn|aren)['’]t\s+(?:needed|required))`
 	// lessonsContractReaskScan finds an instruction to ask for the LESSONS line a second time.
 	lessonsContractReaskScan = lessonsContractScan{
 		name: "asking for the line again",
 		pattern: regexp.MustCompile(
 			`(?i)\b(?:(?:re-?ask|ask|follow\s+up|chase|nudge)\w*\s+(?:the\s+subagent\s+)?` +
 				`(?:again|a\s+second\s+time|twice|more\s+than\s+once)|(?:a\s+)?second\s+(?:re-?ask|follow-?up|request)|` +
-				`(?:another|further|repeated)\s+(?:re-?ask|follow-?up|request)|follow-?up\s+again)\b`),
+				`(?:another|further|repeated)\s+(?:re-?ask|follow-?up|request)|follow-?up\s+again)\b|` +
+				`\b(?:still\s+(?:missing|absent|lacking)|unanswered|after\s+(?:the|that)\s+(?:one\s+)?follow-?up)\b` +
+				`[^.\n]{0,60}?\b(?:re-?ask\w*|ask\w*|chase\w*|nudge\w*|send\w*|repeat\w*|request\w*)\b`),
 		negation:    lessonsContractNegation,
 		paraphrase:  "A subagent whose line is still missing is asked a second time.",
 		imperative:  "Re-ask the subagent again for the line.",
 		conditional: "If the follow-up isn't answered, send another follow-up.",
-		stated:      "Send ONE targeted follow-up asking for it — never a second re-ask.",
+		further: []string{
+			"If the line is still missing after the follow-up, re-ask the subagent.",
+			"Once the follow-up is unanswered, ask the subagent for the line.",
+		},
+		stated: "Send ONE targeted follow-up asking for it — never a second re-ask.",
 	}
 	// lessonsContractRewriteScan finds an instruction to write a captured line again.
 	lessonsContractRewriteScan = lessonsContractScan{
@@ -528,12 +568,21 @@ var (
 				`[^.\n]{0,60}?\b(?:line|lesson)s?\b[^.\n]{0,60}?` +
 				`\b(?:again|a\s+second\s+time|twice|already\s+(?:captured|covered|written))\b|` +
 				`\b(?:line|lesson)s?\b[^.\n]{0,60}?\b(?:is|are|gets?)\s+(?:writ\w+|captured|crystalli[sz]ed)\s+` +
-				`(?:again|a\s+second\s+time|twice)\b`),
+				`(?:again|a\s+second\s+time|twice)\b|` +
+				`\b(?:captured|covered)\s+(?:ones?|lines?|lessons?)\s+(?:included|too|as\s+well)\b|` +
+				`\b(?:whether|regardless\s+of\s+whether)\s+(?:\w+\s+){0,3}?captured\s+or\s+not\b|` +
+				`\bregardless\s+of\s+(?:capture|a\s+(?:prior|earlier)\s+note)\b`),
 		negation:    lessonsContractNegation,
+		strip:       regexp.MustCompile(`(?i)\bor\s+not\b`),
 		paraphrase:  "A line captured at its return is written again by the closing learn.",
 		imperative:  "Write the line again at the closing learn.",
 		conditional: "If the note isn't found, write the lesson again at the closing learn.",
-		stated:      "A line is captured when a note covers it: skip captured lines — never write one a second time.",
+		further: []string{
+			"The closing learn writes a note for every collected line, captured ones included.",
+			"Write a note for each collected line whether captured or not.",
+			"Write a note for each collected line regardless of capture.",
+		},
+		stated: "A line is captured when a note covers it: skip captured lines — never write one a second time.",
 	}
 	// lessonsContractSuccessKindScan finds an instruction that counts a bare success as a confirmed approach.
 	lessonsContractSuccessKindScan = lessonsContractScan{
@@ -581,15 +630,19 @@ var (
 )
 
 // lessonsContractScan is one absence scan: a pattern for an instruction that contradicts a rule, the negation pattern
-// that excuses a match in a clause that forbids it, the three forms of a contradicting instruction to insert (a
-// paraphrase, an imperative and the imperative under a negated condition) and the wording that must pass.
+// that excuses a match in a clause that forbids it, the optional strip pattern for wording that carries a negation
+// word and permits the act (it is removed from the clause before the negation is looked for), the three forms of a
+// contradicting instruction to insert (a paraphrase, an imperative and the imperative under a negated condition),
+// further contradicting forms found in review and the wording that must pass.
 type lessonsContractScan struct {
 	name        string
 	pattern     *regexp.Regexp
 	negation    *regexp.Regexp
+	strip       *regexp.Regexp
 	paraphrase  string
 	imperative  string
 	conditional string
+	further     []string
 	stated      string
 }
 
@@ -653,7 +706,12 @@ func lessonsContractHits(content string, scan lessonsContractScan) []string {
 
 	for _, span := range scan.pattern.FindAllStringIndex(text, -1) {
 		clause := text[lessonsContractClauseStart(text[:span[0]]):span[1]]
-		if !scan.negation.MatchString(clause) {
+		checked := clause
+		if scan.strip != nil {
+			checked = scan.strip.ReplaceAllString(clause, " ")
+		}
+
+		if !scan.negation.MatchString(checked) {
 			hits = append(hits, strings.TrimSpace(clause))
 		}
 	}
