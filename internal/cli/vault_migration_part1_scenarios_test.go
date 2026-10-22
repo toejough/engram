@@ -1143,7 +1143,8 @@ func vm1SeedMachine(machine *iu2Machine, vault *vm1Vault) {
 	}
 }
 
-// vm1SimilarPairNotes are three top-level notes: 7 and 12 near-identical in vector space, 20 far from both.
+// vm1SimilarPairNotes are three top-level notes: 7 and 12 near-identical in vector space, 20 far from both and both
+// linking and superseding 12.
 func vm1SimilarPairNotes() []vm1NoteSpec {
 	return []vm1NoteSpec{
 		{id: "7", date: "2026-01-01", slug: "first-note", body: "first note body text.", vector: []float32{1, 0, 0}},
@@ -1153,7 +1154,8 @@ func vm1SimilarPairNotes() []vm1NoteSpec {
 		},
 		{
 			id: "20", date: "2026-01-03", slug: "unrelated-note", body: "unrelated, linking [[12.2026-01-02.second-note]].",
-			vector: []float32{0, 0, 1},
+			frontmatter: "supersedes:\n    - note: 12.2026-01-02.second-note.md\n      type: narrows\n      claim: older\n",
+			vector:      []float32{0, 0, 1},
 		},
 	}
 }
