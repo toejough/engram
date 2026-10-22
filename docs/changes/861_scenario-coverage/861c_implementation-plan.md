@@ -797,7 +797,7 @@ Status: Merged (a2861018)
 
 #### 861c2za Agent Instruction Bundle (default)
 
-Status: Ready
+Status: In progress: 0/2 entries complete (2 rows Green-single)
 
 - Owner file: [Agent Instruction Bundle](../../specs/technical/agent-instruction-bundle.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/agent_instruction_bundle_scenarios_test.go`.
@@ -806,8 +806,8 @@ Status: Ready
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2za1 | [792b32c2a2 A value beginning with a dash succeeds](../../specs/technical/agent-instruction-bundle.md#792b32c2a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2za2 | [792b32c2a3 A binary-emitted instruction uses the attached form](../../specs/technical/agent-instruction-bundle.md#792b32c2a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2za1 | [792b32c2a2 A value beginning with a dash succeeds](../../specs/technical/agent-instruction-bundle.md#792b32c2a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b32c2a2_AgentInstructionBundle_AValueBeginningWithADashSucceeds (internal/cli/agent_instruction_bundle_scenarios_test.go); runs learn (fact, feedback, runbook, qa, with a claim), amend (fact, feedback, runbook), resituate and query through cli.Targets over the in-memory vault nr1Rig, every free-text flag attached to a value that begins with a dash, and checks exit 0 and the value in the note; a control subtest shows the space-separated form is refused. Baseline pass only (the parser is targ's; no production line of the repo decides it; logs/b16/861c2za/4.log) | Green-single |
+| 861c2za2 | [792b32c2a3 A binary-emitted instruction uses the attached form](../../specs/technical/agent-instruction-bundle.md#792b32c2a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b32c2a3_AgentInstructionBundle_ABinaryEmittedInstructionUsesTheAttachedForm (same file); the curate instruction (the only string the binary emits with an engram command and free-text values) as the query payload hint, the update notice, the write-path nudge and the shared constant. Mutation: offer.go pendingOfferCurateCommand `--text="` to `--text "` fails all four subtests at the --text Then (logs/b16/861c2za/m1.log) | Green-single |
 
 #### 861c2zb Durable File Store (default)
 
