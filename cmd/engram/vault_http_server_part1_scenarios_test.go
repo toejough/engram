@@ -72,12 +72,23 @@ func Test792b35c1a2_ServeMux_AnUnroutedPathOrMethodIsRefused(t *testing.T) {
 			mux.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), testCase.method, testCase.path, nil))
 
 			g.Expect(recorder.Code).To(Equal(testCase.status))
-			g.Expect(recorder.Header().Get("Allow")).To(ContainSubstring(testCase.allow))
+
+			if testCase.allow == "" {
+				g.Expect(recorder.Header().Get("Allow")).To(BeEmpty())
+			} else {
+				g.Expect(recorder.Header().Get("Allow")).To(ContainSubstring(testCase.allow))
+			}
+
 			g.Expect(handled.Load()).To(BeZero(), "no route handler ran")
 
 			for _, dir := range []string{vault, chunksDir} {
 				entries, err := os.ReadDir(dir)
 				g.Expect(err).NotTo(HaveOccurred())
+
+				if err != nil {
+					return
+				}
+
 				g.Expect(entries).To(BeEmpty(), "no vault operation touched %s", dir)
 			}
 		})

@@ -416,6 +416,11 @@ func Test792b35c8a7_ServeLearn_TheServersVaultWins(t *testing.T) {
 
 	entries, err := os.ReadDir(named)
 	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
 	g.Expect(entries).To(BeEmpty(), "nothing is written in the vault the body named")
 }
 
