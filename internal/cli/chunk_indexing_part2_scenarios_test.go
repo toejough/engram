@@ -724,6 +724,11 @@ func Test792a5p1c_RunPrune_AnEmptyIndexHasNothingToPrune(t *testing.T) {
 
 	out, err := machine.prune(t, cli.PruneArgs{})
 	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
 	g.Expect(out).To(Equal("prune: no manifest, nothing to prune\n"))
 }
 
