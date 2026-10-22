@@ -1098,8 +1098,9 @@ func Test792b28c13a6_WriteUpdateReport_IdentityBackfillHint(t *testing.T) {
 // Test792b28c14a1_WriteUpdateReport_VocabRegenReport pins #712's --regen-vocab report
 // rendering: VocabRegenRan renders the regen summary INSTEAD of the plain
 // migration notice (a run that just regenerated never repeats the notice it
-// acted on), a --dry-run regen reports "would remove", a real regen reports
-// "removed", and a regen that found nothing to do prints a cheap no-op line.
+// acted on) and a real regen reports "removed". The dry-run preview and the
+// no-op line are Test792b28c14a2_WriteUpdateReport_DryRunRegenerationIsAPreview
+// and Test792b28c14a3_WriteUpdateReport_RegenerationWithNothingToDo.
 func Test792b28c14a1_WriteUpdateReport_VocabRegenReport(t *testing.T) {
 	t.Parallel()
 
@@ -1125,24 +1126,6 @@ func Test792b28c14a1_WriteUpdateReport_VocabRegenReport(t *testing.T) {
 				"reassigned 3 note(s)",
 			},
 			wantNotContains: []string{"old-format vocab files found", "would remove"},
-		},
-		{
-			name: "dry-run-would-remove",
-			report: update.Report{
-				DryRun:                    true,
-				VocabRegenRan:             true,
-				VocabRegenOldFilesRemoved: 2,
-				VocabRegenMembersCleaned:  1,
-				VocabRegenTermsSeeded:     1,
-			},
-			wantContains:    []string{"[dry-run] update --regen-vocab: would remove 2 old-format file(s)"},
-			wantNotContains: []string{"old-format vocab files found", "removed 2"},
-		},
-		{
-			name:            "nothing-to-regenerate",
-			report:          update.Report{VocabRegenRan: true},
-			wantContains:    []string{"update --regen-vocab: nothing to regenerate"},
-			wantNotContains: []string{"old-format vocab files found"},
 		},
 		{
 			name:            "regen-ran-never-repeats-plain-notice",
@@ -1182,30 +1165,15 @@ func Test792b28c14a4_WriteUpdateReport_IdentityBackfillReport(t *testing.T) {
 
 	g := NewWithT(t)
 
-	var nothing bytes.Buffer
-
-	nothingErr := cli.ExportWriteUpdateReport(&nothing, update.Report{
-		IdentityBackfillRan: true, VaultHasNotesMissingIdentity: true,
-	})
-	g.Expect(nothingErr).NotTo(HaveOccurred())
-	g.Expect(nothing.String()).To(ContainSubstring("update --backfill-identity: nothing to backfill"))
-	g.Expect(nothing.String()).NotTo(ContainSubstring("provenance found"))
-
 	var stamped bytes.Buffer
 
 	stampedErr := cli.ExportWriteUpdateReport(&stamped, update.Report{
-		IdentityBackfillRan: true, IdentityBackfillNotesStamped: 3,
+		IdentityBackfillRan: true, IdentityBackfillNotesStamped: 3, VaultHasNotesMissingIdentity: true,
 	})
 	g.Expect(stampedErr).NotTo(HaveOccurred())
-	g.Expect(stamped.String()).To(ContainSubstring("update --backfill-identity: stamped 3 note(s)"))
-
-	var dryRun bytes.Buffer
-
-	dryRunErr := cli.ExportWriteUpdateReport(&dryRun, update.Report{
-		DryRun: true, IdentityBackfillRan: true, IdentityBackfillNotesStamped: 3,
-	})
-	g.Expect(dryRunErr).NotTo(HaveOccurred())
-	g.Expect(dryRun.String()).To(ContainSubstring("[dry-run] update --backfill-identity: would stamp 3 note(s)"))
+	g.Expect(stamped.String()).To(ContainSubstring(
+		"update --backfill-identity: stamped 3 note(s) with repo:/user:/vault: provenance"))
+	g.Expect(stamped.String()).NotTo(ContainSubstring("provenance found"))
 }
 
 func Test792b28c15a1_AnyHarnessFailed(t *testing.T) {

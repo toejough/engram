@@ -190,6 +190,7 @@ var (
 	ExportRecordKeptReceipts            = recordKeptReceipts
 	ExportRecordParentFailure           = recordParentFailure
 	ExportRecordParentSuccess           = recordParentSuccess
+	ExportReexecArgsFrom                = reexecArgsFrom
 	ExportRegenVocab                    = regenVocab
 	ExportRegenerateVaultID             = regenerateVaultID
 	ExportRemoveNoteReferences          = removeNoteReferences
