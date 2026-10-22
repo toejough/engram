@@ -34,6 +34,17 @@ func Test792b28c1a3_ResolveBinaryPath_HomeDirectoryIsTheFallback(t *testing.T) {
 	g.Expect(got).To(Equal("/home/joe/go/bin/engram"))
 }
 
+// Test792b28c1a5_ResolveBinaryPath_FirstGOPATHEntryIsUsed verifies Scenario 792b28c1a5: with GOBIN unset and a
+// two-entry GOPATH, the install location is under the first entry only.
+func Test792b28c1a5_ResolveBinaryPath_FirstGOPATHEntryIsUsed(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	got := update.ExportResolveBinaryPath("/home/joe", envVars{"GOPATH": "/gp1:/gp2"})
+	g.Expect(got).To(Equal("/gp1/bin/engram"))
+}
+
 // Test792b28c4a3_Updater_Run_Local_UnresolvableRevisionIsUnknown verifies Scenario 792b28c4a3: when git fails or
 // prints nothing for rev-parse, the source's revision is "unknown" and the install still goes ahead.
 func Test792b28c4a3_Updater_Run_Local_UnresolvableRevisionIsUnknown(t *testing.T) {

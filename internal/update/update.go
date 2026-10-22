@@ -2623,14 +2623,14 @@ func repointSymlinkIfWrong(fileSystem Filesystem, link, target string, dryRun bo
 }
 
 // resolveBinaryPath returns where `go install` will drop the engram binary.
-// Order matches the go toolchain: GOBIN, then GOPATH/bin, then ~/go/bin.
+// Order matches the go toolchain: GOBIN, then the first GOPATH entry's bin, then ~/go/bin.
 func resolveBinaryPath(home string, env Env) string {
 	if gobin := env.Getenv("GOBIN"); gobin != "" {
 		return filepath.Join(gobin, "engram")
 	}
 
 	if gopath := env.Getenv("GOPATH"); gopath != "" {
-		return filepath.Join(gopath, "bin", "engram")
+		return filepath.Join(filepath.SplitList(gopath)[0], "bin", "engram")
 	}
 
 	return filepath.Join(home, "go", "bin", "engram")
