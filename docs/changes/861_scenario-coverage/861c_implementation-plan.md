@@ -333,7 +333,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2f Harness Deploy Sync, part 2 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: In progress: 0/7 entries complete (7 rows Green-single)
 
 - Owner file: [Harness Deploy Sync](../../specs/technical/harness-deploy-sync.md) (technical component).
 - Package: `internal/update`; suggested test file: `internal/update/harness_deploy_sync_part2_scenarios_test.go`.
@@ -343,13 +343,13 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2f1 | [792b29c1a7 An unreadable probe is an error](../../specs/technical/harness-deploy-sync.md#792b29c1a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2f2 | [792b29c3a8 One harness's import manages guidance for every harness](../../specs/technical/harness-deploy-sync.md#792b29c3a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2f3 | [792b29c4a5 A fence hides imports](../../specs/technical/harness-deploy-sync.md#792b29c4a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2f4 | [792b29c4a6 Stale and foreign prefixes do not count](../../specs/technical/harness-deploy-sync.md#792b29c4a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2f5 | [792b29c5a6 A root that is a file is an error](../../specs/technical/harness-deploy-sync.md#792b29c5a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2f6 | [792b29c14a3 A dry-run deploy plans the skills](../../specs/technical/harness-deploy-sync.md#792b29c14a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2f7 | [792b29c15a2 The failure does not stop the other harness](../../specs/technical/harness-deploy-sync.md#792b29c15a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2f1 | [792b29c1a7 An unreadable probe is an error](../../specs/technical/harness-deploy-sync.md#792b29c1a-scenarios) | Example | Fixed inputs, one exact outcome. Evidence: Test792b29c1a7_DetectHarnesses_AnUnreadableProbeIsAnError (harness_deploy_sync_part2_scenarios_test.go; unexported and exported entry point, error wraps the cause and names the probe path); mutation m2 (detectHarnesses error without the probe) failed it (mut-m2.log). Logs under logs/b02/861c2f: 2.log (scoped package run, exit=0) | Green-single |
+| 861c2f2 | [792b29c3a8 One harness's import manages guidance for every harness](../../specs/technical/harness-deploy-sync.md#792b29c3a-scenarios) | Example | Fixed inputs, one exact outcome. Evidence: Test792b29c3a8_Run_OneHarnessesImportManagesGuidanceForEveryHarness (Claude-only delegate.md import; Pi guidance copies and links); mutation m3 (guidanceManaged ignores imports) failed it (mut-m3.log). Logs under logs/b02/861c2f: 2.log (scoped package run, exit=0) | Green-single |
+| 861c2f3 | [792b29c4a5 A fence hides imports](../../specs/technical/harness-deploy-sync.md#792b29c4a-scenarios) | Example | Fixed inputs, one exact outcome. Evidence: Test792b29c4a5_Run_AFenceHidesImports (closed fence, language-tag fence, unclosed fence; the import after a closed fence still counts); mutation m1 (fence never toggles) failed it (mut-m1.log). Logs under logs/b02/861c2f: 2.log (scoped package run, exit=0) | Green-single |
+| 861c2f4 | [792b29c4a6 Stale and foreign prefixes do not count](../../specs/technical/harness-deploy-sync.md#792b29c4a-scenarios) | Example | Fixed inputs, one exact outcome. Evidence: Test792b29c4a6_Run_StaleAndForeignPrefixesDoNotCount (Pi expanded-home import recorded, ~/.pi/agent/engram/recall.md not); mutations m6 (expanded prefix dropped) and m8 (wrong prefix derivation) failed it (mut-m6.log, mut-m8.log). Logs under logs/b02/861c2f: 2.log (scoped package run, exit=0) | Green-single |
+| 861c2f5 | [792b29c5a6 A root that is a file is an error](../../specs/technical/harness-deploy-sync.md#792b29c5a-scenarios) | Example | Fixed inputs, one exact outcome. Evidence: Test792b29c5a6_Run_ARootThatIsAFileIsAnError (ErrEngramRootNotDir on the harness report, file content kept, nothing written or removed); mutation m4 (non-directory root accepted) failed it (mut-m4.log). Logs under logs/b02/861c2f: 2.log (scoped package run, exit=0) | Green-single |
+| 861c2f6 | [792b29c14a3 A dry-run deploy plans the skills](../../specs/technical/harness-deploy-sync.md#792b29c14a-scenarios) | Example | Fixed inputs, one exact outcome. Evidence: Test792b29c14a3_Run_ADryRunDeployPlansTheSkills (two-file skill counted as 2 files; files, dirs, written, removed and symlinks unchanged); mutation m5 (file count not incremented) failed it (mut-m5.log). Logs under logs/b02/861c2f: 2.log (scoped package run, exit=0) | Green-single |
+| 861c2f7 | [792b29c15a2 The failure does not stop the other harness](../../specs/technical/harness-deploy-sync.md#792b29c15a-scenarios) | Example | Fixed inputs, one exact outcome. Evidence: Test792b29c15a2_Run_TheFailureDoesNotStopTheOtherHarness (Claude Code write fails, Pi skill written and linked, Run returns nil); mutation m7 (applyOps stops at the first failure) failed it (mut-m7.log). Logs under logs/b02/861c2f: 2.log (scoped package run, exit=0) | Green-single |
 
 #### 861c2g Command Line Surface (default)
 
