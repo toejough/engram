@@ -121,6 +121,13 @@ func Test792b18c15a7_ChunkIndexStore_NonRemovableGroupsAreIgnored(t *testing.T) 
 			fileSystem := cis1NewRecordingFS()
 			cis1SeedManifest(g, fileSystem, testCase.manifest)
 
+			// Every entry gets an identical index record, so a wrongly grouped set
+			// would be collapsible and reported; only a correct skip stays silent.
+			for source := range testCase.manifest {
+				fileSystem.files[cli.ExportIndexPathFor(cis1ChunksDir, source)] =
+					[]byte(cis1Record(source, cis1SharedHash))
+			}
+
 			g.Expect(cli.ExportChunkIndexHasPrunableDuplicates(cis1ChunksDir, fileSystem)).To(BeFalse())
 			g.Expect(fileSystem.mutations).To(BeEmpty())
 		})
@@ -226,7 +233,8 @@ func Test792b18c15a9_ChunkIndexStore_RefusalOnlyGroupIsSilent(t *testing.T) {
 
 // unexported constants.
 const (
-	cis1ChunksDir = "/chunks"
+	cis1ChunksDir  = "/chunks"
+	cis1SharedHash = "sha256:aaa"
 )
 
 // unexported variables.
