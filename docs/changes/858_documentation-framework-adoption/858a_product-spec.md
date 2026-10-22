@@ -12,11 +12,11 @@ The owner and every agent that works on this repository read documentation rules
 
 ## 858a2 Added: Proposed outcomes
 
-Each node is proposed and pending the owner's ratification ([858d56 M9 Outcomes are proposals](./858d_questions-and-decisions.md#questions-and-decisions)). Its status is the first line of the node, not part of its heading, so that its anchor does not change at ratification. OUT-1 to OUT-7 and TH-1 name [858a2a say-once](#858a2a-added-say-once) to [858a2h first-pass-success](#858a2h-added-first-pass-success) in order.
+Each node was proposed ([858d56 M9 Outcomes are proposals](./858d_questions-and-decisions.md#questions-and-decisions)) and ratified by the owner on 2026-10-21. Its status is the first line of the node, not part of its heading, so that its anchor does not change at ratification. OUT-1 to OUT-7 and TH-1 name [858a2a say-once](#858a2a-added-say-once) to [858a2h first-pass-success](#858a2h-added-first-pass-success) in order.
 
 ### 858a2a Added: say-once
 
-Proposed; pending owner ratification ([858d1 OUT-1 say-once: a lesson given once is applied from then on](./858d_questions-and-decisions.md#questions-and-decisions)).
+Ratified by the owner on 2026-10-21 ([858d1 OUT-1 say-once: a lesson given once is applied from then on](./858d_questions-and-decisions.md#questions-and-decisions)).
 
 Desired result:
 
@@ -41,7 +41,7 @@ Contributing capabilities: [Recall](../../specs/product/recall.md), [Memory Quer
 
 ### 858a2b Added: memory-without-remembering
 
-Proposed; pending owner ratification ([858d2 OUT-2 memory-without-remembering: memory works without anyone remembering to use it](./858d_questions-and-decisions.md#questions-and-decisions)).
+Ratified by the owner on 2026-10-21 ([858d2 OUT-2 memory-without-remembering: memory works without anyone remembering to use it](./858d_questions-and-decisions.md#questions-and-decisions)).
 
 Desired result:
 
@@ -70,7 +70,7 @@ Contributing capabilities: [Automatic Memory](../../specs/product/automatic-memo
 
 ### 858a2c Added: pick-up-where-we-left-off
 
-Proposed; pending owner ratification ([858d3 OUT-3 pick-up-where-we-left-off: work resumes without re-briefing](./858d_questions-and-decisions.md#questions-and-decisions)).
+Ratified by the owner on 2026-10-21 ([858d3 OUT-3 pick-up-where-we-left-off: work resumes without re-briefing](./858d_questions-and-decisions.md#questions-and-decisions)).
 
 Desired result:
 
@@ -93,7 +93,7 @@ Contributing capabilities: [Recall](../../specs/product/recall.md), [Chunk Index
 
 ### 858a2d Added: memory-follows-the-user
 
-Proposed; pending owner ratification ([858d4 OUT-4 memory-follows-the-user: the same memory wherever the user works](./858d_questions-and-decisions.md#questions-and-decisions)).
+Ratified by the owner on 2026-10-21 ([858d4 OUT-4 memory-follows-the-user: the same memory wherever the user works](./858d_questions-and-decisions.md#questions-and-decisions)). Wording edits pending [858d120 OUT-4 wording edits before the outcome file is promoted](./858d_questions-and-decisions.md#questions-and-decisions).
 
 Desired result:
 
@@ -121,7 +121,7 @@ Contributing capabilities: [Parent Sync](../../specs/product/parent-sync.md), [V
 
 ### 858a2e Added: see-and-trust-memory
 
-Proposed; pending owner ratification ([858d5 OUT-5 see-and-trust-memory: the user can see what memory did and tell whether it helps](./858d_questions-and-decisions.md#questions-and-decisions)).
+Ratified by the owner on 2026-10-21 ([858d5 OUT-5 see-and-trust-memory: the user can see what memory did and tell whether it helps](./858d_questions-and-decisions.md#questions-and-decisions)).
 
 Desired result:
 
@@ -146,7 +146,7 @@ Contributing capabilities: [Automatic Memory](../../specs/product/automatic-memo
 
 ### 858a2f Added: memory-worth-its-cost
 
-Proposed; pending owner ratification ([858d6 OUT-6 memory-worth-its-cost: engram's own overhead is low enough to fire freely (contested, deferred)](./858d_questions-and-decisions.md#questions-and-decisions)).
+Ratified by the owner on 2026-10-21 ([858d6 OUT-6 memory-worth-its-cost: engram's own overhead is low enough to fire freely (contested, deferred)](./858d_questions-and-decisions.md#questions-and-decisions)). Criteria selection pending [858d121 OUT-6 success criteria before the outcome file is promoted](./858d_questions-and-decisions.md#questions-and-decisions).
 
 Desired result:
 
@@ -172,7 +172,7 @@ Contributing capabilities: [Route](../../specs/product/route.md), [Vault Countin
 
 ### 858a2g Added: find-the-right-memory
 
-Proposed; pending owner ratification ([858d7 OUT-7 find-the-right-memory: the most relevant memories are found quickly](./858d_questions-and-decisions.md#questions-and-decisions)).
+Ratified by the owner on 2026-10-21 ([858d7 OUT-7 find-the-right-memory: the most relevant memories are found quickly](./858d_questions-and-decisions.md#questions-and-decisions)).
 
 Desired result:
 
@@ -195,7 +195,7 @@ Contributing capabilities: [Recall](../../specs/product/recall.md), [Memory Quer
 
 ### 858a2h Added: first-pass-success
 
-Proposed; pending owner ratification ([858d8 TH-1 first-pass-success: memory makes first-pass success faster and cheaper (your stated thesis; refuted on easy builds; not withdrawn)](./858d_questions-and-decisions.md#questions-and-decisions)).
+Ratified by the owner on 2026-10-21 ([858d8 TH-1 first-pass-success: memory makes first-pass success faster and cheaper (your stated thesis; refuted on easy builds; not withdrawn)](./858d_questions-and-decisions.md#questions-and-decisions)).
 
 Desired result:
 
