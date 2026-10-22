@@ -1,25 +1,27 @@
 # Test Suite Classification - Implementation Plan
 
-Scope. The approved work is a command that runs every `integration`-tagged test of the module, a clear skip when the live-session tests find no login, and a Project Profile that cites decision rows instead of listing deviations ([862a1 Problem statement](./862a_product-spec.md#862a1-problem-statement); the decisions are the rows of [Questions and decisions](./862d_questions-and-decisions.md#questions-and-decisions)). Sources: issue [#862](https://github.com/toejough/engram/issues/862), [858d99 Test-suite classification deviations](../858_documentation-framework-adoption/858d_questions-and-decisions.md#questions-and-decisions), `dev/targs.go`, `dev/acceptance/session_test.go`, the Project Profile in `AGENTS.md`. Responsibilities in scope: item 1 of the issue and the missing command are fixed; items 2 and 3 are recorded as deviations with a recommendation each, for the owner to rule; item 4 stays with [#860](https://github.com/toejough/engram/issues/860). Constraints: tests are black-box and parallel; the targets are changed only in `dev/targs.go`; no existing gate is removed; `Merged` is used.
+Scope. The approved work is a command that runs every `integration`-tagged test of the module, a clear skip when the live-session tests find no login, a command for the `parity` tests, and a Project Profile that cites the remaining deviations instead of listing them ([862a1 Problem statement](./862a_product-spec.md#862a1-problem-statement); the decisions are the rows of [Questions and decisions](./862d_questions-and-decisions.md#questions-and-decisions)). Sources: issue [#862](https://github.com/toejough/engram/issues/862), [858d99 Test-suite classification deviations](../858_documentation-framework-adoption/858d_questions-and-decisions.md#questions-and-decisions), `dev/targs.go`, `dev/acceptance/session_test.go`, `internal/embed/parity_test.go`, the Project Profile in `AGENTS.md`. Responsibilities in scope: items 1 and 2 of the issue and the missing command are fixed; item 3 is recorded as a deviation with a recommendation and a follow-up issue; item 4 stays with [#860](https://github.com/toejough/engram/issues/860). Constraints: tests are black-box and parallel; the targets are changed only in `dev/targs.go`; no existing gate is removed; `Merged` is used.
 
 ## Work graph
 
-The Profile node waits for the nodes it cites. The first, second and fourth nodes are independent.
+The Profile node waits for the nodes it cites. The first, second, fourth and fifth nodes are independent.
 
 ```mermaid
-flowchart TD
+flowchart LR
     N1a["862c1a The command that runs every integration-tagged test<br/>Ready"]
     N1b["862c1b Live-session tests skip without a login<br/>Ready"]
-    N1d["862c1d The deviation rows are recorded<br/>Ready"]
-    N1c["862c1c The Project Profile cites the deviation rows<br/>Blocked by 862c1a, 862c1b, 862c1d"]
+    N1e["862c1e The parity tests have a command<br/>Ready"]
+    N1d["862c1d The follow-up issue for the untagged files<br/>Ready"]
+    N1c["862c1c The Project Profile cites the remaining deviations<br/>Blocked by: 862c1a, 862c1b, 862c1d, 862c1e"]
     N1a --> N1c
     N1b --> N1c
     N1d --> N1c
+    N1e --> N1c
 ```
 
 ## Test catalog
 
-One section per node of the graph. Each row has one scenario ID and one independently tracked test, named `Test<ID>_<Subject>_<Title>` (the rule of `dev/conformance.go`). Statuses follow WORKFLOW 288-310; every row starts `Not started`. Red evidence, runner, merge, milestones and commits follow [862d5 Method shared with 861](./862d_questions-and-decisions.md#questions-and-decisions). Command per step: `targ test-dev`, and `targ test-dev-integration` for the integration test files; milestones: `targ check-full`.
+One section per node of the graph. Each row has one scenario ID and one independently tracked test, named `Test<ID>_<Subject>_<Title>` (the rule of `dev/conformance.go`). `WORKFLOW n-m` = lines of `docs/WORKFLOW-GUIDE.md`. Statuses follow WORKFLOW 288-310; every row starts `Not started`. Red evidence, runner, merge, milestones and commits follow [862d5 Method shared with 861](./862d_questions-and-decisions.md#questions-and-decisions); so does the reflection after a green node (the commit body records `Refactor: <named difficulty> -> refactor(<scope>) <sha>` or `Refactor: none justified`). Command per step: `targ test-dev`, and `targ test-dev-integration` for the integration test files; milestones: `targ check-full`.
 
 ### 862c1 Nodes
 
@@ -27,60 +29,80 @@ One section per node of the graph. Each row has one scenario ID and one independ
 
 Status: Ready
 
-- Owner: [794b4 Development Check Orchestration](../../specs/technical/development-check-orchestration.md#794b4-development-check-orchestration); Added operation [862b2a One command runs every integration-tagged test](./862b_technical-spec.md#862b2a-added-one-command-runs-every-integration-tagged-test), Modified operations [862b3a Preserve entry points](./862b_technical-spec.md#862b3a-modified-preserve-entry-points) and [862b3b Engram's aggregates match Targ's apart from the nil targets](./862b_technical-spec.md#862b3b-modified-engrams-aggregates-match-targs-apart-from-the-nil-targets).
+- Owner: [794b4 Development Check Orchestration](../../specs/technical/development-check-orchestration.md#794b4-development-check-orchestration); Added operations [862b2a One command runs every integration-tagged test](./862b_technical-spec.md#862b2a-added-one-command-runs-every-integration-tagged-test) and [862a3a Every integration-tagged test runs in the full check](./862a_product-spec.md#862a3a-added-every-integration-tagged-test-runs-in-the-full-check), Modified operations [862b3a Preserve entry points](./862b_technical-spec.md#862b3a-modified-preserve-entry-points) and [862b3b Engram's aggregates match Targ's apart from the nil targets](./862b_technical-spec.md#862b3b-modified-engrams-aggregates-match-targs-apart-from-the-nil-targets).
 - Package: `dev`; suggested test files: `dev/integration_all_internal_test.go` (tag `targ`) and `dev/integration_all_integration_internal_test.go` (tag `targ && integration`, a fixture module run for real).
 - Read first: `dev/targs.go` (`testDevIntegration`, `registerTargets`, the aggregate targets), `dev/nilaway_internal_test.go` (`Test794b4a1c_`), `dev/nilaway_integration_internal_test.go`.
 - Class: default of the `dev` tree for the argv scenario; integration for the fixture-module scenarios.
 
-| ID | Gherkin | Classification | Why | Properties | Status |
-| --- | --- | --- | --- | --- | --- |
-| 862c1a1 | [862b2a1a The command selects by tag over the whole module](./862b_technical-spec.md#862b2a1-contract-scenarios) | Example | Fixed inputs, one exact command line | - | Not started |
-| 862c1a2 | [862b2a1b A tagged test is run whatever its package and name](./862b_technical-spec.md#862b2a1-contract-scenarios) | Example | Real `go test` on a fixture module; tagged test | - | Not started |
-| 862c1a3 | [862b2a1c A failing tagged test fails the command](./862b_technical-spec.md#862b2a1-contract-scenarios) | Example | Real `go test` on a fixture module; tagged test | - | Not started |
-| 862c1a4 | [862b3b Engram's aggregates match Targ's apart from the nil targets](./862b_technical-spec.md#862b3b-modified-engrams-aggregates-match-targs-apart-from-the-nil-targets) | Interaction | The existing `Test794b4a1c_` compares dependency lists with Targ's own; it is updated, not added | - | Not started |
+| ID | Gherkin | Classification | Why | Status |
+| --- | --- | --- | --- | --- |
+| 862c1a1 | [862b2a1a The command selects by tag over the whole module](./862b_technical-spec.md#862b2a1-contract-scenarios) | Example | Fixed inputs, one exact command line | Not started |
+| 862c1a2 | [862b2a1b A tagged test is run whatever its package and name](./862b_technical-spec.md#862b2a1-contract-scenarios) | Example | Real `go test` on a fixture module; tagged test | Not started |
+| 862c1a3 | [862b2a1c A failing tagged test fails the command](./862b_technical-spec.md#862b2a1-contract-scenarios) | Example | Real `go test` on a fixture module; tagged test | Not started |
+| 862c1a4 | [862b3b Engram's aggregates match Targ's apart from the nil targets](./862b_technical-spec.md#862b3b-modified-engrams-aggregates-match-targs-apart-from-the-nil-targets) | Interaction | The existing `Test794b4a1c_` compares dependency lists with Targ's own; it is updated, not added | Not started |
+| 862c1a5 | [862a3a1a Every integration-tagged test runs in the full check](./862a_product-spec.md#862a3a1-uat-scenarios) | Interaction | The final dependency group of `check-full` holds `test-integration-all`; same seam as `Test794b4a1c_` | Not started |
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 862c1a5 | Register `test-integration-all` in `init()` and in the final dependency group of `check-for-fail` and `check-full` | Action | [862d3 The command that runs every integration-tagged test](./862d_questions-and-decisions.md#questions-and-decisions) | Not started |
-| 862c1a6 | Run `targ check-full` once on the branch and record the leg's time and result in the shared evidence | Action | [862d3 The command that runs every integration-tagged test](./862d_questions-and-decisions.md#questions-and-decisions) | Not started |
+| 862c1a6 | Register `test-integration-all` in `init()` and in the final dependency group of `check-for-fail` and `check-full`, and update the comment on the aggregates in `dev/targs.go` | Action | [862d3 The command that runs every integration-tagged test](./862d_questions-and-decisions.md#questions-and-decisions) | Not started |
+| 862c1a7 | Run `targ check-full` once on the branch and record the leg's time and result in the shared evidence | Action | [862d3 The command that runs every integration-tagged test](./862d_questions-and-decisions.md#questions-and-decisions) | Not started |
 
 #### 862c1b Live-session tests skip without a login
 
 Status: Ready
 
-- Owner: [794b4 Development Check Orchestration](../../specs/technical/development-check-orchestration.md#794b4-development-check-orchestration); Added operation [862b2b A live-session test without a login is skipped](./862b_technical-spec.md#862b2b-added-a-live-session-test-without-a-login-is-skipped).
-- Package: `dev/acceptance` (tag `network`); suggested: extract the token lookup of `claudeToken` to an untagged file, as `measure_logic_test.go` holds the pure logic of the measurements, so that the default suite runs its test ([862d6 Scope of the acceptance skip](./862d_questions-and-decisions.md#questions-and-decisions)).
+- Owner: [794b4 Development Check Orchestration](../../specs/technical/development-check-orchestration.md#794b4-development-check-orchestration); Added operations [862b2b A live-session test without a login is skipped](./862b_technical-spec.md#862b2b-added-a-live-session-test-without-a-login-is-skipped) and [862a3b A check without a login skips](./862a_product-spec.md#862a3b-added-a-check-without-a-login-skips).
+- Package: `dev/acceptance` (tag `network`); suggested: extract the token lookup of `claudeToken` to an untagged file `dev/acceptance/token_logic_test.go`, as `measure_logic_test.go` holds the pure logic of the measurements, so that the default suite runs its test ([862d6 Scope of the acceptance skip](./862d_questions-and-decisions.md#questions-and-decisions)). The extracted lookup takes the environment lookup and the credential-file reader as parameters (`claudeToken` keeps the `os` calls and passes them in), so that the tests run in parallel without `t.Setenv`.
 - Read first: `dev/acceptance/session_test.go` (`claudeToken`, `tokenVariable`, `credentialFile`), `dev/acceptance/measure_logic_test.go`.
 - Class: default after the extraction.
 
-| ID | Gherkin | Classification | Why | Properties | Status |
-| --- | --- | --- | --- | --- | --- |
-| 862c1b1 | [862b2b1a A missing login skips the test](./862b_technical-spec.md#862b2b1-contract-scenarios) | Example | Fixed environment, one exact outcome (skipped, message) | - | Not started |
-| 862c1b2 | [862b2b1b A login that exists is used](./862b_technical-spec.md#862b2b1-contract-scenarios) | Example | Fixed environment, one exact outcome | - | Not started |
+| ID | Gherkin | Classification | Why | Status |
+| --- | --- | --- | --- | --- |
+| 862c1b1 | [862b2b1a A missing login skips the test](./862b_technical-spec.md#862b2b1-contract-scenarios) | Example | Fixed environment, one exact outcome (skipped, message) | Not started |
+| 862c1b2 | [862b2b1b A login that exists is used](./862b_technical-spec.md#862b2b1-contract-scenarios) | Example | Fixed environment, one exact outcome | Not started |
+| 862c1b3 | [862a3b1a A check without a login skips](./862a_product-spec.md#862a3b1-uat-scenarios) | Example | Same mechanism as [862b2b1a A missing login skips the test](./862b_technical-spec.md#862b2b1-contract-scenarios), named by the product scenario | Not started |
 
-#### 862c1c The Project Profile cites the deviation rows
+#### 862c1e The parity tests have a command
 
-Status: Blocked by: [862c1a The command that runs every integration-tagged test](#862c1a-the-command-that-runs-every-integration-tagged-test), [862c1b Live-session tests skip without a login](#862c1b-live-session-tests-skip-without-a-login), [862c1d The deviation rows are recorded](#862c1d-the-deviation-rows-are-recorded)
+Status: Ready
+
+- Owner: [794b4 Development Check Orchestration](../../specs/technical/development-check-orchestration.md#794b4-development-check-orchestration); Added operations [862b2c A parity run has its own command](./862b_technical-spec.md#862b2c-added-a-parity-run-has-its-own-command) and [862a3c The real-model parity check has a command](./862a_product-spec.md#862a3c-added-the-real-model-parity-check-has-a-command).
+- Package: `dev`; suggested test file: `dev/test_parity_internal_test.go` (tag `targ`).
+- Read first: `dev/targs.go` (`testDevIntegration`, `registerTargets`), `internal/embed/parity_test.go` (header).
+- Class: default of the `dev` tree.
+
+| ID | Gherkin | Classification | Why | Status |
+| --- | --- | --- | --- | --- |
+| 862c1e1 | [862b2c1a The parity command line is pinned](./862b_technical-spec.md#862b2c1-contract-scenarios) | Example | Fixed inputs, one exact command line | Not started |
+| 862c1e2 | [862b2c1b The aggregates do not run it](./862b_technical-spec.md#862b2c1-contract-scenarios) | Interaction | Compares the dependency lists of `check-for-fail` and `check-full`; same seam as `Test794b4a1c_` | Not started |
+| 862c1e3 | [862a3c1a A developer runs the parity check](./862a_product-spec.md#862a3c1-uat-scenarios) | Example | The command line names the `parity` tag and `./internal/embed`; same seam as [862b2c1a The parity command line is pinned](./862b_technical-spec.md#862b2c1-contract-scenarios) | Not started |
+
+| ID | Work | Classification | Why | Status |
+| --- | --- | --- | --- | --- |
+| 862c1e4 | Register `test-parity` in `init()`, outside the aggregates | Action | [862d9 Item 2: the parity tag has no approved command](./862d_questions-and-decisions.md#questions-and-decisions) | Not started |
+| 862c1e5 | Replace the direct `go test` line in the header of `internal/embed/parity_test.go` with `targ test-parity` | Action | [862d9 Item 2: the parity tag has no approved command](./862d_questions-and-decisions.md#questions-and-decisions) | Not started |
+
+#### 862c1d The follow-up issue for the untagged files
+
+Status: Ready
+
+- Rule: WORKFLOW 578-582 (a filed issue records a deviation; it does not satisfy verification). The change directory is deleted at promotion, so the Project Profile cites the issue, not the decision row.
+
+| ID | Work | Classification | Why | Status |
+| --- | --- | --- | --- | --- |
+| 862c1d1 | File one GitHub issue (`gh issue create`) for item 3: nine `*_integration_test.go` files outside `dev/` carry no tag; tag them once `test-integration-all` runs in `check-full` and the coverage floor is re-measured without them; record its number in [862d10 Item 3: nine integration test files carry no tag](./862d_questions-and-decisions.md#questions-and-decisions) | Action | [862d10 Item 3: nine integration test files carry no tag](./862d_questions-and-decisions.md#questions-and-decisions) | Not started |
+
+#### 862c1c The Project Profile cites the remaining deviations
+
+Status: Blocked by: [862c1a The command that runs every integration-tagged test](#862c1a-the-command-that-runs-every-integration-tagged-test), [862c1b Live-session tests skip without a login](#862c1b-live-session-tests-skip-without-a-login), [862c1d The follow-up issue for the untagged files](#862c1d-the-follow-up-issue-for-the-untagged-files), [862c1e The parity tests have a command](#862c1e-the-parity-tests-have-a-command)
 
 - Rule: the issue's last condition, the Profile no longer lists the deviations it names; the Profile table row of the integration suite names `test-integration-all`.
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 862c1c1 | Replace the sentence of known deviations in the test-suite part of the Project Profile (`AGENTS.md`) with one that cites [862d9 Item 2: the parity tag has no approved command](./862d_questions-and-decisions.md#questions-and-decisions), [862d10 Item 3: nine integration test files carry no tag](./862d_questions-and-decisions.md#questions-and-decisions) and [#860](https://github.com/toejough/engram/issues/860) | Action | [862d7 Project Profile wording](./862d_questions-and-decisions.md#questions-and-decisions) | Not started |
-| 862c1c2 | Rewrite the integration row of the Profile table: `test-integration-all` runs every tagged test; the clause that no `integration` file exists outside `dev/` stays true until [862d10 Item 3: nine integration test files carry no tag](./862d_questions-and-decisions.md#questions-and-decisions) is ruled | Action | [862d7 Project Profile wording](./862d_questions-and-decisions.md#questions-and-decisions) | Not started |
-| 862c1c3 | Add `test-integration-all` to the approved commands of the Profile | Action | [862d7 Project Profile wording](./862d_questions-and-decisions.md#questions-and-decisions) | Not started |
-
-#### 862c1d The deviation rows are recorded
-
-Status: Ready
-
-- Rule: WORKFLOW 575 and 606-609: the owner rules on items 2 and 3; an open issue link and status stay beside the deviation.
-
-| ID | Work | Classification | Why | Status |
-| --- | --- | --- | --- | --- |
-| 862c1d1 | Keep item 2 (the `parity` tag, `internal/embed/parity_test.go`) as the Open row with options and a recommendation | Action | [862d9 Item 2: the parity tag has no approved command](./862d_questions-and-decisions.md#questions-and-decisions) | Not started |
-| 862c1d2 | Keep item 3 (nine `*_integration_test.go` files outside `dev/`) as the Open row with options and a recommendation | Action | [862d10 Item 3: nine integration test files carry no tag](./862d_questions-and-decisions.md#questions-and-decisions) | Not started |
-| 862c1d3 | Leave item 4 (eighteen default-suite tests with a real temporary directory) to [#860](https://github.com/toejough/engram/issues/860) | Action | [862d2 Scope of 862](./862d_questions-and-decisions.md#questions-and-decisions) | Not started |
+| 862c1c1 | Replace the sentence of known deviations in the test-suite part of the Project Profile (`AGENTS.md`) with one that cites the issue filed by [862c1d The follow-up issue for the untagged files](#862c1d-the-follow-up-issue-for-the-untagged-files) and [#860](https://github.com/toejough/engram/issues/860) only; the acceptance skip and the parity command are no longer deviations | Action | [862d7 Project Profile wording](./862d_questions-and-decisions.md#questions-and-decisions) | Not started |
+| 862c1c2 | Rewrite the integration row of the Profile table: `test-integration-all` runs every tagged test; the clause that no `integration`-tagged file exists outside `dev/` is dropped | Action | [862d7 Project Profile wording](./862d_questions-and-decisions.md#questions-and-decisions) | Not started |
+| 862c1c3 | Add `test-integration-all` and `test-parity` to the approved commands, in the files and lines that the surface row of [861c1a The test-pkg target](../861_scenario-coverage/861c_implementation-plan.md#861c1a-the-test-pkg-target) lists (`AGENTS.md` Language and toolchain and Code Quality, `README.md` Development) | Action | [862d7 Project Profile wording](./862d_questions-and-decisions.md#questions-and-decisions) | Not started |
 
 ## 862c2 Evidence and status
 
@@ -88,7 +110,7 @@ Latest verified evidence per milestone; a result not yet recorded is `Not run`, 
 
 | ID | Evidence | Command | Result | Recorded at |
 | --- | --- | --- | --- | --- |
-| 862c2a | Dev tests of the new command and of the updated aggregate scenario | `targ test-dev` | Not run | - |
+| 862c2a | Dev tests of the new commands, of the skip and of the updated aggregate scenario | `targ test-dev` | Not run | - |
 | 862c2b | Dev integration tests, fixture module included | `targ test-dev-integration` | Not run | - |
 | 862c2c | Lint, coverage, nil analysis and the new leg | `targ check-full` | Not run | - |
 | 862c2d | Links, IDs and labels of this change | link check over `docs/`; ID and label scan over `docs/specs` and `docs/changes` | Not run | - |
@@ -99,9 +121,10 @@ Behavior-delivery gates (WORKFLOW 150-158); 862 merges without promotion ([862d8
 
 | ID | Gate | Evidence |
 | --- | --- | --- |
-| 862c3a | Coverage: every scenario of the catalog has a passing test; the Open rows of items 2 and 3 carry a recommendation | [862c1 Nodes](#862c1-nodes) |
+| 862c3a | Coverage: every scenario of the catalog has a passing test; the deviation of item 3 carries a recommendation and a follow-up issue | [862c1 Nodes](#862c1-nodes) |
 | 862c3b | Quality: `targ test`, `targ check-full` pass on `main` | the rows of [862c2 Evidence and status](#862c2-evidence-and-status) |
 | 862c3c | Progress: every row is Done and every node Merged; issue [#862](https://github.com/toejough/engram/issues/862) is closed by the commit that completes it | node statuses |
 | 862c3d | Reviews: one agent review round (with argumentation) before each merge, and the three milestone reviews | [861d10 Milestones and the push](../861_scenario-coverage/861d_questions-and-decisions.md#questions-and-decisions) |
 | 862c3e | Owner walkthroughs: each is an Open row that blocks promotion only | [862d12 Red milestone walkthrough](./862d_questions-and-decisions.md#questions-and-decisions), [862d13 Green milestone walkthrough](./862d_questions-and-decisions.md#questions-and-decisions), [862d14 Refactor milestone walkthrough](./862d_questions-and-decisions.md#questions-and-decisions) |
-| 862c3f | Integration: promotion of the operations to `docs/specs` after the walkthroughs | not done overnight; [862d8 862 merges without promotion](./862d_questions-and-decisions.md#questions-and-decisions) |
+| 862c3f | Integration: promotion of the operations to `docs/specs` after the walkthroughs | deferred; [862d8 862 merges without promotion](./862d_questions-and-decisions.md#questions-and-decisions), [861d28 Promotion order of 861, 862 and 858](../861_scenario-coverage/861d_questions-and-decisions.md#questions-and-decisions) |
+| 862c3g | Consolidation: after Green, review findings and reflection lessons become consolidation nodes in this plan; the Consolidation Criteria evidence (WORKFLOW 337-353) is recorded before the Refactor review | [861d12 Incremental refactoring](../861_scenario-coverage/861d_questions-and-decisions.md#questions-and-decisions), [862c2 Evidence and status](#862c2-evidence-and-status) |

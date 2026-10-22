@@ -1,14 +1,14 @@
 # Scenario Coverage - Technical Spec
 
-This change documents unchanged behavior and adds one development target: it selects no other design and changes no contract, so it has no impact statement, no alternatives and no hypotheses; the options it faced are the rows of [Questions and decisions](./861d_questions-and-decisions.md#questions-and-decisions).
+This change adds tests for unchanged, documented behavior and one development target: it selects no other design and changes no contract, so it has no impact statement, no alternatives and no hypotheses; the options it faced are the rows of [Questions and decisions](./861d_questions-and-decisions.md#questions-and-decisions).
 
 ## 861b1 Existing-system orientation
 
-The product problem is [861a1 Problem statement](./861a_product-spec.md#861a1-problem-statement). The software in scope is the development tooling of the `dev` package: [794b4 Development Check Orchestration](../../specs/technical/development-check-orchestration.md#794b4-development-check-orchestration) owns the registration of Engram's targets in `dev/targs.go`, and its Responsibility lists the targets it registers, so promotion adds `test-pkg` to that list. Today `targ test` takes no argument, runs the whole module with `-race` and a coverage profile, and the Project Profile forbids `go test` outside `targ`; the only target with a package filter, `acceptance`, runs the live-session suite. Insufficiency: a builder cannot run the tests of the package it touched. A local `targ test` run of 2026-10-20 took 24 s for `internal/auto` and 21 s for `internal/cli`, and up to four builders at once mean four concurrent race and coverage builds. Recommendation: one target, `test-pkg`, modeled on `acceptance` ([861b2a A scoped test run](#861b2a-added-a-scoped-test-run)).
+The product problem is [861a1 Problem statement](./861a_product-spec.md#861a1-problem-statement). The software in scope is the development tooling of the `dev` package: [794b4 Development Check Orchestration](../../specs/technical/development-check-orchestration.md#794b4-development-check-orchestration) owns the registration of Engram's [Targ](../../GLOSSARY.md#targ) targets in `dev/targs.go`; its Responsibility names its nil, aggregate and watch targets only, so [861b3a Development Check Orchestration](#861b3a-modified-development-check-orchestration) adds the new target to it. Today `targ test` takes no argument, runs the whole module with `-race` and a coverage profile, and the Project Profile forbids `go test` outside `targ`; no target takes a package, and the only target with a test filter, `acceptance` (`--run`), runs the fixed live-session package. Insufficiency: a builder cannot run the tests of the package it touched, and up to four builders at once would run four concurrent race and coverage builds of the whole module. Recommendation: one target, `test-pkg`, modeled on `acceptance` ([861b2a A scoped test run](#861b2a-added-a-scoped-test-run)).
 
 ## 861b2 Added: Scoped test run
 
-Operations are applied to `docs/specs` at promotion ([861d15 861 merges without promotion](./861d_questions-and-decisions.md#questions-and-decisions)).
+Operations a test finds necessary in existing specs are applied in place ([861d6 A new test that fails at baseline](./861d_questions-and-decisions.md#questions-and-decisions)); the operations below are applied at promotion ([861d15 861 merges without promotion](./861d_questions-and-decisions.md#questions-and-decisions), [861d28 Promotion order of 861, 862 and 858](./861d_questions-and-decisions.md#questions-and-decisions)).
 
 ### 861b2a Added: A scoped test run
 
@@ -16,9 +16,9 @@ Target: [794b4 Development Check Orchestration](../../specs/technical/developmen
 
 Requirement: 861b2a Development-check orchestration MUST register a target `test-pkg` that takes one package path and an optional `--run` regular expression and runs `go test -count=1 -timeout=2m -race` on that package, adding `-run <expression>` when an expression is given. It MUST add no build tag, and it MUST fail with the failure of `go test` when `go test` fails.
 
-Rationale: A builder needs the tests of the package it touched without the whole module; `acceptance` is the precedent for a `go test` wrapper with a filter, and `targ` is the only sanctioned way to run tests. Tagged `dev` tests keep `test-dev` and `test-dev-integration`.
+Rationale: A developer needs the tests of the package they touched without running the whole module. Tagged `dev` tests run through `test-dev` and `test-dev-integration`.
 
-Supports: none ([861d24 Product purpose of the test-pkg target](./861d_questions-and-decisions.md#questions-and-decisions)).
+Supports [861a3a1a A developer runs the tests of one package](./861a_product-spec.md#861a3a1-uat-scenarios).
 
 #### 861b2a1 Contract Scenarios
 
@@ -44,10 +44,51 @@ Scenario: 861b2a1d A failing test fails the target
   Then the target fails with the failure of go test and the developer sees the output of go test
 ```
 
-## 861b3 Recommended design diffs
+## 861b3 Modified: Development-check orchestration component
 
-Component changes that make a scenario testable by dependency injection are recorded here by the node that makes them, with the commit; none yet ([861d12 Incremental refactoring](./861d_questions-and-decisions.md#questions-and-decisions)).
+The operation replaces the component block of the canonical file completely. It is written on the block as it stands at the base of this change; [862b3c Development Check Orchestration](../862_test-suite-classification/862b_technical-spec.md#862b3c-modified-development-check-orchestration) is written on the block as this operation leaves it.
 
-## 861b4 Operations on the technical specs
+### 861b3a Modified: Development Check Orchestration
 
-Empty until a node finds a documentation problem in a technical spec; each Modified or Added operation is then recorded here and applied in place to `docs/specs` in the commit that adds its test.
+Target: [794b4 Development Check Orchestration](../../specs/technical/development-check-orchestration.md#794b4-development-check-orchestration). Differs from the current text in Ownership, Responsibility, Current realization and one added Required behavior bullet.
+
+```markdown
+## 794b4 Development Check Orchestration
+
+- Ownership: repository-owned component (the `dev` package); it owns
+  [794b4a Preserve entry points](#794b4a-preserve-entry-points) and
+  [861b2a A scoped test run](#861b2a-a-scoped-test-run).
+- Responsibility: registers Engram's own nil check and fix targets, its aggregate targets and `watch` in place of
+  [Targ](../../GLOSSARY.md#targ)'s shared development targets, under the existing names and with Targ's dependencies,
+  order and dependency mode, and registers Targ's other shared targets unchanged. It also registers `test-pkg`, which
+  runs the tests of one package ([861b2a A scoped test run](#861b2a-a-scoped-test-run)). As the caller of
+  [794b4b Nil check run](./nil-check-run-workflow.md#794b4b-nil-check-run) it obtains the selected mode's arguments from
+  the invocation policy, sends one request to the analyzer subprocess and returns its success or its failure without
+  retrying.
+- Current realization (informational): `registerTargets`, the target variables and `watch` in `dev/targs.go`;
+  `testPkg` and its target variable in `dev/targs.go`; `checkNilsFix`, `checkNilsForFail`, `runNilaway` and
+  `runConfiguredNilaway` in `dev/nilaway.go`.
+- Qualification: Purpose: the existing check entry points keep their names and reach Engram's nil targets, so that the
+  nil check and fix commands report only on Engram's module packages
+  ([794a2a Project analysis](../product/development-checks.md#794a2a-project-analysis)). Contract: the names,
+  dependencies, order and dependency mode of the registered targets, tested directly against Targ's own targets
+  (`dev/nilaway_internal_test.go`, `dev/nilaway_integration_internal_test.go`). Value: Targ's aggregates hold direct
+  references to its own nil targets and its `watch` calls its own `check`, so replacing the nil targets alone would
+  leave them running Targ's versions; deregistering and re-registering the shared targets together does not.
+- Required behavior: Targ (external) is assumed to support customizing its shared development targets by deregistering
+  them and registering others under the same names (the Rationale of
+  [794b4a Preserve entry points](#794b4a-preserve-entry-points)); authoritative contract: not recorded in this
+  repository; compatibility verification: `dev/nilaway_internal_test.go` compares Engram's aggregates with Targ's own
+  (`Test794b4a1c`), and `dev/nilaway_integration_internal_test.go` (tags `targ`, `integration`) checks that every Targ
+  shared target is kept or replaced (`Test794b4a1d`).
+- Required behavior: the Go toolchain (external) is assumed to accept `-count`, `-timeout`, `-race` and `-run` on
+  `go test` and to exit non-zero when a test fails; authoritative contract: `go help test`, not recorded in this
+  repository; compatibility verification: `Test861b2a1d_` runs `test-pkg` on a fixture package whose test fails.
+- Required behavior: [NilAway Invocation Policy](./nilaway-invocation-policy.md) returns the arguments for the selected
+  mode ([794b3a Mode and scope](./nilaway-invocation-policy.md#794b3a-mode-and-scope)).
+- Required behavior: [NilAway Subprocess](./nilaway-subprocess.md) starts NilAway with the request's arguments and the
+  parent environment unchanged and returns NilAway's success or failure
+  ([794b4c Run NilAway](./nilaway-subprocess.md#794b4c-run-nilaway)).
+- Supported capabilities: [Development Checks](../product/development-checks.md) (the existing entry points reach
+  Engram's nil targets, never Targ's; a developer runs the tests of one package, [861a3a1a A developer runs the tests of one package](../product/development-checks.md#861a3a1-uat-scenarios)).
+```
