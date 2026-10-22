@@ -43,11 +43,11 @@ flowchart LR
         N2zd["861c2zd Note Authoring (default)<br/>Merged"]
         N2ze["861c2ze Skill Source Discovery (default)<br/>Merged"]
         N2zf["861c2zf Source Chunking (default)<br/>Merged"]
-        N2zg["861c2zg Vault Write Lock (default)<br/>Ready"]
-        N2zh["861c2zh Vocabulary Engine (default)<br/>Ready"]
-        N2zi["861c2zi Wikilink Graph (default)<br/>Ready"]
-        N2zj["861c2zj Note Document Format (default)<br/>Ready"]
-        N2zk["861c2zk Subprocess Runner (default)<br/>Ready"]
+        N2zg["861c2zg Vault Write Lock (default)<br/>Merged"]
+        N2zh["861c2zh Vocabulary Engine (default)<br/>Merged"]
+        N2zi["861c2zi Wikilink Graph (default)<br/>Merged"]
+        N2zj["861c2zj Note Document Format (default)<br/>Merged"]
+        N2zk["861c2zk Subprocess Runner (default)<br/>Merged"]
         N2zzze["861c2zzze The eight Test855d4j1_ functions of internal/auto name no scenario<br/>Ready"]
         N2zzzf["861c2zzzf The two Test855d4j1_ functions of internal/cli name no scenario<br/>Ready"]
     end
@@ -96,7 +96,7 @@ flowchart LR
         N2zzza["861c2zzza Vault Identity, part 2 (default)<br/>Merged"]
         N2zzzb["861c2zzzb Curate, part 1 (default)<br/>Merged"]
         N2zzzc["861c2zzzc Curate, part 2 (default)<br/>Merged"]
-        N2zzzd["861c2zzzd Ambient Guidance (default)<br/>Ready"]
+        N2zzzd["861c2zzzd Ambient Guidance (default)<br/>Merged"]
     end
     subgraph UI["Integration tests tagged integration"]
         N2zzzg["861c2zzzg Vault HTTP Server (integration)<br/>Ready"]
@@ -886,7 +886,7 @@ Status: Merged (5405cfb0)
 
 #### 861c2zg Vault Write Lock (default)
 
-Status: In progress: 0/2 entries complete (2 rows Green-single)
+Status: Merged (e9b66a3a)
 
 - Owner file: [Vault Write Lock](../../specs/technical/vault-write-lock.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/vault_write_lock_scenarios_test.go`.
@@ -896,12 +896,12 @@ Status: In progress: 0/2 entries complete (2 rows Green-single)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zg1 | [792b8c2a2 An unlock failure is reported and the file still closed](../../specs/technical/vault-write-lock.md#792b8c2a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b8c2a2_VaultWriteLock_UnlockFailureReportedAndFileStillClosed (vault_write_lock_scenarios_test.go; moved from the subtest of Test792b8c2a1 in locker_test.go and strengthened to name the lock path and the call order), green in logs/b17/861c2zg/2.log (scoped) and pkg.log (whole package); Mutation: locker.go:41, `closeErr := error(nil)`, fails it at :47, the close-call Then (logs/b17/861c2zg/mut1.log) | Green-single |
-| 861c2zg2 | [792b8c2a3 A close failure is reported](../../specs/technical/vault-write-lock.md#792b8c2a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b8c2a3_VaultWriteLock_CloseFailureReported (vault_write_lock_scenarios_test.go; moved from the subtest of Test792b8c2a1 in locker_test.go and strengthened to name the lock path), green in logs/b17/861c2zg/2.log (scoped) and pkg.log (whole package); Mutation: locker.go:41, `closeErr := error(nil)`, fails it at :82, the returned-error Then (logs/b17/861c2zg/mut1.log) | Green-single |
+| 861c2zg1 | [792b8c2a2 An unlock failure is reported and the file still closed](../../specs/technical/vault-write-lock.md#792b8c2a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b8c2a2_VaultWriteLock_UnlockFailureReportedAndFileStillClosed (vault_write_lock_scenarios_test.go; moved from the subtest of Test792b8c2a1 in locker_test.go and strengthened to name the lock path and the call order), green in logs/b17/861c2zg/2.log (scoped) and pkg.log (whole package); Mutation: locker.go:41, `closeErr := error(nil)`, fails it at :47, the close-call Then (logs/b17/861c2zg/mut1.log) | Done |
+| 861c2zg2 | [792b8c2a3 A close failure is reported](../../specs/technical/vault-write-lock.md#792b8c2a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b8c2a3_VaultWriteLock_CloseFailureReported (vault_write_lock_scenarios_test.go; moved from the subtest of Test792b8c2a1 in locker_test.go and strengthened to name the lock path), green in logs/b17/861c2zg/2.log (scoped) and pkg.log (whole package); Mutation: locker.go:41, `closeErr := error(nil)`, fails it at :82, the returned-error Then (logs/b17/861c2zg/mut1.log) | Done |
 
 #### 861c2zh Vocabulary Engine (default)
 
-Status: In progress: 0/2 entries complete (2 rows Green-single)
+Status: Merged (e9b66a3a)
 
 - Owner file: [Vocabulary Engine](../../specs/technical/vocabulary-engine.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/vocabulary_engine_scenarios_test.go`.
@@ -911,12 +911,12 @@ Status: In progress: 0/2 entries complete (2 rows Green-single)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zh1 | [792b20c5a1 A written note is tagged](../../specs/technical/vocabulary-engine.md#792b20c5a-scenarios) | Example | Fixed inputs, one exact outcome; `Test792b20c5a1_VocabularyEngine_WrittenNoteIsTagged` (`internal/cli/vocabulary_engine_scenarios_test.go`), pass in `b17/861c2zh/1.log`; mutation `vocab.go` `vocabAssignmentUnchanged(...) \|\| true` fails it at the Then, `b17/861c2zh/mut.log`; `Test792b12c6a1_RunLearn_VocabAssignment_WritesVocabWhenTermsPresent` carries a learn-scenario ID, so not renamed | Green-single |
-| 861c2zh2 | [792b20c10a5 A bad seed fails before the lock](../../specs/technical/vocabulary-engine.md#792b20c10a-scenarios) | Example | Fixed inputs, one exact outcome; `Test792b20c10a5_VocabularyEngine_BadSeedFailsBeforeTheLock` (same file; one parallel subtest each for unreadable seed, YAML mapping, YAML list of scalars: error names the problem, lock never taken, no write, no output), pass in `b17/861c2zh/fix-1.log`; reviewer mutations fail it: `vocab_commands.go` lock taken before the seed read fails it at the lock Then, `b17/unit-034-vocabulary-engine/review-2_*.log`; `unmarshalErr != nil && false` fails the mapping subtest at the error Then, `review-3_*.log` | Green-single |
+| 861c2zh1 | [792b20c5a1 A written note is tagged](../../specs/technical/vocabulary-engine.md#792b20c5a-scenarios) | Example | Fixed inputs, one exact outcome; `Test792b20c5a1_VocabularyEngine_WrittenNoteIsTagged` (`internal/cli/vocabulary_engine_scenarios_test.go`), pass in `b17/861c2zh/1.log`; mutation `vocab.go` `vocabAssignmentUnchanged(...) \|\| true` fails it at the Then, `b17/861c2zh/mut.log`; `Test792b12c6a1_RunLearn_VocabAssignment_WritesVocabWhenTermsPresent` carries a learn-scenario ID, so not renamed | Done |
+| 861c2zh2 | [792b20c10a5 A bad seed fails before the lock](../../specs/technical/vocabulary-engine.md#792b20c10a-scenarios) | Example | Fixed inputs, one exact outcome; `Test792b20c10a5_VocabularyEngine_BadSeedFailsBeforeTheLock` (same file; one parallel subtest each for unreadable seed, YAML mapping, YAML list of scalars: error names the problem, lock never taken, no write, no output), pass in `b17/861c2zh/fix-1.log`; reviewer mutations fail it: `vocab_commands.go` lock taken before the seed read fails it at the lock Then, `b17/unit-034-vocabulary-engine/review-2_*.log`; `unmarshalErr != nil && false` fails the mapping subtest at the error Then, `review-3_*.log` | Done |
 
 #### 861c2zi Wikilink Graph (default)
 
-Status: In progress: 0/2 entries complete (2 rows Green-single)
+Status: Merged (e9b66a3a)
 
 - Owner file: [Wikilink Graph](../../specs/technical/wikilink-graph.md) (technical component).
 - Package: `internal/vaultgraph`; suggested test file: `internal/vaultgraph/wikilink_graph_scenarios_test.go`.
@@ -927,12 +927,12 @@ Status: In progress: 0/2 entries complete (2 rows Green-single)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zi1 | [792b13c3a10 A display part stays in the target](../../specs/technical/wikilink-graph.md#792b13c3a-scenarios) | Example | Fixed inputs, one exact outcome. `Test792b13c3a10_ParseWikilinks_DisplayPartStaysInTarget` (`wikilink_graph_scenarios_test.go`), log `final.log`; mutation (parser.go: `|display` split off the target) failed it at the Then, log `mut.log` | Green-single |
-| 861c2zi2 | [792b13c5a2 An unknown basename has in-degree 0](../../specs/technical/wikilink-graph.md#792b13c5a-scenarios) | Example | Fixed inputs, one exact outcome. `Test792b13c5a2_Graph_UnknownBasenameInDegreeIsZero` (`wikilink_graph_scenarios_test.go`; `TestInDegreeIn_UnknownNodeReturnsZero` verifies InDegreeIn, not InDegree, so it was not renamed), log `final.log`; mutation `graph.go:18` (InDegree returns 1 for a basename not in Notes) failed it at line 36 (ghost Then), log `review-3-mut-graph.go18-InDegree-unknown-returns-1.log` | Green-single |
+| 861c2zi1 | [792b13c3a10 A display part stays in the target](../../specs/technical/wikilink-graph.md#792b13c3a-scenarios) | Example | Fixed inputs, one exact outcome. `Test792b13c3a10_ParseWikilinks_DisplayPartStaysInTarget` (`wikilink_graph_scenarios_test.go`), log `final.log`; mutation (parser.go: `|display` split off the target) failed it at the Then, log `mut.log` | Done |
+| 861c2zi2 | [792b13c5a2 An unknown basename has in-degree 0](../../specs/technical/wikilink-graph.md#792b13c5a-scenarios) | Example | Fixed inputs, one exact outcome. `Test792b13c5a2_Graph_UnknownBasenameInDegreeIsZero` (`wikilink_graph_scenarios_test.go`; `TestInDegreeIn_UnknownNodeReturnsZero` verifies InDegreeIn, not InDegree, so it was not renamed), log `final.log`; mutation `graph.go:18` (InDegree returns 1 for a basename not in Notes) failed it at line 36 (ghost Then), log `review-3-mut-graph.go18-InDegree-unknown-returns-1.log` | Done |
 
 #### 861c2zj Note Document Format (default)
 
-Status: In progress: 0/1 entries complete (1 rows Green-single)
+Status: Merged (e9b66a3a)
 
 - Owner file: [Note Document Format](../../specs/technical/note-document-format.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/note_document_format_scenarios_test.go`.
@@ -942,11 +942,11 @@ Status: In progress: 0/1 entries complete (1 rows Green-single)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zj1 | [792b6c1a2 A pair's filenames](../../specs/technical/note-document-format.md#792b6c1a-scenarios) | Example | Fixed inputs, one exact outcome. `Test792b6c1a2_RunLearnQA_NamesAPairByDateAndSlug` (`internal/cli/note_document_format_scenarios_test.go`) drives `RunLearnQA` over recording deps; mutation `qaSlug` date separator `.` to `-` failed it at the Then assertion (b17/861c2zj/mut.log); package run pkg.log | Green-single |
+| 861c2zj1 | [792b6c1a2 A pair's filenames](../../specs/technical/note-document-format.md#792b6c1a-scenarios) | Example | Fixed inputs, one exact outcome. `Test792b6c1a2_RunLearnQA_NamesAPairByDateAndSlug` (`internal/cli/note_document_format_scenarios_test.go`) drives `RunLearnQA` over recording deps; mutation `qaSlug` date separator `.` to `-` failed it at the Then assertion (b17/861c2zj/mut.log); package run pkg.log | Done |
 
 #### 861c2zk Subprocess Runner (default)
 
-Status: In progress: 0/1 entries complete (1 rows Green-single)
+Status: Merged (e9b66a3a)
 
 - Owner file: [Subprocess Runner](../../specs/technical/subprocess-runner.md) (technical component).
 - Package: `cmd/engram`; suggested test file: `cmd/engram/subprocess_runner_scenarios_test.go`.
@@ -957,7 +957,7 @@ Status: In progress: 0/1 entries complete (1 rows Green-single)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zk1 | [792b4c4a6 The program shares the caller's streams](../../specs/technical/subprocess-runner.md#792b4c4a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b4c4a6_SpawnPrimitives_ProgramSharesCallerStreams (subprocess_runner_scenarios_test.go), green in logs/b17/861c2zk/2-pass.log and 4-whole.log; the test binary re-runs itself as the caller (TestSpawnPrimitives_RunInheritedHelperProcess) with pipes for its streams, so no process-global os.Stdin/Stdout/Stderr is swapped; mutation (main.go spawnPrimitives passes nil as the child's stdin) fails it at the stdout Then, 3-mut-stdin.log | Green-single |
+| 861c2zk1 | [792b4c4a6 The program shares the caller's streams](../../specs/technical/subprocess-runner.md#792b4c4a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b4c4a6_SpawnPrimitives_ProgramSharesCallerStreams (subprocess_runner_scenarios_test.go), green in logs/b17/861c2zk/2-pass.log and 4-whole.log; the test binary re-runs itself as the caller (TestSpawnPrimitives_RunInheritedHelperProcess) with pipes for its streams, so no process-global os.Stdin/Stdout/Stderr is swapped; mutation (main.go spawnPrimitives passes nil as the child's stdin) fails it at the stdout Then, 3-mut-stdin.log | Done |
 
 #### 861c2zl Memory Query, part 1 (default)
 
@@ -2411,7 +2411,7 @@ Status: Merged (5405cfb0)
 
 #### 861c2zzzd Ambient Guidance (default)
 
-Status: In progress: 0/11 entries complete (11 rows Green-single)
+Status: Merged (e9b66a3a)
 
 - Owner file: [Ambient Guidance](../../specs/product/ambient-guidance.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/ambient_guidance_scenarios_test.go`.
@@ -2421,17 +2421,17 @@ Status: In progress: 0/11 entries complete (11 rows Green-single)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zzzd1 | [792a19u1a A config with three imports gains the shim](../../specs/product/ambient-guidance.md#792a19u1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Test792a19u1a_Update_AConfigWithThreeImportsGainsTheShim (update on the in-memory machine of the update scenarios, four guidance documents in the source: shim.md deployed with its line to add, the three imports refreshed, the config byte for byte as seeded); green in 2.log; mutation `if imported[name]` to `len(imported) > 0` (update.go:818) fails it at the shim line assertion, review-mut-imported-len.log; mutation `!imported[name]` mut-invert.log (logs under logs/b17/861c2zzzd/; the len(imported) log is logs/b17/unit-115-ambient-guidance/review-mut-imported-len.log) | Green-single |
-| 861c2zzzd2 | [792a19u1b The shim does not replace the other documents](../../specs/product/ambient-guidance.md#792a19u1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Test792a19u1b_Update_TheShimDoesNotReplaceTheOtherDocuments (all four imported, plus the learn and write-memory skills in the source: four refreshed lines, no deployed line, config unchanged, the three skills deployed as links); green in 2.log; mutation `!imported[name]` fails it at the refreshed-line assertion, mut-invert.log | Green-single |
-| 861c2zzzd3 | [792a19v1a A Claude Code document not yet imported is deployed with its line to add](../../specs/product/ambient-guidance.md#792a19v1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Test792a19v1a_Update_AClaudeCodeDocumentNotYetImportedIsDeployedWithItsLineToAdd (--with-guidance, no import: the full deployed line with the line to add, CLAUDE.md and the one-time approval); green in 2.log; mutation `!imported[name]` fails it at the line assertion, mut-invert.log | Green-single |
-| 861c2zzzd4 | [792a19v1b An imported document is refreshed](../../specs/product/ambient-guidance.md#792a19v1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Test792a19v1b_Update_AnImportedDocumentIsRefreshed (refreshed line, no `add '@` text, no deployed line); green in 2.log; mutation `!imported[name]` fails it at the refreshed-line assertion, mut-invert.log | Green-single |
-| 861c2zzzd5 | [792a19v1c A Pi document is deployed with Pi's paths](../../specs/product/ambient-guidance.md#792a19v1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Test792a19v1c_Update_APiDocumentIsDeployedWithPisPaths (Pi deployed line equals the exact Pi line, no Claude Code path); green in 2.log; mutation guidanceDir fixed to ~/.claude/engram (update.go:807) fails it at the Pi line assertion, mut-dir.log | Green-single |
-| 861c2zzzd6 | [792a19v1d The harnesses are wired independently](../../specs/product/ambient-guidance.md#792a19v1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Test792a19v1d_Update_TheHarnessesAreWiredIndependently (Claude Code imports, Pi does not: Claude refreshed, Pi deployed with its line, two guidance lines); green in 2.log; mutation Pi judged by Claude Code's imports (update.go:809) fails it at the Pi line assertion, mut-wiring.log | Green-single |
-| 861c2zzzd7 | [792a19v1e Each document is judged on its own](../../specs/product/ambient-guidance.md#792a19v1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Test792a19v1e_Update_EachDocumentIsJudgedOnItsOwn (recall.md imported, delegate.md not: refreshed and deployed lines, two guidance lines); green in 2.log; mutation `len(imported) > 0` fails it at the refreshed-line assertion, review-mut-imported-len.log | Green-single |
-| 861c2zzzd8 | [792a19v1f A user who has not opted in is nudged](../../specs/product/ambient-guidance.md#792a19v1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Test792a19v1f_Update_AUserWhoHasNotOptedInIsNudged (no flag, no import, documents in the source: the exact nudge once, no guidance line); green in 2.log; mutation nudge never printed (`|| true` in the guard, update.go:779) fails it at the nudge assertion, mut-nonudge.log | Green-single |
-| 861c2zzzd9 | [792a19v1g A user who already imports is not nudged](../../specs/product/ambient-guidance.md#792a19v1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Test792a19v1g_Update_AUserWhoAlreadyImportsIsNotNudged (two subtests: recall.md imported and delegate.md not, no nudge and each judged on its own; the config imports and the source ships none, no nudge); green in 2.log; mutation `report.GuidanceImported` dropped from the guard (update.go:779) fails the second subtest at the no-nudge assertion, mut-notimp.log; mutation `!imported[name]` fails the first, mut-invert.log | Green-single |
-| 861c2zzzd10 | [792a19v1h The flag suppresses the nudge](../../specs/product/ambient-guidance.md#792a19v1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Test792a19v1h_Update_TheFlagSuppressesTheNudge (--with-guidance, no document in the source, ~/.pi present: no guidance line and no nudge); green in 2.log; mutation `report.WithGuidance` dropped from the guard (update.go:779) fails it at the no-nudge assertion, mut-notflag.log | Green-single |
-| 861c2zzzd11 | [792a19v1i A dry run prefixes the guidance lines](../../specs/product/ambient-guidance.md#792a19v1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Test792a19v1i_Update_ADryRunPrefixesTheGuidanceLines (dry run with --with-guidance for Claude Code and Pi, one imported and one not: four guidance lines each with "[dry-run] ", nothing in the file system changed); green in 2.log; mutation prefix always empty (update.go:806, applied to every dryRunPrefix line of the file) fails it at the prefixed-line assertion, mut-prefix.log | Green-single |
+| 861c2zzzd1 | [792a19u1a A config with three imports gains the shim](../../specs/product/ambient-guidance.md#792a19u1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Test792a19u1a_Update_AConfigWithThreeImportsGainsTheShim (update on the in-memory machine of the update scenarios, four guidance documents in the source: shim.md deployed with its line to add, the three imports refreshed, the config byte for byte as seeded); green in 2.log; mutation `if imported[name]` to `len(imported) > 0` (update.go:818) fails it at the shim line assertion, review-mut-imported-len.log; mutation `!imported[name]` mut-invert.log (logs under logs/b17/861c2zzzd/; the len(imported) log is logs/b17/unit-115-ambient-guidance/review-mut-imported-len.log) | Done |
+| 861c2zzzd2 | [792a19u1b The shim does not replace the other documents](../../specs/product/ambient-guidance.md#792a19u1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Test792a19u1b_Update_TheShimDoesNotReplaceTheOtherDocuments (all four imported, plus the learn and write-memory skills in the source: four refreshed lines, no deployed line, config unchanged, the three skills deployed as links); green in 2.log; mutation `!imported[name]` fails it at the refreshed-line assertion, mut-invert.log | Done |
+| 861c2zzzd3 | [792a19v1a A Claude Code document not yet imported is deployed with its line to add](../../specs/product/ambient-guidance.md#792a19v1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Test792a19v1a_Update_AClaudeCodeDocumentNotYetImportedIsDeployedWithItsLineToAdd (--with-guidance, no import: the full deployed line with the line to add, CLAUDE.md and the one-time approval); green in 2.log; mutation `!imported[name]` fails it at the line assertion, mut-invert.log | Done |
+| 861c2zzzd4 | [792a19v1b An imported document is refreshed](../../specs/product/ambient-guidance.md#792a19v1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Test792a19v1b_Update_AnImportedDocumentIsRefreshed (refreshed line, no `add '@` text, no deployed line); green in 2.log; mutation `!imported[name]` fails it at the refreshed-line assertion, mut-invert.log | Done |
+| 861c2zzzd5 | [792a19v1c A Pi document is deployed with Pi's paths](../../specs/product/ambient-guidance.md#792a19v1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Test792a19v1c_Update_APiDocumentIsDeployedWithPisPaths (Pi deployed line equals the exact Pi line, no Claude Code path); green in 2.log; mutation guidanceDir fixed to ~/.claude/engram (update.go:807) fails it at the Pi line assertion, mut-dir.log | Done |
+| 861c2zzzd6 | [792a19v1d The harnesses are wired independently](../../specs/product/ambient-guidance.md#792a19v1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Test792a19v1d_Update_TheHarnessesAreWiredIndependently (Claude Code imports, Pi does not: Claude refreshed, Pi deployed with its line, two guidance lines); green in 2.log; mutation Pi judged by Claude Code's imports (update.go:809) fails it at the Pi line assertion, mut-wiring.log | Done |
+| 861c2zzzd7 | [792a19v1e Each document is judged on its own](../../specs/product/ambient-guidance.md#792a19v1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Test792a19v1e_Update_EachDocumentIsJudgedOnItsOwn (recall.md imported, delegate.md not: refreshed and deployed lines, two guidance lines); green in 2.log; mutation `len(imported) > 0` fails it at the refreshed-line assertion, review-mut-imported-len.log | Done |
+| 861c2zzzd8 | [792a19v1f A user who has not opted in is nudged](../../specs/product/ambient-guidance.md#792a19v1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Test792a19v1f_Update_AUserWhoHasNotOptedInIsNudged (no flag, no import, documents in the source: the exact nudge once, no guidance line); green in 2.log; mutation nudge never printed (`|| true` in the guard, update.go:779) fails it at the nudge assertion, mut-nonudge.log | Done |
+| 861c2zzzd9 | [792a19v1g A user who already imports is not nudged](../../specs/product/ambient-guidance.md#792a19v1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Test792a19v1g_Update_AUserWhoAlreadyImportsIsNotNudged (two subtests: recall.md imported and delegate.md not, no nudge and each judged on its own; the config imports and the source ships none, no nudge); green in 2.log; mutation `report.GuidanceImported` dropped from the guard (update.go:779) fails the second subtest at the no-nudge assertion, mut-notimp.log; mutation `!imported[name]` fails the first, mut-invert.log | Done |
+| 861c2zzzd10 | [792a19v1h The flag suppresses the nudge](../../specs/product/ambient-guidance.md#792a19v1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Test792a19v1h_Update_TheFlagSuppressesTheNudge (--with-guidance, no document in the source, ~/.pi present: no guidance line and no nudge); green in 2.log; mutation `report.WithGuidance` dropped from the guard (update.go:779) fails it at the no-nudge assertion, mut-notflag.log | Done |
+| 861c2zzzd11 | [792a19v1i A dry run prefixes the guidance lines](../../specs/product/ambient-guidance.md#792a19v1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Test792a19v1i_Update_ADryRunPrefixesTheGuidanceLines (dry run with --with-guidance for Claude Code and Pi, one imported and one not: four guidance lines each with "[dry-run] ", nothing in the file system changed); green in 2.log; mutation prefix always empty (update.go:806, applied to every dryRunPrefix line of the file) fails it at the prefixed-line assertion, mut-prefix.log | Done |
 
 #### 861c2zzze The eight Test855d4j1_ functions of internal/auto name no scenario
 
@@ -3477,6 +3477,7 @@ Latest verified evidence per milestone; a result not yet recorded is `Not run`, 
 | 861c5y | Milestone gates on main after batch b15 (units 861c2zzw, 861c2zzx, 861c2zzy, 861c2zzz, 861c2zzza, 861c2zzzb) | `targ test`, `targ check-full` | Passed on main at 40bf245a: `targ test` exit=0, 15 packages ok (b15/milestone-test.log); `targ check-full` 13 of 13 legs, exit=0, `test-integration-all` 1m49.8s, `check-coverage-for-fail` PASS (b15/milestone-check-full.log). First runs passed, no fix needed | 40bf245a |
 | 861c5z | Refresh r2: links, IDs and catalog totals | link check over `docs/`; ID and label scan over `docs/specs` and `docs/changes`; `gen_catalog.py` | Passed on the tree at 81f95201 plus the edits of this pass: link check 10909 relative links in `docs/`, 0 broken; ID scan 0 duplicates of 8413 defined IDs, 8709 ID-labelled links with 0 mismatches, 0 unresolved tokens, 0 operations of 858 unapplied; catalog (`logs/refresh-r2/catalog-after.md`): 3562 scenarios, 2988 with a test, 574 without (refresh r1 861c5v: 2682 and 880; closing pass 861c5o: 2159 and 1403; baseline 861c5a: 1907 and 1655), 306 closed since refresh r1 and 1081 since the baseline; 34 test functions whose ID is in no spec (as at 861c5o) | 81f95201 |
 | 861c5za | Milestone gates on main after batch b16 (units 861c2zzzc, 861c2za, 861c2zb, 861c2zc, 861c2zd, 861c2ze, 861c2zf) | `targ test`, `targ check-full` | Passed on main at 5405cfb0: `targ test` exit=0, 15 packages ok (b16/milestone-test.log); `targ check-full` 13 of 13 legs, exit=0, `test-integration-all` 1m50.1s, `check-coverage-for-fail` PASS (b16/milestone-check-full.log). First runs passed, no fix needed | 5405cfb0 |
+| 861c5zb | Milestone gates on main after batch b17 (units 861c2zg, 861c2zh, 861c2zi, 861c2zj, 861c2zk, 861c2zzzd) | `targ test`, `targ check-full` | Passed on main at e9b66a3a: `targ test` exit=0, 15 packages ok (b17/milestone-test.log); `targ check-full` 13 of 13 legs, exit=0, `test-integration-all` 1m53.1s, `check-coverage-for-fail` PASS (b17/milestone-check-full.log). First runs passed, no fix needed | e9b66a3a |
 
 ## 861c6 Completion gates
 
