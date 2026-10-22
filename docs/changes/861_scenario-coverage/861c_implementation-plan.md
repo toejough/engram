@@ -2045,8 +2045,8 @@ Status: In progress: 0/24 entries complete (24 rows Green-single)
 - Read first: `internal/cli/check_test.go`, `internal/cli/targets_test.go`, `internal/vaultgraph/resolution_test.go`, `internal/cli/crlf_readers_internal_test.go`, `internal/vaultgraph/parser_test.go`.
 - Implemented in: `internal/cli/check.go`, `internal/cli/learn.go`, `internal/cli/embed.go`, `internal/cli/note_ref.go`, `internal/cli/resituate.go`, `internal/cli/targets.go`, `internal/cli/cli.go`, `internal/cli/identity.go`.
 - Requirements (scenarios in this node): [792a9a The check report](../../specs/product/vault-health.md#792a9a-the-check-report) (6); [792a9b Links that should resolve](../../specs/product/vault-health.md#792a9b-links-that-should-resolve) (3); [792a9c Links to nothing](../../specs/product/vault-health.md#792a9c-links-to-nothing) (5); [792a9d Notes recall can match](../../specs/product/vault-health.md#792a9d-notes-recall-can-match) (6); [792a9e Sidecars that can be read](../../specs/product/vault-health.md#792a9e-sidecars-that-can-be-read) (4).
-
 - Evidence: lint b14/861c2zzr/lint-full.log (0 issues); nilaway b14/861c2zzr/nils.log (exit=0); reorder-decls b14/861c2zzr/reorder.log (0 files beyond the new file) and b14/unit-070-vault-health-part-1/fix-3-reorder.log; package green b14/861c2zzr/3-final.log and b14/unit-070-vault-health-part-1/fix-1.log; mutation m8 after the review fix b14/unit-070-vault-health-part-1/fix-2-mut-m8.log; no rename, no refactor.
+
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
 | 861c2zzr1 | [792a9a1a A clean vault passes](../../specs/product/vault-health.md#792a9a1-uat-scenarios) | Example | `Test792a9a1a_Targets_CheckACleanVaultPrintsThreePassLines` (vault_health_part1_scenarios_test.go; b14/861c2zzr/3-final.log); drives cli.Targets over an in-memory vault; mutation killed it (b14/861c2zzr/2-mutation.log) | Green-single |
