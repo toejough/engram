@@ -172,6 +172,7 @@ func Test792a19j1a_ShimGuidance_AShimOnlySessionQueriesFirst(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("engram query --lazy-chunks"))
 	g.Expect(text).To(ContainSubstring(`--text="<the user's message, word for word>"`))
 	g.Expect(text).To(ContainSubstring(`--phrase="<the request, in your own words>"`))
+	g.Expect(text).To(ContainSubstring(`--phrase="<the kind of situation this is`))
 	g.Expect(text).To(ContainSubstring("Two phrases minimum, both shapes above."))
 	g.Expect(text).To(ContainSubstring("The one exception: a block opening `[engram memory]` " +
 		"attached to the user's message"))
@@ -269,6 +270,7 @@ func Test792a19k1b_ShimGuidance_TheRecheckWordingIsRunbookAgnostic(t *testing.T)
 
 	runbookAndSkillNames := []string{
 		"skill-claude", "[[", "`route`", "`recall`", "`please`", "/please", "/recall", "tally",
+		"`learn`", "/learn", "`curate`", "`write-memory`",
 	}
 
 	for _, named := range runbookAndSkillNames {
