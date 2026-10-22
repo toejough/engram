@@ -403,7 +403,7 @@ func Test792a22o1i_Query_TheNoticesCommandReturnsTheCurateRunbookByTrigger(t *te
 			machine.put(curate1LiveName, curate1FactNote("curating a garden", ""))
 			machine.putSidecar(curate1LiveName)
 
-			stdout, stderr := machine.run("query", "--text", textFlag[1], "--phrase", phraseFlag[1],
+			stdout, stderr := machine.run("query", "--text="+textFlag[1], "--phrase="+phraseFlag[1],
 				"--chunks-dir", curate1ChunksPath)
 			g.Expect(stderr).To(BeEmpty())
 
@@ -427,7 +427,7 @@ func Test792a22o1i_Query_TheNoticesCommandReturnsTheCurateRunbookByTrigger(t *te
 const (
 	// curate2Command is the command every surface carries.
 	curate2Command = `engram query --text="curate pending offers"`
-	// curate2LargeBody pads a note so that twenty of them pass 100 KB.
+	// curate2LargeBody pads a note so that curate2LargeNotes of them pass 100 KB.
 	curate2LargeBody    = 6000
 	curate2LargeBytes   = 100_000
 	curate2LargeFirstID = 10
