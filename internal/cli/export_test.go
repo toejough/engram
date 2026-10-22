@@ -102,6 +102,7 @@ var (
 	ExportCompareExchangeHashes            = compareExchangeHashes
 	ExportCountQAPairs                     = countQAPairs
 	ExportCountTriggerVaultNotes           = countTriggerVaultNotes
+	ExportDeclineMatches                   = declineMatches
 	ExportDefaultRecencyParams             = defaultRecencyParams
 	ExportDefinitionNoteFactFields         = definitionNoteFactFields
 	ExportDeriveVocabClusters              = deriveVocabClusters
@@ -110,6 +111,7 @@ var (
 	ExportDiscardNote                      = discardNote
 	ExportDrainOutbox                      = drainOutbox
 	ExportEnqueueOutbox                    = enqueueOutbox
+	ExportEnsureStateDir                   = ensureStateDir
 	ExportEnsureVault                      = ensureVault
 	ExportEnsureVocabFamilyNote            = ensureVocabFamilyNote
 	ExportEvaluateVocabTriggers            = evaluateVocabTriggers
@@ -132,6 +134,8 @@ var (
 	ExportIndexReader                      = indexReader
 	ExportInitVaultFromFS                  = initVaultFromFS
 	ExportInitializeVault                  = initializeVault
+	ExportIsExchangeBasename               = isExchangeBasename
+	ExportIsExchangeID                     = isExchangeID
 	ExportIsQAQuestionFilename             = isQAQuestionFilename
 	ExportIsQueryExcludedKind              = isQueryExcludedKind
 	ExportIsVocabDefinitionNote            = isVocabDefinitionNote
@@ -140,6 +144,7 @@ var (
 	ExportLoadAllVaultNotesMeta            = loadAllVaultNotesMeta
 	ExportLoadAssignmentTermVectors        = loadAssignmentTermVectors
 	ExportLoadCurrentVocabVersion          = loadCurrentVocabVersion
+	ExportLoadDeclined                     = loadDeclined
 	ExportLoadOutbox                       = loadOutbox
 	ExportLoadParentCache                  = loadParentCache
 	ExportLoadTermVectors                  = loadTermVectors
@@ -187,6 +192,7 @@ var (
 	ExportQueuedOfferCount              = queuedOfferCount
 	ExportReadCentroidsDoc              = readCentroidsDoc
 	ExportRecencyMultiplier             = recencyMultiplier
+	ExportRecordDeclinedPull            = recordDeclinedPull
 	ExportRecordKeptReceipts            = recordKeptReceipts
 	ExportRecordParentFailure           = recordParentFailure
 	ExportRecordParentSuccess           = recordParentSuccess
@@ -268,6 +274,9 @@ type ExportAllVaultNotesMeta = AllVaultNotesMeta
 type ExportCompatibleSidecar = compatibleSidecar
 
 // Exported derivation types (vocab derivation).
+// ExportDeclinedFile aliases declinedFile so cli_test can name the decline record.
+type ExportDeclinedFile = declinedFile
+
 // ExportDeclinedPull aliases declinedPull so cli_test can wire
 // AmendDeps.RecordDecline.
 type ExportDeclinedPull = declinedPull
