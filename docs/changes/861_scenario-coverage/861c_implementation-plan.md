@@ -284,7 +284,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2d Self Installer, part 2 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: In progress: 0/12 entries complete (11 rows Green-single)
 
 - Owner file: [Self Installer](../../specs/technical/self-installer.md) (technical component).
 - Package: `internal/update`; suggested test file: `internal/update/self_installer_part2_scenarios_test.go`.
@@ -295,18 +295,18 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2d1 | [792b28c1a2 GOPATH is next](../../specs/technical/self-installer.md#792b28c1a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2d2 | [792b28c1a3 The home directory is the fallback](../../specs/technical/self-installer.md#792b28c1a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2d3 | [792b28c1a4 A go env setting is honored](../../specs/technical/self-installer.md#792b28c1a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2d4 | [792b28c1a5 The first GOPATH entry is used](../../specs/technical/self-installer.md#792b28c1a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2d5 | [792b28c4a3 An unresolvable revision is unknown](../../specs/technical/self-installer.md#792b28c4a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2d6 | [792b28c5a2 An earlier clone is removed first](../../specs/technical/self-installer.md#792b28c5a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2d7 | [792b28c5a4 Another clone failure surfaces](../../specs/technical/self-installer.md#792b28c5a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2d8 | [792b28c6a2 A file under one mebibyte is refused](../../specs/technical/self-installer.md#792b28c6a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2d9 | [792b28c6a3 An unreadable model is an error](../../specs/technical/self-installer.md#792b28c6a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2d10 | [792b28c6a4 A real model passes](../../specs/technical/self-installer.md#792b28c6a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2d11 | [792b28c7a6 A descendant installs](../../specs/technical/self-installer.md#792b28c7a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2d12 | [792b28c8a4 A remote dry run still clones](../../specs/technical/self-installer.md#792b28c8a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2d1 | [792b28c1a2 GOPATH is next](../../specs/technical/self-installer.md#792b28c1a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b28c1a2_ResolveBinaryPath_GOPATHIsNext; baseline pass only; b01/861c2d/3-pkg.log | Green-single |
+| 861c2d2 | [792b28c1a3 The home directory is the fallback](../../specs/technical/self-installer.md#792b28c1a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b28c1a3_ResolveBinaryPath_HomeDirectoryIsTheFallback; baseline pass only; b01/861c2d/3-pkg.log | Green-single |
+| 861c2d3 | [792b28c1a4 A go env setting is honored](../../specs/technical/self-installer.md#792b28c1a-scenarios) | Example | Fixed inputs, one exact outcome; code bug #831, not small: Run runs no go env and the Commander call sequence is pinned by 27 call assertions; throwaway test failed at baseline (b01/861c2d/2-tmp1a4.log), kept out; see 861d29-c2d2 | Not started |
+| 861c2d4 | [792b28c1a5 The first GOPATH entry is used](../../specs/technical/self-installer.md#792b28c1a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b28c1a5_ResolveBinaryPath_FirstGOPATHEntryIsUsed; Red at baseline (b01/861c2d/1.log: /gp1:/gp2/bin/engram), code bug #831 fixed with filepath.SplitList, Green b01/861c2d/3-pkg.log; see 861d29-c2d1 | Green-single |
+| 861c2d5 | [792b28c4a3 An unresolvable revision is unknown](../../specs/technical/self-installer.md#792b28c4a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b28c4a3_Updater_Run_Local_UnresolvableRevisionIsUnknown (git fails, git prints nothing); baseline pass only; b01/861c2d/3-pkg.log | Green-single |
+| 861c2d6 | [792b28c5a2 An earlier clone is removed first](../../specs/technical/self-installer.md#792b28c5a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b28c5a2_Updater_Run_Remote_EarlierCloneIsRemovedFirst; baseline pass only; b01/861c2d/3-pkg.log | Green-single |
+| 861c2d7 | [792b28c5a4 Another clone failure surfaces](../../specs/technical/self-installer.md#792b28c5a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b28c5a4_Updater_Run_Remote_AnotherCloneFailureSurfaces; baseline pass only; b01/861c2d/3-pkg.log | Green-single |
+| 861c2d8 | [792b28c6a2 A file under one mebibyte is refused](../../specs/technical/self-installer.md#792b28c6a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b28c6a2_Updater_Run_Remote_FileUnderOneMebibyteIsRefused; mutation of the len(data) < modelMinBytes check (update.go:1486) failed it, b01/861c2d/4-mutation.log | Green-single |
+| 861c2d9 | [792b28c6a3 An unreadable model is an error](../../specs/technical/self-installer.md#792b28c6a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b28c6a3_Updater_Run_Remote_UnreadableModelIsAnError; baseline pass only; b01/861c2d/3-pkg.log | Green-single |
+| 861c2d10 | [792b28c6a4 A real model passes](../../specs/technical/self-installer.md#792b28c6a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b28c6a4_Updater_Run_Remote_RealModelPasses; baseline pass only; b01/861c2d/3-pkg.log | Green-single |
+| 861c2d11 | [792b28c7a6 A descendant installs](../../specs/technical/self-installer.md#792b28c7a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b28c7a6_Updater_Run_Local_DescendantInstalls; baseline pass only; b01/861c2d/3-pkg.log | Green-single |
+| 861c2d12 | [792b28c8a4 A remote dry run still clones](../../specs/technical/self-installer.md#792b28c8a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b28c8a4_Updater_Run_Remote_DryRunStillClones; baseline pass only; b01/861c2d/3-pkg.log | Green-single |
 
 #### 861c2e Harness Deploy Sync, part 1 (default)
 
