@@ -31,7 +31,7 @@ func Test861a3a1a_TestPkg_TheCommandLineNamesOnlyThatPackage(t *testing.T) {
 			}
 
 			g.Expect(calls).To(Equal([]recordedCommand{
-				{name: "go", args: []string{"test", "-count=1", "-timeout=2m", "-race", pkg}},
+				{"go", "test", "-count=1", "-timeout=2m", "-race", pkg},
 			}))
 		})
 	}
@@ -78,9 +78,9 @@ func Test861b2a1b_TestPkg_AFilterGoesBeforeThePackagePath(t *testing.T) {
 		return
 	}
 
-	g.Expect(calls).To(Equal([]recordedCommand{{name: "go", args: []string{
-		"test", "-count=1", "-timeout=2m", "-race", "-run", "Test792b7c1a|Test855d4h1f", "./internal/cli",
-	}}}))
+	g.Expect(calls).To(Equal([]recordedCommand{{
+		"go", "test", "-count=1", "-timeout=2m", "-race", "-run", "Test792b7c1a|Test855d4h1f", "./internal/cli",
+	}}))
 }
 
 // Test861b2a1c_TestPkg_TheCommandLineIsPinned verifies 861b2a1c: with a package path and no filter, go test gets
@@ -120,16 +120,13 @@ var (
 	errGoTestFailed = errors.New("go test failed")
 )
 
-// recordedCommand is one command a recording runner was asked to run.
-type recordedCommand struct {
-	name string
-	args []string
-}
+// recordedCommand is one command a recording runner was asked to run: its name, then its arguments.
+type recordedCommand []string
 
 // recordingRunner returns a runner that records the command it is asked to run into calls and returns result.
 func recordingRunner(calls *[]recordedCommand, result error) commandRunner {
 	return func(_ context.Context, name string, args ...string) error {
-		*calls = append(*calls, recordedCommand{name: name, args: args})
+		*calls = append(*calls, append(recordedCommand{name}, args...))
 
 		return result
 	}

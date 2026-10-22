@@ -61,6 +61,8 @@ const (
 	acceptanceParallel = "4"
 	acceptanceTags     = "network"
 	evalOutDirPerm     = 0o750
+	// goTestCommand is the go command that runs tests.
+	goTestCommand = "test"
 	// integrationAllTimeout is the time limit of the whole module's tagged tests: the one of Targ's whole-module legs.
 	integrationAllTimeout = "-timeout=10m"
 	targSourcePackage     = "github.com/toejough/targ/dev"
@@ -186,7 +188,7 @@ type testPkgArgs struct {
 func acceptanceTestArgs(args acceptanceArgs) []string {
 	count := max(args.Count, 1)
 	argv := []string{
-		"test", "-count=" + strconv.Itoa(count), "-timeout=" + strconv.Itoa(acceptanceMinutes*count) + "m", "-v",
+		goTestCommand, "-count=" + strconv.Itoa(count), "-timeout=" + strconv.Itoa(acceptanceMinutes*count) + "m", "-v",
 		"-parallel=" + acceptanceParallel, "-tags=" + acceptanceTags,
 	}
 	if args.Run != "" {
@@ -210,7 +212,7 @@ func hasRelevantChanges(changes targ.ChangeSet) bool {
 // with the tags of the dev tree and the integration tag, and no test filter, so that a test is selected by its build
 // tag and never by its name (862b2a).
 func integrationAllCommandLine() []string {
-	return []string{"test", "-count=1", integrationAllTimeout, "-race", "-tags=targ,integration", "./..."}
+	return []string{goTestCommand, "-count=1", integrationAllTimeout, "-race", "-tags=targ,integration", "./..."}
 }
 
 // lintDev lints the dev package with the build tags its files need. Targ's lint targets use no tags, so they skip
@@ -347,7 +349,7 @@ func sharedTargetList() []any {
 func testDev(ctx context.Context) error {
 	targ.Print(ctx, "Running dev-package tests (tag=targ)...\n")
 
-	err := targ.RunContext(ctx, "go", "test", "-count=1", "-timeout=2m", "-race", "-tags=targ", "./dev/...")
+	err := targ.RunContext(ctx, "go", goTestCommand, "-count=1", "-timeout=2m", "-race", "-tags=targ", "./dev/...")
 	if err != nil {
 		return fmt.Errorf("running dev-package tests: %w", err)
 	}
@@ -361,7 +363,7 @@ func testDev(ctx context.Context) error {
 // the pure tests compile in this run too and run a second time; that duplication is deliberate and cheap.
 func testDevIntegration(ctx context.Context) error {
 	err := targ.RunContext(ctx,
-		"go", "test", "-count=1", "-timeout=2m", "-race", "-tags=targ,integration",
+		"go", goTestCommand, "-count=1", "-timeout=2m", "-race", "-tags=targ,integration",
 		"./dev/...",
 	)
 	if err != nil {
@@ -391,7 +393,7 @@ func testPkgCommandLine(args testPkgArgs) ([]string, error) {
 		return nil, errTestPkgNoPackage
 	}
 
-	argv := []string{"test", "-count=1", testPkgTimeout, "-race"}
+	argv := []string{goTestCommand, "-count=1", testPkgTimeout, "-race"}
 	if args.Run != "" {
 		argv = append(argv, "-run", args.Run)
 	}

@@ -45,10 +45,10 @@ func Test862b2a1a_TestIntegrationAll_TheCommandSelectsByTagOverTheWholeModule(t 
 		return
 	}
 
-	g.Expect(calls).To(Equal([]recordedCommand{{name: "go", args: []string{
-		"test", "-count=1", "-timeout=10m", "-race", "-tags=targ,integration", "./...",
-	}}}))
-	g.Expect(calls[0].args).NotTo(ContainElement("-run"))
+	g.Expect(calls).To(Equal([]recordedCommand{{
+		"go", "test", "-count=1", "-timeout=10m", "-race", "-tags=targ,integration", "./...",
+	}}))
+	g.Expect(calls[0]).NotTo(ContainElement("-run"))
 }
 
 // TestIntegrationAll_AFailureOfTheRunnerIsTheFailureOfTheTarget pins that the target returns what the command it
