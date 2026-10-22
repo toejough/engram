@@ -201,29 +201,6 @@ func Test792b3c1a7_EdgeFS_WriteFileAtomicUniqueNameRetry(t *testing.T) {
 		g.Expect(tried[0]).NotTo(gomega.Equal(tried[1]), "each retry must try a FRESH candidate name")
 		g.Expect(renamed).To(gomega.Equal(tried[1]), "the created candidate is the one renamed into place")
 	})
-
-	t.Run("exhausted candidates yield a bounded wrapped error", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		attempts := 0
-		prims := cli.Primitives{
-			FS: cli.FSPrims{
-				OpenFileExcl: func(path string, _ fs.FileMode) (io.WriteCloser, error) {
-					attempts++
-
-					return nil, &fs.PathError{Op: "open", Path: path, Err: fs.ErrExist}
-				},
-			},
-			Proc: cli.ProcPrims{Now: func() time.Time { return time.Unix(0, fakeDanceNanos) }},
-		}
-
-		err := fsFromPrims(prims).WriteFileAtomic(filepath.Join("d", "n"), []byte("x"), atomicPerm)
-		g.Expect(err).To(gomega.MatchError(fs.ErrExist), "the last collision stays in the error chain")
-		g.Expect(err.Error()).To(gomega.ContainSubstring("create temp"))
-		g.Expect(err.Error()).To(gomega.ContainSubstring("attempts"))
-		g.Expect(attempts).To(gomega.Equal(danceMaxAttempts), "the retry loop must be BOUNDED")
-	})
 }
 
 func Test792b3c2a1_EdgeFS_WriteFileExclPreservesErrExistAndAddsPath(t *testing.T) {

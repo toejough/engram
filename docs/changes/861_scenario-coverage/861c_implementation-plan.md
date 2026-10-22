@@ -811,7 +811,7 @@ Status: Ready
 
 #### 861c2zb Durable File Store (default)
 
-Status: Ready
+Status: In progress: 0/1 entries complete (1 rows Green-single)
 
 - Owner file: [Durable File Store](../../specs/technical/durable-file-store.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/durable_file_store_scenarios_test.go`.
@@ -821,7 +821,7 @@ Status: Ready
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zb1 | [792b3c1a8 Exhausted temp names give a bounded error](../../specs/technical/durable-file-store.md#792b3c1a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2zb1 | [792b3c1a8 Exhausted temp names give a bounded error](../../specs/technical/durable-file-store.md#792b3c1a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b3c1a8_EdgeFS_WriteFileAtomicExhaustedTempNamesGiveBoundedError (internal/cli/durable_file_store_scenarios_test.go; moved from the exhausted subtest of Test792b3c1a7 and strengthened: message, path, 10 distinct candidates, no chmod/rename/remove); pass log 1.log; mutation range maxTempAttempts - 1 fails it at the attempts-count Then (mut.log) | Green-single |
 
 #### 861c2zc Luhmann Addressing (default)
 
