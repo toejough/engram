@@ -549,7 +549,7 @@ func serveTargets(
 			}))
 		}).Name("serve").Description(
 			"Serve query/show/activate/learn over HTTP: this node's network door for child vaults " +
-				"(explicit bind address required; the local CLI is the same node's local door and never " +
+				"(explicit bind address required, e.g. 127.0.0.1:8420; the local CLI is the same node's local door and never " +
 				"runs through this — see README's two-doors model); learn lands as a pending offer, " +
 				"attributed to the caller's client-declared identity"),
 	}
