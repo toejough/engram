@@ -928,7 +928,7 @@ Status: In progress: 0/2 entries complete (2 rows Green-single)
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
 | 861c2zi1 | [792b13c3a10 A display part stays in the target](../../specs/technical/wikilink-graph.md#792b13c3a-scenarios) | Example | Fixed inputs, one exact outcome. `Test792b13c3a10_ParseWikilinks_DisplayPartStaysInTarget` (`wikilink_graph_scenarios_test.go`), log `final.log`; mutation (parser.go: `|display` split off the target) failed it at the Then, log `mut.log` | Green-single |
-| 861c2zi2 | [792b13c5a2 An unknown basename has in-degree 0](../../specs/technical/wikilink-graph.md#792b13c5a-scenarios) | Example | Fixed inputs, one exact outcome. `Test792b13c5a2_Graph_UnknownBasenameInDegreeIsZero` (`wikilink_graph_scenarios_test.go`; `TestInDegreeIn_UnknownNodeReturnsZero` verifies InDegreeIn, not InDegree, so it was not renamed), log `final.log`; baseline pass only | Green-single |
+| 861c2zi2 | [792b13c5a2 An unknown basename has in-degree 0](../../specs/technical/wikilink-graph.md#792b13c5a-scenarios) | Example | Fixed inputs, one exact outcome. `Test792b13c5a2_Graph_UnknownBasenameInDegreeIsZero` (`wikilink_graph_scenarios_test.go`; `TestInDegreeIn_UnknownNodeReturnsZero` verifies InDegreeIn, not InDegree, so it was not renamed), log `final.log`; mutation `graph.go:18` (InDegree returns 1 for a basename not in Notes) failed it at line 36 (ghost Then), log `review-3-mut-graph.go18-InDegree-unknown-returns-1.log` | Green-single |
 
 #### 861c2zj Note Document Format (default)
 
