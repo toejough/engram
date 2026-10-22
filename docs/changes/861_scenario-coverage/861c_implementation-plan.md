@@ -584,7 +584,7 @@ Status: In progress: 0/11 entries complete (11 rows Green-single)
 
 #### 861c2p Vault Identity Registry (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: In progress: 0/11 entries complete (11 rows Green-single)
 
 - Owner file: [Vault Identity Registry](../../specs/technical/vault-identity-registry.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/vault_identity_registry_scenarios_test.go`.
@@ -594,17 +594,17 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2p1 | [792b5c4a4 An existing ID is reused](../../specs/technical/vault-identity-registry.md#792b5c4a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2p2 | [792b5c5a2 A read failure is returned](../../specs/technical/vault-identity-registry.md#792b5c5a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2p3 | [792b5c6a2 State-directory failures are returned](../../specs/technical/vault-identity-registry.md#792b5c6a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2p4 | [792b5c11a1 The report prints the ID and the check](../../specs/technical/vault-identity-registry.md#792b5c11a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2p5 | [792b5c11a2 Both flags are refused](../../specs/technical/vault-identity-registry.md#792b5c11a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2p6 | [792b5c15a1 Only a 32-character lowercase hexadecimal string is an identifier](../../specs/technical/vault-identity-registry.md#792b5c15a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2p7 | [792b5c15a2 A basename with a separator is refused](../../specs/technical/vault-identity-registry.md#792b5c15a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2p8 | [792b5c16a1 A decline is recorded once](../../specs/technical/vault-identity-registry.md#792b5c16a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2p9 | [792b5c16a2 A decline matches by vault, name and hash](../../specs/technical/vault-identity-registry.md#792b5c16a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2p10 | [792b5c16a3 An unknown hash comparison still matches](../../specs/technical/vault-identity-registry.md#792b5c16a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2p11 | [792b5c16a4 A missing record is empty and a corrupt one is an error](../../specs/technical/vault-identity-registry.md#792b5c16a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2p1 | [792b5c4a4 An existing ID is reused](../../specs/technical/vault-identity-registry.md#792b5c4a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b5c4a4_StampVaultID_AnExistingIDIsReusedAndTheFileIsUnchanged, internal/cli/vault_identity_registry_scenarios_test.go; passes, log 3.log; baseline pass only) | Green-single |
+| 861c2p2 | [792b5c5a2 A read failure is returned](../../specs/technical/vault-identity-registry.md#792b5c5a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b5c5a2_ReadVaultID_AReadFailureIsReturned, internal/cli/vault_identity_registry_scenarios_test.go; passes, log 3.log; baseline pass only) | Green-single |
+| 861c2p3 | [792b5c6a2 State-directory failures are returned](../../specs/technical/vault-identity-registry.md#792b5c6a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b5c6a2_EnsureStateDir_StateDirectoryFailuresAreReturned, internal/cli/vault_identity_registry_scenarios_test.go; passes, log 3.log; baseline pass only) | Green-single |
+| 861c2p4 | [792b5c11a1 The report prints the ID and the check](../../specs/technical/vault-identity-registry.md#792b5c11a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b5c11a1_RunVaultID_TheReportPrintsTheIDAndTheCheckAndWritesNothing, internal/cli/vault_identity_registry_scenarios_test.go; passes, log 3.log; baseline pass only) | Green-single |
+| 861c2p5 | [792b5c11a2 Both flags are refused](../../specs/technical/vault-identity-registry.md#792b5c11a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b5c11a2_RunVaultID_BothFlagsAreRefusedAsMutuallyExclusiveAndNothingChanges, internal/cli/vault_identity_registry_scenarios_test.go; passes, log 3.log; baseline pass only) | Green-single |
+| 861c2p6 | [792b5c15a1 Only a 32-character lowercase hexadecimal string is an identifier](../../specs/technical/vault-identity-registry.md#792b5c15a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b5c15a1_IsExchangeID_OnlyA32CharacterLowercaseHexStringIsAnIdentifier, internal/cli/vault_identity_registry_scenarios_test.go; passes, log 3.log; mutation removing the lowercase check in isExchangeID (exchangestate.go:331) fails its uppercase cases, log mutation.log) | Green-single |
+| 861c2p7 | [792b5c15a2 A basename with a separator is refused](../../specs/technical/vault-identity-registry.md#792b5c15a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b5c15a2_IsExchangeBasename_ABasenameWithASeparatorIsRefused, internal/cli/vault_identity_registry_scenarios_test.go; passes, log 3.log; baseline pass only) | Green-single |
+| 861c2p8 | [792b5c16a1 A decline is recorded once](../../specs/technical/vault-identity-registry.md#792b5c16a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b5c16a1_RecordDeclinedPull_ADeclineIsRecordedOnceAndWrittenAtomically, internal/cli/vault_identity_registry_scenarios_test.go; passes, log 3.log; baseline pass only) | Green-single |
+| 861c2p9 | [792b5c16a2 A decline matches by vault, name and hash](../../specs/technical/vault-identity-registry.md#792b5c16a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b5c16a2_DeclineMatches_ADeclineMatchesByVaultNameAndHash, internal/cli/vault_identity_registry_scenarios_test.go; passes, log 3.log; baseline pass only) | Green-single |
+| 861c2p10 | [792b5c16a3 An unknown hash comparison still matches](../../specs/technical/vault-identity-registry.md#792b5c16a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b5c16a3_DeclineMatches_AnUnknownHashComparisonStillMatches, internal/cli/vault_identity_registry_scenarios_test.go; passes, log 3.log; baseline pass only) | Green-single |
+| 861c2p11 | [792b5c16a4 A missing record is empty and a corrupt one is an error](../../specs/technical/vault-identity-registry.md#792b5c16a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b5c16a4_LoadDeclined_AMissingRecordIsEmptyAndACorruptOneIsAnError, internal/cli/vault_identity_registry_scenarios_test.go; passes, log 3.log; baseline pass only) | Green-single |
 
 #### 861c2q Note Reparenting (default)
 
