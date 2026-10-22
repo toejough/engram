@@ -321,34 +321,39 @@ func Test792a8g1a_Count_ModesAgreeWhenEveryLinkerIsAMember(t *testing.T) {
 }
 
 // Test792a8g1b_Count_InDegreeExceedsCountByNonMemberLinkers verifies that a member and a non-member linker
-// give a --group-by count of 1 for alpha and an in-degree of 2 listing both linkers in ascending order.
+// give a --group-by count of 1 for alpha and an in-degree of 2 listing both linkers in ascending order. The
+// vault lists the linkers out of order and the report is rebuilt many times, so an order left to a map
+// would not pass by luck.
 func Test792a8g1b_Count_InDegreeExceedsCountByNonMemberLinkers(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	vault := vcn2NewVault(map[string]string{
-		"n1.md":        "---\nfoo: [alpha]\n---\nlinks to [[foo.alpha]]\n",
-		"idx.md":       "---\ntype: index\n---\nlinks to [[foo.alpha]]\n",
-		"foo.alpha.md": "---\ntype: fact\n---\nthe alpha note\n",
-	})
+	for run := range vcn2RepeatedRuns {
+		vault := vcn2NewVault(map[string]string{
+			"n1.md":        "---\nfoo: [alpha]\n---\nlinks to [[foo.alpha]]\n",
+			"idx.md":       "---\ntype: index\n---\nlinks to [[foo.alpha]]\n",
+			"foo.alpha.md": "---\ntype: fact\n---\nthe alpha note\n",
+		})
+		vault.listing = []string{"n1.md", "idx.md", "foo.alpha.md"}
 
-	groupOut, groupErr := vcn2Count(vault, cli.CountArgs{Vault: countVault, GroupBy: "foo"})
-	g.Expect(groupErr).NotTo(HaveOccurred())
+		groupOut, groupErr := vcn2Count(vault, cli.CountArgs{Vault: countVault, GroupBy: "foo"})
+		g.Expect(groupErr).NotTo(HaveOccurred())
 
-	if groupErr != nil {
-		return
+		if groupErr != nil {
+			return
+		}
+
+		g.Expect(groupOut).To(Equal("alpha\t1\n(foo absent): 2\ntotal: 3\n"), "run %d", run)
+
+		linkOut, linkErr := vcn2Backlinks(vault, "foo.alpha")
+		g.Expect(linkErr).NotTo(HaveOccurred())
+
+		if linkErr != nil {
+			return
+		}
+
+		g.Expect(linkOut).To(Equal("in-degree: 2\nidx\nn1\n"), "run %d", run)
 	}
-
-	g.Expect(groupOut).To(Equal("alpha\t1\n(foo absent): 2\ntotal: 3\n"))
-
-	linkOut, linkErr := vcn2Backlinks(vault, "foo.alpha")
-	g.Expect(linkErr).NotTo(HaveOccurred())
-
-	if linkErr != nil {
-		return
-	}
-
-	g.Expect(linkOut).To(Equal("in-degree: 2\nidx\nn1\n"))
 }
 
 // Test792a8h1a_Count_CountLeavesTheVaultAsItWas verifies that --group-by type and then --backlinks-of x
