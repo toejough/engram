@@ -15,13 +15,14 @@ Adopted guides: [Conventions](docs/CONVENTIONS-GUIDE.md), [Specification](docs/S
 
 - **Required workflow.** Every behavior change, including code, tooling, configuration and agent instructions, follows [Choose the Work Route](docs/WORKFLOW-GUIDE.md#choose-the-work-route), whatever its size or type; shipped instructions (skills, guidance, mods) are code.
 - **Issue tracker.** GitHub issues in github.com/toejough/engram, through `gh` (see Agent skills). The issue number is the `<issue-key>` of `docs/changes/<issue-key>_<change-slug>/`.
-- **Language and toolchain.** Go, pure Go, no CGO. The approved commands are those of [Code Quality](#code-quality): `targ` for every build, test, lint and check operation (never `go test` or `go vet` directly, never `targ fmt-code`), `targ reorder-decls` for declaration order, `go install ./cmd/engram` for the binary.
+- **Language and toolchain.** Go, pure Go, no CGO. The approved commands are those of [Code Quality](#code-quality): `targ` for every build, test, lint and check operation (never `go test` or `go vet` directly, never `targ fmt-code`), `targ test-pkg <package> [--run REGEXP]` for the tests of one package, `targ reorder-decls` for declaration order, `go install ./cmd/engram` for the binary.
 - **Test frameworks.** gomega assertions; tests are black-box (`package foo_test`) with `t.Parallel()` in every test and subtest, each with its own data (`.claude/rules/go.md`, `.claude/skills/engram-go-conventions.md`); a test of unexported code is white-box (`package foo`, mostly `*_internal_test.go`: 39 of the 304 test files outside `dev/eval` today). Mocks of injected collaborators are imptest mocks generated with impgen: an injection or impure-interaction test MUST use imptest, a dependency-contract test uses the real dependency, and standard output and error are captured with ordinary buffers. A property-based test MUST use rapid (`pgregory.net/rapid`), and every rapid entry of a test catalog MUST include a Properties column (its contents: [Choose Test Methods](docs/WORKFLOW-GUIDE.md#choose-test-methods)).
 - **Test suites** ([Test-Suite Classification](docs/CONVENTIONS-GUIDE.md#test-suite-classification); the Example Go Profile with `targ` as the runner, never `go test -tags` directly):
 
   | Asserted boundary | Constraint | Command |
   | --- | --- | --- |
   | Pure and deterministic; the default suite holds only these | none | `targ test` (also inside `targ check-full`) |
+  | Pure and deterministic dev tooling (package `dev`) | `//go:build targ` | `targ test-dev` (also inside `targ check-full`) |
   | Local impure boundary, no live service | `//go:build integration` (`targ && integration` in `dev/`) | `targ test-dev-integration` runs the tagged `dev/` tests (`-tags=targ,integration`). The shared leg `targ test-integration` (inside `targ check-full`) runs `go test -tags=integration -run TestIntegration ./...`: it selects by the name `TestIntegration*`, no such function exists and no `integration`-tagged file exists outside `dev/`, so it executes nothing today |
   | Live service: a real Claude Code session in an isolated home | `//go:build network`, only in `dev/acceptance` | `targ acceptance [--run REGEXP]`; part of no check: it needs a login and costs money |
 
@@ -84,6 +85,7 @@ Authority: the technical specs (792b) and the rationale under their requirements
 
 - **Use `targ` for all test/lint/check operations** — NEVER run `go test`, `go vet` directly
   - Tests: `targ test`
+  - The tests of one package: `targ test-pkg <package> [--run REGEXP]` (`go test -count=1 -timeout=2m -race`, no build tag); the tagged `dev/` tests: `targ test-dev` and `targ test-dev-integration`
   - Lint + coverage: `targ check-full` (needs `node` on the PATH, to parse and run the JavaScript of the mods)
   - Install the binary: `go install ./cmd/engram` (there is no `targ build` target — targ covers test/lint/check, not binary install)
   - Don't reverse-engineer targ's behavior — treat it as a black box
