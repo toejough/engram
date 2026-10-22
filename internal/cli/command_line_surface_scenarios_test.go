@@ -233,32 +233,24 @@ func Test792b2c4a2_NewErrHandler_ASuccessNeitherExitsNorWritesStderr(t *testing.
 	})
 }
 
-// Test792b2c5a2_Targets_AMissingRequiredFlagIsRefused verifies 792b2c5a2: `learn runbook` marks
-// --done-when required; dispatched without it, the exit status is non-zero and the command does not run
-// (nothing is written to the vault and no command error is reported).
+// Test792b2c5a2_Targets_AMissingRequiredFlagIsRefused verifies 792b2c5a2: `learn runbook` marks --done-when
+// required; dispatched without it (and otherwise a valid runbook), the exit status is non-zero and the command does
+// not run, so nothing is printed and nothing is written to the vault.
 func Test792b2c5a2_Targets_AMissingRequiredFlagIsRefused(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	vault := t.TempDir()
+	vault := newCV1Vault()
+	before := vault.fsys.snapshot()
 
-	var stdout, stderr bytes.Buffer
+	args := append([]string{"learn", "runbook"}, nw1RunbookFlags().without("--done-when")...)
 
-	deps := newTestDeps(&stdout, &stderr)
-	deps.Getenv = func(string) string { return "" }
-
-	_, err := targ.Execute(
-		[]string{"engram", "learn", "runbook", "--vault", vault, "--source", "test", "--situation", "s"},
-		cli.Targets(deps)...)
+	result, err := vault.dispatch(args...)
 
 	g.Expect(err).To(HaveOccurred(), "the exit status is non-zero")
-	g.Expect(stdout.String()).To(BeEmpty(), "the command does not run")
-	g.Expect(stderr.String()).To(BeEmpty(), "the command did not run to report an error")
-
-	entries, readErr := os.ReadDir(vault)
-	g.Expect(readErr).NotTo(HaveOccurred())
-	g.Expect(entries).To(BeEmpty(), "nothing is written to the vault")
+	g.Expect(result.stdout).To(BeEmpty(), "the command does not run")
+	g.Expect(vault.fsys.snapshot()).To(Equal(before), "nothing is written to the vault")
 }
 
 // Test792b2c6a2_ResolveChunksDir_TheEnvironmentIsUsedWithoutAFlag verifies 792b2c6a2: with --chunks-dir

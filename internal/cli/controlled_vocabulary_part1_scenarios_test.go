@@ -1009,6 +1009,41 @@ func (v *cv1Vault) bootstrap(terms ...cli.SeedTerm) cv1Result {
 	return v.run("vocab", "bootstrap", "--seed", cv1SeedPath)
 }
 
+// dispatch runs `engram <args> --vault /vault` through the real targets over the in-memory vault; the error is the
+// one targ.Execute returns, the non-zero exit status of the command.
+func (v *cv1Vault) dispatch(args ...string) (cv1Result, error) {
+	var stdout, stderr bytes.Buffer
+
+	deps := cli.Deps{
+		Stdout:       &stdout,
+		Stderr:       &stderr,
+		Exit:         func(int) {},
+		Getenv:       func(string) string { return "" },
+		Now:          func() time.Time { return cv1Clock },
+		Getwd:        func() (string, error) { return "/", nil },
+		UserHomeDir:  func() (string, error) { return "/home/cv1", nil },
+		Username:     func() (string, error) { return "cv1-user", nil },
+		FS:           v.fsys,
+		Lock:         fakeLocker{lock: func(string) (func() error, error) { return func() error { return nil }, nil }},
+		Commander:    stubCommander{},
+		Embed:        v.embedder,
+		RandRead:     seqRand(1),
+		EvalSymlinks: identityPath,
+	}
+
+	command := append([]string{"engram"}, args...)
+	command = append(command, "--vault", cv1VaultPath)
+
+	executed, err := targ.Execute(command, cli.Targets(deps)...)
+	if err != nil {
+		stderr.WriteString(executed.Output)
+		stderr.WriteString(err.Error())
+		stderr.WriteString("\n")
+	}
+
+	return cv1Result{stdout: stdout.String(), stderr: stderr.String()}, err
+}
+
 func (v *cv1Vault) exists(name string) bool {
 	_, statErr := v.fsys.Stat(filepath.Join(cv1VaultPath, name))
 
@@ -1089,36 +1124,9 @@ func (v *cv1Vault) requireNote(g *WithT, pattern string) string {
 
 // run runs `engram <args> --vault /vault` through the real targets over the in-memory vault.
 func (v *cv1Vault) run(args ...string) cv1Result {
-	var stdout, stderr bytes.Buffer
+	result, _ := v.dispatch(args...)
 
-	deps := cli.Deps{
-		Stdout:       &stdout,
-		Stderr:       &stderr,
-		Exit:         func(int) {},
-		Getenv:       func(string) string { return "" },
-		Now:          func() time.Time { return cv1Clock },
-		Getwd:        func() (string, error) { return "/", nil },
-		UserHomeDir:  func() (string, error) { return "/home/cv1", nil },
-		Username:     func() (string, error) { return "cv1-user", nil },
-		FS:           v.fsys,
-		Lock:         fakeLocker{lock: func(string) (func() error, error) { return func() error { return nil }, nil }},
-		Commander:    stubCommander{},
-		Embed:        v.embedder,
-		RandRead:     seqRand(1),
-		EvalSymlinks: identityPath,
-	}
-
-	command := append([]string{"engram"}, args...)
-	command = append(command, "--vault", cv1VaultPath)
-
-	executed, err := targ.Execute(command, cli.Targets(deps)...)
-	if err != nil {
-		stderr.WriteString(executed.Output)
-		stderr.WriteString(err.Error())
-		stderr.WriteString("\n")
-	}
-
-	return cv1Result{stdout: stdout.String(), stderr: stderr.String()}
+	return result
 }
 
 // setFamilyVersion rewrites the vocab_version of the family note from one value to another.
