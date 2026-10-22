@@ -901,7 +901,7 @@ Status: In progress: 0/2 entries complete (2 rows Green-single)
 
 #### 861c2zh Vocabulary Engine (default)
 
-Status: Ready
+Status: In progress: 0/2 entries complete (2 rows Green-single)
 
 - Owner file: [Vocabulary Engine](../../specs/technical/vocabulary-engine.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/vocabulary_engine_scenarios_test.go`.
@@ -911,8 +911,8 @@ Status: Ready
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zh1 | [792b20c5a1 A written note is tagged](../../specs/technical/vocabulary-engine.md#792b20c5a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zh2 | [792b20c10a5 A bad seed fails before the lock](../../specs/technical/vocabulary-engine.md#792b20c10a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2zh1 | [792b20c5a1 A written note is tagged](../../specs/technical/vocabulary-engine.md#792b20c5a-scenarios) | Example | Fixed inputs, one exact outcome; `Test792b20c5a1_VocabularyEngine_WrittenNoteIsTagged` (`internal/cli/vocabulary_engine_scenarios_test.go`), pass in `b17/861c2zh/1.log`; mutation `vocab.go` `vocabAssignmentUnchanged(...) \|\| true` fails it at the Then, `b17/861c2zh/mut.log`; `Test792b12c6a1_RunLearn_VocabAssignment_WritesVocabWhenTermsPresent` carries a learn-scenario ID, so not renamed | Green-single |
+| 861c2zh2 | [792b20c10a5 A bad seed fails before the lock](../../specs/technical/vocabulary-engine.md#792b20c10a-scenarios) | Example | Fixed inputs, one exact outcome; `Test792b20c10a5_VocabularyEngine_BadSeedFailsBeforeTheLock` (same file; unreadable seed, YAML mapping, YAML list of scalars: error names the problem, lock never taken, no write, no output), pass in `b17/861c2zh/1.log`; baseline pass only (the one mutation targets 861c2zh1) | Green-single |
 
 #### 861c2zi Wikilink Graph (default)
 
