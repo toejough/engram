@@ -1220,6 +1220,16 @@ func ExportRunLearnFromRunbookArgs(
 	return runLearnFromRunbookArgs(ctx, a, d, stdout)
 }
 
+// ExportRunUpdateSkillRegistration runs `engram update`'s registration hook over
+// explicit SkillRegistrationDeps and Env, for tests driving the hook over
+// in-memory fakes.
+func ExportRunUpdateSkillRegistration(
+	ctx context.Context, dryRun bool, vaultPath, home string, skillReg SkillRegistrationDeps, env update.Env,
+	stdout io.Writer,
+) error {
+	return runUpdateSkillRegistration(ctx, dryRun, vaultPath, home, updateDeps{Env: env, SkillReg: skillReg}, stdout)
+}
+
 // ExportRunUpdateSkillRegistrationFromDeps runs `engram update`'s
 // registration hook over updateDeps composed from d exactly as production
 // composes them (newUpdateDeps).
