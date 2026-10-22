@@ -2510,7 +2510,7 @@ Status: In progress: 0/1 entries complete (1 rows Green-single)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zzzi1 | [792b8c1a2 An absent lock file is created](../../specs/technical/vault-write-lock.md#792b8c1a-scenarios) | Example | Real OS effect; test tagged `integration`. `Test792b8c1a2_RealFlockLocker_AbsentLockFileIsCreatedWithMode0600` (`internal/cli/vault_write_lock_integration_test.go`) takes the lock over the real syscall primitives on an absent path and checks the created file is regular with mode 0600; logs 1.log (pass), mut1.log (mutation: `lockFilePerm` 0o600 to 0o644 in `internal/cli/locker.go` fails the test at the mode assertion) | Green-single |
+| 861c2zzzi1 | [792b8c1a2 An absent lock file is created](../../specs/technical/vault-write-lock.md#792b8c1a-scenarios) | Example | Real OS effect; test tagged `integration`. `Test792b8c1a2_RealFlockLocker_AbsentLockFileIsCreatedWithMode0600` (`internal/cli/vault_write_lock_integration_test.go`) takes the lock over the real syscall primitives on an absent path and checks the created file is regular with mode 0600; logs/b18/861c2zzzi: 1.log (pass), mut1.log (mutation: `lockFilePerm` 0o600 to 0o644 in `internal/cli/locker.go` fails the test at the mode assertion) | Green-single |
 
 #### 861c2zzzj Route (integration)
 

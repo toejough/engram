@@ -26,6 +26,8 @@ func Test792b8c1a2_RealFlockLocker_AbsentLockFileIsCreatedWithMode0600(t *testin
 	unlock, err := realDepsForTest().Lock.Lock(lockPath)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
+	g.Expect(unlock).NotTo(gomega.BeNil())
+
 	if err != nil || unlock == nil {
 		return
 	}
