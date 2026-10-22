@@ -480,7 +480,7 @@ Status: In progress: 0/1 entries complete (1 rows Green-single)
 
 #### 861c2l Vault Invariant Checker (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: In progress: 0/14 entries complete (14 rows Green-single)
 
 - Owner file: [Vault Invariant Checker](../../specs/technical/vault-invariant-checker.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/vault_invariant_checker_scenarios_test.go`.
@@ -490,20 +490,20 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2l1 | [792b26c1a4 A scan failure is returned before any line](../../specs/technical/vault-invariant-checker.md#792b26c1a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2l2 | [792b26c1a5 A note that is not valid UTF-8 is checked](../../specs/technical/vault-invariant-checker.md#792b26c1a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2l3 | [792b26c2a3 A link to a missing note warns](../../specs/technical/vault-invariant-checker.md#792b26c2a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2l4 | [792b26c2a4 A bare ID that matches no note is dangling](../../specs/technical/vault-invariant-checker.md#792b26c2a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2l5 | [792b26c2a5 No G3 line without a dangling link](../../specs/technical/vault-invariant-checker.md#792b26c2a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2l6 | [792b26c3a2 A blank situation fails](../../specs/technical/vault-invariant-checker.md#792b26c3a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2l7 | [792b26c3a4 Other types are skipped](../../specs/technical/vault-invariant-checker.md#792b26c3a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2l8 | [792b26c3a5 Unparseable notes are skipped](../../specs/technical/vault-invariant-checker.md#792b26c3a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2l9 | [792b26c3a7 An unreadable note is skipped](../../specs/technical/vault-invariant-checker.md#792b26c3a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2l10 | [792b26c4a1 An old-schema sidecar fails](../../specs/technical/vault-invariant-checker.md#792b26c4a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2l11 | [792b26c4a2 A current sidecar passes](../../specs/technical/vault-invariant-checker.md#792b26c4a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2l12 | [792b26c4a3 A missing sidecar warns](../../specs/technical/vault-invariant-checker.md#792b26c4a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2l13 | [792b26c4a4 A malformed sidecar fails](../../specs/technical/vault-invariant-checker.md#792b26c4a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2l14 | [792b26c6a1 A check writes nothing](../../specs/technical/vault-invariant-checker.md#792b26c6a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2l1 | [792b26c1a4 A scan failure is returned before any line](../../specs/technical/vault-invariant-checker.md#792b26c1a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b26c1a4_RunCheck_ScanFailureIsReturnedBeforeAnyLine (internal/cli/vault_invariant_checker_scenarios_test.go); baseline pass only (2.log) | Green-single |
+| 861c2l2 | [792b26c1a5 A note that is not valid UTF-8 is checked](../../specs/technical/vault-invariant-checker.md#792b26c1a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b26c1a5_RunCheck_InvalidUTF8NoteIsChecked (internal/cli/vault_invariant_checker_scenarios_test.go); scan over an in-memory EdgeFS (vic1Vault); baseline pass only (2.log) | Green-single |
+| 861c2l3 | [792b26c2a3 A link to a missing note warns](../../specs/technical/vault-invariant-checker.md#792b26c2a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b26c2a3_RunCheck_LinkToMissingNoteWarns (internal/cli/vault_invariant_checker_scenarios_test.go); scan over an in-memory EdgeFS (vic1Vault); baseline pass only (2.log) | Green-single |
+| 861c2l4 | [792b26c2a4 A bare ID that matches no note is dangling](../../specs/technical/vault-invariant-checker.md#792b26c2a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b26c2a4_RunCheck_BareIDMatchingNoNoteIsDangling (internal/cli/vault_invariant_checker_scenarios_test.go); baseline pass only (2.log) | Green-single |
+| 861c2l5 | [792b26c2a5 No G3 line without a dangling link](../../specs/technical/vault-invariant-checker.md#792b26c2a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b26c2a5_RunCheck_NoG3LineWithoutADanglingLink (internal/cli/vault_invariant_checker_scenarios_test.go); baseline pass only (2.log) | Green-single |
+| 861c2l6 | [792b26c3a2 A blank situation fails](../../specs/technical/vault-invariant-checker.md#792b26c3a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b26c3a2_RunCheck_BlankSituationFails (internal/cli/vault_invariant_checker_scenarios_test.go); baseline pass only (2.log) | Green-single |
+| 861c2l7 | [792b26c3a4 Other types are skipped](../../specs/technical/vault-invariant-checker.md#792b26c3a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b26c3a4_RunCheck_OtherTypesAreSkipped (internal/cli/vault_invariant_checker_scenarios_test.go); mutation isSituationBearing returns true fails it (mut.log) | Green-single |
+| 861c2l8 | [792b26c3a5 Unparseable notes are skipped](../../specs/technical/vault-invariant-checker.md#792b26c3a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b26c3a5_RunCheck_UnparseableNotesAreSkipped (internal/cli/vault_invariant_checker_scenarios_test.go); mutation isSituationBearing returns true fails it (mut.log) | Green-single |
+| 861c2l9 | [792b26c3a7 An unreadable note is skipped](../../specs/technical/vault-invariant-checker.md#792b26c3a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b26c3a7_RunCheck_UnreadableNoteIsSkipped (internal/cli/vault_invariant_checker_scenarios_test.go); baseline pass only (2.log) | Green-single |
+| 861c2l10 | [792b26c4a1 An old-schema sidecar fails](../../specs/technical/vault-invariant-checker.md#792b26c4a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b26c4a1_RunCheck_OldSchemaSidecarFails (internal/cli/vault_invariant_checker_scenarios_test.go); baseline pass only (2.log) | Green-single |
+| 861c2l11 | [792b26c4a2 A current sidecar passes](../../specs/technical/vault-invariant-checker.md#792b26c4a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b26c4a2_RunCheck_CurrentSidecarPasses (internal/cli/vault_invariant_checker_scenarios_test.go); baseline pass only (2.log) | Green-single |
+| 861c2l12 | [792b26c4a3 A missing sidecar warns](../../specs/technical/vault-invariant-checker.md#792b26c4a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b26c4a3_RunCheck_MissingSidecarWarns (internal/cli/vault_invariant_checker_scenarios_test.go); baseline pass only (2.log) | Green-single |
+| 861c2l13 | [792b26c4a4 A malformed sidecar fails](../../specs/technical/vault-invariant-checker.md#792b26c4a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b26c4a4_RunCheck_MalformedSidecarFails (internal/cli/vault_invariant_checker_scenarios_test.go); baseline pass only (2.log) | Green-single |
+| 861c2l14 | [792b26c6a1 A check writes nothing](../../specs/technical/vault-invariant-checker.md#792b26c6a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b26c6a1_RunCheck_CheckWritesNothing (internal/cli/vault_invariant_checker_scenarios_test.go); in-memory EdgeFS records every write-capable call and the files are compared before and after; baseline pass only (2.log) | Green-single |
 
 #### 861c2m Offer Outbox (default)
 
