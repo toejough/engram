@@ -30,7 +30,9 @@ func Test792b35c17a2_FetchResponseReadLimit_OneByteOverAcceptedMaximum(t *testin
 	}
 
 	g.Expect(fetched.Status).To(Equal(http.StatusOK))
-	g.Expect(fetched.Body).To(HaveLen(vhs2AcceptedMaximumBytes + 1))
+	// Compare the length, not the slice, so a failure reports two numbers rather than a 16 MiB dump.
+	bodyLength := len(fetched.Body)
+	g.Expect(bodyLength).To(Equal(vhs2AcceptedMaximumBytes + 1))
 }
 
 // unexported constants.
