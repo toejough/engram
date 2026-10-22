@@ -10,9 +10,9 @@ package cli_test
 // The scenarios run over the registered route handlers with the deps the neighbouring serve tests use: a vault in
 // the test's own t.TempDir() (the recorded deviation, #860: the vault lock is a real flock and no in-memory EdgeFS
 // models the exclusive create and the directory listing a learn needs), a deterministic stub embedder, a fixed clock
-// and a scripted git. A Given that needs a pending offer, a renamed note or a live note is produced by the commands
-// that make them (a served learn, the rename pass, engram learn, engram amend), never planted by hand. No network
-// and no real home.
+// and a scripted git. A pending offer or a renamed note is produced by the commands that make them (a served learn,
+// the rename pass, engram amend); the raw-show notes and the activate decoy are written directly because their bytes
+// are the point of the scenario. No network and no real home.
 
 import (
 	"bytes"
@@ -568,7 +568,7 @@ func Test792a20m1b_ServeQuery_LongTextIsTruncatedOnARuneBoundary(t *testing.T) {
 				vault := newServeVault(t)
 
 				vs3Runbook(t, deps, vault, "kept", vs3Cue)
-				vs3Runbook(t, deps, vault, "broken", vs3Cue+"�")
+				vs3Runbook(t, deps, vault, "broken", vs3Cue+"\ufffd")
 				vs3Runbook(t, deps, vault, "beyond", "beyondcue")
 
 				resp := vs3Get(t, deps, vault, "/query", map[string][]string{"text": {text}})
