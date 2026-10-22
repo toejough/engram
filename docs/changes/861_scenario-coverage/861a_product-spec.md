@@ -110,3 +110,18 @@ Scenario: 792a20j1a Remote-set link and registration fields are ignored
   When the pending note is written
   Then it carries no parent, aliases or skill field and none of the values sent, and its xid is one the server minted
 ```
+
+## 861a4zzl Modified: Vault Migration scenarios, part 3
+
+Operations a test finds necessary in existing specs are applied in place ([861d6 A new test that fails at baseline](./861d_questions-and-decisions.md#questions-and-decisions)); the one below is applied in [Vault Migration](../../specs/product/vault-migration.md) in the commit of its decision.
+
+### 861a4zzl1 Modified: 792a10k1g Other note types are left alone
+
+Target: [792a10k1 UAT Scenarios](../../specs/product/vault-migration.md#792a10k1-uat-scenarios), Scenario 792a10k1g. Differs from the current text in the Given line: a vocab definition note is a fact note ([vocab definition note](../../GLOSSARY.md#vocab-definition-note)), which [792a10k Stamping the missing origin](../../specs/product/vault-migration.md#792a10k-stamping-the-missing-origin) stamps like any other, so the note left alone is the [vocab term-note (retired)](../../GLOSSARY.md#vocab-term-note-retired).
+
+```gherkin
+Scenario: 792a10k1g Other note types are left alone
+  Given a vocab term-note (retired) and a runbook note without user:
+  When the user runs engram update --backfill-identity
+  Then neither is modified
+```

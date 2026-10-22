@@ -465,7 +465,7 @@ Scenario: 792a10k1f A dry run writes nothing
   Then the output has "[dry-run]" and "would stamp" with the note count, and no file is modified
 
 Scenario: 792a10k1g Other note types are left alone
-  Given a vocab definition note and a runbook note without user:
+  Given a vocab term-note (retired) and a runbook note without user:
   When the user runs engram update --backfill-identity
   Then neither is modified
 ```
