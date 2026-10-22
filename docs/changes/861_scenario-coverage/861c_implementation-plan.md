@@ -1764,7 +1764,7 @@ Status: Merged (9480f812)
 
 #### 861c2zzi Vault Serving, part 4 (default)
 
-Status: Ready
+Status: In progress: 0/2 entries complete (2 rows Green-single)
 
 - Owner file: [Vault Serving](../../specs/product/vault-serving.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/vault_serving_part4_scenarios_test.go`.
@@ -1774,8 +1774,8 @@ Status: Ready
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zzi1 | [792a20o1a A served offer is tagged by the receiving vault](../../specs/product/vault-serving.md#792a20o1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzi2 | [792a20o1b A rewrite is re-tagged](../../specs/product/vault-serving.md#792a20o1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2zzi1 | [792a20o1a A served offer is tagged by the receiving vault](../../specs/product/vault-serving.md#792a20o1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Evidence: Test792a20o1a_ServeLearn_AServedOfferIsTaggedByTheReceivingVault (internal/cli/vault_serving_part4_scenarios_test.go), green in logs/b13/861c2zzi/1.log (package internal/cli); a served learn with no tags over a vault with three planted vocab terms (files listed bravo, alpha, charlie) writes a pending offer whose tags are exactly vocab/alpha then vocab/bravo (the nearest first, the far term absent); the stub is a cue-word embedder, vault in t.TempDir() (#860). Distinct from Test792b35c8a8 (the technical scenario of the same behavior). Mutations: vocab.go:125 early return (mut-m1.log) and vocab.go:52 sortTermScores removed (mut-m3.log) fail it at the tags Then | Green-single |
+| 861c2zzi2 | [792a20o1b A rewrite is re-tagged](../../specs/product/vault-serving.md#792a20o1-uat-scenarios) | Example | Fixed inputs, one exact outcome. Evidence: Test792a20o1b_ServeLearn_ARewriteIsReTagged (internal/cli/vault_serving_part4_scenarios_test.go), green in logs/b13/861c2zzi/1.log (package internal/cli); an offer about alpha is tagged vocab/alpha, a same-origin served learn about bravo rewrites it in place (same basename, one pending note) and its tags are exactly vocab/bravo; vault in t.TempDir() (#860). Mutations: serve_learn.go:285 the assignment in rewritePendingOffer disabled (mut-m2.log) fails it at the re-tag Then; vocab.go:125 (mut-m1.log) fails it at the first-tag assertion only | Green-single |
 
 #### 861c2zzj Vault Migration, part 1 (default)
 
