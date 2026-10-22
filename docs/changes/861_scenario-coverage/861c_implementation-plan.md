@@ -8,7 +8,7 @@ Every default node of [861c2 Scenario tests by owner file and package](#861c2-sc
 
 ```mermaid
 flowchart LR
-    N1a["861c1a The test-pkg target<br/>Complete"]
+    N1a["861c1a The test-pkg target<br/>In progress: 1/7 entries complete"]
     N862a["862c1a The command that runs every integration-tagged test<br/>change 862"]
     subgraph UT["Default tests: technical components and renames"]
         N2a["861c2a Parent Vault Client, part 1 (default)<br/>Blocked by: 861c1a"]
@@ -170,7 +170,7 @@ flowchart LR
 
 #### 861c1a The test-pkg target
 
-Status: Complete (95514d06)
+Status: In progress: 1/7 entries complete (last commit 95514d06)
 
 - Owner: [794b4 Development Check Orchestration](../../specs/technical/development-check-orchestration.md#794b4-development-check-orchestration); Added operation [861b2a A scoped test run](./861b_technical-spec.md#861b2a-added-a-scoped-test-run), Added operation [861a3a A package's tests run alone](./861a_product-spec.md#861a3a-added-a-packages-tests-run-alone) and Modified operation [861b3a Development Check Orchestration](./861b_technical-spec.md#861b3a-modified-development-check-orchestration).
 - Package: `dev`; suggested test files: `dev/testpkg_internal_test.go` (tag `targ`) and `dev/testpkg_integration_internal_test.go` (tag `targ && integration`, a fixture package whose test fails, run for real).
@@ -182,8 +182,8 @@ Status: Complete (95514d06)
 | 861c1a1 | [861b2a1a The package path is required](./861b_technical-spec.md#861b2a1-contract-scenarios) | Example | One missing argument, one exact refusal. Evidence: Test861b2a1a_TestPkg_ARunWithNoPackagePathStartsNoGoTest; Red: b00/861c1a-red-test-dev.log (build failed, undefined runTestPkg); Green: b00/861c1a-green-test-dev.log (exit=0); mutation (the missing-path check disabled) failed this row: b00/861c1a-mutation-no-refusal.log; mutation (-race dropped from the command line) failed 861c1a2, 861c1a3 and 861c1a5: b00/861c1a-mutation-no-race.log. | Green-single |
 | 861c1a2 | [861b2a1b A filter narrows the run](./861b_technical-spec.md#861b2a1-contract-scenarios) | Example | Fixed inputs, one exact command line. Evidence: Test861b2a1b_TestPkg_AFilterGoesBeforeThePackagePath; Red: b00/861c1a-red-test-dev.log; Green: b00/861c1a-green-test-dev.log (exit=0); failed by the mutation that drops -race: b00/861c1a-mutation-no-race.log. | Green-single |
 | 861c1a3 | [861b2a1c The command line is pinned](./861b_technical-spec.md#861b2a1-contract-scenarios) | Example | Fixed inputs, one exact command line. Evidence: Test861b2a1c_TestPkg_TheCommandLineIsPinned; Red: b00/861c1a-red-test-dev.log; Green: b00/861c1a-green-test-dev.log (exit=0); failed by the mutation that drops -race: b00/861c1a-mutation-no-race.log. | Green-single |
-| 861c1a4 | [861b2a1d A failing test fails the target](./861b_technical-spec.md#861b2a1-contract-scenarios) | Example | Real `go test` on a fixture package whose test fails; also the compatibility verification of the Go toolchain. Evidence: Test861b2a1d_TestPkg_AFailingTestFailsTheTargetAndShowsTheOutput in dev/testpkg_integration_internal_test.go (tag targ and integration, a real go test on a fixture module); Red: b00/861c1a-red-test-dev.log (the file does not compile before the target exists); Green: b00/861c1a-green-test-dev-integration.log (exit=0). The unit test TestTestPkg_AFailureOfTheRunnerIsTheFailureOfTheTarget pins the same failure through an injected runner. | Green-single |
-| 861c1a5 | [861a3a1a A developer runs the tests of one package](./861a_product-spec.md#861a3a1-uat-scenarios) | Example | The command line names only that package; same seam as [861b2a1c The command line is pinned](./861b_technical-spec.md#861b2a1-contract-scenarios). Evidence: Test861a3a1a_TestPkg_TheCommandLineNamesOnlyThatPackage; Red: b00/861c1a-red-test-dev.log; Green: b00/861c1a-green-test-dev.log (exit=0); failed by the mutation that drops -race: b00/861c1a-mutation-no-race.log. | Green-single |
+| 861c1a4 | [861b2a1d A failing test fails the target](./861b_technical-spec.md#861b2a1-contract-scenarios) | Example | Real `go test` on a fixture package whose test fails; also the compatibility verification of the Go toolchain. Evidence: Test861b2a1d_TestPkg_AFailingTestFailsTheTargetAndShowsTheOutput in dev/testpkg_integration_internal_test.go (tag targ and integration, a real go test on a fixture module); Red: not run on its own (the file builds only under the integration tag, and test-dev builds with the targ tag alone; b00/861c1a-red-test-dev.log shows runTestPkg undefined from the untagged file only); Green: b00/861c1a-green-test-dev-integration.log (exit=0); failed by the mutation that wraps the runner's error with %v instead of %w in runTestPkg: b00/fix-1-mutation-testpkg-wrap.log. The output is captured by the test's own writer, not by the production entry, which binds targ.RunContext and was run by hand: b00/861c1a-selfcheck-test-pkg-dev.log. The unit test TestTestPkg_AFailureOfTheRunnerIsTheFailureOfTheTarget pins the same failure through an injected runner. | Green-single |
+| 861c1a5 | [861a3a1a A developer runs the tests of one package](./861a_product-spec.md#861a3a1-uat-scenarios) | Example | The command line names only that package; same seam as [861b2a1c The command line is pinned](./861b_technical-spec.md#861b2a1-contract-scenarios). Evidence: Test861a3a1a_TestPkg_TheCommandLineNamesOnlyThatPackage (also checks that a failing run is returned as the failure of the command); Red: b00/861c1a-red-test-dev.log; Green: b00/861c1a-green-test-dev.log (exit=0); failed by the mutation that drops -race: b00/861c1a-mutation-no-race.log. | Green-single |
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |

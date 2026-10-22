@@ -8,9 +8,9 @@ The Profile node waits for the nodes it cites. The first, second, fourth and fif
 
 ```mermaid
 flowchart LR
-    N1a["862c1a The command that runs every integration-tagged test<br/>Complete"]
-    N1b["862c1b Live-session tests skip without a login<br/>Complete"]
-    N1e["862c1e The parity tests have a command<br/>Complete"]
+    N1a["862c1a The command that runs every integration-tagged test<br/>In progress: 2/7 entries complete"]
+    N1b["862c1b Live-session tests skip without a login<br/>In progress: 0/3 entries complete"]
+    N1e["862c1e The parity tests have a command<br/>In progress: 2/5 entries complete"]
     N1d["862c1d The follow-up issue for the untagged files<br/>Complete"]
     N1c["862c1c The Project Profile cites the remaining deviations<br/>Complete"]
     N1a --> N1c
@@ -27,7 +27,7 @@ One section per node of the graph. Each row has one scenario ID and one independ
 
 #### 862c1a The command that runs every integration-tagged test
 
-Status: Complete (95514d06)
+Status: In progress: 2/7 entries complete (last commit 95514d06)
 
 - Owner: [794b4 Development Check Orchestration](../../specs/technical/development-check-orchestration.md#794b4-development-check-orchestration); Added operations [862b2a One command runs every integration-tagged test](./862b_technical-spec.md#862b2a-added-one-command-runs-every-integration-tagged-test) and [862a3a Every integration-tagged test runs in the full check](./862a_product-spec.md#862a3a-added-every-integration-tagged-test-runs-in-the-full-check), Modified operations [862b3a Preserve entry points](./862b_technical-spec.md#862b3a-modified-preserve-entry-points) and [862b3b Engram's aggregates match Targ's apart from the nil targets](./862b_technical-spec.md#862b3b-modified-engrams-aggregates-match-targs-apart-from-the-nil-targets).
 - Package: `dev`; suggested test files: `dev/integration_all_internal_test.go` (tag `targ`) and `dev/integration_all_integration_internal_test.go` (tag `targ && integration`, a fixture module run for real).
@@ -49,7 +49,7 @@ Status: Complete (95514d06)
 
 #### 862c1b Live-session tests skip without a login
 
-Status: Complete (59c47f57)
+Status: In progress: 0/3 entries complete (last commit 59c47f57)
 
 - Owner: [794b4 Development Check Orchestration](../../specs/technical/development-check-orchestration.md#794b4-development-check-orchestration); Added operations [862b2b A live-session test without a login is skipped](./862b_technical-spec.md#862b2b-added-a-live-session-test-without-a-login-is-skipped) and [862a3b A check without a login skips](./862a_product-spec.md#862a3b-added-a-check-without-a-login-skips).
 - Package: `dev/acceptance` (tag `network`); suggested: extract the token lookup of `claudeToken` to an untagged file `dev/acceptance/token_logic_test.go`, as `measure_logic_test.go` holds the pure logic of the measurements, so that the default suite runs its test ([862d6 Scope of the acceptance skip](./862d_questions-and-decisions.md#questions-and-decisions)). The extracted lookup takes the environment lookup and the credential-file reader as parameters (`claudeToken` keeps the `os` calls and passes them in), so that the tests run in parallel without `t.Setenv`.
@@ -64,7 +64,7 @@ Status: Complete (59c47f57)
 
 #### 862c1e The parity tests have a command
 
-Status: Complete (a260e203)
+Status: In progress: 2/5 entries complete (last commit a260e203)
 
 - Owner: [794b4 Development Check Orchestration](../../specs/technical/development-check-orchestration.md#794b4-development-check-orchestration); Added operations [862b2c A parity run has its own command](./862b_technical-spec.md#862b2c-added-a-parity-run-has-its-own-command) and [862a3c The real-model parity check has a command](./862a_product-spec.md#862a3c-added-the-real-model-parity-check-has-a-command).
 - Package: `dev`; suggested test file: `dev/test_parity_internal_test.go` (tag `targ`).
@@ -75,7 +75,7 @@ Status: Complete (a260e203)
 | --- | --- | --- | --- | --- |
 | 862c1e1 | [862b2c1a The parity command line is pinned](./862b_technical-spec.md#862b2c1-contract-scenarios) | Example | Fixed inputs, one exact command line. Evidence: Test862b2c1a_TestParity_TheCommandLineIsPinned; Red: b00/862c1e-red-test-dev.log (build failed, undefined runParity); Green: b00/862c1e-green-test-dev-2.log (exit=0); failed by the mutation that changes the package path to ./internal/embed/...: b00/862c1e-mutation-package-pattern.log. The target itself ran the parity tests for real: b00/862c1e-selfcheck-test-parity.log (ok, exit=0). | Green-single |
 | 862c1e2 | [862b2c1b The aggregates do not run it](./862b_technical-spec.md#862b2c1-contract-scenarios) | Interaction | Compares the dependency lists of `check-for-fail` and `check-full`; same seam as `Test794b4a1c_`. Evidence: Test862b2c1b_TestParity_TheAggregatesDoNotRunIt; Red: b00/862c1e-red-test-dev.log; Green: b00/862c1e-green-test-dev-2.log (exit=0); failed by the mutation that adds test-parity to check-full: b00/862c1e-mutation-parity-in-check-full.log (it failed Test794b4a1c_ too). | Green-single |
-| 862c1e3 | [862a3c1a A developer runs the parity check](./862a_product-spec.md#862a3c1-uat-scenarios) | Example | The command line names the `parity` tag and `./internal/embed`; same seam as [862b2c1a The parity command line is pinned](./862b_technical-spec.md#862b2c1-contract-scenarios). Evidence: Test862a3c1a_TestParity_TheCommandLineNamesTheParityTagAndTheEmbedPackage; Red: b00/862c1e-red-test-dev.log; Green: b00/862c1e-green-test-dev-2.log (exit=0); failed by the mutation that changes the package path: b00/862c1e-mutation-package-pattern.log. | Green-single |
+| 862c1e3 | [862a3c1a A developer runs the parity check](./862a_product-spec.md#862a3c1-uat-scenarios) | Example | The command line names the `parity` tag and `./internal/embed`; same seam as [862b2c1a The parity command line is pinned](./862b_technical-spec.md#862b2c1-contract-scenarios). Evidence: Test862a3c1a_TestParity_TheCommandLineNamesTheParityTagAndTheEmbedPackage (also checks that check-full does not run the target and that a failing run is returned as the failure of the command); Red: b00/862c1e-red-test-dev.log; Green: b00/862c1e-green-test-dev-2.log (exit=0); failed by the mutation that changes the package path: b00/862c1e-mutation-package-pattern.log. | Green-single |
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
