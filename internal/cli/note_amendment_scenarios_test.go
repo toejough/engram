@@ -25,6 +25,8 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
+//go:generate impgen na1StepFunc --dependency --name MockNa1Step
+
 // Test792b14c12a1_RunActivate_ALocalHitIsBumpedAndTheParentIsNotContacted verifies 792b14c12a1
 // (docs/specs/technical/note-amendment.md): a ref whose note file exists, with or without a sidecar, is
 // a local hit: its use is recorded and no pull is requested.
@@ -112,6 +114,7 @@ func Test792b14c12a2_RunActivate_ABasenameThatMissesIsPulledDown(t *testing.T) {
 
 // Test792b14c12a3_RunActivate_AnIDOrAPathIsNotSent verifies 792b14c12a3: a bare Luhmann ID with no local
 // note, and with --parent a path ref, fail as not sent to the parent, and nothing is requested of the parent.
+// Pull, Recheck and Finish are imptest mocks with no expectation: a call to any of them leaves the run waiting.
 func Test792b14c12a3_RunActivate_AnIDOrAPathIsNotSent(t *testing.T) {
 	t.Parallel()
 
@@ -140,8 +143,8 @@ func Test792b14c12a3_RunActivate_AnIDOrAPathIsNotSent(t *testing.T) {
 			rig := na1NewActivateRig()
 
 			// When it is activated
-			err := cli.ExportRunActivate(t.Context(),
-				cli.ActivateArgs{Vault: na1Vault, Notes: []string{tc.ref}, Parent: tc.parent}, rig.deps(true))
+			err := na1RunMockedActivate(t, rig,
+				cli.ActivateArgs{Vault: na1Vault, Notes: []string{tc.ref}, Parent: tc.parent}, nil)
 
 			// Then it fails as not sent to the parent and nothing is requested
 			g.Expect(err).To(MatchError("activate: note ref(s) failed: 1 of 1"))
@@ -159,10 +162,6 @@ func Test792b14c12a3_RunActivate_AnIDOrAPathIsNotSent(t *testing.T) {
 			} else {
 				g.Expect(rig.warnings[0]).NotTo(ContainSubstring(notFound))
 			}
-
-			g.Expect(rig.pulls).To(BeEmpty())
-			g.Expect(rig.rechecks).To(BeEmpty())
-			g.Expect(rig.finishes).To(BeZero())
 		})
 	}
 }
@@ -239,6 +238,10 @@ func Test792b14c12a6_RunActivate_ALinkedHitIsRecheckedAndAFailureIsNotFatal(t *t
 
 	// Then the re-check is attempted after the local pass and the activate succeeds
 	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
 	g.Expect(rig.rechecks).To(Equal([]cli.ExportLinkedParentNote{
 		cli.ExportNewLinkedParentNote(foldParentVault, na1ParentBase),
 	}))
@@ -248,44 +251,65 @@ func Test792b14c12a6_RunActivate_ALinkedHitIsRecheckedAndAFailureIsNotFatal(t *t
 
 // Test792b14c12a7_RunActivate_TheFinishStepRunsOnce verifies 792b14c12a7: when any pull or re-check was
 // attempted the finish step runs exactly once, after all of them; when none was attempted it does not run.
+// Pull, Recheck and Finish are imptest mocks: the script names each call in order, and a call beyond it (a
+// second finish) leaves the run waiting.
 func Test792b14c12a7_RunActivate_TheFinishStepRunsOnce(t *testing.T) {
 	t.Parallel()
 
-	const secondBase = "8.2026-09-02.second"
+	const (
+		secondBase  = "8.2026-09-02.second"
+		linkedBaseA = "4.2026-09-03.linked-a"
+		linkedBaseB = "4.2026-09-04.linked-b"
+	)
 
 	t.Run("several pulls and re-checks", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
-		// Given two pulls and a re-check of a linked local hit
+		// Given two pulls and a local hit that links two parent notes, so two re-checks
 		rig := na1NewActivateRig()
-		rig.plant(na1LocalName, na1LinkedNote)
+		rig.plant(na1LocalName, foldNote(foldExchange{
+			vault: foldParentVault,
+			links: []foldLink{{linkedBaseA, "pulled", na1ParentHash}, {linkedBaseB, "pulled", na1ParentHash}},
+		}, false))
 		rig.plant(na1LocalSidecar, string(validFoldSidecar()))
 
 		// When they have all run
-		err := cli.ExportRunActivate(t.Context(),
-			cli.ActivateArgs{Vault: na1Vault, Notes: []string{na1ParentBase, na1LocalRef, secondBase}}, rig.deps(true))
+		err := na1RunMockedActivate(t, rig,
+			cli.ActivateArgs{Vault: na1Vault, Notes: []string{na1ParentBase, na1LocalRef, secondBase}},
+			func(steps *Na1StepMockMethod) {
+				steps.ArgsEqual(na1StepPull, na1ParentBase, cli.ExportLinkedParentNote{}).Return(nil)
+				steps.ArgsEqual(na1StepPull, secondBase, cli.ExportLinkedParentNote{}).Return(nil)
+				steps.ArgsEqual(na1StepRecheck, "", cli.ExportNewLinkedParentNote(foldParentVault, linkedBaseA)).Return(nil)
+				steps.ArgsEqual(na1StepRecheck, "", cli.ExportNewLinkedParentNote(foldParentVault, linkedBaseB)).Return(nil)
+				steps.ArgsEqual(na1StepFinish, "", cli.ExportLinkedParentNote{}).Return(nil)
+			})
 
-		// Then the finish step ran exactly once, after every pull and re-check
+		// Then the finish step ran exactly once, after every pull and re-check (the run ended after one finish)
 		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(rig.finishes).To(Equal(1))
-		g.Expect(rig.events).To(Equal([]string{
-			"lock", "bump", "unlock", "pull:" + na1ParentBase, "pull:" + secondBase, "recheck", "finish",
-		}))
+
+		if err != nil {
+			return
+		}
 	})
 
 	t.Run("a pull that fails was still attempted", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
+		// Given a pull that fails
 		rig := na1NewActivateRig()
-		rig.pullErr = errNa1Pull
 
-		err := cli.ExportRunActivate(t.Context(),
-			cli.ActivateArgs{Vault: na1Vault, Notes: []string{na1ParentBase}}, rig.deps(true))
+		// When the ref is activated
+		err := na1RunMockedActivate(t, rig,
+			cli.ActivateArgs{Vault: na1Vault, Notes: []string{na1ParentBase}},
+			func(steps *Na1StepMockMethod) {
+				steps.ArgsEqual(na1StepPull, na1ParentBase, cli.ExportLinkedParentNote{}).Return(errNa1Pull)
+				steps.ArgsEqual(na1StepFinish, "", cli.ExportLinkedParentNote{}).Return(nil)
+			})
 
+		// Then the finish step still ran once
 		g.Expect(err).To(MatchError("activate: note ref(s) failed: 1 of 1"))
-		g.Expect(rig.finishes).To(Equal(1))
 	})
 
 	t.Run("none attempted", func(t *testing.T) {
@@ -298,14 +322,11 @@ func Test792b14c12a7_RunActivate_TheFinishStepRunsOnce(t *testing.T) {
 		rig.plant(na1LocalSidecar, string(validFoldSidecar()))
 
 		// When they are activated
-		err := cli.ExportRunActivate(t.Context(),
-			cli.ActivateArgs{Vault: na1Vault, Notes: []string{na1LocalRef, "1100"}}, rig.deps(true))
+		err := na1RunMockedActivate(t, rig,
+			cli.ActivateArgs{Vault: na1Vault, Notes: []string{na1LocalRef, "1100"}}, nil)
 
-		// Then no pull or re-check ran, and the finish step did not either
+		// Then no pull, re-check or finish ran (the run ended with no call to a mock)
 		g.Expect(err).To(MatchError("activate: note ref(s) failed: 1 of 2"))
-		g.Expect(rig.pulls).To(BeEmpty())
-		g.Expect(rig.rechecks).To(BeEmpty())
-		g.Expect(rig.finishes).To(BeZero())
 	})
 }
 
@@ -440,6 +461,10 @@ func Test792b14c13a3_RunAmend_ANoteThatIsNotPulledRecordsNothing(t *testing.T) {
 
 			// Then it is deleted and nothing is recorded
 			g.Expect(err).NotTo(HaveOccurred())
+
+			if err != nil {
+				return
+			}
 			g.Expect(rig.vault.files).NotTo(HaveKey(foldOfferName))
 			g.Expect(rig.vault.files).NotTo(HaveKey(na1OfferSidecar))
 			g.Expect(rig.state.files).To(BeEmpty(), "no declined record, no vault ID")
@@ -464,6 +489,10 @@ func Test792b14c13a4_RunAmend_AnUnconfiguredVaultRecordsNothing(t *testing.T) {
 
 	// Then it is deleted, no decline is recorded, and no vault ID or .engram directory is created
 	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
 	g.Expect(rig.vault.files).NotTo(HaveKey(foldOfferName))
 	g.Expect(rig.vault.files).NotTo(HaveKey(na1OfferSidecar))
 	g.Expect(rig.state.files).To(BeEmpty(), "no declined record, no .engram-vault-id")
@@ -560,6 +589,10 @@ func Test792b14c14a3_RunAmend_ALocalAmendNeverSetsTheMarker(t *testing.T) {
 			// Then the amended note carries no pending line
 			g.Expect(err).NotTo(HaveOccurred())
 
+			if err != nil {
+				return
+			}
+
 			amended := string(vault.files[liveName])
 			g.Expect(amended).To(ContainSubstring(tc.wantText), "the amend did rewrite the note")
 			g.Expect(amended).NotTo(ContainSubstring("pending"))
@@ -579,6 +612,9 @@ const (
 	na1PendingName   = "2.2026-09-20.pending.md"
 	na1SkillName     = "1a.2026-01-01.skill-note.md"
 	na1StateDir      = "/vault/.engram"
+	na1StepFinish    = "finish"
+	na1StepPull      = "pull"
+	na1StepRecheck   = "recheck"
 	na1Today         = "2026-09-28"
 	na1Vault         = "/vault"
 )
@@ -606,7 +642,6 @@ type na1ActivateRig struct {
 	reads        []string
 	writes       []string
 	noteLookups  []string
-	finishes     int
 	lockCount    int
 	lockHeld     bool
 	pullErr      error
@@ -672,8 +707,6 @@ func (r *na1ActivateRig) deps(withParent bool) cli.ActivateDeps {
 		return r.recheckErr
 	}
 	deps.Finish = func(context.Context) {
-		r.finishes++
-
 		r.events = append(r.events, "finish")
 	}
 
@@ -731,6 +764,12 @@ func (s na1StateFS) WriteFileAtomic(path string, data []byte, perm fs.FileMode) 
 func (s na1StateFS) WriteFileExcl(path string, data []byte, perm fs.FileMode) error {
 	return s.state.WriteFileExcl(path, data, perm)
 }
+
+// na1StepFunc is one parent step of an activate run as a single call: the step name, the ref a pull received and
+// the link a recheck received. ActivateDeps.Pull, Recheck and Finish are anonymous func fields, so na1WithSteps
+// wires all three to one mock (impgen generates MockNa1Step from this type), which puts the order of the steps
+// into the script.
+type na1StepFunc func(step, ref string, link cli.ExportLinkedParentNote) error
 
 func na1CountPaths(paths []string, want string) int {
 	count := 0
@@ -813,4 +852,61 @@ func na1RunAmendCommand(t *testing.T, vault string, args ...string) (string, str
 		deps.Getenv = func(string) string { return "" }
 		deps.UserHomeDir = func() (string, error) { return home, nil }
 	})
+}
+
+// na1RunMockedActivate runs RunActivate over the rig with Pull, Recheck and Finish replaced by imptest mocks, in
+// a goroutine, plays script (when given) against the mocks' expectation handles, and waits for both with a time
+// limit: a call the script does not expect leaves the run waiting on the mock, and a call the script expects but
+// never gets leaves the script waiting.
+func na1RunMockedActivate(
+	t *testing.T, rig *na1ActivateRig, args cli.ActivateArgs, script func(steps *Na1StepMockMethod),
+) error {
+	t.Helper()
+
+	step, stepCalls := MockNa1Step(t)
+	deps := na1WithSteps(rig.deps(true), step)
+
+	done := make(chan error, 1)
+
+	go func() { done <- cli.ExportRunActivate(t.Context(), args, deps) }()
+
+	if script != nil {
+		scripted := make(chan struct{})
+
+		go func() {
+			defer close(scripted)
+
+			script(stepCalls)
+		}()
+
+		select {
+		case <-scripted:
+		case <-time.After(mockTimeout):
+			t.Fatal("the parent steps did not get every call the script expects")
+		}
+	}
+
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(mockTimeout):
+		t.Fatal("the activate did not finish: it made a call to a parent step that the script does not expect")
+	}
+
+	return nil
+}
+
+// na1WithSteps wires the parent steps of deps to step.
+func na1WithSteps(deps cli.ActivateDeps, step na1StepFunc) cli.ActivateDeps {
+	deps.Pull = func(_ context.Context, ref string) error {
+		return step(na1StepPull, ref, cli.ExportLinkedParentNote{})
+	}
+	deps.Recheck = func(_ context.Context, link cli.ExportLinkedParentNote) error {
+		return step(na1StepRecheck, "", link)
+	}
+	deps.Finish = func(context.Context) {
+		_ = step(na1StepFinish, "", cli.ExportLinkedParentNote{})
+	}
+
+	return deps
 }
