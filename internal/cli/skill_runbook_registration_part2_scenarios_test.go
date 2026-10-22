@@ -562,48 +562,36 @@ func Test792a12i1j_RegisterSkills_AdoptRefusesASkillThatPiDisables(t *testing.T)
 	}
 }
 
-// Test792a12j1a_RegisterSkills_ASymlinkedUserSkillIsFound verifies 792a12j1a over the real command wiring on a
-// scratch home on the real file system (the recorded default-suite deviation, #860, since the promise is about a
-// real symlink): ~/.claude/skills/route is a symlink to ~/.claude/engram/skills/route containing SKILL.md, and
-// register-skills offers claude:route with the resolved ~/.claude/engram/skills/route/SKILL.md as its source.
+// Test792a12j1a_RegisterSkills_ASymlinkedUserSkillIsFound verifies 792a12j1a: ~/.claude/skills/route is a symlink
+// to ~/.claude/engram/skills/route containing SKILL.md (the fake file system models the link, as skillsHomeFixture
+// links every deployed skill), and register-skills offers claude:route with the resolved
+// ~/.claude/engram/skills/route/SKILL.md as its source.
 func Test792a12j1a_RegisterSkills_ASymlinkedUserSkillIsFound(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	home := srr2ResolvedTempDir(t, g)
+	sourceFS := skillsHomeFixture(map[string][]byte{"route": srr1SkillText("route")})
 
-	srr1WriteFile(g, filepath.Join(home, ".claude", "engram", "skills", "route", "SKILL.md"),
-		string(srr1SkillText("route")))
-	srr1LinkDeployedSkill(g, home, "route")
+	stdout, err := srr1Run(newSkillAcceptFixtureVault(), sourceFS, cli.SkillRegistrationArgs{DryRun: true})
+	g.Expect(err).NotTo(HaveOccurred())
 
-	stdout, stderr := srr2RunCLI(t, home, home, nil, "register-skills", "--dry-run", "--vault", t.TempDir())
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout).To(Equal("@claude-user (1)\n  would offer: register claude:route (" +
-		filepath.Join(home, ".claude", "engram", "skills", "route", "SKILL.md") + ")\n"))
+	g.Expect(stdout).To(Equal("@claude-user (1)\n" + srr1RegisterOffers("route")))
 }
 
-// Test792a12j1b_RegisterSkills_ADanglingSymlinkIsSkipped verifies 792a12j1b over the real command wiring on a
-// scratch home on the real file system (the recorded default-suite deviation, #860, since the promise is about a
-// real dangling symlink): ~/.claude/skills/qa is a symlink whose target does not exist, next to a good skill;
+// Test792a12j1b_RegisterSkills_ADanglingSymlinkIsSkipped verifies 792a12j1b: ~/.claude/skills/qa is a symlink
+// whose target does not exist (the fake file system reports it as not existing), next to a good skill;
 // register-skills makes no offer for qa and does not fail.
 func Test792a12j1b_RegisterSkills_ADanglingSymlinkIsSkipped(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	home := srr2ResolvedTempDir(t, g)
+	sourceFS := skillsHomeFixture(map[string][]byte{"route": srr1SkillText("route")}).
+		link(skillRegHome+"/.claude/skills/qa", skillRegHome+"/nowhere/qa")
 
-	srr1WriteFile(g, filepath.Join(home, ".claude", "engram", "skills", "route", "SKILL.md"),
-		string(srr1SkillText("route")))
-	srr1LinkDeployedSkill(g, home, "route")
-	g.Expect(os.Symlink(filepath.Join(home, "nowhere", "qa"), filepath.Join(home, ".claude", "skills", "qa"))).
-		To(Succeed())
+	stdout, err := srr1Run(newSkillAcceptFixtureVault(), sourceFS, cli.SkillRegistrationArgs{DryRun: true})
+	g.Expect(err).NotTo(HaveOccurred(), "registration does not fail")
 
-	stdout, stderr := srr2RunCLI(t, home, home, nil, "register-skills", "--dry-run", "--vault", t.TempDir())
-
-	g.Expect(stderr).To(BeEmpty(), "registration does not fail")
-	g.Expect(stdout).To(Equal("@claude-user (1)\n  would offer: register claude:route (" +
-		filepath.Join(home, ".claude", "engram", "skills", "route", "SKILL.md") + ")\n"))
+	g.Expect(stdout).To(Equal("@claude-user (1)\n" + srr1RegisterOffers("route")))
 	g.Expect(stdout).NotTo(ContainSubstring("qa"), "no offer is made for it")
 }
 
