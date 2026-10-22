@@ -48,60 +48,6 @@ func Test792b8c2a1_PrimLocker_UnlockLifecycle(t *testing.T) {
 		g.Expect(unlock()).To(gomega.Succeed())
 		g.Expect(calls.list()).To(gomega.Equal([]string{"flock-ex", "flock-un", "close"}))
 	})
-
-	t.Run("funlock error reported and fd still closed", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		boom := errors.New("funlock boom")
-		closed := make([]uintptr, 0, 1)
-		locker := lockerFromPrims(cli.Primitives{Lock: cli.LockPrims{
-			OpenLockFile:   func(string, fs.FileMode) (uintptr, error) { return 4, nil },
-			FlockExclusive: func(uintptr) error { return nil },
-			FlockUnlock:    func(uintptr) error { return boom },
-			CloseFD: func(fd uintptr) error {
-				closed = append(closed, fd)
-
-				return nil
-			},
-		}})
-
-		unlock, err := locker.Lock("/vault/.lock")
-		g.Expect(err).NotTo(gomega.HaveOccurred())
-
-		if err != nil {
-			return
-		}
-
-		unlockErr := unlock()
-		g.Expect(unlockErr).To(gomega.MatchError(boom))
-		g.Expect(unlockErr.Error()).To(gomega.ContainSubstring("funlock"))
-		g.Expect(closed).To(gomega.HaveLen(1), "unlock error must not leak the fd")
-	})
-
-	t.Run("close error reported when funlock succeeds", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		boom := errors.New("close boom")
-		locker := lockerFromPrims(cli.Primitives{Lock: cli.LockPrims{
-			OpenLockFile:   func(string, fs.FileMode) (uintptr, error) { return 4, nil },
-			FlockExclusive: func(uintptr) error { return nil },
-			FlockUnlock:    func(uintptr) error { return nil },
-			CloseFD:        func(uintptr) error { return boom },
-		}})
-
-		unlock, err := locker.Lock("/vault/.lock")
-		g.Expect(err).NotTo(gomega.HaveOccurred())
-
-		if err != nil {
-			return
-		}
-
-		unlockErr := unlock()
-		g.Expect(unlockErr).To(gomega.MatchError(boom))
-		g.Expect(unlockErr.Error()).To(gomega.ContainSubstring("close lock"))
-	})
 }
 
 func Test792b8c3a1_PrimLocker_OpenFailureWrapsWithPath(t *testing.T) {

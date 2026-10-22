@@ -886,7 +886,7 @@ Status: Merged (5405cfb0)
 
 #### 861c2zg Vault Write Lock (default)
 
-Status: Ready
+Status: In progress: 0/2 entries complete (2 rows Green-single)
 
 - Owner file: [Vault Write Lock](../../specs/technical/vault-write-lock.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/vault_write_lock_scenarios_test.go`.
@@ -896,8 +896,8 @@ Status: Ready
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zg1 | [792b8c2a2 An unlock failure is reported and the file still closed](../../specs/technical/vault-write-lock.md#792b8c2a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zg2 | [792b8c2a3 A close failure is reported](../../specs/technical/vault-write-lock.md#792b8c2a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2zg1 | [792b8c2a2 An unlock failure is reported and the file still closed](../../specs/technical/vault-write-lock.md#792b8c2a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b8c2a2_VaultWriteLock_UnlockFailureReportedAndFileStillClosed (vault_write_lock_scenarios_test.go; moved from the subtest of Test792b8c2a1 in locker_test.go and strengthened to name the lock path and the call order), green in logs/b17/861c2zg/2.log (scoped) and pkg.log (whole package); Mutation: locker.go:41, `closeErr := error(nil)`, fails it at :47, the close-call Then (logs/b17/861c2zg/mut1.log) | Green-single |
+| 861c2zg2 | [792b8c2a3 A close failure is reported](../../specs/technical/vault-write-lock.md#792b8c2a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b8c2a3_VaultWriteLock_CloseFailureReported (vault_write_lock_scenarios_test.go; moved from the subtest of Test792b8c2a1 in locker_test.go and strengthened to name the lock path), green in logs/b17/861c2zg/2.log (scoped) and pkg.log (whole package); Mutation: locker.go:41, `closeErr := error(nil)`, fails it at :82, the returned-error Then (logs/b17/861c2zg/mut1.log) | Green-single |
 
 #### 861c2zh Vocabulary Engine (default)
 
