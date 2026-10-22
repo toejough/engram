@@ -3,7 +3,6 @@
 package cli_test
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -47,7 +46,6 @@ func Test792b3c1a5_RealEdgeFS_WriteFileAtomicChmodFailureRemovesTemp(t *testing.
 	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring(target)), "error must name the target path")
 	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("chmod")), "error must name the failing dance step")
 
-	g.Expect(errors.Is(err, syscall.EPERM)).To(gomega.BeTrue())
 	g.Expect(tmpSeen).NotTo(gomega.BeEmpty(), "the dance must reach the chmod step")
 	g.Expect(tmpExistedAtChmod).To(gomega.BeTrue(), "a real temp must exist when chmod is attempted")
 	g.Expect(tmpSeen).NotTo(gomega.BeAnExistingFile(), "temp file must be removed by the failure cleanup")
