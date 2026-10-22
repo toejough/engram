@@ -101,7 +101,7 @@ func Test792a6a1b_VocabRefitAndBootstrap_ADefinitionIsNeverAssignedATerm(t *test
 			vault.run("vocab", "propose", "--term", cv1Cooking.Term, "--description", cv1Cooking.Description)
 			vault.run("vocab", "propose", "--term", cv1BuildTooling.Term, "--description", cv1BuildTooling.Description)
 
-			definition := vault.onlyNameMatching(`\.vocab-cooking-definition\.md$`)
+			definition := vault.requireNote(g, `\.vocab-cooking-definition\.md$`)
 			g.Expect(parseCV1Front(vault.read(definition)).Tags).To(Equal([]string{"vocab", "vocab/cooking"}))
 
 			// When the user runs engram vocab refit or engram vocab bootstrap
@@ -259,7 +259,7 @@ func Test792a6d1b_LearnFact_ANoteCloseToNoTermGetsNoTag(t *testing.T) {
 	g.Expect(result.stderr).To(BeEmpty())
 
 	// Then the note has no vocab/ tag and no tags: field
-	content := vault.read(vault.onlyNameMatching(`\.tls-certificate\.md$`))
+	content := vault.read(vault.requireNote(g, `\.tls-certificate\.md$`))
 	g.Expect(content).NotTo(ContainSubstring("vocab/"))
 	g.Expect(content).NotTo(MatchRegexp(`(?m)^tags:`))
 }
@@ -348,7 +348,7 @@ func Test792a6e1a_LearnFact_AVaultWithoutAVocabularyWritesPlainNotes(t *testing.
 	g.Expect(result.stderr).To(BeEmpty())
 
 	// Then the note is written with no vocab/ tag, and written once
-	name := vault.onlyNameMatching(`\.lint-before-commit\.md$`)
+	name := vault.requireNote(g, `\.lint-before-commit\.md$`)
 	g.Expect(vault.read(name)).NotTo(ContainSubstring("vocab/"))
 	g.Expect(vault.tagsOf("lint-before-commit")).To(BeEmpty())
 	g.Expect(vault.fsys.writesTo(filepath.Join(cv1VaultPath, name))).To(Equal(1))
@@ -371,7 +371,7 @@ func Test792a6e1b_LearnFact_ANoteWhoseEmbeddingFailedIsNotTagged(t *testing.T) {
 	result := vault.learnFact("lint-unembeddable", "running a linter on an unembeddable note")
 
 	// Then the note is written, stderr carries a warning naming it, and the note has no vocab/ tag
-	name := vault.onlyNameMatching(`\.lint-unembeddable\.md$`)
+	name := vault.requireNote(g, `\.lint-unembeddable\.md$`)
 	g.Expect(result.stderr).To(ContainSubstring("learn: embed failed for " + filepath.Join(cv1VaultPath, name)))
 	g.Expect(vault.read(name)).NotTo(ContainSubstring("vocab/"))
 	g.Expect(vault.exists(embed.SidecarPath(name))).To(BeFalse())
@@ -389,8 +389,8 @@ func Test792a6f1a_VocabBootstrap_TaggingReadsACRLFNote(t *testing.T) {
 	vault := newCV1Vault()
 	vault.learnFact("lint-before-commit", "running a linter before committing Go code")
 	vault.learnFact("tls-certificate", "configuring a TLS certificate")
-	closeName := vault.onlyNameMatching(`\.lint-before-commit\.md$`)
-	farName := vault.onlyNameMatching(`\.tls-certificate\.md$`)
+	closeName := vault.requireNote(g, `\.lint-before-commit\.md$`)
+	farName := vault.requireNote(g, `\.tls-certificate\.md$`)
 	vault.toCRLF(closeName)
 	vault.toCRLF(farName)
 
@@ -647,43 +647,35 @@ func Test792a6m1a_VocabRefit_NewClustersAreEmittedAsNamingRequests(t *testing.T)
 	// Then it prints a naming_requests document for that cluster ...
 	g.Expect(result.stderr).To(BeEmpty())
 
-	var document struct {
-		NamingRequests []struct {
-			Cluster     int `json:"cluster"`
-			MemberCount int `json:"member_count"` //nolint:tagliatelle // contract key
-			Exemplars   []struct {
-				Note    string `json:"note"`
-				Title   string `json:"title"`
-				Snippet string `json:"snippet"`
-			} `json:"exemplars"`
-		} `json:"naming_requests"` //nolint:tagliatelle // contract key
-		Instruction string `json:"instruction"`
-		Fingerprint string `json:"fingerprint"`
-	}
+	// the snake_case contract keys are read by key, so a renamed key fails here
+	var document map[string]json.RawMessage
 
 	g.Expect(json.Unmarshal([]byte(result.stdout), &document)).To(Succeed())
-	g.Expect(document.NamingRequests).To(HaveLen(1))
-	g.Expect(document.Instruction).NotTo(BeEmpty())
-	g.Expect(document.Fingerprint).NotTo(BeEmpty())
 
-	if len(document.NamingRequests) != 1 {
+	requests := cv1JSONField[[]map[string]json.RawMessage](g, document, "naming_requests")
+	g.Expect(requests).To(HaveLen(1))
+	g.Expect(cv1JSONField[string](g, document, "instruction")).NotTo(BeEmpty())
+	g.Expect(cv1JSONField[string](g, document, "fingerprint")).NotTo(BeEmpty())
+
+	if len(requests) != 1 {
 		return
 	}
 
-	request := document.NamingRequests[0]
-	g.Expect(request.MemberCount).To(Equal(len(noise)))
+	request := requests[0]
+	g.Expect(cv1JSONField[int](g, request, "member_count")).To(Equal(len(noise)))
 
 	// ... with three exemplars, the members nearest its centroid, nearest first (mentions 4, 2 and 8)
-	g.Expect(request.Exemplars).To(HaveLen(cv1ExemplarLimit))
+	exemplars := cv1JSONField[[]cv1NamingExemplar](g, request, "exemplars")
+	g.Expect(exemplars).To(HaveLen(cv1ExemplarLimit))
 
-	if len(request.Exemplars) != cv1ExemplarLimit {
+	if len(exemplars) != cv1ExemplarLimit {
 		return
 	}
 
 	for position, noiseIndex := range []int{3, 2, 4} {
-		exemplar := request.Exemplars[position]
+		exemplar := exemplars[position]
 		slug := cv1NoteSlug("cooking", noiseIndex)
-		name := vault.onlyNameMatching(`\.` + slug + `\.md$`)
+		name := vault.requireNote(g, `\.`+slug+`\.md$`)
 
 		g.Expect(exemplar.Note).To(Equal(name))
 		g.Expect(exemplar.Title).To(Equal(slug))
@@ -936,6 +928,13 @@ func (m *cv1MemFS) writesTo(path string) int {
 	return len(slices.DeleteFunc(slices.Clone(m.writes), func(written string) bool { return written != path }))
 }
 
+// cv1NamingExemplar is one exemplar of a naming request.
+type cv1NamingExemplar struct {
+	Note    string `json:"note"`
+	Title   string `json:"title"`
+	Snippet string `json:"snippet"`
+}
+
 // cv1Result is what one command printed.
 type cv1Result struct {
 	stdout string
@@ -1076,6 +1075,18 @@ func (v *cv1Vault) read(name string) string {
 // refit runs engram vocab refit with no flags, and, when that prints naming requests, answers none.
 func (v *cv1Vault) refit() cv1Result { return v.run("vocab", "refit") }
 
+// requireNote is the one note matching the pattern; it fails the scenario when there is not exactly one.
+func (v *cv1Vault) requireNote(g *WithT, pattern string) string {
+	names := v.namesMatching(pattern)
+	g.Expect(names).To(HaveLen(1), "notes matching %s", pattern)
+
+	if len(names) != 1 {
+		return ""
+	}
+
+	return names[0]
+}
+
 // run runs `engram <args> --vault /vault` through the real targets over the in-memory vault.
 func (v *cv1Vault) run(args ...string) cv1Result {
 	var stdout, stderr bytes.Buffer
@@ -1136,6 +1147,22 @@ func (v *cv1Vault) tagsOf(slug string) []string {
 // toCRLF rewrites the vault note with CRLF line endings.
 func (v *cv1Vault) toCRLF(name string) {
 	v.fsys.put(filepath.Join(cv1VaultPath, name), []byte(strings.ReplaceAll(v.read(name), "\n", "\r\n")))
+}
+
+// cv1JSONField decodes the value under the key of a JSON object, failing the scenario when the key is absent.
+func cv1JSONField[T any](g *WithT, object map[string]json.RawMessage, key string) T {
+	var value T
+
+	raw, found := object[key]
+	g.Expect(found).To(BeTrue(), "key %s", key)
+
+	if !found {
+		return value
+	}
+
+	g.Expect(json.Unmarshal(raw, &value)).To(Succeed())
+
+	return value
 }
 
 // cv1Key is the fstest.MapFS key of an absolute path.
