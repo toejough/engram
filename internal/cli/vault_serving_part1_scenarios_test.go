@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"maps"
 	"os"
 	"path/filepath"
@@ -97,79 +98,89 @@ func Test792a20c1a_ServeQuery_AServedQueryMatchesTheLocalQuery(t *testing.T) {
 
 // Test792a20c1c_ServeLearn_ConcurrentLocalAndServedWritersLoseNothing verifies 792a20c1c (Concurrent local and
 // served writers lose nothing): a local learn and a served learn released together on one vault both complete, both
-// notes are written under distinct Luhmann IDs and the vault holds no torn or stray file. The race repeats on fresh
-// vaults so a missing shared lock has many chances to show.
+// notes are written under distinct Luhmann IDs and the vault holds no torn or stray file. The race is made
+// deterministic through the filesystem seam: each writer's note create waits (with a timeout) until the other writer
+// has reached its own, and a writer reaches it only after listing the vault to choose its ID. Under the shared vault
+// lock the second writer cannot list until the first has written, so the wait times out and the writes run one
+// after the other; without the lock both list the same state and pick the same ID, on every run.
 func Test792a20c1c_ServeLearn_ConcurrentLocalAndServedWritersLoseNothing(t *testing.T) {
 	t.Parallel()
-
-	const rounds = 40
-
 	g := NewWithT(t)
 
-	for round := range rounds {
-		deps := vs1ServerDeps()
-		vault := t.TempDir()
-		learnRoute := routeFor(t, cli.ServeRoutes(deps, vault, vs1ServerName, t.TempDir()), "/learn")
+	deps := vs1ServerDeps()
+	rendezvous := vs1NewRendezvousFS(deps.FS)
+	deps.FS = rendezvous
 
-		body, marshalErr := json.Marshal(vs1FactArgs("served-writer", vs1CallerUser, vs1CallerRepo))
-		g.Expect(marshalErr).NotTo(HaveOccurred())
+	vault := t.TempDir()
+	learnRoute := routeFor(t, cli.ServeRoutes(deps, vault, vs1ServerName, t.TempDir()), "/learn")
 
-		localArgs := vs1FactArgs("local-writer", "", "")
-		localArgs.Vault, localArgs.VaultName = vault, vs1ServerName
+	body, marshalErr := json.Marshal(vs1FactArgs("served-writer", vs1CallerUser, vs1CallerRepo))
+	g.Expect(marshalErr).NotTo(HaveOccurred())
 
-		var (
-			wg       sync.WaitGroup
-			localErr error
-			served   cli.ServeResponse
-		)
+	if marshalErr != nil {
+		return
+	}
 
-		start := make(chan struct{})
+	localArgs := vs1FactArgs("local-writer", "", "")
+	localArgs.Vault, localArgs.VaultName = vault, vs1ServerName
 
-		wg.Go(func() {
-			<-start
+	var (
+		wg       sync.WaitGroup
+		localErr error
+		served   cli.ServeResponse
+	)
 
-			localErr = cli.ExportRunLearn(t.Context(), localArgs, cli.ExportNewLearnDeps(deps), io.Discard)
-		})
-		wg.Go(func() {
-			<-start
+	start := make(chan struct{})
 
-			served = learnRoute.Serve(t.Context(), cli.ServeRequest{Body: body})
-		})
+	wg.Go(func() {
+		<-start
 
-		close(start)
-		wg.Wait()
+		localErr = cli.ExportRunLearn(t.Context(), localArgs, cli.ExportNewLearnDeps(deps), io.Discard)
+	})
+	wg.Go(func() {
+		<-start
 
-		g.Expect(localErr).NotTo(HaveOccurred(), "round %d", round)
-		g.Expect(served.Status).To(Equal(vs1StatusOK), "round %d: %s", round, string(served.Body))
+		served = learnRoute.Serve(t.Context(), cli.ServeRequest{Body: body})
+	})
 
-		notes := noteFiles(t, vault)
-		g.Expect(notes).To(HaveLen(2), "round %d: both notes are written, neither is lost", round)
+	close(start)
+	wg.Wait()
 
-		ids := map[string]bool{}
+	g.Expect(rendezvous.arrivals()).To(Equal(vs1WriterCount), "both writers reached their note create")
+	g.Expect(localErr).NotTo(HaveOccurred())
+	g.Expect(served.Status).To(Equal(vs1StatusOK), string(served.Body))
 
-		for _, note := range notes {
-			id, found := cli.ExportExtractLuhmannFromFilename(filepath.Base(note))
-			g.Expect(found).To(BeTrue(), "round %d: %s names a Luhmann ID", round, note)
+	notes := noteFiles(t, vault)
+	g.Expect(notes).To(HaveLen(vs1WriterCount), "both notes are written, neither is lost")
 
-			ids[id] = true
-		}
+	ids := map[string]bool{}
 
-		g.Expect(ids).To(HaveLen(2), "round %d: the two notes hold distinct Luhmann IDs", round)
+	for _, note := range notes {
+		id, found := cli.ExportExtractLuhmannFromFilename(filepath.Base(note))
+		g.Expect(found).To(BeTrue(), "%s names a Luhmann ID", note)
 
-		for slug, pending := range map[string]bool{"served-writer": true, "local-writer": false} {
-			content := readFileString(t, vs1NoteWithSlug(t, vault, slug))
+		ids[id] = true
+	}
 
-			g.Expect(content).To(HavePrefix("---\n"), "round %d: %s is a whole note", round, slug)
-			g.Expect(content).To(ContainSubstring("object: "+slug+" object"), "round %d: %s content", round, slug)
-			g.Expect(strings.Contains(content, "pending: true")).To(Equal(pending), "round %d: %s marker", round, slug)
-		}
+	g.Expect(ids).To(HaveLen(vs1WriterCount), "the two notes hold distinct Luhmann IDs")
 
-		entries, readErr := os.ReadDir(vault)
-		g.Expect(readErr).NotTo(HaveOccurred())
+	for slug, pending := range map[string]bool{"served-writer": true, "local-writer": false} {
+		content := readFileString(t, vs1NoteWithSlug(t, vault, slug))
 
-		for _, entry := range entries {
-			g.Expect(entry.Name()).NotTo(ContainSubstring(".tmp"), "round %d: no temporary file is left", round)
-		}
+		g.Expect(content).To(HavePrefix("---\n"), "%s is a whole note", slug)
+		g.Expect(content).To(ContainSubstring("object: "+slug+" object"), "%s content", slug)
+		g.Expect(strings.Contains(content, "pending: true")).To(Equal(pending), "%s marker", slug)
+	}
+
+	entries, readErr := os.ReadDir(vault)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	for _, entry := range entries {
+		g.Expect(entry.Name()).NotTo(ContainSubstring(".tmp"), "no temporary file is left")
 	}
 }
 
@@ -253,6 +264,10 @@ func Test792a20c1d_Serve_ARequestCannotRedirectTheServer(t *testing.T) {
 		raw, marshalErr := json.Marshal(args)
 		g.Expect(marshalErr).NotTo(HaveOccurred())
 
+		if marshalErr != nil {
+			return
+		}
+
 		var fields map[string]any
 		g.Expect(json.Unmarshal(raw, &fields)).To(Succeed())
 
@@ -260,6 +275,10 @@ func Test792a20c1d_Serve_ARequestCannotRedirectTheServer(t *testing.T) {
 
 		body, bodyErr := json.Marshal(fields)
 		g.Expect(bodyErr).NotTo(HaveOccurred())
+
+		if bodyErr != nil {
+			return
+		}
 
 		resp := routeFor(t, rig.routes, "/learn").Serve(t.Context(), cli.ServeRequest{Body: body})
 		g.Expect(resp.Status).To(Equal(vs1StatusOK), string(resp.Body))
@@ -465,7 +484,12 @@ func Test792a20e1b_ServeLearn_AnEmptyIdentityIsRejected(t *testing.T) {
 			body, buildErr := build(vs1FactArgs("no-identity", vs1CallerUser, vs1CallerRepo))
 			g.Expect(buildErr).NotTo(HaveOccurred())
 
-			resp := serveLearnRequestBody(t, vault, string(body))
+			if buildErr != nil {
+				return
+			}
+
+			resp := routeFor(t, cli.ServeRoutes(vs1ServerDeps(), vault, vs1ServerName, t.TempDir()), "/learn").
+				Serve(t.Context(), cli.ServeRequest{Body: body})
 			g.Expect(resp.Status).To(Equal(vs1StatusBadRequest), string(resp.Body))
 
 			var failure struct {
@@ -511,16 +535,25 @@ func Test792a20f1b_ServeLearn_VaultFallsBackToTheServersName(t *testing.T) {
 			body, marshalErr := json.Marshal(vs1FactArgs("name-fallback", vs1CallerUser, vs1CallerRepo))
 			g.Expect(marshalErr).NotTo(HaveOccurred())
 
+			if marshalErr != nil {
+				return
+			}
+
 			var (
 				handlers = map[string]cli.ServeHandler{}
 				resp     cli.ServeResponse
 			)
 
 			stderr := executeForTestWithDeps(t,
-				[]string{"engram", "serve", "--addr", vs1Addr, "--vault", vault, "--vault-name", vaultName},
+				[]string{
+					"engram", "serve", "--addr", vs1Addr, "--vault", vault, "--vault-name", vaultName,
+					"--chunks-dir", t.TempDir(),
+				},
 				func(deps *cli.Deps) {
-					deps.Getenv = func(string) string { return "" }
-					deps.Embed = stubEmbedder{modelID: "test-model@4", dims: 4}
+					vs1Customize(deps)
+
+					deps.Commander = fakeGitCommander{remoteOut: vs1ServerRepo, configOut: vs1ServerUser}
+					deps.Username = func() (string, error) { return vs1ServerUser, nil }
 					deps.NewServeMux = func() cli.RawServeMux { return "mux" }
 					deps.RegisterRoute = func(_ cli.RawServeMux, method, pattern string, handler cli.ServeHandler) {
 						handlers[method+" "+pattern] = handler
@@ -591,11 +624,13 @@ const (
 	vs1Date             = "2026-09-27"
 	vs1Home             = "/home/vs1"
 	vs1Phrase           = "the vault door of a served node"
+	vs1RendezvousWait   = 2 * time.Second
 	vs1ServerName       = "personal"
 	vs1ServerRepo       = "git@github.com:example/server-own.git"
 	vs1ServerUser       = "server-own@example.com"
 	vs1StatusBadRequest = 400
 	vs1StatusOK         = 200
+	vs1WriterCount      = 2
 )
 
 // vs1RedirectRig is one served vault with notes, a chunk index and a decoy vault and chunk index a request names.
@@ -605,6 +640,57 @@ type vs1RedirectRig struct {
 	decoyVault  string
 	decoyChunks string
 	decoyBefore map[string]string
+}
+
+// vs1RendezvousFS holds each writer's note create until the other writer has reached its own, or vs1RendezvousWait
+// has passed. A writer reaches its note create only after listing the vault to choose its Luhmann ID, so two writers
+// that are not serialized by the vault lock both list the same state before either writes.
+type vs1RendezvousFS struct {
+	cli.EdgeFS
+
+	mutex   sync.Mutex
+	arrived int
+	met     chan struct{}
+}
+
+// WriteFileExcl waits for the other writer when path is a note, then creates the file.
+func (f *vs1RendezvousFS) WriteFileExcl(path string, data []byte, perm fs.FileMode) error {
+	if strings.HasSuffix(path, ".md") {
+		f.arrive()
+	}
+
+	err := f.EdgeFS.WriteFileExcl(path, data, perm)
+	if err != nil {
+		return fmt.Errorf("creating %s: %w", path, err)
+	}
+
+	return nil
+}
+
+func (f *vs1RendezvousFS) arrivals() int {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
+	return f.arrived
+}
+
+func (f *vs1RendezvousFS) arrive() {
+	f.mutex.Lock()
+
+	f.arrived++
+	if f.arrived == vs1WriterCount {
+		close(f.met)
+	}
+
+	f.mutex.Unlock()
+
+	timer := time.NewTimer(vs1RendezvousWait)
+	defer timer.Stop()
+
+	select {
+	case <-f.met:
+	case <-timer.C:
+	}
 }
 
 // vs1Customize wires the deterministic embedder, the fixed clock and an empty environment into a test's deps.
@@ -663,6 +749,11 @@ func vs1NewRedirectRig(t *testing.T) vs1RedirectRig {
 		decoyChunks: decoyChunks,
 		decoyBefore: vs1Snapshot(t, decoyVault, decoyChunks),
 	}
+}
+
+// vs1NewRendezvousFS wraps inner so that note creates rendezvous.
+func vs1NewRendezvousFS(inner cli.EdgeFS) *vs1RendezvousFS {
+	return &vs1RendezvousFS{EdgeFS: inner, met: make(chan struct{})}
 }
 
 // vs1NoteWithSlug returns the path of the one note file of vault whose name ends in .<slug>.md.
