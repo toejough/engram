@@ -130,17 +130,14 @@ func Test792a7e1d_RunQuery_ADefinitionNoteIsPromotedLikeAnyOther(t *testing.T) {
 
 	const (
 		phrase         = "the phrase"
-		definitionName = "1.vocab-eval-methodology"
+		definitionName = "1.vocab-eval-methodology-definition"
 		definitionCos  = 0.45
 		chunkCount     = 30
 	)
 
-	definition := "---\ntype: fact\nsituation: recalling what the eval-methodology vocab term covers\n" +
-		"tags:\n    - vocab\n---\n\nDefines the eval-methodology term.\n"
-
 	world := newMq1World(mq1SmallDims, phrase)
 	world.limit = mq1BigLimit
-	world.plant(mq1Note{name: definitionName, content: definition,
+	world.plant(mq1Note{name: definitionName, content: mq1DefinitionContent("eval-methodology"),
 		situation: world.cosines(map[int]float64{0: definitionCos}), body: world.cosines(map[int]float64{0: definitionCos})})
 	world.chunks = world.cosineRamp(chunkCount, 0.50, 0.01)
 
@@ -279,8 +276,8 @@ func Test792a7f1d_RunQuery_ANoteThatWasNeverUsedIsNotScaled(t *testing.T) {
 }
 
 // Test792a7f1e_RunQuery_ALateTurnIsLifted verifies 792a7f1e (A late turn is lifted): of two chunks of one
-// transcript with the same cosine to the phrase, one at its first turn (ordinal 0) and one at its last, both
-// first indexed today, the last turn scores 1.2 times the first turn.
+// transcript with the same cosine to the phrase, one at its first turn (the chunker's turn 0, the preamble) and
+// one at its last, both first indexed today, the last turn scores 1.2 times the first turn.
 func Test792a7f1e_RunQuery_ALateTurnIsLifted(t *testing.T) {
 	t.Parallel()
 
@@ -290,7 +287,7 @@ func Test792a7f1e_RunQuery_ALateTurnIsLifted(t *testing.T) {
 		phrase    = "the phrase"
 		chunkCos  = 0.7
 		lastTurn  = "turn-4"
-		firstTurn = "turn-0"
+		firstTurn = "preamble"
 		lift      = 1.2
 	)
 

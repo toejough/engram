@@ -545,15 +545,12 @@ func Test792a7d1g_RunQuery_ADefinitionNoteIsAnOrdinaryMatch(t *testing.T) {
 
 	const (
 		phrase         = "what the eval-methodology term covers"
-		definitionName = "1.vocab-eval-methodology"
+		definitionName = "1.vocab-eval-methodology-definition"
 		distantName    = "2.unrelated"
 	)
 
-	definition := "---\ntype: fact\nsituation: recalling what the eval-methodology vocab term covers\n" +
-		"tags:\n    - vocab\n---\n\nDefines the eval-methodology term.\n"
-
 	world := newMq1World(mq1SmallDims, phrase)
-	world.plant(mq1Note{name: definitionName, content: definition,
+	world.plant(mq1Note{name: definitionName, content: mq1DefinitionContent("eval-methodology"),
 		situation: world.cosines(map[int]float64{0: mq1Strong}), body: world.cosines(map[int]float64{0: mq1Strong})})
 	world.plant(mq1Note{name: distantName, content: mq1FactContent("unrelated"),
 		situation: world.cosines(map[int]float64{1: mq1Strong}), body: world.cosines(map[int]float64{1: mq1Strong})})
@@ -574,8 +571,6 @@ func Test792a7d1h_RunQuery_ANoteIsFoundByItsOwnSituation(t *testing.T) {
 
 	g := NewWithT(t)
 
-	const vault = "/vault"
-
 	situations := []string{
 		"orchestrating multi-step work under context pressure",
 		"reasoning about agent coordination and dispatch",
@@ -587,14 +582,14 @@ func Test792a7d1h_RunQuery_ANoteIsFoundByItsOwnSituation(t *testing.T) {
 
 	for index, situation := range situations {
 		content := "---\ntype: fact\nsituation: " + situation + "\n---\n\n" + situation + "\n"
-		plantNoteWithSidecar(t, files, vault, fmt.Sprintf("%d.note.md", index+1), content)
+		plantNoteWithSidecar(t, files, mq1Vault, fmt.Sprintf("%d.note.md", index+1), content)
 	}
 
 	for index, situation := range situations {
 		var out bytes.Buffer
 
-		err := cli.RunQuery(context.Background(),
-			cli.QueryArgs{Phrases: []string{situation}, VaultPath: vault, Limit: mq1BigLimit},
+		err := cli.RunQuery(t.Context(),
+			cli.QueryArgs{Phrases: []string{situation}, VaultPath: mq1Vault, Limit: mq1BigLimit},
 			newQueryDeps(files), &out)
 		g.Expect(err).NotTo(HaveOccurred())
 
@@ -902,6 +897,14 @@ func mq1ChunkRecord(anchor string, vec []float32, ingestedAt time.Time) chunk.Re
 		Vector:      vec,
 		IngestedAt:  ingestedAt,
 	}
+}
+
+// mq1DefinitionContent returns the file text of a vocabulary definition note in the documented 792a6a shape:
+// a top-level L2 fact tagged vocab and vocab/<term>, with the definition situation.
+func mq1DefinitionContent(term string) string {
+	return "---\ntype: fact\ntier: L2\n" +
+		"situation: recalling what the " + term + " vocab term covers, or assigning vocab terms\n" +
+		"tags:\n    - vocab\n    - vocab/" + term + "\n---\n\nDefines the " + term + " term.\n"
 }
 
 // mq1FactContent returns a fact note's file text with the given body.
