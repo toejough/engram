@@ -2457,7 +2457,7 @@ Status: Ready
 
 #### 861c2zzzf The two Test855d4j1_ functions of internal/cli name no scenario
 
-Status: Ready
+Status: In progress: 0/2 entries complete (2 rows Green-single)
 
 - Owner file: [Lesson Writing](../../specs/technical/lesson-writing.md) (technical component), group [855d4j1 Scenarios](../../specs/technical/lesson-writing.md#855d4j1-scenarios).
 - Package: `internal/cli`; the tests stay in the file that holds them.
@@ -2466,8 +2466,8 @@ Status: Ready
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zzzf1 | Rename `Test855d4j1_WriteDeep_ALessonTheVaultStatesAndAWriteThatFailsAreRecorded` (`internal/cli/auto_write_deep_test.go:20`) to the scenario it verifies | Action | [861d22 Test functions whose ID is in no spec](./861d_questions-and-decisions.md#questions-and-decisions) | Not started |
-| 861c2zzzf2 | Rename `Test855d4j1_WriteDeep_NothingOutsideTheCarryIsWritten` (`internal/cli/auto_write_deep_test.go:42`) to the scenario it verifies | Action | [861d22 Test functions whose ID is in no spec](./861d_questions-and-decisions.md#questions-and-decisions) | Not started |
+| 861c2zzzf1 | Rename `Test855d4j1_WriteDeep_ALessonTheVaultStatesAndAWriteThatFailsAreRecorded` (`internal/cli/auto_write_deep_test.go:20`) to the scenario it verifies | Action | [861d22 Test functions whose ID is in no spec](./861d_questions-and-decisions.md#questions-and-decisions). Verdict doc fixed ([861d327 The first Test855d4j1_ function of internal/cli verifies a deep delivery's failures](./861d_questions-and-decisions.md#questions-and-decisions)): the test verifies no one scenario of 855d4j1, so [861b4zzzf1a](./861b_technical-spec.md#861b4zzzf1-added-scenarios-of-the-deep-write) is added in place and the test is renamed to Test861b4zzzf1a_WriteDeep_AFailedAmendAndAFailedLearnAreRecordedAndALessonTheVaultStatesIsSkipped. Evidence: baseline pass before and after the rename (logs 1.log, 2.log); failed by the mutation that records the failed amend as skipped (internal/cli/auto.go:997, log 3.log, assertion on the record kinds). | Green-single |
+| 861c2zzzf2 | Rename `Test855d4j1_WriteDeep_NothingOutsideTheCarryIsWritten` (`internal/cli/auto_write_deep_test.go:42`) to the scenario it verifies | Action | [861d22 Test functions whose ID is in no spec](./861d_questions-and-decisions.md#questions-and-decisions). Verdict doc fixed ([861d328 The second Test855d4j1_ function of internal/cli verifies a rule over the reply](./861d_questions-and-decisions.md#questions-and-decisions)): the property holds a rule beyond 855d4j1f, so [861b4zzzf1b](./861b_technical-spec.md#861b4zzzf1-added-scenarios-of-the-deep-write) is added in place and the test is renamed to Test861b4zzzf1b_WriteDeep_NothingOutsideTheCarryIsWritten. Evidence: baseline pass (logs 1.log, 2.log); failed by the mutation that lets any candidate ID count as a passage of the carry (internal/auto/deep.go:34, log 4.log, rapid assertion on the amends). Logs under trace/logs/b18/861c2zzzf. | Green-single |
 
 #### 861c2zzzg Vault HTTP Server (integration)
 
