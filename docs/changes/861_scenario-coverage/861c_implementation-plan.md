@@ -1944,7 +1944,7 @@ Status: Ready
 
 #### 861c2zzo Chunk Indexing, part 3 (default)
 
-Status: Ready
+Status: In progress: 0/5 entries complete (5 rows Green-single)
 
 - Owner file: [Chunk Indexing](../../specs/product/chunk-indexing.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/chunk_indexing_part3_scenarios_test.go`.
@@ -1954,11 +1954,11 @@ Status: Ready
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zzo1 | [792a5r1a A duplicate group is collapsed](../../specs/product/chunk-indexing.md#792a5r1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzo2 | [792a5r1b A duplicate with chunks of its own is refused](../../specs/product/chunk-indexing.md#792a5r1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzo3 | [792a5r1c A dry run removes nothing](../../specs/product/chunk-indexing.md#792a5r1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzo4 | [792a5r1d A second run removes nothing more](../../specs/product/chunk-indexing.md#792a5r1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzo5 | [792a5r1e A failed removal is reported and fails the run](../../specs/product/chunk-indexing.md#792a5r1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2zzo1 | [792a5r1a A duplicate group is collapsed](../../specs/product/chunk-indexing.md#792a5r1-uat-scenarios) | Example | Test792a5r1a_ChunkIndexing_ADuplicateGroupIsCollapsed. Kept copy has the fewest separators but sorts last byte-wise. Mutant `false && ` on the manifest-write guard (prune_duplicates.go:147) fails it at the manifest Then (log m1.log); baseline log pkg.log | Green-single |
+| 861c2zzo2 | [792a5r1b A duplicate with chunks of its own is refused](../../specs/product/chunk-indexing.md#792a5r1-uat-scenarios) | Example | Test792a5r1b_ChunkIndexing_ADuplicateWithChunksOfItsOwnIsRefused. Mutant `!covered && false` (prune_duplicates.go:177) fails it at the refusal-line Then (log m3.log) | Green-single |
+| 861c2zzo3 | [792a5r1c A dry run removes nothing](../../specs/product/chunk-indexing.md#792a5r1-uat-scenarios) | Example | Test792a5r1c_ChunkIndexing_ADryRunRemovesNothing. Mutant `false && args.DryRun` (prune_duplicates.go:181) fails it at the files-unchanged Then (log m2.log) | Green-single |
+| 861c2zzo4 | [792a5r1d A second run removes nothing more](../../specs/product/chunk-indexing.md#792a5r1-uat-scenarios) | Example | Test792a5r1d_ChunkIndexing_ASecondRunRemovesNothingMore. First run goes through the command as the Given. Mutant of the manifest-write guard fails the second run output "removed 1" (log m1.log) | Green-single |
+| 861c2zzo5 | [792a5r1e A failed removal is reported and fails the run](../../specs/product/chunk-indexing.md#792a5r1-uat-scenarios) | Example | Test792a5r1e_ChunkIndexing_AFailedRemovalIsReportedAndFailsTheRun, two subtests (first/last duplicate fails). The line is the warning log, so it reads "warning: [FAIL] <path>: ..." and the test matches the [FAIL] part. Mutant of the manifest-write guard fails both subtests at the manifest Then (log m1.log) | Green-single |
 
 #### 861c2zzp Controlled Vocabulary, part 1 (default)
 
