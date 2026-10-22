@@ -711,7 +711,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2v Transcript Reader (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: In progress: 0/5 entries complete (5 rows Green-single)
 
 - Owner file: [Transcript Reader](../../specs/technical/transcript-reader.md) (technical component).
 - Package: `internal/context`; suggested test file: `internal/context/transcript_reader_scenarios_test.go`.
@@ -722,11 +722,11 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2v1 | [792b15c3a1 A system reminder is dropped](../../specs/technical/transcript-reader.md#792b15c3a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2v2 | [792b15c3a2 Injected skill bodies, command output and task notifications are dropped](../../specs/technical/transcript-reader.md#792b15c3a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2v3 | [792b15c3a3 A slash command keeps only its arguments](../../specs/technical/transcript-reader.md#792b15c3a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2v4 | [792b15c4a1 Base64 data is replaced](../../specs/technical/transcript-reader.md#792b15c4a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2v5 | [792b15c4a2 An oversized line is cut](../../specs/technical/transcript-reader.md#792b15c4a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2v1 | [792b15c3a1 A system reminder is dropped](../../specs/technical/transcript-reader.md#792b15c3a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b15c3a1_TranscriptReader_SystemReminderDropped; mutation: the system-reminder prefix no longer matches fails it at the Then assertion (m2.log). Existing context_test.go tests verify one layer down (Strip) and in part, so not renamed; new test reads through StripWithConfig with ToolSummaryMode, the path JSONLReader.ReadFrom uses | Green-single |
+| 861c2v2 | [792b15c3a2 Injected skill bodies, command output and task notifications are dropped](../../specs/technical/transcript-reader.md#792b15c3a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b15c3a2_TranscriptReader_InjectedTextsDropped; mutations: the task-notification prefix (m3.log) and the skill-body prefix (m8.log) no longer match each fail it. Existing context_test.go tests verify one layer down (Strip) and in part, so not renamed; new test reads through StripWithConfig with ToolSummaryMode, the path JSONLReader.ReadFrom uses | Green-single |
+| 861c2v3 | [792b15c3a3 A slash command keeps only its arguments](../../specs/technical/transcript-reader.md#792b15c3a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b15c3a3_TranscriptReader_SlashCommandKeepsArguments; mutation: the command-name block no longer detected fails it (m7.log). Existing context_test.go tests verify one layer down (Strip) and in part, so not renamed; new test reads through StripWithConfig with ToolSummaryMode, the path JSONLReader.ReadFrom uses | Green-single |
+| 861c2v4 | [792b15c4a1 Base64 data is replaced](../../specs/technical/transcript-reader.md#792b15c4a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b15c4a1_TranscriptReader_Base64Replaced; mutation: base64 run threshold 100 to 300 fails it (m4.log). Existing context_test.go tests verify one layer down (Strip) and in part, so not renamed; new test reads through StripWithConfig with ToolSummaryMode, the path JSONLReader.ReadFrom uses | Green-single |
+| 861c2v5 | [792b15c4a2 An oversized line is cut](../../specs/technical/transcript-reader.md#792b15c4a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b15c4a2_TranscriptReader_OversizedLineCut; mutation: maxContentBlockLen 2000 to 2001 fails it (m1.log). Existing context_test.go tests verify one layer down (Strip) and in part, so not renamed; new test reads through StripWithConfig with ToolSummaryMode, the path JSONLReader.ReadFrom uses | Green-single |
 
 #### 861c2w Ingestion Source Discovery (default)
 
