@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/gomega"
 	"github.com/toejough/targ"
 	"pgregory.net/rapid"
 
@@ -32,19 +31,7 @@ func Test792a21a1a_EngramServerSet_HardErrorsEveryCommand(t *testing.T) {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
 			t.Parallel()
 
-			g := NewWithT(t)
-			rec := &capabilityRecorder{}
-
-			stderr, exitCodes := runWithRemovedServer(rec, serverURL, args)
-
-			g.Expect(exitCodes).To(ContainElement(1), "must exit non-zero")
-			g.Expect(stderr).To(ContainSubstring("ENGRAM_SERVER is no longer supported"))
-			g.Expect(stderr).To(ContainSubstring("ENGRAM_PARENT=" + serverURL))
-			g.Expect(rec.fsCalls.Load()).To(BeZero(), "no filesystem access")
-			g.Expect(rec.lockCalls.Load()).To(BeZero(), "no lock access")
-			g.Expect(rec.fetchCalls.Load()).To(BeZero(), "no network fetch")
-			g.Expect(rec.bindCalls.Load()).To(BeZero(), "no mux, route or bind")
-			g.Expect(rec.execCalls.Load()).To(BeZero(), "no external command")
+			cls1AssertRefusedBeforeAnythingIsTouched(t, args, serverURL)
 		})
 	}
 }

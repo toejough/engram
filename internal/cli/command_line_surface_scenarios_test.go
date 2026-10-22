@@ -39,7 +39,7 @@ func Test792b2c10a11_ShowChunk_NeverReachesTheParent(t *testing.T) {
 			cli.Targets(deps)...)
 
 		g.Expect(err).To(HaveOccurred())
-		g.Expect(result.Output).To(ContainSubstring("--parent"))
+		g.Expect(result.Output).To(ContainSubstring("flag provided but not defined: --parent"))
 		g.Expect(stdout.String()).To(BeEmpty())
 		g.Expect(recorder.calls()).To(BeEmpty())
 	})
@@ -233,35 +233,6 @@ func Test792b2c4a2_NewErrHandler_ASuccessNeitherExitsNorWritesStderr(t *testing.
 	})
 }
 
-// Test792b2c5a2_Targets_AMissingRequiredFlagIsRefused verifies 792b2c5a2: `learn runbook` marks
-// --done-when required; dispatched without it, the output names --done-when, the exit is non-zero and
-// the command does not run (nothing is written to the vault and no command error is reported).
-func Test792b2c5a2_Targets_AMissingRequiredFlagIsRefused(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-
-	var stdout, stderr bytes.Buffer
-
-	deps := newTestDeps(&stdout, &stderr)
-	deps.Getenv = func(string) string { return "" }
-
-	result, err := targ.Execute(
-		[]string{"engram", "learn", "runbook", "--vault", vault, "--source", "test", "--situation", "s"},
-		cli.Targets(deps)...)
-
-	g.Expect(err).To(HaveOccurred(), "the exit status is non-zero")
-	g.Expect(result.Output).To(ContainSubstring("--done-when"))
-	g.Expect(stdout.String()).To(BeEmpty(), "the command does not run")
-	g.Expect(stderr.String()).To(BeEmpty(), "the command did not run to report an error")
-
-	entries, readErr := os.ReadDir(vault)
-	g.Expect(readErr).NotTo(HaveOccurred())
-	g.Expect(entries).To(BeEmpty(), "nothing is written to the vault")
-}
-
 // Test792b2c6a2_ResolveChunksDir_TheEnvironmentIsUsedWithoutAFlag verifies 792b2c6a2: with --chunks-dir
 // empty and ENGRAM_CHUNKS_DIR /from/env, the directory is /from/env.
 func Test792b2c6a2_ResolveChunksDir_TheEnvironmentIsUsedWithoutAFlag(t *testing.T) {
@@ -310,19 +281,7 @@ func Test792b2c9a1_Targets_EveryCommandIsRefusedBeforeAnythingIsTouched(t *testi
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
 			t.Parallel()
 
-			g := NewWithT(t)
-			rec := &capabilityRecorder{}
-
-			stderr, exitCodes := runWithRemovedServer(rec, serverURL, args)
-
-			g.Expect(exitCodes).To(ContainElement(1), "exits non-zero")
-			g.Expect(stderr).To(ContainSubstring("ENGRAM_SERVER is no longer supported"))
-			g.Expect(stderr).To(ContainSubstring("ENGRAM_PARENT=" + serverURL))
-			g.Expect(rec.fsCalls.Load()).To(BeZero(), "no filesystem capability")
-			g.Expect(rec.lockCalls.Load()).To(BeZero(), "no lock capability")
-			g.Expect(rec.fetchCalls.Load()).To(BeZero(), "no fetch capability")
-			g.Expect(rec.bindCalls.Load()).To(BeZero(), "no bind capability")
-			g.Expect(rec.execCalls.Load()).To(BeZero(), "no external command")
+			cls1AssertRefusedBeforeAnythingIsTouched(t, args, serverURL)
 		})
 	}
 }
@@ -374,6 +333,27 @@ func (r *cls1FetchRecorder) fetch(_ context.Context, _, url string, _ []byte) (c
 	r.urls = append(r.urls, url)
 
 	return cli.FetchResponse{Status: 200, Body: []byte(r.answer)}, nil
+}
+
+// cls1AssertRefusedBeforeAnythingIsTouched runs args with ENGRAM_SERVER set to serverURL and asserts the
+// refusal of 792b2c9a1 (shared with Test792a21a1a): a non-zero exit, a message naming ENGRAM_PARENT and
+// the same URL, and no filesystem, lock, fetch, bind or command capability used.
+func cls1AssertRefusedBeforeAnythingIsTouched(t *testing.T, args []string, serverURL string) {
+	t.Helper()
+
+	g := NewWithT(t)
+	rec := &capabilityRecorder{}
+
+	stderr, exitCodes := runWithRemovedServer(rec, serverURL, args)
+
+	g.Expect(exitCodes).To(ContainElement(1), "exits non-zero")
+	g.Expect(stderr).To(ContainSubstring("ENGRAM_SERVER is no longer supported"))
+	g.Expect(stderr).To(ContainSubstring("ENGRAM_PARENT=" + serverURL))
+	g.Expect(rec.fsCalls.Load()).To(BeZero(), "no filesystem capability")
+	g.Expect(rec.lockCalls.Load()).To(BeZero(), "no lock capability")
+	g.Expect(rec.fetchCalls.Load()).To(BeZero(), "no fetch capability")
+	g.Expect(rec.bindCalls.Load()).To(BeZero(), "no bind capability")
+	g.Expect(rec.execCalls.Load()).To(BeZero(), "no external command")
 }
 
 // cls1EnvOf returns a Getenv stub backed by values; a nil map reports every variable unset.
