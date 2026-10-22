@@ -871,7 +871,7 @@ Status: Ready
 
 #### 861c2zf Source Chunking (default)
 
-Status: Ready
+Status: In progress: 0/2 entries complete (2 rows Green-single)
 
 - Owner file: [Source Chunking](../../specs/technical/source-chunking.md) (technical component).
 - Package: `internal/chunk`; suggested test file: `internal/chunk/source_chunking_scenarios_test.go`.
@@ -881,8 +881,8 @@ Status: Ready
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zf1 | [792b16c1a3 Text before the first heading is the preamble](../../specs/technical/source-chunking.md#792b16c1a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zf2 | [792b16c4a2 A tiny section yields nothing](../../specs/technical/source-chunking.md#792b16c4a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2zf1 | [792b16c1a3 Text before the first heading is the preamble](../../specs/technical/source-chunking.md#792b16c1a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b16c1a3_SourceChunking_TextBeforeFirstHeadingIsPreamble (source_chunking_scenarios_test.go); mutation anchor := "" in chunk.go Markdown fails it at the anchor Then (mut2.log) | Green-single |
+| 861c2zf2 | [792b16c4a2 A tiny section yields nothing](../../specs/technical/source-chunking.md#792b16c4a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b16c4a2_SourceChunking_TinySectionYieldsNothing (source_chunking_scenarios_test.go); mutation noise-floor test `|| true` in Markdown flush fails it at BeEmpty (mut1.log) | Green-single |
 
 #### 861c2zg Vault Write Lock (default)
 
