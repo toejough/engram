@@ -69,3 +69,29 @@ Scenario: 792a10f1b A failed re-index leaves the rename
   When the apply finishes
   Then the renamed files stay renamed, and the output names the failed stage and the manual commands that finish the reconciliation
 ```
+
+## 861a4zw Modified: Skill Runbook Registration scenarios, part 6
+
+Operations a test finds necessary in existing specs are applied in place ([861d6 A new test that fails at baseline](./861d_questions-and-decisions.md#questions-and-decisions)); the two below are applied in [Skill Runbook Registration](../../specs/product/skill-runbook-registration.md) in the commit of their test.
+
+### 861a4zw1 Modified: 792a12t1b A non-interactive update
+
+Target: [792a12t1 UAT Scenarios](../../specs/product/skill-runbook-registration.md#792a12t1-uat-scenarios), Scenario 792a12t1b. Differs from the current text in the Then line: the report names the offers by scope selector and count ([792a12g Registration never prompts or writes without a terminal](../../specs/product/skill-runbook-registration.md#792a12g-registration-never-prompts-or-writes-without-a-terminal)), not the skills.
+
+```gherkin
+Scenario: 792a12t1b A non-interactive update
+  Given `engram update` runs with stdin not a terminal and offers outstanding
+  When the user runs engram update
+  Then the skills are deployed, no vault note or decline record is written, and the report names the scope selector and count of the offers awaiting an answer
+```
+
+### 861a4zw2 Modified: 792a12u1e The identity backfill preserves the identity fields
+
+Target: [792a12u1 UAT Scenarios](../../specs/product/skill-runbook-registration.md#792a12u1-uat-scenarios), Scenario 792a12u1e. Differs from the current text in the Then line: the backfill stamps fact and feedback notes only and leaves every other note unwritten ([792a10k Stamping the missing origin](../../specs/product/vault-migration.md#792a10k-stamping-the-missing-origin)), a skill note included.
+
+```gherkin
+Scenario: 792a12u1e The identity backfill preserves the identity fields
+  Given a skill note missing repo, user and vault
+  When the user runs engram update --backfill-identity
+  Then the note is not rewritten, and its three skill fields are unchanged
+```

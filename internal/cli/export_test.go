@@ -979,6 +979,16 @@ func ExportNewUpdateDepsWithSpawnAndReparent(
 	return updateDeps{FS: fs, Cmd: cmd, Env: env, Spawn: spawn, Exit: exit, Reparent: reparent}
 }
 
+// ExportNewUpdateDepsWithSpawnAndSkillReg is ExportNewUpdateDepsWithSpawn plus an explicit SkillRegistrationDeps, for
+// tests driving `engram update` through the re-exec hand-off with the post-deploy skill-registration hook configured
+// (792a12t).
+func ExportNewUpdateDepsWithSpawnAndSkillReg(
+	fs update.Filesystem, cmd update.Commander, env update.Env, spawn update.Spawner, exit func(int),
+	skillReg SkillRegistrationDeps,
+) updateDeps {
+	return updateDeps{FS: fs, Cmd: cmd, Env: env, Spawn: spawn, Exit: exit, SkillReg: skillReg}
+}
+
 // ExportNewVaultFS returns the pure EdgeFS→vaultgraph.VaultFS adapter.
 func ExportNewVaultFS(fsys EdgeFS) interface {
 	ListMD(dir string) ([]string, error)

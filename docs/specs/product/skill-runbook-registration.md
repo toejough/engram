@@ -910,7 +910,7 @@ Scenario: 792a12t1a An interactive update
 Scenario: 792a12t1b A non-interactive update
   Given `engram update` runs with stdin not a terminal and offers outstanding
   When the user runs engram update
-  Then the skills are deployed, no vault note or decline record is written, and the report names the skills awaiting an answer
+  Then the skills are deployed, no vault note or decline record is written, and the report names the scope selector and count of the offers awaiting an answer
 
 Scenario: 792a12t1c A dry run previews the offers too
   Given offers outstanding
@@ -963,7 +963,7 @@ Scenario: 792a12u1d A wikilink rewrite preserves the identity fields
 Scenario: 792a12u1e The identity backfill preserves the identity fields
   Given a skill note missing repo, user and vault
   When the user runs engram update --backfill-identity
-  Then the note is stamped and its three skill fields are unchanged
+  Then the note is not rewritten, and its three skill fields are unchanged
 
 Scenario: 792a12u1f Vocabulary rewrites preserve the identity fields
   Given a skill note
