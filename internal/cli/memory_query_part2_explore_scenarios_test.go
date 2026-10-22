@@ -307,7 +307,7 @@ func Test792a7k1b_ComputeExploreHalf_DefinitionNotesAreNeverPicked(t *testing.T)
 
 // Test792a7l1a_ComputeExploreHalf_ADuplicateIsReplaced verifies 792a7l1a (A duplicate is replaced): when the one
 // pick of a term is already in the exploit half, it is dropped and the freed slot is filled from the next term in
-// allocation order (the second term, not the third), which gives its second member.
+// allocation order (the nearer term, which sorts last by name), which gives its second member.
 func Test792a7l1a_ComputeExploreHalf_ADuplicateIsReplaced(t *testing.T) {
 	t.Parallel()
 
@@ -315,23 +315,26 @@ func Test792a7l1a_ComputeExploreHalf_ADuplicateIsReplaced(t *testing.T) {
 
 	const budget = 3
 
-	// Given an explore pick that is already in the exploit half, and other terms with unpicked members.
+	// Given an explore pick that is already in the exploit half, and two other terms with unpicked members, the
+	// nearer of which sorts after the other by name (so the allocation order and the name order disagree).
 	terms := []mq2ExploreTerm{
 		{name: "alpha-dup", axis: 1, members: []cli.ExportVaultTermMember{mq2TermMember("x1", 1, 0.99)}},
-		{name: "bravo-next", axis: 2, members: []cli.ExportVaultTermMember{
-			mq2TermMember("y1", 2, 0.99), mq2TermMember("y2", 2, 0.98), mq2TermMember("y3", 2, 0.97),
+		{name: "bravo-after", axis: 3, members: []cli.ExportVaultTermMember{
+			mq2TermMember("b1", 3, 0.99), mq2TermMember("b2", 3, 0.98),
 		}},
-		{name: "charlie-after", axis: 3, members: []cli.ExportVaultTermMember{
-			mq2TermMember("z1", 3, 0.99), mq2TermMember("z2", 3, 0.98),
+		{name: "zulu-next", axis: 2, members: []cli.ExportVaultTermMember{
+			mq2TermMember("z1", 2, 0.99), mq2TermMember("z2", 2, 0.98), mq2TermMember("z3", 2, 0.97),
 		}},
 	}
 
-	// When the explore notes are picked.
-	picks, delivered := mq2ComputeExplore(t, terms, mq2Query(0.4, 0.4, 0.4), []string{"x1"}, budget)
+	// When the explore notes are picked (the cosines to alpha, zulu and bravo are 0.40, 0.41 and 0.40, so the
+	// allocation is one note each and the evidence bonus puts alpha first, then zulu, then bravo).
+	picks, delivered := mq2ComputeExplore(t, terms, mq2Query(0.40, 0.41, 0.40), []string{"x1"}, budget)
 
-	// Then the duplicate is dropped and its slot is filled from the next term in allocation order.
-	g.Expect(mq2PickPaths(picks)).To(ConsistOf("y1", "z1", "y2"))
-	g.Expect(delivered).To(Equal(map[string]int{"bravo-next": 2, "charlie-after": 1}))
+	// Then the duplicate is dropped and its slot is filled from the next term in allocation order (zulu, which
+	// is nearer, although bravo sorts first by name).
+	g.Expect(mq2PickPaths(picks)).To(ConsistOf("z1", "b1", "z2"))
+	g.Expect(delivered).To(Equal(map[string]int{"zulu-next": 2, "bravo-after": 1}))
 }
 
 // Test792a7l1b_ComputeExploreHalf_ANoteUnderTwoTermsIsPickedOnce verifies 792a7l1b (A note under two terms is
