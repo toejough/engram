@@ -185,7 +185,7 @@ Scenario: 861b4zzze1h A supersession named without its extension, or with spaces
 
 ## 861b4zzzf Added: Lesson Writing scenarios
 
-Operations a test finds necessary in existing specs are applied in place ([861d6 A new test that fails at baseline](./861d_questions-and-decisions.md#questions-and-decisions)); the one below is applied in [Lesson Writing](../../specs/technical/lesson-writing.md) in the commit that records it. The two tests of `internal/cli/auto_write_deep_test.go` that named the group ID without a scenario letter each verify more than one scenario of the group, or a rule none states ([861d327 The first Test855d4j1_ function of internal/cli verifies a deep delivery's failures](./861d_questions-and-decisions.md#questions-and-decisions), [861d328 The second Test855d4j1_ function of internal/cli verifies a rule over the reply](./861d_questions-and-decisions.md#questions-and-decisions)).
+Operations a test finds necessary in existing specs are applied in place ([861d6 A new test that fails at baseline](./861d_questions-and-decisions.md#questions-and-decisions)); the one below is applied in [Lesson Writing](../../specs/technical/lesson-writing.md) in the commit that records it. The two tests of `internal/cli/auto_write_deep_test.go` that named the group ID without a scenario letter each verify more than one scenario of the group, or a rule none states ([861d327 The first Test855d4j1_ function of internal/cli verifies a deep delivery's failures (node 861c2zzzf)](./861d_questions-and-decisions.md#questions-and-decisions), [861d328 The second Test855d4j1_ function of internal/cli verifies a rule over the reply (node 861c2zzzf)](./861d_questions-and-decisions.md#questions-and-decisions)).
 
 ### 861b4zzzf1 Added: Scenarios of the deep write
 
