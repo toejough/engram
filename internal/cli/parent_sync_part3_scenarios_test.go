@@ -74,13 +74,14 @@ func Test792a21r1a_Targets_Query_ABacklogIsSentInFirstQueuedOrderAndTheOutboxEmp
 
 // Test792a21r1b_Targets_Query_ATransportFailureStopsTheDrainAndRecordsTheAttempt verifies 792a21r1b (A transport
 // failure stops the drain): of three queued notes, the second send fails with a connection error; the first
-// entry is removed, the second and third remain in order, the second records its attempt and its last error, and
-// the third is never tried.
+// entry is removed, the second and third remain, in first-queued order for the next drain, the second records its
+// attempt and its last error, and the third is never tried.
 func Test792a21r1b_Targets_Query_ATransportFailureStopsTheDrainAndRecordsTheAttempt(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	// Given an outbox of three entries and a second send that fails with a connection error
+	// Given an outbox of three entries, listed in the file the other way round from the order they were queued
+	// in, and a second send that fails with a connection error
 	env := ps2Env(t)
 	hook := &ps3Hook{}
 	ps3Install(env, hook)
@@ -88,8 +89,14 @@ func Test792a21r1b_Targets_Query_ATransportFailureStopsTheDrainAndRecordsTheAtte
 	paths := ps3Backlog(t, env, "first", "second", "third")
 	xids := ps3XIDs(t, paths)
 
+	ps3ReverseOutbox(t, env)
+
+	var failing atomic.Bool
+
+	failing.Store(true)
+
 	hook.offer = func(args cli.LearnArgs) *ps3Answer {
-		if args.Slug == "second" {
+		if args.Slug == "second" && failing.Load() {
 			return &ps3Answer{err: errPs3ConnectionRefused}
 		}
 
@@ -99,22 +106,39 @@ func Test792a21r1b_Targets_Query_ATransportFailureStopsTheDrainAndRecordsTheAtte
 	// When the outbox drains
 	_, stderr := env.run(ps3QueryArgs(env)...)
 
-	// Then the first entry is removed, the second and third remain in order, and the second records attempts and
+	// Then the first entry is removed, the second and third remain, and the second records attempts and
 	// last_error
 	box := ps3Outbox(t, env)
-	g.Expect(entryXIDs(box)).To(Equal(xids[1:]))
+	g.Expect(entryXIDs(box)).To(ConsistOf(xids[1:]))
 
 	if len(box.Entries) != len(xids)-1 {
 		return
 	}
 
-	g.Expect(box.Entries[0].Attempts).To(Equal(1))
-	g.Expect(box.Entries[0].LastError).To(ContainSubstring(errPs3ConnectionRefused.Error()))
-	g.Expect(box.Entries[1].Attempts).To(BeZero())
+	attempts := make(map[string]int, len(box.Entries))
+	lastErrors := make(map[string]string, len(box.Entries))
+
+	for _, entry := range box.Entries {
+		attempts[entry.XID] = entry.Attempts
+		lastErrors[entry.XID] = entry.LastError
+	}
+
+	g.Expect(attempts[xids[1]]).To(Equal(1))
+	g.Expect(lastErrors[xids[1]]).To(ContainSubstring(errPs3ConnectionRefused.Error()))
+	g.Expect(attempts[xids[2]]).To(BeZero())
 	g.Expect(hook.attempted()).To(Equal([]string{"first", "second"}), "the drain stops at the failure")
 	g.Expect(stderr).To(ContainSubstring("engram: parent unreachable (retry after "))
 	g.Expect(readFileString(t, paths[0])).To(ContainSubstring("via: offered"))
 	g.Expect(readFileString(t, paths[1])).NotTo(ContainSubstring("via: offered"))
+
+	// and the entries that remain are sent in first-queued order by the next drain
+	failing.Store(false)
+	env.advance(ps3Window)
+
+	_, _ = env.run(ps3QueryArgs(env)...)
+
+	g.Expect(hook.attempted()).To(Equal([]string{"first", "second", "second", "third"}))
+	g.Expect(env.outboxEntries()).To(BeEmpty())
 }
 
 // Test792a21r1c_Targets_Query_ARejectedOfferIsNotSentAgainUntilItsNoteChanges verifies 792a21r1c (A rejected offer
