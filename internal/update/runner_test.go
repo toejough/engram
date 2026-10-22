@@ -415,8 +415,6 @@ func Test792b28c6a1_Updater_Run_RemoteModelStubFailsWithGuidance(t *testing.T) {
 	fileSystem := newMemFS()
 	fileSystem.dirs["/home/joe/.claude"] = true
 
-	const cloneDir = "/tmp/engram-update-clone"
-
 	stub := []byte("version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 90405214\n")
 
 	cmd := &fakeCmd{responses: map[string][]byte{}}
