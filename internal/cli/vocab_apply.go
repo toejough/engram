@@ -550,6 +550,9 @@ func proposedTermSidecarVector(deps VocabDeps, vault string, names []string, ter
 
 // removeNoteReferences strips every reference to the deleted filenames from
 // one note's content, returning the updated content and whether it changed.
+// A wikilink in a frontmatter field (the object: of a fact written with a link
+// in it echoes the body) is unlinked like a body link: the graph reads links
+// from the whole file, so a left-over one would dangle.
 func removeNoteReferences(content string, deleted map[string]bool) (string, bool) {
 	frontmatter, body, ok := splitFrontmatterAndBody(content)
 	if !ok {
@@ -558,7 +561,11 @@ func removeNoteReferences(content string, deleted map[string]bool) (string, bool
 		return scrubbed, changed
 	}
 
-	newFrontmatter, frontChanged := scrubSupersedesFrontmatter(frontmatter, deleted)
+	newFrontmatter, supersedesChanged := scrubSupersedesFrontmatter(frontmatter, deleted)
+
+	unlinkedFrontmatter := unlinkDeletedWikilinks(newFrontmatter, deleted)
+	frontChanged := supersedesChanged || unlinkedFrontmatter != newFrontmatter
+	newFrontmatter = unlinkedFrontmatter
 
 	newBody, bodyChanged := scrubBodyReferences(body, deleted)
 	if !frontChanged && !bodyChanged {
