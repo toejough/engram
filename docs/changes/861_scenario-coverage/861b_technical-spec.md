@@ -99,7 +99,7 @@ Operations a test finds necessary in existing specs are applied in place ([861d6
 
 ### 861b4y1 Modified: 792b36c4a3 The vault ID is stamped before the state directory
 
-Target: [792b36c4a Scenarios](../../specs/technical/offer-outbox.md#792b36c4a-scenarios), Scenario 792b36c4a3. Differs from the current text in the Then line: the location record is the file `.engram/home.json`, so it cannot be stamped before `.engram` exists ([861a4y2 Modified: 792a21q1g The first offer creates the exchange state in the right order](./861a_product-spec.md#861a4y2-modified-792a21q1g-the-first-offer-creates-the-exchange-state-in-the-right-order) is its product form).
+Target: [792b36c4a Scenarios](../../specs/technical/offer-outbox.md#792b36c4a-scenarios), Scenario 792b36c4a3. Differs from the current text in the Then line: the location record is the file `.engram/home.json`, so it cannot be stamped before `.engram` exists ([861a4y2 792a21q1g The first offer creates the exchange state in the right order](./861a_product-spec.md#861a4y2-modified-792a21q1g-the-first-offer-creates-the-exchange-state-in-the-right-order) is its product form).
 
 ```gherkin
 Scenario: 792b36c4a3 The vault ID is stamped before the state directory
