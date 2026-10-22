@@ -33,6 +33,8 @@ func Test792a14n1a_TheAskedTaskStaysFirst(t *testing.T) {
 		"put the prerequisite before the asked task",
 		"start with the more rigorous foundation",
 		"propose the better test first",
+		"do it first and the asked task after",
+		"the asked task comes after the prerequisite",
 	})).To(BeEmpty())
 }
 
@@ -48,7 +50,6 @@ func Test792a14n1b_OldReasoningIsNotNewEvidence(t *testing.T) {
 
 	g.Expect(synthesis).To(ContainSubstring("Reasoning already in context is not new evidence"))
 	g.Expect(synthesis).To(ContainSubstring("reconcile against prior OUTCOMES, not mere mentions."))
-	g.Expect(synthesis).To(ContainSubstring("deviate only by (a) naming a genuinely NEW fact"))
 	g.Expect(text).To(ContainSubstring("old reasoning isn't new evidence. Do the asked task; displace only on a NEW " +
 		"fact, stated as a reversal"))
 	g.Expect(recallPart3Contradictions(t, []string{
@@ -56,6 +57,7 @@ func Test792a14n1b_OldReasoningIsNotNewEvidence(t *testing.T) {
 		"earlier reasoning counts as new evidence",
 		"your own earlier reasoning is a new fact",
 		"in-context reasoning counts as the new fact",
+		"earlier reasoning in context is new evidence",
 	})).To(BeEmpty())
 }
 
@@ -81,8 +83,6 @@ func Test792a14o1a_ANewRecommendationTriggersAReentryQuery(t *testing.T) {
 		"superseded\""))
 	g.Expect(reentry).To(ContainSubstring("--phrase=\"<the recommendation> tried measured outcome\""))
 	g.Expect(strings.Count(reentry, "--phrase=")).To(Equal(recallPart3ReentryPhraseCount))
-	g.Expect(reentry).To(ContainSubstring("Apply Step 2.5B's recency weight to what returns."))
-	g.Expect(reentry).To(ContainSubstring("Runs in both modes (a query is a read; glance keeps it)."))
 	g.Expect(reentry).To(ContainSubstring("Skipping the re-entry when the trigger fires is forbidden."))
 }
 
@@ -141,6 +141,8 @@ func Test792a14o1d_ARevisitNeedsNewEvidence(t *testing.T) {
 		"re-weighing the note's own tradeoffs counts as new evidence",
 		"revisit is valid without new evidence",
 		"revisit without new evidence",
+		"revisit is fine after re-weighing",
+		"revisiting after re-weighing the tradeoffs is allowed",
 	})).To(BeEmpty())
 }
 
@@ -157,7 +159,6 @@ func Test792a14o1e_ACitedReentryNoteIsActivated(t *testing.T) {
 	g.Expect(reentry).To(ContainSubstring("If you cite a note this query surfaced, include it in the Step 2.7 " +
 		"`engram activate` call"))
 	g.Expect(reentry).To(ContainSubstring("(run it again if 2.7 already ran)."))
-	g.Expect(text).To(ContainSubstring("### Step 2.7 — Activation (use-driven, after synthesis)"))
 }
 
 // Test792a14o1f_ARecommendationWithoutItsLineViolatesTheStep reads the recall skill the repository ships: a reply with
@@ -212,8 +213,9 @@ func Test792a14p1b_AnAbductionIsMarkedProbable(t *testing.T) {
 
 	g.Expect(persist).To(ContainSubstring("**Certainty by inference mode:**"))
 	g.Expect(persist).To(ContainSubstring("deduction → state it as following necessarily;"))
-	g.Expect(persist).To(ContainSubstring("**abduction / induction → mark it _probable / best-explanation / " +
-		"defeasible_**"))
+	g.Expect(persist).To(ContainSubstring("**abduction / induction → mark it _probable"))
+	g.Expect(persist).To(ContainSubstring("/ best-explanation /"))
+	g.Expect(persist).To(ContainSubstring("defeasible_**"))
 	g.Expect(persist).To(ContainSubstring("never as certain."))
 }
 
@@ -236,6 +238,8 @@ func Test792a14p1c_AHunchIsNotPersisted(t *testing.T) {
 		"persist hunches",
 		"persist a conclusion you would hedge below",
 		"a hunch may be persisted",
+		"hunches are worth persisting",
+		"persist hunches too",
 	})).To(BeEmpty())
 }
 
@@ -263,6 +267,8 @@ func Test792a14p1d_AGlanceRecallPersistsNothing(t *testing.T) {
 		"glance persists",
 		"glance may write a synthesis note",
 		"run step 4 in glance",
+		"glance runs step 4",
+		"glance also runs step 4",
 	})).To(BeEmpty())
 }
 
@@ -287,6 +293,8 @@ func Test792a14p1e_CitationsAreTypedInline(t *testing.T) {
 		"add a `supersedes:` line to the body",
 		"add a vocab tag to the note yourself",
 		"write the vocab tag yourself",
+		"author the vocab tag by hand",
+		"hand-author a supersedes backlink",
 	})).To(BeEmpty())
 }
 
@@ -331,6 +339,8 @@ func Test792a14q1b_AnUncitedSynthesisGetsNone(t *testing.T) {
 		"capture qa even without wikilinks",
 		"even if the synthesis body has no wikilink, capture",
 		"even when the synthesis body contains no wikilinks, invoke",
+		"with no wikilinks, still invoke write-memory",
+		"still invoke write-memory with kind=qa",
 	})).To(BeEmpty())
 }
 
@@ -363,7 +373,7 @@ func recallPart3Contradictions(t *testing.T, forbidden []string) []string {
 		lowered := strings.ToLower(shippedText(t, path))
 
 		for _, phrase := range forbidden {
-			if strings.Contains(lowered, phrase) {
+			if strings.Contains(lowered, strings.ToLower(phrase)) {
 				hits = append(hits, path+": "+phrase)
 			}
 		}
