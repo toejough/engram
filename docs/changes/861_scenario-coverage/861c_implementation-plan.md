@@ -12,97 +12,97 @@ flowchart LR
     N862a["862c1a The command that runs every integration-tagged test<br/>change 862"]
     subgraph UT["Default tests: technical components and renames"]
         N2a["861c2a Parent Vault Client, part 1 (default)<br/>Merged"]
-        N2b["861c2b Parent Vault Client, part 2 (default)<br/>Blocked by: 861c1a"]
+        N2b["861c2b Parent Vault Client, part 2 (default)<br/>Merged"]
         N2c["861c2c Self Installer, part 1 (default)<br/>Merged"]
         N2d["861c2d Self Installer, part 2 (default)<br/>Merged"]
-        N2e["861c2e Harness Deploy Sync, part 1 (default)<br/>Blocked by: 861c1a"]
-        N2f["861c2f Harness Deploy Sync, part 2 (default)<br/>Blocked by: 861c1a"]
+        N2e["861c2e Harness Deploy Sync, part 1 (default)<br/>Merged"]
+        N2f["861c2f Harness Deploy Sync, part 2 (default)<br/>Merged"]
         N2g["861c2g Command Line Surface (default)<br/>Merged"]
-        N2h["861c2h Note Amendment (default)<br/>Blocked by: 861c1a"]
-        N2i["861c2i Note Provenance (default)<br/>Blocked by: 861c1a"]
-        N2j["861c2j Vault HTTP Server, part 1 (default)<br/>Blocked by: 861c1a"]
-        N2k["861c2k Vault HTTP Server, part 2 (default)<br/>Blocked by: 861c1a"]
-        N2l["861c2l Vault Invariant Checker (default)<br/>Blocked by: 861c1a"]
-        N2m["861c2m Offer Outbox (default)<br/>Blocked by: 861c1a"]
-        N2n["861c2n Vault Counter (default)<br/>Blocked by: 861c1a"]
-        N2o["861c2o Embedding Sidecar (default)<br/>Blocked by: 861c1a"]
-        N2p["861c2p Vault Identity Registry (default)<br/>Blocked by: 861c1a"]
-        N2q["861c2q Note Reparenting (default)<br/>Blocked by: 861c1a"]
-        N2r["861c2r Chunk Index Store (default)<br/>Blocked by: 861c1a"]
-        N2s["861c2s Pending Offer Bookkeeping (default)<br/>Blocked by: 861c1a"]
-        N2t["861c2t Runbook Trigger Matching (default)<br/>Blocked by: 861c1a"]
-        N2u["861c2u Exchange Versioning (default)<br/>Blocked by: 861c1a"]
-        N2v["861c2v Transcript Reader (default)<br/>Blocked by: 861c1a"]
-        N2w["861c2w Ingestion Source Discovery (default)<br/>Blocked by: 861c1a"]
-        N2x["861c2x Query Engine (default)<br/>Blocked by: 861c1a"]
-        N2y["861c2y Query Payload Renderer (default)<br/>Blocked by: 861c1a"]
-        N2z["861c2z Recency Ranking (default)<br/>Blocked by: 861c1a"]
-        N2za["861c2za Agent Instruction Bundle (default)<br/>Blocked by: 861c1a"]
-        N2zb["861c2zb Durable File Store (default)<br/>Blocked by: 861c1a"]
-        N2zc["861c2zc Luhmann Addressing (default)<br/>Blocked by: 861c1a"]
-        N2zd["861c2zd Note Authoring (default)<br/>Blocked by: 861c1a"]
-        N2ze["861c2ze Skill Source Discovery (default)<br/>Blocked by: 861c1a"]
-        N2zf["861c2zf Source Chunking (default)<br/>Blocked by: 861c1a"]
-        N2zg["861c2zg Vault Write Lock (default)<br/>Blocked by: 861c1a"]
-        N2zh["861c2zh Vocabulary Engine (default)<br/>Blocked by: 861c1a"]
-        N2zi["861c2zi Wikilink Graph (default)<br/>Blocked by: 861c1a"]
-        N2zj["861c2zj Note Document Format (default)<br/>Blocked by: 861c1a"]
-        N2zk["861c2zk Subprocess Runner (default)<br/>Blocked by: 861c1a"]
-        N2zzze["861c2zzze The eight Test855d4j1_ functions of internal/auto name no scenario<br/>Blocked by: 861c1a"]
-        N2zzzf["861c2zzzf The two Test855d4j1_ functions of internal/cli name no scenario<br/>Blocked by: 861c1a"]
+        N2h["861c2h Note Amendment (default)<br/>Merged"]
+        N2i["861c2i Note Provenance (default)<br/>Merged"]
+        N2j["861c2j Vault HTTP Server, part 1 (default)<br/>Merged"]
+        N2k["861c2k Vault HTTP Server, part 2 (default)<br/>Merged"]
+        N2l["861c2l Vault Invariant Checker (default)<br/>Merged"]
+        N2m["861c2m Offer Outbox (default)<br/>Merged"]
+        N2n["861c2n Vault Counter (default)<br/>Merged"]
+        N2o["861c2o Embedding Sidecar (default)<br/>Merged"]
+        N2p["861c2p Vault Identity Registry (default)<br/>Merged"]
+        N2q["861c2q Note Reparenting (default)<br/>Merged"]
+        N2r["861c2r Chunk Index Store (default)<br/>Merged"]
+        N2s["861c2s Pending Offer Bookkeeping (default)<br/>Merged"]
+        N2t["861c2t Runbook Trigger Matching (default)<br/>Merged"]
+        N2u["861c2u Exchange Versioning (default)<br/>Merged"]
+        N2v["861c2v Transcript Reader (default)<br/>Merged"]
+        N2w["861c2w Ingestion Source Discovery (default)<br/>Merged"]
+        N2x["861c2x Query Engine (default)<br/>Merged"]
+        N2y["861c2y Query Payload Renderer (default)<br/>Merged"]
+        N2z["861c2z Recency Ranking (default)<br/>Merged"]
+        N2za["861c2za Agent Instruction Bundle (default)<br/>Ready"]
+        N2zb["861c2zb Durable File Store (default)<br/>Ready"]
+        N2zc["861c2zc Luhmann Addressing (default)<br/>Ready"]
+        N2zd["861c2zd Note Authoring (default)<br/>Ready"]
+        N2ze["861c2ze Skill Source Discovery (default)<br/>Ready"]
+        N2zf["861c2zf Source Chunking (default)<br/>Ready"]
+        N2zg["861c2zg Vault Write Lock (default)<br/>Ready"]
+        N2zh["861c2zh Vocabulary Engine (default)<br/>Ready"]
+        N2zi["861c2zi Wikilink Graph (default)<br/>Ready"]
+        N2zj["861c2zj Note Document Format (default)<br/>Ready"]
+        N2zk["861c2zk Subprocess Runner (default)<br/>Ready"]
+        N2zzze["861c2zzze The eight Test855d4j1_ functions of internal/auto name no scenario<br/>Ready"]
+        N2zzzf["861c2zzzf The two Test855d4j1_ functions of internal/cli name no scenario<br/>Ready"]
     end
     subgraph UP["Default tests: product capabilities"]
-        N2zl["861c2zl Memory Query, part 1 (default)<br/>Blocked by: 861c1a"]
-        N2zm["861c2zm Memory Query, part 2 (default)<br/>Blocked by: 861c1a"]
-        N2zn["861c2zn Memory Query, part 3 (default)<br/>Blocked by: 861c1a"]
-        N2zo["861c2zo Memory Query, part 4 (default)<br/>Blocked by: 861c1a"]
-        N2zp["861c2zp Memory Query, part 5 (default)<br/>Blocked by: 861c1a"]
-        N2zq["861c2zq Memory Query, part 6 (default)<br/>Blocked by: 861c1a"]
-        N2zr["861c2zr Skill Runbook Registration, part 1 (default)<br/>Blocked by: 861c1a"]
-        N2zs["861c2zs Skill Runbook Registration, part 2 (default)<br/>Blocked by: 861c1a"]
-        N2zt["861c2zt Skill Runbook Registration, part 3 (default)<br/>Blocked by: 861c1a"]
-        N2zu["861c2zu Skill Runbook Registration, part 4 (default)<br/>Blocked by: 861c1a"]
-        N2zv["861c2zv Skill Runbook Registration, part 5 (default)<br/>Blocked by: 861c1a"]
-        N2zw["861c2zw Skill Runbook Registration, part 6 (default)<br/>Blocked by: 861c1a"]
-        N2zx["861c2zx Parent Sync, part 1 (default)<br/>Blocked by: 861c1a"]
-        N2zy["861c2zy Parent Sync, part 2 (default)<br/>Blocked by: 861c1a"]
-        N2zz["861c2zz Parent Sync, part 3 (default)<br/>Blocked by: 861c1a"]
-        N2zza["861c2zza Parent Sync, part 4 (default)<br/>Blocked by: 861c1a"]
-        N2zzb["861c2zzb Parent Sync, part 5 (default)<br/>Blocked by: 861c1a"]
-        N2zzc["861c2zzc Install and Update, part 1 (default)<br/>Blocked by: 861c1a"]
-        N2zzd["861c2zzd Install and Update, part 2 (default)<br/>Blocked by: 861c1a"]
-        N2zze["861c2zze Install and Update, part 3 (default)<br/>Blocked by: 861c1a"]
-        N2zzf["861c2zzf Vault Serving, part 1 (default)<br/>Blocked by: 861c1a"]
-        N2zzg["861c2zzg Vault Serving, part 2 (default)<br/>Blocked by: 861c1a"]
-        N2zzh["861c2zzh Vault Serving, part 3 (default)<br/>Blocked by: 861c1a"]
-        N2zzi["861c2zzi Vault Serving, part 4 (default)<br/>Blocked by: 861c1a"]
-        N2zzj["861c2zzj Vault Migration, part 1 (default)<br/>Blocked by: 861c1a"]
-        N2zzk["861c2zzk Vault Migration, part 2 (default)<br/>Blocked by: 861c1a"]
-        N2zzl["861c2zzl Vault Migration, part 3 (default)<br/>Blocked by: 861c1a"]
-        N2zzm["861c2zzm Chunk Indexing, part 1 (default)<br/>Blocked by: 861c1a"]
-        N2zzn["861c2zzn Chunk Indexing, part 2 (default)<br/>Blocked by: 861c1a"]
-        N2zzo["861c2zzo Chunk Indexing, part 3 (default)<br/>Blocked by: 861c1a"]
-        N2zzp["861c2zzp Controlled Vocabulary, part 1 (default)<br/>Blocked by: 861c1a"]
-        N2zzq["861c2zzq Controlled Vocabulary, part 2 (default)<br/>Blocked by: 861c1a"]
-        N2zzr["861c2zzr Vault Health, part 1 (default)<br/>Blocked by: 861c1a"]
-        N2zzs["861c2zzs Vault Health, part 2 (default)<br/>Blocked by: 861c1a"]
-        N2zzt["861c2zzt Note Writing, part 1 (default)<br/>Blocked by: 861c1a"]
-        N2zzu["861c2zzu Note Writing, part 2 (default)<br/>Blocked by: 861c1a"]
-        N2zzv["861c2zzv Note Revision, part 1 (default)<br/>Blocked by: 861c1a"]
-        N2zzw["861c2zzw Note Revision, part 2 (default)<br/>Blocked by: 861c1a"]
-        N2zzx["861c2zzx Vault Counting, part 1 (default)<br/>Blocked by: 861c1a"]
-        N2zzy["861c2zzy Vault Counting, part 2 (default)<br/>Blocked by: 861c1a"]
-        N2zzz["861c2zzz Vault Identity, part 1 (default)<br/>Blocked by: 861c1a"]
-        N2zzza["861c2zzza Vault Identity, part 2 (default)<br/>Blocked by: 861c1a"]
-        N2zzzb["861c2zzzb Curate, part 1 (default)<br/>Blocked by: 861c1a"]
-        N2zzzc["861c2zzzc Curate, part 2 (default)<br/>Blocked by: 861c1a"]
-        N2zzzd["861c2zzzd Ambient Guidance (default)<br/>Blocked by: 861c1a"]
+        N2zl["861c2zl Memory Query, part 1 (default)<br/>Ready"]
+        N2zm["861c2zm Memory Query, part 2 (default)<br/>Ready"]
+        N2zn["861c2zn Memory Query, part 3 (default)<br/>Ready"]
+        N2zo["861c2zo Memory Query, part 4 (default)<br/>Ready"]
+        N2zp["861c2zp Memory Query, part 5 (default)<br/>Ready"]
+        N2zq["861c2zq Memory Query, part 6 (default)<br/>Ready"]
+        N2zr["861c2zr Skill Runbook Registration, part 1 (default)<br/>Ready"]
+        N2zs["861c2zs Skill Runbook Registration, part 2 (default)<br/>Ready"]
+        N2zt["861c2zt Skill Runbook Registration, part 3 (default)<br/>Ready"]
+        N2zu["861c2zu Skill Runbook Registration, part 4 (default)<br/>Ready"]
+        N2zv["861c2zv Skill Runbook Registration, part 5 (default)<br/>Ready"]
+        N2zw["861c2zw Skill Runbook Registration, part 6 (default)<br/>Ready"]
+        N2zx["861c2zx Parent Sync, part 1 (default)<br/>Ready"]
+        N2zy["861c2zy Parent Sync, part 2 (default)<br/>Ready"]
+        N2zz["861c2zz Parent Sync, part 3 (default)<br/>Ready"]
+        N2zza["861c2zza Parent Sync, part 4 (default)<br/>Ready"]
+        N2zzb["861c2zzb Parent Sync, part 5 (default)<br/>Ready"]
+        N2zzc["861c2zzc Install and Update, part 1 (default)<br/>Ready"]
+        N2zzd["861c2zzd Install and Update, part 2 (default)<br/>Ready"]
+        N2zze["861c2zze Install and Update, part 3 (default)<br/>Ready"]
+        N2zzf["861c2zzf Vault Serving, part 1 (default)<br/>Ready"]
+        N2zzg["861c2zzg Vault Serving, part 2 (default)<br/>Ready"]
+        N2zzh["861c2zzh Vault Serving, part 3 (default)<br/>Ready"]
+        N2zzi["861c2zzi Vault Serving, part 4 (default)<br/>Ready"]
+        N2zzj["861c2zzj Vault Migration, part 1 (default)<br/>Ready"]
+        N2zzk["861c2zzk Vault Migration, part 2 (default)<br/>Ready"]
+        N2zzl["861c2zzl Vault Migration, part 3 (default)<br/>Ready"]
+        N2zzm["861c2zzm Chunk Indexing, part 1 (default)<br/>Ready"]
+        N2zzn["861c2zzn Chunk Indexing, part 2 (default)<br/>Ready"]
+        N2zzo["861c2zzo Chunk Indexing, part 3 (default)<br/>Ready"]
+        N2zzp["861c2zzp Controlled Vocabulary, part 1 (default)<br/>Ready"]
+        N2zzq["861c2zzq Controlled Vocabulary, part 2 (default)<br/>Ready"]
+        N2zzr["861c2zzr Vault Health, part 1 (default)<br/>Ready"]
+        N2zzs["861c2zzs Vault Health, part 2 (default)<br/>Ready"]
+        N2zzt["861c2zzt Note Writing, part 1 (default)<br/>Ready"]
+        N2zzu["861c2zzu Note Writing, part 2 (default)<br/>Ready"]
+        N2zzv["861c2zzv Note Revision, part 1 (default)<br/>Ready"]
+        N2zzw["861c2zzw Note Revision, part 2 (default)<br/>Ready"]
+        N2zzx["861c2zzx Vault Counting, part 1 (default)<br/>Ready"]
+        N2zzy["861c2zzy Vault Counting, part 2 (default)<br/>Ready"]
+        N2zzz["861c2zzz Vault Identity, part 1 (default)<br/>Ready"]
+        N2zzza["861c2zzza Vault Identity, part 2 (default)<br/>Ready"]
+        N2zzzb["861c2zzzb Curate, part 1 (default)<br/>Ready"]
+        N2zzzc["861c2zzzc Curate, part 2 (default)<br/>Ready"]
+        N2zzzd["861c2zzzd Ambient Guidance (default)<br/>Ready"]
     end
     subgraph UI["Integration tests tagged integration"]
-        N2zzzg["861c2zzzg Vault HTTP Server (integration)<br/>Blocked by: 862c1a"]
-        N2zzzh["861c2zzzh Durable File Store (integration)<br/>Blocked by: 862c1a"]
-        N2zzzi["861c2zzzi Vault Write Lock (integration)<br/>Blocked by: 862c1a"]
-        N2zzzj["861c2zzzj Route (integration)<br/>Blocked by: 862c1a"]
+        N2zzzg["861c2zzzg Vault HTTP Server (integration)<br/>Ready"]
+        N2zzzh["861c2zzzh Durable File Store (integration)<br/>Ready"]
+        N2zzzi["861c2zzzi Vault Write Lock (integration)<br/>Ready"]
+        N2zzzj["861c2zzzj Route (integration)<br/>Ready"]
     end
     subgraph UX["Instruction text-presence tests in dev"]
         N2zzzk["861c2zzzk Agent Instruction Bundle (instruction)<br/>Ready"]
@@ -141,7 +141,7 @@ flowchart LR
     D21["861d21 Scenarios covered only by pytest<br/>Open"]
     DLIVE["861d23 Live-session verification of instruction scenarios<br/>Open"]
     DRET["861d27 Scenarios retired or reversed by in-flight changes 795 and 796<br/>Open"]
-    N4a["861c4a The 858c rows and the 861 task list follow the closed gaps<br/>Partial: 861c4a5 Not started"]
+    N4a["861c4a The 858c rows and the 861 task list follow the closed gaps<br/>In progress: 4/5 entries complete"]
     N1a --> UT
     N1a --> UP
     N862a --> UI
@@ -284,7 +284,7 @@ Status: Merged (ca4c637d)
 
 #### 861c2d Self Installer, part 2 (default)
 
-Status: Merged (ca4c637d); 11 rows Done, 1 row Not started: 861c2d3, Open 861d29
+Status: Merged (ca4c637d); 11 rows Done, 1 row Not started: 861c2d3 (861d53), Open 861d52
 
 - Owner file: [Self Installer](../../specs/technical/self-installer.md) (technical component).
 - Package: `internal/update`; suggested test file: `internal/update/self_installer_part2_scenarios_test.go`.
@@ -797,7 +797,7 @@ Status: Merged (a2861018)
 
 #### 861c2za Agent Instruction Bundle (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Agent Instruction Bundle](../../specs/technical/agent-instruction-bundle.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/agent_instruction_bundle_scenarios_test.go`.
@@ -811,7 +811,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zb Durable File Store (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Durable File Store](../../specs/technical/durable-file-store.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/durable_file_store_scenarios_test.go`.
@@ -825,7 +825,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zc Luhmann Addressing (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Luhmann Addressing](../../specs/technical/luhmann-addressing.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/luhmann_addressing_scenarios_test.go`.
@@ -840,7 +840,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zd Note Authoring (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Note Authoring](../../specs/technical/note-authoring.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/note_authoring_scenarios_test.go`.
@@ -855,7 +855,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2ze Skill Source Discovery (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Skill Source Discovery](../../specs/technical/skill-source-discovery.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/skill_source_discovery_scenarios_test.go`.
@@ -871,7 +871,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zf Source Chunking (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Source Chunking](../../specs/technical/source-chunking.md) (technical component).
 - Package: `internal/chunk`; suggested test file: `internal/chunk/source_chunking_scenarios_test.go`.
@@ -886,7 +886,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zg Vault Write Lock (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Vault Write Lock](../../specs/technical/vault-write-lock.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/vault_write_lock_scenarios_test.go`.
@@ -901,7 +901,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zh Vocabulary Engine (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Vocabulary Engine](../../specs/technical/vocabulary-engine.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/vocabulary_engine_scenarios_test.go`.
@@ -916,7 +916,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zi Wikilink Graph (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Wikilink Graph](../../specs/technical/wikilink-graph.md) (technical component).
 - Package: `internal/vaultgraph`; suggested test file: `internal/vaultgraph/wikilink_graph_scenarios_test.go`.
@@ -932,7 +932,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zj Note Document Format (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Note Document Format](../../specs/technical/note-document-format.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/note_document_format_scenarios_test.go`.
@@ -946,7 +946,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zk Subprocess Runner (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Subprocess Runner](../../specs/technical/subprocess-runner.md) (technical component).
 - Package: `cmd/engram`; suggested test file: `cmd/engram/subprocess_runner_scenarios_test.go`.
@@ -961,7 +961,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zl Memory Query, part 1 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Memory Query](../../specs/product/memory-query.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/memory_query_part1_scenarios_test.go`.
@@ -1000,7 +1000,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zm Memory Query, part 2 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Memory Query](../../specs/product/memory-query.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/memory_query_part2_scenarios_test.go`.
@@ -1038,7 +1038,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zn Memory Query, part 3 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Memory Query](../../specs/product/memory-query.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/memory_query_part3_scenarios_test.go`.
@@ -1075,7 +1075,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zo Memory Query, part 4 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Memory Query](../../specs/product/memory-query.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/memory_query_part4_scenarios_test.go`.
@@ -1110,7 +1110,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zp Memory Query, part 5 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Memory Query](../../specs/product/memory-query.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/memory_query_part5_scenarios_test.go`.
@@ -1145,7 +1145,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zq Memory Query, part 6 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Memory Query](../../specs/product/memory-query.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/memory_query_part6_scenarios_test.go`.
@@ -1172,7 +1172,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zr Skill Runbook Registration, part 1 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Skill Runbook Registration](../../specs/product/skill-runbook-registration.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/skill_runbook_registration_part1_scenarios_test.go`.
@@ -1211,7 +1211,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zs Skill Runbook Registration, part 2 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Skill Runbook Registration](../../specs/product/skill-runbook-registration.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/skill_runbook_registration_part2_scenarios_test.go`.
@@ -1245,7 +1245,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zt Skill Runbook Registration, part 3 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Skill Runbook Registration](../../specs/product/skill-runbook-registration.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/skill_runbook_registration_part3_scenarios_test.go`.
@@ -1278,7 +1278,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zu Skill Runbook Registration, part 4 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Skill Runbook Registration](../../specs/product/skill-runbook-registration.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/skill_runbook_registration_part4_scenarios_test.go`.
@@ -1308,7 +1308,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zv Skill Runbook Registration, part 5 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Skill Runbook Registration](../../specs/product/skill-runbook-registration.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/skill_runbook_registration_part5_scenarios_test.go`.
@@ -1345,7 +1345,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zw Skill Runbook Registration, part 6 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Skill Runbook Registration](../../specs/product/skill-runbook-registration.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/skill_runbook_registration_part6_scenarios_test.go`.
@@ -1378,7 +1378,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zx Parent Sync, part 1 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Parent Sync](../../specs/product/parent-sync.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/parent_sync_part1_scenarios_test.go`.
@@ -1417,7 +1417,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zy Parent Sync, part 2 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Parent Sync](../../specs/product/parent-sync.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/parent_sync_part2_scenarios_test.go`.
@@ -1451,7 +1451,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zz Parent Sync, part 3 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Parent Sync](../../specs/product/parent-sync.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/parent_sync_part3_scenarios_test.go`.
@@ -1486,7 +1486,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zza Parent Sync, part 4 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Parent Sync](../../specs/product/parent-sync.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/parent_sync_part4_scenarios_test.go`.
@@ -1525,7 +1525,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzb Parent Sync, part 5 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Parent Sync](../../specs/product/parent-sync.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/parent_sync_part5_scenarios_test.go`.
@@ -1560,7 +1560,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzc Install and Update, part 1 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Install and Update](../../specs/product/install-and-update.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/install_and_update_part1_scenarios_test.go`.
@@ -1597,7 +1597,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzd Install and Update, part 2 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Install and Update](../../specs/product/install-and-update.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/install_and_update_part2_scenarios_test.go`.
@@ -1634,7 +1634,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zze Install and Update, part 3 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Install and Update](../../specs/product/install-and-update.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/install_and_update_part3_scenarios_test.go`.
@@ -1666,7 +1666,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzf Vault Serving, part 1 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Vault Serving](../../specs/product/vault-serving.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/vault_serving_part1_scenarios_test.go`.
@@ -1695,7 +1695,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzg Vault Serving, part 2 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Vault Serving](../../specs/product/vault-serving.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/vault_serving_part2_scenarios_test.go`.
@@ -1728,7 +1728,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzh Vault Serving, part 3 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Vault Serving](../../specs/product/vault-serving.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/vault_serving_part3_scenarios_test.go`.
@@ -1762,7 +1762,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzi Vault Serving, part 4 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Vault Serving](../../specs/product/vault-serving.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/vault_serving_part4_scenarios_test.go`.
@@ -1777,7 +1777,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzj Vault Migration, part 1 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Vault Migration](../../specs/product/vault-migration.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/vault_migration_part1_scenarios_test.go`.
@@ -1811,7 +1811,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzk Vault Migration, part 2 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Vault Migration](../../specs/product/vault-migration.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/vault_migration_part2_scenarios_test.go`.
@@ -1843,7 +1843,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzl Vault Migration, part 3 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Vault Migration](../../specs/product/vault-migration.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/vault_migration_part3_scenarios_test.go`.
@@ -1868,7 +1868,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzm Chunk Indexing, part 1 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Chunk Indexing](../../specs/product/chunk-indexing.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/chunk_indexing_part1_scenarios_test.go`.
@@ -1904,7 +1904,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzn Chunk Indexing, part 2 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Chunk Indexing](../../specs/product/chunk-indexing.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/chunk_indexing_part2_scenarios_test.go`.
@@ -1941,7 +1941,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzo Chunk Indexing, part 3 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Chunk Indexing](../../specs/product/chunk-indexing.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/chunk_indexing_part3_scenarios_test.go`.
@@ -1959,7 +1959,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzp Controlled Vocabulary, part 1 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Controlled Vocabulary](../../specs/product/controlled-vocabulary.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/controlled_vocabulary_part1_scenarios_test.go`.
@@ -1995,7 +1995,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzq Controlled Vocabulary, part 2 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Controlled Vocabulary](../../specs/product/controlled-vocabulary.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/controlled_vocabulary_part2_scenarios_test.go`.
@@ -2031,7 +2031,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzr Vault Health, part 1 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Vault Health](../../specs/product/vault-health.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/vault_health_part1_scenarios_test.go`.
@@ -2068,7 +2068,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzs Vault Health, part 2 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Vault Health](../../specs/product/vault-health.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/vault_health_part2_scenarios_test.go`.
@@ -2099,7 +2099,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzt Note Writing, part 1 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Note Writing](../../specs/product/note-writing.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/note_writing_part1_scenarios_test.go`.
@@ -2137,7 +2137,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzu Note Writing, part 2 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Note Writing](../../specs/product/note-writing.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/note_writing_part2_scenarios_test.go`.
@@ -2167,7 +2167,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzv Note Revision, part 1 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Note Revision](../../specs/product/note-revision.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/note_revision_part1_scenarios_test.go`.
@@ -2201,7 +2201,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzw Note Revision, part 2 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Note Revision](../../specs/product/note-revision.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/note_revision_part2_scenarios_test.go`.
@@ -2233,7 +2233,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzx Vault Counting, part 1 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Vault Counting](../../specs/product/vault-counting.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/vault_counting_part1_scenarios_test.go`.
@@ -2263,7 +2263,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzy Vault Counting, part 2 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Vault Counting](../../specs/product/vault-counting.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/vault_counting_part2_scenarios_test.go`.
@@ -2293,7 +2293,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzz Vault Identity, part 1 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Vault Identity](../../specs/product/vault-identity.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/vault_identity_part1_scenarios_test.go`.
@@ -2320,7 +2320,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzza Vault Identity, part 2 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Vault Identity](../../specs/product/vault-identity.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/vault_identity_part2_scenarios_test.go`.
@@ -2347,7 +2347,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzzb Curate, part 1 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Curate](../../specs/product/curate.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/curate_part1_scenarios_test.go`.
@@ -2378,7 +2378,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzzc Curate, part 2 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Curate](../../specs/product/curate.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/curate_part2_scenarios_test.go`.
@@ -2401,7 +2401,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzzd Ambient Guidance (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Ambient Guidance](../../specs/product/ambient-guidance.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/ambient_guidance_scenarios_test.go`.
@@ -2425,7 +2425,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzze The eight Test855d4j1_ functions of internal/auto name no scenario
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Lesson Writing](../../specs/technical/lesson-writing.md) (technical component), group [855d4j1 Scenarios](../../specs/technical/lesson-writing.md#855d4j1-scenarios).
 - Package: `internal/auto`; the tests stay in the file that holds them.
@@ -2445,7 +2445,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzzf The two Test855d4j1_ functions of internal/cli name no scenario
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: Ready
 
 - Owner file: [Lesson Writing](../../specs/technical/lesson-writing.md) (technical component), group [855d4j1 Scenarios](../../specs/technical/lesson-writing.md#855d4j1-scenarios).
 - Package: `internal/cli`; the tests stay in the file that holds them.
@@ -2459,7 +2459,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2zzzg Vault HTTP Server (integration)
 
-Status: Blocked by: [862c1a The command that runs every integration-tagged test](../862_test-suite-classification/862c_implementation-plan.md#862c1a-the-command-that-runs-every-integration-tagged-test)
+Status: Ready
 
 - Owner file: [Vault HTTP Server](../../specs/technical/vault-http-server.md) (technical component).
 - Package: `cmd/engram`; suggested test file: `cmd/engram/serve_header_integration_test.go` (tag `integration`).
@@ -2474,7 +2474,7 @@ Status: Blocked by: [862c1a The command that runs every integration-tagged test]
 
 #### 861c2zzzh Durable File Store (integration)
 
-Status: Blocked by: [862c1a The command that runs every integration-tagged test](../862_test-suite-classification/862c_implementation-plan.md#862c1a-the-command-that-runs-every-integration-tagged-test)
+Status: Ready
 
 - Owner file: [Durable File Store](../../specs/technical/durable-file-store.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/durable_file_store_integration_test.go` (tag `integration`).
@@ -2488,7 +2488,7 @@ Status: Blocked by: [862c1a The command that runs every integration-tagged test]
 
 #### 861c2zzzi Vault Write Lock (integration)
 
-Status: Blocked by: [862c1a The command that runs every integration-tagged test](../862_test-suite-classification/862c_implementation-plan.md#862c1a-the-command-that-runs-every-integration-tagged-test)
+Status: Ready
 
 - Owner file: [Vault Write Lock](../../specs/technical/vault-write-lock.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/vault_write_lock_integration_test.go` (tag `integration`).
@@ -2502,7 +2502,7 @@ Status: Blocked by: [862c1a The command that runs every integration-tagged test]
 
 #### 861c2zzzj Route (integration)
 
-Status: Blocked by: [862c1a The command that runs every integration-tagged test](../862_test-suite-classification/862c_implementation-plan.md#862c1a-the-command-that-runs-every-integration-tagged-test)
+Status: Ready
 
 - Owner file: [Route](../../specs/product/route.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/route_integration_test.go` (tag `integration`).
@@ -3421,16 +3421,17 @@ Status: Blocked by: [861d27 Scenarios retired or reversed by in-flight changes 7
 
 #### 861c4a The 858c rows and the 861 task list follow the closed gaps
 
-Status: Partial; 861c4a1 to 861c4a4 Done, 861c4a5 Not started (its issue is outside the brief of the closing pass)
+Status: In progress: 4/5 entries complete
 
+- This pass ran ahead of those 80 unrun nodes; 861c4a1 to 861c4a3 run again as they land. 861c4a5 waits for the owner's go-ahead to file its issue.
 - Rules: change only the verdict and issue cells of the audit rows and the counts; leave decision-log text and old-name lists untouched (WORKFLOW 551-553, 606-607). See [861d13 Closing node: the 858c rows and the #861 task list](./861d_questions-and-decisions.md#questions-and-decisions).
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
 | 861c4a1 | For each owner file whose gaps closed, change the verdict and the issue cell of its audit rows in [858c1 Migration and verification nodes](../858_documentation-framework-adoption/858c_implementation-plan.md#858c1-migration-and-verification-nodes); an instruction-class scenario verified only by a text-presence test keeps its audit row `unclear` and on #861 until [858d88 M24g Four skill-rule scenarios are verified by text-presence tests](../858_documentation-framework-adoption/858d_questions-and-decisions.md#questions-and-decisions) is answered ([861d4 Instruction scenarios are verified by text-presence tests](./861d_questions-and-decisions.md#questions-and-decisions)) | Action | WORKFLOW 606-607. Evidence: `logs/closing/catalog-after.md` (`gen_catalog.py` over the tree at d9f9869d); 22 owner files changed, 252 scenarios closed: 19 owner files at no scenario without a test (audit row verdict `match`, issue cell `-`); 3 reduced and still `unclear` on #861 (858c1zl5 self-installer 1, 858c1zw6 vault-http-server 1, 858c1g6 command-line-surface 2); the four scenarios still uncovered in those three files are 792b28c1a4 (#831, 861c2d3), 792b2c5a2 (861d29, #864), 792b2c3a2 (blocked by change 795, 861c3l5) and 792b35c3a4 (node 861c2zzzg, not run); no instruction-class row was touched, none of those nodes ran | Done |
-| 861c4a2 | Update the counts of [858c2a Scenarios without a test, by owner file](../858_documentation-framework-adoption/858c_implementation-plan.md#858c2a-scenarios-without-a-test-by-owner-file) and [858c2b Test functions whose ID is in no spec](../858_documentation-framework-adoption/858c_implementation-plan.md#858c2b-test-functions-whose-id-is-in-no-spec), and add a row for the count after the last node to [858c3a Shared evidence](../858_documentation-framework-adoption/858c_implementation-plan.md#858c3a-shared-evidence), leaving the dated rows as they are | Action | WORKFLOW 551-553, 606-607. Evidence: 858c2a: 22 rows and the totals sentence (3562 scenarios, 2159 with a test, 1403 without); 858c2b: 15 rows and the count (34 functions), the tests of the new `dev` targets, whose IDs are scenarios of changes 861 and 862; 858c3a8 added; the dated rows are untouched; the audit rows that count scenarios with a test keep the counts and file lists recorded at 5e6752b2 | Done |
+| 861c4a2 | Update the counts of [858c2a Scenarios without a test, by owner file](../858_documentation-framework-adoption/858c_implementation-plan.md#858c2a-scenarios-without-a-test-by-owner-file) and [858c2b Test functions whose ID is in no spec](../858_documentation-framework-adoption/858c_implementation-plan.md#858c2b-test-functions-whose-id-is-in-no-spec), and add a row for the count after the last node to [858c3a Shared evidence](../858_documentation-framework-adoption/858c_implementation-plan.md#858c3a-shared-evidence), leaving the dated rows as they are | Action | WORKFLOW 551-553, 606-607. Evidence: 858c2a: 22 rows, the per-file lists (19 entries dropped, 3 cut) and the totals sentence (3562 scenarios, 2159 with a test, 1403 without); 858c2c: the counts of `targ` (12) and `targ && integration` (9); 858c2b: 15 rows and the count (34 functions), the tests of the new `dev` targets, whose IDs are scenarios of changes 861 and 862; 858c3a8 added; the dated rows are untouched; the counts of the audit rows that count scenarios with a test follow the catalog, their file lists keep what 5e6752b2 recorded | Done |
 | 861c4a3 | Update the task list of [#861](https://github.com/toejough/engram/issues/861) (`gh issue edit`) to the scenarios still without a test | Action | WORKFLOW 606-607. Evidence: body of #861 edited: 19 owner-file items marked `[x]`, every other line verbatim (diff in `logs/closing/issue-861-body.md` against `issue-861-old.md`); the three partly covered files keep their items open because an item is one owner file; comment on #861 with the counts, the nodes and the issues | Done |
-| 861c4a4 | Set the statuses of the nodes and rows in this plan to the verified checkpoint | Action | WORKFLOW 237-238. Evidence: 27 nodes Merged (861c1a, 861c2a to 861c2z), 861c3k Complete, 861c4a Partial; the rows of the merged nodes were set by their nodes; 18 default and integration nodes (861c2zzzk to 861c2zzzzb) stay Ready and the blocked nodes of 861c3 stay Blocked | Done |
+| 861c4a4 | Set the statuses of the nodes and rows in this plan to the verified checkpoint | Action | WORKFLOW 237-238. Evidence: 27 nodes Merged (861c1a, 861c2a to 861c2z), 861c3k Complete, 861c4a In progress: 4/5 entries complete; the rows of the merged nodes were set by their nodes; the 58 default nodes (861c2za to 861c2zzzf), the 4 integration nodes (861c2zzzg to 861c2zzzj) and the 18 instruction nodes (861c2zzzk to 861c2zzzzb) are Ready and unrun, and the blocked nodes of 861c3 stay Blocked | Done |
 | 861c4a5 | File one issue for the required-behavior and provider-compatibility gaps of 51 technical files and point the issue cell of the 51 audit rows that cite [858d96 Required behavior is absent in all 56 technical files](../858_documentation-framework-adoption/858d_questions-and-decisions.md#questions-and-decisions) and #861 to it | Action | [861d2 Scope of the run](./861d_questions-and-decisions.md#questions-and-decisions) | Not started |
 
 ## 861c5 Evidence and status
