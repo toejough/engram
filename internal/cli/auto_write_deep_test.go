@@ -195,6 +195,23 @@ func Test861b4zzzf1a_WriteDeep_AFailedAmendAndAFailedLearnAreRecordedAndALessonT
 
 	g.Expect(err).NotTo(HaveOccurred(), "the failures are recorded")
 	g.Expect(records.kinds()).To(ConsistOf("skipped", "failed", "failed"))
+
+	failedSlugs, failedReasons := make([]any, 0, z861c2FailedRecords), make([]any, 0, z861c2FailedRecords)
+
+	for _, record := range records.all() {
+		if record["kind"] == "skipped" {
+			g.Expect(record["slug"]).To(Equal("production-cutover-freeze"), "the covered lesson is the one skipped")
+
+			continue
+		}
+
+		failedSlugs = append(failedSlugs, record["slug"])
+		failedReasons = append(failedReasons, record["reason"])
+	}
+
+	g.Expect(failedSlugs).To(ConsistOf("another", BeNil()),
+		"the other lesson's learn path failed, and the amend has no slug")
+	g.Expect(failedReasons).To(ContainElement(HavePrefix("amending " + freezeNote.ID)))
 }
 
 func Test861b4zzzf1b_WriteDeep_NothingOutsideTheCarryIsWritten(t *testing.T) {
@@ -230,6 +247,11 @@ func Test861b4zzzf1b_WriteDeep_NothingOutsideTheCarryIsWritten(t *testing.T) {
 		}
 	})
 }
+
+// unexported constants.
+const (
+	z861c2FailedRecords = 2
+)
 
 // unexported variables.
 var (

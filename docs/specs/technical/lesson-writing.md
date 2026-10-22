@@ -220,14 +220,14 @@ Scenario: 855d4j1h A carry that is not of depth deep writes nothing
   Then nothing is written or amended, and one record, of the kind skipped, says why
 
 Scenario: 861b4zzzf1a An amend and a learn path that fail are recorded as failed, and a lesson the vault states is skipped
-  Given a carry of depth deep that holds a note, and a reply that gives the note the verdict covered and holds a lesson the note covers and a whole lesson no note covers, and an amend and a learn path that both fail
+  Given a carry of depth deep that holds a note and a passage, and a reply that gives the note the verdict covered and lists the passage, and holds a lesson the note covers and a whole lesson no note covers, and an amend and a learn path that both fail
   When the writing is given the reply
   Then the command succeeds, and the records are one of the kind skipped for the lesson the note covers and one of the kind failed for each of the amend and the learn path
 
 Scenario: 861b4zzzf1b Nothing outside the carry is written
-  Given a carry of depth deep that holds a note and a passage, and any reply: any candidate ID with any verdict and chunk IDs, and a lesson with any chunk IDs and any superseded note
+  Given a carry of depth deep that holds a note and a passage, and any reply: any candidate ID with any verdict, any chunk IDs and no fields, and a lesson with any chunk IDs and any superseded note
   When the writing is given the reply
-  Then the one note written has only the passage of the carry as a chunk source and supersedes only the note of the carry, and the note of the carry is amended exactly when the reply gives it the verdict covered or near and lists the passage, with that passage as the only chunk source
+  Then the one note written has as chunk sources only the passage of the carry, when the lesson lists it, and supersedes at most the note of the carry, and the note of the carry is amended exactly when the reply gives it the verdict covered or near and lists the passage, with that passage as the only chunk source
 ```
 
 ## Shared requirements
