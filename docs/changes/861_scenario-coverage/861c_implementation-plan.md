@@ -187,7 +187,7 @@ Status: Ready
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c1a6 | Update the surfaces that list the approved commands, per file: `AGENTS.md` Language and toolchain: update; `AGENTS.md` Code Quality Tests line: update (add `targ test-pkg <package> [--run REGEXP]`); `AGENTS.md` Test suites table: add a row for pure dev tooling (tag `targ`, command `targ test-dev`); `README.md` Development: update; `docs/GLOSSARY.md` Targ: keep (it names only `targ test` and `targ check-full`); `docs/ROADMAP.md` and `.claude/skills/engram-go-conventions.md` ("eight legs", "ALL 8 gates"): not applicable, already stale and outside this change | Action | [861d7 Per-step test command](./861d_questions-and-decisions.md#questions-and-decisions) | Not started |
+| 861c1a6 | Update the surfaces that list the approved commands, per file: `AGENTS.md` Language and toolchain: update; `AGENTS.md` Code Quality Tests line: update (add `targ test-pkg <package> [--run REGEXP]`); `AGENTS.md` Test suites table: add a row for pure dev tooling (tag `targ`, command `targ test-dev`); `README.md` Development: update; `docs/GLOSSARY.md` Targ: keep (it names only `targ test` and `targ check-full`); `docs/ROADMAP.md` and `.claude/skills/engram-go-conventions.md` ("eight legs", "ALL 8 gates"): not applicable, already stale and outside this change | Action | [861d7 Per-step test command](./861d_questions-and-decisions.md#questions-and-decisions) | Done |
 | 861c1a7 | Run `targ test` and `targ check-full` on `main` after the merge of this node, before any default node starts | Action | [861d10 Milestones and the push](./861d_questions-and-decisions.md#questions-and-decisions) | Not started |
 
 ### 861c2 Scenario tests by owner file and package

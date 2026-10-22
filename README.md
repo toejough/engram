@@ -168,6 +168,8 @@ agent-instructions/
 - `go install ./cmd/engram` — install the binary (targ has no `build` target; it covers check/test/lint only)
 - `targ test` — run unit + integration tests
 - `targ test-pkg <package> [--run REGEXP]` — run the tests of one package (`go test -race`), only those matching `--run` when it is given
+- `targ test-integration-all` — run every `integration`-tagged test of the module (`check-full` runs it too)
+- `targ test-parity` — run the real-model parity tests of the embedder (build tag `parity`; part of no check)
 - `targ check-full` — lint + coverage (use this to see ALL errors at once); it needs `node` on the PATH, to parse and run the JavaScript of the mods
 - `targ acceptance [--run REGEXP]` — run the tests that drive a real Claude Code session in an isolated home (they need a login token and cost money, so `targ check-full` does not run them)
 - Never run `go test` / `go build` / `go vet` directly — use `targ`
