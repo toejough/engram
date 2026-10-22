@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -40,7 +39,7 @@ func Test792a20g1a_ServeLearn_AnAmendBeforeCurationUpdatesThePendingOffer(t *tes
 	t.Parallel()
 	g := NewWithT(t)
 
-	deps := vs2Deps()
+	deps := vs1ServerDeps()
 	vault := newServeVault(t)
 
 	_, created := vs2Offer(t, deps, vault, vs2Fact("offered", "first object", "first"))
@@ -70,7 +69,7 @@ func Test792a20g1b_ServeLearn_ADuplicateKeyWritesNothing(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	deps := vs2Deps()
+	deps := vs1ServerDeps()
 	vault := newServeVault(t)
 	args := vs2Fact("offered", "the object", "only")
 
@@ -92,7 +91,7 @@ func Test792a20g1c_ServeLearn_ARetryAfterAcceptanceWritesNothing(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	deps := vs2Deps()
+	deps := vs1ServerDeps()
 	vault := newServeVault(t)
 	args := vs2Fact("accepted", "the object", "key-one")
 
@@ -121,7 +120,7 @@ func Test792a20g1d_ServeLearn_ALateRetryNeverRevertsANewerAmend(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	deps := vs2Deps()
+	deps := vs1ServerDeps()
 	vault := newServeVault(t)
 	older := vs2Fact("offered", "older object", "k1")
 
@@ -153,7 +152,7 @@ func Test792a20g1e_ServeLearn_ALateRetryOfASupersededKeyNeverRevertsTheNote(t *t
 	t.Parallel()
 	g := NewWithT(t)
 
-	deps := vs2Deps()
+	deps := vs1ServerDeps()
 	vault := newServeVault(t)
 	older := vs2Fact("offered", "older object", "k1")
 
@@ -182,7 +181,7 @@ func Test792a20g1f_ServeLearn_ANewKeyFromAnAcceptedOriginMakesANewPendingNote(t 
 	t.Parallel()
 	g := NewWithT(t)
 
-	deps := vs2Deps()
+	deps := vs1ServerDeps()
 	vault := newServeVault(t)
 
 	_, accepted := vs2Offer(t, deps, vault, vs2Fact("accepted", "the object", "k1"))
@@ -211,7 +210,7 @@ func Test792a20g1g_ServeLearn_NoCrossOriginOverwrite(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	deps := vs2Deps()
+	deps := vs1ServerDeps()
 	vault := newServeVault(t)
 
 	fromA := vs2Fact("from-a", "object of a", "key-a")
@@ -247,7 +246,7 @@ func Test792a20g1h_ServeLearn_AnAmendOfferNamesALiveTarget(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	deps := vs2Deps()
+	deps := vs1ServerDeps()
 	vault := newServeVault(t)
 
 	vs2LearnLive(t, deps, vault, "bystander")
@@ -282,7 +281,7 @@ func Test792a20g1i_ServeLearn_ARenamedTargetResolvesThroughItsAliases(t *testing
 	t.Parallel()
 	g := NewWithT(t)
 
-	deps := vs2Deps()
+	deps := vs1ServerDeps()
 	vault := newServeVault(t)
 
 	vs2LearnLive(t, deps, vault, "renamed")
@@ -304,13 +303,13 @@ func Test792a20g1i_ServeLearn_ARenamedTargetResolvesThroughItsAliases(t *testing
 
 // Test792a20g1j_ServeLearn_AnUnresolvableTargetIsDropped verifies 792a20g1j (An unresolvable target is dropped): an
 // offer.for that names no live note, no alias and no pending note is dropped, and the new pending note carries no
-// offer.for. Near misses sit in the vault (a live note whose basename only starts with the name, a pending note of
-// another name) so a loose match would resolve.
+// offer.for. Near misses sit in the vault (a live note whose basename differs from the name only in its last
+// characters, a pending note of another name) so a loose match would resolve.
 func Test792a20g1j_ServeLearn_AnUnresolvableTargetIsDropped(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	deps := vs2Deps()
+	deps := vs1ServerDeps()
 	vault := newServeVault(t)
 
 	vs2LearnLive(t, deps, vault, "near-miss")
@@ -348,7 +347,7 @@ func Test792a20g1k_ServeLearn_PriorKeysAreBounded(t *testing.T) {
 		lastKeyTag = rewrites - 1
 	)
 
-	deps := vs2Deps()
+	deps := vs1ServerDeps()
 	vault := newServeVault(t)
 
 	var receipt receiptBody
@@ -386,7 +385,7 @@ func Test792a20g1l_ServeLearn_AnUnreadableNoteFailsTheRequest(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
-		deps := vs2Deps()
+		deps := vs1ServerDeps()
 		vault := newServeVault(t)
 
 		_, pending := vs2Offer(t, deps, vault, vs2Fact("offered", "first object", "key-one"))
@@ -408,7 +407,7 @@ func Test792a20g1l_ServeLearn_AnUnreadableNoteFailsTheRequest(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
-		deps := vs2Deps()
+		deps := vs1ServerDeps()
 		vault := newServeVault(t)
 
 		_, pending := vs2Offer(t, deps, vault, vs2Fact("offered", "first object", "key-one"))
@@ -491,7 +490,7 @@ func Test792a20h1b_ServeLearn_AMalformedOrOversizedPathIsRejected(t *testing.T) 
 		vault := newServeVault(t)
 		offer := cli.LearnOffer{Origin: childOrigin, Key: vs2Key("k1"), Path: vs2PathOf(allowed)}
 
-		resp, receipt := vs2Offer(t, vs2Deps(), vault, offeredFact("accepted", "object", offer))
+		resp, receipt := vs2Offer(t, vs1ServerDeps(), vault, offeredFact("accepted", "object", offer))
 		g.Expect(resp.Status).To(Equal(vs1StatusOK), string(resp.Body))
 		g.Expect(receipt.Pending).To(BeTrue())
 	})
@@ -586,7 +585,7 @@ func Test792a20h1e_ServeLearn_InvalidNoteContentIsAClientError(t *testing.T) {
 			args := vs2Fact("invalid", "object", "k1")
 			mutate(&args)
 
-			resp, _ := vs2Offer(t, vs2Deps(), vault, args)
+			resp, _ := vs2Offer(t, vs1ServerDeps(), vault, args)
 			g.Expect(resp.Status).To(Equal(vs1StatusBadRequest), string(resp.Body))
 			g.Expect(snapshotVault(t, vault)).To(Equal(before), "nothing is written")
 		})
@@ -612,7 +611,7 @@ func Test792a20i1a_ServeLearn_PlacementIsIgnored(t *testing.T) {
 			args := vs2Fact("placed", "object", "k1")
 			args.Target, args.Position = "12", position
 
-			resp, receipt := vs2Offer(t, vs2Deps(), vault, args)
+			resp, receipt := vs2Offer(t, vs1ServerDeps(), vault, args)
 			g.Expect(resp.Status).To(Equal(vs1StatusOK), string(resp.Body))
 			g.Expect(receipt.Luhmann).To(Equal("13"), "the next top-level ID, not a child of 12")
 			g.Expect(receipt.Basename).To(HavePrefix("13."))
@@ -628,7 +627,7 @@ func Test792a20i1b_ServeLearn_WireTagsAreDropped(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	deps := vs2Deps()
+	deps := vs1ServerDeps()
 	vault := newServeVault(t)
 
 	first := vs2Fact("tagged", "first object", "k1")
@@ -718,12 +717,6 @@ func vs2Accept(t *testing.T, deps cli.Deps, vault string, receipt receiptBody) {
 	if amendErr != nil {
 		t.Fatalf("accepting %s: %v", receipt.Basename, amendErr)
 	}
-}
-
-// vs2Deps is the served node's deps: real files and locks, the stub embedder, the fixed clock and a scripted git
-// that resolves to the server's own identity.
-func vs2Deps() cli.Deps {
-	return vs1ServerDeps()
 }
 
 // vs2Fact is a served learn body for a fact offered by the child vault of childOrigin, with the offer record the
@@ -831,7 +824,7 @@ func vs2Refuse(t *testing.T, vault string, offer cli.LearnOffer) vs2Refusal {
 
 	before := snapshotVault(t, vault)
 
-	resp, _ := vs2Offer(t, vs2Deps(), vault, offeredFact("refused", "object", offer))
+	resp, _ := vs2Offer(t, vs1ServerDeps(), vault, offeredFact("refused", "object", offer))
 
 	var fields map[string]any
 
@@ -856,29 +849,7 @@ func vs2Rename(t *testing.T, vault, oldName string) string {
 	_, rest, _ := strings.Cut(oldName, ".")
 	newName := newID + "." + rest
 
-	deps := cli.RenameRewriteDeps{
-		ListMD: func(dir string) ([]string, error) {
-			entries, err := os.ReadDir(dir)
-			if err != nil {
-				return nil, fmt.Errorf("listing %s: %w", dir, err)
-			}
-
-			names := make([]string, 0, len(entries))
-
-			for _, entry := range entries {
-				if strings.HasSuffix(entry.Name(), ".md") {
-					names = append(names, entry.Name())
-				}
-			}
-
-			return names, nil
-		},
-		ReadFile:  os.ReadFile,
-		WriteFile: func(path string, data []byte) error { return os.WriteFile(path, data, 0o600) },
-		Rename:    os.Rename,
-	}
-
-	_, renameErr := cli.RenameAndRewriteReferences(deps, vault,
+	_, renameErr := cli.RenameAndRewriteReferences(ps2RenameDeps(), vault,
 		map[string]string{oldName: newName})
 	if renameErr != nil {
 		t.Fatalf("renaming %s: %v", oldName, renameErr)
