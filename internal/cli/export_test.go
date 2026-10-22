@@ -998,6 +998,15 @@ func ExportNewUpdateDepsWithSpawnAndSkillReg(
 	return updateDeps{FS: fs, Cmd: cmd, Env: env, Spawn: spawn, Exit: exit, SkillReg: skillReg}
 }
 
+// ExportNewUpdateDepsWithSpawnAndVocab is ExportNewUpdateDepsWithSpawn plus an explicit VocabDeps, for tests driving
+// `engram update --regen-vocab` through the re-exec hand-off.
+func ExportNewUpdateDepsWithSpawnAndVocab(
+	fs update.Filesystem, cmd update.Commander, env update.Env, spawn update.Spawner, exit func(int),
+	vocab VocabDeps,
+) updateDeps {
+	return updateDeps{FS: fs, Cmd: cmd, Env: env, Spawn: spawn, Exit: exit, Vocab: vocab}
+}
+
 // ExportNewVaultFS returns the pure EdgeFS→vaultgraph.VaultFS adapter.
 func ExportNewVaultFS(fsys EdgeFS) interface {
 	ListMD(dir string) ([]string, error)
