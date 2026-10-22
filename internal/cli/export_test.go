@@ -950,6 +950,15 @@ func ExportNewUpdateDepsWithSpawn(
 	return updateDeps{FS: fs, Cmd: cmd, Env: env, Spawn: spawn, Exit: exit}
 }
 
+// ExportNewUpdateDepsWithSpawnAndReparent is ExportNewUpdateDepsWithSpawn plus an explicit ReparentDeps, for tests
+// observing that a real update without --reparent-luhmann never calls the re-parenting (792b28c10a8).
+func ExportNewUpdateDepsWithSpawnAndReparent(
+	fs update.Filesystem, cmd update.Commander, env update.Env, spawn update.Spawner, exit func(int),
+	reparent ReparentDeps,
+) updateDeps {
+	return updateDeps{FS: fs, Cmd: cmd, Env: env, Spawn: spawn, Exit: exit, Reparent: reparent}
+}
+
 // ExportNewVaultFS returns the pure EdgeFS→vaultgraph.VaultFS adapter.
 func ExportNewVaultFS(fsys EdgeFS) interface {
 	ListMD(dir string) ([]string, error)

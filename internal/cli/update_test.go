@@ -969,17 +969,6 @@ func Test792b28c13a2_WriteUpdateReport_VocabSelfTagHint(t *testing.T) {
 	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{VaultHasUntaggedVocabDefinitions: false})
 	g.Expect(cleanErr).NotTo(HaveOccurred())
 	g.Expect(clean.String()).NotTo(ContainSubstring("self-tag"))
-
-	// Coexists with the other upgrade notices.
-	var both bytes.Buffer
-
-	bothErr := cli.ExportWriteUpdateReport(&both, update.Report{
-		VaultHasOldVocabFiles:            true,
-		VaultHasUntaggedVocabDefinitions: true,
-	})
-	g.Expect(bothErr).NotTo(HaveOccurred())
-	g.Expect(both.String()).To(ContainSubstring("old-format vocab"))
-	g.Expect(both.String()).To(ContainSubstring("vocab tag-definitions"))
 }
 
 func Test792b28c13a3_WriteUpdateReport_LuhmannBranchingHint(t *testing.T) {
@@ -1022,17 +1011,6 @@ func Test792b28c13a4_WriteUpdateReport_EmptyChunkHint(t *testing.T) {
 	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{ChunkIndexHasEmptyFiles: false})
 	g.Expect(cleanErr).NotTo(HaveOccurred())
 	g.Expect(clean.String()).NotTo(ContainSubstring("empty chunk-index"))
-
-	// Both notices coexist when both conditions hold.
-	var both bytes.Buffer
-
-	bothErr := cli.ExportWriteUpdateReport(&both, update.Report{
-		VaultHasOldVocabFiles:   true,
-		ChunkIndexHasEmptyFiles: true,
-	})
-	g.Expect(bothErr).NotTo(HaveOccurred())
-	g.Expect(both.String()).To(ContainSubstring("empty chunk-index"))
-	g.Expect(both.String()).To(ContainSubstring("old-format vocab"))
 }
 
 // Test792b28c13a5_WriteUpdateReport_DuplicatesHint asserts Unit 5's detect-and-notify
@@ -1059,17 +1037,6 @@ func Test792b28c13a5_WriteUpdateReport_DuplicatesHint(t *testing.T) {
 	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{ChunkIndexHasPrunableDuplicates: false})
 	g.Expect(cleanErr).NotTo(HaveOccurred())
 	g.Expect(clean.String()).NotTo(ContainSubstring("duplicate"))
-
-	// Coexists with the other upgrade notices.
-	var both bytes.Buffer
-
-	bothErr := cli.ExportWriteUpdateReport(&both, update.Report{
-		ChunkIndexHasEmptyFiles:         true,
-		ChunkIndexHasPrunableDuplicates: true,
-	})
-	g.Expect(bothErr).NotTo(HaveOccurred())
-	g.Expect(both.String()).To(ContainSubstring("empty chunk-index"))
-	g.Expect(both.String()).To(ContainSubstring("prune --duplicates"))
 }
 
 // Test792b28c13a3_WriteUpdateReport_LuhmannBranchingHint pins the detect-and-notify

@@ -94,6 +94,25 @@ func Test792b28c10a8_RunUpdate_PlainUpdate_NeverCallsTheReparenting(t *testing.T
 		g.Expect(stdout.String()).NotTo(ContainSubstring("next_command"))
 	})
 
+	t.Run("a real plain update leaves the re-parenting alone", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+
+		calls := &si1CallCounter{}
+		spawner := &si1ArgsSpawner{}
+		deps := cli.ExportNewUpdateDepsWithSpawnAndReparent(
+			si1VaultOfSimilarNotes(), stubCommander{}, reexecEnv{home: reexecHome, cwd: "/repo"}, spawner,
+			func(int) {}, si1ReparentDeps(calls),
+		)
+
+		err := cli.ExportRunUpdate(context.Background(), cli.UpdateArgs{}, deps, &bytes.Buffer{})
+		g.Expect(err).NotTo(HaveOccurred())
+
+		g.Expect(spawner.spawned()).NotTo(BeEmpty(), "the run is a real one: it reaches the hand-off")
+		g.Expect(calls.count()).To(BeZero(), "no re-parenting capability may be called")
+	})
+
 	t.Run("the same deps are called when the flag is given", func(t *testing.T) {
 		t.Parallel()
 
@@ -201,9 +220,10 @@ func Test792b28c13a7_WriteUpdateReport_NoticesCoexist(t *testing.T) {
 	var buffer bytes.Buffer
 
 	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{
-		ChunkIndexHasEmptyFiles:         true,
-		ChunkIndexHasPrunableDuplicates: true,
-		VaultHasOldVocabFiles:           true,
+		ChunkIndexHasEmptyFiles:          true,
+		ChunkIndexHasPrunableDuplicates:  true,
+		VaultHasOldVocabFiles:            true,
+		VaultHasUntaggedVocabDefinitions: true,
 	})
 	g.Expect(writeErr).NotTo(HaveOccurred())
 
@@ -211,6 +231,7 @@ func Test792b28c13a7_WriteUpdateReport_NoticesCoexist(t *testing.T) {
 	g.Expect(out).To(ContainSubstring("empty chunk-index files found"))
 	g.Expect(out).To(ContainSubstring("duplicate chunk-index files found"))
 	g.Expect(out).To(ContainSubstring("old-format vocab files found"))
+	g.Expect(out).To(ContainSubstring("vocab tag-definitions"))
 }
 
 // Test792b28c13a8_WriteUpdateReport_NoticesFollowAFixedOrder verifies 792b28c13a8: with every notice flagged, the
