@@ -652,7 +652,7 @@ Status: In progress: 0/8 entries complete (8 rows Green-single)
 
 #### 861c2s Pending Offer Bookkeeping (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: In progress: 0/8 entries complete (8 rows Green-single)
 
 - Owner file: [Pending Offer Bookkeeping](../../specs/technical/pending-offer-bookkeeping.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/pending_offer_bookkeeping_scenarios_test.go`.
@@ -662,14 +662,14 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2s1 | [792b34c3a2 A vault of normal notes is not flagged](../../specs/technical/pending-offer-bookkeeping.md#792b34c3a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2s2 | [792b34c3a3 A missing vault directory is silent](../../specs/technical/pending-offer-bookkeeping.md#792b34c3a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2s3 | [792b34c3a5 The nudge is silent without pending offers](../../specs/technical/pending-offer-bookkeeping.md#792b34c3a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2s4 | [792b34c3a6 A missing dependency makes the check a no-op](../../specs/technical/pending-offer-bookkeeping.md#792b34c3a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2s5 | [792b34c5a4 A hash that cannot be computed fails](../../specs/technical/pending-offer-bookkeeping.md#792b34c5a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2s6 | [792b34c7a1 An existing link keeps its role and takes the offer's hash](../../specs/technical/pending-offer-bookkeeping.md#792b34c7a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2s7 | [792b34c7a2 A vault switch drops the links under the old vault](../../specs/technical/pending-offer-bookkeeping.md#792b34c7a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2s8 | [792b34c8a2 No header without an xid](../../specs/technical/pending-offer-bookkeeping.md#792b34c8a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2s1 | [792b34c3a2 A vault of normal notes is not flagged](../../specs/technical/pending-offer-bookkeeping.md#792b34c3a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b34c3a2_VaultHasPendingOffers_NormalNotesNotFlagged (internal/cli/pending_offer_bookkeeping_scenarios_test.go); mutation returning true at the end of the vault scan fails it (b05/861c2s/mutA.log); passes in b05/861c2s/3.log | Green-single |
+| 861c2s2 | [792b34c3a3 A missing vault directory is silent](../../specs/technical/pending-offer-bookkeeping.md#792b34c3a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b34c3a3_VaultHasPendingOffers_MissingDirectoryIsSilent (internal/cli/pending_offer_bookkeeping_scenarios_test.go); a missing and an unreadable directory; mutation returning true on a failed directory read fails it (b05/861c2s/mutA.log); passes in b05/861c2s/3.log | Green-single |
+| 861c2s3 | [792b34c3a5 The nudge is silent without pending offers](../../specs/technical/pending-offer-bookkeeping.md#792b34c3a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b34c3a5_WarnIfPendingOffers_SilentWithoutPendingOffers (internal/cli/pending_offer_bookkeeping_scenarios_test.go); also asserts every note was read; mutation making the nudge log unconditionally fails it (b05/861c2s/mutA.log); passes in b05/861c2s/3.log | Green-single |
+| 861c2s4 | [792b34c3a6 A missing dependency makes the check a no-op](../../specs/technical/pending-offer-bookkeeping.md#792b34c3a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b34c3a6_WarnIfPendingOffers_MissingDependencyIsNoOp (internal/cli/pending_offer_bookkeeping_scenarios_test.go); each of lister, reader and logger missing, plus a failing lister; mutation dropping the lister nil guard panics it (b05/861c2s/mutB.log); passes in b05/861c2s/3.log | Green-single |
+| 861c2s5 | [792b34c5a4 A hash that cannot be computed fails](../../specs/technical/pending-offer-bookkeeping.md#792b34c5a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b34c5a4_RunAmend_UncomputableHashFails (internal/cli/pending_offer_bookkeeping_scenarios_test.go); clear-pending, discard, discard-into and activate over an unparseable note; mutation ignoring the hash error fails the discard case (b05/861c2s/mutA.log); passes in b05/861c2s/3.log | Green-single |
+| 861c2s6 | [792b34c7a1 An existing link keeps its role and takes the offer's hash](../../specs/technical/pending-offer-bookkeeping.md#792b34c7a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b34c7a1_RunAmend_FoldKeepsLinkRoleAndTakesOfferHash (internal/cli/pending_offer_bookkeeping_scenarios_test.go); mutation dropping the take-over of the offer's hash fails it (b05/861c2s/mut1.log); passes in b05/861c2s/3.log | Green-single |
+| 861c2s7 | [792b34c7a2 A vault switch drops the links under the old vault](../../specs/technical/pending-offer-bookkeeping.md#792b34c7a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b34c7a2_RunAmend_FoldVaultSwitchDropsOldVaultLinks (internal/cli/pending_offer_bookkeeping_scenarios_test.go); mutation keeping E's links across a vault switch fails it (b05/861c2s/mut1.log); passes in b05/861c2s/3.log | Green-single |
+| 861c2s8 | [792b34c8a2 No header without an xid](../../specs/technical/pending-offer-bookkeeping.md#792b34c8a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b34c8a2_Show_NoHeaderWithoutXID (internal/cli/pending_offer_bookkeeping_scenarios_test.go); output equals the note plus the outbound-links tail; mutation printing the header without an xid fails it (b05/861c2s/mutA.log); passes in b05/861c2s/3.log | Green-single |
 
 #### 861c2t Runbook Trigger Matching (default)
 
