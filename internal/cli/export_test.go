@@ -173,6 +173,7 @@ var (
 	ExportNoteHasPendingMarker       = noteHasPendingMarker
 	ExportNotesMissingIdentityFields = notesMissingIdentityFields
 	ExportOldVocabFilesPresent       = oldVocabFilesPresent
+	ExportOutboxNotice               = outboxNotice
 	ExportParentBase                 = parentBase
 	ExportParseCreatedFromNote       = parseCreatedFromNote
 	ExportParseNoteQueryFrontmatter  = parseNoteQueryFrontmatter
