@@ -70,10 +70,10 @@ const (
 	// parityPackage holds the real-model parity tests, which carry the parity build tag.
 	parityPackage = "./internal/embed"
 	// parityTags is the build tag that selects them.
-	parityTags        = "-tags=parity"
+	parityTags = "-tags=parity"
+	// shortTestTimeout bounds the tests of one package and of the dev tree.
+	shortTestTimeout  = "-timeout=2m"
 	targSourcePackage = "github.com/toejough/targ/dev"
-	// testPkgTimeout bounds the tests of one package.
-	testPkgTimeout = "-timeout=2m"
 )
 
 // unexported variables.
@@ -322,25 +322,25 @@ func runEval(ctx context.Context, args evalArgs) error {
 	return nil
 }
 
-// runIntegrationAll runs go test on the whole module with the integration tag through run, and fails with the failure
-// of go test.
-func runIntegrationAll(ctx context.Context, run commandRunner) error {
-	err := run(ctx, "go", integrationAllCommandLine()...)
+// runGoTest runs go through run with argv, and wraps the failure of go test with what was being run.
+func runGoTest(ctx context.Context, run commandRunner, what string, argv []string) error {
+	err := run(ctx, "go", argv...)
 	if err != nil {
-		return fmt.Errorf("running the integration-tagged tests of the module: %w", err)
+		return fmt.Errorf("running %s: %w", what, err)
 	}
 
 	return nil
 }
 
+// runIntegrationAll runs go test on the whole module with the integration tag through run, and fails with the failure
+// of go test.
+func runIntegrationAll(ctx context.Context, run commandRunner) error {
+	return runGoTest(ctx, run, "the integration-tagged tests of the module", integrationAllCommandLine())
+}
+
 // runParity runs the parity tests through run, and fails with the failure of go test.
 func runParity(ctx context.Context, run commandRunner) error {
-	err := run(ctx, "go", parityCommandLine()...)
-	if err != nil {
-		return fmt.Errorf("running the parity tests: %w", err)
-	}
-
-	return nil
+	return runGoTest(ctx, run, "the parity tests", parityCommandLine())
 }
 
 // runTestPkg runs go test on the package of args through run, and fails with the failure of go test. It starts no
@@ -351,12 +351,7 @@ func runTestPkg(ctx context.Context, args testPkgArgs, run commandRunner) error 
 		return err
 	}
 
-	err = run(ctx, "go", argv...)
-	if err != nil {
-		return fmt.Errorf("running the tests of %s: %w", args.Package, err)
-	}
-
-	return nil
+	return runGoTest(ctx, run, "the tests of "+args.Package, argv)
 }
 
 // sharedTargetList returns Targ's retained shared targets in name order.
@@ -374,7 +369,7 @@ func sharedTargetList() []any {
 func testDev(ctx context.Context) error {
 	targ.Print(ctx, "Running dev-package tests (tag=targ)...\n")
 
-	err := targ.RunContext(ctx, "go", goTestCommand, goTestUncached, "-timeout=2m", "-race", "-tags=targ", "./dev/...")
+	err := targ.RunContext(ctx, "go", goTestCommand, goTestUncached, shortTestTimeout, "-race", "-tags=targ", "./dev/...")
 	if err != nil {
 		return fmt.Errorf("running dev-package tests: %w", err)
 	}
@@ -388,7 +383,7 @@ func testDev(ctx context.Context) error {
 // the pure tests compile in this run too and run a second time; that duplication is deliberate and cheap.
 func testDevIntegration(ctx context.Context) error {
 	err := targ.RunContext(ctx,
-		"go", goTestCommand, goTestUncached, "-timeout=2m", "-race", "-tags=targ,integration",
+		"go", goTestCommand, goTestUncached, shortTestTimeout, "-race", "-tags=targ,integration",
 		"./dev/...",
 	)
 	if err != nil {
@@ -424,7 +419,7 @@ func testPkgCommandLine(args testPkgArgs) ([]string, error) {
 		return nil, errTestPkgNoPackage
 	}
 
-	argv := []string{goTestCommand, goTestUncached, testPkgTimeout, "-race"}
+	argv := []string{goTestCommand, goTestUncached, shortTestTimeout, "-race"}
 	if args.Run != "" {
 		argv = append(argv, "-run", args.Run)
 	}

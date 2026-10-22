@@ -249,15 +249,7 @@ func newFixture(t *testing.T, files map[string]string, extraModule, importBlock 
 		"nilaway":   fixtureWrapper,
 	}
 	maps.Copy(all, files)
-	for name, contents := range all {
-		path := filepath.Join(dir, name)
-		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(path, []byte(contents), 0o700); err != nil {
-			t.Fatal(err)
-		}
-	}
+	writeFixtureFiles(t, dir, all, 0o700)
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("ENGRAM_NILAWAY_REAL_BINARY", binary)
 	t.Setenv("ENGRAM_NILAWAY_CAPTURE", filepath.Join(dir, fixtureDiagnosticFile))

@@ -59,6 +59,26 @@ func goInDirectory(dir string, output *bytes.Buffer) commandRunner {
 	}
 }
 
+// writeFixtureFiles writes the files, named relative to dir, into dir with the given mode, and creates their
+// directories.
+func writeFixtureFiles(t *testing.T, dir string, files map[string]string, mode os.FileMode) {
+	t.Helper()
+
+	for name, contents := range files {
+		path := filepath.Join(dir, name)
+
+		err := os.MkdirAll(filepath.Dir(path), 0o700)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = os.WriteFile(path, []byte(contents), mode)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 // writeFixtureModule writes a module without dependencies and the given files, named relative to the module, into a
 // new temporary directory and returns the directory.
 func writeFixtureModule(t *testing.T, files map[string]string) string {
@@ -68,20 +88,7 @@ func writeFixtureModule(t *testing.T, files map[string]string) string {
 	all := map[string]string{"go.mod": "module " + fixtureModuleName + "\n\ngo " + fixtureGoVersion + "\n"}
 
 	maps.Copy(all, files)
-
-	for name, contents := range all {
-		path := filepath.Join(dir, name)
-
-		err := os.MkdirAll(filepath.Dir(path), 0o700)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		err = os.WriteFile(path, []byte(contents), 0o600)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
+	writeFixtureFiles(t, dir, all, 0o600)
 
 	return dir
 }
