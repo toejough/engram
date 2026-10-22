@@ -14,9 +14,9 @@ Operations a test finds necessary in existing specs are applied in place ([861d6
 
 Target: [794b4 Development Check Orchestration](../../specs/technical/development-check-orchestration.md#794b4-development-check-orchestration), after [794b4a Preserve entry points](../../specs/technical/development-check-orchestration.md#794b4a-preserve-entry-points).
 
-Requirement: 861b2a Development-check orchestration MUST register a target `test-pkg` that takes one package path and an optional `--run` regular expression and runs `go test -count=1 -timeout=2m -race` on that package, adding `-run <expression>` when an expression is given. It MUST add no build tag, and it MUST fail with the failure of `go test` when `go test` fails.
+Requirement: 861b2a Development-check orchestration MUST register a target `test-pkg` that takes one package path, an optional `--run` regular expression, `--no-race` and an optional `--tags` value, and runs `go test -count=1 -timeout=2m -race` on that package, omitting `-race` with `--no-race`, adding `-tags=<value>` when a value is given and `-run <expression>` when an expression is given. It MUST add no build tag unless `--tags` is given, and it MUST fail with the failure of `go test` when `go test` fails.
 
-Rationale: A developer needs the tests of the package they touched without running the whole module. Tagged `dev` tests run through `test-dev` and `test-dev-integration`.
+Rationale: A developer needs the tests of the package they touched without running the whole module. Tagged `dev` tests run through `test-dev` and `test-dev-integration`. A per-unit run skips the race detector and runs the tagged tests of one package; the batch-end gates keep `-race` and the integration legs ([861d400 Per-unit runs skip the race detector and the integration suites](./861d_questions-and-decisions.md#questions-and-decisions)).
 
 Supports [861a3a1a A developer runs the tests of one package](./861a_product-spec.md#861a3a1-uat-scenarios).
 
@@ -37,6 +37,16 @@ Scenario: 861b2a1c The command line is pinned
   Given the development targets
   When the developer runs test-pkg with a package path and no --run
   Then go test is run with -count=1, -timeout=2m, -race and that package path, and with no other flag
+
+Scenario: 861b2a1e --no-race leaves out the race detector
+  Given the development targets
+  When the developer runs test-pkg with a package path and --no-race
+  Then go test is run without -race and with the same flags and the package path otherwise
+
+Scenario: 861b2a1f --tags runs the package under the build tags
+  Given the development targets
+  When the developer runs test-pkg with a package path and --tags with a value
+  Then go test receives -tags=<value> before the filter and the package path
 
 Scenario: 861b2a1d A failing test fails the target
   Given a package whose tests fail
@@ -81,7 +91,7 @@ Target: [794b4 Development Check Orchestration](../../specs/technical/developmen
   repository; compatibility verification: `dev/nilaway_internal_test.go` compares Engram's aggregates with Targ's own
   (`Test794b4a1c`), and `dev/nilaway_integration_internal_test.go` (tags `targ`, `integration`) checks that every Targ
   shared target is kept or replaced (`Test794b4a1d`).
-- Required behavior: the Go toolchain (external) is assumed to accept `-count`, `-timeout`, `-race` and `-run` on
+- Required behavior: the Go toolchain (external) is assumed to accept `-count`, `-timeout`, `-race`, `-tags` and `-run` on
   `go test` and to exit non-zero when a test fails; authoritative contract: `go help test`, not recorded in this
   repository; compatibility verification: `Test861b2a1d_` runs `test-pkg` on a fixture package whose test fails.
 - Required behavior: [NilAway Invocation Policy](./nilaway-invocation-policy.md) returns the arguments for the selected
