@@ -115,7 +115,7 @@ var (
 		)
 	errEvalUsage = errors.New("usage: targ eval <arm> [trials]  (nothing|skills-only|current-state)")
 	// errTestPkgNoPackage is what test-pkg reports when it is given no package path (861b2a1a).
-	errTestPkgNoPackage = errors.New("usage: targ test-pkg <package> [--run REGEXP]  (for example ./internal/cli)")
+	errTestPkgNoPackage = errors.New("usage: targ test-pkg <package> [--run REGEXP] [--no-race] [--tags TAGS]")
 	lintDevTarget       = targ.Targ(lintDev).Name("lint-dev").
 				Description("Lint the dev package's build-tagged files (targ, integration)")
 	// mutateTarget reuses Targ's mutation run behind Engram's check-for-fail, as Targ's runs behind its own (794b4a).
@@ -166,7 +166,7 @@ var (
 				Description("Run the real-model parity tests of the embedder (parity build tag; in no check)")
 	testPkgTarget = targ.Targ(testPkg).
 			Name("test-pkg").
-			Description("Run the tests of one package with -race, only those matching --run when it is given")
+			Description("Run the tests of one package: with -race unless --no-race, under --tags, filtered by --run")
 	// watchCheck is the check watch runs on a change: Engram's, never Targ's (794b4a1e).
 	watchCheck  = checkTarget
 	watchTarget = targ.Targ(watch).Name("watch").Description(targdev.Watch.GetDescription())
@@ -187,10 +187,12 @@ type evalArgs struct {
 	Trials int    `targ:"positional,default=1,placeholder=TRIALS,desc=number of trials per scenario (default 1)"`
 }
 
-// testPkgArgs holds the package path and the optional test filter of targ test-pkg.
+// testPkgArgs holds the package path, the optional test filter and the race and tag options of targ test-pkg.
 type testPkgArgs struct {
 	Package string `targ:"positional,placeholder=PACKAGE,desc=path of the package to test (for example ./internal/cli)"`
+	NoRace  bool   `targ:"flag,name=no-race,desc=run without the race detector"`
 	Run     string `targ:"flag,name=run,desc=run only the tests whose names match this regular expression"`
+	Tags    string `targ:"flag,name=tags,desc=build tags to run the tests under (for example targ)"`
 }
 
 // acceptanceTestArgs is the go test command line of targ acceptance.
@@ -406,20 +408,28 @@ func testParity(ctx context.Context) error {
 	return runParity(ctx, targ.RunContext)
 }
 
-// testPkg runs the tests of one package with the race detector and no build tag (861b2a), so that a builder runs the
-// package it touched and not the whole module.
+// testPkg runs the tests of one package, by default with the race detector and no build tag (861b2a), so that a
+// builder runs the package it touched and not the whole module.
 func testPkg(ctx context.Context, args testPkgArgs) error {
 	return runTestPkg(ctx, args, targ.RunContext)
 }
 
-// testPkgCommandLine is the go test command line of targ test-pkg: the count, the timeout and the race detector, the
-// filter when one is given, and the package path last.
+// testPkgCommandLine is the go test command line of targ test-pkg: the count, the timeout and the race detector
+// unless --no-race, the build tags and the filter when they are given, and the package path last.
 func testPkgCommandLine(args testPkgArgs) ([]string, error) {
 	if args.Package == "" {
 		return nil, errTestPkgNoPackage
 	}
 
-	argv := []string{goTestCommand, goTestUncached, shortTestTimeout, "-race"}
+	argv := []string{goTestCommand, goTestUncached, shortTestTimeout}
+	if !args.NoRace {
+		argv = append(argv, "-race")
+	}
+
+	if args.Tags != "" {
+		argv = append(argv, "-tags="+args.Tags)
+	}
+
 	if args.Run != "" {
 		argv = append(argv, "-run", args.Run)
 	}
