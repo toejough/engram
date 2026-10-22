@@ -747,7 +747,7 @@ Status: In progress: 0/4 entries complete (4 rows Green-single)
 
 #### 861c2x Query Engine (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: In progress: 0/3 entries complete (3 rows Green-single)
 
 - Owner file: [Query Engine](../../specs/technical/query-engine.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/query_engine_scenarios_test.go`.
@@ -758,9 +758,9 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2x1 | [792b24c4a3 The floor uses the unscaled cosine](../../specs/technical/query-engine.md#792b24c4a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2x2 | [792b24c12a7 Explore and ride-along notes are filtered too](../../specs/technical/query-engine.md#792b24c12a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2x3 | [792b24c24a1 Each stage ends with a reading](../../specs/technical/query-engine.md#792b24c24a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2x1 | [792b24c4a3 The floor uses the unscaled cosine](../../specs/technical/query-engine.md#792b24c4a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b24c4a3_QueryEngine_FloorUsesTheUnscaledCosine, internal/cli/query_engine_scenarios_test.go; passes at baseline, log logs/b06/861c2x/5.log; mutation of applyFloorAndCap (query.go) to test item.score instead of item.baseScore fails it at the direct-provenance assertion (the chunk is only recent), log logs/b06/861c2x/mutC.log) | Green-single |
+| 861c2x2 | [792b24c12a7 Explore and ride-along notes are filtered too](../../specs/technical/query-engine.md#792b24c12a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b24c12a7_QueryEngine_ExploreAndRideAlongNotesAreProjectFiltered, internal/cli/query_engine_scenarios_test.go; failed at baseline (a beta ride-along note among the items, log logs/b06/861c2x/2.log), code bug [861d51 The project filter did not reach the explore, ride-along and cluster notes (792b24c12a7)](./861d_questions-and-decisions.md#questions-and-decisions) fixed in fa59b9d6 (#804), passes, log logs/b06/861c2x/5.log; removing the post-ride-along filter fails it at the items assertion, log logs/b06/861c2x/mutA.log) | Green-single |
+| 861c2x3 | [792b24c24a1 Each stage ends with a reading](../../specs/technical/query-engine.md#792b24c24a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b24c24a1_QueryEngine_EachStageEndsWithAReading, internal/cli/query_engine_scenarios_test.go; passes at baseline, log logs/b06/861c2x/5.log; making queryRecencyNow read the clock when timing is on fails it at embed_ms (740 for 700), log logs/b06/861c2x/mutB.log) | Green-single |
 
 #### 861c2y Query Payload Renderer (default)
 
