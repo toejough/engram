@@ -41,7 +41,7 @@ func init() {
 		Name("engram-dev").
 		Description("Engram dev target registration"))
 
-	targ.Register(testDevTarget, testDevIntegrationTarget, testIntegrationAllTarget)
+	targ.Register(testDevTarget, testDevIntegrationTarget, testIntegrationAllTarget, testParityTarget)
 
 	targ.Register(targ.Targ(runEval).
 		Name("eval").
@@ -63,9 +63,15 @@ const (
 	evalOutDirPerm     = 0o750
 	// goTestCommand is the go command that runs tests.
 	goTestCommand = "test"
+	// goTestUncached makes go test run its tests again instead of reporting a cached result.
+	goTestUncached = "-count=1"
 	// integrationAllTimeout is the time limit of the whole module's tagged tests: the one of Targ's whole-module legs.
 	integrationAllTimeout = "-timeout=10m"
-	targSourcePackage     = "github.com/toejough/targ/dev"
+	// parityPackage holds the real-model parity tests, which carry the parity build tag.
+	parityPackage = "./internal/embed"
+	// parityTags is the build tag that selects them.
+	parityTags        = "-tags=parity"
+	targSourcePackage = "github.com/toejough/targ/dev"
 	// testPkgTimeout bounds the tests of one package.
 	testPkgTimeout = "-timeout=2m"
 )
@@ -155,6 +161,9 @@ var (
 	testIntegrationAllTarget = targ.Targ(testIntegrationAll).
 					Name("test-integration-all").
 					Description("Run every integration-tagged test of the module, selected by build tag")
+	testParityTarget = targ.Targ(testParity).
+				Name("test-parity").
+				Description("Run the real-model parity tests of the embedder (parity build tag; in no check)")
 	testPkgTarget = targ.Targ(testPkg).
 			Name("test-pkg").
 			Description("Run the tests of one package with -race, only those matching --run when it is given")
@@ -212,7 +221,7 @@ func hasRelevantChanges(changes targ.ChangeSet) bool {
 // with the tags of the dev tree and the integration tag, and no test filter, so that a test is selected by its build
 // tag and never by its name (862b2a).
 func integrationAllCommandLine() []string {
-	return []string{goTestCommand, "-count=1", integrationAllTimeout, "-race", "-tags=targ,integration", "./..."}
+	return []string{goTestCommand, goTestUncached, integrationAllTimeout, "-race", "-tags=targ,integration", "./..."}
 }
 
 // lintDev lints the dev package with the build tags its files need. Targ's lint targets use no tags, so they skip
@@ -235,6 +244,12 @@ func lintDev(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// parityCommandLine is the go test command line of targ test-parity: the tests the parity tag selects, in the package
+// that holds them, with no other flag (862b2c).
+func parityCommandLine() []string {
+	return []string{goTestCommand, goTestUncached, parityTags, parityPackage}
 }
 
 // registerTargets customizes Targ's shared development targets (794b4a): it deregisters them, then registers Engram's
@@ -318,6 +333,16 @@ func runIntegrationAll(ctx context.Context, run commandRunner) error {
 	return nil
 }
 
+// runParity runs the parity tests through run, and fails with the failure of go test.
+func runParity(ctx context.Context, run commandRunner) error {
+	err := run(ctx, "go", parityCommandLine()...)
+	if err != nil {
+		return fmt.Errorf("running the parity tests: %w", err)
+	}
+
+	return nil
+}
+
 // runTestPkg runs go test on the package of args through run, and fails with the failure of go test. It starts no
 // command when args hold no package path.
 func runTestPkg(ctx context.Context, args testPkgArgs, run commandRunner) error {
@@ -349,7 +374,7 @@ func sharedTargetList() []any {
 func testDev(ctx context.Context) error {
 	targ.Print(ctx, "Running dev-package tests (tag=targ)...\n")
 
-	err := targ.RunContext(ctx, "go", goTestCommand, "-count=1", "-timeout=2m", "-race", "-tags=targ", "./dev/...")
+	err := targ.RunContext(ctx, "go", goTestCommand, goTestUncached, "-timeout=2m", "-race", "-tags=targ", "./dev/...")
 	if err != nil {
 		return fmt.Errorf("running dev-package tests: %w", err)
 	}
@@ -363,7 +388,7 @@ func testDev(ctx context.Context) error {
 // the pure tests compile in this run too and run a second time; that duplication is deliberate and cheap.
 func testDevIntegration(ctx context.Context) error {
 	err := targ.RunContext(ctx,
-		"go", goTestCommand, "-count=1", "-timeout=2m", "-race", "-tags=targ,integration",
+		"go", goTestCommand, goTestUncached, "-timeout=2m", "-race", "-tags=targ,integration",
 		"./dev/...",
 	)
 	if err != nil {
@@ -380,6 +405,12 @@ func testIntegrationAll(ctx context.Context) error {
 	return runIntegrationAll(ctx, targ.RunContext)
 }
 
+// testParity runs the real-model parity tests, which load the bundled model and so are in neither check-for-fail nor
+// check-full (862b2c); a developer runs it when the embedder changes.
+func testParity(ctx context.Context) error {
+	return runParity(ctx, targ.RunContext)
+}
+
 // testPkg runs the tests of one package with the race detector and no build tag (861b2a), so that a builder runs the
 // package it touched and not the whole module.
 func testPkg(ctx context.Context, args testPkgArgs) error {
@@ -393,7 +424,7 @@ func testPkgCommandLine(args testPkgArgs) ([]string, error) {
 		return nil, errTestPkgNoPackage
 	}
 
-	argv := []string{goTestCommand, "-count=1", testPkgTimeout, "-race"}
+	argv := []string{goTestCommand, goTestUncached, testPkgTimeout, "-race"}
 	if args.Run != "" {
 		argv = append(argv, "-run", args.Run)
 	}

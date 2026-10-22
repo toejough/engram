@@ -73,14 +73,14 @@ Status: Ready
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 862c1e1 | [862b2c1a The parity command line is pinned](./862b_technical-spec.md#862b2c1-contract-scenarios) | Example | Fixed inputs, one exact command line | Not started |
-| 862c1e2 | [862b2c1b The aggregates do not run it](./862b_technical-spec.md#862b2c1-contract-scenarios) | Interaction | Compares the dependency lists of `check-for-fail` and `check-full`; same seam as `Test794b4a1c_` | Not started |
-| 862c1e3 | [862a3c1a A developer runs the parity check](./862a_product-spec.md#862a3c1-uat-scenarios) | Example | The command line names the `parity` tag and `./internal/embed`; same seam as [862b2c1a The parity command line is pinned](./862b_technical-spec.md#862b2c1-contract-scenarios) | Not started |
+| 862c1e1 | [862b2c1a The parity command line is pinned](./862b_technical-spec.md#862b2c1-contract-scenarios) | Example | Fixed inputs, one exact command line. Evidence: Test862b2c1a_TestParity_TheCommandLineIsPinned; Red: b00/862c1e-red-test-dev.log (build failed, undefined runParity); Green: b00/862c1e-green-test-dev-2.log (exit=0); failed by the mutation that changes the package path to ./internal/embed/...: b00/862c1e-mutation-package-pattern.log. The target itself ran the parity tests for real: b00/862c1e-selfcheck-test-parity.log (ok, exit=0). | Green-single |
+| 862c1e2 | [862b2c1b The aggregates do not run it](./862b_technical-spec.md#862b2c1-contract-scenarios) | Interaction | Compares the dependency lists of `check-for-fail` and `check-full`; same seam as `Test794b4a1c_`. Evidence: Test862b2c1b_TestParity_TheAggregatesDoNotRunIt; Red: b00/862c1e-red-test-dev.log; Green: b00/862c1e-green-test-dev-2.log (exit=0); failed by the mutation that adds test-parity to check-full: b00/862c1e-mutation-parity-in-check-full.log (it failed Test794b4a1c_ too). | Green-single |
+| 862c1e3 | [862a3c1a A developer runs the parity check](./862a_product-spec.md#862a3c1-uat-scenarios) | Example | The command line names the `parity` tag and `./internal/embed`; same seam as [862b2c1a The parity command line is pinned](./862b_technical-spec.md#862b2c1-contract-scenarios). Evidence: Test862a3c1a_TestParity_TheCommandLineNamesTheParityTagAndTheEmbedPackage; Red: b00/862c1e-red-test-dev.log; Green: b00/862c1e-green-test-dev-2.log (exit=0); failed by the mutation that changes the package path: b00/862c1e-mutation-package-pattern.log. | Green-single |
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 862c1e4 | Register `test-parity` in `init()`, outside the aggregates | Action | [862d9 Item 2: the parity tag has no approved command](./862d_questions-and-decisions.md#questions-and-decisions) | Not started |
-| 862c1e5 | Replace the direct `go test` line in the header of `internal/embed/parity_test.go` with `targ test-parity` | Action | [862d9 Item 2: the parity tag has no approved command](./862d_questions-and-decisions.md#questions-and-decisions) | Not started |
+| 862c1e4 | Register `test-parity` in `init()`, outside the aggregates | Action | [862d9 Item 2: the parity tag has no approved command](./862d_questions-and-decisions.md#questions-and-decisions) | Done |
+| 862c1e5 | Replace the direct `go test` line in the header of `internal/embed/parity_test.go` with `targ test-parity` | Action | [862d9 Item 2: the parity tag has no approved command](./862d_questions-and-decisions.md#questions-and-decisions) | Done |
 
 #### 862c1d The follow-up issue for the untagged files
 

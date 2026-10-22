@@ -7,7 +7,7 @@
 // Build-tag-gated because it loads a ~90MB ONNX model from disk and
 // would slow targ test substantially. Run with:
 //
-//	CGO_ENABLED=0 go test -tags=parity -run=Test792b9c1a3_ParityWithPythonReference ./internal/embed/...
+//	targ test-parity
 package embed_test
 
 import (
