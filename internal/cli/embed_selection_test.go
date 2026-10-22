@@ -9,88 +9,32 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// Test792b10c11a1_SelectStates exercises every flag combination so the
-// shouldEmbed dispatcher covers every State branch.
+// Test792b10c11a1_SelectStates covers the no-flag selection: missing notes
+// are embedded, and broken ones with them. The flag combinations are covered
+// by Test792b10c11a2 to Test792b10c11a6 in embedding_sidecar_scenarios_test.go.
 func Test792b10c11a1_SelectStates(t *testing.T) {
 	t.Parallel()
 
-	cases := []struct {
-		name          string
-		args          cli.EmbedApplyArgs
-		expectByState map[embed.State]bool
-	}{
-		{
-			name: "empty selection defaults to missing only",
-			args: cli.EmbedApplyArgs{},
-			expectByState: map[embed.State]bool{
-				embed.StateOK:           false,
-				embed.StateMissing:      true,
-				embed.StateStale:        false,
-				embed.StateIncompatible: false,
-				embed.StateBroken:       true, // broken inherits missing's intent
-			},
-		},
-		{
-			name: "--all enables every state",
-			args: cli.EmbedApplyArgs{All: true},
-			expectByState: map[embed.State]bool{
-				embed.StateOK:           true,
-				embed.StateMissing:      true,
-				embed.StateStale:        true,
-				embed.StateIncompatible: true,
-				embed.StateBroken:       true,
-			},
-		},
-		{
-			name: "--stale targets stale and broken only",
-			args: cli.EmbedApplyArgs{Stale: true},
-			expectByState: map[embed.State]bool{
-				embed.StateOK:           false,
-				embed.StateMissing:      false,
-				embed.StateStale:        true,
-				embed.StateIncompatible: false,
-				embed.StateBroken:       true,
-			},
-		},
-		{
-			name: "--force lifts incompatible (and broken)",
-			args: cli.EmbedApplyArgs{Force: true},
-			expectByState: map[embed.State]bool{
-				embed.StateOK:           false,
-				embed.StateMissing:      false,
-				embed.StateStale:        false,
-				embed.StateIncompatible: true,
-				embed.StateBroken:       true,
-			},
-		},
-		{
-			name: "--missing alone is explicit-default",
-			args: cli.EmbedApplyArgs{Missing: true},
-			expectByState: map[embed.State]bool{
-				embed.StateOK:           false,
-				embed.StateMissing:      true,
-				embed.StateStale:        false,
-				embed.StateIncompatible: false,
-				embed.StateBroken:       true,
-			},
-		},
+	g := NewWithT(t)
+
+	args := cli.EmbedApplyArgs{}
+
+	// ExportSelectStates is exposed for documentation; the
+	// real assertions are on shouldEmbed below.
+	_ = cli.ExportSelectStates(args)
+
+	expectByState := map[embed.State]bool{
+		embed.StateOK:           false,
+		embed.StateMissing:      true,
+		embed.StateStale:        false,
+		embed.StateIncompatible: false,
+		embed.StateBroken:       true, // broken inherits missing's intent
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			// ExportSelectStates is exposed for documentation; the
-			// real assertions are on shouldEmbed below.
-			_ = cli.ExportSelectStates(tc.args)
-
-			for state, want := range tc.expectByState {
-				got := cli.ExportShouldEmbed(tc.args, state)
-				g.Expect(got).To(Equal(want),
-					"args=%+v state=%s want=%v got=%v", tc.args, state, want, got)
-			}
-		})
+	for state, want := range expectByState {
+		got := cli.ExportShouldEmbed(args, state)
+		g.Expect(got).To(Equal(want),
+			"args=%+v state=%s want=%v got=%v", args, state, want, got)
 	}
 }
 
