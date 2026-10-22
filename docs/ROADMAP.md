@@ -173,8 +173,8 @@ experience records, per the experience-record decision carried below), **#748** 
 mechanical LESSONS validator, watcher/metacognition layer, hooks (`learn-rate-skill-only` design D-F).
 
 **Decisions carried from ADR-0028 (D4 to D7, Joe 2026-08-30).** The ADR itself is deleted (git history keeps it); its other
-decisions (D1 to D3 and D8) are specified with the memory-loop auditor (792b39) and the memory-effectiveness-evaluation
-capability (792a23).
+decisions (D1 to D3 and D8) were specified with the memory-loop auditor and the memory-effectiveness evaluation, which are
+repository tooling described in `dev/eval/README.md`.
 
 - **D4, situation-conditioned experience, not scalar ratings (#718, #747, #748).** A note that hurt in one situation may help in
   another, so each note gains an *experience record*: a capped, frecency-evicted list of (situation text and vector, outcome,

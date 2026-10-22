@@ -3115,272 +3115,272 @@ Listed so that no gap is lost; none is scheduled and none is counted as passing.
 
 Status: Blocked by: [861d21 Scenarios covered only by pytest](./861d_questions-and-decisions.md#questions-and-decisions)
 
-- Owner file: [Eval Trial Harness](../../specs/technical/eval-trial-harness.md) (technical component).
+- Owner file: Eval Trial Harness (technical component).
 - Package: `dev/eval` (pytest).
-- Requirements (scenarios in this node): [792b38c1 Installing a skill into a trial configuration](../../specs/technical/eval-trial-harness.md#792b38c1-installing-a-skill-into-a-trial-configuration) (3); [792b38c2 The warm-configuration builders](../../specs/technical/eval-trial-harness.md#792b38c2-the-warm-configuration-builders) (12).
+- Requirements (scenarios in this node): 792b38c1 Installing a skill into a trial configuration (3); 792b38c2 The warm-configuration builders (12).
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c3a1 | [792b38c1a1 A missing source raises](../../specs/technical/eval-trial-harness.md#792b38c1a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a2 | [792b38c1a2 A source with no SKILL.md raises](../../specs/technical/eval-trial-harness.md#792b38c1a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a3 | [792b38c1a3 The copy is verified at the destination](../../specs/technical/eval-trial-harness.md#792b38c1a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a4 | [792b38c2a1 The trap harness verifies a successful installation](../../specs/technical/eval-trial-harness.md#792b38c2a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a5 | [792b38c2a2 The trap harness raises on a missing source](../../specs/technical/eval-trial-harness.md#792b38c2a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a6 | [792b38c2a3 The trap harness raises on an empty source](../../specs/technical/eval-trial-harness.md#792b38c2a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a7 | [792b38c2a4 The cumulative harness installs the real skills](../../specs/technical/eval-trial-harness.md#792b38c2a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a8 | [792b38c2a5 The cumulative harness raises on a missing source](../../specs/technical/eval-trial-harness.md#792b38c2a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a9 | [792b38c2a6 The cumulative harness raises on an empty source](../../specs/technical/eval-trial-harness.md#792b38c2a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a10 | [792b38c2a7 The cumulative pools are still built end to end](../../specs/technical/eval-trial-harness.md#792b38c2a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a11 | [792b38c2a8 The probe harness keeps its default skills](../../specs/technical/eval-trial-harness.md#792b38c2a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a12 | [792b38c2a9 An empty skills list installs none, and a pool inherits it](../../specs/technical/eval-trial-harness.md#792b38c2a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a13 | [792b38c2a10 The probe harness raises on a missing source](../../specs/technical/eval-trial-harness.md#792b38c2a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a14 | [792b38c2a11 The probe harness raises on an empty source](../../specs/technical/eval-trial-harness.md#792b38c2a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a15 | [792b38c2a12 The repository root comes from the file's own location](../../specs/technical/eval-trial-harness.md#792b38c2a-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3a1 | 792b38c1a1 A missing source raises | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3a2 | 792b38c1a2 A source with no SKILL.md raises | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3a3 | 792b38c1a3 The copy is verified at the destination | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3a4 | 792b38c2a1 The trap harness verifies a successful installation | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3a5 | 792b38c2a2 The trap harness raises on a missing source | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3a6 | 792b38c2a3 The trap harness raises on an empty source | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3a7 | 792b38c2a4 The cumulative harness installs the real skills | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3a8 | 792b38c2a5 The cumulative harness raises on a missing source | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3a9 | 792b38c2a6 The cumulative harness raises on an empty source | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3a10 | 792b38c2a7 The cumulative pools are still built end to end | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3a11 | 792b38c2a8 The probe harness keeps its default skills | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3a12 | 792b38c2a9 An empty skills list installs none, and a pool inherits it | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3a13 | 792b38c2a10 The probe harness raises on a missing source | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3a14 | 792b38c2a11 The probe harness raises on an empty source | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3a15 | 792b38c2a12 The repository root comes from the file's own location | Example | Blocked: implemented in Python; no test names it | Not started |
 
 #### 861c3b Eval Trial Harness, part 2 (pytest)
 
 Status: Blocked by: [861d21 Scenarios covered only by pytest](./861d_questions-and-decisions.md#questions-and-decisions)
 
-- Owner file: [Eval Trial Harness](../../specs/technical/eval-trial-harness.md) (technical component).
+- Owner file: Eval Trial Harness (technical component).
 - Package: `dev/eval` (pytest).
-- Requirements (scenarios in this node): [792b38c3 The isolated environment of a trial](../../specs/technical/eval-trial-harness.md#792b38c3-the-isolated-environment-of-a-trial) (14); [792b38c4 The real-vault fingerprint](../../specs/technical/eval-trial-harness.md#792b38c4-the-real-vault-fingerprint) (2); [792b38c5 The leak guard](../../specs/technical/eval-trial-harness.md#792b38c5-the-leak-guard) (8).
+- Requirements (scenarios in this node): 792b38c3 The isolated environment of a trial (14); 792b38c4 The real-vault fingerprint (2); 792b38c5 The leak guard (8).
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c3b1 | [792b38c3a1 Every state variable points into the trial](../../specs/technical/eval-trial-harness.md#792b38c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b2 | [792b38c3a2 The vault and chunk directories exist](../../specs/technical/eval-trial-harness.md#792b38c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b3 | [792b38c3a3 The base environment is kept](../../specs/technical/eval-trial-harness.md#792b38c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b4 | [792b38c3a4 An unset state variable is refused](../../specs/technical/eval-trial-harness.md#792b38c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b5 | [792b38c3a5 An unset configuration directory is refused](../../specs/technical/eval-trial-harness.md#792b38c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b6 | [792b38c3a6 A path inside the maintainer's data directory is refused](../../specs/technical/eval-trial-harness.md#792b38c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b7 | [792b38c3a7 A working directory with a Claude or VCS ancestor is refused](../../specs/technical/eval-trial-harness.md#792b38c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b8 | [792b38c3a8 A clean trial is accepted](../../specs/technical/eval-trial-harness.md#792b38c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b9 | [792b38c3a9 A direct engram call's environment is isolated](../../specs/technical/eval-trial-harness.md#792b38c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b10 | [792b38c3a10 The maintainer's real vault is refused for a direct call](../../specs/technical/eval-trial-harness.md#792b38c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b11 | [792b38c3a11 A direct call is judged without the Claude variables](../../specs/technical/eval-trial-harness.md#792b38c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b12 | [792b38c3a12 The data directory follows XDG](../../specs/technical/eval-trial-harness.md#792b38c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b13 | [792b38c3a13 Building the environment registers the trial directory](../../specs/technical/eval-trial-harness.md#792b38c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b14 | [792b38c3a14 A direct call's environment registers its vault](../../specs/technical/eval-trial-harness.md#792b38c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b15 | [792b38c4a1 Notes are counted and sidecars ignored](../../specs/technical/eval-trial-harness.md#792b38c4a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b16 | [792b38c4a2 A missing vault is empty](../../specs/technical/eval-trial-harness.md#792b38c4a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b17 | [792b38c5a1 A new note naming no registered marker is ignored](../../specs/technical/eval-trial-harness.md#792b38c5a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b18 | [792b38c5a2 A new note naming a registered marker raises](../../specs/technical/eval-trial-harness.md#792b38c5a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b19 | [792b38c5a3 A short generic basename in passing is ignored](../../specs/technical/eval-trial-harness.md#792b38c5a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b20 | [792b38c5a4 A distinctive basename alone raises](../../specs/technical/eval-trial-harness.md#792b38c5a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b21 | [792b38c5a5 Real mkdtemp suffixes are distinctive](../../specs/technical/eval-trial-harness.md#792b38c5a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b22 | [792b38c5a6 A fixed underscore-bearing suffix is judged by its last segment](../../specs/technical/eval-trial-harness.md#792b38c5a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b23 | [792b38c5a7 The harness's own deterministic names are not distinctive](../../specs/technical/eval-trial-harness.md#792b38c5a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b24 | [792b38c5a8 A leak the guard cannot see is not raised](../../specs/technical/eval-trial-harness.md#792b38c5a-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3b1 | 792b38c3a1 Every state variable points into the trial | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b2 | 792b38c3a2 The vault and chunk directories exist | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b3 | 792b38c3a3 The base environment is kept | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b4 | 792b38c3a4 An unset state variable is refused | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b5 | 792b38c3a5 An unset configuration directory is refused | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b6 | 792b38c3a6 A path inside the maintainer's data directory is refused | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b7 | 792b38c3a7 A working directory with a Claude or VCS ancestor is refused | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b8 | 792b38c3a8 A clean trial is accepted | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b9 | 792b38c3a9 A direct engram call's environment is isolated | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b10 | 792b38c3a10 The maintainer's real vault is refused for a direct call | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b11 | 792b38c3a11 A direct call is judged without the Claude variables | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b12 | 792b38c3a12 The data directory follows XDG | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b13 | 792b38c3a13 Building the environment registers the trial directory | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b14 | 792b38c3a14 A direct call's environment registers its vault | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b15 | 792b38c4a1 Notes are counted and sidecars ignored | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b16 | 792b38c4a2 A missing vault is empty | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b17 | 792b38c5a1 A new note naming no registered marker is ignored | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b18 | 792b38c5a2 A new note naming a registered marker raises | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b19 | 792b38c5a3 A short generic basename in passing is ignored | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b20 | 792b38c5a4 A distinctive basename alone raises | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b21 | 792b38c5a5 Real mkdtemp suffixes are distinctive | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b22 | 792b38c5a6 A fixed underscore-bearing suffix is judged by its last segment | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b23 | 792b38c5a7 The harness's own deterministic names are not distinctive | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3b24 | 792b38c5a8 A leak the guard cannot see is not raised | Example | Blocked: implemented in Python; no test names it | Not started |
 
 #### 861c3c Eval Trial Harness, part 3 (pytest)
 
 Status: Blocked by: [861d21 Scenarios covered only by pytest](./861d_questions-and-decisions.md#questions-and-decisions)
 
-- Owner file: [Eval Trial Harness](../../specs/technical/eval-trial-harness.md) (technical component).
+- Owner file: Eval Trial Harness (technical component).
 - Package: `dev/eval` (pytest).
-- Requirements (scenarios in this node): [792b38c6 Every harness guards the real vault](../../specs/technical/eval-trial-harness.md#792b38c6-every-harness-guards-the-real-vault) (3); [792b38c7 Detecting a step in every form of its command](../../specs/technical/eval-trial-harness.md#792b38c7-detecting-a-step-in-every-form-of-its-command) (4); [792b38c8 A question stop](../../specs/technical/eval-trial-harness.md#792b38c8-a-question-stop) (10); [792b38c9 A fixture's local follow-up target](../../specs/technical/eval-trial-harness.md#792b38c9-a-fixtures-local-follow-up-target) (6).
+- Requirements (scenarios in this node): 792b38c6 Every harness guards the real vault (3); 792b38c7 Detecting a step in every form of its command (4); 792b38c8 A question stop (10); 792b38c9 A fixture's local follow-up target (6).
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c3c1 | [792b38c6a1 Every harness snapshots the real vault](../../specs/technical/eval-trial-harness.md#792b38c6a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c2 | [792b38c6a2 Every harness asserts no leak](../../specs/technical/eval-trial-harness.md#792b38c6a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c3 | [792b38c6a3 The retired whole-vault comparison is gone](../../specs/technical/eval-trial-harness.md#792b38c6a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c4 | [792b38c7a1 The hyphenated form matches](../../specs/technical/eval-trial-harness.md#792b38c7a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c5 | [792b38c7a2 The space-separated form still matches](../../specs/technical/eval-trial-harness.md#792b38c7a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c6 | [792b38c7a3 Letter-adjacent substrings do not match](../../specs/technical/eval-trial-harness.md#792b38c7a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c7 | [792b38c7a4 A full trial with the hyphenated form scores every step as followed](../../specs/technical/eval-trial-harness.md#792b38c7a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c8 | [792b38c8a1 Ambiguity text ending the transcript is a stop](../../specs/technical/eval-trial-harness.md#792b38c8a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c9 | [792b38c8a2 A question mid-paragraph counts](../../specs/technical/eval-trial-harness.md#792b38c8a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c10 | [792b38c8a3 A later mutation means no stop](../../specs/technical/eval-trial-harness.md#792b38c8a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c11 | [792b38c8a4 No ambiguity, no stop](../../specs/technical/eval-trial-harness.md#792b38c8a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c12 | [792b38c8a5 An AskUserQuestion after the ambiguity is a stop](../../specs/technical/eval-trial-harness.md#792b38c8a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c13 | [792b38c8a6 The last ambiguity mention decides](../../specs/technical/eval-trial-harness.md#792b38c8a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c14 | [792b38c8a7 A trailing question after completion is not a stop](../../specs/technical/eval-trial-harness.md#792b38c8a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c15 | [792b38c8a8 A failing end state with an ambiguity is a stop](../../specs/technical/eval-trial-harness.md#792b38c8a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c16 | [792b38c8a9 Live scoring wires the end state](../../specs/technical/eval-trial-harness.md#792b38c8a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c17 | [792b38c8a10 Re-scoring wires the end state](../../specs/technical/eval-trial-harness.md#792b38c8a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c18 | [792b38c9a1 The prompt names the target](../../specs/technical/eval-trial-harness.md#792b38c9a-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3c19 | [792b38c9a2 The fixture holds the file from the initial commit](../../specs/technical/eval-trial-harness.md#792b38c9a-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3c20 | [792b38c9a3 Filing through a native edit scores](../../specs/technical/eval-trial-harness.md#792b38c9a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c21 | [792b38c9a4 Filing through a bash append or tee scores](../../specs/technical/eval-trial-harness.md#792b38c9a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c22 | [792b38c9a5 Step 8 is false when step 6 never matched](../../specs/technical/eval-trial-harness.md#792b38c9a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c23 | [792b38c9a6 An unanchored append or a mention does not score](../../specs/technical/eval-trial-harness.md#792b38c9a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3c1 | 792b38c6a1 Every harness snapshots the real vault | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3c2 | 792b38c6a2 Every harness asserts no leak | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3c3 | 792b38c6a3 The retired whole-vault comparison is gone | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3c4 | 792b38c7a1 The hyphenated form matches | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3c5 | 792b38c7a2 The space-separated form still matches | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3c6 | 792b38c7a3 Letter-adjacent substrings do not match | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3c7 | 792b38c7a4 A full trial with the hyphenated form scores every step as followed | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3c8 | 792b38c8a1 Ambiguity text ending the transcript is a stop | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3c9 | 792b38c8a2 A question mid-paragraph counts | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3c10 | 792b38c8a3 A later mutation means no stop | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3c11 | 792b38c8a4 No ambiguity, no stop | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3c12 | 792b38c8a5 An AskUserQuestion after the ambiguity is a stop | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3c13 | 792b38c8a6 The last ambiguity mention decides | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3c14 | 792b38c8a7 A trailing question after completion is not a stop | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3c15 | 792b38c8a8 A failing end state with an ambiguity is a stop | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3c16 | 792b38c8a9 Live scoring wires the end state | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3c17 | 792b38c8a10 Re-scoring wires the end state | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3c18 | 792b38c9a1 The prompt names the target | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3c19 | 792b38c9a2 The fixture holds the file from the initial commit | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3c20 | 792b38c9a3 Filing through a native edit scores | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3c21 | 792b38c9a4 Filing through a bash append or tee scores | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3c22 | 792b38c9a5 Step 8 is false when step 6 never matched | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3c23 | 792b38c9a6 An unanchored append or a mention does not score | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
 
 #### 861c3d Eval Trial Harness, part 4 (pytest)
 
 Status: Blocked by: [861d21 Scenarios covered only by pytest](./861d_questions-and-decisions.md#questions-and-decisions)
 
-- Owner file: [Eval Trial Harness](../../specs/technical/eval-trial-harness.md) (technical component).
+- Owner file: Eval Trial Harness (technical component).
 - Package: `dev/eval` (pytest).
-- Requirements (scenarios in this node): [792b38c10 The rank of a surfaced note](../../specs/technical/eval-trial-harness.md#792b38c10-the-rank-of-a-surfaced-note) (4); [792b38c11 Every spawn site builds its environment through the primitive](../../specs/technical/eval-trial-harness.md#792b38c11-every-spawn-site-builds-its-environment-through-the-primitive) (7).
+- Requirements (scenarios in this node): 792b38c10 The rank of a surfaced note (4); 792b38c11 Every spawn site builds its environment through the primitive (7).
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
 | 861c3d1 | [792b38c10a1 A target in items[] surfaces at its rank](../../specs/technical/eval-trial-harness.md#792b38c10a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3d2 | [792b38c10a2 The old candidate_l2s logic would have missed it](../../specs/technical/eval-trial-harness.md#792b38c10a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3d3 | [792b38c10a3 A batched runbook probe reports success, miss and failure](../../specs/technical/eval-trial-harness.md#792b38c10a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3d4 | [792b38c10a4 Escalation is per phrase and the corpus loads](../../specs/technical/eval-trial-harness.md#792b38c10a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3d5 | [792b38c11a1 Tier A sites import the isolation module](../../specs/technical/eval-trial-harness.md#792b38c11a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3d6 | [792b38c11a2 Tier A sites call isolated_env](../../specs/technical/eval-trial-harness.md#792b38c11a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3d7 | [792b38c11a3 No tier A site hand-rolls its environment](../../specs/technical/eval-trial-harness.md#792b38c11a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3d8 | [792b38c11a4 No Python site sets a vault without a chunk directory](../../specs/technical/eval-trial-harness.md#792b38c11a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3d9 | [792b38c11a5 Tier B Python sites use engram_env](../../specs/technical/eval-trial-harness.md#792b38c11a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3d10 | [792b38c11a6 No shell site sets a vault without a chunk directory](../../specs/technical/eval-trial-harness.md#792b38c11a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3d11 | [792b38c11a7 The Claude harness delegates to the isolation module](../../specs/technical/eval-trial-harness.md#792b38c11a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3d2 | 792b38c10a2 The old candidate_l2s logic would have missed it | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3d3 | 792b38c10a3 A batched runbook probe reports success, miss and failure | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3d4 | 792b38c10a4 Escalation is per phrase and the corpus loads | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3d5 | 792b38c11a1 Tier A sites import the isolation module | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3d6 | 792b38c11a2 Tier A sites call isolated_env | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3d7 | 792b38c11a3 No tier A site hand-rolls its environment | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3d8 | 792b38c11a4 No Python site sets a vault without a chunk directory | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3d9 | 792b38c11a5 Tier B Python sites use engram_env | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3d10 | 792b38c11a6 No shell site sets a vault without a chunk directory | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3d11 | 792b38c11a7 The Claude harness delegates to the isolation module | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
 
 #### 861c3e Memory Loop Auditor, part 1 (pytest)
 
 Status: Blocked by: [861d21 Scenarios covered only by pytest](./861d_questions-and-decisions.md#questions-and-decisions)
 
-- Owner file: [Memory Loop Auditor](../../specs/technical/memory-loop-auditor.md) (technical component).
+- Owner file: Memory Loop Auditor (technical component).
 - Package: `dev/eval` (pytest).
-- Requirements (scenarios in this node): [792b39c1 Windows](../../specs/technical/memory-loop-auditor.md#792b39c1-windows) (6); [792b39c2 Detecting moments](../../specs/technical/memory-loop-auditor.md#792b39c2-detecting-moments) (9).
+- Requirements (scenarios in this node): 792b39c1 Windows (6); 792b39c2 Detecting moments (9).
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c3e1 | [792b39c1a1 A small file is one window](../../specs/technical/memory-loop-auditor.md#792b39c1a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e2 | [792b39c1a2 The lines are preserved as they are](../../specs/technical/memory-loop-auditor.md#792b39c1a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e3 | [792b39c1a3 A window carries its fields](../../specs/technical/memory-loop-auditor.md#792b39c1a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e4 | [792b39c1a4 Locations count from one](../../specs/technical/memory-loop-auditor.md#792b39c1a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e5 | [792b39c1a5 A larger file is split at line boundaries](../../specs/technical/memory-loop-auditor.md#792b39c1a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e6 | [792b39c1a6 An oversized line is detected](../../specs/technical/memory-loop-auditor.md#792b39c1a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e7 | [792b39c2a1 Moments are detected from a window](../../specs/technical/memory-loop-auditor.md#792b39c2a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e8 | [792b39c2a2 A low-yield window is re-read with the stronger model](../../specs/technical/memory-loop-auditor.md#792b39c2a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e9 | [792b39c2a3 Lines are numbered by absolute location](../../specs/technical/memory-loop-auditor.md#792b39c2a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e10 | [792b39c2a4 A reply parses whether JSON, an error flag or garbage](../../specs/technical/memory-loop-auditor.md#792b39c2a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e11 | [792b39c2a5 Exhausted retries raise](../../specs/technical/memory-loop-auditor.md#792b39c2a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e12 | [792b39c2a6 A genuine zero is not an error](../../specs/technical/memory-loop-auditor.md#792b39c2a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e13 | [792b39c2a7 A prompt that is too long fails at once](../../specs/technical/memory-loop-auditor.md#792b39c2a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e14 | [792b39c2a8 A transient error still retries](../../specs/technical/memory-loop-auditor.md#792b39c2a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e15 | [792b39c2a9 A stub makes no subprocess call](../../specs/technical/memory-loop-auditor.md#792b39c2a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3e1 | 792b39c1a1 A small file is one window | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3e2 | 792b39c1a2 The lines are preserved as they are | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3e3 | 792b39c1a3 A window carries its fields | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3e4 | 792b39c1a4 Locations count from one | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3e5 | 792b39c1a5 A larger file is split at line boundaries | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3e6 | 792b39c1a6 An oversized line is detected | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3e7 | 792b39c2a1 Moments are detected from a window | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3e8 | 792b39c2a2 A low-yield window is re-read with the stronger model | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3e9 | 792b39c2a3 Lines are numbered by absolute location | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3e10 | 792b39c2a4 A reply parses whether JSON, an error flag or garbage | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3e11 | 792b39c2a5 Exhausted retries raise | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3e12 | 792b39c2a6 A genuine zero is not an error | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3e13 | 792b39c2a7 A prompt that is too long fails at once | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3e14 | 792b39c2a8 A transient error still retries | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3e15 | 792b39c2a9 A stub makes no subprocess call | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
 
 #### 861c3f Memory Loop Auditor, part 2 (pytest)
 
 Status: Blocked by: [861d21 Scenarios covered only by pytest](./861d_questions-and-decisions.md#questions-and-decisions)
 
-- Owner file: [Memory Loop Auditor](../../specs/technical/memory-loop-auditor.md) (technical component).
+- Owner file: Memory Loop Auditor (technical component).
 - Package: `dev/eval` (pytest).
-- Requirements (scenarios in this node): [792b39c3 The moment record](../../specs/technical/memory-loop-auditor.md#792b39c3-the-moment-record) (12); [792b39c4 Existence as of the moment's time](../../specs/technical/memory-loop-auditor.md#792b39c4-existence-as-of-the-moments-time) (8).
+- Requirements (scenarios in this node): 792b39c3 The moment record (12); 792b39c4 Existence as of the moment's time (8).
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c3f1 | [792b39c3a1 A candidate is judged into a record](../../specs/technical/memory-loop-auditor.md#792b39c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f2 | [792b39c3a2 A record has every field of the scorecard](../../specs/technical/memory-loop-auditor.md#792b39c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f3 | [792b39c3a3 Deferred fields are null without search phrases](../../specs/technical/memory-loop-auditor.md#792b39c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f4 | [792b39c3a4 The moment identifier is stable](../../specs/technical/memory-loop-auditor.md#792b39c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f5 | [792b39c3a5 The timestamp is read from the window](../../specs/technical/memory-loop-auditor.md#792b39c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f6 | [792b39c3a6 A not-applicable answer is stamped](../../specs/technical/memory-loop-auditor.md#792b39c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f7 | [792b39c3a7 The prompt asks for not-applicable and rationales](../../specs/technical/memory-loop-auditor.md#792b39c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f8 | [792b39c3a8 The record carries the instrument version](../../specs/technical/memory-loop-auditor.md#792b39c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f9 | [792b39c3a9 The prompt is scoped by moment type](../../specs/technical/memory-loop-auditor.md#792b39c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f10 | [792b39c3a10 The record reflects the extracted events](../../specs/technical/memory-loop-auditor.md#792b39c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f11 | [792b39c3a11 The whole pipeline runs on stubs](../../specs/technical/memory-loop-auditor.md#792b39c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f12 | [792b39c3a12 Judgment failures raise their own errors](../../specs/technical/memory-loop-auditor.md#792b39c3a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f13 | [792b39c4a1 An empty scratch vault returns nothing](../../specs/technical/memory-loop-auditor.md#792b39c4a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f14 | [792b39c4a2 The live vault is unchanged](../../specs/technical/memory-loop-auditor.md#792b39c4a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f15 | [792b39c4a3 The worktree is removed when the query fails](../../specs/technical/memory-loop-auditor.md#792b39c4a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f16 | [792b39c4a4 Chunks are filtered by ingestion date](../../specs/technical/memory-loop-auditor.md#792b39c4a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f17 | [792b39c4a5 Derived and estimate are told apart by the migration boundary](../../specs/technical/memory-loop-auditor.md#792b39c4a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f18 | [792b39c4a6 The estimate branch still has real content](../../specs/technical/memory-loop-auditor.md#792b39c4a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f19 | [792b39c4a7 The check runs with the moment's search phrases](../../specs/technical/memory-loop-auditor.md#792b39c4a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f20 | [792b39c4a8 The top five are captured and graded](../../specs/technical/memory-loop-auditor.md#792b39c4a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3f1 | 792b39c3a1 A candidate is judged into a record | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3f2 | 792b39c3a2 A record has every field of the scorecard | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3f3 | 792b39c3a3 Deferred fields are null without search phrases | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3f4 | 792b39c3a4 The moment identifier is stable | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3f5 | 792b39c3a5 The timestamp is read from the window | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3f6 | 792b39c3a6 A not-applicable answer is stamped | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3f7 | 792b39c3a7 The prompt asks for not-applicable and rationales | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3f8 | 792b39c3a8 The record carries the instrument version | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3f9 | 792b39c3a9 The prompt is scoped by moment type | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3f10 | 792b39c3a10 The record reflects the extracted events | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3f11 | 792b39c3a11 The whole pipeline runs on stubs | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3f12 | 792b39c3a12 Judgment failures raise their own errors | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3f13 | 792b39c4a1 An empty scratch vault returns nothing | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3f14 | 792b39c4a2 The live vault is unchanged | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3f15 | 792b39c4a3 The worktree is removed when the query fails | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3f16 | 792b39c4a4 Chunks are filtered by ingestion date | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3f17 | 792b39c4a5 Derived and estimate are told apart by the migration boundary | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3f18 | 792b39c4a6 The estimate branch still has real content | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3f19 | 792b39c4a7 The check runs with the moment's search phrases | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3f20 | 792b39c4a8 The top five are captured and graded | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
 
 #### 861c3g Memory Loop Auditor, part 3 (pytest)
 
 Status: Blocked by: [861d21 Scenarios covered only by pytest](./861d_questions-and-decisions.md#questions-and-decisions)
 
-- Owner file: [Memory Loop Auditor](../../specs/technical/memory-loop-auditor.md) (technical component).
+- Owner file: Memory Loop Auditor (technical component).
 - Package: `dev/eval` (pytest).
-- Requirements (scenarios in this node): [792b39c5 The existence check's query](../../specs/technical/memory-loop-auditor.md#792b39c5-the-existence-checks-query) (5); [792b39c6 What a forked subagent inherited](../../specs/technical/memory-loop-auditor.md#792b39c6-what-a-forked-subagent-inherited) (8); [792b39c7 A dispatch prompt's memories](../../specs/technical/memory-loop-auditor.md#792b39c7-a-dispatch-prompts-memories) (1); [792b39c8 Outcome records](../../specs/technical/memory-loop-auditor.md#792b39c8-outcome-records) (5).
+- Requirements (scenarios in this node): 792b39c5 The existence check's query (5); 792b39c6 What a forked subagent inherited (8); 792b39c7 A dispatch prompt's memories (1); 792b39c8 Outcome records (5).
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c3g1 | [792b39c5a1 A phrase is one argument](../../specs/technical/memory-loop-auditor.md#792b39c5a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g2 | [792b39c5a2 A phrase starting with -- cannot break the invocation](../../specs/technical/memory-loop-auditor.md#792b39c5a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g3 | [792b39c5a3 A real error on standard output is preserved](../../specs/technical/memory-loop-auditor.md#792b39c5a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g4 | [792b39c5a4 The result shape tells failure from emptiness](../../specs/technical/memory-loop-auditor.md#792b39c5a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g5 | [792b39c5a5 A judged moment records a query error and an empty result](../../specs/technical/memory-loop-auditor.md#792b39c5a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g6 | [792b39c6a1 The last recall before the fork point is found](../../specs/technical/memory-loop-auditor.md#792b39c6a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g7 | [792b39c6a2 An early branch point has no recall](../../specs/technical/memory-loop-auditor.md#792b39c6a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g8 | [792b39c6a3 A missing parent transcript is reported](../../specs/technical/memory-loop-auditor.md#792b39c6a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g9 | [792b39c6a4 A transcript that is not a fork is reported](../../specs/technical/memory-loop-auditor.md#792b39c6a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g10 | [792b39c6a5 A deleted note is skipped and the rest are kept](../../specs/technical/memory-loop-auditor.md#792b39c6a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g11 | [792b39c6a6 A fork's prompt includes the inherited recall](../../specs/technical/memory-loop-auditor.md#792b39c6a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g12 | [792b39c6a7 A non-fork prompt has no such section](../../specs/technical/memory-loop-auditor.md#792b39c6a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g13 | [792b39c6a8 An unresolvable fork has no dangling section](../../specs/technical/memory-loop-auditor.md#792b39c6a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g14 | [792b39c7a1 A fresh subagent's injected memories count as found](../../specs/technical/memory-loop-auditor.md#792b39c7a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g15 | [792b39c8a1 A followed memory is applied-helped and a contradicted one applied-hurt](../../specs/technical/memory-loop-auditor.md#792b39c8a-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3g16 | [792b39c8a2 An ignored memory is injected-unused or surfaced-ignored](../../specs/technical/memory-loop-auditor.md#792b39c8a-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3g17 | [792b39c8a3 A search that never ran gives no Rule 1 record](../../specs/technical/memory-loop-auditor.md#792b39c8a-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3g18 | [792b39c8a4 An absent or unsurfaced memory is absent-needed](../../specs/technical/memory-loop-auditor.md#792b39c8a-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3g19 | [792b39c8a5 The derivation is deterministic and writes no note](../../specs/technical/memory-loop-auditor.md#792b39c8a-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3g1 | 792b39c5a1 A phrase is one argument | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3g2 | 792b39c5a2 A phrase starting with -- cannot break the invocation | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3g3 | 792b39c5a3 A real error on standard output is preserved | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3g4 | 792b39c5a4 The result shape tells failure from emptiness | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3g5 | 792b39c5a5 A judged moment records a query error and an empty result | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3g6 | 792b39c6a1 The last recall before the fork point is found | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3g7 | 792b39c6a2 An early branch point has no recall | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3g8 | 792b39c6a3 A missing parent transcript is reported | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3g9 | 792b39c6a4 A transcript that is not a fork is reported | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3g10 | 792b39c6a5 A deleted note is skipped and the rest are kept | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3g11 | 792b39c6a6 A fork's prompt includes the inherited recall | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3g12 | 792b39c6a7 A non-fork prompt has no such section | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3g13 | 792b39c6a8 An unresolvable fork has no dangling section | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3g14 | 792b39c7a1 A fresh subagent's injected memories count as found | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+| 861c3g15 | 792b39c8a1 A followed memory is applied-helped and a contradicted one applied-hurt | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3g16 | 792b39c8a2 An ignored memory is injected-unused or surfaced-ignored | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3g17 | 792b39c8a3 A search that never ran gives no Rule 1 record | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3g18 | 792b39c8a4 An absent or unsurfaced memory is absent-needed | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3g19 | 792b39c8a5 The derivation is deterministic and writes no note | Example | Blocked: implemented in Python; no test names it | Not started |
 
 #### 861c3h Memory Effectiveness Evaluation, part 1 (pytest)
 
 Status: Blocked by: [861d21 Scenarios covered only by pytest](./861d_questions-and-decisions.md#questions-and-decisions)
 
-- Owner file: [Memory Effectiveness Evaluation](../../specs/product/memory-effectiveness-evaluation.md) (product capability).
+- Owner file: Memory Effectiveness Evaluation (product capability).
 - Package: `dev/eval` (pytest).
 - Implemented in: `dev/eval/cumulative/matrix.py`, `dev/eval/cumulative/runbook_vs_skill/phase2/probe_phase2.py`, `dev/eval/cumulative/runbook_vs_skill/probe.py`, `dev/eval/isolation.py`, `dev/eval/traps/retrieval_probe.py`, `dev/eval/traps/wrun.py`.
-- Requirements (scenarios in this node): [792a23a A warm trial carries the skills it claims](../../specs/product/memory-effectiveness-evaluation.md#792a23a-a-warm-trial-carries-the-skills-it-claims) (3); [792a23b A missing or empty skill source stops the build](../../specs/product/memory-effectiveness-evaluation.md#792a23b-a-missing-or-empty-skill-source-stops-the-build) (3); [792a23c Skill sources are found from the harness's own location](../../specs/product/memory-effectiveness-evaluation.md#792a23c-skill-sources-are-found-from-the-harnesss-own-location) (2); [792a23d A trial that reaches the real vault is detected from the trial's side](../../specs/product/memory-effectiveness-evaluation.md#792a23d-a-trial-that-reaches-the-real-vault-is-detected-from-the-trials-side) (3); [792a23e A real leak through the standard primitive is caught and fails loud](../../specs/product/memory-effectiveness-evaluation.md#792a23e-a-real-leak-through-the-standard-primitive-is-caught-and-fails-loud) (3); [792a23f The leak guard's limits are stated](../../specs/product/memory-effectiveness-evaluation.md#792a23f-the-leak-guards-limits-are-stated) (4); [792a23g A step is detected in every valid form of its command](../../specs/product/memory-effectiveness-evaluation.md#792a23g-a-step-is-detected-in-every-valid-form-of-its-command) (4).
+- Requirements (scenarios in this node): 792a23a A warm trial carries the skills it claims (3); 792a23b A missing or empty skill source stops the build (3); 792a23c Skill sources are found from the harness's own location (2); 792a23d A trial that reaches the real vault is detected from the trial's side (3); 792a23e A real leak through the standard primitive is caught and fails loud (3); 792a23f The leak guard's limits are stated (4); 792a23g A step is detected in every valid form of its command (4).
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c3h1 | [792a23a1a Successful skill installation is verified](../../specs/product/memory-effectiveness-evaluation.md#792a23a1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h2 | [792a23a1b Post-copy destination content is confirmed](../../specs/product/memory-effectiveness-evaluation.md#792a23a1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h3 | [792a23a1c Every warm-configuration builder verifies the same way](../../specs/product/memory-effectiveness-evaluation.md#792a23a1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h4 | [792a23b1a A missing skill source raises](../../specs/product/memory-effectiveness-evaluation.md#792a23b1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h5 | [792a23b1b An empty skill source raises](../../specs/product/memory-effectiveness-evaluation.md#792a23b1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h6 | [792a23b1c Every builder raises on a missing source](../../specs/product/memory-effectiveness-evaluation.md#792a23b1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h7 | [792a23c1a The path resolves independent of the working directory](../../specs/product/memory-effectiveness-evaluation.md#792a23c1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h8 | [792a23c1b The cumulative harness resolves its path the same way](../../specs/product/memory-effectiveness-evaluation.md#792a23c1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h9 | [792a23d1a The orchestrating session's own writes do not trigger a leak report](../../specs/product/memory-effectiveness-evaluation.md#792a23d1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h10 | [792a23d1b A harness captures no trial evidence itself and still gets a correct guard](../../specs/product/memory-effectiveness-evaluation.md#792a23d1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h11 | [792a23d1c Every harness snapshots the real vault and asserts no leak](../../specs/product/memory-effectiveness-evaluation.md#792a23d1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h12 | [792a23e1a A new real-vault note naming a trial is flagged](../../specs/product/memory-effectiveness-evaluation.md#792a23e1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h13 | [792a23e1b A note naming only a distinctive basename is still flagged](../../specs/product/memory-effectiveness-evaluation.md#792a23e1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h14 | [792a23e1c A note naming only a short deterministic basename is not flagged](../../specs/product/memory-effectiveness-evaluation.md#792a23e1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h15 | [792a23f1a A leak through an unmediated path is not caught](../../specs/product/memory-effectiveness-evaluation.md#792a23f1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h16 | [792a23f1b A leak whose content does not self-identify is not caught](../../specs/product/memory-effectiveness-evaluation.md#792a23f1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h17 | [792a23f1c A same-filename in-place mutation is not caught](../../specs/product/memory-effectiveness-evaluation.md#792a23f1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h18 | [792a23f1d A leak naming only a non-distinctive basename is not caught](../../specs/product/memory-effectiveness-evaluation.md#792a23f1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h19 | [792a23g1a The hyphenated git-filter-repo form is matched](../../specs/product/memory-effectiveness-evaluation.md#792a23g1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h20 | [792a23g1b The space-separated git filter-repo form still matches](../../specs/product/memory-effectiveness-evaluation.md#792a23g1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h21 | [792a23g1c An unrelated command is still not matched](../../specs/product/memory-effectiveness-evaluation.md#792a23g1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h22 | [792a23g1d A letter-adjacent substring is not matched](../../specs/product/memory-effectiveness-evaluation.md#792a23g1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3h1 | 792a23a1a Successful skill installation is verified | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3h2 | 792a23a1b Post-copy destination content is confirmed | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3h3 | 792a23a1c Every warm-configuration builder verifies the same way | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3h4 | 792a23b1a A missing skill source raises | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3h5 | 792a23b1b An empty skill source raises | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3h6 | 792a23b1c Every builder raises on a missing source | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3h7 | 792a23c1a The path resolves independent of the working directory | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3h8 | 792a23c1b The cumulative harness resolves its path the same way | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3h9 | 792a23d1a The orchestrating session's own writes do not trigger a leak report | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3h10 | 792a23d1b A harness captures no trial evidence itself and still gets a correct guard | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3h11 | 792a23d1c Every harness snapshots the real vault and asserts no leak | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3h12 | 792a23e1a A new real-vault note naming a trial is flagged | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3h13 | 792a23e1b A note naming only a distinctive basename is still flagged | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3h14 | 792a23e1c A note naming only a short deterministic basename is not flagged | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3h15 | 792a23f1a A leak through an unmediated path is not caught | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3h16 | 792a23f1b A leak whose content does not self-identify is not caught | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3h17 | 792a23f1c A same-filename in-place mutation is not caught | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3h18 | 792a23f1d A leak naming only a non-distinctive basename is not caught | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3h19 | 792a23g1a The hyphenated git-filter-repo form is matched | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3h20 | 792a23g1b The space-separated git filter-repo form still matches | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3h21 | 792a23g1c An unrelated command is still not matched | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3h22 | 792a23g1d A letter-adjacent substring is not matched | Example | Blocked: implemented in Python; no test names it | Not started |
 
 #### 861c3i Memory Effectiveness Evaluation, part 2 (pytest)
 
 Status: Blocked by: [861d21 Scenarios covered only by pytest](./861d_questions-and-decisions.md#questions-and-decisions)
 
-- Owner file: [Memory Effectiveness Evaluation](../../specs/product/memory-effectiveness-evaluation.md) (product capability).
+- Owner file: Memory Effectiveness Evaluation (product capability).
 - Package: `dev/eval` (pytest).
 - Implemented in: `dev/eval/audit/audit_moments.py`, `dev/eval/audit/generate_outcome_records.py`, `dev/eval/cumulative/matrix.py`, `dev/eval/cumulative/runbook_vs_skill/phase2/probe_phase2.py`, `dev/eval/cumulative/runbook_vs_skill/probe.py`, `dev/eval/isolation.py`, `dev/eval/traps/retrieval_probe.py`, `dev/eval/traps/wrun.py`.
-- Requirements (scenarios in this node): [792a23h A question stop is judged in the order of the task's completion](../../specs/product/memory-effectiveness-evaluation.md#792a23h-a-question-stop-is-judged-in-the-order-of-the-tasks-completion) (2); [792a23i A fixture gives a runbook's follow-up action a local target](../../specs/product/memory-effectiveness-evaluation.md#792a23i-a-fixture-gives-a-runbooks-follow-up-action-a-local-target) (1); [792a23j A surfacing probe reads the rank of the item list](../../specs/product/memory-effectiveness-evaluation.md#792a23j-a-surfacing-probe-reads-the-rank-of-the-item-list) (2); [792a23k The audit detects moments by reading them](../../specs/product/memory-effectiveness-evaluation.md#792a23k-the-audit-detects-moments-by-reading-them) (3); [792a23l Every audited moment carries a complete record](../../specs/product/memory-effectiveness-evaluation.md#792a23l-every-audited-moment-carries-a-complete-record) (2); [792a23m Whether a memory existed is judged against the vault of that time](../../specs/product/memory-effectiveness-evaluation.md#792a23m-whether-a-memory-existed-is-judged-against-the-vault-of-that-time) (4); [792a23n The existence check's query cannot be broken by a phrase and does not swallow a failure](../../specs/product/memory-effectiveness-evaluation.md#792a23n-the-existence-checks-query-cannot-be-broken-by-a-phrase-and-does-not-swallow-a-failure) (2); [792a23o Prompt-injected memories count as searched and surfaced](../../specs/product/memory-effectiveness-evaluation.md#792a23o-prompt-injected-memories-count-as-searched-and-surfaced) (3); [792a23p The audit emits credit records and never consumes them](../../specs/product/memory-effectiveness-evaluation.md#792a23p-the-audit-emits-credit-records-and-never-consumes-them) (1); [792a23q Audit results land additively in the ledger](../../specs/product/memory-effectiveness-evaluation.md#792a23q-audit-results-land-additively-in-the-ledger) (1).
+- Requirements (scenarios in this node): 792a23h A question stop is judged in the order of the task's completion (2); 792a23i A fixture gives a runbook's follow-up action a local target (1); 792a23j A surfacing probe reads the rank of the item list (2); 792a23k The audit detects moments by reading them (3); 792a23l Every audited moment carries a complete record (2); 792a23m Whether a memory existed is judged against the vault of that time (4); 792a23n The existence check's query cannot be broken by a phrase and does not swallow a failure (2); 792a23o Prompt-injected memories count as searched and surfaced (3); 792a23p The audit emits credit records and never consumes them (1); 792a23q Audit results land additively in the ledger (1).
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c3i1 | [792a23h1a A trailing follow-up question after full completion is not a stop](../../specs/product/memory-effectiveness-evaluation.md#792a23h1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i2 | [792a23h1b A genuine pre-completion stop is still detected](../../specs/product/memory-effectiveness-evaluation.md#792a23h1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i3 | [792a23i1a The bisect-before-fix fixture names a local issue-filing target](../../specs/product/memory-effectiveness-evaluation.md#792a23i1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3i1 | 792a23h1a A trailing follow-up question after full completion is not a stop | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3i2 | 792a23h1b A genuine pre-completion stop is still detected | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3i3 | 792a23i1a The bisect-before-fix fixture names a local issue-filing target | Example | Blocked: implemented in Python; no test names it | Not started |
 | 861c3i4 | [792a23j1a A target present in items[] counts as surfaced](../../specs/product/memory-effectiveness-evaluation.md#792a23j1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i5 | [792a23j1b candidate_l2s absence does not count as a miss](../../specs/product/memory-effectiveness-evaluation.md#792a23j1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i6 | [792a23k1a A subtle correction is detected](../../specs/product/memory-effectiveness-evaluation.md#792a23k1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i7 | [792a23k1b A success moment is detected](../../specs/product/memory-effectiveness-evaluation.md#792a23k1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i8 | [792a23k1c The miss rate is agreed before the real run](../../specs/product/memory-effectiveness-evaluation.md#792a23k1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i9 | [792a23l1a A complete moment record](../../specs/product/memory-effectiveness-evaluation.md#792a23l1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i10 | [792a23l1b A rate without a fixed counting unit is a violation](../../specs/product/memory-effectiveness-evaluation.md#792a23l1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i11 | [792a23m1a An exact answer via git checkout](../../specs/product/memory-effectiveness-evaluation.md#792a23m1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i12 | [792a23m1b An approximate answer without history](../../specs/product/memory-effectiveness-evaluation.md#792a23m1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i13 | [792a23m1c The live vault is untouched](../../specs/product/memory-effectiveness-evaluation.md#792a23m1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i14 | [792a23m1d Chunks are always judged by ingestion date](../../specs/product/memory-effectiveness-evaluation.md#792a23m1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i15 | [792a23n1a A phrase starting with -- does not break the invocation](../../specs/product/memory-effectiveness-evaluation.md#792a23n1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i16 | [792a23n1b A real query failure's error text is preserved](../../specs/product/memory-effectiveness-evaluation.md#792a23n1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i17 | [792a23o1a An injected memory counts as found for the subagent](../../specs/product/memory-effectiveness-evaluation.md#792a23o1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i18 | [792a23o1b A dispatch moment measures the handoff on the orchestrator's side](../../specs/product/memory-effectiveness-evaluation.md#792a23o1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i19 | [792a23o1c Paraphrased content is told from missing content](../../specs/product/memory-effectiveness-evaluation.md#792a23o1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i20 | [792a23p1a Output only, no side effects](../../specs/product/memory-effectiveness-evaluation.md#792a23p1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i21 | [792a23q1a Adding without disturbing what is there](../../specs/product/memory-effectiveness-evaluation.md#792a23q1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3i5 | 792a23j1b candidate_l2s absence does not count as a miss | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3i6 | 792a23k1a A subtle correction is detected | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3i7 | 792a23k1b A success moment is detected | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3i8 | 792a23k1c The miss rate is agreed before the real run | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3i9 | 792a23l1a A complete moment record | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3i10 | 792a23l1b A rate without a fixed counting unit is a violation | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3i11 | 792a23m1a An exact answer via git checkout | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3i12 | 792a23m1b An approximate answer without history | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3i13 | 792a23m1c The live vault is untouched | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3i14 | 792a23m1d Chunks are always judged by ingestion date | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3i15 | 792a23n1a A phrase starting with -- does not break the invocation | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3i16 | 792a23n1b A real query failure's error text is preserved | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3i17 | 792a23o1a An injected memory counts as found for the subagent | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3i18 | 792a23o1b A dispatch moment measures the handoff on the orchestrator's side | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3i19 | 792a23o1c Paraphrased content is told from missing content | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3i20 | 792a23p1a Output only, no side effects | Example | Blocked: implemented in Python; no test names it | Not started |
+| 861c3i21 | 792a23q1a Adding without disturbing what is there | Example | Blocked: implemented in Python; no test names it | Not started |
 
 #### 861c3j Ambient Guidance (live session)
 
