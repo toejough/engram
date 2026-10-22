@@ -418,7 +418,7 @@ curation reviews every one, so the worst a hostile caller does is queue work.
 Scenario: 792a20j1a Remote-set link and registration fields are ignored
   Given a served learn body that includes parent, aliases, xid, skillHash or SkillKey keys in camelCase or PascalCase
   When the pending note is written
-  Then it carries none of those fields
+  Then it carries no parent, aliases or skill field and none of the values sent, and its xid is one the server minted
 
 Scenario: 792a20j1b A caller cannot forge a link
   Given a served learn body that carries parent, aliases or xid values

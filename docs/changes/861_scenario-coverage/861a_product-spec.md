@@ -95,3 +95,18 @@ Scenario: 792a12u1e The identity backfill preserves the identity fields
   When the user runs engram update --backfill-identity
   Then the note is not rewritten, and its three skill fields are unchanged
 ```
+
+## 861a4zzh Modified: Vault Serving scenarios, part 3
+
+Operations a test finds necessary in existing specs are applied in place ([861d6 A new test that fails at baseline](./861d_questions-and-decisions.md#questions-and-decisions)); the one below is applied in [Vault Serving](../../specs/product/vault-serving.md) in the commit of its test.
+
+### 861a4zzh1 Modified: 792a20j1a Remote-set link and registration fields are ignored
+
+Target: [792a20j1 UAT Scenarios](../../specs/product/vault-serving.md#792a20j1-uat-scenarios), Scenario 792a20j1a. Differs from the current text in the Then line: every pending note carries an xid, which the server mints, so the note cannot carry "none of those fields".
+
+```gherkin
+Scenario: 792a20j1a Remote-set link and registration fields are ignored
+  Given a served learn body that includes parent, aliases, xid, skillHash or SkillKey keys in camelCase or PascalCase
+  When the pending note is written
+  Then it carries no parent, aliases or skill field and none of the values sent, and its xid is one the server minted
+```
