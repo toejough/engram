@@ -1,7 +1,6 @@
 package update_test
 
 import (
-	"context"
 	"errors"
 	"io/fs"
 	"maps"
@@ -26,7 +25,7 @@ func Test792b29c14a3_Run_ADryRunDeployPlansTheSkills(t *testing.T) {
 	filesBefore := maps.Clone(fileSystem.files)
 	dirsBefore := maps.Clone(fileSystem.dirs)
 
-	report, err := hds2NewUpdater(fileSystem).Run(context.Background(), update.Options{DryRun: true})
+	report, err := hds2NewUpdater(fileSystem).Run(t.Context(), update.Options{DryRun: true})
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil || len(report.Harnesses) != 1 {
@@ -75,7 +74,7 @@ func Test792b29c15a2_Run_TheFailureDoesNotStopTheOtherHarness(t *testing.T) {
 		Spawn: noopSpawner{},
 	}
 
-	report, err := updater.Run(context.Background(), update.Options{})
+	report, err := updater.Run(t.Context(), update.Options{})
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil || len(report.Harnesses) != 2 {
@@ -111,15 +110,10 @@ func Test792b29c1a7_DetectHarnesses_AnUnreadableProbeIsAnError(t *testing.T) {
 		errs:       map[string]error{hds2ClaudeDir: fs.ErrPermission},
 	}
 
-	detected, err := update.ExportDetectHarnesses(hds2Home, prober)
+	detected, err := update.DetectHarnesses(hds2Home, prober)
 	g.Expect(err).To(MatchError(fs.ErrPermission))
 	g.Expect(err).To(MatchError(ContainSubstring(hds2ClaudeDir)))
 	g.Expect(detected).To(BeEmpty())
-
-	exportedDetected, exportedErr := update.DetectHarnesses(hds2Home, prober)
-	g.Expect(exportedErr).To(MatchError(fs.ErrPermission))
-	g.Expect(exportedErr).To(MatchError(ContainSubstring(hds2ClaudeDir)))
-	g.Expect(exportedDetected).To(BeEmpty())
 }
 
 // Test792b29c3a8_Run_OneHarnessesImportManagesGuidanceForEveryHarness verifies Scenario 792b29c3a8: when only Claude
@@ -135,9 +129,9 @@ func Test792b29c3a8_Run_OneHarnessesImportManagesGuidanceForEveryHarness(t *test
 	fileSystem.dirs[hds2PiDir] = true
 	fileSystem.files[hds2Repo+"/agent-instructions/guidance/recall.md"] = []byte("recall guidance")
 	fileSystem.files[hds2Repo+"/agent-instructions/guidance/delegate.md"] = []byte("delegate guidance")
-	fileSystem.files[hds2ClaudeImports] = []byte("# joe\n\n@~/.claude/engram/delegate.md\n")
+	fileSystem.files[hds2ClaudeImports] = []byte("# notes\n\n@~/.claude/engram/delegate.md\n")
 
-	report, err := hds2NewUpdater(fileSystem).Run(context.Background(), update.Options{})
+	report, err := hds2NewUpdater(fileSystem).Run(t.Context(), update.Options{})
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil || len(report.Harnesses) != 2 {
@@ -186,7 +180,7 @@ func Test792b29c4a5_Run_AFenceHidesImports(t *testing.T) {
 			want:    []string{"delegate.md"},
 		},
 		"an import only inside an unclosed fence is not recorded": {
-			content: "# joe\n```\n@~/.claude/engram/recall.md\n",
+			content: "# notes\n```\n@~/.claude/engram/recall.md\n",
 		},
 	}
 
@@ -200,7 +194,7 @@ func Test792b29c4a5_Run_AFenceHidesImports(t *testing.T) {
 			fileSystem.dirs[hds2ClaudeDir] = true
 			fileSystem.files[hds2ClaudeImports] = []byte(testCase.content)
 
-			report, err := hds2NewUpdater(fileSystem).Run(context.Background(), update.Options{})
+			report, err := hds2NewUpdater(fileSystem).Run(t.Context(), update.Options{})
 			g.Expect(err).NotTo(HaveOccurred())
 
 			recorded := report.GuidanceImports[update.HarnessClaude]
@@ -229,7 +223,7 @@ func Test792b29c4a6_Run_StaleAndForeignPrefixesDoNotCount(t *testing.T) {
 		"@" + hds2PiGuidanceTarget + "/delegate.md\n@~/.pi/agent/engram/recall.md\n",
 	)
 
-	report, err := hds2NewUpdater(fileSystem).Run(context.Background(), update.Options{})
+	report, err := hds2NewUpdater(fileSystem).Run(t.Context(), update.Options{})
 	g.Expect(err).NotTo(HaveOccurred())
 
 	g.Expect(report.GuidanceImports[update.HarnessPi]).To(Equal(map[string]bool{"delegate.md": true}))
@@ -248,7 +242,7 @@ func Test792b29c5a6_Run_ARootThatIsAFileIsAnError(t *testing.T) {
 	fileSystem.files[hds2ClaudeRoot] = []byte("not a directory")
 	hds2SeedSkill(fileSystem, "learn")
 
-	report, err := hds2NewUpdater(fileSystem).Run(context.Background(), update.Options{})
+	report, err := hds2NewUpdater(fileSystem).Run(t.Context(), update.Options{})
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil || len(report.Harnesses) != 1 {
@@ -271,7 +265,7 @@ const (
 	hds2ClaudeDir        = hds2Home + "/.claude"
 	hds2ClaudeImports    = hds2Home + "/.claude/CLAUDE.md"
 	hds2ClaudeRoot       = hds2Home + "/.claude/engram"
-	hds2Home             = "/home/joe"
+	hds2Home             = "/home/user"
 	hds2PiDir            = hds2Home + "/.pi"
 	hds2PiGuidanceTarget = hds2Home + "/.pi/agent/guidance"
 	hds2PiImports        = hds2Home + "/.pi/agent/AGENTS.md"
