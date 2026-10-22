@@ -91,7 +91,7 @@ func Test792b32c2a1_AgentInstructionBundle_ASkillsExampleCommandUsesTheAttachedF
 
 // Test792b32c3a1_AgentInstructionBundle_ASkillStatesTheRuleAndItsReason reads every SKILL.md the repository ships
 // that shows an engram command with a free-text flag: it states that the value must be written --flag="value" and
-// names a value beginning with a dash as the reason.
+// names a value beginning with a dash as the reason, in one sentence.
 func Test792b32c3a1_AgentInstructionBundle_ASkillStatesTheRuleAndItsReason(t *testing.T) {
 	t.Parallel()
 
@@ -103,8 +103,7 @@ func Test792b32c3a1_AgentInstructionBundle_ASkillStatesTheRuleAndItsReason(t *te
 	for _, skill := range skills {
 		text := shippedText(t, aibSkillPath(skill))
 
-		g.Expect(text).To(ContainSubstring(aibAttachedFormRule), skill)
-		g.Expect(text).To(ContainSubstring(aibAttachedFormReason), skill)
+		g.Expect(text).To(ContainSubstring(aibAttachedFormSentence), skill)
 	}
 }
 
@@ -155,6 +154,18 @@ func Test792b32c4a1_AgentInstructionBundle_ANewNoteIsWrittenByLearn(t *testing.T
 	guidance := shippedText(t, "agent-instructions/guidance/learn.md")
 
 	g.Expect(guidance).To(ContainSubstring("which writes a vault note (via `engram learn`). NOT a plain note file"))
+
+	// The negative half: no shipped instruction has the agent create a note file itself.
+	creators := make(map[string][]string)
+
+	for _, path := range aibInstructionPaths(t) {
+		hits := aibDirectNoteHits(aibNoteCreatePattern, shippedText(t, path))
+		if len(hits) > 0 {
+			creators[path] = hits
+		}
+	}
+
+	g.Expect(creators).To(BeEmpty())
 }
 
 // Test792b32c4a2_AgentInstructionBundle_AnExistingNoteIsEditedByAmendOrResituate reads the skills the repository
@@ -180,6 +191,64 @@ func Test792b32c4a2_AgentInstructionBundle_AnExistingNoteIsEditedByAmendOrResitu
 	g.Expect(route).To(ContainSubstring("composed and executed directly by you, the route-executing agent, " +
 		"not handed to write-memory"))
 	g.Expect(route).To(ContainSubstring("engram amend --target <matched basename, no .md>"))
+
+	// The negative half: no shipped instruction has the agent edit a note file itself.
+	editors := make(map[string][]string)
+
+	for _, path := range aibInstructionPaths(t) {
+		hits := aibDirectNoteHits(aibNoteEditPattern, shippedText(t, path))
+		if len(hits) > 0 {
+			editors[path] = hits
+		}
+	}
+
+	g.Expect(editors).To(BeEmpty())
+}
+
+// TestAibDirectNoteHits shows the scanner of Test792b32c4a1 and Test792b32c4a2 finds an instruction to create or edit
+// a note file directly, and passes the sentences that name the note file only to forbid it or to describe it.
+func TestAibDirectNoteHits(t *testing.T) {
+	t.Parallel()
+
+	t.Run("an instruction to create a note file is found", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+
+		for _, text := range []string{
+			"then write the note file yourself with this content",
+			"Create the note file in the vault yourself with the Write tool",
+			"create the note directly",
+		} {
+			g.Expect(aibDirectNoteHits(aibNoteCreatePattern, text)).NotTo(BeEmpty(), text)
+		}
+	})
+
+	t.Run("an instruction to edit a note file is found", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+
+		for _, text := range []string{
+			"edit the note file directly with the Edit tool instead of running engram amend",
+			"Edit the note .md file directly",
+			"modify the note yourself",
+		} {
+			g.Expect(aibDirectNoteHits(aibNoteEditPattern, text)).NotTo(BeEmpty(), text)
+		}
+	})
+
+	t.Run("the shipped wording that forbids or describes a note file is clean", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+
+		text := "NOT a plain note file, NOT Claude Code's native project memory. " +
+			"a real note file, marked `pending: true`. Every curation action above is an `engram amend` call."
+
+		g.Expect(aibDirectNoteHits(aibNoteCreatePattern, text)).To(BeEmpty())
+		g.Expect(aibDirectNoteHits(aibNoteEditPattern, text)).To(BeEmpty())
+	})
 }
 
 // TestAibSpaceFormHits shows the scanner of Test792b32c2a1 finds the space form of a free-text flag, in either quote,
@@ -225,6 +294,8 @@ const (
 	aibAttachedFormReason = "because a value beginning with `-` is otherwise misread as a new flag and the command fails."
 	aibAttachedFormRule   = "A free-text flag value (for example `--situation`, `--source`, `--subject`, `--behavior`) " +
 		"must be written as `--flag=\"value\"` — the quote touching the `=`, no space —"
+	// aibAttachedFormSentence is the rule and its reason as one sentence, the D18 sentence of the pytest guard.
+	aibAttachedFormSentence = aibAttachedFormRule + " " + aibAttachedFormReason
 	aibFrontmatterParts     = 3
 	aibGuidanceDirectory    = "agent-instructions/guidance"
 	aibMaxDescriptionLength = 1024
@@ -241,6 +312,10 @@ var (
 		"text", "phrase", "situation", "subject", "predicate", "object", "behavior", "impact", "action", "source",
 		"body", "done-when", "red-flag", "trigger", "question", "answer", "supersedes", "contributors",
 	}
+	aibNoteCreatePattern = regexp.MustCompile(`(?i)\b(?:write|create|author|save)\s+(?:the|a|that|each|every)\s+` +
+		`(?:new\s+)?note(?:\s+\.md)?\s+(?:file\b|yourself|directly)|\bwith\s+the\s+Write\s+tool\b`)
+	aibNoteEditPattern = regexp.MustCompile(`(?i)\b(?:edit|modify|change|update|rewrite|hand-edit)\s+` +
+		`(?:the|a|that|each|every)\s+note(?:\s+\.md)?\s+(?:file\b|yourself|directly)|\bwith\s+the\s+Edit\s+tool\b`)
 	// aibSkillsWithFreeTextExamples is the skills whose body shows an engram command with a free-text flag.
 	aibSkillsWithFreeTextExamples = []string{"curate", "recall", "route", "write-memory"}
 	aibSpaceFormPattern           = regexp.MustCompile(`--(?:` + strings.Join(aibFreeTextFlags, "|") + `)\s+["']`)
@@ -248,6 +323,11 @@ var (
 
 type aibSkillMetadata struct {
 	Description string `yaml:"description"`
+}
+
+// aibDirectNoteHits returns a snippet for every instruction in the text that the pattern finds.
+func aibDirectNoteHits(pattern *regexp.Regexp, text string) []string {
+	return pattern.FindAllString(text, -1)
 }
 
 // aibInstructionPaths returns the repository relative paths of every SKILL.md, every references markdown file of a
