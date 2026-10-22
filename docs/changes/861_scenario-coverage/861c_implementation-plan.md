@@ -730,7 +730,7 @@ Status: In progress: 0/5 entries complete (5 rows Green-single)
 
 #### 861c2w Ingestion Source Discovery (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: In progress: 0/4 entries complete (4 rows Green-single)
 
 - Owner file: [Ingestion Source Discovery](../../specs/technical/ingestion-source-discovery.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/ingestion_source_discovery_scenarios_test.go`.
@@ -740,10 +740,10 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2w1 | [792b17c3a6 Ancestor depth is the physical distance](../../specs/technical/ingestion-source-discovery.md#792b17c3a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2w2 | [792b17c5a4 An invalid configuration file is an error](../../specs/technical/ingestion-source-discovery.md#792b17c5a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2w3 | [792b17c8a1 Only documents and transcripts are sources](../../specs/technical/ingestion-source-discovery.md#792b17c8a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2w4 | [792b17c8a2 The chunk index is never a source](../../specs/technical/ingestion-source-discovery.md#792b17c8a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2w1 | [792b17c3a6 Ancestor depth is the physical distance](../../specs/technical/ingestion-source-discovery.md#792b17c3a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b17c3a6_AncestorDepthIsThePhysicalDistance (ingestion_source_discovery_scenarios_test.go); mutation sweepspec.go ancestorClaudeDirs level: level to len(dirs) fails it at the .claude depth Then (logs b06/861c2w/m1.log); passing run 1.log | Green-single |
+| 861c2w2 | [792b17c5a4 An invalid configuration file is an error](../../specs/technical/ingestion-source-discovery.md#792b17c5a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b17c5a4_AnInvalidConfigurationFileIsAnError; mutation ingest.go resolveAutoSpec dropped the file path from the wrapped error, fails at the error-names-file Then (m2.log); passing run 1.log | Green-single |
+| 861c2w3 | [792b17c8a1 Only documents and transcripts are sources](../../specs/technical/ingestion-source-discovery.md#792b17c8a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b17c8a1_OnlyDocumentsAndTranscriptsAreSources; mutation sourceRefsFromRoot extension filter also accepts .json, fails at the c.json-not-a-source Then (m3.log); passing run 1.log | Green-single |
+| 861c2w4 | [792b17c8a2 The chunk index is never a source](../../specs/technical/ingestion-source-discovery.md#792b17c8a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b17c8a2_TheChunkIndexIsNeverASource; mutation sourceRefsFromRoot chunk-index guard disabled, fails at the index-file-not-a-source Then (m4.log); passing run 1.log | Green-single |
 
 #### 861c2x Query Engine (default)
 
