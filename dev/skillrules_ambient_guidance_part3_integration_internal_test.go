@@ -146,8 +146,8 @@ func Test792a19q1c_ATruncatedRunbookIsFetchedInFull(t *testing.T) {
 }
 
 // Test792a19q1d_AParentVaultRunbookIsFollowed reads the shim the repository ships: the frame is stated for the kind
-// runbook and names no origin, so a runbook that came from a parent vault is fetched with a bare engram show and
-// followed like any other.
+// runbook and names no origin, so a runbook that came from a parent vault is fetched with a bare engram show, its
+// steps are restated as the plan, and it is followed like any other.
 func Test792a19q1d_AParentVaultRunbookIsFollowed(t *testing.T) {
 	t.Parallel()
 
@@ -157,6 +157,7 @@ func Test792a19q1d_AParentVaultRunbookIsFollowed(t *testing.T) {
 
 	g.Expect(text).To(ContainSubstring("read every item's `kind` field and treat it accordingly"))
 	g.Expect(text).To(ContainSubstring("- **`runbook`** — a procedure to execute. See the frame below."))
+	g.Expect(text).To(ContainSubstring("**Restate its steps as your plan** before that same first mutating action."))
 	g.Expect(text).To(ContainSubstring("Run `engram show <basename>`"))
 	g.Expect(text).NotTo(ContainSubstring("from_parent"))
 }
