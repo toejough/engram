@@ -47,7 +47,7 @@ func init() {
 		Name("eval").
 		Description("Run the memory eval harness for one arm (nothing|skills-only|current-state)"))
 
-	targ.Register(acceptanceTarget)
+	targ.Register(acceptanceTarget, testPkgTarget)
 }
 
 // unexported constants.
@@ -62,6 +62,8 @@ const (
 	acceptanceTags     = "network"
 	evalOutDirPerm     = 0o750
 	targSourcePackage  = "github.com/toejough/targ/dev"
+	// testPkgTimeout bounds the tests of one package.
+	testPkgTimeout = "-timeout=2m"
 )
 
 // unexported variables.
@@ -99,9 +101,11 @@ var (
 			targdev.DeleteDeadcode, targdev.Fmt, targdev.Tidy, targdev.Modernize, checkNilsTarget,
 			targdev.CheckCoverage, targdev.ReorderDecls, targdev.Lint, targdev.CheckThinAPI, lintDevTarget,
 		)
-	errEvalUsage  = errors.New("usage: targ eval <arm> [trials]  (nothing|skills-only|current-state)")
-	lintDevTarget = targ.Targ(lintDev).Name("lint-dev").
-			Description("Lint the dev package's build-tagged files (targ, integration)")
+	errEvalUsage = errors.New("usage: targ eval <arm> [trials]  (nothing|skills-only|current-state)")
+	// errTestPkgNoPackage is what test-pkg reports when it is given no package path (861b2a1a).
+	errTestPkgNoPackage = errors.New("usage: targ test-pkg <package> [--run REGEXP]  (for example ./internal/cli)")
+	lintDevTarget       = targ.Targ(lintDev).Name("lint-dev").
+				Description("Lint the dev package's build-tagged files (targ, integration)")
 	// mutateTarget reuses Targ's mutation run behind Engram's check-for-fail, as Targ's runs behind its own (794b4a).
 	mutateTarget = targ.Targ(targdev.Mutate.Fn()).Name("mutate").
 			Description(targdev.Mutate.GetDescription()).
@@ -142,6 +146,9 @@ var (
 	testDevTarget = targ.Targ(testDev).
 			Name("test-dev").
 			Description("Run unit tests for the dev package (targ build tag)")
+	testPkgTarget = targ.Targ(testPkg).
+			Name("test-pkg").
+			Description("Run the tests of one package with -race, only those matching --run when it is given")
 	// watchCheck is the check watch runs on a change: Engram's, never Targ's (794b4a1e).
 	watchCheck  = checkTarget
 	watchTarget = targ.Targ(watch).Name("watch").Description(targdev.Watch.GetDescription())
@@ -153,10 +160,19 @@ type acceptanceArgs struct {
 	Run   string `targ:"flag,name=run,desc=run only the tests whose names match this regular expression"`
 }
 
+// commandRunner runs a command to completion and returns its failure; targ.RunContext is the production one.
+type commandRunner func(ctx context.Context, name string, args ...string) error
+
 // evalArgs holds the positional arm name and optional trials count for targ eval.
 type evalArgs struct {
 	Arm    string `targ:"positional,placeholder=ARM,desc=arm name: nothing|skills-only|current-state"`
 	Trials int    `targ:"positional,default=1,placeholder=TRIALS,desc=number of trials per scenario (default 1)"`
+}
+
+// testPkgArgs holds the package path and the optional test filter of targ test-pkg.
+type testPkgArgs struct {
+	Package string `targ:"positional,placeholder=PACKAGE,desc=path of the package to test (for example ./internal/cli)"`
+	Run     string `targ:"flag,name=run,desc=run only the tests whose names match this regular expression"`
 }
 
 // acceptanceTestArgs is the go test command line of targ acceptance.
@@ -275,6 +291,22 @@ func runEval(ctx context.Context, args evalArgs) error {
 	return nil
 }
 
+// runTestPkg runs go test on the package of args through run, and fails with the failure of go test. It starts no
+// command when args hold no package path.
+func runTestPkg(ctx context.Context, args testPkgArgs, run commandRunner) error {
+	argv, err := testPkgCommandLine(args)
+	if err != nil {
+		return err
+	}
+
+	err = run(ctx, "go", argv...)
+	if err != nil {
+		return fmt.Errorf("running the tests of %s: %w", args.Package, err)
+	}
+
+	return nil
+}
+
 // sharedTargetList returns Targ's retained shared targets in name order.
 func sharedTargetList() []any {
 	names := slices.Sorted(maps.Keys(sharedTargets))
@@ -312,6 +344,27 @@ func testDevIntegration(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// testPkg runs the tests of one package with the race detector and no build tag (861b2a), so that a builder runs the
+// package it touched and not the whole module.
+func testPkg(ctx context.Context, args testPkgArgs) error {
+	return runTestPkg(ctx, args, targ.RunContext)
+}
+
+// testPkgCommandLine is the go test command line of targ test-pkg: the count, the timeout and the race detector, the
+// filter when one is given, and the package path last.
+func testPkgCommandLine(args testPkgArgs) ([]string, error) {
+	if args.Package == "" {
+		return nil, errTestPkgNoPackage
+	}
+
+	argv := []string{"test", "-count=1", testPkgTimeout, "-race"}
+	if args.Run != "" {
+		argv = append(argv, "-run", args.Run)
+	}
+
+	return append(argv, args.Package), nil
 }
 
 // watch is Targ's watch (dev/targets.go watch) running Engram's check instead of Targ's (794b4a). Targ's cannot be
