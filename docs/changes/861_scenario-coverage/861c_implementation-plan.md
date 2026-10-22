@@ -693,7 +693,7 @@ Status: Merged (f24d3f49)
 
 #### 861c2u Exchange Versioning (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: In progress: 0/5 entries complete (5 rows Green-single)
 
 - Owner file: [Exchange Versioning](../../specs/technical/exchange-versioning.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/exchange_versioning_scenarios_test.go`.
@@ -703,11 +703,11 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2u1 | [792b33c5a3 Equal matches and changed changes](../../specs/technical/exchange-versioning.md#792b33c5a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2u2 | [792b33c7a2 An existing xid is kept](../../specs/technical/exchange-versioning.md#792b33c7a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2u3 | [792b33c7a3 A note with no frontmatter cannot be stamped](../../specs/technical/exchange-versioning.md#792b33c7a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2u4 | [792b33c9a6 A note with no frontmatter cannot take a receipt](../../specs/technical/exchange-versioning.md#792b33c9a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2u5 | [792b33c9a7 A CRLF note takes the receipt as LF](../../specs/technical/exchange-versioning.md#792b33c9a-scenarios) | Interaction | Names a call or its absence at a collaborator ("is sent"); imptest | Not started |
+| 861c2u1 | [792b33c5a3 Equal matches and changed changes](../../specs/technical/exchange-versioning.md#792b33c5a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b33c5a3_CompareExchangeHashes_EqualMatchesAndChangedChanges, internal/cli/exchange_versioning_scenarios_test.go; passes, log logs/b06/861c2u/3.log; mutation: the equal branch of compareExchangeHashes made unreachable fails it at the equality check, log logs/b06/861c2u/m1.log) | Green-single |
+| 861c2u2 | [792b33c7a2 An existing xid is kept](../../specs/technical/exchange-versioning.md#792b33c7a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b33c7a2_SetXIDField_AnExistingXIDIsKept, internal/cli/exchange_versioning_scenarios_test.go; passes, log logs/b06/861c2u/3.log; mutation: the existing-xid guard of setXIDField disabled fails it at the unchanged-note assertion, log logs/b06/861c2u/m2.log). The earlier combined Test792b33c7a1_SetXIDField was trimmed to its own scenario | Green-single |
+| 861c2u3 | [792b33c7a3 A note with no frontmatter cannot be stamped](../../specs/technical/exchange-versioning.md#792b33c7a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b33c7a3_SetXIDField_ANoteWithNoFrontmatterCannotBeStamped, internal/cli/exchange_versioning_scenarios_test.go; passes, log logs/b06/861c2u/3.log; mutation: setXIDField returning the note instead of the no-frontmatter error fails it at the error assertion, log logs/b06/861c2u/m3.log) | Green-single |
+| 861c2u4 | [792b33c9a6 A note with no frontmatter cannot take a receipt](../../specs/technical/exchange-versioning.md#792b33c9a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b33c9a6_ApplyReceiptToContent_ANoteWithNoFrontmatterCannotTakeAReceipt, internal/cli/exchange_versioning_scenarios_test.go; passes, log logs/b06/861c2u/3.log; mutation: applyReceiptToContent returning the note instead of the no-frontmatter error fails it at the error assertion, log logs/b06/861c2u/m4.log) | Green-single |
+| 861c2u5 | [792b33c9a7 A CRLF note takes the receipt as LF](../../specs/technical/exchange-versioning.md#792b33c9a-scenarios) | Interaction | Names a call or its absence at a collaborator ("is sent"); imptest (Test792b33c9a7_DrainOutbox_ACRLFNoteTakesTheReceiptAsLF, internal/cli/exchange_versioning_scenarios_test.go; MockOo1Send drives the send step, the real receipt writer records the receipt on an in-memory vault; passes, log logs/b06/861c2u/3.log; mutation: dropping the toLF conversion in applyReceiptToContent fails it at the receipt-recorded assertion, log logs/b06/861c2u/m5.log). The sibling Test792b36c8a6 (offer-outbox, a different ID) is left as is | Green-single |
 
 #### 861c2v Transcript Reader (default)
 
