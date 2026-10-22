@@ -310,7 +310,7 @@ Status: Merged (ca4c637d); 11 rows Done, 1 row Not started: 861c2d3, Open 861d29
 
 #### 861c2e Harness Deploy Sync, part 1 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: In progress: 0/10 entries complete (10 rows Green-single)
 
 - Owner file: [Harness Deploy Sync](../../specs/technical/harness-deploy-sync.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/harness_deploy_sync_part1_scenarios_test.go`.
@@ -320,16 +320,16 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2e1 | [792b29c17a9 The skill rows map source to skills directory](../../specs/technical/harness-deploy-sync.md#792b29c17a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2e2 | [792b29c18a2 An imported Claude Code file is refreshed](../../specs/technical/harness-deploy-sync.md#792b29c18a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2e3 | [792b29c18a3 A Pi file not imported is deployed with Pi's paths](../../specs/technical/harness-deploy-sync.md#792b29c18a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2e4 | [792b29c18a4 An imported Pi file is refreshed](../../specs/technical/harness-deploy-sync.md#792b29c18a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2e5 | [792b29c18a5 Each harness is judged on its own imports](../../specs/technical/harness-deploy-sync.md#792b29c18a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2e6 | [792b29c18a6 A plain update with nothing deployed or imported gives the nudge](../../specs/technical/harness-deploy-sync.md#792b29c18a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2e7 | [792b29c18a7 An existing import silences the nudge](../../specs/technical/harness-deploy-sync.md#792b29c18a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2e8 | [792b29c18a8 Each file is judged on its own imports](../../specs/technical/harness-deploy-sync.md#792b29c18a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2e9 | [792b29c18a9 The flag silences the nudge](../../specs/technical/harness-deploy-sync.md#792b29c18a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2e10 | [792b29c18a10 A dry run prefixes the guidance lines](../../specs/technical/harness-deploy-sync.md#792b29c18a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2e1 | [792b29c17a9 The skill rows map source to skills directory](../../specs/technical/harness-deploy-sync.md#792b29c17a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b29c17a9_WriteUpdateReport_SkillRowsMapSourceToSkillsDirectory; mutation of the skill-row format (update.go:979) failed it, b02/861c2e/6-mutation-skillrow.log | Green-single |
+| 861c2e2 | [792b29c18a2 An imported Claude Code file is refreshed](../../specs/technical/harness-deploy-sync.md#792b29c18a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b29c18a2_WriteUpdateReport_ImportedClaudeCodeFileIsRefreshed; mutation of the "guidance refreshed" line (update.go:819) failed it, b02/861c2e/2-mutation.log | Green-single |
+| 861c2e3 | [792b29c18a3 A Pi file not imported is deployed with Pi's paths](../../specs/technical/harness-deploy-sync.md#792b29c18a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b29c18a3_WriteUpdateReport_PiFileNotImportedIsDeployedWithPiPaths; baseline pass only; b02/861c2e/7-final.log | Green-single |
+| 861c2e4 | [792b29c18a4 An imported Pi file is refreshed](../../specs/technical/harness-deploy-sync.md#792b29c18a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b29c18a4_WriteUpdateReport_ImportedPiFileIsRefreshed; mutation of the "guidance refreshed" line (update.go:819) failed it, b02/861c2e/2-mutation.log | Green-single |
+| 861c2e5 | [792b29c18a5 Each harness is judged on its own imports](../../specs/technical/harness-deploy-sync.md#792b29c18a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b29c18a5_WriteUpdateReport_EachHarnessIsJudgedOnItsOwnImports; mutation of the "guidance refreshed" line (update.go:819) failed it, b02/861c2e/2-mutation.log | Green-single |
+| 861c2e6 | [792b29c18a6 A plain update with nothing deployed or imported gives the nudge](../../specs/technical/harness-deploy-sync.md#792b29c18a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b29c18a6_WriteUpdateReport_PlainUpdateWithNothingDeployedOrImportedGivesTheNudge; mutation of the nudge text (update.go:784) failed it, b02/861c2e/5-mutation-nudge-text.log | Green-single |
+| 861c2e7 | [792b29c18a7 An existing import silences the nudge](../../specs/technical/harness-deploy-sync.md#792b29c18a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b29c18a7_WriteUpdateReport_ExistingImportSilencesTheNudge; mutation of the nudge condition (update.go:779) failed it, b02/861c2e/3-mutation-nudge.log | Green-single |
+| 861c2e8 | [792b29c18a8 Each file is judged on its own imports](../../specs/technical/harness-deploy-sync.md#792b29c18a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b29c18a8_WriteUpdateReport_EachFileIsJudgedOnItsOwnImports; mutation of the "guidance refreshed" line (update.go:819) failed it, b02/861c2e/2-mutation.log | Green-single |
+| 861c2e9 | [792b29c18a9 The flag silences the nudge](../../specs/technical/harness-deploy-sync.md#792b29c18a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b29c18a9_WriteUpdateReport_FlagSilencesTheNudge; mutation of the nudge condition (update.go:779) failed it, b02/861c2e/3-mutation-nudge.log | Green-single |
+| 861c2e10 | [792b29c18a10 A dry run prefixes the guidance lines](../../specs/technical/harness-deploy-sync.md#792b29c18a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b29c18a10_WriteUpdateReport_DryRunPrefixesTheGuidanceLines; mutation of the dry-run prefix (update.go:806) failed it, b02/861c2e/4-mutation-dryrun.log | Green-single |
 
 #### 861c2f Harness Deploy Sync, part 2 (default)
 
