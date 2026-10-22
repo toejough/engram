@@ -408,7 +408,7 @@ func Test792b37c15a2_Activate_AFailedSignalIsHarmless(t *testing.T) {
 }
 
 // Test792b37c15a3_Activate_AFailedLocalWriteSendsNoSignal verifies 792b37c15a3 (A failed local write sends no
-// signal): of two notes pulled in one command, the one whose local write fails fails the command and gets no POST
+// signal): of two notes pulled in one command, the one whose local write fails makes the command fail and gets no POST
 // /activate, while the other, written, does.
 func Test792b37c15a3_Activate_AFailedLocalWriteSendsNoSignal(t *testing.T) {
 	t.Parallel()
