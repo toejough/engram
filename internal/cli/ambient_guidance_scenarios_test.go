@@ -153,10 +153,6 @@ func Test792a19v1c_Update_APiDocumentIsDeployedWithPisPaths(t *testing.T) {
 	piLines := iu3LinesWithPrefix(lines, "guidance deployed to ~/.pi/")
 
 	g.Expect(piLines).To(Equal([]string{ag1PiDeployed("recall.md")}))
-
-	for _, line := range piLines {
-		g.Expect(line).NotTo(ContainSubstring(".claude"))
-	}
 }
 
 // Test792a19v1d_Update_TheHarnessesAreWiredIndependently verifies Scenario 792a19v1d: with Claude Code importing
