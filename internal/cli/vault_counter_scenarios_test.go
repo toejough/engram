@@ -197,11 +197,11 @@ func Test792b25c5a1_VaultCounter_ValuesOrderedByCountThenValue(t *testing.T) {
 	)
 
 	notes := map[string]string{}
-	vcnAddTypedNotes(notes, "b", tiedNotes)
-	vcnAddTypedNotes(notes, "qa-answer", qaAnswerNotes)
-	vcnAddTypedNotes(notes, "fact", factNotes)
-	vcnAddTypedNotes(notes, "a", tiedNotes)
-	vcnAddTypedNotes(notes, "feedback", feedbackNotes)
+	vc1AddTypedNotes(notes, "b", tiedNotes)
+	vc1AddTypedNotes(notes, "qa-answer", qaAnswerNotes)
+	vc1AddTypedNotes(notes, "fact", factNotes)
+	vc1AddTypedNotes(notes, "a", tiedNotes)
+	vc1AddTypedNotes(notes, "feedback", feedbackNotes)
 
 	var out strings.Builder
 
@@ -351,7 +351,7 @@ func Test792b25c8a1_VaultCounter_CountWritesNothing(t *testing.T) {
 			t.Parallel()
 			g := NewWithT(t)
 
-			recorder := vcnNewRecordingFS(map[string]string{
+			recorder := vc1NewRecordingFS(map[string]string{
 				"a.md": "---\ntype: fact\n---\nlinks to [[b]]\n",
 				"b.md": "---\ntype: feedback\n---\nbody\n",
 			})
@@ -385,7 +385,7 @@ func Test792b25c8a2_VaultCounter_NotesCountedWithoutSidecars(t *testing.T) {
 		files[fmt.Sprintf("note-%04d.md", index)] = "---\ntype: fact\n---\nbody\n"
 	}
 
-	recorder := vcnNewRecordingFS(files)
+	recorder := vc1NewRecordingFS(files)
 
 	var out strings.Builder
 
@@ -405,16 +405,16 @@ func Test792b25c8a2_VaultCounter_NotesCountedWithoutSidecars(t *testing.T) {
 	}
 }
 
-// vcnRecordingFS is an in-memory vault filesystem for the vault-counter scenarios: it serves the listed
+// vc1RecordingFS is an in-memory vault filesystem for the vault-counter scenarios: it serves the listed
 // notes, records every read, and records every call that could create, modify or delete a file.
-type vcnRecordingFS struct {
+type vc1RecordingFS struct {
 	files     map[string]string
 	reads     []string
 	mutations []string
 }
 
 // edgeFS adapts the recorder to the cli.EdgeFS the production count wiring consumes.
-func (r *vcnRecordingFS) edgeFS() cli.EdgeFS {
+func (r *vc1RecordingFS) edgeFS() cli.EdgeFS {
 	mutate := func(op string) func(string) error {
 		return func(path string) error {
 			r.mutations = append(r.mutations, op+" "+path)
@@ -472,7 +472,7 @@ func (r *vcnRecordingFS) edgeFS() cli.EdgeFS {
 }
 
 // readDir lists the vault root's files in name order.
-func (r *vcnRecordingFS) readDir(dir string) ([]fs.DirEntry, error) {
+func (r *vc1RecordingFS) readDir(dir string) ([]fs.DirEntry, error) {
 	names := make([]string, 0, len(r.files))
 
 	for path := range r.files {
@@ -491,19 +491,19 @@ func (r *vcnRecordingFS) readDir(dir string) ([]fs.DirEntry, error) {
 	return entries, nil
 }
 
-// vcnAddTypedNotes adds count well-formed notes of the given type to notes, named after the type.
-func vcnAddTypedNotes(notes map[string]string, noteType string, count int) {
+// vc1AddTypedNotes adds count well-formed notes of the given type to notes, named after the type.
+func vc1AddTypedNotes(notes map[string]string, noteType string, count int) {
 	for index := range count {
 		notes[fmt.Sprintf("%s-%04d.md", noteType, index)] = "---\ntype: " + noteType + "\n---\nbody\n"
 	}
 }
 
-// vcnNewRecordingFS builds a recorder serving the named notes under the fixture vault root.
-func vcnNewRecordingFS(notes map[string]string) *vcnRecordingFS {
+// vc1NewRecordingFS builds a recorder serving the named notes under the fixture vault root.
+func vc1NewRecordingFS(notes map[string]string) *vc1RecordingFS {
 	files := make(map[string]string, len(notes))
 	for name, content := range notes {
 		files[filepath.Join(countVault, name)] = content
 	}
 
-	return &vcnRecordingFS{files: files}
+	return &vc1RecordingFS{files: files}
 }
