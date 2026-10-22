@@ -825,7 +825,7 @@ Status: Ready
 
 #### 861c2zc Luhmann Addressing (default)
 
-Status: Ready
+Status: In progress: 0/2 entries complete (2 rows Green-single)
 
 - Owner file: [Luhmann Addressing](../../specs/technical/luhmann-addressing.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/luhmann_addressing_scenarios_test.go`.
@@ -835,8 +835,8 @@ Status: Ready
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zc1 | [792b7c6a2 A filename without a leading ID is refused](../../specs/technical/luhmann-addressing.md#792b7c6a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zc2 | [792b7c6a3 A filename with too few segments is refused](../../specs/technical/luhmann-addressing.md#792b7c6a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2zc1 | [792b7c6a2 A filename without a leading ID is refused](../../specs/technical/luhmann-addressing.md#792b7c6a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b7c6a2_IDAndDateFromNoteFilename_RefusesNoLeadingID (internal/cli/luhmann_addressing_scenarios_test.go); split out of the 792b7c6a1 table test; mutation: idAndDateFromNoteFilename accepts every name, FAIL in logs/b16/861c2zc/mut.log | Green-single |
+| 861c2zc2 | [792b7c6a3 A filename with too few segments is refused](../../specs/technical/luhmann-addressing.md#792b7c6a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b7c6a3_IDAndDateFromNoteFilename_RefusesTooFewSegments (same file; subtests "211.md" and "211.2026-07-10.md", the second isolates the segment-count guard); same mutation, both subtests FAIL in logs/b16/861c2zc/mut.log | Green-single |
 
 #### 861c2zd Note Authoring (default)
 
