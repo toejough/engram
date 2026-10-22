@@ -148,7 +148,7 @@ func Test861b4zzze1e_ReadDeep_AReplyThatIsNotAnObjectWritesNothingAndSaysWhy(t *
 	g.Expect(deep.Skipped).To(HaveLen(1))
 
 	if len(deep.Skipped) == 1 {
-		g.Expect(deep.Skipped[0].Reason).To(ContainSubstring(notDeepReplyReason))
+		g.Expect(deep.Skipped[0].Reason).To(ContainSubstring(rd1NotDeepReplyReason))
 	}
 }
 
@@ -170,7 +170,7 @@ func Test861b4zzze1f_ReadDeep_AReplyWithNoCandidatesOrCutShortIsNoDeepReply(t *t
 			g.Expect(deep.Skipped).To(HaveLen(1))
 
 			if len(deep.Skipped) == 1 {
-				g.Expect(deep.Skipped[0].Reason).To(ContainSubstring(notDeepReplyReason))
+				g.Expect(deep.Skipped[0].Reason).To(ContainSubstring(rd1NotDeepReplyReason))
 			}
 		})
 	}
@@ -207,5 +207,5 @@ func Test861b4zzze1h_ReadDeep_ASupersessionNamedWithoutItsExtensionOrWithSpacesI
 
 // unexported constants.
 const (
-	notDeepReplyReason = "the reply is not the object of the candidates and the lessons"
+	rd1NotDeepReplyReason = "the reply is not the object of the candidates and the lessons"
 )
