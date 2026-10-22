@@ -2514,7 +2514,7 @@ Status: In progress: 0/1 entries complete (1 rows Green-single)
 
 #### 861c2zzzj Route (integration)
 
-Status: Ready
+Status: In progress: 0/1 entries complete (1 rows Green-single)
 
 - Owner file: [Route](../../specs/product/route.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/route_integration_test.go` (tag `integration`).
@@ -2522,7 +2522,7 @@ Status: Ready
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zzzj1 | [792a17n1a The aggregate still surfaces](../../specs/product/route.md#792a17n1-uat-scenarios) | Example | Real OS effect; test tagged `integration` | Not started |
+| 861c2zzzj1 | [792a17n1a The aggregate still surfaces](../../specs/product/route.md#792a17n1-uat-scenarios) | Example | Real OS effect; test tagged `integration`. Evidence: Test792a17n1a_RouteLookup_AggregateSurfacesAmongTwentyEvidenceNotes in internal/cli/route_integration_test.go (real binary, bundled embedder, 21 notes embedded once, `query --lazy-chunks` with the route phrase, aggregate basename asserted in the items or a cluster's candidate_l2s); vault composed by hand, see 861d317; passing: logs/b18/861c2zzzj/1.log (exit=0), whole package pkg.log (exit=0); failed by the mutation that reverses the final item order (`a.score < b.score` in resolvedItemLess, query.go): 3-mutation.log, failing line at the Then assertion (exit=1), restored with git checkout | Green-single |
 
 #### 861c2zzzk Agent Instruction Bundle (instruction)
 
