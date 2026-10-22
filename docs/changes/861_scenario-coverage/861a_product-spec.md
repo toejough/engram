@@ -125,3 +125,18 @@ Scenario: 792a10k1g Other note types are left alone
   When the user runs engram update --backfill-identity
   Then neither is modified
 ```
+
+## 861a4zzn Modified: Chunk Indexing scenarios, part 2
+
+Operations a test finds necessary in existing specs are applied in place ([861d6 A new test that fails at baseline](./861d_questions-and-decisions.md#questions-and-decisions)); the one below is applied in [Chunk Indexing](../../specs/product/chunk-indexing.md) in the commit of its test.
+
+### 861a4zzn1 Modified: 792a5i1b A changed source embeds only its new text
+
+Target: [792a5i1 UAT Scenarios](../../specs/product/chunk-indexing.md#792a5i1-uat-scenarios), Scenario 792a5i1b. Differs from the current text in the Then line: the index writes the chunks it already held in no promised order and appends the new text after them, so the third chunk is the new text, not B's earlier text.
+
+```gherkin
+Scenario: 792a5i1b A changed source embeds only its new text
+  Given a Markdown document with sections A and B that was ingested, after which section B was edited
+  When the user runs engram ingest again with the document
+  Then stdout reads "ingest <path>: 3 chunks (1 reused, 1 embedded)", and the index holds A's chunk, B's earlier text (792a5j) and B's new text
+```

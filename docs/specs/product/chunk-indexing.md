@@ -319,7 +319,7 @@ Scenario: 792a5i1a An unchanged source costs nothing
 Scenario: 792a5i1b A changed source embeds only its new text
   Given a Markdown document with sections A and B that was ingested, after which section B was edited
   When the user runs engram ingest again with the document
-  Then stdout reads "ingest <path>: 3 chunks (1 reused, 1 embedded)", the third chunk being B's earlier text (792a5j)
+  Then stdout reads "ingest <path>: 3 chunks (1 reused, 1 embedded)", and the index holds A's chunk, B's earlier text (792a5j) and B's new text
 ```
 
 ### 792a5j A source's chunks are never dropped
