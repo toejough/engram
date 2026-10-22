@@ -113,7 +113,7 @@ Latest verified evidence per milestone; a result not yet recorded is `Not run`, 
 | 862c2a | Dev tests of the new commands, of the skip and of the updated aggregate scenario | `targ test-dev` | Not run | - |
 | 862c2b | Dev integration tests, fixture module included | `targ test-dev-integration` | Not run | - |
 | 862c2c | Lint, coverage, nil analysis and the new leg | `targ check-full` | Not run | - |
-| 862c2d | Links, IDs and labels of this change | link check over `docs/`; ID and label scan over `docs/specs` and `docs/changes` | Not run | - |
+| 862c2d | Links, IDs and labels of this change | link check over `docs/`; ID and label scan over `docs/specs` and `docs/changes` | Passed on the tree of 8c4d6da6: link check 12,022 links, 0 broken; ID scan 0 duplicates of 8,314 defined IDs, 9,823 ID-labelled links with 0 mismatches, 0 unresolved tokens | 8c4d6da6 |
 
 ## 862c3 Completion gates
 

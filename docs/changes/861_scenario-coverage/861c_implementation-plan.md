@@ -3444,7 +3444,7 @@ Latest verified evidence per milestone; a result not yet recorded is `Not run`, 
 | 861c5c | Default suite after each batch | `targ test` | Not run | - |
 | 861c5d | Lint, coverage, nil analysis and dev tests after each batch | `targ check-full` | Not run | - |
 | 861c5e | Integration and instruction tests | `targ test-integration-all`, `targ test-dev-integration` | Not run | - |
-| 861c5f | Links, IDs and labels of this change | link check over `docs/`; ID and label scan over `docs/specs` and `docs/changes` | Not run | - |
+| 861c5f | Links, IDs and labels of this change | link check over `docs/`; ID and label scan over `docs/specs` and `docs/changes` | Passed on the tree of 8c4d6da6: link check 12,022 links, 0 broken; ID scan 0 duplicates of 8,314 defined IDs, 9,823 ID-labelled links with 0 mismatches, 0 unresolved tokens | 8c4d6da6 |
 | 861c5g | Scenario-to-test pass after the last node | the baseline scan | Not run | - |
 
 ## 861c6 Completion gates
