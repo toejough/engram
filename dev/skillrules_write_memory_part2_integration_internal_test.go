@@ -113,9 +113,8 @@ func Test792a13k1a_OneKindsFlagsPerCommand(t *testing.T) {
 	text := shippedText(t, writeMemoryPart2SkillPath)
 	factCommand := writeMemoryPart2Between(t, text, "kind=fact:", "`--position` defaults to `top`")
 
-	for _, flag := range []string{"--subject=", "--predicate=", "--object="} {
-		g.Expect(factCommand).To(ContainSubstring(flag))
-	}
+	g.Expect(factCommand).To(HavePrefix("kind=fact:"))
+	g.Expect(factCommand).To(ContainSubstring("engram learn fact"))
 
 	for _, flag := range []string{
 		"--behavior", "--impact", "--action", "--done-when", "--body", "--red-flag", "--trigger",
@@ -159,9 +158,8 @@ func Test792a13l1a_TriggersBecomeFlags(t *testing.T) {
 
 	g.Expect(text).To(ContainSubstring("optional **triggers** — literal cues in a user's message that should surface " +
 		"this runbook first (runbook only), e.g. `/please`, \"take this end-to-end\""))
-	g.Expect(text).To(ContainSubstring("One `--trigger` per handed-off `triggers` entry,"))
-	g.Expect(text).To(ContainSubstring("in order,"))
-	g.Expect(text).To(ContainSubstring("placed after any `--red-flag`;"))
+	g.Expect(text).To(ContainSubstring("One `--trigger` per handed-off `triggers` entry, in order, placed after any " +
+		"`--red-flag`;"))
 	g.Expect(writeMemoryPart2Before(runbookCommand, "[--red-flag=", "[--trigger=")).To(BeTrue())
 }
 
@@ -280,8 +278,8 @@ func Test792a13n1c_PersistentFailureIsReportedVerbatim(t *testing.T) {
 }
 
 // TestWriteMemoryPart2Scans supports the absence scans of this file: each scan finds a paraphrase, an imperative and
-// an imperative that stands after a negated condition, each of which contradicts the rule, and finds nothing in the
-// shipped wording that states the rule or forbids the opposite.
+// an imperative that stands after a negated condition (in the comma form and in the arrow form), each of which
+// contradicts the rule, and finds nothing in the shipped wording that states the rule or forbids the opposite.
 func TestWriteMemoryPart2Scans(t *testing.T) {
 	t.Parallel()
 
@@ -294,6 +292,7 @@ func TestWriteMemoryPart2Scans(t *testing.T) {
 			g.Expect(writeMemoryPart2Hits(scan.paraphrase, scan.pattern)).NotTo(BeEmpty())
 			g.Expect(writeMemoryPart2Hits(scan.imperative, scan.pattern)).NotTo(BeEmpty())
 			g.Expect(writeMemoryPart2Hits(scan.conditional, scan.pattern)).NotTo(BeEmpty())
+			g.Expect(writeMemoryPart2Hits(scan.arrow, scan.pattern)).NotTo(BeEmpty())
 			g.Expect(writeMemoryPart2Hits(scan.stated, scan.pattern)).To(BeEmpty())
 		})
 	}
@@ -302,8 +301,8 @@ func TestWriteMemoryPart2Scans(t *testing.T) {
 // unexported constants.
 const (
 	// writeMemoryPart2Gap matches one character of the stretch between the words of an instruction: it stops at a clause
-	// border, so a pattern never spans two clauses.
-	writeMemoryPart2Gap       = `[^.?!:|\n,;(—]`
+	// border (the arrow of the skill's own conditional idiom included), so a pattern never spans two clauses.
+	writeMemoryPart2Gap       = `[^.?!:|\n,;(—→]`
 	writeMemoryPart2SkillPath = "agent-instructions/skills/write-memory/SKILL.md"
 )
 
@@ -317,6 +316,7 @@ var (
 		paraphrase:  "The worker confirms each trigger with the parent before composing.",
 		imperative:  "Ask the parent to confirm every trigger first.",
 		conditional: "If the trigger isn't a slash form, ask the parent about each cue.",
+		arrow:       "A trigger that isn't a slash form → ask the parent about each cue.",
 		stated: "A handed-off single word that is common in ordinary prose → ask the parent for a distinctive cue " +
 			"instead of passing it through, unless the handoff states that over-firing is a deliberate, accepted choice",
 	}
@@ -328,13 +328,14 @@ var (
 		paraphrase:  "Repair anything else that looks off in the command as well.",
 		imperative:  "Rewrite the whole command from the handoff before retrying.",
 		conditional: "If the error isn't specific, fix everything that looks wrong.",
+		arrow:       "A CLI error that isn't specific → fix everything that looks wrong.",
 		stated:      "CLI error → read it, fix exactly the named problem (missing/typo'd flag, bad value), retry.",
 	}
 	// writeMemoryPart2BlockStart finds a line that starts a new block: a table row, a list item, a heading or a fence.
 	writeMemoryPart2BlockStart = regexp.MustCompile("^(?:\\||[-*+] |#|\\d+\\. |```)")
 	// writeMemoryPart2ClauseBorders are the strings that end a clause: a sentence end, a colon, a table cell border, a
-	// line break, a comma, a semicolon, a dash and an opening parenthesis.
-	writeMemoryPart2ClauseBorders = []string{". ", "? ", "! ", ": ", "| ", "\n", ", ", "; ", " — ", "("}
+	// line break, a comma, a semicolon, a dash, an arrow and an opening parenthesis.
+	writeMemoryPart2ClauseBorders = []string{". ", "? ", "! ", ": ", "| ", "\n", ", ", "; ", " — ", " → ", "("}
 	// writeMemoryPart2CommonWordScan finds an instruction to pass a common word through as a trigger.
 	writeMemoryPart2CommonWordScan = writeMemoryPart2Scan{
 		name: "passing a common word through",
@@ -346,6 +347,7 @@ var (
 		paraphrase:  "A common word such as fix is passed through as a trigger as-is.",
 		imperative:  "Pass a common word like fix through as a trigger.",
 		conditional: "If the parent isn't responding, emit a common word like fix as the trigger.",
+		arrow:       "A parent that isn't responding → emit a common word like fix as the trigger.",
 		stated: "A handed-off single word that is common in ordinary prose → ask the parent for a distinctive cue " +
 			"instead of passing it through, unless the handoff states that over-firing is a deliberate, accepted " +
 			"choice (e.g. \"please\" on the please runbook, 2026-09-20); then pass it through.",
@@ -362,6 +364,7 @@ var (
 		paraphrase:  "A fact command may carry feedback flags as well.",
 		imperative:  "Combine the fact and feedback flags in one command.",
 		conditional: "If the handoff isn't a feedback note, also add --behavior to the command.",
+		arrow:       "A handoff that isn't a feedback note → also add --behavior to the command.",
 		stated: "Never mix fact flags (`--subject/--predicate/--object`), feedback flags " +
 			"(`--behavior/--impact/--action`), or runbook flags (`--done-when/--body/--red-flag/--trigger`) in one command.",
 	}
@@ -378,6 +381,7 @@ var (
 		paraphrase:  "The worker may also supply tags of its own describing the work.",
 		imperative:  "Add an extra tag of your own that names the work kind.",
 		conditional: "If the handoff doesn't carry tags, invent tags that describe the work.",
+		arrow:       "A handoff that doesn't carry tags → invent tags that describe the work.",
 		stated: "Handed-off --tag categoricals ride the same `tags:` list as vocab but are NOT vocab: pass them " +
 			"through exactly as provided; never invent tags and never write the `vocab/` namespace yourself.",
 	}
@@ -393,6 +397,7 @@ var (
 		paraphrase:  "A qa note accepts tags like any other kind.",
 		imperative:  "Pass the tags to qa as --tag flags.",
 		conditional: "If the qa handoff isn't empty, append the tags to the qa command.",
+		arrow:       "A qa handoff that isn't empty → append the tags to the qa command.",
 		stated: "(fact/feedback/runbook only — `engram learn qa` and `engram amend` take no `--tag`; a qa handoff " +
 			"carrying tags → drop them and say so: append the exact line `tags dropped: qa takes no tag flags` to " +
 			"whatever you output, even command-only output)",
@@ -408,6 +413,7 @@ var (
 		paraphrase:  "A write that keeps failing is dropped and the flow moves on.",
 		imperative:  "Skip the write when it still fails.",
 		conditional: "If the parent isn't waiting, summarize the error instead of quoting it.",
+		arrow:       "A parent that isn't waiting → summarize the error instead of quoting it.",
 		stated: "Still failing after retries → report the exact command and the CLI error verbatim. Never silently " +
 			"skip a handed-off write.",
 	}
@@ -420,6 +426,7 @@ var (
 		paraphrase:  "Leave a space between the flag and its quoted value.",
 		imperative:  "Write --behavior \"<what was done>\" with a space before the quote.",
 		conditional: "If the value doesn't begin with a dash, write --behavior \"<what was done>\" with a space.",
+		arrow:       "A value that doesn't begin with a dash → write --behavior \"<what was done>\" with a space.",
 		stated: "A free-text flag value (for example `--situation`, `--source`, `--subject`, `--behavior`) must be " +
 			"written as `--flag=\"value\"` — the quote touching the `=`, no space — because a value beginning with " +
 			"`-` is otherwise misread as a new flag and the command fails.",
@@ -434,6 +441,7 @@ var (
 		paraphrase:  "A citation in the body is escaped so it renders as plain text.",
 		imperative:  "Strip the [[basename]] citation from the body before running.",
 		conditional: "If the note isn't in the vault, remove the wikilink from the body.",
+		arrow:       "A note that isn't in the vault → remove the wikilink from the body.",
 		stated: "This does NOT restrict inline `[[basename]]` prose citations: hand-type one directly in `--body` or " +
 			"`--object` whenever the parent's handoff content calls for citing a fact/feedback note",
 	}
@@ -449,6 +457,7 @@ var (
 		paraphrase:  "A trigger is required on every runbook.",
 		imperative:  "Emit a default trigger such as the slug when the handoff has none.",
 		conditional: "If the handoff carries no triggers, emit --trigger=\"\" anyway.",
+		arrow:       "A handoff with no triggers → emit --trigger=\"\" anyway.",
 		stated: "One `--trigger` per handed-off `triggers` entry, in order, placed after any `--red-flag`; omit " +
 			"entirely when the handoff carries none.",
 	}
@@ -463,20 +472,22 @@ var (
 		paraphrase:  "Keep retrying as often as needed until the command succeeds.",
 		imperative:  "Retry until the command succeeds.",
 		conditional: "If the error isn't clear, retry up to five times.",
+		arrow:       "A CLI error that isn't clear → retry up to five times.",
 		stated: "CLI error → read it, fix exactly the named problem (missing/typo'd flag, bad value), retry. " +
 			"Max 2 retries.",
 	}
 )
 
 // writeMemoryPart2Scan is one absence scan: a pattern for an instruction that contradicts a rule, a paraphrase and an
-// imperative that contradict it, an imperative that stands after a negated condition, and the shipped wording that
-// must pass.
+// imperative that contradict it, an imperative that stands after a negated condition in the comma form and one in the
+// arrow form the skill itself uses, and the shipped wording that must pass.
 type writeMemoryPart2Scan struct {
 	name        string
 	pattern     *regexp.Regexp
 	paraphrase  string
 	imperative  string
 	conditional string
+	arrow       string
 	stated      string
 }
 
