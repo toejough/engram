@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -89,6 +90,21 @@ func cachedParentVaultID(state exchangeState, vault, parentURL string) string {
 	}
 
 	return cache.VaultID
+}
+
+// cachedSelfParent reports whether the cached parent vault ID is this vault's own (792b5c12 Self-parent
+// guard), printing the guard's one warning when it is.
+func cachedSelfParent(state exchangeState, vault, cachedID string, stderr io.Writer) (bool, error) {
+	if cachedID == "" {
+		return false, nil
+	}
+
+	localID, _, idErr := readVaultID(state, vault)
+	if idErr != nil {
+		return false, idErr
+	}
+
+	return selfParentGuard(localID, cachedID, stderr), nil
 }
 
 // drainForCommand is a command's drain step (792a21r The outbox drains after the parent was reached): the
@@ -210,7 +226,7 @@ func newOfferHooks(deps Deps) offerHooks {
 
 	return offerHooks{
 		stage: func(vault string, write offerWrite) ([]byte, string, error) {
-			return stageOffer(store.state, vault, parentURL, write)
+			return stageOffer(store.state, vault, parentURL, write, deps.Stderr)
 		},
 		mintXID: func() (string, error) { return mintXID(deps.RandRead) },
 		enqueue: func(vault, xid string) error { return enqueueOutbox(store, vault, xid) },
@@ -365,10 +381,24 @@ func outboxNotice(store outboxStore, vault, parentURL string) string {
 	return notice.String()
 }
 
-// stageOffer classifies a write (classifyOffer) and, when it is offered,
-// stamps an xid on a note that has none. The caller holds the vault lock.
-func stageOffer(state exchangeState, vault, parentURL string, write offerWrite) ([]byte, string, error) {
-	if !classifyOffer(write, cachedParentVaultID(state, vault, parentURL)) {
+// stageOffer classifies a write (classifyOffer) and, when it is offered, stamps an
+// xid on a note that has none. A vault whose cached parent is itself stages and queues
+// nothing (792b36c4 Queueing an offer): the write proceeds unstaged, with the guard's one
+// warning. The caller holds the vault lock.
+func stageOffer(
+	state exchangeState, vault, parentURL string, write offerWrite, stderr io.Writer,
+) ([]byte, string, error) {
+	cachedID := cachedParentVaultID(state, vault, parentURL)
+	if !classifyOffer(write, cachedID) {
+		return write.raw, "", nil
+	}
+
+	selfParent, selfErr := cachedSelfParent(state, vault, cachedID, stderr)
+	if selfErr != nil {
+		return nil, "", selfErr
+	}
+
+	if selfParent {
 		return write.raw, "", nil
 	}
 
