@@ -631,7 +631,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2r Chunk Index Store (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: In progress: 0/8 entries complete (8 rows Green-single)
 
 - Owner file: [Chunk Index Store](../../specs/technical/chunk-index-store.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/chunk_index_store_scenarios_test.go`.
@@ -641,14 +641,14 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2r1 | [792b18c15a2 An empty file among non-empty ones is found](../../specs/technical/chunk-index-store.md#792b18c15a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2r2 | [792b18c15a3 Non-empty files are not a backlog](../../specs/technical/chunk-index-store.md#792b18c15a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2r3 | [792b18c15a4 An empty file of another kind is ignored](../../specs/technical/chunk-index-store.md#792b18c15a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2r4 | [792b18c15a5 A missing directory has no backlog](../../specs/technical/chunk-index-store.md#792b18c15a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2r5 | [792b18c15a7 Entries that are not a removable group are ignored](../../specs/technical/chunk-index-store.md#792b18c15a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2r6 | [792b18c15a8 A group that prune would collapse is reported](../../specs/technical/chunk-index-store.md#792b18c15a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2r7 | [792b18c15a9 A refusal-only group is silent](../../specs/technical/chunk-index-store.md#792b18c15a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2r8 | [792b18c15a10 A malformed manifest is no backlog](../../specs/technical/chunk-index-store.md#792b18c15a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2r1 | [792b18c15a2 An empty file among non-empty ones is found](../../specs/technical/chunk-index-store.md#792b18c15a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b18c15a2_ChunkIndexStore_EmptyFileAmongNonEmptyIsFound (internal/cli/chunk_index_store_scenarios_test.go); u1FS fake; mutation 4 (update.go:270 return false) failed it (mut4.log) | Green-single |
+| 861c2r2 | [792b18c15a3 Non-empty files are not a backlog](../../specs/technical/chunk-index-store.md#792b18c15a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b18c15a3_ChunkIndexStore_NonEmptyFilesAreNotABacklog (internal/cli/chunk_index_store_scenarios_test.go); u1FS fake; mutation 2 (update.go:270 len(data) >= 0) failed it (mut2.log) | Green-single |
+| 861c2r3 | [792b18c15a4 An empty file of another kind is ignored](../../specs/technical/chunk-index-store.md#792b18c15a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b18c15a4_ChunkIndexStore_EmptyFileOfAnotherKindIsIgnored (internal/cli/chunk_index_store_scenarios_test.go); u1FS fake; baseline pass only (mutation 2 does not reach a manifest.json) | Green-single |
+| 861c2r4 | [792b18c15a5 A missing directory has no backlog](../../specs/technical/chunk-index-store.md#792b18c15a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b18c15a5_ChunkIndexStore_MissingDirectoryHasNoBacklog (internal/cli/chunk_index_store_scenarios_test.go); u1FS fake, ReadDir returns fs.ErrNotExist; baseline pass only (dropping the ReadDir guard is an equivalent mutant) | Green-single |
+| 861c2r5 | [792b18c15a7 Entries that are not a removable group are ignored](../../specs/technical/chunk-index-store.md#792b18c15a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b18c15a7_ChunkIndexStore_NonRemovableGroupsAreIgnored (internal/cli/chunk_index_store_scenarios_test.go); three subtests over a recording u1FS; mutation 1 (update.go:316 removed >= 0) failed it (mut1.log) | Green-single |
+| 861c2r6 | [792b18c15a8 A group that prune would collapse is reported](../../specs/technical/chunk-index-store.md#792b18c15a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b18c15a8_ChunkIndexStore_CollapsibleGroupIsReportedWithoutChange (internal/cli/chunk_index_store_scenarios_test.go); two subtests; recording fs asserts no mutating call and files unchanged; mutation 5 (update.go:316 removed > 1) failed it (mut5.log) | Green-single |
+| 861c2r7 | [792b18c15a9 A refusal-only group is silent](../../specs/technical/chunk-index-store.md#792b18c15a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b18c15a9_ChunkIndexStore_RefusalOnlyGroupIsSilent (internal/cli/chunk_index_store_scenarios_test.go); three subtests; mutation 1 failed it (mut1.log) | Green-single |
+| 861c2r8 | [792b18c15a10 A malformed manifest is no backlog](../../specs/technical/chunk-index-store.md#792b18c15a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b18c15a10_ChunkIndexStore_MalformedManifestIsNoBacklog (internal/cli/chunk_index_store_scenarios_test.go); asserts no panic, false, no mutation; baseline pass only (dropping the read-error guard is an equivalent mutant) | Green-single |
 
 #### 861c2s Pending Offer Bookkeeping (default)
 
