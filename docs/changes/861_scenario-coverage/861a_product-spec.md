@@ -140,3 +140,26 @@ Scenario: 792a5i1b A changed source embeds only its new text
   When the user runs engram ingest again with the document
   Then stdout reads "ingest <path>: 3 chunks (1 reused, 1 embedded)", and the index holds A's chunk, B's earlier text (792a5j) and B's new text
 ```
+
+## 861a4zzv Modified: Note Revision scenarios, part 1
+
+Operations a test finds necessary in existing specs are applied in place ([861d6 A new test that fails at baseline](./861d_questions-and-decisions.md#questions-and-decisions)); the one below is applied in [Note Revision](../../specs/product/note-revision.md) in the commit of its test.
+
+### 861a4zzv1 Modified: 792a4f1a An invalid amend argument is refused before any write
+
+Target: [792a4f1 UAT Scenarios](../../specs/product/note-revision.md#792a4f1-uat-scenarios), Scenario Outline 792a4f1a. Differs from the current text in two Examples cells: the refusal of an unknown supersession type reads `type must be updates|narrows|refutes: got "bogus"` and the refusal of an unknown chunk source reads `unresolved chunk-source id: "nope#x"`, each with a colon where the text had a comma or none.
+
+```gherkin
+Scenario Outline: 792a4f1a An invalid amend argument is refused before any write
+  Given a vault holding fact note 1
+  When the user runs engram amend --target 1 with <argument>
+  Then it fails with an error saying <problem>, and the note is unchanged
+
+  Examples:
+    | argument                     | problem                                        |
+    | --supersedes "a\|bogus\|c"   | type must be updates\|narrows\|refutes: got "bogus" |
+    | --supersedes "a\|updates"    | format must be "<basename>\|<type>\|<claim>"    |
+    | --supersedes "a\|updates\|"  | claim must be non-empty                        |
+    | --trigger ab                 | trigger must be at least 3 characters after trimming |
+    | --chunk-source nope#x        | unresolved chunk-source id: "nope#x"           |
+```

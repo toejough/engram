@@ -161,11 +161,11 @@ Scenario Outline: 792a4f1a An invalid amend argument is refused before any write
 
   Examples:
     | argument                     | problem                                        |
-    | --supersedes "a\|bogus\|c"   | type must be updates\|narrows\|refutes, got "bogus" |
+    | --supersedes "a\|bogus\|c"   | type must be updates\|narrows\|refutes: got "bogus" |
     | --supersedes "a\|updates"    | format must be "<basename>\|<type>\|<claim>"    |
     | --supersedes "a\|updates\|"  | claim must be non-empty                        |
     | --trigger ab                 | trigger must be at least 3 characters after trimming |
-    | --chunk-source nope#x        | unresolved chunk-source id "nope#x"            |
+    | --chunk-source nope#x        | unresolved chunk-source id: "nope#x"           |
 ```
 
 ### 792a4g Re-embedding after an amend
