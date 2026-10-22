@@ -16,7 +16,10 @@ import (
 )
 
 // Test861b2a1d_TestPkg_AFailingTestFailsTheTargetAndShowsTheOutput verifies 861b2a1d, and that the Go toolchain
-// exits non-zero when a test fails: the target runs a real go test on a fixture package whose test fails.
+// exits non-zero when a test fails: the target runs a real go test on a fixture package whose test fails. The output
+// is captured by the test's own writer (goInDirectory), not by the production entry testPkg, which binds
+// targ.RunContext: that entry needs the working directory changed, a serial test that dev/golangci-lint.toml allows
+// only for the nilaway tests. The production wiring was run by hand (b00/861c1a-selfcheck-test-pkg-dev.log).
 func Test861b2a1d_TestPkg_AFailingTestFailsTheTargetAndShowsTheOutput(t *testing.T) {
 	t.Parallel()
 

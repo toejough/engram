@@ -38,7 +38,8 @@ func Test862b2a1b_TestIntegrationAll_ATaggedTestIsRunWhateverItsPackageAndName(t
 }
 
 // Test862b2a1c_TestIntegrationAll_AFailingTaggedTestFailsTheCommand verifies 862b2a1c: a failing tagged test makes
-// the command fail with the failure of go test, which a real go test on a fixture module shows.
+// the command fail with the failure of go test, which a real go test on a fixture module shows. Like the test of
+// 861b2a1d, it runs runIntegrationAll with the test's own runner, not the production entry testIntegrationAll.
 func Test862b2a1c_TestIntegrationAll_AFailingTaggedTestFailsTheCommand(t *testing.T) {
 	t.Parallel()
 

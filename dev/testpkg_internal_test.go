@@ -11,7 +11,7 @@ import (
 )
 
 // Test861a3a1a_TestPkg_TheCommandLineNamesOnlyThatPackage verifies 861a3a1a: whatever package the developer names,
-// the one go test command that runs names that package and no other.
+// the one go test command that runs names that package and no other, and reports the result of that run.
 func Test861a3a1a_TestPkg_TheCommandLineNamesOnlyThatPackage(t *testing.T) {
 	t.Parallel()
 
@@ -33,6 +33,10 @@ func Test861a3a1a_TestPkg_TheCommandLineNamesOnlyThatPackage(t *testing.T) {
 			g.Expect(calls).To(Equal([]recordedCommand{
 				{"go", "test", "-count=1", "-timeout=2m", "-race", pkg},
 			}))
+
+			failure := runTestPkg(t.Context(), testPkgArgs{Package: pkg}, recordingRunner(&calls, errGoTestFailed))
+
+			g.Expect(failure).To(MatchError(errGoTestFailed))
 		})
 	}
 }

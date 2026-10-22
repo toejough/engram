@@ -51,9 +51,9 @@ func Test862b2a1a_TestIntegrationAll_TheCommandSelectsByTagOverTheWholeModule(t 
 	g.Expect(calls[0]).NotTo(ContainElement("-run"))
 }
 
-// TestIntegrationAll_AFailureOfTheRunnerIsTheFailureOfTheTarget pins that the target returns what the command it
+// TestTestIntegrationAll_AFailureOfTheRunnerIsTheFailureOfTheTarget pins that the target returns what the command it
 // started returned (862b2a1c runs a real go test on a fixture module).
-func TestIntegrationAll_AFailureOfTheRunnerIsTheFailureOfTheTarget(t *testing.T) {
+func TestTestIntegrationAll_AFailureOfTheRunnerIsTheFailureOfTheTarget(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)

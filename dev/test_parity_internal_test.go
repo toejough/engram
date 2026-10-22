@@ -11,7 +11,8 @@ import (
 )
 
 // Test862a3c1a_TestParity_TheCommandLineNamesTheParityTagAndTheEmbedPackage verifies 862a3c1a: the parity command
-// runs the tests the parity tag selects, in the package that holds them.
+// runs the tests the parity tag selects, in the package that holds them, the full check does not run them, and a
+// failure of the run is the failure of the command.
 func Test862a3c1a_TestParity_TheCommandLineNamesTheParityTagAndTheEmbedPackage(t *testing.T) {
 	t.Parallel()
 
@@ -20,6 +21,13 @@ func Test862a3c1a_TestParity_TheCommandLineNamesTheParityTagAndTheEmbedPackage(t
 
 	g.Expect(argv).To(ContainElement("-tags=parity"))
 	g.Expect(slices.Index(argv, "./internal/embed")).To(Equal(len(argv)-1), "the package path is not last")
+	g.Expect(allGroupNames(checkFullTarget.GetDepGroups())).NotTo(ContainElement(testParityTarget.GetName()))
+
+	var calls []recordedCommand
+
+	err := runParity(t.Context(), recordingRunner(&calls, errGoTestFailed))
+
+	g.Expect(err).To(MatchError(errGoTestFailed))
 }
 
 // Test862b2c1a_TestParity_TheCommandLineIsPinned verifies 862b2c1a: go test is run with -count=1, -tags=parity and
@@ -55,13 +63,7 @@ func Test862b2c1b_TestParity_TheAggregatesDoNotRunIt(t *testing.T) {
 
 			g := NewWithT(t)
 
-			var members []string
-
-			for _, group := range aggregate.GetDepGroups() {
-				for _, target := range group.Targets {
-					members = append(members, target.GetName())
-				}
-			}
+			members := allGroupNames(aggregate.GetDepGroups())
 
 			g.Expect(members).NotTo(BeEmpty())
 			g.Expect(slices.Contains(members, testParityTarget.GetName())).To(BeFalse(),
@@ -70,9 +72,9 @@ func Test862b2c1b_TestParity_TheAggregatesDoNotRunIt(t *testing.T) {
 	}
 }
 
-// TestParity_AFailureOfTheRunnerIsTheFailureOfTheTarget pins that the target returns what the command it started
+// TestTestParity_AFailureOfTheRunnerIsTheFailureOfTheTarget pins that the target returns what the command it started
 // returned, so that a failing parity test fails the target.
-func TestParity_AFailureOfTheRunnerIsTheFailureOfTheTarget(t *testing.T) {
+func TestTestParity_AFailureOfTheRunnerIsTheFailureOfTheTarget(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -83,4 +85,17 @@ func TestParity_AFailureOfTheRunnerIsTheFailureOfTheTarget(t *testing.T) {
 
 	g.Expect(err).To(MatchError(errGoTestFailed))
 	g.Expect(calls).To(HaveLen(1))
+}
+
+// allGroupNames returns the names of the targets of every dependency group.
+func allGroupNames(groups []targ.DepGroup) []string {
+	names := make([]string, 0, len(groups))
+
+	for _, group := range groups {
+		for _, target := range group.Targets {
+			names = append(names, target.GetName())
+		}
+	}
+
+	return names
 }
