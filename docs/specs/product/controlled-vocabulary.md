@@ -572,10 +572,11 @@ Scenario: 792a6t1d A pending refit is the verdict
 ### 792a6u Self-tag backfill
 
 Requirement: [792a6u Self-tag backfill](#792a6u-self-tag-backfill) `engram vocab tag-definitions` MUST add the missing `vocab/<term>` self-tag to
-every definition note, taking the term from its slug, and print `<basename>: added` for each, MUST
-leave a definition that already has it unchanged and print `<basename>: already present`, MUST skip
-the family note printing `<basename>: family note (skipped)`, and MUST skip a bare-`vocab` note whose
-slug names no term, printing `<basename>: malformed definition slug (skipped)`. A rewritten note's
+every definition note, taking the term from its slug, and print `<note file>: added` for each, MUST
+leave a definition that already has it unchanged and print `<note file>: already present`, MUST skip
+the family note printing `<note file>: family note (skipped)`, and MUST skip a bare-`vocab` note whose
+slug names no term, printing `<note file>: malformed definition slug (skipped)`; `<note file>` is the
+note's file name, `.md` included. A rewritten note's
 sidecar MUST stay current. The backfill MUST run only when this command is run, never as a side
 effect of `engram update` or any other command.
 

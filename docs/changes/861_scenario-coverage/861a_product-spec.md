@@ -163,3 +163,20 @@ Scenario Outline: 792a4f1a An invalid amend argument is refused before any write
     | --trigger ab                 | trigger must be at least 3 characters after trimming |
     | --chunk-source nope#x        | unresolved chunk-source id: "nope#x"           |
 ```
+
+## 861a4zzq Modified: Controlled Vocabulary scenarios, part 2
+
+Operations a test finds necessary in existing specs are applied in place ([861d6 A new test that fails at baseline](./861d_questions-and-decisions.md#questions-and-decisions)); the one below is applied in [Controlled Vocabulary](../../specs/product/controlled-vocabulary.md) in the commit of its decision.
+
+### 861a4zzq1 Modified: 792a6u Self-tag backfill
+
+Target: [792a6u Self-tag backfill](../../specs/product/controlled-vocabulary.md#792a6u-self-tag-backfill), the requirement text (its scenarios 792a6u1a and 792a6u1b are unchanged). Differs from the current text in the printed token: a project basename has no `.md` (the glossary: "full note basenames (no `.md`)"), and the command prints the note's file name, `.md` included.
+
+```text
+Requirement: 792a6u Self-tag backfill `engram vocab tag-definitions` MUST add the missing `vocab/<term>` self-tag to
+every definition note, taking the term from its slug, and print `<note file>: added` for each, MUST
+leave a definition that already has it unchanged and print `<note file>: already present`, MUST skip
+the family note printing `<note file>: family note (skipped)`, and MUST skip a bare-`vocab` note whose
+slug names no term, printing `<note file>: malformed definition slug (skipped)`; `<note file>` is the
+note's file name, `.md` included.
+```
