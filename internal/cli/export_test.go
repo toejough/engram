@@ -1042,6 +1042,22 @@ func ExportParseSkillKey(key string) (recognized bool, form SkillRootForm, sourc
 // ExportProvenanceRankFor exposes provenanceRankFor for whitebox testing.
 func ExportProvenanceRankFor(role string) int { return provenanceRankFor(role) }
 
+// ExportQpr1NewResolvedItem builds a resolvedItem with an explicit kind, content and provenances, for the
+// query-payload-renderer scenario tests (kind "" means a note, "chunk" a chunk).
+func ExportQpr1NewResolvedItem(notePath, kind, content string, provenances []string) resolvedItem {
+	return resolvedItem{notePath: notePath, kind: kind, content: content, provenances: provenances}
+}
+
+// ExportQpr1RenderQueryPayloadItems renders a payload carrying the given resolved items under the given content
+// budget and returns the encoded text, so tests can assert the budget block's counts.
+func ExportQpr1RenderQueryPayloadItems(items []resolvedItem, contentBudget int) (string, error) {
+	var buf bytes.Buffer
+
+	err := renderQueryPayload(&buf, aggregatedSummary{resolvedItems: items, contentBudget: contentBudget})
+
+	return buf.String(), err
+}
+
 // ExportQueryPayloadModelID exposes queryPayload.ModelID for whitebox
 // testing of fetchQueryPayload's decode result.
 func ExportQueryPayloadModelID(p queryPayload) string { return p.ModelID }
