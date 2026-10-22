@@ -764,7 +764,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2y Query Payload Renderer (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: In progress: 0/3 entries complete (3 rows Green-single)
 
 - Owner file: [Query Payload Renderer](../../specs/technical/query-payload-renderer.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/query_payload_renderer_scenarios_test.go`.
@@ -774,9 +774,9 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2y1 | [792b23c1a4 The keys come in order](../../specs/technical/query-payload-renderer.md#792b23c1a-scenarios) | Interaction | Names a call or its absence at a collaborator ("in that order"); imptest | Not started |
-| 861c2y2 | [792b23c6a2 Counts follow what is printed](../../specs/technical/query-payload-renderer.md#792b23c6a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2y3 | [792b23c6a3 The allocation is always present](../../specs/technical/query-payload-renderer.md#792b23c6a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2y1 | [792b23c1a4 The keys come in order](../../specs/technical/query-payload-renderer.md#792b23c1a-scenarios) | Interaction | Names a call or its absence at a collaborator ("in that order"); imptest. Verified on the document itself: the renderer is a pure function with no collaborator to mock, so no interface was added; `Test792b23c1a4_RenderQueryPayload_TheKeysComeInOrder` (query_payload_renderer_scenarios_test.go) runs RunQuery over the in-memory vault with items and clusters and asserts the exact top-level key list. Mutation: moved the Budget field above Phrases in queryPayload (query.go:465); the test failed at the key-list assertion (logs/b06/861c2y/m1.log) | Green-single |
+| 861c2y2 | [792b23c6a2 Counts follow what is printed](../../specs/technical/query-payload-renderer.md#792b23c6a-scenarios) | Example | Fixed inputs, one exact outcome. `Test792b23c6a2_RenderQueryPayload_CountsFollowWhatIsPrinted`: budget 1 forces a second chunk to make one snippet, so the fixture is two direct notes, two direct chunks (one snippeted) and a contentless explore note; counts 4, 3 and 1. Mutation: dropped `- snipped` from contentful (query.go:1768); the test failed at the items_with_full_content assertion (4 vs 3; logs/b06/861c2y/m2.log) | Green-single |
+| 861c2y3 | [792b23c6a3 The allocation is always present](../../specs/technical/query-payload-renderer.md#792b23c6a-scenarios) | Example | Fixed inputs, one exact outcome. `Test792b23c6a3_RenderQueryPayload_TheAllocationIsAlwaysPresent` (subtests: an empty map, no map). Mutation: added omitempty to the explore_allocated tag (query.go:382); both subtests failed at the key-present assertion (logs/b06/861c2y/m3.log) | Green-single |
 
 #### 861c2z Recency Ranking (default)
 
