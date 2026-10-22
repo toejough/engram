@@ -8,7 +8,9 @@ package cli_test
 // The vault-id journeys and the serve start run over vi2FS, an in-memory cli.EdgeFS that follows an alias for a
 // symlink and can copy or move a tree, behind the production Targets: no file system, home or environment of the
 // machine is read. A vault is created by the command itself (the first use of a missing path), and a copied or
-// moved vault is that vault's tree under another path, so every Given is a state the system produces. The three
+// moved vault is that vault's tree under another path, so every Given is a state the system produces. vi2FS is its
+// own fake because vault-health's vh2FS follows no link and moves no tree, and the update machine's iu2FS (behind
+// cv2EdgeFS) has no tree copy or move: reusing it would couple this unit to the update machine. The three
 // scenarios that need a real query scan, a real note write or real git (792a2k1a, 792a2p1b and 792a2q1b) are CLI
 // journeys over a wiringEnv: a vault in the test's own t.TempDir() (the recorded deviation, #860) and a fake parent
 // behind Deps.Fetch, with no network and no real home; 792a2q1b drives Deps.Fetch through MockPvc1Fetch, so that a
