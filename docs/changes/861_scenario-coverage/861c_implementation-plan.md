@@ -466,7 +466,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2k Vault HTTP Server, part 2 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: In progress: 0/1 entries complete (1 rows Green-single)
 
 - Owner file: [Vault HTTP Server](../../specs/technical/vault-http-server.md) (technical component).
 - Package: `cmd/engram`; suggested test file: `cmd/engram/vault_http_server_part2_scenarios_test.go`.
@@ -476,7 +476,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2k1 | [792b35c17a2 The read limit is one byte over the accepted maximum](../../specs/technical/vault-http-server.md#792b35c17a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2k1 | [792b35c17a2 The read limit is one byte over the accepted maximum](../../specs/technical/vault-http-server.md#792b35c17a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b35c17a2_FetchResponseReadLimit_OneByteOverAcceptedMaximum (cmd/engram, package main as its siblings; also reads 16 MiB + 1 bytes of an endless body through readNonNilResponse); log 1.log passes; mutation of FetchResponseReadLimit to drop the +1 fails it (mut.log) | Green-single |
 
 #### 861c2l Vault Invariant Checker (default)
 
