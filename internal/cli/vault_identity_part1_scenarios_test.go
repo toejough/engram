@@ -171,6 +171,7 @@ func Test792a2f1a_Targets_AnExistingVaultIsUntouchedByReadOnlyUse(t *testing.T) 
 			fsys := vi1NewFS(vi1Vault)
 			fsys.files[vi1Vault+"/1.2026-10-09.fact.md"] = []byte("---\ntype: fact\nsituation: s\n---\n\nroot note\n")
 			before := maps.Clone(fsys.files)
+			dirsBefore := maps.Clone(fsys.dirs)
 
 			locks := []string{}
 			stdout, stderr := vi1RunLocked(t, fsys, &locks, map[string]string{}, command.args...)
@@ -179,6 +180,7 @@ func Test792a2f1a_Targets_AnExistingVaultIsUntouchedByReadOnlyUse(t *testing.T) 
 			g.Expect(stderr).To(BeEmpty(), "no creation line, no error")
 			g.Expect(fsys.writes).To(BeEmpty(), "no file is created or modified")
 			g.Expect(fsys.files).To(Equal(before))
+			g.Expect(fsys.dirs).To(Equal(dirsBefore), "no vault directory is created")
 			g.Expect(locks).To(BeEmpty(), "the lock file is a vault file too")
 		})
 	}
@@ -390,6 +392,11 @@ func vi1ExpectCommandUsed(g *WithT, fsys *nr1FS, vault, stdout, stderr string) {
 
 	for file := range fsys.files {
 		g.Expect(file).To(HavePrefix(vault+"/"), "no vault file outside the vault the command used")
+	}
+
+	for dir := range fsys.dirs {
+		inVault := dir == vault || strings.HasPrefix(dir, vault+"/") || strings.HasPrefix(vault, dir+"/")
+		g.Expect(inVault).To(BeTrue(), "no directory outside the vault the command used: "+dir)
 	}
 }
 
