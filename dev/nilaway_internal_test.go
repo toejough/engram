@@ -132,12 +132,13 @@ func Test794b4a1c_AggregatesMatchTargsApartFromNilTargets(t *testing.T) {
 		// Targ's mutate runs behind Targ's check-for-fail; Engram's runs behind Engram's.
 		targdev.CheckForFail: checkForFailTarget,
 	}
-	// Engram's own additions to the aggregates, appended to the final dependency group: the dev package's tests
-	// and the lint run that covers the dev package's build-tagged files.
+	// Engram's own additions to the aggregates, appended to the final dependency group: the dev package's tests,
+	// the lint run that covers the dev package's build-tagged files, and, in the two that fail, the run of every
+	// integration-tagged test of the module (862b3b).
 	engramExtras := map[string][]*targ.Target{
 		"check":          {lintDevTarget},
-		"check-for-fail": {testDevTarget, testDevIntegrationTarget, lintDevTarget},
-		"check-full":     {testDevTarget, testDevIntegrationTarget, lintDevTarget},
+		"check-for-fail": {testDevTarget, testDevIntegrationTarget, lintDevTarget, testIntegrationAllTarget},
+		"check-full":     {testDevTarget, testDevIntegrationTarget, lintDevTarget, testIntegrationAllTarget},
 	}
 
 	for _, pair := range []struct{ engram, targs *targ.Target }{

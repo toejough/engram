@@ -41,7 +41,7 @@ func init() {
 		Name("engram-dev").
 		Description("Engram dev target registration"))
 
-	targ.Register(testDevTarget, testDevIntegrationTarget)
+	targ.Register(testDevTarget, testDevIntegrationTarget, testIntegrationAllTarget)
 
 	targ.Register(targ.Targ(runEval).
 		Name("eval").
@@ -61,7 +61,9 @@ const (
 	acceptanceParallel = "4"
 	acceptanceTags     = "network"
 	evalOutDirPerm     = 0o750
-	targSourcePackage  = "github.com/toejough/targ/dev"
+	// integrationAllTimeout is the time limit of the whole module's tagged tests: the one of Targ's whole-module legs.
+	integrationAllTimeout = "-timeout=10m"
+	targSourcePackage     = "github.com/toejough/targ/dev"
 	// testPkgTimeout bounds the tests of one package.
 	testPkgTimeout = "-timeout=2m"
 )
@@ -72,20 +74,22 @@ var (
 				Description("Run the tests that drive real Claude Code sessions in isolated homes (they cost money)")
 	// The aggregates below mirror Targ's dependencies, order and mode with Engram's nil targets in place of Targ's
 	// (794b4a); Test794b4a1c fails when Targ's aggregates change. The dev package's tests carry build tags the
-	// shared test targets do not pass, so check-for-fail and check-full also run them here.
+	// shared test targets do not pass, so check-for-fail and check-full also run them here. Targ's integration leg
+	// selects tests by name and runs none, so they also run test-integration-all, which selects them by tag (862b3a).
 	checkForFailTarget = targ.Targ(targdev.CheckForFail.Fn()).Name("check-for-fail").
 				Description(targdev.CheckForFail.GetDescription()).
 				Deps(
 			targdev.CheckCoverageForFail, targdev.CheckUncommitted, targdev.ReorderDeclsCheck, targdev.LintFast,
 			targdev.LintForFail, targdev.Deadcode, targdev.CheckThinAPI, checkNilsForFailTarget,
-			targdev.TestIntegration, testDevTarget, testDevIntegrationTarget, lintDevTarget, targ.DepModeParallel,
+			targdev.TestIntegration, testDevTarget, testDevIntegrationTarget, lintDevTarget, testIntegrationAllTarget,
+			targ.DepModeParallel,
 		)
 	checkFullTarget = targ.Targ(targdev.CheckFull.Fn()).Name("check-full").
 			Description(targdev.CheckFull.GetDescription()).
 			Deps(
 			targdev.CheckCoverageForFail, targdev.CheckUncommitted, targdev.ReorderDeclsCheck, targdev.LintFast,
 			targdev.LintFull, targdev.Deadcode, targdev.CheckThinAPI, checkNilsForFailTarget,
-			targdev.TestIntegration, testDevTarget, testDevIntegrationTarget, lintDevTarget,
+			targdev.TestIntegration, testDevTarget, testDevIntegrationTarget, lintDevTarget, testIntegrationAllTarget,
 			targ.DepModeParallel, targ.CollectAllErrors,
 		)
 	checkNilsFixTarget = targ.Targ(checkNilsFix).Name("check-nils-fix").
@@ -146,6 +150,9 @@ var (
 	testDevTarget = targ.Targ(testDev).
 			Name("test-dev").
 			Description("Run unit tests for the dev package (targ build tag)")
+	testIntegrationAllTarget = targ.Targ(testIntegrationAll).
+					Name("test-integration-all").
+					Description("Run every integration-tagged test of the module, selected by build tag")
 	testPkgTarget = targ.Targ(testPkg).
 			Name("test-pkg").
 			Description("Run the tests of one package with -race, only those matching --run when it is given")
@@ -197,6 +204,13 @@ func hasRelevantChanges(changes targ.ChangeSet) bool {
 	return slices.ContainsFunc(allFiles, func(file string) bool {
 		return !strings.Contains(file, "generated_") && !strings.HasSuffix(file, "coverage.out")
 	})
+}
+
+// integrationAllCommandLine is the go test command line of targ test-integration-all: every package of the module,
+// with the tags of the dev tree and the integration tag, and no test filter, so that a test is selected by its build
+// tag and never by its name (862b2a).
+func integrationAllCommandLine() []string {
+	return []string{"test", "-count=1", integrationAllTimeout, "-race", "-tags=targ,integration", "./..."}
 }
 
 // lintDev lints the dev package with the build tags its files need. Targ's lint targets use no tags, so they skip
@@ -291,6 +305,17 @@ func runEval(ctx context.Context, args evalArgs) error {
 	return nil
 }
 
+// runIntegrationAll runs go test on the whole module with the integration tag through run, and fails with the failure
+// of go test.
+func runIntegrationAll(ctx context.Context, run commandRunner) error {
+	err := run(ctx, "go", integrationAllCommandLine()...)
+	if err != nil {
+		return fmt.Errorf("running the integration-tagged tests of the module: %w", err)
+	}
+
+	return nil
+}
+
 // runTestPkg runs go test on the package of args through run, and fails with the failure of go test. It starts no
 // command when args hold no package path.
 func runTestPkg(ctx context.Context, args testPkgArgs, run commandRunner) error {
@@ -344,6 +369,13 @@ func testDevIntegration(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// testIntegrationAll runs every test the integration tag selects, in every package of the module. Targ's shared
+// integration leg selects by test name and runs none today, so this is the command that runs them (862b2a). The tag
+// only adds files, so the untagged tests run a second time, as in testDevIntegration; the cost is accepted (862d3).
+func testIntegrationAll(ctx context.Context) error {
+	return runIntegrationAll(ctx, targ.RunContext)
 }
 
 // testPkg runs the tests of one package with the race detector and no build tag (861b2a), so that a builder runs the
