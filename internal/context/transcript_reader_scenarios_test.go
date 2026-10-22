@@ -18,11 +18,11 @@ func Test792b15c3a1_TranscriptReader_SystemReminderDropped(t *testing.T) {
 	g := NewWithT(t)
 
 	lines := []string{
-		trc2vUserLine(t, "<system-reminder>hook output the user never typed</system-reminder>"),
-		trc2vUserLine(t, "real question"),
+		tr1UserLine(t, "<system-reminder>hook output the user never typed</system-reminder>"),
+		tr1UserLine(t, "real question"),
 	}
 
-	result := trc2vRead(lines)
+	result := tr1Read(lines)
 
 	g.Expect(result).To(Equal([]string{"USER: real question"}))
 }
@@ -35,32 +35,34 @@ func Test792b15c3a2_TranscriptReader_InjectedTextsDropped(t *testing.T) {
 	g := NewWithT(t)
 
 	lines := []string{
-		trc2vUserLine(t, "Base directory for this skill: /skills/learn\n\n# Learn\nThe whole skill body."),
-		trc2vUserLine(t, "<local-command-stdout>Catch you later!</local-command-stdout>"),
-		trc2vUserLine(t, "<local-command-caveat>Caveat: generated while running local commands.</local-command-caveat>"),
-		trc2vUserLine(t, "<task-notification><task-id>bo3apd2s2</task-id><status>completed</status></task-notification>"),
-		trc2vUserLine(t, "real question"),
+		tr1UserLine(t, "Base directory for this skill: /skills/learn\n\n# Learn\nThe whole skill body."),
+		tr1UserLine(t, "<local-command-stdout>Catch you later!</local-command-stdout>"),
+		tr1UserLine(t, "<local-command-caveat>Caveat: generated while running local commands.</local-command-caveat>"),
+		tr1UserLine(t, "<task-notification><task-id>bo3apd2s2</task-id><status>completed</status></task-notification>"),
+		tr1UserLine(t, "real question"),
 	}
 
-	result := trc2vRead(lines)
+	result := tr1Read(lines)
 
 	g.Expect(result).To(Equal([]string{"USER: real question"}))
 }
 
 // Test792b15c3a3_TranscriptReader_SlashCommandKeepsArguments verifies a slash command is replaced by its trimmed
-// arguments and a slash command with no arguments yields no line.
+// arguments, and a slash command with no arguments, written without or with an empty arguments tag, yields no line.
 func Test792b15c3a3_TranscriptReader_SlashCommandKeepsArguments(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
 	lines := []string{
-		trc2vUserLine(t, "<command-message>learn</command-message>\n<command-name>/learn</command-name>\n"+
+		tr1UserLine(t, "<command-message>learn</command-message>\n<command-name>/learn</command-name>\n"+
 			"<command-args>  remember X\n</command-args>"),
-		trc2vUserLine(t, "<command-message>clear</command-message>\n<command-name>/clear</command-name>"),
+		tr1UserLine(t, "<command-message>clear</command-message>\n<command-name>/clear</command-name>"),
+		tr1UserLine(t, "<command-name>/context</command-name>\n<command-message>context</command-message>\n"+
+			"<command-args></command-args>"),
 	}
 
-	result := trc2vRead(lines)
+	result := tr1Read(lines)
 
 	g.Expect(result).To(Equal([]string{"USER: remember X"}))
 }
@@ -77,9 +79,9 @@ func Test792b15c4a1_TranscriptReader_Base64Replaced(t *testing.T) {
 	run := strings.Repeat("QUFB", runLen/len("QUFB"))
 	g.Expect(run).To(HaveLen(runLen))
 
-	lines := []string{trc2vUserLine(t, "screenshot: "+run+" end")}
+	lines := []string{tr1UserLine(t, "screenshot: "+run+" end")}
 
-	result := trc2vRead(lines)
+	result := tr1Read(lines)
 
 	g.Expect(result).To(Equal([]string{"USER: screenshot: [base64 removed] end"}))
 }
@@ -100,9 +102,9 @@ func Test792b15c4a2_TranscriptReader_OversizedLineCut(t *testing.T) {
 	text := strings.Repeat(unit, textLen/len(unit))
 	g.Expect(text).To(HaveLen(textLen))
 
-	lines := []string{trc2vUserLine(t, text)}
+	lines := []string{tr1UserLine(t, text)}
 
-	result := trc2vRead(lines)
+	result := tr1Read(lines)
 
 	g.Expect(result).To(HaveLen(1))
 
@@ -113,13 +115,13 @@ func Test792b15c4a2_TranscriptReader_OversizedLineCut(t *testing.T) {
 	g.Expect(result[0]).To(Equal(("USER: " + text)[:keptChars] + "[truncated]"))
 }
 
-// trc2vRead reads the entries the way the transcript reader does: tool-summary mode.
-func trc2vRead(lines []string) []string {
+// tr1Read reads the entries the way the transcript reader does: tool-summary mode.
+func tr1Read(lines []string) []string {
 	return sessionctx.StripWithConfig(lines, sessionctx.StripConfig{ToolSummaryMode: true})
 }
 
-// trc2vUserLine builds a JSONL user entry with a string content field.
-func trc2vUserLine(t *testing.T, content string) string {
+// tr1UserLine builds a JSONL user entry with a string content field.
+func tr1UserLine(t *testing.T, content string) string {
 	t.Helper()
 
 	marshaled, err := json.Marshal(content)
