@@ -1,7 +1,6 @@
 package cli_test
 
 import (
-	"context"
 	"io"
 	"path/filepath"
 	"testing"
@@ -52,12 +51,13 @@ func Test792b17c5a4_AnInvalidConfigurationFileIsAnError(t *testing.T) {
 	fs.put(filepath.Join(repoRoot, "README.md"), "## Conventions\nAlways wrap errors with context.\n", 1)
 	fs.put(filepath.Join(repoRoot, sweepFile), invalidJSON, 1)
 
-	deps := sweepDeps(fs, &countingEmbedder{})
+	// the lister would report the README if gathering got past the invalid file, so the no-ingest check has teeth.
+	deps := sweepDeps(fs, &countingEmbedder{}, filepath.Join(repoRoot, "README.md"))
 	deps.IsDir = func(path string) bool { return path == filepath.Join(repoRoot, ".git") }
 	deps.Getwd = func() (string, error) { return repoRoot, nil }
 	deps.SessionDir = func(string) string { return "" }
 
-	err := cli.RunIngest(context.Background(),
+	err := cli.RunIngest(t.Context(),
 		cli.IngestArgs{Auto: true, ChunksDir: chunksDirTop}, deps, io.Discard)
 
 	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring(sweepFile)), "the error names the sweep file")
@@ -88,7 +88,7 @@ func Test792b17c8a1_OnlyDocumentsAndTranscriptsAreSources(t *testing.T) {
 	// a lister that, like the walking one, reports every file regardless of extension.
 	deps := sweepDeps(fs, &countingEmbedder{}, docPath, transcriptPath, otherPath)
 
-	err := cli.RunIngest(context.Background(),
+	err := cli.RunIngest(t.Context(),
 		cli.IngestArgs{Sweep: []string{rootDir}, ChunksDir: chunksDir}, deps, io.Discard)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
@@ -124,7 +124,7 @@ func Test792b17c8a2_TheChunkIndexIsNeverASource(t *testing.T) {
 	// the swept root contains the chunk index directory, so the lister reports files under it.
 	deps := sweepDeps(fs, &countingEmbedder{}, notePath, indexPath, strayPath, siblingPath)
 
-	err := cli.RunIngest(context.Background(),
+	err := cli.RunIngest(t.Context(),
 		cli.IngestArgs{Sweep: []string{rootDir}, ChunksDir: chunksDir}, deps, io.Discard)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
