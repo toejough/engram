@@ -50,7 +50,7 @@ func Test792b34c3a3_VaultHasPendingOffers_MissingDirectoryIsSilent(t *testing.T)
 		t.Parallel()
 		g := NewWithT(t)
 
-		fileSystem := &pobUnreadableFS{u1FS: newU1FS()}
+		fileSystem := &pob1UnreadableFS{u1FS: newU1FS()}
 		fileSystem.files["/vault/1.2026-01-01.a.md"] = []byte(pendingFactNote)
 
 		g.Expect(cli.ExportVaultHasPendingOffers("/vault", fileSystem)).To(BeFalse())
@@ -96,8 +96,8 @@ func Test792b34c3a6_WarnIfPendingOffers_MissingDependencyIsNoOp(t *testing.T) {
 
 	files := map[string][]byte{"/vault/1.2026-01-01.a.md": []byte(pendingFactNote)}
 	listMD := func(vault string) ([]string, error) {
-		if vault == pobUnlistableVault {
-			return nil, errPobUnreadableDir
+		if vault == pob1UnlistableVault {
+			return nil, errPob1UnreadableDir
 		}
 
 		return []string{"1.2026-01-01.a.md"}, nil
@@ -119,7 +119,7 @@ func Test792b34c3a6_WarnIfPendingOffers_MissingDependencyIsNoOp(t *testing.T) {
 
 		logWarn := func(format string, args ...any) { warnings = append(warnings, fmt.Sprintf(format, args...)) }
 
-		cli.ExportWarnIfPendingOffers(pobUnlistableVault, listMD, read, logWarn)
+		cli.ExportWarnIfPendingOffers(pob1UnlistableVault, listMD, read, logWarn)
 		g.Expect(warnings).To(BeEmpty())
 	})
 
@@ -283,20 +283,20 @@ func Test792b34c8a2_Show_NoHeaderWithoutXID(t *testing.T) {
 
 // unexported constants.
 const (
-	// pobUnlistableVault is a vault path whose note listing fails.
-	pobUnlistableVault = "/vault/unlistable"
+	// pob1UnlistableVault is a vault path whose note listing fails.
+	pob1UnlistableVault = "/vault/unlistable"
 )
 
 // unexported variables.
 var (
-	errPobUnreadableDir = errors.New("pending_offer_bookkeeping_scenarios_test: directory unreadable")
+	errPob1UnreadableDir = errors.New("pending_offer_bookkeeping_scenarios_test: directory unreadable")
 )
 
-// pobUnreadableFS is a filesystem whose directories cannot be read, though they exist.
-type pobUnreadableFS struct {
+// pob1UnreadableFS is a filesystem whose directories cannot be read, though they exist.
+type pob1UnreadableFS struct {
 	*u1FS
 }
 
-func (f *pobUnreadableFS) ReadDir(string) ([]update.DirEntry, error) {
-	return nil, fmt.Errorf("read dir: %w", errors.Join(errPobUnreadableDir, fs.ErrPermission))
+func (f *pob1UnreadableFS) ReadDir(string) ([]update.DirEntry, error) {
+	return nil, fmt.Errorf("read dir: %w", errors.Join(errPob1UnreadableDir, fs.ErrPermission))
 }
