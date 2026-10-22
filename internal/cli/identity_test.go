@@ -165,7 +165,7 @@ func Test792b11c5a1_RepoWithProjectFallback(t *testing.T) {
 // Test792b11c6a1_NotesMissingIdentityFields covers the notesMissingIdentityFields
 // detector: a fact/feedback note missing both user:/vault: flags the vault;
 // one that already has them does not; a non-fact/feedback note (e.g. a
-// vocab definition note) is never flagged even without them; a missing
+// retired vocab term-note, type: vocab/term) is never flagged even without them; a missing
 // vault directory self-silences to false.
 func Test792b11c6a1_NotesMissingIdentityFields(t *testing.T) {
 	t.Parallel()
@@ -362,7 +362,7 @@ func Test792b11c7a4_ApplyIdentityBackfill(t *testing.T) {
 
 // Test792b11c7a5_BackfillIdentity_SkipsUnrelatedContentAndPropagatesReadErrors covers
 // backfillOneNote's other branches: a note with no parseable frontmatter
-// and a non-fact/feedback note (e.g. a vocab definition) both self-silence
+// and a non-fact/feedback note (e.g. a retired vocab term-note) both self-silence
 // (stamped=false, err=nil) rather than failing the whole run; a genuine
 // read failure on ANY note propagates as a real error and aborts the run
 // (backfillIdentity must never silently skip an I/O failure the way it

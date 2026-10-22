@@ -107,3 +107,18 @@ Scenario: 792b36c4a3 The vault ID is stamped before the state directory
   When the first entry is queued
   Then the vault ID is stamped before .engram exists, and its location record is then written into .engram
 ```
+
+## 861b4zzl Modified: Note Provenance scenarios
+
+Operations a test finds necessary in existing specs are applied in place ([861d6 A new test that fails at baseline](./861d_questions-and-decisions.md#questions-and-decisions)); the one below is applied in [Note Provenance](../../specs/technical/note-provenance.md) in the commit that records it.
+
+### 861b4zzl1 Modified: 792b11c7a5 Unrelated content is skipped
+
+Target: [792b11c7a Scenarios](../../specs/technical/note-provenance.md#792b11c7a-scenarios), Scenario 792b11c7a5. Differs from the current text in the Given line: a vocab definition note is a fact note ([vocab definition note](../../GLOSSARY.md#vocab-definition-note)) that the backfill stamps, so the note skipped is the [vocab term-note (retired)](../../GLOSSARY.md#vocab-term-note-retired), the shared stale Given of [861a4zzl1 792a10k1g Other note types are left alone](./861a_product-spec.md#861a4zzl1-modified-792a10k1g-other-note-types-are-left-alone) ([861d153 A vocab definition note is a fact, and the backfill stamps it (792a10k1g)](./861d_questions-and-decisions.md#questions-and-decisions)).
+
+```gherkin
+Scenario: 792b11c7a5 Unrelated content is skipped
+  Given a note without frontmatter and a vocab term-note (retired)
+  When the vault is backfilled
+  Then neither fails nor changes, and a read error is returned
+```

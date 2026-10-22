@@ -312,7 +312,7 @@ Scenario: 792b11c7a4 A dry run writes nothing
   Then nothing is written and the count is the number that would be stamped
 
 Scenario: 792b11c7a5 Unrelated content is skipped
-  Given a note without frontmatter and a vocab definition note
+  Given a note without frontmatter and a vocab term-note (retired)
   When the vault is backfilled
   Then neither fails nor changes, and a read error is returned
 

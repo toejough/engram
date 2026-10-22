@@ -120,9 +120,9 @@ func backfillIdentity(
 
 // backfillOneNote reads one vault file, dispatches to the fact/feedback
 // stamper by its type: key, and self-silences (stamped=false, err=nil) for
-// anything that isn't a parseable fact/feedback note (e.g. a vocab
-// definition note) — a backfill run must never fail on unrelated vault
-// content.
+// anything that isn't a parseable fact/feedback note (e.g. a retired vocab
+// term-note, type: vocab/term) — a backfill run must never fail on unrelated
+// vault content.
 func backfillOneNote(
 	ctx context.Context,
 	notePath string,
