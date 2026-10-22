@@ -156,9 +156,11 @@ func applyReparentRenames(ctx context.Context, vault string, renameMap map[strin
 
 // buildReparentRenameMap computes the old-basename→new-basename rename map
 // from answered entries, processed in ascending original-ID order
-// (792b27c5 Rename map): position=top is a no-op; continuation/sibling
-// compute a new ID via nextLuhmannID against the vault's current ID set,
-// which grows as earlier entries in this same run are assigned.
+// (792b27c5 Rename map): an entry naming a note the vault does not hold is
+// refused whatever its position (792b27c4 Answers validation); position=top
+// is otherwise a no-op; continuation/sibling compute a new ID via
+// nextLuhmannID against the vault's current ID set, which grows as earlier
+// entries in this same run are assigned.
 func buildReparentRenameMap(
 	vault string,
 	entries []reparentAnswerEntry,
@@ -191,13 +193,13 @@ func buildReparentRenameMap(
 	renameMap := make(map[string]string, len(sorted))
 
 	for _, entry := range sorted {
-		if entry.Position == positionTop {
-			continue
-		}
-
 		oldFilename, ok := idToFilename[entry.Note]
 		if !ok {
 			return nil, fmt.Errorf("%w: %q", errReparentUnknownNote, entry.Note)
+		}
+
+		if entry.Position == positionTop {
+			continue
 		}
 
 		newID, idErr := nextLuhmannID(existingIDs, entry.Target, entry.Position)
