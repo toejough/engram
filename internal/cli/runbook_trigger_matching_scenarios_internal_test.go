@@ -43,6 +43,10 @@ func Test792b22c3a1_MatchTriggers_HitsListedOnceInAscendingOrder(t *testing.T) {
 		second = "2.2026-01-01.rtm1-second"
 		third  = "3.2026-01-01.rtm1-third"
 		absent = "4.2026-01-01.rtm1-absent"
+
+		// Go randomizes map iteration order per call, so an unsorted result is caught with near certainty
+		// only by repeating the call: each repeat passes an unsorted implementation with chance 1/6.
+		repeats = 50
 	)
 
 	// Keys are deliberately not in ascending order of how they are written; the third runbook is a hit by
@@ -54,21 +58,25 @@ func Test792b22c3a1_MatchTriggers_HitsListedOnceInAscendingOrder(t *testing.T) {
 		second: {"take this end-to-end"},
 	}
 
-	hits := matchTriggers("/please curate the offers, rotate the keys and take this end-to-end", index)
+	for range repeats {
+		hits := matchTriggers("/please curate the offers, rotate the keys and take this end-to-end", index)
 
-	g.Expect(hits).To(Equal([]string{first, second, third}))
+		g.Expect(hits).To(Equal([]string{first, second, third}))
+	}
 }
 
 func Test792b22c3a2_MatchTriggers_EmptyMessageHasNoHits(t *testing.T) {
 	t.Parallel()
 
-	index := map[string][]string{"1.2026-01-01.rtm1-curate": {"curate"}}
+	index := func() map[string][]string {
+		return map[string][]string{"1.2026-01-01.rtm1-curate": {"curate"}}
+	}
 
 	t.Run("the empty message", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
-		hits := matchTriggers("", index)
+		hits := matchTriggers("", index())
 
 		g.Expect(hits).To(BeEmpty())
 	})
@@ -77,7 +85,7 @@ func Test792b22c3a2_MatchTriggers_EmptyMessageHasNoHits(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
-		hits := matchTriggers(" \t\n ", index)
+		hits := matchTriggers(" \t\n ", index())
 
 		g.Expect(hits).To(BeEmpty())
 	})
@@ -194,20 +202,22 @@ func Test792b22c4a5_ApplyTriggerHits_NoHitsChangesNothing(t *testing.T) {
 			{notePath: "2.2026-01-01.rtm1-b.md", content: "b", score: secondScore, kind: chunkItemKind},
 		}
 	}
-	meta := AllVaultNotesMeta{ContentByBasename: map[string]string{"3.2026-01-01.rtm1-c": rtm1Runbook("", "x")}}
+	meta := func() AllVaultNotesMeta {
+		return AllVaultNotesMeta{ContentByBasename: map[string]string{"3.2026-01-01.rtm1-c": rtm1Runbook("", "x")}}
+	}
 
 	t.Run("nil hits", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
-		g.Expect(applyTriggerHits(items(), nil, meta, "")).To(Equal(items()))
+		g.Expect(applyTriggerHits(items(), nil, meta(), "")).To(Equal(items()))
 	})
 
 	t.Run("empty hits with a project requested", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
-		g.Expect(applyTriggerHits(items(), []string{}, meta, "widgets")).To(Equal(items()))
+		g.Expect(applyTriggerHits(items(), []string{}, meta(), "widgets")).To(Equal(items()))
 	})
 }
 
