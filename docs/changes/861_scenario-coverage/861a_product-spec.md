@@ -28,3 +28,29 @@ Scenario: 861a3a1a A developer runs the tests of one package
   When the developer runs the scoped test command on one of them
   Then only the tests of that package run and the command reports their result
 ```
+
+## 861a4y Modified: Parent Sync scenarios, part 2
+
+Operations a test finds necessary in existing specs are applied in place ([861d6 A new test that fails at baseline](./861d_questions-and-decisions.md#questions-and-decisions)); the two below are applied in [Parent Sync](../../specs/product/parent-sync.md) in the commit of their test.
+
+### 861a4y1 Modified: 792a21p1a Placement is not sent
+
+Target: [792a21p1 UAT Scenarios](../../specs/product/parent-sync.md#792a21p1-uat-scenarios), Scenario 792a21p1a. Differs from the current text in the Given line: `--position child` is not a position the CLI accepts.
+
+```gherkin
+Scenario: 792a21p1a Placement is not sent
+  Given a note learned with --target 12 --position continuation
+  When it is offered
+  Then the offer request carries no target and no position
+```
+
+### 861a4y2 Modified: 792a21q1g The first offer creates the exchange state in the right order
+
+Target: [792a21q1 UAT Scenarios](../../specs/product/parent-sync.md#792a21q1-uat-scenarios), Scenario 792a21q1g. Differs from the current text in the Then line: the location record is the file `.engram/home.json`, so it cannot be stamped before `.engram` exists.
+
+```gherkin
+Scenario: 792a21q1g The first offer creates the exchange state in the right order
+  Given a vault with no vault ID and no .engram directory
+  When the first offer is queued
+  Then the vault ID is stamped before .engram exists, and its location record is then written into .engram
+```

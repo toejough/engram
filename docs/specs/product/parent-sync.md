@@ -641,7 +641,7 @@ send time sends the latest content and never a stale snapshot.
 
 ```gherkin
 Scenario: 792a21p1a Placement is not sent
-  Given a note learned with --target 12 --position child
+  Given a note learned with --target 12 --position continuation
   When it is offered
   Then the offer request carries no target and no position
 
@@ -720,7 +720,7 @@ Scenario: 792a21q1f A pending note's entry is dropped
 Scenario: 792a21q1g The first offer creates the exchange state in the right order
   Given a vault with no vault ID and no .engram directory
   When the first offer is queued
-  Then the vault ID and its location record are stamped before .engram exists
+  Then the vault ID is stamped before .engram exists, and its location record is then written into .engram
 
 Scenario: 792a21q1h A note is written even when no exchange ID can be made
   Given a host where no xid can be minted
