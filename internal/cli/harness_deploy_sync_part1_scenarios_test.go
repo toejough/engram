@@ -17,8 +17,6 @@ import (
 func Test792b29c17a9_WriteUpdateReport_SkillRowsMapSourceToSkillsDirectory(t *testing.T) {
 	t.Parallel()
 
-	skills := []update.SkillDirCount{{Name: "learn", Files: 3}, {Name: "recall", Files: 1}}
-
 	table := []struct {
 		name    string
 		harness update.HarnessReport
@@ -49,7 +47,7 @@ func Test792b29c17a9_WriteUpdateReport_SkillRowsMapSourceToSkillsDirectory(t *te
 			g := NewWithT(t)
 
 			harness := tc.harness
-			harness.SkillDirs = skills
+			harness.SkillDirs = []update.SkillDirCount{{Name: "learn", Files: 3}, {Name: "recall", Files: 1}}
 
 			lines := hds1ReportLines(t, update.Report{
 				Home:      "/home/joe",
