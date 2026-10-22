@@ -821,7 +821,7 @@ Status: In progress: 0/1 entries complete (1 rows Green-single)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zb1 | [792b3c1a8 Exhausted temp names give a bounded error](../../specs/technical/durable-file-store.md#792b3c1a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b3c1a8_EdgeFS_WriteFileAtomicExhaustedTempNamesGiveBoundedError (internal/cli/durable_file_store_scenarios_test.go; moved from the exhausted subtest of Test792b3c1a7 and strengthened: message, path, 10 distinct candidates, no chmod/rename/remove); pass log 1.log; mutation range maxTempAttempts - 1 fails it at the attempts-count Then (mut.log) | Green-single |
+| 861c2zb1 | [792b3c1a8 Exhausted temp names give a bounded error](../../specs/technical/durable-file-store.md#792b3c1a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b3c1a8_EdgeFS_WriteFileAtomicExhaustedTempNamesGiveBoundedError (internal/cli/durable_file_store_scenarios_test.go; moved from the exhausted subtest of Test792b3c1a7 and strengthened: message, path, 10 distinct candidates, no chmod/rename/remove); pass log 1.log; mutation internal/cli/edgefs.go:244 `range maxTempAttempts` -> `range maxTempAttempts - 1` fails it at durable_file_store_scenarios_test.go:57, the attempts-count Then (mut.log); mutation internal/cli/edgefs.go:257 (errTempNameExhausted dropped from the exhausted error) fails it at durable_file_store_scenarios_test.go:54, the message Then | Green-single |
 
 #### 861c2zc Luhmann Addressing (default)
 
