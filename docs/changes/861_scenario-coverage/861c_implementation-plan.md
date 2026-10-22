@@ -2471,7 +2471,7 @@ Status: Ready
 
 #### 861c2zzzg Vault HTTP Server (integration)
 
-Status: Ready
+Status: In progress: 0/1 entries complete (1 rows Green-single)
 
 - Owner file: [Vault HTTP Server](../../specs/technical/vault-http-server.md) (technical component).
 - Package: `cmd/engram`; suggested test file: `cmd/engram/serve_header_integration_test.go` (tag `integration`).
@@ -2482,7 +2482,7 @@ Status: Ready
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zzzg1 | [792b35c3a4 A slow header read is cut off](../../specs/technical/vault-http-server.md#792b35c3a-scenarios) | Example | Real OS effect; test tagged `integration` | Not started |
+| 861c2zzzg1 | [792b35c3a4 A slow header read is cut off](../../specs/technical/vault-http-server.md#792b35c3a-scenarios) | Example | Real OS effect; test tagged `integration`. `Test792b35c3a4_RealListenAndServe_ASlowHeaderReadIsCutOff` (`cmd/engram/serve_header_integration_test.go`) serves through realListenAndServe on a loopback port, drips a header for the real 10 s and asserts the close in 9 to 15 s (a prompt request is the control); `Test792b35c3a4_ReadHeaderTimeout_IsTenSeconds` pins the value. Baseline pass `logs/b18/861c2zzzg/1.log`, package run `pkg.log`. Mutation `cmd/engram/serve.go:173` `ReadHeaderTimeout: 0 * readHeaderTimeout`: the slow-header test fails at the close assertion (`m1.log`, i/o timeout) | Green-single |
 
 #### 861c2zzzh Durable File Store (integration)
 
