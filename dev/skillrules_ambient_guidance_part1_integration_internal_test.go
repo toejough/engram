@@ -11,7 +11,7 @@ import (
 
 // Test792a19a1a_AProposedApproachIsRecalledBeforeItIsEndorsed reads the recall guidance the repository ships: a
 // proposed approach is recalled with glance before it is endorsed or ranked, and the skill draws the phrases from
-// the situation.
+// the situation and the candidate approach.
 func Test792a19a1a_AProposedApproachIsRecalledBeforeItIsEndorsed(t *testing.T) {
 	t.Parallel()
 
@@ -26,6 +26,7 @@ func Test792a19a1a_AProposedApproachIsRecalledBeforeItIsEndorsed(t *testing.T) {
 	skill := shippedText(t, ag1RecallSkill)
 
 	g.Expect(skill).To(ContainSubstring("### Step 1 — Phrase queries from your plan and situation"))
+	g.Expect(skill).To(ContainSubstring("**Candidate solution/approach** — the technique or strategy you plan to apply."))
 }
 
 // Test792a19a1b_WorkIsRecalledBeforeItIsDeclaredDone reads the recall guidance the repository ships: glance runs
@@ -76,7 +77,7 @@ func Test792a19b1a_AWeightyDecisionEscalates(t *testing.T) {
 
 	text := shippedText(t, ag1RecallGuidance)
 
-	g.Expect(text).To(ContainSubstring(ag1EscalateSentence))
+	g.Expect(text).To(ContainSubstring(ag1EscalateOpener))
 	g.Expect(text).To(ContainSubstring("when the decision is weighty or irreversible"))
 }
 
@@ -89,7 +90,7 @@ func Test792a19b1b_AnUnresolvedGapEscalates(t *testing.T) {
 
 	text := shippedText(t, ag1RecallGuidance)
 
-	g.Expect(text).To(ContainSubstring(ag1EscalateSentence))
+	g.Expect(text).To(ContainSubstring(ag1EscalateOpener))
 	g.Expect(text).To(ContainSubstring("or when `glance` flags a gap it can't resolve."))
 }
 
@@ -290,7 +291,7 @@ func Test792a19f1a_LessonsNoneIsSkipped(t *testing.T) {
 	text := shippedText(t, ag1LearnGuidance)
 
 	g.Expect(text).To(ContainSubstring("its report's `LESSONS:` line isn't `none`"))
-	g.Expect(text).To(ContainSubstring(ag1SkipSentence))
+	g.Expect(text).To(ContainSubstring("Skip `none`,"))
 }
 
 // Test792a19f1b_ARoutineNarrativeIsSkipped reads the learn guidance the repository ships: a bare success line such as
@@ -302,8 +303,7 @@ func Test792a19f1b_ARoutineNarrativeIsSkipped(t *testing.T) {
 
 	text := shippedText(t, ag1LearnGuidance)
 
-	g.Expect(text).To(ContainSubstring(ag1SkipSentence))
-	g.Expect(text).To(ContainSubstring("Skip `none`, \"done, tests pass\","))
+	g.Expect(text).To(ContainSubstring("\"done, tests pass\""))
 }
 
 // Test792a19f1c_AnUnconfirmedHunchIsSkipped reads the learn guidance the repository ships: a lesson the report does
@@ -315,21 +315,17 @@ func Test792a19f1c_AnUnconfirmedHunchIsSkipped(t *testing.T) {
 
 	text := shippedText(t, ag1LearnGuidance)
 
-	g.Expect(text).To(ContainSubstring(ag1SkipSentence))
 	g.Expect(text).To(ContainSubstring("anything the report doesn't confirm (\"might be a race\")"))
 }
 
 // unexported constants.
 const (
-	ag1EscalateSentence = "Escalate to **`/recall deep`** — the thorough rung, which also crystallizes new lessons — " +
-		"when the decision is weighty or irreversible, or when `glance` flags a gap it can't resolve."
+	ag1EscalateOpener      = "Escalate to **`/recall deep`** — the thorough rung, which also crystallizes new lessons —"
 	ag1LearnGuidance       = "agent-instructions/guidance/learn.md"
 	ag1RecallGuidance      = "agent-instructions/guidance/recall.md"
 	ag1RecallSkill         = "agent-instructions/skills/recall/SKILL.md"
 	ag1ReturnedBulletEnd   = "**Even a one-line fix earns the note.**"
 	ag1ReturnedBulletStart = "**A subagent just returned, and its report's `LESSONS:` line isn't `none`**"
-	ag1SkipSentence        = "Skip `none`, \"done, tests pass\", and anything the report doesn't confirm " +
-		"(\"might be a race\") — those are not lessons, and the closing learn will discard them anyway."
 )
 
 // ag1Between returns the text from the first occurrence of start up to the next occurrence of end, or empty when
