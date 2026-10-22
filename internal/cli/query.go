@@ -666,7 +666,6 @@ func assembleResolvedItems(
 	// the representative is agent-decided, not binary-computed (792b24c9 Clusters).
 	// Direct-hit items come from the note union; chunk items are appended below.
 	resolved := mergeProvenances(noteUnion, matchedSet{}, clusterReport{})
-	resolved = applyProjectFilter(resolved, args.Project)
 
 	// Exploit half is fixed here: the distinct notes delivered post
 	// floor/cap/project-filter, before ride-along or explore append
@@ -682,10 +681,13 @@ func assembleResolvedItems(
 	exploreBudget := len(exploitPaths)
 
 	vaultMeta := loadAllVaultNotesMeta(hits, args.VaultPath, deps.Read)
+	vaultMeta.TermIndex = termIndexInProject(vaultMeta.TermIndex, args.Project)
 
 	// Supersession ride-along: insert each superseding note directly after its
-	// superseded note in the ranked items (note items only; deduped).
+	// superseded note in the ranked items (note items only; deduped), then drop
+	// a superseder of another project (792b24c12 Project filter).
 	resolved = applySupersedesRideAlong(resolved, vaultMeta)
+	resolved = applyProjectFilter(resolved, args.Project)
 
 	explorePicks, exploreAllocated := computeExploreHalf(
 		args.VaultPath, deps.Read, queryVec, exploitPaths, exploreBudget, vaultMeta,
@@ -877,6 +879,25 @@ func buildRecentFillItems(
 	}
 
 	return out
+}
+
+// candidatesInProject drops the note candidates whose content is not of the requested project, so a
+// dropped note reaches neither the items nor the clusters (792b24c12 Project filter). An empty project
+// keeps every candidate.
+func candidatesInProject(union []scoredCandidate, project string) []scoredCandidate {
+	if project == "" {
+		return union
+	}
+
+	kept := make([]scoredCandidate, 0, len(union))
+
+	for _, candidate := range union {
+		if itemMatchesProject(resolvedItem{content: candidate.content}, project) {
+			kept = append(kept, candidate)
+		}
+	}
+
+	return kept
 }
 
 func capChunkContent(items []queryItem, budget int) ([]queryItem, int) {
@@ -1904,7 +1925,9 @@ func runQuery(
 	timer.mark(stageEmbed)
 
 	// 792b24c8: build the matched set from the note union, then extend with matched chunks
-	// so one AutoK pass clusters notes and chunks together.
+	// so one AutoK pass clusters notes and chunks together. A note of another project is dropped
+	// first, so it reaches neither the items nor the clusters (792b24c12 Project filter).
+	noteUnion = candidatesInProject(noteUnion, args.Project)
 	matchSet := buildMatchedSet(noteUnion)
 	chunkItems := addMatchedChunksToMatchedSet(chunkUnion, &matchSet)
 
@@ -2014,6 +2037,27 @@ func stripWikilinks(content string) string {
 
 		return groups[1]
 	})
+}
+
+// termIndexInProject drops the explore-half term members whose content is not of the requested project,
+// so the explore half is sampled, and its budget backfilled, from the project's notes only. An empty
+// project keeps the index whole.
+func termIndexInProject(index map[string][]VaultTermMember, project string) map[string][]VaultTermMember {
+	if project == "" {
+		return index
+	}
+
+	kept := make(map[string][]VaultTermMember, len(index))
+
+	for term, members := range index {
+		for _, member := range members {
+			if itemMatchesProject(resolvedItem{content: member.Content}, project) {
+				kept[term] = append(kept[term], member)
+			}
+		}
+	}
+
+	return kept
 }
 
 // topKCandidateNotes returns the top-K notes nearest the centroid by
