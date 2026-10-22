@@ -3193,49 +3193,18 @@ func Test792b20c9a5_WriteVocabVersionToFamilyNote_MissingFamilyNote_ReturnsSenti
 	g.Expect(writeErr).To(MatchError(cli.ErrVocabFamilyNoteMissing))
 }
 
-// Test792b7c6a1_IdAndDateFromNoteFilename table-tests the "<id>.<date>" prefix parser:
-// a filename with no valid leading Luhmann id, and one with fewer than three
-// dot-separated segments, both return ok=false — direct unit coverage since
-// renameDefinitionNote's production call path only reaches this helper after
-// termFromDefinitionSlug has already confirmed a well-formed definition-note
-// filename, making these guards unreachable through that path.
-// Test792b7c6a1_IdAndDateFromNoteFilename table-tests the "<id>.<date>" prefix parser:
-// a filename with no valid leading Luhmann id, and one with fewer than three
-// dot-separated segments, both return ok=false — direct unit coverage since
-// renameDefinitionNote's production call path only reaches this helper after
-// termFromDefinitionSlug has already confirmed a well-formed definition-note
-// filename, making these guards unreachable through that path.
+// Test792b7c6a1_IdAndDateFromNoteFilename covers the "<id>.<date>" prefix parser on a
+// well-formed definition-note filename; its refusals are 792b7c6a2 and 792b7c6a3
+// in luhmann_addressing_scenarios_test.go.
 func Test792b7c6a1_IdAndDateFromNoteFilename(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name     string
-		filename string
-		wantID   string
-		wantDate string
-		wantOK   bool
-	}{
-		{
-			name:     "valid definition note filename",
-			filename: "211.2026-07-10.vocab-retrieval-design-definition.md",
-			wantID:   "211", wantDate: "2026-07-10", wantOK: true,
-		},
-		{name: "no leading luhmann id", filename: "not-an-id.2026-07-10.vocab-x-definition.md", wantOK: false},
-		{name: "too few segments", filename: "211.md", wantOK: false},
-	}
+	g := NewWithT(t)
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			g := NewWithT(t)
-
-			gotID, gotDate, gotOK := cli.ExportIDAndDateFromNoteFilename(tc.filename)
-			g.Expect(gotOK).To(Equal(tc.wantOK))
-			g.Expect(gotID).To(Equal(tc.wantID))
-			g.Expect(gotDate).To(Equal(tc.wantDate))
-		})
-	}
+	gotID, gotDate, gotOK := cli.ExportIDAndDateFromNoteFilename("211.2026-07-10.vocab-retrieval-design-definition.md")
+	g.Expect(gotOK).To(BeTrue())
+	g.Expect(gotID).To(Equal("211"))
+	g.Expect(gotDate).To(Equal("2026-07-10"))
 }
 
 // ── Coverage: newVocabDeps closures ──────────────────────────────────────────
