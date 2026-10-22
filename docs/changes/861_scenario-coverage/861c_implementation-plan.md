@@ -932,7 +932,7 @@ Status: Ready
 
 #### 861c2zj Note Document Format (default)
 
-Status: Ready
+Status: In progress: 0/1 entries complete (1 rows Green-single)
 
 - Owner file: [Note Document Format](../../specs/technical/note-document-format.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/note_document_format_scenarios_test.go`.
@@ -942,7 +942,7 @@ Status: Ready
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zj1 | [792b6c1a2 A pair's filenames](../../specs/technical/note-document-format.md#792b6c1a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2zj1 | [792b6c1a2 A pair's filenames](../../specs/technical/note-document-format.md#792b6c1a-scenarios) | Example | Fixed inputs, one exact outcome. `Test792b6c1a2_RunLearnQA_NamesAPairByDateAndSlug` (`internal/cli/note_document_format_scenarios_test.go`) drives `RunLearnQA` over recording deps; mutation `qaSlug` date separator `.` to `-` failed it at the Then assertion (b17/861c2zj/mut.log); package run pkg.log | Green-single |
 
 #### 861c2zk Subprocess Runner (default)
 
