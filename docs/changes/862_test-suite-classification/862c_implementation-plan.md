@@ -90,7 +90,7 @@ Status: Ready
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 862c1d1 | File one GitHub issue (`gh issue create`) for item 3: nine `*_integration_test.go` files outside `dev/` carry no tag; tag them once `test-integration-all` runs in `check-full` and the coverage floor is re-measured without them; record its number in [862d10 Item 3: nine integration test files carry no tag](./862d_questions-and-decisions.md#questions-and-decisions) | Action | [862d10 Item 3: nine integration test files carry no tag](./862d_questions-and-decisions.md#questions-and-decisions) | Not started |
+| 862c1d1 | File one GitHub issue (`gh issue create`) for item 3: nine `*_integration_test.go` files outside `dev/` carry no tag; tag them once `test-integration-all` runs in `check-full` and the coverage floor is re-measured without them; record its number in [862d10 Item 3: nine integration test files carry no tag](./862d_questions-and-decisions.md#questions-and-decisions) | Action | [862d10 Item 3: nine integration test files carry no tag](./862d_questions-and-decisions.md#questions-and-decisions) Evidence: filed as [#863](https://github.com/toejough/engram/issues/863) with `gh issue create`; its number is recorded in 862d10. | Done |
 
 #### 862c1c The Project Profile cites the remaining deviations
 
