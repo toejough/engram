@@ -673,7 +673,7 @@ Status: In progress: 0/8 entries complete (8 rows Green-single)
 
 #### 861c2t Runbook Trigger Matching (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: In progress: 0/7 entries complete (7 rows Green-single)
 
 - Owner file: [Runbook Trigger Matching](../../specs/technical/runbook-trigger-matching.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/runbook_trigger_matching_scenarios_test.go`.
@@ -683,13 +683,13 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2t1 | [792b22c1a1 A runbook's triggers are indexed](../../specs/technical/runbook-trigger-matching.md#792b22c1a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2t2 | [792b22c3a1 Hits are listed once, in order](../../specs/technical/runbook-trigger-matching.md#792b22c3a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2t3 | [792b22c3a2 An empty message has no hits](../../specs/technical/runbook-trigger-matching.md#792b22c3a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2t4 | [792b22c4a2 A ranked hit keeps its score](../../specs/technical/runbook-trigger-matching.md#792b22c4a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2t5 | [792b22c4a3 A chunk is not a hit](../../specs/technical/runbook-trigger-matching.md#792b22c4a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2t6 | [792b22c4a4 A hit outside the requested project is not added](../../specs/technical/runbook-trigger-matching.md#792b22c4a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2t7 | [792b22c4a5 No hits changes nothing](../../specs/technical/runbook-trigger-matching.md#792b22c4a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2t1 | [792b22c1a1 A runbook's triggers are indexed](../../specs/technical/runbook-trigger-matching.md#792b22c1a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b22c1a1_TriggerIndex_RunbookTriggersIndexedInOrder; mutation: truncate the indexed triggers to the first fails it (m7.log). White-box (internal test file): matchTriggers, applyTriggerHits, loadAllVaultNotesMeta are unexported | Green-single |
+| 861c2t2 | [792b22c3a1 Hits are listed once, in order](../../specs/technical/runbook-trigger-matching.md#792b22c3a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b22c3a1_MatchTriggers_HitsListedOnceInAscendingOrder; mutations: no sort fails it in about 5 of 6 runs (map order, m3-1/m3-3.log), no break after the first trigger fails it (m5.log). White-box (internal test file): matchTriggers, applyTriggerHits, loadAllVaultNotesMeta are unexported | Green-single |
+| 861c2t3 | [792b22c3a2 An empty message has no hits](../../specs/technical/runbook-trigger-matching.md#792b22c3a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b22c3a2_MatchTriggers_EmptyMessageHasNoHits; baseline pass only: the empty-text guard is redundant, containsWholeWord of empty text is false, so removing it is an equivalent mutant (m4.log). White-box (internal test file): matchTriggers, applyTriggerHits, loadAllVaultNotesMeta are unexported | Green-single |
+| 861c2t4 | [792b22c4a2 A ranked hit keeps its score](../../specs/technical/runbook-trigger-matching.md#792b22c4a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b22c4a2_ApplyTriggerHits_RankedHitKeepsItsScore; mutation: not adding the trigger provenance fails it (m8.log). White-box (internal test file): matchTriggers, applyTriggerHits, loadAllVaultNotesMeta are unexported | Green-single |
+| 861c2t5 | [792b22c4a3 A chunk is not a hit](../../specs/technical/runbook-trigger-matching.md#792b22c4a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b22c4a3_ApplyTriggerHits_ChunkIsNotAHit; mutation: dropping the chunk exclusion fails it (m1.log). White-box (internal test file): matchTriggers, applyTriggerHits, loadAllVaultNotesMeta are unexported | Green-single |
+| 861c2t6 | [792b22c4a4 A hit outside the requested project is not added](../../specs/technical/runbook-trigger-matching.md#792b22c4a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b22c4a4_ApplyTriggerHits_HitOutsideRequestedProjectIsNotAdded; mutation: disabling the project filter fails it (m2.log). White-box (internal test file): matchTriggers, applyTriggerHits, loadAllVaultNotesMeta are unexported | Green-single |
+| 861c2t7 | [792b22c4a5 No hits changes nothing](../../specs/technical/runbook-trigger-matching.md#792b22c4a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b22c4a5_ApplyTriggerHits_NoHitsChangesNothing; mutation: returning an empty slice for no hits fails it (m9.log). White-box (internal test file): matchTriggers, applyTriggerHits, loadAllVaultNotesMeta are unexported | Green-single |
 
 #### 861c2u Exchange Versioning (default)
 
