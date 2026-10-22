@@ -274,6 +274,7 @@ type ExportAllVaultNotesMeta = AllVaultNotesMeta
 type ExportCompatibleSidecar = compatibleSidecar
 
 // Exported derivation types (vocab derivation).
+
 // ExportDeclinedFile aliases declinedFile so cli_test can name the decline record.
 type ExportDeclinedFile = declinedFile
 

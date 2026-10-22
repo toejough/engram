@@ -27,17 +27,17 @@ func Test792b5c11a1_RunVaultID_TheReportPrintsTheIDAndTheCheckAndWritesNothing(t
 	g := NewWithT(t)
 
 	// Given a vault with an ID at its recorded path
-	fsys := newVirRecordingFS()
+	fsys := newVir1RecordingFS()
 	vaultID := seqID(1)
-	fsys.files[virIDPath] = vaultID + "\n"
-	fsys.files[virHomePath] = `{"vault_id":"` + vaultID + `","path":"` + virVault + `"}` + "\n"
+	fsys.files[vir1IDPath] = vaultID + "\n"
+	fsys.files[vir1HomePath] = `{"vault_id":"` + vaultID + `","path":"` + vir1Vault + `"}` + "\n"
 	before := maps.Clone(fsys.files)
-	rand := &virRandCounter{inner: seqRand(1)}
+	rand := &vir1RandCounter{inner: seqRand(1)}
 
 	// When the vault-id report runs with no flag
 	var stdout bytes.Buffer
 
-	err := cli.RunVaultID(cli.VaultIDArgs{Vault: virVault}, virDeps(fsys, rand, &stdout), &stdout)
+	err := cli.RunVaultID(cli.VaultIDArgs{Vault: vir1Vault}, vir1Deps(fsys, rand, &stdout), &stdout)
 
 	// Then it prints vault_id: with the ID and location: ok, and writes nothing
 	g.Expect(err).NotTo(HaveOccurred())
@@ -55,16 +55,16 @@ func Test792b5c11a2_RunVaultID_BothFlagsAreRefusedAsMutuallyExclusiveAndNothingC
 	g := NewWithT(t)
 
 	// Given both --regenerate and --claim, over a vault that holds an ID
-	fsys := newVirRecordingFS()
-	fsys.files[virIDPath] = seqID(1) + "\n"
+	fsys := newVir1RecordingFS()
+	fsys.files[vir1IDPath] = seqID(1) + "\n"
 	before := maps.Clone(fsys.files)
-	rand := &virRandCounter{inner: seqRand(50)}
+	rand := &vir1RandCounter{inner: seqRand(50)}
 
 	// When the vault-id command runs
 	var stdout bytes.Buffer
 
 	err := cli.RunVaultID(
-		cli.VaultIDArgs{Vault: virVault, Regenerate: true, Claim: true}, virDeps(fsys, rand, &stdout), &stdout)
+		cli.VaultIDArgs{Vault: vir1Vault, Regenerate: true, Claim: true}, vir1Deps(fsys, rand, &stdout), &stdout)
 
 	// Then it fails as mutually exclusive and changes nothing
 	g.Expect(err).To(MatchError(ContainSubstring("mutually exclusive")))
@@ -125,12 +125,12 @@ func Test792b5c15a2_IsExchangeBasename_ABasenameWithASeparatorIsRefused(t *testi
 		basename string
 		accepted bool
 	}{
-		"the Luhmann basename":        {basename: virBasename, accepted: true},
+		"the Luhmann basename":        {basename: vir1Basename, accepted: true},
 		"a forward slash":             {basename: "12a3.some/slug", accepted: false},
 		"a backslash":                 {basename: `12a3.some\slug`, accepted: false},
 		"a pipe":                      {basename: "12a3.some|slug", accepted: false},
-		"a pipe after a valid prefix": {basename: virBasename + "|supersedes|claim", accepted: false},
-		"a backslash after the slug":  {basename: virBasename + `\`, accepted: false},
+		"a pipe after a valid prefix": {basename: vir1Basename + "|supersedes|claim", accepted: false},
+		"a backslash after the slug":  {basename: vir1Basename + `\`, accepted: false},
 	}
 
 	for name, testCase := range cases {
@@ -155,22 +155,25 @@ func Test792b5c16a1_RecordDeclinedPull_ADeclineIsRecordedOnceAndWrittenAtomicall
 	g := NewWithT(t)
 
 	// Given a declined-pull record (none yet: the first decline creates it)
-	fsys := newVirRecordingFS()
-	state := virState(fsys, seqRand(1))
-	entry := cli.ExportDeclinedPull{Vault: virParentVault, Basename: virBasename, Hash: virHash("a")}
+	fsys := newVir1RecordingFS()
+	state := vir1State(fsys, seqRand(1))
+	entry := cli.ExportDeclinedPull{Vault: vir1ParentVault, Basename: vir1Basename, Hash: vir1Hash("a")}
 
 	// When the same vault, basename and hash are recorded twice
-	firstErr := cli.ExportRecordDeclinedPull(state, virVault, entry)
-	secondErr := cli.ExportRecordDeclinedPull(state, virVault, entry)
+	firstErr := cli.ExportRecordDeclinedPull(state, vir1Vault, entry)
+	secondErr := cli.ExportRecordDeclinedPull(state, vir1Vault, entry)
 
 	// Then the file holds one entry, and it is written atomically
 	g.Expect(firstErr).NotTo(HaveOccurred())
 	g.Expect(secondErr).NotTo(HaveOccurred())
 
-	loaded, loadErr := cli.ExportLoadDeclined(state, virVault)
+	loaded, loadErr := cli.ExportLoadDeclined(state, vir1Vault)
 	g.Expect(loadErr).NotTo(HaveOccurred())
+	if loadErr != nil {
+		return
+	}
 	g.Expect(loaded.Entries).To(Equal([]cli.ExportDeclinedPull{entry}))
-	g.Expect(virCount(fsys.writes, "atomic:"+virDeclinedPath)).To(Equal(1))
+	g.Expect(vir1Count(fsys.writes, "atomic:"+vir1DeclinedPath)).To(Equal(1))
 }
 
 // Test792b5c16a2_DeclineMatches_ADeclineMatchesByVaultNameAndHash verifies 792b5c16a2
@@ -187,22 +190,22 @@ func Test792b5c16a2_DeclineMatches_ADeclineMatchesByVaultNameAndHash(t *testing.
 		matches bool
 	}{
 		"the same vault ID, name and hash": {
-			vaultID: virParentVault, names: []string{virBasename}, hash: virHash("a"), matches: true,
+			vaultID: vir1ParentVault, names: []string{vir1Basename}, hash: vir1Hash("a"), matches: true,
 		},
 		"the name is one of several the note answers to": {
-			vaultID: virParentVault, names: []string{"12a3.renamed", virBasename}, hash: virHash("a"), matches: true,
+			vaultID: vir1ParentVault, names: []string{"12a3.renamed", vir1Basename}, hash: vir1Hash("a"), matches: true,
 		},
 		"a different vault ID": {
-			vaultID: "other-vault-id", names: []string{virBasename}, hash: virHash("a"), matches: false,
+			vaultID: "other-vault-id", names: []string{vir1Basename}, hash: vir1Hash("a"), matches: false,
 		},
 		"a different name": {
-			vaultID: virParentVault, names: []string{"12a4.other-slug"}, hash: virHash("a"), matches: false,
+			vaultID: vir1ParentVault, names: []string{"12a4.other-slug"}, hash: vir1Hash("a"), matches: false,
 		},
 		"no name": {
-			vaultID: virParentVault, names: []string{}, hash: virHash("a"), matches: false,
+			vaultID: vir1ParentVault, names: []string{}, hash: vir1Hash("a"), matches: false,
 		},
 		"a changed hash": {
-			vaultID: virParentVault, names: []string{virBasename}, hash: virHash("b"), matches: false,
+			vaultID: vir1ParentVault, names: []string{vir1Basename}, hash: vir1Hash("b"), matches: false,
 		},
 	}
 
@@ -213,7 +216,7 @@ func Test792b5c16a2_DeclineMatches_ADeclineMatchesByVaultNameAndHash(t *testing.
 
 			// Given a record of a decline under one parent vault
 			record := cli.ExportDeclinedFile{Entries: []cli.ExportDeclinedPull{
-				{Vault: virParentVault, Basename: virBasename, Hash: virHash("a")},
+				{Vault: vir1ParentVault, Basename: vir1Basename, Hash: vir1Hash("a")},
 			}}
 
 			// When a note is looked up, with the same or a different vault ID, name or hash
@@ -233,13 +236,13 @@ func Test792b5c16a3_DeclineMatches_AnUnknownHashComparisonStillMatches(t *testin
 	g := NewWithT(t)
 
 	// Given a decline whose recorded hash has an older version prefix
-	olderHash := "xh0:" + strings.Repeat("a", virHashDigestLen)
+	olderHash := "xh0:" + strings.Repeat("a", vir1HashDigestLen)
 	record := cli.ExportDeclinedFile{Entries: []cli.ExportDeclinedPull{
-		{Vault: virParentVault, Basename: virBasename, Hash: olderHash},
+		{Vault: vir1ParentVault, Basename: vir1Basename, Hash: olderHash},
 	}}
 
 	// When the note's current hash is looked up
-	matches := cli.ExportDeclineMatches(record, virParentVault, []string{virBasename}, virHash("b"))
+	matches := cli.ExportDeclineMatches(record, vir1ParentVault, []string{vir1Basename}, vir1Hash("b"))
 
 	// Then the decline matches, because unknown counts as not changed
 	g.Expect(matches).To(BeTrue())
@@ -256,13 +259,16 @@ func Test792b5c16a4_LoadDeclined_AMissingRecordIsEmptyAndACorruptOneIsAnError(t 
 		g := NewWithT(t)
 
 		// Given no declined.json
-		state := virState(newVirRecordingFS(), seqRand(1))
+		state := vir1State(newVir1RecordingFS(), seqRand(1))
 
 		// When it is read
-		loaded, err := cli.ExportLoadDeclined(state, virVault)
+		loaded, err := cli.ExportLoadDeclined(state, vir1Vault)
 
 		// Then it reads as empty
 		g.Expect(err).NotTo(HaveOccurred())
+		if err != nil {
+			return
+		}
 		g.Expect(loaded.Entries).To(BeEmpty())
 	})
 
@@ -271,11 +277,11 @@ func Test792b5c16a4_LoadDeclined_AMissingRecordIsEmptyAndACorruptOneIsAnError(t 
 		g := NewWithT(t)
 
 		// Given a declined.json that is not JSON
-		fsys := newVirRecordingFS()
-		fsys.files[virDeclinedPath] = "{not json"
+		fsys := newVir1RecordingFS()
+		fsys.files[vir1DeclinedPath] = "{not json"
 
 		// When it is read
-		_, err := cli.ExportLoadDeclined(virState(fsys, seqRand(1)), virVault)
+		_, err := cli.ExportLoadDeclined(vir1State(fsys, seqRand(1)), vir1Vault)
 
 		// Then it fails
 		g.Expect(err).To(MatchError(ContainSubstring("declined.json")))
@@ -286,11 +292,11 @@ func Test792b5c16a4_LoadDeclined_AMissingRecordIsEmptyAndACorruptOneIsAnError(t 
 		g := NewWithT(t)
 
 		// Given a declined.json that cannot be read
-		fsys := newVirRecordingFS()
-		fsys.failReads[virDeclinedPath] = errInjected
+		fsys := newVir1RecordingFS()
+		fsys.failReads[vir1DeclinedPath] = errInjected
 
 		// When it is read
-		_, err := cli.ExportLoadDeclined(virState(fsys, seqRand(1)), virVault)
+		_, err := cli.ExportLoadDeclined(vir1State(fsys, seqRand(1)), vir1Vault)
 
 		// Then it fails
 		g.Expect(err).To(MatchError(errInjected))
@@ -305,17 +311,20 @@ func Test792b5c4a4_StampVaultID_AnExistingIDIsReusedAndTheFileIsUnchanged(t *tes
 	g := NewWithT(t)
 
 	// Given a vault with a valid ID file
-	fsys := newVirRecordingFS()
+	fsys := newVir1RecordingFS()
 	existing := seqID(9)
-	fsys.files[virIDPath] = existing + "\n"
+	fsys.files[vir1IDPath] = existing + "\n"
 	before := maps.Clone(fsys.files)
-	rand := &virRandCounter{inner: seqRand(70)}
+	rand := &vir1RandCounter{inner: seqRand(70)}
 
 	// When the vault ID is stamped
-	stamped, err := cli.ExportStampVaultID(virState(fsys, rand.read), virVault)
+	stamped, err := cli.ExportStampVaultID(vir1State(fsys, rand.read), vir1Vault)
 
 	// Then the existing ID is returned and the file is unchanged
 	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
 	g.Expect(stamped).To(Equal(existing))
 	g.Expect(fsys.files).To(Equal(before))
 	g.Expect(fsys.writes).To(BeEmpty())
@@ -330,19 +339,19 @@ func Test792b5c5a2_ReadVaultID_AReadFailureIsReturned(t *testing.T) {
 	g := NewWithT(t)
 
 	// Given an ID file that cannot be read
-	fsys := newVirRecordingFS()
-	fsys.failReads[virIDPath] = errInjected
-	state := virState(fsys, seqRand(1))
+	fsys := newVir1RecordingFS()
+	fsys.failReads[vir1IDPath] = errInjected
+	state := vir1State(fsys, seqRand(1))
 
 	// When the vault ID is read (by the location check, a claim, a stamp and the report)
-	_, checkErr := cli.ExportCheckVaultLocation(state, virVault)
-	_, claimErr := cli.ExportClaimVaultLocation(state, virVault)
-	_, stampErr := cli.ExportStampVaultID(state, virVault)
+	_, checkErr := cli.ExportCheckVaultLocation(state, vir1Vault)
+	_, claimErr := cli.ExportClaimVaultLocation(state, vir1Vault)
+	_, stampErr := cli.ExportStampVaultID(state, vir1Vault)
 
 	var stdout bytes.Buffer
 
-	rand := &virRandCounter{inner: seqRand(1)}
-	reportErr := cli.RunVaultID(cli.VaultIDArgs{Vault: virVault}, virDeps(fsys, rand, &stdout), &stdout)
+	rand := &vir1RandCounter{inner: seqRand(1)}
+	reportErr := cli.RunVaultID(cli.VaultIDArgs{Vault: vir1Vault}, vir1Deps(fsys, rand, &stdout), &stdout)
 
 	// Then the read error is returned
 	for _, err := range []error{checkErr, claimErr, stampErr, reportErr} {
@@ -365,11 +374,11 @@ func Test792b5c6a2_EnsureStateDir_StateDirectoryFailuresAreReturned(t *testing.T
 		g := NewWithT(t)
 
 		// Given a filesystem where .engram/ cannot be created
-		fsys := newVirRecordingFS()
+		fsys := newVir1RecordingFS()
 		fsys.mkdirErr = errInjected
 
 		// When the state directory is ensured
-		err := cli.ExportEnsureStateDir(virState(fsys, seqRand(1)), virVault)
+		err := cli.ExportEnsureStateDir(vir1State(fsys, seqRand(1)), vir1Vault)
 
 		// Then the failure is returned, and no .gitignore is written
 		g.Expect(err).To(MatchError(errInjected))
@@ -382,11 +391,11 @@ func Test792b5c6a2_EnsureStateDir_StateDirectoryFailuresAreReturned(t *testing.T
 		g := NewWithT(t)
 
 		// Given a filesystem where .engram/.gitignore cannot be created
-		fsys := newVirRecordingFS()
-		fsys.failExcl[virGitignorePath] = errInjected
+		fsys := newVir1RecordingFS()
+		fsys.failExcl[vir1GitignorePath] = errInjected
 
 		// When the state directory is ensured
-		err := cli.ExportEnsureStateDir(virState(fsys, seqRand(1)), virVault)
+		err := cli.ExportEnsureStateDir(vir1State(fsys, seqRand(1)), vir1Vault)
 
 		// Then the failure is returned
 		g.Expect(err).To(MatchError(errInjected))
@@ -396,60 +405,60 @@ func Test792b5c6a2_EnsureStateDir_StateDirectoryFailuresAreReturned(t *testing.T
 
 // unexported constants.
 const (
-	virBasename      = "12a3.some-slug"
-	virDeclinedPath  = "/v/.engram/declined.json"
-	virGitignorePath = "/v/.engram/.gitignore"
-	virHashDigestLen = 64
-	virHomePath      = "/v/.engram/home.json"
-	virIDPath        = "/v/.engram-vault-id"
-	virParentVault   = "parent-vault-id"
-	virVault         = "/v"
+	vir1Basename      = "12a3.some-slug"
+	vir1DeclinedPath  = "/v/.engram/declined.json"
+	vir1GitignorePath = "/v/.engram/.gitignore"
+	vir1HashDigestLen = 64
+	vir1HomePath      = "/v/.engram/home.json"
+	vir1IDPath        = "/v/.engram-vault-id"
+	vir1ParentVault   = "parent-vault-id"
+	vir1Vault         = "/v"
 )
 
-// virRandCounter wraps a random source and counts its reads.
-type virRandCounter struct {
+// vir1RandCounter wraps a random source and counts its reads.
+type vir1RandCounter struct {
 	inner func([]byte) (int, error)
 	calls int
 }
 
-func (c *virRandCounter) read(buf []byte) (int, error) {
+func (c *vir1RandCounter) read(buf []byte) (int, error) {
 	c.calls++
 
 	return c.inner(buf)
 }
 
-// virRecordingFS is the scripted exchange-state filesystem with a log of every write it was asked for,
+// vir1RecordingFS is the scripted exchange-state filesystem with a log of every write it was asked for,
 // each entry "mkdir:<path>", "excl:<path>" or "atomic:<path>".
-type virRecordingFS struct {
+type vir1RecordingFS struct {
 	*scriptedStateFS
 
 	writes []string
 }
 
-func (r *virRecordingFS) MkdirAll(path string, perm fs.FileMode) error {
+func (r *vir1RecordingFS) MkdirAll(path string, perm fs.FileMode) error {
 	r.writes = append(r.writes, "mkdir:"+path)
 
 	return r.scriptedStateFS.MkdirAll(path, perm)
 }
 
-func (r *virRecordingFS) WriteFileAtomic(path string, data []byte, perm fs.FileMode) error {
+func (r *vir1RecordingFS) WriteFileAtomic(path string, data []byte, perm fs.FileMode) error {
 	r.writes = append(r.writes, "atomic:"+path)
 
 	return r.scriptedStateFS.WriteFileAtomic(path, data, perm)
 }
 
-func (r *virRecordingFS) WriteFileExcl(path string, data []byte, perm fs.FileMode) error {
+func (r *vir1RecordingFS) WriteFileExcl(path string, data []byte, perm fs.FileMode) error {
 	r.writes = append(r.writes, "excl:"+path)
 
 	return r.scriptedStateFS.WriteFileExcl(path, data, perm)
 }
 
-func newVirRecordingFS() *virRecordingFS {
-	return &virRecordingFS{scriptedStateFS: newScriptedStateFS()}
+func newVir1RecordingFS() *vir1RecordingFS {
+	return &vir1RecordingFS{scriptedStateFS: newScriptedStateFS()}
 }
 
-// virCount is how many entries of log equal entry.
-func virCount(log []string, entry string) int {
+// vir1Count is how many entries of log equal entry.
+func vir1Count(log []string, entry string) int {
 	count := 0
 
 	for _, logged := range log {
@@ -461,8 +470,8 @@ func virCount(log []string, entry string) int {
 	return count
 }
 
-// virDeps composes the production carrier over fsys: every filesystem call RunVaultID makes goes to fsys.
-func virDeps(fsys *virRecordingFS, rand *virRandCounter, stdout io.Writer) cli.Deps {
+// vir1Deps composes the production carrier over fsys: every filesystem call RunVaultID makes goes to fsys.
+func vir1Deps(fsys *vir1RecordingFS, rand *vir1RandCounter, stdout io.Writer) cli.Deps {
 	return cli.Deps{
 		Stdout: stdout,
 		Stderr: io.Discard,
@@ -478,13 +487,13 @@ func virDeps(fsys *virRecordingFS, rand *virRandCounter, stdout io.Writer) cli.D
 	}
 }
 
-// virHash is a well-formed exchange hash of the current version whose digest is 64 copies of digit.
-func virHash(digit string) string {
-	return cli.ExportExchangeHashPrefix + strings.Repeat(digit, virHashDigestLen)
+// vir1Hash is a well-formed exchange hash of the current version whose digest is 64 copies of digit.
+func vir1Hash(digit string) string {
+	return cli.ExportExchangeHashPrefix + strings.Repeat(digit, vir1HashDigestLen)
 }
 
-// virState composes the exchange-state adapter over fsys with the given random source, identity symlink
+// vir1State composes the exchange-state adapter over fsys with the given random source, identity symlink
 // resolution and "/" as the working directory.
-func virState(fsys *virRecordingFS, rand func([]byte) (int, error)) cli.ExchangeStateForTest {
+func vir1State(fsys *vir1RecordingFS, rand func([]byte) (int, error)) cli.ExchangeStateForTest {
 	return cli.ExportNewExchangeState(fsys, rand, identityPath, func() (string, error) { return "/", nil })
 }
