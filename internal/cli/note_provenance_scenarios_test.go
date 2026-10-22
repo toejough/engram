@@ -64,7 +64,9 @@ func Test792b11c1a4_DetectRepo_AnUnresolvableWorkingDirectoryHasNoRepository(t *
 	t.Parallel()
 	g := NewWithT(t)
 
-	got := cli.ExportDetectRepo(t.Context(), func() (string, error) { return "", errNp1Git }, np1NeverGit{t: t})
+	got := np1Drive(t, func(commander update.Commander) string {
+		return cli.ExportDetectRepo(t.Context(), func() (string, error) { return "", errNp1Git }, commander)
+	}, func(*CommanderImp) {})
 
 	g.Expect(got).To(BeEmpty())
 }
@@ -387,18 +389,6 @@ var (
 	errNp1Git    = errors.New("git: exit status 128")
 )
 
-// np1NeverGit is a Commander that fails the test when git is run.
-type np1NeverGit struct {
-	t *testing.T
-}
-
-func (n np1NeverGit) Run(_ context.Context, dir, name string, args ...string) ([]byte, []byte, error) {
-	n.t.Helper()
-	n.t.Errorf("git was run: %s %s %v", dir, name, args)
-
-	return nil, nil, errNp1Git
-}
-
 // np1UnreadableFS is a u1FS whose directory read or file read fails.
 type np1UnreadableFS struct {
 	*u1FS
@@ -415,12 +405,15 @@ func (f np1UnreadableFS) ReadDir(path string) ([]update.DirEntry, error) {
 	return f.u1FS.ReadDir(path)
 }
 
+// ReadFile returns the file's bytes together with fileErr, so a caller that ignored the error would see a stampable
+// note.
 func (f np1UnreadableFS) ReadFile(path string) ([]byte, error) {
+	raw, err := f.u1FS.ReadFile(path)
 	if f.fileErr != nil {
-		return nil, f.fileErr
+		return raw, f.fileErr
 	}
 
-	return f.u1FS.ReadFile(path)
+	return raw, err
 }
 
 // np1Vault is an in-memory vault for backfill tests: path to content, and a count of writes.
