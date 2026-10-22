@@ -17,62 +17,6 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-func Test855d4j1_WriteDeep_ALessonTheVaultStatesAndAWriteThatFailsAreRecorded(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	records := &recordedFiles{}
-	reply := deepReply(`[{"id":"`+freezeNote.ID+`","verdict":"covered","chunks":["`+passageA.ID+`"]}]`,
-		`[`+strings.Replace(freezeLesson(`[]`, ""), `"covered":null`, `"covered":"`+freezeNote.ID+`"`, 1)+
-			`,`+strings.Replace(freezeLesson(`[]`, ""), `"production-cutover-freeze"`, `"another"`, 1)+`]`)
-
-	err := cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", RecordsDir: "/data/auto"},
-		cli.AutoWriteDeps{
-			Stdin: deepStdin(deepCarry(freezeNote, passageA), reply),
-			Learn: func(context.Context, cli.LearnArgs) (string, error) { return "", errRefused },
-			Amend: func(context.Context, cli.AmendArgs) error { return errRefused },
-			Now:   func() time.Time { return recordedAt }, WriteRecord: records.write,
-			NoteExists: func(path string) bool { return path == "/vault/"+freezeNote.ID },
-		}, &bytes.Buffer{})
-
-	g.Expect(err).NotTo(HaveOccurred(), "the failures are recorded")
-	g.Expect(records.kinds()).To(ConsistOf("skipped", "failed", "failed"))
-}
-
-func Test855d4j1_WriteDeep_NothingOutsideTheCarryIsWritten(t *testing.T) {
-	t.Parallel()
-
-	pool := []string{passageA.ID, freezeNote.ID, "x.md#1", "2.2026-10-01.other.md", "3.2026-10-01.third.md"}
-
-	rapid.Check(t, func(rt *rapid.T) {
-		pick := func(label string) []string {
-			return rapid.SliceOfN(rapid.SampledFrom(pool), 0, 4).Draw(rt, label)
-		}
-		chunks, noteChunks := pick("lesson chunks"), pick("note chunks")
-		id := rapid.SampledFrom(pool).Draw(rt, "candidate")
-		verdict := rapid.SampledFrom([]string{"covered", "near", "evidence", "unrelated"}).Draw(rt, "verdict")
-		lesson := freezeLesson(quotedList(chunks), rapid.SampledFrom(pool).Draw(rt, "superseded"))
-		reply := deepReply(`[{"id":"`+id+`","verdict":"`+verdict+`","chunks":`+quotedList(noteChunks)+`}]`, `[`+lesson+`]`)
-
-		learned, amended := recordedDeepWrite(rt, reply)
-
-		checkLearned(rt, learned, passagesAmong(chunks))
-
-		judgedToAmend := verdict == "covered" || verdict == "near"
-		wantedAmend := id == freezeNote.ID && judgedToAmend && len(passagesAmong(noteChunks)) > 0
-
-		if wantedAmend != (len(amended) == 1) {
-			rt.Fatalf("%d amends for %s judged %s with the chunks %v", len(amended), id, verdict, noteChunks)
-		}
-
-		for _, args := range amended {
-			if args.Target != freezeNote.ID || !sameSet(args.ChunkSources, passagesAmong(noteChunks)) {
-				rt.Fatalf("the amend %+v is not of the note and the passages of the carry", args)
-			}
-		}
-	})
-}
-
 func Test855d4j1b_WriteDeep_ALessonThatCorrectsANoteOfTheCarryTiesIt(t *testing.T) {
 	t.Parallel()
 
@@ -229,6 +173,62 @@ func Test855d4j1h_WriteDeep_AGlanceCarryWritesNothingAndSaysWhy(t *testing.T) {
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(records.kinds()).To(Equal([]string{"skipped"}), "no write was tried, so none failed")
+}
+
+func Test861b4zzzf1a_WriteDeep_AFailedAmendAndAFailedLearnAreRecordedAndALessonTheVaultStatesIsSkipped(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	records := &recordedFiles{}
+	reply := deepReply(`[{"id":"`+freezeNote.ID+`","verdict":"covered","chunks":["`+passageA.ID+`"]}]`,
+		`[`+strings.Replace(freezeLesson(`[]`, ""), `"covered":null`, `"covered":"`+freezeNote.ID+`"`, 1)+
+			`,`+strings.Replace(freezeLesson(`[]`, ""), `"production-cutover-freeze"`, `"another"`, 1)+`]`)
+
+	err := cli.RunAutoWrite(context.Background(), cli.AutoWriteArgs{VaultPath: "/vault", RecordsDir: "/data/auto"},
+		cli.AutoWriteDeps{
+			Stdin: deepStdin(deepCarry(freezeNote, passageA), reply),
+			Learn: func(context.Context, cli.LearnArgs) (string, error) { return "", errRefused },
+			Amend: func(context.Context, cli.AmendArgs) error { return errRefused },
+			Now:   func() time.Time { return recordedAt }, WriteRecord: records.write,
+			NoteExists: func(path string) bool { return path == "/vault/"+freezeNote.ID },
+		}, &bytes.Buffer{})
+
+	g.Expect(err).NotTo(HaveOccurred(), "the failures are recorded")
+	g.Expect(records.kinds()).To(ConsistOf("skipped", "failed", "failed"))
+}
+
+func Test861b4zzzf1b_WriteDeep_NothingOutsideTheCarryIsWritten(t *testing.T) {
+	t.Parallel()
+
+	pool := []string{passageA.ID, freezeNote.ID, "x.md#1", "2.2026-10-01.other.md", "3.2026-10-01.third.md"}
+
+	rapid.Check(t, func(rt *rapid.T) {
+		pick := func(label string) []string {
+			return rapid.SliceOfN(rapid.SampledFrom(pool), 0, 4).Draw(rt, label)
+		}
+		chunks, noteChunks := pick("lesson chunks"), pick("note chunks")
+		id := rapid.SampledFrom(pool).Draw(rt, "candidate")
+		verdict := rapid.SampledFrom([]string{"covered", "near", "evidence", "unrelated"}).Draw(rt, "verdict")
+		lesson := freezeLesson(quotedList(chunks), rapid.SampledFrom(pool).Draw(rt, "superseded"))
+		reply := deepReply(`[{"id":"`+id+`","verdict":"`+verdict+`","chunks":`+quotedList(noteChunks)+`}]`, `[`+lesson+`]`)
+
+		learned, amended := recordedDeepWrite(rt, reply)
+
+		checkLearned(rt, learned, passagesAmong(chunks))
+
+		judgedToAmend := verdict == "covered" || verdict == "near"
+		wantedAmend := id == freezeNote.ID && judgedToAmend && len(passagesAmong(noteChunks)) > 0
+
+		if wantedAmend != (len(amended) == 1) {
+			rt.Fatalf("%d amends for %s judged %s with the chunks %v", len(amended), id, verdict, noteChunks)
+		}
+
+		for _, args := range amended {
+			if args.Target != freezeNote.ID || !sameSet(args.ChunkSources, passagesAmong(noteChunks)) {
+				rt.Fatalf("the amend %+v is not of the note and the passages of the carry", args)
+			}
+		}
+	})
 }
 
 // unexported variables.

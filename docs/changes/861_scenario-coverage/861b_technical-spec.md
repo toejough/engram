@@ -132,3 +132,23 @@ Scenario: 792b11c7a5 Unrelated content is skipped
   When the vault is backfilled
   Then neither fails nor changes, and a read error is returned
 ```
+
+## 861b4zzzf Added: Lesson Writing scenarios
+
+Operations a test finds necessary in existing specs are applied in place ([861d6 A new test that fails at baseline](./861d_questions-and-decisions.md#questions-and-decisions)); the one below is applied in [Lesson Writing](../../specs/technical/lesson-writing.md) in the commit that records it. The two tests of `internal/cli/auto_write_deep_test.go` that named the group ID without a scenario letter each verify more than one scenario of the group, or a rule none states ([861d327 The first Test855d4j1_ function of internal/cli verifies a deep delivery's failures](./861d_questions-and-decisions.md#questions-and-decisions), [861d328 The second Test855d4j1_ function of internal/cli verifies a rule over the reply](./861d_questions-and-decisions.md#questions-and-decisions)).
+
+### 861b4zzzf1 Added: Scenarios of the deep write
+
+Target: [855d4j1 Scenarios](../../specs/technical/lesson-writing.md#855d4j1-scenarios), after [855d4j1h A carry that is not of depth deep writes nothing](../../specs/technical/lesson-writing.md#855d4j1-scenarios). Evidence: the tests `Test861b4zzzf1a_WriteDeep_AFailedAmendAndAFailedLearnAreRecordedAndALessonTheVaultStatesIsSkipped` and `Test861b4zzzf1b_WriteDeep_NothingOutsideTheCarryIsWritten` (renamed from `Test855d4j1_WriteDeep_ALessonTheVaultStatesAndAWriteThatFailsAreRecorded` and `Test855d4j1_WriteDeep_NothingOutsideTheCarryIsWritten` in `internal/cli/auto_write_deep_test.go`).
+
+```gherkin
+Scenario: 861b4zzzf1a An amend and a learn path that fail are recorded as failed, and a lesson the vault states is skipped
+  Given a carry of depth deep that holds a note, and a reply that gives the note the verdict covered and holds a lesson the note covers and a whole lesson no note covers, and an amend and a learn path that both fail
+  When the writing is given the reply
+  Then the command succeeds, and the records are one of the kind skipped for the lesson the note covers and one of the kind failed for each of the amend and the learn path
+
+Scenario: 861b4zzzf1b Nothing outside the carry is written
+  Given a carry of depth deep that holds a note and a passage, and any reply: any candidate ID with any verdict and chunk IDs, and a lesson with any chunk IDs and any superseded note
+  When the writing is given the reply
+  Then the one note written has only the passage of the carry as a chunk source and supersedes only the note of the carry, and the note of the carry is amended exactly when the reply gives it the verdict covered or near and lists the passage, with that passage as the only chunk source
+```
