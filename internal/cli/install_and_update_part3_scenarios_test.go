@@ -623,6 +623,10 @@ func Test792a11o1b_Update_OptionsReachTheHandedOffRun(t *testing.T) {
 			outcome := machine.run(t, testCase.args)
 			g.Expect(outcome.err).NotTo(HaveOccurred())
 
+			if outcome.err != nil {
+				return
+			}
+
 			spawned := machine.spawn.spawned()
 			g.Expect(spawned).To(HaveLen(1))
 
@@ -686,6 +690,10 @@ func Test792a11o1c_Update_ReParentingSkipsTheInstallAndTheDeploy(t *testing.T) {
 
 	decodeErr := json.Unmarshal(stdout.Bytes(), &payload)
 	g.Expect(decodeErr).NotTo(HaveOccurred(), "the output is the candidates payload")
+
+	if decodeErr != nil {
+		return
+	}
 
 	pairs := make([]string, 0, len(payload.Candidates))
 	for _, candidate := range payload.Candidates {
