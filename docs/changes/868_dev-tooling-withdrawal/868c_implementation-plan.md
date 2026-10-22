@@ -6,10 +6,10 @@ Scope. The approved work applies the Removed operations of [868a2 Memory Effecti
 
 ```mermaid
 flowchart LR
-    N1a["868c1a Apply the removals<br/>Not started"]
-    N1b["868c1b The pointer README<br/>Not started"]
-    N1c["868c1c Sweep the references<br/>Not started"]
-    N1d["868c1d The 858 and 861 records<br/>Not started"]
+    N1a["868c1a Apply the removals<br/>Done"]
+    N1b["868c1b The pointer README<br/>Done"]
+    N1c["868c1c Sweep the references<br/>Done"]
+    N1d["868c1d The 858 and 861 records<br/>Done"]
     N1a --> N1c
     N1c --> N1d
     N1b --> N1d
@@ -23,46 +23,46 @@ No scenario is added or changed; every row is an Action verified by the evidence
 
 #### 868c1a Apply the removals
 
-Status: Not started
+Status: Done
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 868c1a1 | `git rm` the three files of the Removed operations | Action | [868d1 Owner decision: option (e)](./868d_questions-and-decisions.md#questions-and-decisions), [868d2 Delete rather than relocate](./868d_questions-and-decisions.md#questions-and-decisions) | Not started |
+| 868c1a1 | `git rm` the three files of the Removed operations | Action | [868d1 Owner decision: option (e)](./868d_questions-and-decisions.md#questions-and-decisions), [868d2 Delete rather than relocate](./868d_questions-and-decisions.md#questions-and-decisions) | Done |
 
 #### 868c1b The pointer README
 
-Status: Not started
+Status: Done
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 868c1b1 | Add `dev/eval/README.md` (at most ten lines) | Action | [868d3 A short README beside the code](./868d_questions-and-decisions.md#questions-and-decisions), [868d4 What the pytest suites remain](./868d_questions-and-decisions.md#questions-and-decisions) | Not started |
+| 868c1b1 | Add `dev/eval/README.md` (at most ten lines) | Action | [868d3 A short README beside the code](./868d_questions-and-decisions.md#questions-and-decisions), [868d4 What the pytest suites remain](./868d_questions-and-decisions.md#questions-and-decisions) | Done |
 
 #### 868c1c Sweep the references
 
-Status: Not started
+Status: Done
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 868c1c1 | Fix each link or citation to the removed files and IDs in `docs/`, `README.md`, `AGENTS.md`, `dev/` and `internal/`, except the pytest files and the `dev/eval` result records | Action | [868d4 What the pytest suites remain](./868d_questions-and-decisions.md#questions-and-decisions) | Not started |
+| 868c1c1 | Fix each link or citation to the removed files and IDs in `docs/`, `README.md`, `AGENTS.md`, `dev/` and `internal/`, except the pytest files and the `dev/eval` result records | Action | [868d4 What the pytest suites remain](./868d_questions-and-decisions.md#questions-and-decisions) | Done |
 
 #### 868c1d The 858 and 861 records
 
-Status: Not started
+Status: Done
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 868c1d1 | In 858c: withdrawn verdict and issue cell `-` on the audit rows of the three files, their rows and lists out of 858c2a, the totals sentence from `gen_catalog.py` | Action | [868d5 Records of #858 and #861](./868d_questions-and-decisions.md#questions-and-decisions) | Not started |
-| 868c1d2 | In 861c: the nodes 861c3a to 861c3i `Withdrawn (861d21 e)`, the rows that count them refreshed | Action | [868d5 Records of #858 and #861](./868d_questions-and-decisions.md#questions-and-decisions) | Not started |
-| 868c1d3 | 861d21 and 858d100 `Decided` | Action | [868d1 Owner decision: option (e)](./868d_questions-and-decisions.md#questions-and-decisions) | Not started |
-| 868c1d4 | The three task-list lines of #861 marked, one comment on #861 | Action | [868d1 Owner decision: option (e)](./868d_questions-and-decisions.md#questions-and-decisions) | Not started |
+| 868c1d1 | In 858c: withdrawn verdict and issue cell `-` on the audit rows of the three files, their rows and lists out of 858c2a, the totals sentence from `gen_catalog.py` | Action | [868d5 Records of #858 and #861](./868d_questions-and-decisions.md#questions-and-decisions) | Done |
+| 868c1d2 | In 861c: the nodes 861c3a to 861c3i `Withdrawn (861d21 e)`, the rows that count them refreshed | Action | [868d5 Records of #858 and #861](./868d_questions-and-decisions.md#questions-and-decisions) | Done |
+| 868c1d3 | 861d21 and 858d100 `Decided` | Action | [868d1 Owner decision: option (e)](./868d_questions-and-decisions.md#questions-and-decisions) | Done |
+| 868c1d4 | The three task-list lines of #861 marked, one comment on #861 | Action | [868d1 Owner decision: option (e)](./868d_questions-and-decisions.md#questions-and-decisions) | Done |
 
 ## 868c2 Evidence and status
 
 | ID | Evidence | Command | Result | Recorded at |
 | --- | --- | --- | --- | --- |
-| 868c2a | Links of `docs/` | link check over `docs/` | Not run | - |
-| 868c2b | IDs and labels | ID and label scan over `docs/specs` and `docs/changes` | Not run | - |
-| 868c2c | Scenario catalog | `gen_catalog.py` | Not run (before: 3562 scenarios, 3015 with a test, 547 without) | - |
+| 868c2a | Links of `docs/` | link check over `docs/` | Passed on the tree of 7448a039 plus the edits of the records: 10364 relative links, 0 broken (before: 10909) | 7448a039 |
+| 868c2b | IDs and labels | ID and label scan over `docs/specs` and `docs/changes` | Passed on the same tree: 0 duplicates of 8025 defined IDs, 8209 ID-labelled links with 0 mismatches, 0 unresolved tokens, 0 operations of 858 unapplied | 7448a039 |
+| 868c2c | Scenario catalog | `gen_catalog.py` | 3392 scenarios, 3015 with a test, 377 without (before: 3562, 3015 and 547; the 170 scenarios of the three files had no `Test<ID>_` function) | 7448a039 |
 
 ## 868c3 Completion gates
 

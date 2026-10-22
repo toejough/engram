@@ -125,20 +125,20 @@ flowchart LR
         N2zzzzb["861c2zzzzb Curate (instruction)<br/>Ready"]
     end
     subgraph BLK["Blocked nodes"]
-        N3a["861c3a Eval Trial Harness, part 1 (pytest)<br/>Blocked by: 861d21"]
-        N3b["861c3b Eval Trial Harness, part 2 (pytest)<br/>Blocked by: 861d21"]
-        N3c["861c3c Eval Trial Harness, part 3 (pytest)<br/>Blocked by: 861d21"]
-        N3d["861c3d Eval Trial Harness, part 4 (pytest)<br/>Blocked by: 861d21"]
-        N3e["861c3e Memory Loop Auditor, part 1 (pytest)<br/>Blocked by: 861d21"]
-        N3f["861c3f Memory Loop Auditor, part 2 (pytest)<br/>Blocked by: 861d21"]
-        N3g["861c3g Memory Loop Auditor, part 3 (pytest)<br/>Blocked by: 861d21"]
-        N3h["861c3h Memory Effectiveness Evaluation, part 1 (pytest)<br/>Blocked by: 861d21"]
-        N3i["861c3i Memory Effectiveness Evaluation, part 2 (pytest)<br/>Blocked by: 861d21"]
+        N3a["861c3a Eval Trial Harness, part 1 (pytest)<br/>Withdrawn (861d21 e)"]
+        N3b["861c3b Eval Trial Harness, part 2 (pytest)<br/>Withdrawn (861d21 e)"]
+        N3c["861c3c Eval Trial Harness, part 3 (pytest)<br/>Withdrawn (861d21 e)"]
+        N3d["861c3d Eval Trial Harness, part 4 (pytest)<br/>Withdrawn (861d21 e)"]
+        N3e["861c3e Memory Loop Auditor, part 1 (pytest)<br/>Withdrawn (861d21 e)"]
+        N3f["861c3f Memory Loop Auditor, part 2 (pytest)<br/>Withdrawn (861d21 e)"]
+        N3g["861c3g Memory Loop Auditor, part 3 (pytest)<br/>Withdrawn (861d21 e)"]
+        N3h["861c3h Memory Effectiveness Evaluation, part 1 (pytest)<br/>Withdrawn (861d21 e)"]
+        N3i["861c3i Memory Effectiveness Evaluation, part 2 (pytest)<br/>Withdrawn (861d21 e)"]
         N3j["861c3j Ambient Guidance (live session)<br/>Blocked by: 861d23"]
         N3k["861c3k The nine Test855d7a1 acceptance measurements are kept<br/>Complete"]
         N3l["861c3l Scenarios retired or reversed by changes 795 and 796<br/>Blocked by: 861d27"]
     end
-    D21["861d21 Scenarios covered only by pytest<br/>Open"]
+    D21["861d21 Scenarios covered only by pytest<br/>Decided"]
     DLIVE["861d23 Live-session verification of instruction scenarios<br/>Open"]
     DRET["861d27 Scenarios retired or reversed by in-flight changes 795 and 796<br/>Open"]
     N4a["861c4a The 858c rows and the 861 task list follow the closed gaps<br/>In progress: 4/5 entries complete"]
@@ -3109,278 +3109,61 @@ Status: Ready
 
 ### 861c3 Blocked nodes
 
-Listed so that no gap is lost; none is scheduled and none is counted as passing. Row statuses stay `Not started` unless a row says otherwise. Commands when a node is unblocked: `python3 -m pytest dev/eval` for a pytest node (not a gate), `targ acceptance --run REGEXP` for the live-session node (a login, money).
+Listed so that no gap is lost; none is scheduled and none is counted as passing. Row statuses stay `Not started` unless a row says otherwise. Command when a node is unblocked: `targ acceptance --run REGEXP` for the live-session node (a login, money). The nine pytest nodes 861c3a to 861c3i are withdrawn by [868d1 Owner decision: option (e)](../868_dev-tooling-withdrawal/868d_questions-and-decisions.md#questions-and-decisions).
 
 #### 861c3a Eval Trial Harness, part 1 (pytest)
 
-Status: Blocked by: [861d21 Scenarios covered only by pytest](./861d_questions-and-decisions.md#questions-and-decisions)
+Status: Withdrawn (861d21 e)
 
-- Owner file: Eval Trial Harness (technical component).
-- Package: `dev/eval` (pytest).
-- Requirements (scenarios in this node): 792b38c1 Installing a skill into a trial configuration (3); 792b38c2 The warm-configuration builders (12).
-
-| ID | Gherkin | Classification | Why | Status |
-| --- | --- | --- | --- | --- |
-| 861c3a1 | 792b38c1a1 A missing source raises | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a2 | 792b38c1a2 A source with no SKILL.md raises | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a3 | 792b38c1a3 The copy is verified at the destination | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a4 | 792b38c2a1 The trap harness verifies a successful installation | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a5 | 792b38c2a2 The trap harness raises on a missing source | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a6 | 792b38c2a3 The trap harness raises on an empty source | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a7 | 792b38c2a4 The cumulative harness installs the real skills | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a8 | 792b38c2a5 The cumulative harness raises on a missing source | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a9 | 792b38c2a6 The cumulative harness raises on an empty source | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a10 | 792b38c2a7 The cumulative pools are still built end to end | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a11 | 792b38c2a8 The probe harness keeps its default skills | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a12 | 792b38c2a9 An empty skills list installs none, and a pool inherits it | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a13 | 792b38c2a10 The probe harness raises on a missing source | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a14 | 792b38c2a11 The probe harness raises on an empty source | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3a15 | 792b38c2a12 The repository root comes from the file's own location | Example | Blocked: implemented in Python; no test names it | Not started |
+The Eval Trial Harness left the behavior record ([868d1 Owner decision: option (e)](../868_dev-tooling-withdrawal/868d_questions-and-decisions.md#questions-and-decisions)); its 15 scenarios of this node left the catalog and its rows are in git history.
 
 #### 861c3b Eval Trial Harness, part 2 (pytest)
 
-Status: Blocked by: [861d21 Scenarios covered only by pytest](./861d_questions-and-decisions.md#questions-and-decisions)
+Status: Withdrawn (861d21 e)
 
-- Owner file: Eval Trial Harness (technical component).
-- Package: `dev/eval` (pytest).
-- Requirements (scenarios in this node): 792b38c3 The isolated environment of a trial (14); 792b38c4 The real-vault fingerprint (2); 792b38c5 The leak guard (8).
-
-| ID | Gherkin | Classification | Why | Status |
-| --- | --- | --- | --- | --- |
-| 861c3b1 | 792b38c3a1 Every state variable points into the trial | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b2 | 792b38c3a2 The vault and chunk directories exist | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b3 | 792b38c3a3 The base environment is kept | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b4 | 792b38c3a4 An unset state variable is refused | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b5 | 792b38c3a5 An unset configuration directory is refused | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b6 | 792b38c3a6 A path inside the maintainer's data directory is refused | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b7 | 792b38c3a7 A working directory with a Claude or VCS ancestor is refused | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b8 | 792b38c3a8 A clean trial is accepted | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b9 | 792b38c3a9 A direct engram call's environment is isolated | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b10 | 792b38c3a10 The maintainer's real vault is refused for a direct call | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b11 | 792b38c3a11 A direct call is judged without the Claude variables | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b12 | 792b38c3a12 The data directory follows XDG | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b13 | 792b38c3a13 Building the environment registers the trial directory | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b14 | 792b38c3a14 A direct call's environment registers its vault | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b15 | 792b38c4a1 Notes are counted and sidecars ignored | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b16 | 792b38c4a2 A missing vault is empty | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b17 | 792b38c5a1 A new note naming no registered marker is ignored | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b18 | 792b38c5a2 A new note naming a registered marker raises | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b19 | 792b38c5a3 A short generic basename in passing is ignored | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b20 | 792b38c5a4 A distinctive basename alone raises | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b21 | 792b38c5a5 Real mkdtemp suffixes are distinctive | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b22 | 792b38c5a6 A fixed underscore-bearing suffix is judged by its last segment | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b23 | 792b38c5a7 The harness's own deterministic names are not distinctive | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3b24 | 792b38c5a8 A leak the guard cannot see is not raised | Example | Blocked: implemented in Python; no test names it | Not started |
+The Eval Trial Harness left the behavior record ([868d1 Owner decision: option (e)](../868_dev-tooling-withdrawal/868d_questions-and-decisions.md#questions-and-decisions)); its 24 scenarios of this node left the catalog and its rows are in git history.
 
 #### 861c3c Eval Trial Harness, part 3 (pytest)
 
-Status: Blocked by: [861d21 Scenarios covered only by pytest](./861d_questions-and-decisions.md#questions-and-decisions)
+Status: Withdrawn (861d21 e)
 
-- Owner file: Eval Trial Harness (technical component).
-- Package: `dev/eval` (pytest).
-- Requirements (scenarios in this node): 792b38c6 Every harness guards the real vault (3); 792b38c7 Detecting a step in every form of its command (4); 792b38c8 A question stop (10); 792b38c9 A fixture's local follow-up target (6).
-
-| ID | Gherkin | Classification | Why | Status |
-| --- | --- | --- | --- | --- |
-| 861c3c1 | 792b38c6a1 Every harness snapshots the real vault | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c2 | 792b38c6a2 Every harness asserts no leak | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c3 | 792b38c6a3 The retired whole-vault comparison is gone | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c4 | 792b38c7a1 The hyphenated form matches | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c5 | 792b38c7a2 The space-separated form still matches | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c6 | 792b38c7a3 Letter-adjacent substrings do not match | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c7 | 792b38c7a4 A full trial with the hyphenated form scores every step as followed | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c8 | 792b38c8a1 Ambiguity text ending the transcript is a stop | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c9 | 792b38c8a2 A question mid-paragraph counts | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c10 | 792b38c8a3 A later mutation means no stop | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c11 | 792b38c8a4 No ambiguity, no stop | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c12 | 792b38c8a5 An AskUserQuestion after the ambiguity is a stop | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c13 | 792b38c8a6 The last ambiguity mention decides | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c14 | 792b38c8a7 A trailing question after completion is not a stop | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c15 | 792b38c8a8 A failing end state with an ambiguity is a stop | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c16 | 792b38c8a9 Live scoring wires the end state | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c17 | 792b38c8a10 Re-scoring wires the end state | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c18 | 792b38c9a1 The prompt names the target | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3c19 | 792b38c9a2 The fixture holds the file from the initial commit | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3c20 | 792b38c9a3 Filing through a native edit scores | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c21 | 792b38c9a4 Filing through a bash append or tee scores | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c22 | 792b38c9a5 Step 8 is false when step 6 never matched | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3c23 | 792b38c9a6 An unanchored append or a mention does not score | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+The Eval Trial Harness left the behavior record ([868d1 Owner decision: option (e)](../868_dev-tooling-withdrawal/868d_questions-and-decisions.md#questions-and-decisions)); its 23 scenarios of this node left the catalog and its rows are in git history.
 
 #### 861c3d Eval Trial Harness, part 4 (pytest)
 
-Status: Blocked by: [861d21 Scenarios covered only by pytest](./861d_questions-and-decisions.md#questions-and-decisions)
+Status: Withdrawn (861d21 e)
 
-- Owner file: Eval Trial Harness (technical component).
-- Package: `dev/eval` (pytest).
-- Requirements (scenarios in this node): 792b38c10 The rank of a surfaced note (4); 792b38c11 Every spawn site builds its environment through the primitive (7).
-
-| ID | Gherkin | Classification | Why | Status |
-| --- | --- | --- | --- | --- |
-| 861c3d1 | [792b38c10a1 A target in items[] surfaces at its rank](../../specs/technical/eval-trial-harness.md#792b38c10a-scenarios) | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3d2 | 792b38c10a2 The old candidate_l2s logic would have missed it | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3d3 | 792b38c10a3 A batched runbook probe reports success, miss and failure | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3d4 | 792b38c10a4 Escalation is per phrase and the corpus loads | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3d5 | 792b38c11a1 Tier A sites import the isolation module | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3d6 | 792b38c11a2 Tier A sites call isolated_env | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3d7 | 792b38c11a3 No tier A site hand-rolls its environment | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3d8 | 792b38c11a4 No Python site sets a vault without a chunk directory | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3d9 | 792b38c11a5 Tier B Python sites use engram_env | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3d10 | 792b38c11a6 No shell site sets a vault without a chunk directory | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3d11 | 792b38c11a7 The Claude harness delegates to the isolation module | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+The Eval Trial Harness left the behavior record ([868d1 Owner decision: option (e)](../868_dev-tooling-withdrawal/868d_questions-and-decisions.md#questions-and-decisions)); its 11 scenarios of this node left the catalog and its rows are in git history.
 
 #### 861c3e Memory Loop Auditor, part 1 (pytest)
 
-Status: Blocked by: [861d21 Scenarios covered only by pytest](./861d_questions-and-decisions.md#questions-and-decisions)
+Status: Withdrawn (861d21 e)
 
-- Owner file: Memory Loop Auditor (technical component).
-- Package: `dev/eval` (pytest).
-- Requirements (scenarios in this node): 792b39c1 Windows (6); 792b39c2 Detecting moments (9).
-
-| ID | Gherkin | Classification | Why | Status |
-| --- | --- | --- | --- | --- |
-| 861c3e1 | 792b39c1a1 A small file is one window | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e2 | 792b39c1a2 The lines are preserved as they are | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e3 | 792b39c1a3 A window carries its fields | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e4 | 792b39c1a4 Locations count from one | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e5 | 792b39c1a5 A larger file is split at line boundaries | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e6 | 792b39c1a6 An oversized line is detected | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e7 | 792b39c2a1 Moments are detected from a window | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e8 | 792b39c2a2 A low-yield window is re-read with the stronger model | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e9 | 792b39c2a3 Lines are numbered by absolute location | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e10 | 792b39c2a4 A reply parses whether JSON, an error flag or garbage | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e11 | 792b39c2a5 Exhausted retries raise | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e12 | 792b39c2a6 A genuine zero is not an error | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e13 | 792b39c2a7 A prompt that is too long fails at once | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e14 | 792b39c2a8 A transient error still retries | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3e15 | 792b39c2a9 A stub makes no subprocess call | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+The Memory Loop Auditor left the behavior record ([868d1 Owner decision: option (e)](../868_dev-tooling-withdrawal/868d_questions-and-decisions.md#questions-and-decisions)); its 15 scenarios of this node left the catalog and its rows are in git history.
 
 #### 861c3f Memory Loop Auditor, part 2 (pytest)
 
-Status: Blocked by: [861d21 Scenarios covered only by pytest](./861d_questions-and-decisions.md#questions-and-decisions)
+Status: Withdrawn (861d21 e)
 
-- Owner file: Memory Loop Auditor (technical component).
-- Package: `dev/eval` (pytest).
-- Requirements (scenarios in this node): 792b39c3 The moment record (12); 792b39c4 Existence as of the moment's time (8).
-
-| ID | Gherkin | Classification | Why | Status |
-| --- | --- | --- | --- | --- |
-| 861c3f1 | 792b39c3a1 A candidate is judged into a record | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f2 | 792b39c3a2 A record has every field of the scorecard | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f3 | 792b39c3a3 Deferred fields are null without search phrases | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f4 | 792b39c3a4 The moment identifier is stable | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f5 | 792b39c3a5 The timestamp is read from the window | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f6 | 792b39c3a6 A not-applicable answer is stamped | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f7 | 792b39c3a7 The prompt asks for not-applicable and rationales | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f8 | 792b39c3a8 The record carries the instrument version | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f9 | 792b39c3a9 The prompt is scoped by moment type | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f10 | 792b39c3a10 The record reflects the extracted events | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f11 | 792b39c3a11 The whole pipeline runs on stubs | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f12 | 792b39c3a12 Judgment failures raise their own errors | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f13 | 792b39c4a1 An empty scratch vault returns nothing | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f14 | 792b39c4a2 The live vault is unchanged | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f15 | 792b39c4a3 The worktree is removed when the query fails | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f16 | 792b39c4a4 Chunks are filtered by ingestion date | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f17 | 792b39c4a5 Derived and estimate are told apart by the migration boundary | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f18 | 792b39c4a6 The estimate branch still has real content | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f19 | 792b39c4a7 The check runs with the moment's search phrases | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3f20 | 792b39c4a8 The top five are captured and graded | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
+The Memory Loop Auditor left the behavior record ([868d1 Owner decision: option (e)](../868_dev-tooling-withdrawal/868d_questions-and-decisions.md#questions-and-decisions)); its 20 scenarios of this node left the catalog and its rows are in git history.
 
 #### 861c3g Memory Loop Auditor, part 3 (pytest)
 
-Status: Blocked by: [861d21 Scenarios covered only by pytest](./861d_questions-and-decisions.md#questions-and-decisions)
+Status: Withdrawn (861d21 e)
 
-- Owner file: Memory Loop Auditor (technical component).
-- Package: `dev/eval` (pytest).
-- Requirements (scenarios in this node): 792b39c5 The existence check's query (5); 792b39c6 What a forked subagent inherited (8); 792b39c7 A dispatch prompt's memories (1); 792b39c8 Outcome records (5).
-
-| ID | Gherkin | Classification | Why | Status |
-| --- | --- | --- | --- | --- |
-| 861c3g1 | 792b39c5a1 A phrase is one argument | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g2 | 792b39c5a2 A phrase starting with -- cannot break the invocation | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g3 | 792b39c5a3 A real error on standard output is preserved | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g4 | 792b39c5a4 The result shape tells failure from emptiness | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g5 | 792b39c5a5 A judged moment records a query error and an empty result | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g6 | 792b39c6a1 The last recall before the fork point is found | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g7 | 792b39c6a2 An early branch point has no recall | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g8 | 792b39c6a3 A missing parent transcript is reported | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g9 | 792b39c6a4 A transcript that is not a fork is reported | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g10 | 792b39c6a5 A deleted note is skipped and the rest are kept | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g11 | 792b39c6a6 A fork's prompt includes the inherited recall | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g12 | 792b39c6a7 A non-fork prompt has no such section | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g13 | 792b39c6a8 An unresolvable fork has no dangling section | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g14 | 792b39c7a1 A fresh subagent's injected memories count as found | Example | Blocked: implemented in Python; a pytest `test_<ID>` exists | Not started |
-| 861c3g15 | 792b39c8a1 A followed memory is applied-helped and a contradicted one applied-hurt | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3g16 | 792b39c8a2 An ignored memory is injected-unused or surfaced-ignored | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3g17 | 792b39c8a3 A search that never ran gives no Rule 1 record | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3g18 | 792b39c8a4 An absent or unsurfaced memory is absent-needed | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3g19 | 792b39c8a5 The derivation is deterministic and writes no note | Example | Blocked: implemented in Python; no test names it | Not started |
+The Memory Loop Auditor left the behavior record ([868d1 Owner decision: option (e)](../868_dev-tooling-withdrawal/868d_questions-and-decisions.md#questions-and-decisions)); its 19 scenarios of this node left the catalog and its rows are in git history.
 
 #### 861c3h Memory Effectiveness Evaluation, part 1 (pytest)
 
-Status: Blocked by: [861d21 Scenarios covered only by pytest](./861d_questions-and-decisions.md#questions-and-decisions)
+Status: Withdrawn (861d21 e)
 
-- Owner file: Memory Effectiveness Evaluation (product capability).
-- Package: `dev/eval` (pytest).
-- Implemented in: `dev/eval/cumulative/matrix.py`, `dev/eval/cumulative/runbook_vs_skill/phase2/probe_phase2.py`, `dev/eval/cumulative/runbook_vs_skill/probe.py`, `dev/eval/isolation.py`, `dev/eval/traps/retrieval_probe.py`, `dev/eval/traps/wrun.py`.
-- Requirements (scenarios in this node): 792a23a A warm trial carries the skills it claims (3); 792a23b A missing or empty skill source stops the build (3); 792a23c Skill sources are found from the harness's own location (2); 792a23d A trial that reaches the real vault is detected from the trial's side (3); 792a23e A real leak through the standard primitive is caught and fails loud (3); 792a23f The leak guard's limits are stated (4); 792a23g A step is detected in every valid form of its command (4).
-
-| ID | Gherkin | Classification | Why | Status |
-| --- | --- | --- | --- | --- |
-| 861c3h1 | 792a23a1a Successful skill installation is verified | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h2 | 792a23a1b Post-copy destination content is confirmed | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h3 | 792a23a1c Every warm-configuration builder verifies the same way | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h4 | 792a23b1a A missing skill source raises | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h5 | 792a23b1b An empty skill source raises | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h6 | 792a23b1c Every builder raises on a missing source | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h7 | 792a23c1a The path resolves independent of the working directory | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h8 | 792a23c1b The cumulative harness resolves its path the same way | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h9 | 792a23d1a The orchestrating session's own writes do not trigger a leak report | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h10 | 792a23d1b A harness captures no trial evidence itself and still gets a correct guard | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h11 | 792a23d1c Every harness snapshots the real vault and asserts no leak | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h12 | 792a23e1a A new real-vault note naming a trial is flagged | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h13 | 792a23e1b A note naming only a distinctive basename is still flagged | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h14 | 792a23e1c A note naming only a short deterministic basename is not flagged | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h15 | 792a23f1a A leak through an unmediated path is not caught | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h16 | 792a23f1b A leak whose content does not self-identify is not caught | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h17 | 792a23f1c A same-filename in-place mutation is not caught | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h18 | 792a23f1d A leak naming only a non-distinctive basename is not caught | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h19 | 792a23g1a The hyphenated git-filter-repo form is matched | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h20 | 792a23g1b The space-separated git filter-repo form still matches | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h21 | 792a23g1c An unrelated command is still not matched | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3h22 | 792a23g1d A letter-adjacent substring is not matched | Example | Blocked: implemented in Python; no test names it | Not started |
+The Memory Effectiveness Evaluation left the behavior record ([868d1 Owner decision: option (e)](../868_dev-tooling-withdrawal/868d_questions-and-decisions.md#questions-and-decisions)); its 22 scenarios of this node left the catalog and its rows are in git history.
 
 #### 861c3i Memory Effectiveness Evaluation, part 2 (pytest)
 
-Status: Blocked by: [861d21 Scenarios covered only by pytest](./861d_questions-and-decisions.md#questions-and-decisions)
+Status: Withdrawn (861d21 e)
 
-- Owner file: Memory Effectiveness Evaluation (product capability).
-- Package: `dev/eval` (pytest).
-- Implemented in: `dev/eval/audit/audit_moments.py`, `dev/eval/audit/generate_outcome_records.py`, `dev/eval/cumulative/matrix.py`, `dev/eval/cumulative/runbook_vs_skill/phase2/probe_phase2.py`, `dev/eval/cumulative/runbook_vs_skill/probe.py`, `dev/eval/isolation.py`, `dev/eval/traps/retrieval_probe.py`, `dev/eval/traps/wrun.py`.
-- Requirements (scenarios in this node): 792a23h A question stop is judged in the order of the task's completion (2); 792a23i A fixture gives a runbook's follow-up action a local target (1); 792a23j A surfacing probe reads the rank of the item list (2); 792a23k The audit detects moments by reading them (3); 792a23l Every audited moment carries a complete record (2); 792a23m Whether a memory existed is judged against the vault of that time (4); 792a23n The existence check's query cannot be broken by a phrase and does not swallow a failure (2); 792a23o Prompt-injected memories count as searched and surfaced (3); 792a23p The audit emits credit records and never consumes them (1); 792a23q Audit results land additively in the ledger (1).
-
-| ID | Gherkin | Classification | Why | Status |
-| --- | --- | --- | --- | --- |
-| 861c3i1 | 792a23h1a A trailing follow-up question after full completion is not a stop | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i2 | 792a23h1b A genuine pre-completion stop is still detected | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i3 | 792a23i1a The bisect-before-fix fixture names a local issue-filing target | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i4 | [792a23j1a A target present in items[] counts as surfaced](../../specs/product/memory-effectiveness-evaluation.md#792a23j1-uat-scenarios) | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i5 | 792a23j1b candidate_l2s absence does not count as a miss | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i6 | 792a23k1a A subtle correction is detected | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i7 | 792a23k1b A success moment is detected | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i8 | 792a23k1c The miss rate is agreed before the real run | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i9 | 792a23l1a A complete moment record | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i10 | 792a23l1b A rate without a fixed counting unit is a violation | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i11 | 792a23m1a An exact answer via git checkout | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i12 | 792a23m1b An approximate answer without history | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i13 | 792a23m1c The live vault is untouched | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i14 | 792a23m1d Chunks are always judged by ingestion date | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i15 | 792a23n1a A phrase starting with -- does not break the invocation | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i16 | 792a23n1b A real query failure's error text is preserved | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i17 | 792a23o1a An injected memory counts as found for the subagent | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i18 | 792a23o1b A dispatch moment measures the handoff on the orchestrator's side | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i19 | 792a23o1c Paraphrased content is told from missing content | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i20 | 792a23p1a Output only, no side effects | Example | Blocked: implemented in Python; no test names it | Not started |
-| 861c3i21 | 792a23q1a Adding without disturbing what is there | Example | Blocked: implemented in Python; no test names it | Not started |
+The Memory Effectiveness Evaluation left the behavior record ([868d1 Owner decision: option (e)](../868_dev-tooling-withdrawal/868d_questions-and-decisions.md#questions-and-decisions)); its 21 scenarios of this node left the catalog and its rows are in git history.
 
 #### 861c3j Ambient Guidance (live session)
 
@@ -3440,11 +3223,11 @@ Status: In progress: 4/5 entries complete
 
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c4a1 | For each owner file whose gaps closed, change the verdict and the issue cell of its audit rows in [858c1 Migration and verification nodes](../858_documentation-framework-adoption/858c_implementation-plan.md#858c1-migration-and-verification-nodes); an instruction-class scenario verified only by a text-presence test keeps its audit row `unclear` and on #861 until [858d88 M24g Four skill-rule scenarios are verified by text-presence tests](../858_documentation-framework-adoption/858d_questions-and-decisions.md#questions-and-decisions) is answered ([861d4 Instruction scenarios are verified by text-presence tests](./861d_questions-and-decisions.md#questions-and-decisions)) | Action | WORKFLOW 606-607. Evidence: `logs/refresh-r2/catalog-after.md` (`gen_catalog.py` over the tree at 81f95201); since the baseline 861c5a, 36 owner files changed and 1081 scenarios closed (252 at the closing pass, 523 in refresh r1, 306 in refresh r2): 30 owner files at no scenario without a test (audit row verdict `match`, issue cell `-`; the eight of refresh r2 are 858c1zzj4 chunk-indexing, 858c1zzk5 controlled-vocabulary, 858c1zzs5 note-revision, 858c1zzt5 note-writing, 858c1zzz5 vault-counting, 858c1zzza5 vault-health, 858c1zzzc4 vault-migration, 858c1zzzd5 vault-serving); 6 reduced and still `unclear` on #861 (858c1zl5 self-installer 1, 858c1zw6 vault-http-server 1, 858c1g6 command-line-surface 2, 858c1zzn5 install-and-update 1, 858c1zzl6 curate 21, 858c1zzzb6 vault-identity 4); the 30 scenarios still uncovered in those six files are 792b28c1a4 (#831, 861c2d3), 792b2c5a2 (861d29, #864), 792b2c3a2 (blocked by change 795, 861c3l5), 792b35c3a4 (node 861c2zzzg, not run), 792a11a1f (#831, 861c2zzc5), the eleven of 792a22 in node 861c2zzzzb (instruction, not run), the ten in node 861c2zzzc (not run) and 792a2d1b (change 796, 861c3l1) and 792a2e1c, 792a2e1d and 792a2g1a (change 795, 861c3l2 to 861c3l4); no instruction-class row was touched, none of those nodes ran | Done |
-| 861c4a2 | Update the counts of [858c2a Scenarios without a test, by owner file](../858_documentation-framework-adoption/858c_implementation-plan.md#858c2a-scenarios-without-a-test-by-owner-file) and [858c2b Test functions whose ID is in no spec](../858_documentation-framework-adoption/858c_implementation-plan.md#858c2b-test-functions-whose-id-is-in-no-spec), and add a row for the count after the last node to [858c3a Shared evidence](../858_documentation-framework-adoption/858c_implementation-plan.md#858c3a-shared-evidence), leaving the dated rows as they are | Action | WORKFLOW 551-553, 606-607. Evidence: 858c2a: the counts of 10 rows, the per-file lists (306 entries dropped, 8 lists removed, 2 cut) and the totals sentence (3562 scenarios, 2988 with a test, 574 without, at 81f95201); 858c2b (34 functions) and 858c2c are unchanged; 858c3a8 (added at the closing pass) and the dated rows are untouched; 858c1zzj and 858c1zzzc have no row for their 50 and 52 scenarios with a test because they had none to count at the closing pass; the counts of the 8 audit rows that count scenarios with a test follow the catalog, their file lists keep what 5e6752b2 recorded | Done |
-| 861c4a3 | Update the task list of [#861](https://github.com/toejough/engram/issues/861) (`gh issue edit`) to the scenarios still without a test | Action | WORKFLOW 606-607. Evidence: body of #861 edited in refresh r2: 8 more owner-file items marked `[x]` (30 in all: vault-serving, vault-migration, chunk-indexing, controlled-vocabulary, vault-health, note-writing, note-revision, vault-counting), every other line verbatim (diff in `logs/refresh-r2/issue-861-body.md` against `issue-861-old.md`); the six partly covered files keep their items open because an item is one owner file; one comment on #861 (Progress, refresh r2) with the counts, the nodes and the rows | Done |
-| 861c4a4 | Set the statuses of the nodes and rows in this plan to the verified checkpoint | Action | WORKFLOW 237-238. Evidence: 70 nodes Merged (861c1a, 861c2a to 861c2z and the 43 nodes merged since: 861c2zl to 861c2zzzb), 861c3k Complete, 861c4a In progress: 4/5 entries complete; the node statuses and the rows of the merged nodes were set by their milestones and the diagram labels already agree with them (70 Merged, 37 Ready); the 15 default nodes (11 technical, 2 product, 2 renames), the 4 integration nodes and the 18 instruction nodes are Ready and unrun, and the blocked nodes of 861c3 stay Blocked | Done |
-| 861c4a5 | File one issue for the required-behavior and provider-compatibility gaps of 51 technical files and point the issue cell of the 51 audit rows that cite [858d96 Required behavior is absent in all 56 technical files](../858_documentation-framework-adoption/858d_questions-and-decisions.md#questions-and-decisions) and #861 to it | Action | [861d2 Scope of the run](./861d_questions-and-decisions.md#questions-and-decisions) | Not started |
+| 861c4a1 | For each owner file whose gaps closed, change the verdict and the issue cell of its audit rows in [858c1 Migration and verification nodes](../858_documentation-framework-adoption/858c_implementation-plan.md#858c1-migration-and-verification-nodes); an instruction-class scenario verified only by a text-presence test keeps its audit row `unclear` and on #861 until [858d88 M24g Four skill-rule scenarios are verified by text-presence tests](../858_documentation-framework-adoption/858d_questions-and-decisions.md#questions-and-decisions) is answered ([861d4 Instruction scenarios are verified by text-presence tests](./861d_questions-and-decisions.md#questions-and-decisions)) | Action | WORKFLOW 606-607. Evidence: `logs/refresh-r2/catalog-after.md` (`gen_catalog.py` over the tree at 81f95201); since the baseline 861c5a, 36 owner files changed and 1081 scenarios closed (252 at the closing pass, 523 in refresh r1, 306 in refresh r2): 30 owner files at no scenario without a test (audit row verdict `match`, issue cell `-`; the eight of refresh r2 are 858c1zzj4 chunk-indexing, 858c1zzk5 controlled-vocabulary, 858c1zzs5 note-revision, 858c1zzt5 note-writing, 858c1zzz5 vault-counting, 858c1zzza5 vault-health, 858c1zzzc4 vault-migration, 858c1zzzd5 vault-serving); 6 reduced and still `unclear` on #861 (858c1zl5 self-installer 1, 858c1zw6 vault-http-server 1, 858c1g6 command-line-surface 2, 858c1zzn5 install-and-update 1, 858c1zzl6 curate 21, 858c1zzzb6 vault-identity 4); the 30 scenarios still uncovered in those six files are 792b28c1a4 (#831, 861c2d3), 792b2c5a2 (861d29, #864), 792b2c3a2 (blocked by change 795, 861c3l5), 792b35c3a4 (node 861c2zzzg, not run), 792a11a1f (#831, 861c2zzc5), the eleven of 792a22 in node 861c2zzzzb (instruction, not run), the ten in node 861c2zzzc (not run) and 792a2d1b (change 796, 861c3l1) and 792a2e1c, 792a2e1d and 792a2g1a (change 795, 861c3l2 to 861c3l4); no instruction-class row was touched, none of those nodes ran; after change 868 the audit rows of the three withdrawn files (858c1l, 858c1s, 858c1zzq) carry the verdict `withdrawn from the record, 861d21 (e)` and the issue cell `-` | Done |
+| 861c4a2 | Update the counts of [858c2a Scenarios without a test, by owner file](../858_documentation-framework-adoption/858c_implementation-plan.md#858c2a-scenarios-without-a-test-by-owner-file) and [858c2b Test functions whose ID is in no spec](../858_documentation-framework-adoption/858c_implementation-plan.md#858c2b-test-functions-whose-id-is-in-no-spec), and add a row for the count after the last node to [858c3a Shared evidence](../858_documentation-framework-adoption/858c_implementation-plan.md#858c3a-shared-evidence), leaving the dated rows as they are | Action | WORKFLOW 551-553, 606-607. Evidence: 858c2a: the counts of 10 rows, the per-file lists (306 entries dropped, 8 lists removed, 2 cut) and the totals sentence (3562 scenarios, 2988 with a test, 574 without, at 81f95201); 858c2b (34 functions) and 858c2c are unchanged; 858c3a8 (added at the closing pass) and the dated rows are untouched; 858c1zzj and 858c1zzzc have no row for their 50 and 52 scenarios with a test because they had none to count at the closing pass; the counts of the 8 audit rows that count scenarios with a test follow the catalog, their file lists keep what 5e6752b2 recorded; after change 868 the rows and lists of the three withdrawn files are dropped and the totals read 3392 scenarios, 3015 with a test, 377 without at 7448a039 | Done |
+| 861c4a3 | Update the task list of [#861](https://github.com/toejough/engram/issues/861) (`gh issue edit`) to the scenarios still without a test | Action | WORKFLOW 606-607. Evidence: body of #861 edited in refresh r2: 8 more owner-file items marked `[x]` (30 in all: vault-serving, vault-migration, chunk-indexing, controlled-vocabulary, vault-health, note-writing, note-revision, vault-counting), every other line verbatim (diff in `logs/refresh-r2/issue-861-body.md` against `issue-861-old.md`); the six partly covered files keep their items open because an item is one owner file; one comment on #861 (Progress, refresh r2) with the counts, the nodes and the rows; after change 868 the three items of the withdrawn files are marked `[x]` (withdrawn from the record, 861d21 e, change 868) and one comment on #861 says what left the record | Done |
+| 861c4a4 | Set the statuses of the nodes and rows in this plan to the verified checkpoint | Action | WORKFLOW 237-238. Evidence: 70 nodes Merged (861c1a, 861c2a to 861c2z and the 43 nodes merged since: 861c2zl to 861c2zzzb), 861c3k Complete, 861c4a In progress: 4/5 entries complete; the node statuses and the rows of the merged nodes were set by their milestones and the diagram labels already agree with them (70 Merged, 37 Ready); the 15 default nodes (11 technical, 2 product, 2 renames), the 4 integration nodes and the 18 instruction nodes are Ready and unrun, and the nine pytest nodes of 861c3 are Withdrawn (861d21 e) | Done |
+| 861c4a5 | File one issue for the required-behavior and provider-compatibility gaps of 49 technical files (51 before change 868 withdrew two) and point the issue cell of the 49 audit rows that cite [858d96 Required behavior is absent in all 56 technical files](../858_documentation-framework-adoption/858d_questions-and-decisions.md#questions-and-decisions) and #861 to it | Action | [861d2 Scope of the run](./861d_questions-and-decisions.md#questions-and-decisions) | Not started |
 
 ## 861c5 Evidence and status
 
