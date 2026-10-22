@@ -383,6 +383,7 @@ func Test792a7zg1c_Targets_Query_ACRLFNoteIsNotRewritten(t *testing.T) {
 	// Then the note's file is byte-identical afterwards, and no write was asked for.
 	g.Expect(run.stderr).To(BeEmpty())
 	g.Expect(run.payload.paths()).To(Equal([]string{"1.crlf-note.md"}))
+	// mq4Machine refuses every write, so the byte comparison cannot fail alone; the empty writes record guards it.
 	g.Expect(machine.files[notePath]).To(Equal(before))
 	g.Expect(machine.writes).To(BeEmpty())
 }
@@ -637,6 +638,7 @@ func Test792a7zh1a_Targets_Query_AQueryLeavesTheVaultAsItWas(t *testing.T) {
 	// Then every note, sidecar and chunk-index file is byte-identical afterwards, and no write was asked for,
 	g.Expect(run.stderr).To(BeEmpty())
 	g.Expect(run.payload.paths()).To(ConsistOf("1.used-note.md", "2.unused-note.md", mq1ChunkPath("section-000")))
+	// mq4Machine refuses every write, so the byte comparison cannot fail alone; the empty writes record guards it.
 	g.Expect(machine.files).To(Equal(before))
 	g.Expect(machine.writes).To(BeEmpty())
 
