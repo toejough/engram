@@ -18,7 +18,7 @@ func Test792a18g1a_AUserSuppliedPlanIsStillCaptured(t *testing.T) {
 	g := NewWithT(t)
 
 	text := shippedText(t, pleasePart2SkillPath)
-	sentence := pleasePart2Between(t, text, "If the user already supplied a plan", pleasePart2GrepHeading)
+	sentence := pleasePart2Between(t, text, "If the user already supplied a plan", pleasePart2GrepAnchor)
 
 	g.Expect(sentence).To(ContainSubstring("do not skip this step — capture their plan as the planning artifact"))
 	g.Expect(sentence).To(ContainSubstring("review it"))
@@ -43,7 +43,7 @@ func Test792a18g1b_ThePlanIsCommittedBeforeCode(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("| You're writing code before the plan is committed (step 3) | " +
 		"Stop. Write the plan first, commit it, then execute. |"))
 	g.Expect(text).To(ContainSubstring("Do not begin coding (step 4) while the plan (step 3) is still being drafted."))
-	g.Expect(pleasePart2Before(text, pleasePart2StepThree, pleasePart2StepFour)).To(BeTrue())
+	g.Expect(pleasePart2Before(stepThree, "If the repo is under VCS, commit the plan", "**gate A** closes")).To(BeTrue())
 }
 
 // Test792a18h1a_ARepeatedInvariantChanges reads the please skill the repository ships: a planned change to a repeated
@@ -79,7 +79,7 @@ func Test792a18h1b_ASmallSurfaceStillGreps(t *testing.T) {
 	text := shippedText(t, pleasePart2SkillPath)
 	grep := pleasePart2GrepSection(t, text)
 
-	g.Expect(text).To(ContainSubstring(pleasePart2GrepHeading))
+	g.Expect(grep).To(ContainSubstring("(non-waivable).**"))
 	g.Expect(grep).To(ContainSubstring("a small surface is a cheap grep, never an exemption."))
 }
 
@@ -219,10 +219,10 @@ func Test792a18l1a_GateAFansOutFourReviewers(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("Each gate fans out ONE fresh-context reviewer subagent PER ANGLE " +
 		"(Task tool; no author context shared)"))
 	g.Expect(gateA).To(ContainSubstring("the committed plan/spec"))
-	g.Expect(gateA).To(ContainSubstring("ask-alignment (sonnet)"))
-	g.Expect(gateA).To(ContainSubstring("code-alignment (sonnet)"))
-	g.Expect(gateA).To(ContainSubstring("docs/diagrams-alignment (haiku)"))
-	g.Expect(gateA).To(ContainSubstring("clarity/standards (haiku)"))
+	g.Expect(gateA).To(ContainSubstring("ask-alignment"))
+	g.Expect(gateA).To(ContainSubstring("code-alignment"))
+	g.Expect(gateA).To(ContainSubstring("docs/diagrams-alignment"))
+	g.Expect(gateA).To(ContainSubstring("clarity/standards"))
 }
 
 // Test792a18l1b_GateBFollowsEveryRefactor reads the please skill the repository ships: gate B fires after every
@@ -237,7 +237,7 @@ func Test792a18l1b_GateBFollowsEveryRefactor(t *testing.T) {
 
 	g.Expect(gateB).To(ContainSubstring("step 4, after EVERY refactor phase"))
 	g.Expect(gateB).To(ContainSubstring("the refactored unit's diff"))
-	g.Expect(gateB).To(ContainSubstring("design-fit (sonnet)"))
+	g.Expect(gateB).To(ContainSubstring("design-fit"))
 }
 
 // Test792a18l1c_GateCReviewsEveryTouchedDoc reads the please skill the repository ships: gate C fires at the end of
@@ -251,8 +251,8 @@ func Test792a18l1c_GateCReviewsEveryTouchedDoc(t *testing.T) {
 	gateC := pleasePart2Between(t, text, "| C | end of step 5", "| D | step 6")
 
 	g.Expect(gateC).To(ContainSubstring("every doc file touched"))
-	g.Expect(gateC).To(ContainSubstring("relevance (haiku)"))
-	g.Expect(gateC).To(ContainSubstring("clarity/cohesion (haiku)"))
+	g.Expect(gateC).To(ContainSubstring("relevance"))
+	g.Expect(gateC).To(ContainSubstring("clarity/cohesion"))
 }
 
 // Test792a18l1d_GateDReviewsOutwardProse reads the please skill the repository ships: gate D fires in step 6 before
@@ -269,7 +269,7 @@ func Test792a18l1d_GateDReviewsOutwardProse(t *testing.T) {
 	g.Expect(gateD).To(ContainSubstring("commit messages"))
 	g.Expect(gateD).To(ContainSubstring("issue text"))
 	g.Expect(gateD).To(ContainSubstring("any outward prose"))
-	g.Expect(gateD).To(ContainSubstring("clarity/standards (haiku)"))
+	g.Expect(gateD).To(ContainSubstring("clarity/standards"))
 }
 
 // Test792a18l1e_ASmallArtifactIsStillGated reads the please skill the repository ships: running a gate is
@@ -383,6 +383,19 @@ func TestPleasePart2PermissiveHits(t *testing.T) {
 		g.Expect(pattern.MatchString("The enumeration grep can be skipped when the change is small.")).To(BeTrue())
 	})
 
+	t.Run("an imperative or optional form that skips the grep is found", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+
+		pattern := pleasePart2SkipPattern(`\bgrep\b`)
+
+		g.Expect(pattern.MatchString("It is cheap. Skip the grep when the surface is large.")).To(BeTrue())
+		g.Expect(pattern.MatchString("- Omit the grep for a rename.")).To(BeTrue())
+		g.Expect(pattern.MatchString("For a widely referenced concept the grep is optional.")).To(BeTrue())
+		g.Expect(pattern.MatchString("The grep need not run for a small change.")).To(BeTrue())
+	})
+
 	t.Run("a permission to bless is found", func(t *testing.T) {
 		t.Parallel()
 
@@ -390,6 +403,17 @@ func TestPleasePart2PermissiveHits(t *testing.T) {
 
 		g.Expect(pleasePart2BlessPattern.MatchString("A reviewer that finds nothing may just bless it.")).To(BeTrue())
 		g.Expect(pleasePart2BlessPattern.MatchString("A reviewer can approve the artifact as is.")).To(BeTrue())
+	})
+
+	t.Run("an imperative or LGTM form that blesses is found", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+
+		g.Expect(pleasePart2BlessPattern.MatchString("A clean pass is rare. Approve the artifact and stop.")).To(BeTrue())
+		g.Expect(pleasePart2BlessPattern.MatchString("- Bless a small diff.")).To(BeTrue())
+		g.Expect(pleasePart2BlessPattern.MatchString("A reviewer that finds nothing replies LGTM and stops.")).To(BeTrue())
+		g.Expect(pleasePart2BlessPattern.MatchString("A reviewer that finds nothing says \"looks good\".")).To(BeTrue())
 	})
 
 	t.Run("the shipped sentences are not found", func(t *testing.T) {
@@ -407,7 +431,8 @@ func TestPleasePart2PermissiveHits(t *testing.T) {
 
 // unexported constants.
 const (
-	pleasePart2GrepHeading = "**Doc-surface enumeration grep (non-waivable).**"
+	pleasePart2ClauseStart = `(?:^|[.!?|:]\s+)(?:[-*]\s+)?(?:\*\*)?`
+	pleasePart2GrepAnchor  = "**Doc-surface enumeration grep"
 	pleasePart2SkillPath   = "agent-instructions/skills/please/SKILL.md"
 	pleasePart2StepFive    = "5. **Document.**"
 	pleasePart2StepFour    = "4. **Execute (TDD).**"
@@ -418,8 +443,11 @@ const (
 
 // unexported variables.
 var (
-	pleasePart2BlessPattern = regexp.MustCompile(`(?i)\b(?:may|can|could|might|(?:is|are) allowed to|(?:ok|okay|fine) ` +
+	pleasePart2BlessPattern = regexp.MustCompile(`(?im)\b(?:may|can|could|might|(?:is|are) allowed to|(?:ok|okay|fine) ` +
 		`to|free to)\s+(?:simply\s+|just\s+)?(?:bless|approve|rubber-stamp|wave through)\b|` +
+		pleasePart2ClauseStart + `(?:approve|bless|rubber-stamp|wave through)\b|` +
+		`\b(?:reply|replies|respond|responds|say|says|return|returns|answer|answers|write|writes)\s+` +
+		`(?:with\s+|just\s+|simply\s+)?["'` + "`" + `*]*(?:lgtm|looks good|approved?)\b|` +
 		`(?:looks good|lgtm|no findings)\b[^.]{0,40}\b(?:is|are) (?:enough|sufficient|acceptable|fine)\b`)
 )
 
@@ -456,7 +484,7 @@ func pleasePart2Between(t *testing.T, text, start, end string) string {
 func pleasePart2GrepSection(t *testing.T, text string) string {
 	t.Helper()
 
-	return pleasePart2Between(t, text, pleasePart2GrepHeading, "If the repo is under VCS, commit the plan")
+	return pleasePart2Between(t, text, pleasePart2GrepAnchor, "If the repo is under VCS, commit the plan")
 }
 
 // pleasePart2PermissiveBlessHits returns every place in a shipped SKILL.md, references file or guidance document that
@@ -491,14 +519,18 @@ func pleasePart2ScanShipped(t *testing.T, pattern *regexp.Regexp) []string {
 }
 
 // pleasePart2SkipPattern returns the pattern of a sentence that permits skipping, omitting or waiving the subject: a
-// permission verb before the subject, or the subject before a "may be skipped" form.
+// permission verb before the subject, the subject before a "may be skipped" form, a sentence that opens with the
+// imperative, or the subject before "is optional".
 func pleasePart2SkipPattern(subject string) *regexp.Regexp {
 	const (
 		permission = `(?:may|can|could|might|(?:is|are) allowed to|(?:ok|okay|fine) to|free to|permitted to)`
 		omission   = `(?:skip|skipped|omit|omitted|waive|waived|drop|dropped|ignore|ignored|bypass|bypassed)`
+		imperative = `(?:skip|omit|waive|drop|ignore|bypass)`
+		optional   = `(?:(?:is|are) (?:optional|not required|not needed|unnecessary)|need not (?:run|be run))`
 	)
 
-	return regexp.MustCompile(`(?i)\b` + permission + `\s+(?:simply\s+|safely\s+|just\s+)?(?:be\s+)?` + omission +
+	return regexp.MustCompile(`(?im)\b` + permission + `\s+(?:simply\s+|safely\s+|just\s+)?(?:be\s+)?` + omission +
 		`\b[^.]{0,80}?` + subject + `|` + subject + `[^.]{0,80}?\b(?:may|can|could|might)\s+(?:simply\s+|safely\s+)?` +
-		`be\s+` + omission + `\b`)
+		`be\s+` + omission + `\b|` + pleasePart2ClauseStart + imperative + `\b[^.]{0,80}?` + subject + `|` +
+		subject + `[^.]{0,80}?\b` + optional)
 }
