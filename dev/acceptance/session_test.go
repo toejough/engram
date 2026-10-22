@@ -14,7 +14,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -25,8 +24,7 @@ import (
 
 // unexported constants.
 const (
-	credentialFile = ".config/claude-key.env"
-	engramMarker   = "[engram memory]"
+	engramMarker = "[engram memory]"
 	// fakeAPIKey and offlineBaseURL send a prompt to an endpoint that is not there: the prompt's hooks run, the model
 	// is asked and never answers.
 	fakeAPIKey        = "sk-ant-acceptance-not-a-real-key"
@@ -41,7 +39,6 @@ const (
 	recordFlushWait   = 10 * time.Second
 	resultsBuffered   = 16
 	stopGrace         = 10 * time.Second
-	tokenVariable     = "CLAUDE_CODE_OAUTH_TOKEN"
 	uuidBytes         = 16
 	uuidVariantBits   = 0x80
 	uuidVariantByte   = 8
@@ -52,8 +49,6 @@ const (
 // unexported variables.
 var (
 	errNoRequest = errors.New("the session never asked the model")
-	errNoToken   = errors.New("no credentials")
-	tokenPattern = regexp.MustCompile(`^\s*(?:export\s+)?` + tokenVariable + `=(.*?)\s*$`)
 )
 
 // arrival is where a block lies in a turn's rows (855a2e).
@@ -918,32 +913,12 @@ func (t *turn) withinTurn() []string {
 	return blocks
 }
 
-// claudeToken returns the login the live tests use, from the environment or the owner's credential file, and
-// fails the test when there is none. It is handed to the child's environment only, never to a command line
-// or a log.
+// claudeToken returns the login the live tests use, from the environment or the owner's credential file, and skips
+// the test when there is none (862b2b); the lookup itself is requireToken.
 func claudeToken(t *testing.T) string {
 	t.Helper()
 
-	if token := os.Getenv(tokenVariable); token != "" {
-		return token
-	}
-
-	home, err := os.UserHomeDir()
-	if err == nil {
-		data, readErr := os.ReadFile(filepath.Join(home, credentialFile))
-		if readErr == nil {
-			for line := range strings.SplitSeq(string(data), "\n") {
-				match := tokenPattern.FindStringSubmatch(line)
-				if match != nil {
-					return strings.Trim(match[1], `"'`)
-				}
-			}
-		}
-	}
-
-	t.Fatalf("%v: set %s, or put it in ~/%s", errNoToken, tokenVariable, credentialFile)
-
-	return ""
+	return requireToken(t, os.Getenv, readCredentialFile)
 }
 
 // engramEntries returns the entries that begin with the marker of automatic memory's blocks.
@@ -974,6 +949,21 @@ func newUUID(t *testing.T) string {
 	raw[uuidVariantByte] = raw[uuidVariantByte]&0x3f | uuidVariantBits
 
 	return fmt.Sprintf("%x-%x-%x-%x-%x", raw[0:4], raw[4:6], raw[6:8], raw[8:10], raw[10:])
+}
+
+// readCredentialFile reads the owner's credential file from the home directory.
+func readCredentialFile() ([]byte, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("finding the home directory: %w", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(home, credentialFile))
+	if err != nil {
+		return nil, fmt.Errorf("reading the credential file: %w", err)
+	}
+
+	return data, nil
 }
 
 // redact removes a secret from text that is about to be logged.

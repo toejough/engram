@@ -58,9 +58,9 @@ Status: Ready
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 862c1b1 | [862b2b1a A missing login skips the test](./862b_technical-spec.md#862b2b1-contract-scenarios) | Example | Fixed environment, one exact outcome (skipped, message) | Not started |
-| 862c1b2 | [862b2b1b A login that exists is used](./862b_technical-spec.md#862b2b1-contract-scenarios) | Example | Fixed environment, one exact outcome | Not started |
-| 862c1b3 | [862a3b1a A check without a login skips](./862a_product-spec.md#862a3b1-uat-scenarios) | Example | Same mechanism as [862b2b1a A missing login skips the test](./862b_technical-spec.md#862b2b1-contract-scenarios), named by the product scenario | Not started |
+| 862c1b1 | [862b2b1a A missing login skips the test](./862b_technical-spec.md#862b2b1-contract-scenarios) | Example | Fixed environment, one exact outcome (skipped, message). Evidence: Test862b2b1a_RequireToken_AMissingLoginSkipsTheTestAndNamesTheVariableAndTheFile in the untagged dev/acceptance/token_unit_test.go (the default suite runs it); Red: b00/862c1b-red-test-pkg-acceptance.log (build failed, undefined requireToken); Green: b00/862c1b-green-test-pkg-acceptance.log (exit=0); failed by the mutation that removes the Skipf call: b00/862c1b-mutation-no-skip.log. | Green-single |
+| 862c1b2 | [862b2b1b A login that exists is used](./862b_technical-spec.md#862b2b1-contract-scenarios) | Example | Fixed environment, one exact outcome. Evidence: Test862b2b1b_RequireToken_ALoginThatExistsIsUsed (the variable, the variable over the file, the file); Red: b00/862c1b-red-test-pkg-acceptance.log; Green: b00/862c1b-green-test-pkg-acceptance.log (exit=0); failed by the mutation that ignores the variable: b00/862c1b-mutation-variable-ignored.log. | Green-single |
+| 862c1b3 | [862a3b1a A check without a login skips](./862a_product-spec.md#862a3b1-uat-scenarios) | Example | Same mechanism as [862b2b1a A missing login skips the test](./862b_technical-spec.md#862b2b1-contract-scenarios), named by the product scenario. Evidence: Test862a3b1a_RequireToken_ACheckWithoutALoginSkipsAndSaysWhichLogin; Red: b00/862c1b-red-test-pkg-acceptance.log; Green: b00/862c1b-green-test-pkg-acceptance.log (exit=0); failed by the mutation that removes the Skipf call: b00/862c1b-mutation-no-skip.log. | Green-single |
 
 #### 862c1e The parity tests have a command
 
