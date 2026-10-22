@@ -916,7 +916,7 @@ Status: Ready
 
 #### 861c2zi Wikilink Graph (default)
 
-Status: Ready
+Status: In progress: 0/2 entries complete (2 rows Green-single)
 
 - Owner file: [Wikilink Graph](../../specs/technical/wikilink-graph.md) (technical component).
 - Package: `internal/vaultgraph`; suggested test file: `internal/vaultgraph/wikilink_graph_scenarios_test.go`.
@@ -927,8 +927,8 @@ Status: Ready
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zi1 | [792b13c3a10 A display part stays in the target](../../specs/technical/wikilink-graph.md#792b13c3a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zi2 | [792b13c5a2 An unknown basename has in-degree 0](../../specs/technical/wikilink-graph.md#792b13c5a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2zi1 | [792b13c3a10 A display part stays in the target](../../specs/technical/wikilink-graph.md#792b13c3a-scenarios) | Example | Fixed inputs, one exact outcome. `Test792b13c3a10_ParseWikilinks_DisplayPartStaysInTarget` (`wikilink_graph_scenarios_test.go`), log `final.log`; mutation (parser.go: `|display` split off the target) failed it at the Then, log `mut.log` | Green-single |
+| 861c2zi2 | [792b13c5a2 An unknown basename has in-degree 0](../../specs/technical/wikilink-graph.md#792b13c5a-scenarios) | Example | Fixed inputs, one exact outcome. `Test792b13c5a2_Graph_UnknownBasenameInDegreeIsZero` (`wikilink_graph_scenarios_test.go`; `TestInDegreeIn_UnknownNodeReturnsZero` verifies InDegreeIn, not InDegree, so it was not renamed), log `final.log`; baseline pass only | Green-single |
 
 #### 861c2zj Note Document Format (default)
 
