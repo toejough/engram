@@ -446,8 +446,9 @@ func Test792b36c4a2_EnqueueOutbox_SavesAtomically(t *testing.T) {
 }
 
 // Test792b36c4a3_EnqueueOutbox_StampsVaultIDBeforeStateDir (792b5c4 Vault ID stamping): the first
-// enqueue in a vault with no ID stamps the ID (and its location record)
-// before .engram/ exists, so .engram/ keeps meaning created-by-engram.
+// enqueue in a vault with no ID stamps the ID before .engram/ exists (its
+// location record is then written into .engram/), so .engram/ keeps meaning
+// created-by-engram.
 func Test792b36c4a3_EnqueueOutbox_StampsVaultIDBeforeStateDir(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

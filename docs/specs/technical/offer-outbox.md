@@ -271,7 +271,7 @@ Scenario: 792b36c4a2 The outbox is saved atomically
 Scenario: 792b36c4a3 The vault ID is stamped before the state directory
   Given a vault with no vault ID and no .engram
   When the first entry is queued
-  Then the vault ID and its location record are stamped before .engram exists
+  Then the vault ID is stamped before .engram exists, and its location record is then written into .engram
 
 Scenario: 792b36c4a4 Outbox failures fail the enqueue
   Given a corrupt outbox, a failed atomic write, or a vault ID that cannot be stamped

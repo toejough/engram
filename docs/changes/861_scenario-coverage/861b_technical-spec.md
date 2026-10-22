@@ -92,3 +92,18 @@ Target: [794b4 Development Check Orchestration](../../specs/technical/developmen
 - Supported capabilities: [Development Checks](../product/development-checks.md) (the existing entry points reach
   Engram's nil targets, never Targ's; a developer runs the tests of one package, [861a3a1a A developer runs the tests of one package](../product/development-checks.md#861a3a1-uat-scenarios)).
 ```
+
+## 861b4y Modified: Offer Outbox scenarios
+
+Operations a test finds necessary in existing specs are applied in place ([861d6 A new test that fails at baseline](./861d_questions-and-decisions.md#questions-and-decisions)); the one below is applied in [Offer Outbox](../../specs/technical/offer-outbox.md) in the commit that records it.
+
+### 861b4y1 Modified: 792b36c4a3 The vault ID is stamped before the state directory
+
+Target: [792b36c4a Scenarios](../../specs/technical/offer-outbox.md#792b36c4a-scenarios), Scenario 792b36c4a3. Differs from the current text in the Then line: the location record is the file `.engram/home.json`, so it cannot be stamped before `.engram` exists ([861a4y2 Modified: 792a21q1g The first offer creates the exchange state in the right order](./861a_product-spec.md#861a4y2-modified-792a21q1g-the-first-offer-creates-the-exchange-state-in-the-right-order) is its product form).
+
+```gherkin
+Scenario: 792b36c4a3 The vault ID is stamped before the state directory
+  Given a vault with no vault ID and no .engram
+  When the first entry is queued
+  Then the vault ID is stamped before .engram exists, and its location record is then written into .engram
+```
