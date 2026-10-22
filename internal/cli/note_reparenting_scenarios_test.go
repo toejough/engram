@@ -2,7 +2,6 @@ package cli_test
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"io/fs"
@@ -128,7 +127,7 @@ func Test792b27c2a4_RunReparentLuhmann_BranchedNotesAndNotesWithoutASidecarAreLe
 
 	var stdout bytes.Buffer
 
-	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "", false, deps, &stdout)
+	err := cli.RunReparentLuhmann(t.Context(), "/vault", "/chunks", "", false, deps, &stdout)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	payload := nrp1DerivePayload(t, &stdout)
@@ -161,7 +160,7 @@ func Test792b27c2a5_RunReparentLuhmann_AnExcerptIsCapped(t *testing.T) {
 
 	var stdout bytes.Buffer
 
-	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "", false, deps, &stdout)
+	err := cli.RunReparentLuhmann(t.Context(), "/vault", "/chunks", "", false, deps, &stdout)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	payload := nrp1DerivePayload(t, &stdout)
@@ -190,7 +189,7 @@ func Test792b27c3a1_RunReparentLuhmann_ThePayloadCarriesCandidatesFingerprintAnd
 
 	var stdout bytes.Buffer
 
-	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "", false, deps, &stdout)
+	err := cli.RunReparentLuhmann(t.Context(), "/vault", "/chunks", "", false, deps, &stdout)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	payload := nrp1DerivePayload(t, &stdout)
@@ -237,7 +236,7 @@ func Test792b27c3a2_RunReparentLuhmann_NoCandidatesIsAMessage(t *testing.T) {
 
 		var stdout bytes.Buffer
 
-		err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "", false, deps, &stdout)
+		err := cli.RunReparentLuhmann(t.Context(), "/vault", "/chunks", "", false, deps, &stdout)
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(stdout.String()).To(Equal(message))
 		g.Expect(renames).To(BeEmpty())
@@ -252,7 +251,7 @@ func Test792b27c3a2_RunReparentLuhmann_NoCandidatesIsAMessage(t *testing.T) {
 
 		var stdout bytes.Buffer
 
-		err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "", false, deps, &stdout)
+		err := cli.RunReparentLuhmann(t.Context(), "/vault", "/chunks", "", false, deps, &stdout)
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(stdout.String()).To(Equal(message))
 	})
@@ -286,7 +285,7 @@ func Test792b27c5a3_RunReparentLuhmann_TwoChildrenAreAllocatedInOrder(t *testing
 
 	var stdout bytes.Buffer
 
-	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
+	err := cli.RunReparentLuhmann(t.Context(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	renamedNotes := map[string]string{}
@@ -328,7 +327,7 @@ func Test792b27c9a3_RunReparentLuhmann_AFailedPruneKeepsTheRename(t *testing.T) 
 
 	var stdout bytes.Buffer
 
-	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
+	err := cli.RunReparentLuhmann(t.Context(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
 	g.Expect(err).To(MatchError(errPruneWrite))
 	g.Expect(err).To(MatchError(ContainSubstring("pruning stale chunk-manifest entries")))
 
