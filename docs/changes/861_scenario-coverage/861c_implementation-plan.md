@@ -534,7 +534,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2n Vault Counter (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: In progress: 0/13 entries complete (13 rows Green-single)
 
 - Owner file: [Vault Counter](../../specs/technical/vault-counter.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/vault_counter_scenarios_test.go`.
@@ -544,19 +544,19 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2n1 | [792b25c1a3 A basename alone selects the incoming-link report](../../specs/technical/vault-counter.md#792b25c1a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2n2 | [792b25c1a4 An attribute alone selects the attribute count](../../specs/technical/vault-counter.md#792b25c1a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2n3 | [792b25c2a4 An empty value counts only toward the total](../../specs/technical/vault-counter.md#792b25c2a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2n4 | [792b25c3a4 A note without the attribute does not match](../../specs/technical/vault-counter.md#792b25c3a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2n5 | [792b25c4a2 An unreadable note is skipped](../../specs/technical/vault-counter.md#792b25c4a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2n6 | [792b25c5a1 Values are ordered by count, then value](../../specs/technical/vault-counter.md#792b25c5a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2n7 | [792b25c5a2 The absent line precedes the total](../../specs/technical/vault-counter.md#792b25c5a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2n8 | [792b25c5a3 Every note is absent](../../specs/technical/vault-counter.md#792b25c5a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2n9 | [792b25c5a5 The total counts notes, not values](../../specs/technical/vault-counter.md#792b25c5a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2n10 | [792b25c6a2 A note nothing links to](../../specs/technical/vault-counter.md#792b25c6a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2n11 | [792b25c6a3 A basename that is not a note](../../specs/technical/vault-counter.md#792b25c6a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2n12 | [792b25c8a1 A count writes nothing](../../specs/technical/vault-counter.md#792b25c8a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2n13 | [792b25c8a2 Notes are counted without sidecars](../../specs/technical/vault-counter.md#792b25c8a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2n1 | [792b25c1a3 A basename alone selects the incoming-link report](../../specs/technical/vault-counter.md#792b25c1a-scenarios) | Example | Fixed inputs, one exact outcome; `Test792b25c1a3_VaultCounter_BasenameAloneSelectsIncomingLinkReport` in vault_counter_scenarios_test.go (log 1.log); baseline pass only; also asserts the scan ran once and the listing never | Green-single |
+| 861c2n2 | [792b25c1a4 An attribute alone selects the attribute count](../../specs/technical/vault-counter.md#792b25c1a-scenarios) | Example | Fixed inputs, one exact outcome; `Test792b25c1a4_VaultCounter_AttributeAloneSelectsAttributeCount` in vault_counter_scenarios_test.go (log 1.log); fails under the sort mutation (mut1.log) | Green-single |
+| 861c2n3 | [792b25c2a4 An empty value counts only toward the total](../../specs/technical/vault-counter.md#792b25c2a-scenarios) | Example | Fixed inputs, one exact outcome; `Test792b25c2a4_VaultCounter_EmptyValueCountsOnlyTowardTotal` in vault_counter_scenarios_test.go (log 1.log); baseline pass only | Green-single |
+| 861c2n4 | [792b25c3a4 A note without the attribute does not match](../../specs/technical/vault-counter.md#792b25c3a-scenarios) | Example | Fixed inputs, one exact outcome; `Test792b25c3a4_VaultCounter_NoteWithoutFilterAttributeDoesNotMatch` in vault_counter_scenarios_test.go (log 1.log); baseline pass only; control run without the filter counts the note | Green-single |
+| 861c2n5 | [792b25c4a2 An unreadable note is skipped](../../specs/technical/vault-counter.md#792b25c4a-scenarios) | Example | Fixed inputs, one exact outcome; `Test792b25c4a2_VaultCounter_UnreadableNoteIsSkipped` in vault_counter_scenarios_test.go (log 1.log); baseline pass only; the existing 792b25c4a1 test holds this case only as a subtest, so a dedicated test was added | Green-single |
+| 861c2n6 | [792b25c5a1 Values are ordered by count, then value](../../specs/technical/vault-counter.md#792b25c5a-scenarios) | Example | Fixed inputs, one exact outcome; `Test792b25c5a1_VaultCounter_ValuesOrderedByCountThenValue` in vault_counter_scenarios_test.go (log 1.log); fails under the sort mutation (mut1.log) | Green-single |
+| 861c2n7 | [792b25c5a2 The absent line precedes the total](../../specs/technical/vault-counter.md#792b25c5a-scenarios) | Example | Fixed inputs, one exact outcome; `Test792b25c5a2_VaultCounter_AbsentLinePrecedesTotal` in vault_counter_scenarios_test.go (log 1.log); baseline pass only | Green-single |
+| 861c2n8 | [792b25c5a3 Every note is absent](../../specs/technical/vault-counter.md#792b25c5a-scenarios) | Example | Fixed inputs, one exact outcome; `Test792b25c5a3_VaultCounter_EveryNoteAbsentPrintsOnlyAbsentAndTotal` in vault_counter_scenarios_test.go (log 1.log); baseline pass only | Green-single |
+| 861c2n9 | [792b25c5a5 The total counts notes, not values](../../specs/technical/vault-counter.md#792b25c5a-scenarios) | Example | Fixed inputs, one exact outcome; `Test792b25c5a5_VaultCounter_TotalCountsNotesNotValues` in vault_counter_scenarios_test.go (log 1.log); fails under the sort mutation (mut1.log) | Green-single |
+| 861c2n10 | [792b25c6a2 A note nothing links to](../../specs/technical/vault-counter.md#792b25c6a-scenarios) | Example | Fixed inputs, one exact outcome; `Test792b25c6a2_VaultCounter_NoteNothingLinksToHasZeroInDegree` in vault_counter_scenarios_test.go (log 1.log); baseline pass only | Green-single |
+| 861c2n11 | [792b25c6a3 A basename that is not a note](../../specs/technical/vault-counter.md#792b25c6a-scenarios) | Example | Fixed inputs, one exact outcome; `Test792b25c6a3_VaultCounter_BasenameThatIsNotANoteHasZeroInDegree` in vault_counter_scenarios_test.go (log 1.log); baseline pass only | Green-single |
+| 861c2n12 | [792b25c8a1 A count writes nothing](../../specs/technical/vault-counter.md#792b25c8a-scenarios) | Example | Fixed inputs, one exact outcome; `Test792b25c8a1_VaultCounter_CountWritesNothing` in vault_counter_scenarios_test.go (log 1.log); baseline pass only; in-memory recording EdgeFS through newCountDeps, both modes | Green-single |
+| 861c2n13 | [792b25c8a2 Notes are counted without sidecars](../../specs/technical/vault-counter.md#792b25c8a-scenarios) | Example | Fixed inputs, one exact outcome; `Test792b25c8a2_VaultCounter_NotesCountedWithoutSidecars` in vault_counter_scenarios_test.go (log 1.log); baseline pass only; in-memory recording EdgeFS, 600 notes, every read is a .md file | Green-single |
 
 #### 861c2o Embedding Sidecar (default)
 
