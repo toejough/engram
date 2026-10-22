@@ -23,7 +23,7 @@ func Test792a11a1a_Update_ALocalCloneIsInstalledInPlace(t *testing.T) {
 
 	g := NewWithT(t)
 
-	machine := iu1LocalMachine(iu1Home, iu1Repo, iu1Repo+"/internal/cli")
+	machine := iu1LocalMachine(iu1Repo, iu1Repo+"/internal/cli")
 
 	outcome := machine.run(t, cli.UpdateArgs{})
 	g.Expect(outcome.err).NotTo(HaveOccurred())
@@ -64,7 +64,7 @@ func Test792a11a1c_Update_TheInstallLocationFollowsTheGoToolchain(t *testing.T) 
 
 			g := NewWithT(t)
 
-			machine := iu1LocalMachine(iu1Home, iu1Repo, iu1Repo)
+			machine := iu1LocalMachine(iu1Repo, iu1Repo)
 			machine.env.vars = testCase.vars
 
 			outcome := machine.run(t, cli.UpdateArgs{})
@@ -120,7 +120,7 @@ func Test792a11a1e_Update_GoIsMissing(t *testing.T) {
 
 	g := NewWithT(t)
 
-	machine := iu1LocalMachine(iu1Home, iu1Repo, iu1Repo)
+	machine := iu1LocalMachine(iu1Repo, iu1Repo)
 	machine.cmd.answers = append(machine.cmd.answers, iu1Answer{prefix: "go install", err: update.ErrCommandNotFound})
 
 	outcome := machine.run(t, cli.UpdateArgs{})
@@ -138,7 +138,7 @@ func Test792a11a1g_Update_TheFirstGOPATHEntryIsUsed(t *testing.T) {
 
 	g := NewWithT(t)
 
-	machine := iu1LocalMachine(iu1Home, iu1Repo, iu1Repo)
+	machine := iu1LocalMachine(iu1Repo, iu1Repo)
 	machine.env.vars = map[string]string{"GOPATH": "/gp1:/gp2"}
 
 	outcome := machine.run(t, cli.UpdateArgs{})
@@ -243,7 +243,7 @@ func Test792a11c1a_Update_AProvableDowngradeIsRefused(t *testing.T) {
 
 	g := NewWithT(t)
 
-	machine := iu1LocalMachine(iu1Home, iu1Repo, iu1Repo)
+	machine := iu1LocalMachine(iu1Repo, iu1Repo)
 	iu1InstallBinaryWithProvableDowngrade(machine)
 
 	outcome := machine.run(t, cli.UpdateArgs{})
@@ -262,7 +262,7 @@ func Test792a11c1b_Update_TheFlagBypassesTheCheck(t *testing.T) {
 
 	g := NewWithT(t)
 
-	machine := iu1LocalMachine(iu1Home, iu1Repo, iu1Repo)
+	machine := iu1LocalMachine(iu1Repo, iu1Repo)
 	iu1InstallBinaryWithProvableDowngrade(machine)
 
 	outcome := machine.run(t, cli.UpdateArgs{AllowDowngrade: true})
@@ -278,7 +278,7 @@ func Test792a11c1c_Update_AFirstInstallIsNotChecked(t *testing.T) {
 
 	g := NewWithT(t)
 
-	machine := iu1LocalMachine(iu1Home, iu1Repo, iu1Repo)
+	machine := iu1LocalMachine(iu1Repo, iu1Repo)
 	machine.cmd.answers = append(machine.cmd.answers, iu1NonAncestorAnswer())
 
 	outcome := machine.run(t, cli.UpdateArgs{})
@@ -296,7 +296,7 @@ func Test792a11c1d_Update_AnUnknownInstalledRevisionDoesNotBlock(t *testing.T) {
 
 	g := NewWithT(t)
 
-	machine := iu1LocalMachine(iu1Home, iu1Repo, iu1Repo)
+	machine := iu1LocalMachine(iu1Repo, iu1Repo)
 	iu1InstallBinaryAtRevision(machine, iu1InstalledRevision)
 	machine.cmd.answers = append(machine.cmd.answers, iu1Answer{
 		prefix: "git merge-base",
@@ -333,7 +333,7 @@ func Test792a11c1e_Update_AnUnreadableRevisionDoesNotBlock(t *testing.T) {
 
 			g := NewWithT(t)
 
-			machine := iu1LocalMachine(iu1Home, iu1Repo, iu1Repo)
+			machine := iu1LocalMachine(iu1Repo, iu1Repo)
 			machine.fileSystem.files[iu1HomeBinary] = []byte("binary")
 			machine.cmd.answers = append(machine.cmd.answers, versionAnswer, iu1NonAncestorAnswer())
 
@@ -353,7 +353,7 @@ func Test792a11d1a_Update_ALocalInstallReportsItsRevision(t *testing.T) {
 
 	g := NewWithT(t)
 
-	machine := iu1LocalMachine(iu1Home, iu1Home+"/src/engram", iu1Home+"/src/engram")
+	machine := iu1LocalMachine(iu1Home+"/src/engram", iu1Home+"/src/engram")
 
 	outcome := machine.run(t, cli.UpdateArgs{})
 	g.Expect(outcome.err).NotTo(HaveOccurred())
@@ -376,7 +376,7 @@ func Test792a11d1b_Update_ARealInstallReportsWhereTheBinaryWent(t *testing.T) {
 
 	g := NewWithT(t)
 
-	machine := iu1LocalMachine(iu1Home, iu1Repo, iu1Repo)
+	machine := iu1LocalMachine(iu1Repo, iu1Repo)
 
 	outcome := machine.run(t, cli.UpdateArgs{})
 	g.Expect(outcome.err).NotTo(HaveOccurred())
@@ -424,7 +424,7 @@ func Test792a11e1a_Update_TheDeployRunsInTheNewBinary(t *testing.T) {
 
 	g := NewWithT(t)
 
-	machine := iu1LocalMachine(iu1Home, iu1Repo, iu1Repo)
+	machine := iu1LocalMachine(iu1Repo, iu1Repo)
 	machine.spawn.run = func(string, []string, []string) (int, error) {
 		machine.stdout.WriteString("installed: Claude Code\n") // the deploy report the installed binary prints
 
@@ -460,7 +460,7 @@ func Test792a11e1b_Update_TheInstallResultComesFirst(t *testing.T) {
 
 	g := NewWithT(t)
 
-	machine := iu1LocalMachine(iu1Home, iu1Repo, iu1Repo)
+	machine := iu1LocalMachine(iu1Repo, iu1Repo)
 	machine.spawn.run = machine.childRun(t)
 
 	outcome := machine.run(t, cli.UpdateArgs{})
@@ -493,7 +493,7 @@ func Test792a11e1c_Update_AFailedHandOffFallsBack(t *testing.T) {
 
 	g := NewWithT(t)
 
-	machine := iu1LocalMachine(iu1Home, iu1Repo, iu1Repo)
+	machine := iu1LocalMachine(iu1Repo, iu1Repo)
 	machine.spawn.run = func(string, []string, []string) (int, error) {
 		return 0, errors.New("fork/exec " + iu1HomeBinary + ": no such file or directory")
 	}
@@ -515,7 +515,7 @@ func Test792a11e1d_Update_AHandedOffRunDoesNotClaimAnInstall(t *testing.T) {
 
 	g := NewWithT(t)
 
-	machine := iu1LocalMachine(iu1Home, iu1Repo, iu1Repo)
+	machine := iu1LocalMachine(iu1Repo, iu1Repo)
 	machine.env.vars = map[string]string{update.ReexecSentinelEnvVar: "1"}
 
 	outcome := machine.run(t, cli.UpdateArgs{})
@@ -534,7 +534,7 @@ func Test792a11e1e_Update_ADryRunNeverHandsOff(t *testing.T) {
 	t.Parallel()
 
 	table := map[string]*iu1Machine{
-		"from a local clone":         iu1LocalMachine(iu1Home, iu1Repo, iu1Repo),
+		"from a local clone":         iu1LocalMachine(iu1Repo, iu1Repo),
 		"from outside of a checkout": iu1RemoteMachine(iu1Work),
 	}
 
@@ -787,18 +787,18 @@ func iu1InstallBinaryWithProvableDowngrade(machine *iu1Machine) {
 	machine.cmd.answers = append(machine.cmd.answers, iu1NonAncestorAnswer())
 }
 
-// iu1LocalMachine is a machine with a checkout of the engram module at repo, one Claude Code harness under home and
+// iu1LocalMachine is a machine with a checkout of the engram module at repo, one Claude Code harness under iu1Home and
 // one skill to deploy, running from cwd.
-func iu1LocalMachine(home, repo, cwd string) *iu1Machine {
+func iu1LocalMachine(repo, cwd string) *iu1Machine {
 	fileSystem := &iu1FS{fakeUpdateFS: newFakeUpdateFS()}
-	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.dirs[iu1Home+"/.claude"] = true
 	fileSystem.files[repo+"/go.mod"] = []byte("module github.com/toejough/engram\n")
 	fileSystem.files[repo+"/agent-instructions/skills/learn/SKILL.md"] = []byte("learn")
 
 	return &iu1Machine{
 		fileSystem: fileSystem,
 		cmd:        &iu1Commander{fileSystem: fileSystem},
-		env:        iu1Env{home: home, cwd: cwd, vars: map[string]string{}},
+		env:        iu1Env{home: iu1Home, cwd: cwd, vars: map[string]string{}},
 		spawn:      &iu1Spawner{},
 	}
 }
@@ -810,7 +810,7 @@ func iu1NonAncestorAnswer() iu1Answer {
 
 // iu1RemoteMachine is a machine with no go.mod above cwd, whose clone holds the real model.
 func iu1RemoteMachine(cwd string) *iu1Machine {
-	machine := iu1LocalMachine(iu1Home, iu1Repo, cwd)
+	machine := iu1LocalMachine(iu1Repo, cwd)
 	delete(machine.fileSystem.files, iu1Repo+"/go.mod")
 
 	machine.cmd.cloneModel = bytes.Repeat([]byte("m"), iu1MebibyteBytes)
