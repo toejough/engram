@@ -60,9 +60,9 @@ Status: Done
 
 | ID | Evidence | Command | Result | Recorded at |
 | --- | --- | --- | --- | --- |
-| 868c2a | Links of `docs/` | link check over `docs/` | Passed on the tree of 7448a039 plus the edits of the records: 10364 relative links, 0 broken (before: 10909) | 7448a039 |
-| 868c2b | IDs and labels | ID and label scan over `docs/specs` and `docs/changes` | Passed on the same tree: 0 duplicates of 8025 defined IDs, 8209 ID-labelled links with 0 mismatches, 0 unresolved tokens, 0 operations of 858 unapplied | 7448a039 |
-| 868c2c | Scenario catalog | `gen_catalog.py` | 3392 scenarios, 3015 with a test, 377 without (before: 3562, 3015 and 547; the 170 scenarios of the three files had no `Test<ID>_` function) | 7448a039 |
+| 868c2a | Links of `docs/` | link check over `docs/` | Passed: 10340 relative links, 0 broken (before: 10909) | 39aa5279 |
+| 868c2b | IDs and labels | ID and label scan over `docs/specs` and `docs/changes` | Passed, with the scan extended to the key 868: 0 duplicates of 8026 defined IDs, 8192 ID-labelled links with 0 mismatches, 0 unresolved tokens, 0 operations of 858 unapplied | 39aa5279 |
+| 868c2c | Scenario catalog | `gen_catalog.py` | 3392 scenarios, 3015 with a test, 377 without (before: 3562, 3015 and 547; the 170 scenarios of the three files had no `Test<ID>_` function); the rows, lists and totals of 858c2a are this output | 39aa5279 |
 
 ## 868c3 Completion gates
 
