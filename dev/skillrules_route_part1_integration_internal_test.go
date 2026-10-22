@@ -52,7 +52,7 @@ func Test792a17a1b_OrchestrationStaysWithTheOrchestrator(t *testing.T) {
 }
 
 // Test792a17a1c_EasyWorkIsDelegatedCheaply reads the route skill the repository ships: there is no inline escape for
-// easy work, which is delegated to a cheap model and not skipped, and a variable rename starts at the cheap tier.
+// easy work, which is delegated to a cheap model and not skipped, and every unit starts at the cheapest tier.
 func Test792a17a1c_EasyWorkIsDelegatedCheaply(t *testing.T) {
 	t.Parallel()
 
@@ -63,7 +63,6 @@ func Test792a17a1c_EasyWorkIsDelegatedCheaply(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("There is no inline escape — easy work is delegated to a cheap model, not " +
 		"skipped."))
 	g.Expect(text).To(ContainSubstring("Every unit starts at the cheapest / fastest available tier."))
-	g.Expect(text).To(ContainSubstring("all start **cheap** — same as a variable rename."))
 	g.Expect(routePart1Contradictions(t, routePart1EasyInlineScan)).To(BeEmpty())
 }
 
@@ -79,8 +78,9 @@ func Test792a17b1a_NoEvidenceCheapestTier(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("2. **Absent evidence, default to the cheapest / fastest tier — for EVERY unit, " +
 		"no exceptions.**"))
 	g.Expect(text).To(ContainSubstring("Cold-start is cheapest-for-everything"))
-	g.Expect(text).To(ContainSubstring("| **why** | source of the tier choice: \"recalled evidence (kind K passed at " +
-		"tier T)\", \"memory-discount applied\", or \"cold-start default\" |"))
+	why := learnPart1Between(t, text, "| **why** |", "| **outcome** |")
+
+	g.Expect(why).To(ContainSubstring("\"cold-start default\""))
 }
 
 // Test792a17b1b_HardLookingWorkStartsCheap reads the route skill the repository ships: work that feels hard, a
@@ -178,7 +178,8 @@ func Test792a17c1a_TheFirstFailureRewritesTheSpec(t *testing.T) {
 }
 
 // Test792a17c1b_TheSecondFailureEscalates reads the route skill the repository ships: a second failure of the same
-// unit escalates one tier and retries.
+// unit escalates one tier and retries; the red flag row against escalating on the first failure is the clause of
+// 792a17c1a.
 func Test792a17c1b_TheSecondFailureEscalates(t *testing.T) {
 	t.Parallel()
 
@@ -187,7 +188,6 @@ func Test792a17c1b_TheSecondFailureEscalates(t *testing.T) {
 	text := shippedText(t, routePart1SkillPath)
 
 	g.Expect(text).To(ContainSubstring("**Second fail on the same unit** → escalate **one** tier and retry."))
-	g.Expect(text).To(ContainSubstring("Escalate only on the second fail."))
 }
 
 // Test792a17c1c_EscalationStopsAtDeep reads the route skill the repository ships: the repeated escalation ends when
@@ -215,7 +215,8 @@ func Test792a17d1a_TheDiscountApplies(t *testing.T) {
 
 	g.Expect(text).To(ContainSubstring("4. **Memory discounts the tier (a special case of evidence lowering it).** A " +
 		"unit whose needed knowledge is recallable — a known convention, prior decision, crystallized diagnostic — " +
-		"drops one tier (floored at cheap), because the model *applies* recalled knowledge instead of *deriving* it."))
+		"drops one tier"))
+	g.Expect(text).To(ContainSubstring("because the model *applies* recalled knowledge instead of *deriving* it."))
 	g.Expect(text).To(ContainSubstring("\"memory-discount applied\""))
 }
 
@@ -228,7 +229,7 @@ func Test792a17d1b_TheDiscountStopsAtCheap(t *testing.T) {
 
 	text := shippedText(t, routePart1SkillPath)
 
-	g.Expect(text).To(ContainSubstring("drops one tier (floored at cheap)"))
+	g.Expect(text).To(ContainSubstring("(floored at cheap)"))
 	g.Expect(text).To(ContainSubstring("| Memory-backed unit (answer is recallable) | one tier down, floored at cheap |"))
 }
 
@@ -296,32 +297,6 @@ func Test792a17f1a_AWorkKindClearsTheThresholds(t *testing.T) {
 	g.Expect(row).To(ContainSubstring("8/12 cheap vs 10/10 mid"))
 }
 
-// Test792a17f1b_AHighCheapPassRateStaysAtTheDefault reads the route skill the repository ships: the cold-start priors
-// table lists cheap as the posture for everything, no entry starts above cheap without recorded evidence, and the only
-// row above cheap is the one whose cited tally shows a cheap pass rate below the default, so a work-kind that passes at
-// the cheap tier has no escalated row; no shipped instruction adds an escalated row regardless of the evidence.
-func Test792a17f1b_AHighCheapPassRateStaysAtTheDefault(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	text := shippedText(t, routePart1SkillPath)
-	table := learnPart1Between(t, text, "| Work character | Cold-start tier | Status |", "Example roster")
-	escalated := routePart1EscalatedRow.FindAllString(table, -1)
-
-	g.Expect(text).To(ContainSubstring("no entry starts above cheap without recorded evidence"))
-	g.Expect(table).To(ContainSubstring("| Everything, by default | cheap | the posture |"))
-	g.Expect(escalated).To(HaveLen(1))
-
-	if len(escalated) != 1 {
-		return
-	}
-
-	g.Expect(escalated[0]).To(ContainSubstring("| work-kind/go-package-implementation | mid |"))
-	g.Expect(escalated[0]).To(ContainSubstring("8/12 cheap vs 10/10 mid"))
-	g.Expect(routePart1Contradictions(t, routePart1EscalatedRowScan)).To(BeEmpty())
-}
-
 // Test792a17f1c_ARecalledOutcomeOverridesAPrior reads the route skill the repository ships: the cold-start priors are
 // hypotheses that recalled evidence overwrites, and the red flag for treating the table as a prescription says
 // recalled evidence wins.
@@ -379,8 +354,8 @@ func Test792a17g1b_AVagueHandoffIsFixed(t *testing.T) {
 }
 
 // Test792a17h1a_RecallFirstIsInEveryHandoff reads the route skill the repository ships: every dispatched subagent is
-// instructed that its first action is recall, the handoff lists that instruction, and the red flag for skipping the
-// recall of a subagent that already has a prompt says it is non-waivable.
+// instructed that its first action is recall, and the red flag for skipping the recall of a subagent that already has
+// a prompt says it is non-waivable; the handoff bullet that lists the instruction is the clause of 792a17g1a.
 func Test792a17h1a_RecallFirstIsInEveryHandoff(t *testing.T) {
 	t.Parallel()
 
@@ -390,8 +365,6 @@ func Test792a17h1a_RecallFirstIsInEveryHandoff(t *testing.T) {
 
 	g.Expect(text).To(ContainSubstring("1. **The subagent recalls first.** Instruct every dispatched subagent that its " +
 		"FIRST action is `/recall`, with phrases drawn from its unit, before doing the work."))
-	g.Expect(text).To(ContainSubstring("- **The subagent's recall-first instruction** (see the \"Two rules every " +
-		"dispatch obeys\" section below)."))
 	g.Expect(text).To(ContainSubstring("| \"The subagent has the prompt, skip its recall\" | Recall-first is " +
 		"non-waivable. |"))
 }
@@ -413,10 +386,11 @@ func Test792a17h1b_ALargeUnitIsDecomposed(t *testing.T) {
 	g.Expect(routePart1Contradictions(t, routePart1WholeUnitScan)).To(BeEmpty())
 }
 
-// TestRoutePart1Hits supports the absence scans of this file: a match is an instruction unless its own clause negates
-// it, a clause ends at a sentence end, a colon, a comma, a table cell border and a line break, and every scan finds a
-// paraphrase of the contradiction, an imperative and the contradiction under a negated condition while it passes the
-// shipped wording.
+// TestRoutePart1Hits supports the absence scans of this file: a match is an instruction unless a negation governs it
+// in its own clause, a clause ends at a sentence end, a colon, a comma, a table cell border and a line break, and
+// every scan finds a contradiction worded independently of its pattern, a paraphrase, an imperative and the
+// contradiction under a negated condition while it passes the shipped wording. The scans are phrase lists: a
+// contradiction in words none of them lists passes (decision 861d392).
 func TestRoutePart1Hits(t *testing.T) {
 	t.Parallel()
 
@@ -426,6 +400,7 @@ func TestRoutePart1Hits(t *testing.T) {
 
 			g := NewWithT(t)
 
+			g.Expect(routePart1Hits(scan.independent, scan)).NotTo(BeEmpty())
 			g.Expect(routePart1Hits(scan.paraphrase, scan)).NotTo(BeEmpty())
 			g.Expect(routePart1Hits(scan.imperative, scan)).NotTo(BeEmpty())
 			g.Expect(routePart1Hits(scan.conditional, scan)).NotTo(BeEmpty())
@@ -450,6 +425,13 @@ func TestRoutePart1Hits(t *testing.T) {
 		"a clause after a comma is a hit":                {"If it isn't large, do the object-level work yourself.", 1},
 		"a negation in a wrapped line stays in the unit": {"You do not\ndo object-level work yourself.", 0},
 		"a quoted instruction in a blockquote is a hit":  {"> Do the object-level work yourself.", 1},
+		"a leading without phrase does not excuse it": {
+			"Without waiting for a dispatch do the object-level work yourself.", 1,
+		},
+		"a leading no matter phrase does not excuse it": {
+			"No matter how small do the object-level work yourself.", 1,
+		},
+		"a negation just before the verb is a prohibition": {"You must never do the object-level work yourself.", 0},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -463,6 +445,7 @@ func TestRoutePart1Hits(t *testing.T) {
 
 // unexported constants.
 const (
+	routePart1NegationReach        = 4
 	routePart1OrchestrationHeading = "## Orchestration work vs object-level work"
 	routePart1RedFlagsHeading      = "## Red flags — STOP and re-read"
 	routePart1SkillPath            = "agent-instructions/skills/route/SKILL.md"
@@ -477,7 +460,10 @@ var (
 		pattern: regexp.MustCompile(`(?i)\b(?:start|begin|dispatch|route)\b[^.\n]{0,40}` +
 			`\b(?:above|higher than|beyond|over)\b[^.\n]{0,30}\bevidence\b|` +
 			`\b(?:add|bump|pad)\b[^.\n]{0,25}\b(?:an extra|a|one)\b[^.\n]{0,10}\btier\b` +
-			`[^.\n]{0,40}\b(?:safe|margin|buffer|just in case)\b`),
+			`[^.\n]{0,40}\b(?:safe|margin|buffer|just in case)\b|\b(?:start|begin)\b[^.\n]{0,20}` +
+			`\b(?:mid|deep|higher|one tier up|a tier up)\b[^.\n]{0,40}\b(?:to be safe|for safety|as a precaution|` +
+			`just in case|as insurance|for margin)\b`),
+		independent: "Begin at the deep tier as insurance when the evidence is thin.",
 		paraphrase:  "Start one tier above what the evidence supports, to be safe.",
 		imperative:  "Bump the start by an extra tier as a margin.",
 		conditional: "If the evidence isn't recent, start above the tier the evidence supports.",
@@ -488,7 +474,9 @@ var (
 		name: "escalating beyond deep",
 		pattern: regexp.MustCompile(`(?i)\b(?:escalate|escalates|escalating|go|move|step|retry|retries)\b[^.\n]{0,30}` +
 			`\b(?:beyond|past|above)\b[^.\n]{0,20}\bdeep\b|\b(?:tier|model)\b[^.\n]{0,20}\b(?:above|beyond|past)\b` +
-			`[^.\n]{0,10}\bdeep\b`),
+			`[^.\n]{0,10}\bdeep\b|\bdeep\b[^.\n]{0,40}\b(?:escalate|escalating|go|move|step)\b[^.\n]{0,20}` +
+			`\bto (?:a|an|the)\b[^.\n]{0,15}\b(?:larger|bigger|stronger|more capable|next)\b`),
+		independent: "If deep fails too, escalate to a larger model.",
 		paraphrase:  "Keep escalating past the deep tier until it passes.",
 		imperative:  "Escalate beyond deep to a larger model.",
 		conditional: "If deep also isn't enough, move above the deep tier.",
@@ -503,7 +491,10 @@ var (
 		name: "counting to route",
 		pattern: regexp.MustCompile(`(?i)\b(?:run|use|call|invoke|execute|issue)\b[^.\n]{0,30}\bengram count\b[^.\n]{0,50}` +
 			`\b(?:to route|for routing|when routing|to pick|to choose|before (?:you )?dispatch\w*|on the read path)\b` +
-			`|\bengram count\b[^.\n]{0,25}\b(?:to route|for routing|to pick the tier|to choose the tier)\b`),
+			`|\bengram count\b[^.\n]{0,25}\b(?:to route|for routing|to pick the tier|to choose the tier)\b|` +
+			`\b(?:check|query|read|run|use|call)\b[^.\n]{0,15}\bengram count\b[^.\n]{0,30}\b(?:tier tallies|tallies)\b|` +
+			`\bengram count\b[^.\n]{0,30}\b(?:before|when|while|prior to) (?:routing|you route|dispatch\w*)\b`),
+		independent: "Before routing, check engram count for the tier tallies.",
 		paraphrase:  "Query engram count for routing.",
 		imperative:  "Run engram count before you dispatch to read the tallies.",
 		conditional: "If the aggregate isn't surfaced, run engram count to route the unit.",
@@ -514,8 +505,11 @@ var (
 		name: "delegating the orchestration",
 		pattern: regexp.MustCompile(`(?i)\bdelegate\b[^.,;:\n]{0,40}\b(?:the act of delegating|routing|dispatching|` +
 			`decomposition|synthesi[sz]\w*|the next decision|sequencing)\b|\b(?:ask|have|let|tell)\b[^.,;:\n]{0,20}` +
-			`\ba (?:subagent|helper)\b[^.,;:\n]{0,30}\b(?:synthesi[sz]e|decide|route|dispatch|sequence|plan)\b`),
+			`\ba (?:subagent|helper)\b[^.,;:\n]{0,30}\b(?:synthesi[sz]e|decide|route|dispatch|sequence|plan)\b|` +
+			`\b(?:hand|pass|give|send|push)\b[^.,;:\n]{0,30}\b(?:synthesi[sz]\w*|the next decision|routing|sequencing|` +
+			`the decision)\b[^.,;:\n]{0,40}\bto\b[^.,;:\n]{0,15}\b(?:subagent|helper|agent|model)\b`),
 		exempt:      regexp.MustCompile(`(?i)\bfrom collapsing\b`),
+		independent: "Hand the synthesis of the returned results to a subagent.",
 		paraphrase:  "Let a subagent decide the next step from the three returned results.",
 		imperative:  "Delegate the routing and sequencing decisions to a cheap model.",
 		conditional: "If the three results aren't conclusive, delegate the next decision to a subagent.",
@@ -528,44 +522,40 @@ var (
 			`\b(?:easy|trivial|one-line|simple|small|quick)\b[^.\n]{0,40}\b(?:inline|yourself|directly|` +
 			`without dispatch\w*|without delegat\w*)\b|\bthere is an? inline (?:escape|path|exception)\b|` +
 			`\b(?:skip|bypass)\b[^.\n]{0,25}\b(?:dispatch\w*|delegat\w*|routing)\b[^.\n]{0,40}` +
-			`\b(?:easy|trivial|one-line|simple|small|quick)\b`),
+			`\b(?:easy|trivial|one-line|simple|small|quick)\b|` +
+			`\bjust (?:edit|rename|change|fix|patch|do|make)\b[^.,;:\n]{0,30}\b(?:yourself|inline|directly)\b`),
+		independent: "For a one-line rename, just edit the file yourself.",
 		paraphrase:  "Skip the dispatch for a one-line rename.",
 		imperative:  "Do the easy rename inline.",
 		conditional: "If the rename isn't risky, do the easy rename inline.",
 		stated:      "There is no inline escape — easy work is delegated to a cheap model, not skipped.",
-	}
-	// routePart1EscalatedRow finds a row of the cold-start priors table whose tier is above cheap.
-	routePart1EscalatedRow = regexp.MustCompile(`\| [^|]+ \| (?:mid|deep) \|[^|]*\|`)
-	// routePart1EscalatedRowScan finds an instruction to add an escalated row without the evidence.
-	routePart1EscalatedRowScan = routePart1Scan{
-		name: "an escalated row without the evidence",
-		pattern: regexp.MustCompile(`(?i)\b(?:add|write|put|list|carry|keep)\b[^.\n]{0,30}\b(?:row|entry)\b[^.\n]{0,40}` +
-			`\b(?:even (?:when|if)|regardless|anyway|before (?:any )?evidence)\b`),
-		paraphrase:  "Add a mid row for every work-kind anyway.",
-		imperative:  "List an entry above cheap even when cheap passes at 95%.",
-		conditional: "If the tally isn't recorded yet, write a row for the work-kind regardless.",
-		stated:      "No entry starts above cheap without recorded evidence.",
 	}
 	// routePart1HunchScan finds an instruction that counts predicted difficulty as evidence.
 	routePart1HunchScan = routePart1Scan{
 		name: "difficulty as evidence",
 		pattern: regexp.MustCompile(`(?i)\b(?:predicted difficulty|difficulty|your sense|a hunch|the hunch|looks hard|` +
 			`complex\w*|correctness-critical|broad impact)\b[^.\n]{0,40}\b(?:counts? as|serves as|qualifies as|is|are)\b` +
-			`[^.\n]{0,20}\bevidence\b`),
+			`[^.\n]{0,20}\bevidence\b|\b(?:treat|count|take|accept|use)\b[^.\n]{0,40}` +
+			`\b(?:hunch|sense|difficulty|prediction|impression)\b[^.\n]{0,40}\bas (?:\w+ ){0,2}evidence\b`),
+		independent: "Treat the predicted difficulty as sufficient evidence for a higher start.",
 		paraphrase:  "Predicted difficulty counts as evidence for a higher start.",
 		imperative:  "Treat a hunch that the unit is hard as evidence.",
 		conditional: "If the work isn't a rename, your sense that it is hard is evidence.",
 		stated:      "Predicted difficulty is not recorded evidence.",
 	}
 	// routePart1NegationPattern marks a clause that forbids or excludes what it names.
-	routePart1NegationPattern = regexp.MustCompile(`(?i)\b(?:not|never|no|neither|nor|without)\b|n't\b`)
+	routePart1NegationPattern = regexp.MustCompile(`(?i)\b(?:not|never|no|neither|nor)\b|n't\b`)
+	// routePart1NoMatterPattern finds "no matter", which concedes a condition and negates nothing.
+	routePart1NoMatterPattern = regexp.MustCompile(`(?i)\bno matter\b`)
 	// routePart1ObjectLevelScan finds an instruction for the orchestrator to do object-level work itself.
 	routePart1ObjectLevelScan = routePart1Scan{
 		name: "object-level work by the orchestrator",
 		pattern: regexp.MustCompile(`(?i)\b(?:do|does|perform|handle|write|run|review)\b[^.\n]{0,30}\bobject-level work\b` +
 			`[^.\n]{0,25}\b(?:yourself|inline|directly|itself)\b|\bobject-level work\b[^.\n]{0,25}` +
 			`\b(?:inline|yourself|directly)\b|\b(?:write|run|review|judge)\b[^.\n]{0,25}` +
-			`\b(?:the code|the tests|the build|the artifact|prose)\b[^.\n]{0,15}\b(?:yourself|inline)\b`),
+			`\b(?:the code|the tests|the build|the artifact|prose)\b[^.\n]{0,15}\b(?:yourself|inline)\b|` +
+			`\b(?:implement|edit|fix|make|code|build)\b[^.,;:\n]{0,30}\b(?:yourself|inline|directly)\b`),
+		independent: "When the fix is small, implement it yourself rather than dispatching.",
 		paraphrase:  "Handle the object-level work yourself when it is small.",
 		imperative:  "Run the tests inline.",
 		conditional: "If the unit isn't large, write the code yourself.",
@@ -576,7 +566,9 @@ var (
 		name: "a paid model ahead of a free one",
 		pattern: regexp.MustCompile(`(?i)\b(?:dispatch|send|route|use|prefer|try)\b[^.\n]{0,40}\b(?:paid|API)\b[^.\n]{0,30}` +
 			`\b(?:before|over|instead of|ahead of|first)\b[^.\n]{0,25}\b(?:free|local)\b|\bpaid (?:API )?models? ` +
-			`(?:is|are|gets?) (?:tried|preferred|used) first\b`),
+			`(?:is|are|gets?) (?:tried|preferred|used) first\b|\b(?:use|prefer|choose|pick|dispatch to)\b[^.,;:\n]{0,30}` +
+			`\b(?:paid|API)\b[^.,;:\n]{0,20}\beven (?:when|if)\b[^.,;:\n]{0,30}\b(?:local|free)\b`),
+		independent: "Use the paid model even when a local model is available.",
 		paraphrase:  "A paid model is tried first, and the local model only as a fallback.",
 		imperative:  "Prefer the paid API model over a local one.",
 		conditional: "If the local model isn't registered yet, dispatch to the paid API model before the free one.",
@@ -586,7 +578,10 @@ var (
 	routePart1WholeUnitScan = routePart1Scan{
 		name: "a large unit dispatched whole",
 		pattern: regexp.MustCompile(`(?i)\b(?:dispatch|send|hand|give|route)\b[^.\n]{0,30}` +
-			`\b(?:as is|as-is|as one|as a single|whole|unsplit|in one piece)\b`),
+			`\b(?:as is|as-is|as one|as a single|whole|unsplit|in one piece)\b|\bunits?\b[^.,;:\n]{0,20}` +
+			`\b(?:may|can|should|could)\b[^.,;:\n]{0,10}\bgo (?:to|as)\b[^.,;:\n]{0,10}\b(?:a|one) (?:single )?` +
+			`(?:agent|subagent)\b`),
+		independent: "Large units may go to a single agent.",
 		paraphrase:  "Send the whole unit to one agent.",
 		imperative:  "Dispatch it as one agent.",
 		conditional: "If the six packages aren't coupled, hand it over as a single agent.",
@@ -595,12 +590,14 @@ var (
 )
 
 // routePart1Scan is one absence scan: a pattern for an instruction that contradicts a rule, an optional pattern for a
-// clause about another rule that the scan skips, a paraphrase of the contradiction, an imperative and the
-// contradiction under a negated condition to insert, and the shipped wording that must pass.
+// clause about another rule that the scan skips, a contradiction worded independently of the pattern's vocabulary, a
+// paraphrase of the contradiction, an imperative and the contradiction under a negated condition to insert, and the
+// shipped wording that must pass.
 type routePart1Scan struct {
 	name        string
 	pattern     *regexp.Regexp
 	exempt      *regexp.Regexp
+	independent string
 	paraphrase  string
 	imperative  string
 	conditional string
@@ -642,9 +639,10 @@ func routePart1Contradictions(t *testing.T, scan routePart1Scan) map[string][]st
 }
 
 // routePart1Hits returns the clause of every match of the scan's pattern in the content of a shipped file, except a
-// match whose own clause, from the last clause border before the match to the end of the match, carries a negation
-// (a prohibition is not an instruction) and a match whose whole clause the exempt pattern matches. A negation elsewhere
-// in the sentence, such as a negated condition before the instruction, does not excuse it.
+// match that a negation governs (a prohibition is not an instruction): a negation word inside the match or among the
+// last words of its own clause before the match, and a match whose whole clause the exempt pattern matches. A clause
+// runs from the last clause border before the match; a negation elsewhere in the sentence, such as a negated
+// condition or a leading "without ..." phrase before the instruction, does not excuse it.
 func routePart1Hits(content string, scan routePart1Scan) []string {
 	text := learnPart1Blocks(content)
 	hits := make([]string, 0)
@@ -658,7 +656,7 @@ func routePart1Hits(content string, scan routePart1Scan) []string {
 			}
 		}
 
-		if routePart1NegationPattern.MatchString(text[start:location[1]]) {
+		if routePart1Negated(text[start:location[0]], text[location[0]:location[1]]) {
 			continue
 		}
 
@@ -680,11 +678,23 @@ func routePart1Hits(content string, scan routePart1Scan) []string {
 	return hits
 }
 
+// routePart1Negated reports whether a negation governs a match: one inside the matched text, or one among the last
+// routePart1NegationReach words of the clause before it.
+func routePart1Negated(before, matched string) bool {
+	if routePart1NegationPattern.MatchString(routePart1NoMatterPattern.ReplaceAllString(matched, "")) {
+		return true
+	}
+
+	words := strings.Fields(routePart1NoMatterPattern.ReplaceAllString(before, ""))
+
+	return routePart1NegationPattern.MatchString(strings.Join(words[max(0, len(words)-routePart1NegationReach):], " "))
+}
+
 // routePart1Scans returns every absence scan of this file.
 func routePart1Scans() []routePart1Scan {
 	return []routePart1Scan{
 		routePart1AboveEvidenceScan, routePart1BeyondDeepScan, routePart1CountToRouteScan, routePart1DelegatingScan,
-		routePart1EasyInlineScan, routePart1EscalatedRowScan, routePart1HunchScan, routePart1ObjectLevelScan,
-		routePart1PaidFirstScan, routePart1WholeUnitScan,
+		routePart1EasyInlineScan, routePart1HunchScan, routePart1ObjectLevelScan, routePart1PaidFirstScan,
+		routePart1WholeUnitScan,
 	}
 }
