@@ -946,7 +946,7 @@ Status: Ready
 
 #### 861c2zk Subprocess Runner (default)
 
-Status: Ready
+Status: In progress: 0/1 entries complete (1 rows Green-single)
 
 - Owner file: [Subprocess Runner](../../specs/technical/subprocess-runner.md) (technical component).
 - Package: `cmd/engram`; suggested test file: `cmd/engram/subprocess_runner_scenarios_test.go`.
@@ -957,7 +957,7 @@ Status: Ready
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zk1 | [792b4c4a6 The program shares the caller's streams](../../specs/technical/subprocess-runner.md#792b4c4a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2zk1 | [792b4c4a6 The program shares the caller's streams](../../specs/technical/subprocess-runner.md#792b4c4a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b4c4a6_SpawnPrimitives_ProgramSharesCallerStreams (subprocess_runner_scenarios_test.go), green in logs/b17/861c2zk/2-pass.log and 4-whole.log; the test binary re-runs itself as the caller (TestSpawnPrimitives_RunInheritedHelperProcess) with pipes for its streams, so no process-global os.Stdin/Stdout/Stderr is swapped; mutation (main.go spawnPrimitives passes nil as the child's stdin) fails it at the stdout Then, 3-mut-stdin.log | Green-single |
 
 #### 861c2zl Memory Query, part 1 (default)
 
