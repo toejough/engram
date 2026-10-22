@@ -353,9 +353,7 @@ func Test792a11d1a_Update_ALocalInstallReportsItsRevision(t *testing.T) {
 
 	g := NewWithT(t)
 
-	const home = "/home/joe"
-
-	machine := iu1LocalMachine(home, home+"/src/engram", home+"/src/engram")
+	machine := iu1LocalMachine(iu1Home, iu1Home+"/src/engram", iu1Home+"/src/engram")
 
 	outcome := machine.run(t, cli.UpdateArgs{})
 	g.Expect(outcome.err).NotTo(HaveOccurred())
