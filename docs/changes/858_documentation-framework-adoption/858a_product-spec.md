@@ -127,7 +127,7 @@ Desired result:
 
 - Beneficiary: pending [858d9 Q1 Who is the beneficiary of these outcomes?](./858d_questions-and-decisions.md#questions-and-decisions) (the user of memory).
 - Intended change: in the session the user can see what memory delivered, wrote, left out or failed to do, and why; from real use and honest measurement the user can tell whether memory is helping.
-- Scope: user-visible activity and the audit of real transcripts; whether benchmark measurement is product or maintainer tooling is [858d15 Q7 Is measuring memory's value part of the product?](./858d_questions-and-decisions.md#questions-and-decisions). A memory system whose purpose is to grade itself is excluded (NG-19, [858d40 NG-19: a memory system whose purpose is to grade itself or answer questions about itself](./858d_questions-and-decisions.md#questions-and-decisions)).
+- Scope: user-visible activity and the audit of real transcripts; benchmark measurement is maintainer tooling, decided in [858d15 Q7 Is measuring memory's value part of the product?](./858d_questions-and-decisions.md#questions-and-decisions). A memory system whose purpose is to grade itself is excluded (NG-19, [858d40 NG-19: a memory system whose purpose is to grade itself or answer questions about itself](./858d_questions-and-decisions.md#questions-and-decisions)).
 - External assumptions: the user reads the session; the audit reads real transcripts.
 
 Success criteria (software promises; low confidence; deliberately no thresholds, dev/eval/audit/re-measure-plan.md:40-41):
@@ -140,7 +140,7 @@ Evidence: s:7bc2f2bd@10-11T20:07Z, s:7bc2f2bd@10-16T03:01Z, c:a19e7b75#turn-9 (~
 
 Confidence: medium.
 
-Recommendation (synthesis): ratify as written; ruling on measurement with [858d15 Q7 Is measuring memory's value part of the product?](./858d_questions-and-decisions.md#questions-and-decisions).
+Recommendation (synthesis): ratify as written; measurement ruled in [858d15 Q7 Is measuring memory's value part of the product?](./858d_questions-and-decisions.md#questions-and-decisions).
 
 Contributing capabilities: [Automatic Memory](../../specs/product/automatic-memory.md), [Controlled Vocabulary](../../specs/product/controlled-vocabulary.md), [Vault Health](../../specs/product/vault-health.md), [Vault Counting](../../specs/product/vault-counting.md).
 
