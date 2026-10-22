@@ -219,6 +219,46 @@ Scenario: 855d4j1h A carry that is not of depth deep writes nothing
   When the writing is given the reply
   Then nothing is written or amended, and one record, of the kind skipped, says why
 
+Scenario: 861b4zzze1a A supersession is read as a file name, an object or a list
+  Given a carry of depth deep that holds a note, and a reply with a fact lesson whose supersession is, in turn, the note's file name beside the type and the claim of the lesson, an object that holds the note, the type and the claim, and a list of that object
+  When the reply is read
+  Then the lesson ties the note with the type and the claim, for each of the three
+
+Scenario: 861b4zzze1b A lesson that cannot be read, and has no slug, is left out by its place
+  Given a reply with a lesson that has no slug and whose chunks are a string, before a lesson that is whole
+  When the reply is read
+  Then the whole lesson is read, and the other is left out with a reason that names its place in the list
+
+Scenario: 861b4zzze1c A list of names is the ties of those notes
+  Given a carry that holds a note, and a reply with a fact lesson whose supersession is a list of the note's file name, beside a type and a claim
+  When the reply is read
+  Then the lesson ties the note with the type and the claim
+
+Scenario: 861b4zzze1d A near note is revised by the fields of its kind
+  Given a carry that holds a note, in turn a fact, a feedback and a runbook, and a reply that gives it the verdict near with a field its kind has and a field its kind has not
+  When the reply is read
+  Then the note is amended with the field its kind has, and the field its kind has not is left out and recorded as skipped
+
+Scenario: 861b4zzze1e A reply that is not an object writes nothing and says why
+  Given a reply that is a list
+  When the reply is read
+  Then no lesson is read and no note is amended, and one record, of the kind skipped, says why
+
+Scenario: 861b4zzze1f A reply with no candidates, or cut short, is no deep reply
+  Given a reply that is an object with no candidates, and a reply cut in the middle of an entry
+  When each reply is read
+  Then nothing is read from either, and one record, of the kind skipped, says why for each
+
+Scenario: 861b4zzze1g A runbook lesson is left out and said so
+  Given a reply with a lesson of the kind runbook
+  When the reply is read
+  Then the lesson is not read, and one record, of the kind skipped, names it by its slug and says that a deep delivery writes facts and feedback only
+
+Scenario: 861b4zzze1h A supersession named without its extension, or with spaces, is stored under the note's ID
+  Given a carry that holds a note, and a reply with a fact lesson whose supersession names the note without the extension of its file and with spaces around the name
+  When the reply is read
+  Then the lesson ties the note by its file name in the carry, with the type and the claim
+
 Scenario: 861b4zzzf1a An amend and a learn path that fail are recorded as failed, and a lesson the vault states is skipped
   Given a carry of depth deep that holds a note and a passage, and a reply that gives the note the verdict covered and lists the passage, and holds a lesson the note covers and a whole lesson no note covers, and an amend and a learn path that both fail
   When the writing is given the reply

@@ -133,6 +133,56 @@ Scenario: 792b11c7a5 Unrelated content is skipped
   Then neither fails nor changes, and a read error is returned
 ```
 
+## 861b4zzze Added: Lesson Writing scenarios
+
+Operations a test finds necessary in existing specs are applied in place ([861d6 A new test that fails at baseline](./861d_questions-and-decisions.md#questions-and-decisions)); the one below is applied in [Lesson Writing](../../specs/technical/lesson-writing.md) in the commit that records it.
+
+### 861b4zzze1 Added: The reading of the reply of a deep delivery
+
+Target: [855d4j1 Scenarios](../../specs/technical/lesson-writing.md#855d4j1-scenarios), after [855d4j1h A carry that is not of depth deep writes nothing](../../specs/technical/lesson-writing.md#855d4j1-scenarios). The eight tests of `internal/auto/deep_test.go` that named the group without a scenario of it verify what `auto.ReadDeep` reads from a reply, before any note is written; the seven scenarios of the group are those of the write ([861d322 The eight Test855d4j1_ReadDeep functions verify the reading of a deep reply, not a scenario of the write](./861d_questions-and-decisions.md#questions-and-decisions)).
+
+```gherkin
+Scenario: 861b4zzze1a A supersession is read as a file name, an object or a list
+  Given a carry of depth deep that holds a note, and a reply with a fact lesson whose supersession is, in turn, the note's file name beside the type and the claim of the lesson, an object that holds the note, the type and the claim, and a list of that object
+  When the reply is read
+  Then the lesson ties the note with the type and the claim, for each of the three
+
+Scenario: 861b4zzze1b A lesson that cannot be read, and has no slug, is left out by its place
+  Given a reply with a lesson that has no slug and whose chunks are a string, before a lesson that is whole
+  When the reply is read
+  Then the whole lesson is read, and the other is left out with a reason that names its place in the list
+
+Scenario: 861b4zzze1c A list of names is the ties of those notes
+  Given a carry that holds a note, and a reply with a fact lesson whose supersession is a list of the note's file name, beside a type and a claim
+  When the reply is read
+  Then the lesson ties the note with the type and the claim
+
+Scenario: 861b4zzze1d A near note is revised by the fields of its kind
+  Given a carry that holds a note, in turn a fact, a feedback and a runbook, and a reply that gives it the verdict near with a field its kind has and a field its kind has not
+  When the reply is read
+  Then the note is amended with the field its kind has, and the field its kind has not is left out and recorded as skipped
+
+Scenario: 861b4zzze1e A reply that is not an object writes nothing and says why
+  Given a reply that is a list
+  When the reply is read
+  Then no lesson is read and no note is amended, and one record, of the kind skipped, says why
+
+Scenario: 861b4zzze1f A reply with no candidates, or cut short, is no deep reply
+  Given a reply that is an object with no candidates, and a reply cut in the middle of an entry
+  When each reply is read
+  Then nothing is read from either, and one record, of the kind skipped, says why for each
+
+Scenario: 861b4zzze1g A runbook lesson is left out and said so
+  Given a reply with a lesson of the kind runbook
+  When the reply is read
+  Then the lesson is not read, and one record, of the kind skipped, names it by its slug and says that a deep delivery writes facts and feedback only
+
+Scenario: 861b4zzze1h A supersession named without its extension, or with spaces, is stored under the note's ID
+  Given a carry that holds a note, and a reply with a fact lesson whose supersession names the note without the extension of its file and with spaces around the name
+  When the reply is read
+  Then the lesson ties the note by its file name in the carry, with the type and the claim
+```
+
 ## 861b4zzzf Added: Lesson Writing scenarios
 
 Operations a test finds necessary in existing specs are applied in place ([861d6 A new test that fails at baseline](./861d_questions-and-decisions.md#questions-and-decisions)); the one below is applied in [Lesson Writing](../../specs/technical/lesson-writing.md) in the commit that records it. The two tests of `internal/cli/auto_write_deep_test.go` that named the group ID without a scenario letter each verify more than one scenario of the group, or a rule none states ([861d327 The first Test855d4j1_ function of internal/cli verifies a deep delivery's failures](./861d_questions-and-decisions.md#questions-and-decisions), [861d328 The second Test855d4j1_ function of internal/cli verifies a rule over the reply](./861d_questions-and-decisions.md#questions-and-decisions)).
