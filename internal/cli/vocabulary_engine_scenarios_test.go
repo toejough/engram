@@ -48,61 +48,65 @@ func Test792b20c10a5_VocabularyEngine_BadSeedFailsBeforeTheLock(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		g := NewWithT(t)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-		var lockCalls, writes int
+			g := NewWithT(t)
 
-		deps := cli.VocabDeps{
-			Lock: func(string) (func(), error) {
-				lockCalls++
+			var lockCalls, writes int
 
-				return func() {}, nil
-			},
-			ListMD: func(string) ([]string, error) { return []string{"1aa.note-a.md"}, nil },
-			ReadFile: func(path string) ([]byte, error) {
-				if path == seedPath && tc.readErr != nil {
-					return nil, tc.readErr
-				}
+			deps := cli.VocabDeps{
+				Lock: func(string) (func(), error) {
+					lockCalls++
 
-				if path == seedPath {
-					return []byte(tc.seed), nil
-				}
+					return func() {}, nil
+				},
+				ListMD: func(string) ([]string, error) { return []string{"1aa.note-a.md"}, nil },
+				ReadFile: func(path string) ([]byte, error) {
+					if path == seedPath && tc.readErr != nil {
+						return nil, tc.readErr
+					}
 
-				return nil, &testNotFoundError{path: path}
-			},
-			WriteFile: func(string, []byte) error {
-				writes++
+					if path == seedPath {
+						return []byte(tc.seed), nil
+					}
 
-				return nil
-			},
-			WriteSidecar: func(string, []byte) error {
-				writes++
+					return nil, &testNotFoundError{path: path}
+				},
+				WriteFile: func(string, []byte) error {
+					writes++
 
-				return nil
-			},
-			DeleteFile: func(string) error {
-				writes++
+					return nil
+				},
+				WriteSidecar: func(string, []byte) error {
+					writes++
 
-				return nil
-			},
-			LogWarning: func(string, ...any) {},
-			Now:        func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-		}
+					return nil
+				},
+				DeleteFile: func(string) error {
+					writes++
 
-		var stdout strings.Builder
+					return nil
+				},
+				LogWarning: func(string, ...any) {},
+				Now:        func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+			}
 
-		err := cli.RunVocabBootstrap(t.Context(), cli.VocabBootstrapArgs{Vault: vaultPath, SeedFile: seedPath},
-			deps, &stdout)
+			var stdout strings.Builder
 
-		g.Expect(err).To(MatchError(ContainSubstring(tc.wantText)), tc.name+": the error must name the problem")
+			err := cli.RunVocabBootstrap(t.Context(), cli.VocabBootstrapArgs{Vault: vaultPath, SeedFile: seedPath},
+				deps, &stdout)
 
-		if tc.readErr != nil {
-			g.Expect(err).To(MatchError(tc.readErr), tc.name+": the read failure must be wrapped")
-		}
+			g.Expect(err).To(MatchError(ContainSubstring(tc.wantText)), tc.name+": the error must name the problem")
 
-		g.Expect(lockCalls).To(Equal(0), tc.name+": the vault lock must not be taken")
-		g.Expect(writes).To(Equal(0), tc.name+": nothing may be written")
-		g.Expect(stdout.String()).To(BeEmpty(), tc.name+": nothing may be reported as done")
+			if tc.readErr != nil {
+				g.Expect(err).To(MatchError(tc.readErr), tc.name+": the read failure must be wrapped")
+			}
+
+			g.Expect(lockCalls).To(Equal(0), tc.name+": the vault lock must not be taken")
+			g.Expect(writes).To(Equal(0), tc.name+": nothing may be written")
+			g.Expect(stdout.String()).To(BeEmpty(), tc.name+": nothing may be reported as done")
+		})
 	}
 }
 
