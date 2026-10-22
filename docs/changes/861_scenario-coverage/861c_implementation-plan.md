@@ -881,8 +881,8 @@ Status: In progress: 0/2 entries complete (2 rows Green-single)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zf1 | [792b16c1a3 Text before the first heading is the preamble](../../specs/technical/source-chunking.md#792b16c1a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b16c1a3_SourceChunking_TextBeforeFirstHeadingIsPreamble (source_chunking_scenarios_test.go); mutation anchor := "" in chunk.go Markdown fails it at the anchor Then (mut2.log) | Green-single |
-| 861c2zf2 | [792b16c4a2 A tiny section yields nothing](../../specs/technical/source-chunking.md#792b16c4a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b16c4a2_SourceChunking_TinySectionYieldsNothing (source_chunking_scenarios_test.go); mutation noise-floor test `|| true` in Markdown flush fails it at BeEmpty (mut1.log) | Green-single |
+| 861c2zf1 | [792b16c1a3 Text before the first heading is the preamble](../../specs/technical/source-chunking.md#792b16c1a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b16c1a3_SourceChunking_TextBeforeFirstHeadingIsPreamble (source_chunking_scenarios_test.go), green in logs/b16/861c2zf/1.log and 2.log (scoped); Mutation: chunk.go:28, `anchor := ""`, fails it at :30, the first-chunk anchor Then (logs/b16/861c2zf/mut2.log, run before reorder-decls, where the line reads :32) | Green-single |
+| 861c2zf2 | [792b16c4a2 A tiny section yields nothing](../../specs/technical/source-chunking.md#792b16c4a-scenarios) | Example | Fixed inputs, one exact outcome. Test792b16c4a2_SourceChunking_TinySectionYieldsNothing (source_chunking_scenarios_test.go), green in logs/b16/861c2zf/1.log and 2.log (scoped); Mutation: chunk.go:33, noise floor `len(text) >= minChunkChars || true`, fails it at :42, the BeEmpty Then (logs/b16/861c2zf/mut1.log, run before reorder-decls, where the line reads :44) | Green-single |
 
 #### 861c2zg Vault Write Lock (default)
 
