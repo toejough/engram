@@ -341,15 +341,15 @@ func Test792a6r1a_VocabRefit_ThePlanFlowIsGone(t *testing.T) {
 }
 
 // Test792a6s1a_LearnFact_GrowthMarksARefitPending verifies 792a6s1a (controlled-vocabulary.md:510): over a vault whose
-// refit baseline is 100 notes 20 days ago, now holding 149 notes, engram learn fact makes 150 and engram vocab stats
-// reports "verdict: REFIT_PENDING (growth: 50 notes, 20 days)".
+// refit baseline is 100 notes 20 days ago, now holding 150 notes, engram learn fact makes 151 and engram vocab stats
+// reports "verdict: REFIT_PENDING (growth: 51 notes, 20 days)".
 func Test792a6s1a_LearnFact_GrowthMarksARefitPending(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	// Given a vault whose refit baseline is 100 notes 20 days ago, now holding 149 notes
-	vault := newCV2GrowthVault(g, cv2BaselineNotes, cv2BaselineNotes+cv2PendingGrowth-1, cv2PendingDays)
+	// Given a vault whose refit baseline is 100 notes 20 days ago, now holding 150 notes
+	vault := newCV2GrowthVault(g, cv2BaselineNotes, cv2BaselineNotes+cv2PendingGrowth, cv2PendingDays)
 	g.Expect(vault.run("vocab", "stats").stdout).To(ContainSubstring("verdict: OK\n"))
 
 	// When the user runs engram learn fact
@@ -358,19 +358,19 @@ func Test792a6s1a_LearnFact_GrowthMarksARefitPending(t *testing.T) {
 
 	// Then engram vocab stats reports the pending refit with the growth and the days
 	stats := vault.run("vocab", "stats").stdout
-	g.Expect(stats).To(ContainSubstring("verdict: REFIT_PENDING (growth: 50 notes, 20 days)\n"))
+	g.Expect(stats).To(ContainSubstring("verdict: REFIT_PENDING (growth: 51 notes, 20 days)\n"))
 }
 
 // Test792a6s1b_LearnFact_GrowthWithoutEnoughTimeDoesNotTrigger verifies 792a6s1b (controlled-vocabulary.md:515): over
-// a vault whose refit baseline is 100 notes 5 days ago, now holding 149 notes, engram learn fact makes 150 and engram
+// a vault whose refit baseline is 100 notes 5 days ago, now holding 150 notes, engram learn fact makes 151 and engram
 // vocab stats reports verdict: OK.
 func Test792a6s1b_LearnFact_GrowthWithoutEnoughTimeDoesNotTrigger(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	// Given a vault whose refit baseline is 100 notes 5 days ago, now holding 149 notes
-	vault := newCV2GrowthVault(g, cv2BaselineNotes, cv2BaselineNotes+cv2PendingGrowth-1, cv2TooSoonDays)
+	// Given a vault whose refit baseline is 100 notes 5 days ago, now holding 150 notes
+	vault := newCV2GrowthVault(g, cv2BaselineNotes, cv2BaselineNotes+cv2PendingGrowth, cv2TooSoonDays)
 
 	// When the user runs engram learn fact
 	result := vault.learnFact("growth-last", cv1BuildSituations[0])
@@ -611,7 +611,8 @@ const (
 	cv2NewCluster = 1
 	// cv2PendingDays is the days since the baseline that arm the growth trigger (14 or more).
 	cv2PendingDays = 20
-	// cv2PendingGrowth is the growth since the baseline that arms the growth trigger (40 or more) in the scenarios.
+	// cv2PendingGrowth is the growth of the existing notes since the baseline; the write under test adds one more, and
+	// the growth trigger arms at 40 or more.
 	cv2PendingGrowth = 50
 	// cv2ShortVaultBaseline and cv2ShortVaultNotes make a growth of 45 notes: the baseline of 6 notes, 50 notes and one
 	// more write.
@@ -768,6 +769,8 @@ func newCV2GrowthVault(g *WithT, baselineNotes, existing, daysAgo int) *cv1Vault
 
 		if index+1 == baselineNotes {
 			seed, err := yaml.Marshal([]cli.SeedTerm{cv1BuildTooling})
+			g.Expect(err).NotTo(HaveOccurred())
+
 			if err != nil {
 				return vault
 			}
