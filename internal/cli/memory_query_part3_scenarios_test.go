@@ -425,33 +425,43 @@ func Test792a7r1b_RunQuery_ALongChunkIsCutWithAnEllipsis(t *testing.T) {
 	g.Expect(payload.Items[0].Content).To(Equal("the highest ranked chunk"), "the first chunk keeps its content")
 }
 
-// Test792a7r1c_RunQuery_NotesAreNeverReduced verifies 792a7r1c (Notes are never reduced): of a payload with a
-// note and chunks beyond the budget, a content budget of 1 leaves the note its full content.
+// Test792a7r1c_RunQuery_NotesAreNeverReduced verifies 792a7r1c (Notes are never reduced): of a payload with notes
+// and chunks beyond the budget, a content budget of 1 leaves every note its full content. The payload lists the
+// notes before the chunks, so a budget of 1 reaches the second note only if notes were counted as chunks.
 func Test792a7r1c_RunQuery_NotesAreNeverReduced(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
 	const (
-		phrase   = "the phrase"
-		noteName = "1.long-note"
-		budget   = 1
+		phrase     = "the phrase"
+		firstNote  = "1.long-note"
+		secondNote = "2.long-note"
+		budget     = 1
+		secondStep = 0.05
 	)
 
 	// A body of two paragraphs, each far over 160 characters: a snippet would be one line of 160.
 	body := mq3WordsOfLength(250) + "\n\n" + mq3WordsOfLength(250)
 
 	world := newMq1World(mq1SmallDims, phrase)
-	vec := world.cosines(map[int]float64{0: mq1Strong})
-	world.plant(mq1Note{name: noteName, content: mq1FactContent(body), situation: vec, body: vec})
+
+	for index, name := range []string{firstNote, secondNote} {
+		vec := world.cosines(map[int]float64{0: mq1Strong - secondStep*float64(index)})
+		world.plant(mq1Note{name: name, content: mq1FactContent(body), situation: vec, body: vec})
+	}
+
 	world.chunks = mq3RankedChunks(world, []string{"chunk three", "chunk two", "chunk one"})
 
 	payload := mq3Run(t, world, cli.QueryArgs{ContentBudget: budget}).payload
 
-	note, found := payload.find(noteName + ".md")
-	g.Expect(found).To(BeTrue())
-	g.Expect(note.Content).To(ContainSubstring(body), "the note keeps its full content")
-	g.Expect(note.Content).NotTo(ContainSubstring("…"))
+	for _, name := range []string{firstNote, secondNote} {
+		note, found := payload.find(name + ".md")
+		g.Expect(found).To(BeTrue(), name)
+		g.Expect(note.Content).To(ContainSubstring(body), name+" keeps its full content")
+		g.Expect(note.Content).NotTo(ContainSubstring("…"), name)
+	}
+
 	g.Expect(payload.Budget.ChunksSnippeted).To(Equal(2), "the chunks beyond the budget are the ones reduced")
 }
 
