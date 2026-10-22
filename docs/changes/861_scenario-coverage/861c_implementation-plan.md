@@ -2038,7 +2038,7 @@ Status: Ready
 
 #### 861c2zzr Vault Health, part 1 (default)
 
-Status: Ready
+Status: In progress: 0/24 entries complete (24 rows Green-single)
 
 - Owner file: [Vault Health](../../specs/product/vault-health.md) (product capability).
 - Package: `internal/cli`; suggested test file: `internal/cli/vault_health_part1_scenarios_test.go`.
@@ -2048,30 +2048,30 @@ Status: Ready
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zzr1 | [792a9a1a A clean vault passes](../../specs/product/vault-health.md#792a9a1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr2 | [792a9a1b A FAIL line fails the command](../../specs/product/vault-health.md#792a9a1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr3 | [792a9a1c A WARN line does not fail the command](../../specs/product/vault-health.md#792a9a1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr4 | [792a9a1d Offenders are capped at ten](../../specs/product/vault-health.md#792a9a1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr5 | [792a9a1e An unreadable note stops the check](../../specs/product/vault-health.md#792a9a1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr6 | [792a9a1g A note that is not valid UTF-8 is still checked](../../specs/product/vault-health.md#792a9a1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr7 | [792a9b1a A bare-ID link fails](../../specs/product/vault-health.md#792a9b1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr8 | [792a9b1b A basename link passes](../../specs/product/vault-health.md#792a9b1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr9 | [792a9b1c A legacy suffixed link resolves](../../specs/product/vault-health.md#792a9b1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr10 | [792a9c1a A link to a missing note warns](../../specs/product/vault-health.md#792a9c1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr11 | [792a9c1b A missing note is reported once however it is spelled](../../specs/product/vault-health.md#792a9c1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr12 | [792a9c1c A note's link to itself is not reported](../../specs/product/vault-health.md#792a9c1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr13 | [792a9c1d A link inside a fenced code block is not reported](../../specs/product/vault-health.md#792a9c1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr14 | [792a9c1e A vault with no dangling link prints no G3 line](../../specs/product/vault-health.md#792a9c1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr15 | [792a9d1a A fact without a situation fails](../../specs/product/vault-health.md#792a9d1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr16 | [792a9d1b A blank situation fails](../../specs/product/vault-health.md#792a9d1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr17 | [792a9d1c Every situation present passes](../../specs/product/vault-health.md#792a9d1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr18 | [792a9d1d Other note types are not judged](../../specs/product/vault-health.md#792a9d1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr19 | [792a9d1e A note without usable frontmatter is not judged](../../specs/product/vault-health.md#792a9d1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr20 | [792a9d1f A CRLF note is judged](../../specs/product/vault-health.md#792a9d1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr21 | [792a9e1a An old-schema sidecar fails](../../specs/product/vault-health.md#792a9e1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr22 | [792a9e1b A malformed sidecar fails](../../specs/product/vault-health.md#792a9e1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr23 | [792a9e1c A current sidecar passes](../../specs/product/vault-health.md#792a9e1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zzr24 | [792a9e1d A missing sidecar warns](../../specs/product/vault-health.md#792a9e1-uat-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2zzr1 | [792a9a1a A clean vault passes](../../specs/product/vault-health.md#792a9a1-uat-scenarios) | Example | `Test792a9a1a_Targets_CheckACleanVaultPrintsThreePassLines` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; mutation killed it (2-mutation.log) | Green-single |
+| 861c2zzr2 | [792a9a1b A FAIL line fails the command](../../specs/product/vault-health.md#792a9a1-uat-scenarios) | Example | `Test792a9a1b_Targets_CheckAFailLineFailsTheCommand` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; baseline pass only | Green-single |
+| 861c2zzr3 | [792a9a1c A WARN line does not fail the command](../../specs/product/vault-health.md#792a9a1-uat-scenarios) | Example | `Test792a9a1c_Targets_CheckAWarnLineDoesNotFailTheCommand` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; baseline pass only | Green-single |
+| 861c2zzr4 | [792a9a1d Offenders are capped at ten](../../specs/product/vault-health.md#792a9a1-uat-scenarios) | Example | `Test792a9a1d_Targets_CheckOffendersAreCappedAtTen` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; baseline pass only | Green-single |
+| 861c2zzr5 | [792a9a1e An unreadable note stops the check](../../specs/product/vault-health.md#792a9a1-uat-scenarios) | Example | `Test792a9a1e_Targets_CheckAnUnreadableNoteStopsTheCheck` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; baseline pass only | Green-single |
+| 861c2zzr6 | [792a9a1g A note that is not valid UTF-8 is still checked](../../specs/product/vault-health.md#792a9a1-uat-scenarios) | Example | `Test792a9a1g_Targets_CheckANoteThatIsNotValidUTF8IsStillChecked` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; baseline pass only | Green-single |
+| 861c2zzr7 | [792a9b1a A bare-ID link fails](../../specs/product/vault-health.md#792a9b1-uat-scenarios) | Example | `Test792a9b1a_Targets_CheckABareIDLinkFails` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; baseline pass only | Green-single |
+| 861c2zzr8 | [792a9b1b A basename link passes](../../specs/product/vault-health.md#792a9b1-uat-scenarios) | Example | `Test792a9b1b_Targets_CheckABasenameLinkPasses` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; baseline pass only | Green-single |
+| 861c2zzr9 | [792a9b1c A legacy suffixed link resolves](../../specs/product/vault-health.md#792a9b1-uat-scenarios) | Example | `Test792a9b1c_Targets_CheckALegacySuffixedLinkResolves` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; mutation killed it (2-mutation.log) | Green-single |
+| 861c2zzr10 | [792a9c1a A link to a missing note warns](../../specs/product/vault-health.md#792a9c1-uat-scenarios) | Example | `Test792a9c1a_Targets_CheckALinkToAMissingNoteWarns` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; baseline pass only | Green-single |
+| 861c2zzr11 | [792a9c1b A missing note is reported once however it is spelled](../../specs/product/vault-health.md#792a9c1-uat-scenarios) | Example | `Test792a9c1b_Targets_CheckAMissingNoteIsReportedOnceHoweverItIsSpelled` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; baseline pass only | Green-single |
+| 861c2zzr12 | [792a9c1c A note's link to itself is not reported](../../specs/product/vault-health.md#792a9c1-uat-scenarios) | Example | `Test792a9c1c_Targets_CheckANotesLinkToItselfIsNotReported` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; mutation killed it (2-mutation.log) | Green-single |
+| 861c2zzr13 | [792a9c1d A link inside a fenced code block is not reported](../../specs/product/vault-health.md#792a9c1-uat-scenarios) | Example | `Test792a9c1d_Targets_CheckALinkInsideAFencedCodeBlockIsNotReported` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; mutation killed it (2-mutation.log) | Green-single |
+| 861c2zzr14 | [792a9c1e A vault with no dangling link prints no G3 line](../../specs/product/vault-health.md#792a9c1-uat-scenarios) | Example | `Test792a9c1e_Targets_CheckAVaultWithNoDanglingLinkPrintsNoG3Line` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; mutation killed it (2-mutation.log) | Green-single |
+| 861c2zzr15 | [792a9d1a A fact without a situation fails](../../specs/product/vault-health.md#792a9d1-uat-scenarios) | Example | `Test792a9d1a_Targets_CheckAFactWithoutASituationFails` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; baseline pass only | Green-single |
+| 861c2zzr16 | [792a9d1b A blank situation fails](../../specs/product/vault-health.md#792a9d1-uat-scenarios) | Example | `Test792a9d1b_Targets_CheckABlankSituationFails` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; baseline pass only | Green-single |
+| 861c2zzr17 | [792a9d1c Every situation present passes](../../specs/product/vault-health.md#792a9d1-uat-scenarios) | Example | `Test792a9d1c_Targets_CheckEveryPresentSituationPasses` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; baseline pass only | Green-single |
+| 861c2zzr18 | [792a9d1d Other note types are not judged](../../specs/product/vault-health.md#792a9d1-uat-scenarios) | Example | `Test792a9d1d_Targets_CheckOtherNoteTypesAreNotJudged` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; baseline pass only | Green-single |
+| 861c2zzr19 | [792a9d1e A note without usable frontmatter is not judged](../../specs/product/vault-health.md#792a9d1-uat-scenarios) | Example | `Test792a9d1e_Targets_CheckANoteWithoutUsableFrontmatterIsNotJudged` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; baseline pass only | Green-single |
+| 861c2zzr20 | [792a9d1f A CRLF note is judged](../../specs/product/vault-health.md#792a9d1-uat-scenarios) | Example | `Test792a9d1f_Targets_CheckACRLFNoteIsJudged` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; baseline pass only | Green-single |
+| 861c2zzr21 | [792a9e1a An old-schema sidecar fails](../../specs/product/vault-health.md#792a9e1-uat-scenarios) | Example | `Test792a9e1a_Targets_CheckAnOldSchemaSidecarFails` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; baseline pass only | Green-single |
+| 861c2zzr22 | [792a9e1b A malformed sidecar fails](../../specs/product/vault-health.md#792a9e1-uat-scenarios) | Example | `Test792a9e1b_Targets_CheckAMalformedSidecarFails` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; baseline pass only | Green-single |
+| 861c2zzr23 | [792a9e1c A current sidecar passes](../../specs/product/vault-health.md#792a9e1-uat-scenarios) | Example | `Test792a9e1c_Targets_CheckACurrentSidecarPasses` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; mutation killed it (2-mutation.log) | Green-single |
+| 861c2zzr24 | [792a9e1d A missing sidecar warns](../../specs/product/vault-health.md#792a9e1-uat-scenarios) | Example | `Test792a9e1d_Targets_CheckAMissingSidecarWarns` (vault_health_part1_scenarios_test.go; 3-final.log); drives cli.Targets over an in-memory vault; mutation killed it (2-mutation.log) | Green-single |
 
 #### 861c2zzs Vault Health, part 2 (default)
 
