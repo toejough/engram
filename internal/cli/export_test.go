@@ -970,6 +970,15 @@ func ExportNewUpdateDepsWithSpawn(
 	return updateDeps{FS: fs, Cmd: cmd, Env: env, Spawn: spawn, Exit: exit}
 }
 
+// ExportNewUpdateDepsWithSpawnAndIdentity is ExportNewUpdateDepsWithSpawn plus an explicit IdentityDeps, for tests
+// driving `engram update --backfill-identity` through the re-exec hand-off.
+func ExportNewUpdateDepsWithSpawnAndIdentity(
+	fs update.Filesystem, cmd update.Commander, env update.Env, spawn update.Spawner, exit func(int),
+	identity IdentityDeps,
+) updateDeps {
+	return updateDeps{FS: fs, Cmd: cmd, Env: env, Spawn: spawn, Exit: exit, Identity: identity}
+}
+
 // ExportNewUpdateDepsWithSpawnAndReparent is ExportNewUpdateDepsWithSpawn plus an explicit ReparentDeps, for tests
 // observing that a real update without --reparent-luhmann never calls the re-parenting (792b28c10a8).
 func ExportNewUpdateDepsWithSpawnAndReparent(
