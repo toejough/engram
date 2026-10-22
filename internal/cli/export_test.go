@@ -289,6 +289,9 @@ type ExportFeedbackFields = feedbackFields
 // ExportHashComparison aliases hashComparison for cli_test.
 type ExportHashComparison = hashComparison
 
+// ExportLinkedParentNote aliases linkedParentNote so cli_test can wire ActivateDeps.Recheck.
+type ExportLinkedParentNote = linkedParentNote
+
 // ExportMergeClusterRepsCall is a simplified wrapper around mergeClusterReps
 // that takes plain slices instead of unexported types, for whitebox testing.
 // members is a list of (notePath, score, content) tuples.
@@ -765,6 +768,12 @@ func ExportNewIngestDeps(d Deps, emb embed.Embedder) IngestDeps {
 
 // ExportNewLearnDeps exposes the pure Deps→LearnDeps composition for tests.
 func ExportNewLearnDeps(d Deps) LearnDeps { return newLearnDeps(d) }
+
+// ExportNewLinkedParentNote builds the parent note a local hit links to (vault ID and basename), for
+// asserting ActivateDeps.Recheck's argument.
+func ExportNewLinkedParentNote(vault, basename string) linkedParentNote {
+	return linkedParentNote{vault: vault, basename: basename}
+}
 
 // ExportNewNoteResolvedItem builds a note-kind resolvedItem for recency band
 // tests. lastUsed and created are YYYY-MM-DD strings (empty = not set).
