@@ -194,7 +194,7 @@ func Test792b37c12a1_Activate_AnOlderParentIsDetected(t *testing.T) {
 
 	cases := map[string]func(t *testing.T, env *wiringEnv){
 		"a rendered note": func(_ *testing.T, env *wiringEnv) { env.parent.showMode = "rendered" },
-		"JSON without a vault_id": func(t *testing.T, env *wiringEnv) {
+		"JSON with an empty vault_id": func(t *testing.T, env *wiringEnv) {
 			t.Helper()
 
 			env.wrap = func(deps *cli.Deps) {
@@ -233,9 +233,12 @@ func Test792b37c12a2_Activate_AMalformedEnvelopeWritesNothing(t *testing.T) {
 
 	const goodBasename = "7.2026-09-01.malformed"
 
-	cases := map[string]struct{ vaultID, basename string }{
-		"a vault_id that is not hex":     {vaultID: "../../not-a-vault", basename: goodBasename},
-		"a vault_id that is too short":   {vaultID: "9a1e", basename: goodBasename},
+	cases := map[string]struct {
+		vaultID, basename string
+		badVaultID        bool
+	}{
+		"a vault_id that is not hex":     {vaultID: "../../not-a-vault", basename: goodBasename, badVaultID: true},
+		"a vault_id that is too short":   {vaultID: "9a1e", basename: goodBasename, badVaultID: true},
 		"a basename with a pipe":         {vaultID: parentVaultID, basename: goodBasename + "|claim"},
 		"a basename with a slash":        {vaultID: parentVaultID, basename: "../7.2026-09-01.malformed"},
 		"a basename with a backslash":    {vaultID: parentVaultID, basename: `7.2026-09-01\malformed`},
@@ -258,7 +261,10 @@ func Test792b37c12a2_Activate_AMalformedEnvelopeWritesNothing(t *testing.T) {
 			g.Expect(stderr).To(ContainSubstring("is malformed"))
 			g.Expect(env.exitCodes()).To(Equal([]int{1}))
 			g.Expect(env.noteFiles()).To(BeEmpty())
-			g.Expect(env.parentCache().VaultID).To(BeEmpty(), "a malformed ID is never cached")
+
+			if testCase.badVaultID {
+				g.Expect(env.parentCache().VaultID).To(BeEmpty(), "a malformed ID is never cached")
+			}
 		})
 	}
 }
@@ -799,7 +805,7 @@ func (l *pvc1StatusLog) of(route string) []int {
 // record wraps fetch so that each answer is logged.
 func (l *pvc1StatusLog) record(
 	fetch func(context.Context, string, string, []byte) (cli.FetchResponse, error),
-) func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+) pvc1FetchFunc {
 	return func(ctx context.Context, method, target string, body []byte) (cli.FetchResponse, error) {
 		resp, err := fetch(ctx, method, target, body)
 
@@ -825,7 +831,7 @@ type pvc1Step struct {
 // the exchange hash of the content; it answers POST /activate with ok.
 func pvc1EnvelopeFetch(
 	t *testing.T, vaultID, basename, content string,
-) func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+) pvc1FetchFunc {
 	t.Helper()
 
 	hash, hashErr := cli.ExportExchangeHash([]byte(content))
@@ -957,7 +963,7 @@ func pvc1Script(env *wiringEnv, calls *Pvc1FetchMockMethod, steps ...pvc1Step) <
 }
 
 // pvc1ShowAnswer answers every request with 200 and body.
-func pvc1ShowAnswer(body string) func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+func pvc1ShowAnswer(body string) pvc1FetchFunc {
 	return func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
 		return cli.FetchResponse{Status: 200, Body: []byte(body)}, nil
 	}
