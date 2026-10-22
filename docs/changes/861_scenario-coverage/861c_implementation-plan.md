@@ -260,7 +260,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2c Self Installer, part 1 (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: In progress: 0/11 entries complete (11 rows Green-single)
 
 - Owner file: [Self Installer](../../specs/technical/self-installer.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/self_installer_part1_scenarios_test.go`.
@@ -270,17 +270,17 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2c1 | [792b28c10a2 The flags forwarded to the hand-off](../../specs/technical/self-installer.md#792b28c10a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2c2 | [792b28c10a8 A plain update never re-parents](../../specs/technical/self-installer.md#792b28c10a-scenarios) | Interaction | Names a call or its absence at a collaborator ("is not called"); imptest | Not started |
-| 861c2c3 | [792b28c10a9 The help lists every flag](../../specs/technical/self-installer.md#792b28c10a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2c4 | [792b28c11a4 A failed run runs no checks](../../specs/technical/self-installer.md#792b28c11a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2c5 | [792b28c13a7 Notices coexist](../../specs/technical/self-installer.md#792b28c13a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2c6 | [792b28c13a8 The notices follow a fixed order](../../specs/technical/self-installer.md#792b28c13a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2c7 | [792b28c14a2 A dry-run regeneration is phrased as a preview](../../specs/technical/self-installer.md#792b28c14a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2c8 | [792b28c14a3 A regeneration with nothing to do](../../specs/technical/self-installer.md#792b28c14a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2c9 | [792b28c14a5 A dry-run backfill is phrased as a preview](../../specs/technical/self-installer.md#792b28c14a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2c10 | [792b28c14a6 A backfill with nothing to do](../../specs/technical/self-installer.md#792b28c14a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2c11 | [792b28c15a7 A report that cannot be written is an error](../../specs/technical/self-installer.md#792b28c15a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2c1 | [792b28c10a2 The flags forwarded to the hand-off](../../specs/technical/self-installer.md#792b28c10a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b28c10a2_ReexecArgsFrom_ForwardsOnlyTheThreeReexecableFlags (self_installer_part1_scenarios_test.go; the argument builder via ExportReexecArgsFrom and the spawned child via RunUpdate); baseline pass only; run b01/861c2c/2.log | Green-single |
+| 861c2c2 | [792b28c10a8 A plain update never re-parents](../../specs/technical/self-installer.md#792b28c10a-scenarios) | Interaction | Names a call or its absence at a collaborator ("is not called"); imptest; Test792b28c10a8_RunUpdate_PlainUpdate_NeverCallsTheReparenting (self_installer_part1_scenarios_test.go; counting fakes, with a positive control that the flag does call them; impgen cannot mock embed.Embedder, it imports stdlib embed); baseline pass only; run b01/861c2c/2.log | Green-single |
+| 861c2c3 | [792b28c10a9 The help lists every flag](../../specs/technical/self-installer.md#792b28c10a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b28c10a9_Targets_UpdateHelp_ListsEveryFlag (self_installer_part1_scenarios_test.go; targ.Execute of update --help over cli.Targets, no I/O); baseline pass only; run b01/861c2c/2.log | Green-single |
+| 861c2c4 | [792b28c11a4 A failed run runs no checks](../../specs/technical/self-installer.md#792b28c11a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b28c11a4_RunUpdate_FailedRun_RunsNoChecksAndWrapsTheError (self_installer_part1_scenarios_test.go; path spy shows no vault or chunk read, positive control shows the spy sees the checks of a good run); baseline pass only; run b01/861c2c/2.log | Green-single |
+| 861c2c5 | [792b28c13a7 Notices coexist](../../specs/technical/self-installer.md#792b28c13a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b28c13a7_WriteUpdateReport_NoticesCoexist (self_installer_part1_scenarios_test.go); failed under the node mutation (b01/861c2c/mutation.log); run b01/861c2c/2.log | Green-single |
+| 861c2c6 | [792b28c13a8 The notices follow a fixed order](../../specs/technical/self-installer.md#792b28c13a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b28c13a8_WriteUpdateReport_NoticesFollowAFixedOrder (self_installer_part1_scenarios_test.go); failed under the node mutation (b01/861c2c/mutation.log); run b01/861c2c/2.log | Green-single |
+| 861c2c7 | [792b28c14a2 A dry-run regeneration is phrased as a preview](../../specs/technical/self-installer.md#792b28c14a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b28c14a2_WriteUpdateReport_DryRunRegenerationIsAPreview (self_installer_part1_scenarios_test.go; moved out of the 14a1 table); baseline pass only; run b01/861c2c/2.log | Green-single |
+| 861c2c8 | [792b28c14a3 A regeneration with nothing to do](../../specs/technical/self-installer.md#792b28c14a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b28c14a3_WriteUpdateReport_RegenerationWithNothingToDo (self_installer_part1_scenarios_test.go; moved out of the 14a1 table); baseline pass only; run b01/861c2c/2.log | Green-single |
+| 861c2c9 | [792b28c14a5 A dry-run backfill is phrased as a preview](../../specs/technical/self-installer.md#792b28c14a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b28c14a5_WriteUpdateReport_DryRunBackfillIsAPreview (self_installer_part1_scenarios_test.go; moved out of the 14a4 test); baseline pass only; run b01/861c2c/2.log | Green-single |
+| 861c2c10 | [792b28c14a6 A backfill with nothing to do](../../specs/technical/self-installer.md#792b28c14a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b28c14a6_WriteUpdateReport_BackfillWithNothingToDo (self_installer_part1_scenarios_test.go; moved out of the 14a4 test); baseline pass only; run b01/861c2c/2.log | Green-single |
+| 861c2c11 | [792b28c15a7 A report that cannot be written is an error](../../specs/technical/self-installer.md#792b28c15a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b28c15a7_FinishUpdate_AReportThatCannotBeWrittenIsAnError (self_installer_part1_scenarios_test.go); baseline pass only; run b01/861c2c/2.log | Green-single |
 
 #### 861c2d Self Installer, part 2 (default)
 
