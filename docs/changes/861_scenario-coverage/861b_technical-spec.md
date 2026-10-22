@@ -38,6 +38,11 @@ Scenario: 861b2a1c The command line is pinned
   When the developer runs test-pkg with a package path and no --run
   Then go test is run with -count=1, -timeout=2m, -race and that package path, and with no other flag
 
+Scenario: 861b2a1d A failing test fails the target
+  Given a package whose tests fail
+  When the developer runs test-pkg on it
+  Then the target fails with the failure of go test and the developer sees the output of go test
+
 Scenario: 861b2a1e --no-race leaves out the race detector
   Given the development targets
   When the developer runs test-pkg with a package path and --no-race
@@ -47,11 +52,6 @@ Scenario: 861b2a1f --tags runs the package under the build tags
   Given the development targets
   When the developer runs test-pkg with a package path and --tags with a value
   Then go test receives -tags=<value> before the filter and the package path
-
-Scenario: 861b2a1d A failing test fails the target
-  Given a package whose tests fail
-  When the developer runs test-pkg on it
-  Then the target fails with the failure of go test and the developer sees the output of go test
 ```
 
 ## 861b3 Modified: Development-check orchestration component

@@ -85,7 +85,7 @@ Authority: the technical specs (792b) and the rationale under their requirements
 
 - **Use `targ` for all test/lint/check operations** — NEVER run `go test`, `go vet` directly
   - Tests: `targ test`
-  - The tests of one package: `targ test-pkg <package> [--run REGEXP] [--no-race] [--tags TAGS]` (`go test -count=1 -timeout=2m -race`, no build tag; `--no-race` and `--tags` for per-unit runs); the tagged `dev/` tests: `targ test-dev` and `targ test-dev-integration`
+  - The tests of one package: `targ test-pkg <package> [--run REGEXP] [--no-race] [--tags TAGS]` (by default `go test -count=1 -timeout=2m -race`, no build tag); the tagged `dev/` tests: `targ test-dev` and `targ test-dev-integration`
   - Every integration-tagged test of the module: `targ test-integration-all` (`go test -count=1 -timeout=10m -race -tags=targ,integration ./...`, also inside `targ check-full`)
   - The real-model parity tests (build tag `parity`, in no check): `targ test-parity`
   - Lint + coverage: `targ check-full` (needs `node` on the PATH, to parse and run the JavaScript of the mods)

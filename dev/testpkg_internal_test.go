@@ -216,9 +216,9 @@ func TestTestPkg_TheUsageNamesEveryOption(t *testing.T) {
 
 	g := NewWithT(t)
 
-	g.Expect(errTestPkgNoPackage.Error()).To(And(
+	g.Expect(errTestPkgNoPackage).To(MatchError(And(
 		ContainSubstring("--run"), ContainSubstring("--no-race"), ContainSubstring("--tags"),
-	))
+	)))
 }
 
 // unexported variables.
