@@ -181,16 +181,31 @@ func Test792a12k1g_RegisterSkills_APiRootMarkdownSkill(t *testing.T) {
 
 // Test792a12k1h_RegisterSkills_AConfiguredPackageWithAMissingPathContributesNothing verifies 792a12k1h: Pi's
 // settings.json listing a local package path that does not exist makes register-skills scan no skill from it
-// and not fail; the Pi user skill beside it is still offered, so the run carried on.
+// and not fail; the Pi user skill beside it is still offered, so the run carried on. An existing note keyed to
+// the missing package is not offered for removal, because a package that was never scanned proves nothing gone.
 func Test792a12k1h_RegisterSkills_AConfiguredPackageWithAMissingPathContributesNothing(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
+
+	const (
+		goneKey      = "pi-pkg:~/pkgs/gone:lost"
+		goneBasename = "1.2026-09-21.skill-pi-pkg-pkgs-gone-lost"
+		goneSource   = skillRegHome + "/pkgs/gone/skills/lost/SKILL.md"
+	)
 
 	fsys := srr3PiHome().
 		file(srr3PiAgent+"/settings.json", `{"packages": ["~/pkgs/gone"]}`).
 		file(srr3PiAgent+"/skills/ok/SKILL.md", "ok")
 
-	stdout := srr3Preview(g, fsys)
+	vault := newSkillAcceptFixtureVault()
+	vault.put(goneBasename+".md", sourcedSkillNote(offerNote{key: goneKey, hash: "h", source: goneSource}))
+
+	stdout, err := srr1Run(vault, fsys, cli.SkillRegistrationArgs{DryRun: true})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
 
 	g.Expect(srr3Offers(stdout)).To(Equal([]string{
 		srr3Register("pi:ok", srr3PiAgent+"/skills/ok/SKILL.md"),
@@ -250,6 +265,11 @@ func Test792a12l1b_RegisterSkills_ADisabledPluginContributesNothing(t *testing.T
 func Test792a12l1c_RegisterSkills_APluginWithoutAnEnabledPluginsEntryAndWithoutAnInstallPath(t *testing.T) {
 	t.Parallel()
 
+	const (
+		pluginKey      = "p:one"
+		pluginBasename = "1.2026-09-21.skill-p-one"
+	)
+
 	root := srr3PluginRoot("m", "p", "1.0.0")
 
 	cases := []struct {
@@ -275,7 +295,20 @@ func Test792a12l1c_RegisterSkills_APluginWithoutAnEnabledPluginsEntryAndWithoutA
 			writePluginManifestsAt(g, fsys, skillRegHome+"/.claude",
 				[]pluginInstall{{key: "p@m", installPath: root}}, map[string]bool{})
 
-			stdout := srr3Preview(g, fsys)
+			vault := newSkillAcceptFixtureVault()
+
+			if !testCase.installed {
+				// An unscanned plugin proves nothing gone: its note is not removal-eligible.
+				vault.put(pluginBasename+".md", sourcedSkillNote(
+					offerNote{key: pluginKey, hash: "h", source: root + "/skills/one/SKILL.md"}))
+			}
+
+			stdout, err := srr1Run(vault, fsys, cli.SkillRegistrationArgs{DryRun: true})
+			g.Expect(err).NotTo(HaveOccurred())
+
+			if err != nil {
+				return
+			}
 
 			if testCase.installed {
 				g.Expect(srr3Offers(stdout)).To(ConsistOf(
