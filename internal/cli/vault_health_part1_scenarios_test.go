@@ -212,6 +212,8 @@ func Test792a9b1b_Targets_CheckABasenameLinkPasses(t *testing.T) {
 
 	// Then stdout has "PASS  G0 graph-resolution: every authored link resolves by form"
 	g.Expect(out.stdout).To(HavePrefix(vic1G0PassLine))
+	g.Expect(out.stdout).NotTo(ContainSubstring("G3"))
+	g.Expect(out.stdout).NotTo(ContainSubstring("→ [["))
 	g.Expect(out.stderr).To(BeEmpty())
 }
 
@@ -538,7 +540,8 @@ type vh1Outcome struct {
 
 // vh1Check runs `engram check --vault v` through cli.Targets over an in-memory vault holding files (names
 // relative to the vault directory). Each name in unreadable is a file whose read is denied. A zero exit
-// status is the Exit hook never being called.
+// status is the Exit hook never being called. A targ.Execute error fails the test and is kept out of stderr,
+// which holds only what the command wrote.
 func vh1Check(t *testing.T, files map[string]string, unreadable ...string) vh1Outcome {
 	t.Helper()
 
@@ -581,7 +584,7 @@ func vh1Check(t *testing.T, files map[string]string, unreadable ...string) vh1Ou
 
 	_, err := targ.Execute([]string{"engram", "check", "--vault", vic1VaultPath}, cli.Targets(deps)...)
 	if err != nil {
-		stderr.WriteString(err.Error() + "\n")
+		t.Errorf("vh1Check: targ.Execute: %v", err)
 	}
 
 	return vh1Outcome{stdout: stdout.String(), stderr: stderr.String(), exits: exits}
