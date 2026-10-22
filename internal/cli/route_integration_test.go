@@ -76,6 +76,10 @@ func Test792a17n1a_RouteLookup_AggregateSurfacesAmongTwentyEvidenceNotes(t *test
 	g.Expect(parsed.Budget.TotalNotes).To(Equal(route1EvidenceNotes + 1))
 	g.Expect(parsed.Budget.WithEmbeddings).To(Equal(route1EvidenceNotes + 1))
 
+	// The vault holds more notes than the item cap, so the lookup stays selective: the aggregate
+	// must win its place, not ride in because everything surfaces.
+	g.Expect(len(parsed.Items)).To(BeNumerically("<", route1EvidenceNotes+1))
+
 	surfaced := route1SurfacedBasenames(parsed)
 
 	g.Expect(surfaced).To(ContainElement(aggregateBasename),
@@ -84,10 +88,14 @@ func Test792a17n1a_RouteLookup_AggregateSurfacesAmongTwentyEvidenceNotes(t *test
 
 // unexported constants.
 const (
-	route1CreatedDate   = "2026-10-22"
-	route1EvidenceNotes = 20
-	route1FileMode      = 0o600
-	route1WorkKind      = "go-package-implementation"
+	route1CostBaseTok    = 2000
+	route1CreatedDate    = "2026-10-22"
+	route1DurationBaseMs = 1000
+	route1EvidenceNotes  = 20
+	route1FailEvery      = 4
+	route1FailRemainder  = 3
+	route1FileMode       = 0o600
+	route1WorkKind       = "go-package-implementation"
 )
 
 // route1AggregateNote is the frontmatter of the aggregate fact, in the key
@@ -173,12 +181,13 @@ func route1WriteWorkKindVault(g Gomega, vault string) string {
 		luhmann := strconv.Itoa(firstEvidenceID + index)
 		outcome := "pass"
 
-		if index%4 == 3 { // a mix of passes and fails, as dispatches produce
+		if index%route1FailEvery == route1FailRemainder { // a mix of passes and fails, as dispatches produce
 			outcome = "fail"
 		}
 
 		object := outcome + " per review verdict; why: cold-start default; escalation: none; duration: " +
-			strconv.Itoa(1000+index) + " ms; cost: " + strconv.Itoa(2000+index) + " tok (no rate on hand)"
+			strconv.Itoa(route1DurationBaseMs+index) + " ms; cost: " + strconv.Itoa(route1CostBaseTok+index) +
+			" tok (no rate on hand)"
 
 		basename := route1WriteNote(g, vault, luhmann, evidenceSlug,
 			evidenceSituation, evidenceSubject, evidencePredicate, object,
