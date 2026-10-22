@@ -69,8 +69,8 @@ func Test792a15g1d_ARoutineSuccessIsNot(t *testing.T) {
 
 	text := shippedText(t, learnPart2SkillPath)
 
-	g.Expect(text).To(ContainSubstring("A bare pleasantry, a routine success with no bet behind it, or an " +
-		"unconfirmed guess is never the signal"))
+	g.Expect(text).To(ContainSubstring("a routine success with no bet behind it, or an unconfirmed guess is never the " +
+		"signal"))
 	g.Expect(text).To(ContainSubstring("a routine success does not count as reinforcement-capture"))
 	g.Expect(text).To(ContainSubstring("the signal is a resolved uncertainty or an explicit specific confirmation, " +
 		"never \"it worked\""))
@@ -92,7 +92,8 @@ func Test792a15g1e_AProcedureBecomesARunbook(t *testing.T) {
 		"Go module"))
 	g.Expect(text).To(ContainSubstring("→ **kind=runbook**"))
 	g.Expect(text).To(ContainSubstring("handoff — kind=runbook, slug, source"))
-	g.Expect(text).To(ContainSubstring("situation (retrieval-shaped: when would this approach apply again)"))
+	g.Expect(text).To(ContainSubstring("situation (retrieval-shaped: when would this approach apply again), " +
+		"done_when = what should be true"))
 	g.Expect(text).To(ContainSubstring("done_when = what should be true once the procedure is complete"))
 	g.Expect(text).To(ContainSubstring("body = the numbered steps"))
 }
@@ -256,8 +257,8 @@ func Test792a15j1a_AnUnreachableParentIsNotAFailure(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("Report the note as saved, and that its offer is queued for the parent."))
 	g.Expect(text).To(ContainSubstring("Do not re-run the write"))
 	g.Expect(text).To(ContainSubstring("| A write printed `parent unreachable … offer(s) queued` and you're " +
-		"retrying it, calling it failed, or reaching for `ENGRAM_SERVER` | The note is saved locally and the offer " +
-		"is queued — report it as done |"))
+		"retrying it, calling it failed,"))
+	g.Expect(text).To(ContainSubstring("| The note is saved locally and the offer is queued — report it as done |"))
 	g.Expect(learnPart2Contradictions(t, learnPart2RewriteScan)).To(BeEmpty())
 }
 
@@ -286,8 +287,11 @@ func Test792a15k1a_ACitedAnswerGetsAPair(t *testing.T) {
 	text := shippedText(t, learnPart2SkillPath)
 
 	g.Expect(text).To(ContainSubstring("the answer body contains ≥1 `[[full-basename]]` wikilink"))
-	g.Expect(text).To(ContainSubstring("handoff — kind=qa, slug, verbatim question, answer body (copy; no re-derive), " +
-		"contributor basenames, certainty, source (\"ad-hoc capture, learn session <date>\")."))
+	g.Expect(text).To(ContainSubstring("with this handoff — kind=qa, slug,"))
+	g.Expect(text).To(ContainSubstring("kind=qa, slug, verbatim question, answer body"))
+	g.Expect(text).To(ContainSubstring("verbatim question, answer body (copy; no re-derive), contributor basenames"))
+	g.Expect(text).To(ContainSubstring("(copy; no re-derive), contributor basenames, certainty, source " +
+		"(\"ad-hoc capture, learn session <date>\")."))
 	g.Expect(text).To(ContainSubstring("Contributors come ONLY from `[[full-basename]]` wikilinks in the written " +
 		"answer — never free-listed."))
 }
@@ -434,6 +438,7 @@ func TestLearnPart2Contradictions(t *testing.T) {
 			g := NewWithT(t)
 
 			g.Expect(learnPart2UnitHits(scan, scan.contradiction)).NotTo(BeEmpty())
+			g.Expect(learnPart2UnitHits(scan, scan.conditional)).NotTo(BeEmpty())
 			g.Expect(learnPart2UnitHits(scan, scan.stated)).To(BeEmpty())
 		})
 	}
@@ -446,12 +451,16 @@ const (
 
 // unexported variables.
 var (
+	// learnPart2ClauseBoundary marks where a clause of a sentence ends, so that a negation in an earlier clause does not
+	// reach a later one.
+	learnPart2ClauseBoundary   = regexp.MustCompile(`[,;(—]`)
 	learnPart2EngramServerScan = learnPart2Scan{
 		name: "setting ENGRAM_SERVER",
 		pattern: regexp.MustCompile(
 			`(?i)\b(?:set|export|use|add|pass|prefix)\b[^.]*\bENGRAM_SERVER\b|ENGRAM_SERVER=`),
 		negation:      learnPart2NegationPattern,
 		contradiction: "When the parent is unreachable, set ENGRAM_SERVER and run the write again.",
+		conditional:   "If the parent can't be reached, set ENGRAM_SERVER and run the write again.",
 		stated:        "Report the note as saved, and never set `ENGRAM_SERVER` (that mode is gone).",
 	}
 	learnPart2GenericAdviceScan = learnPart2Scan{
@@ -459,6 +468,7 @@ var (
 		pattern:       regexp.MustCompile(`(?i)\b(?:write|capture|hand off)\b[^.]*\bgeneric advice\b`),
 		negation:      learnPart2NegationPattern,
 		contradiction: "Write a QA pair for a question answered with generic advice as well.",
+		conditional:   "When the user isn't satisfied, write a QA pair for a question answered with generic advice.",
 		stated:        "Skip questions answered with generic advice or without `[[...]]` wikilinks.",
 	}
 	learnPart2InstanceScan = learnPart2Scan{
@@ -467,6 +477,7 @@ var (
 			`(?i)\b(?:state|record|write|capture)\b[^.]*\b(?:narrative|session-specific instance)\b`),
 		negation:      learnPart2NegationPattern,
 		contradiction: "Record the narrative of the file you fixed in the note.",
+		conditional:   "If the note isn't clear enough, record the narrative of the file you fixed in the note.",
 		stated:        "State the general principle, not the session-specific instance.",
 	}
 	// learnPart2NegationPattern marks a sentence that forbids or excludes what it names.
@@ -476,6 +487,7 @@ var (
 		pattern:       regexp.MustCompile(`(?i)\b(?:additionally|also|still)\s+write\s+a\s+QA\s+pair\b`),
 		negation:      learnPart2NegationPattern,
 		contradiction: "Also write a QA pair for a question answered by your own Step 2 note.",
+		conditional:   "If the note doesn't cite a wikilink, also write a QA pair for the same question.",
 		stated:        "That note already IS the capture — do not additionally write a QA pair for the same question.",
 	}
 	learnPart2PairAgainScan = learnPart2Scan{
@@ -484,6 +496,7 @@ var (
 			`(?i)\bwrite\s+(?:it|the\s+pair|a\s+(?:second|duplicate)\s+(?:QA\s+)?pair)\s+again\b`),
 		negation:      learnPart2NegationPattern,
 		contradiction: "Even if the pair was already written this session, write it again here.",
+		conditional:   "If the first write isn't confirmed, write it again here.",
 		stated:        "If a QA pair was already written, do not write it again here.",
 	}
 	learnPart2PleasantryScan = learnPart2Scan{
@@ -492,14 +505,17 @@ var (
 			`(?i)(?:bare\s+(?:pleasantry|thanks)|"thanks!"|great work)[^.]*\b(?:qualif(?:y|ies)|is\s+captured)\b`),
 		negation:      learnPart2NegationPattern,
 		contradiction: "A bare pleasantry (\"thanks!\", \"great work\") qualifies as a confirmed approach.",
+		conditional:   "When the user isn't specific, a bare pleasantry qualifies as a confirmed approach.",
 		stated:        "A bare pleasantry naming no behavior (\"thanks!\", \"great work\") does NOT qualify.",
 	}
 	learnPart2ReparentRunScan = learnPart2Scan{
 		name: "learn running the re-parent command",
 		pattern: regexp.MustCompile(
 			`(?i)\b(?:run|invoke|execute)\b[^.]*\bengram\s+update\s+--reparent-luhmann\b`),
-		negation:      regexp.MustCompile(`(?i)\b(?:not|never|neither|nor|user)\b|n't\b`),
+		negation: regexp.MustCompile(
+			`(?i)\b(?:not|never|neither|nor)\b|n't\b|\btell\s+the\s+user\s+to\b`),
 		contradiction: "Then run `engram update --reparent-luhmann --answers <file>` yourself to apply the answers.",
+		conditional:   "If the user isn't available, run `engram update --reparent-luhmann --answers <file>` yourself.",
 		stated:        "Tell the user to run: engram update --reparent-luhmann --answers <file> --dry-run",
 	}
 	learnPart2RewriteScan = learnPart2Scan{
@@ -507,6 +523,7 @@ var (
 		pattern:       regexp.MustCompile(`(?i)\b(?:re-?run|retry|repeat)\s+the\s+write\b`),
 		negation:      learnPart2NegationPattern,
 		contradiction: "If the parent is unreachable, re-run the write until the offer goes through.",
+		conditional:   "When the write does not reach the parent, re-run the write.",
 		stated:        "Do not re-run the write, and never set `ENGRAM_SERVER`.",
 	}
 	learnPart2RoutineSuccessScan = learnPart2Scan{
@@ -515,6 +532,7 @@ var (
 			`(?i)routine\s+success[^.]*\b(?:qualif(?:y|ies)|counts?|is\s+captured|gets\s+a\s+note)\b`),
 		negation:      learnPart2NegationPattern,
 		contradiction: "A routine success also qualifies for a confirmed-approach note.",
+		conditional:   "If the user isn't sure, a routine success also qualifies for a confirmed-approach note.",
 		stated:        "A routine success does not count as reinforcement-capture.",
 	}
 	learnPart2RunbookFactScan = learnPart2Scan{
@@ -522,6 +540,7 @@ var (
 		pattern:       regexp.MustCompile(`(?i)\badditionally\b[^.]*\bkind=fact\b`),
 		negation:      learnPart2NegationPattern,
 		contradiction: "If the user says to do that going forward, additionally fire a kind=fact save-request.",
+		conditional:   "If the runbook isn't enough, additionally fire a kind=fact save-request.",
 		stated:        "Do NOT additionally fire a kind=fact save-request (kind 2) for the same content.",
 	}
 	// learnPart2UnitSplit splits collapsed text into sentences and table cells.
@@ -531,17 +550,20 @@ var (
 		pattern:       regexp.MustCompile(`(?i)\bsearch\b[^.]*\bvault\b[^.]*\b(?:placement|target)\b`),
 		negation:      learnPart2NegationPattern,
 		contradiction: "When no in-session candidate exists, search the vault for a placement target.",
+		conditional:   "If the candidate isn't found, search the vault for a placement target.",
 		stated:        "Do not search the rest of the vault for a placement target.",
 	}
 )
 
 // learnPart2Scan is one absence scan: a pattern for an instruction that contradicts a rule, the negation pattern that
-// excludes a sentence that forbids it, a contradicting instruction to insert and the shipped wording that must pass.
+// excludes a match that forbids it, a contradicting instruction to insert, the same instruction under a negated
+// condition and the shipped wording that must pass.
 type learnPart2Scan struct {
 	name          string
 	pattern       *regexp.Regexp
 	negation      *regexp.Regexp
 	contradiction string
+	conditional   string
 	stated        string
 }
 
@@ -570,6 +592,25 @@ func learnPart2Contradictions(t *testing.T, scan learnPart2Scan) map[string][]st
 	return found
 }
 
+// learnPart2HasUnnegatedMatch reports whether the unit holds a match of the scan's pattern whose own clause, from the
+// last clause boundary before the match to the end of the match, carries no negation. A negation elsewhere in the
+// sentence, such as a negated condition before the instruction, does not excuse it.
+func learnPart2HasUnnegatedMatch(scan learnPart2Scan, unit string) bool {
+	for _, span := range scan.pattern.FindAllStringIndex(unit, -1) {
+		clauseStart := 0
+
+		for _, boundary := range learnPart2ClauseBoundary.FindAllStringIndex(unit[:span[0]], -1) {
+			clauseStart = boundary[1]
+		}
+
+		if !scan.negation.MatchString(unit[clauseStart:span[1]]) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // learnPart2Scans returns every absence scan of this file.
 func learnPart2Scans() []learnPart2Scan {
 	return []learnPart2Scan{
@@ -579,12 +620,12 @@ func learnPart2Scans() []learnPart2Scan {
 	}
 }
 
-// learnPart2UnitHits returns every sentence of the text that matches the scan's pattern and carries no negation.
+// learnPart2UnitHits returns every sentence of the text with a match of the scan's pattern that is not negated.
 func learnPart2UnitHits(scan learnPart2Scan, text string) []string {
 	hits := make([]string, 0)
 
 	for _, unit := range learnPart2UnitSplit.Split(text, -1) {
-		if scan.pattern.MatchString(unit) && !scan.negation.MatchString(unit) {
+		if learnPart2HasUnnegatedMatch(scan, unit) {
 			hits = append(hits, unit)
 		}
 	}
