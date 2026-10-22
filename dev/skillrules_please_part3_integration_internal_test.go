@@ -57,7 +57,7 @@ func Test792a18n1c_Please_ADeadlockIsEscalated(t *testing.T) {
 	text := shippedText(t, pleasePart3SkillPath)
 
 	g.Expect(text).To(ContainSubstring("After ~2 unresolved rounds, stop:"))
-	g.Expect(text).To(ContainSubstring("summarize both positions"))
+	g.Expect(text).To(ContainSubstring("stop: summarize both positions"))
 	g.Expect(text).To(ContainSubstring("escalate via `AskUserQuestion`."))
 	g.Expect(text).To(ContainSubstring("You argued past ~2 rounds without escalating | " +
 		"Stop, summarize both positions, ask the user."))
@@ -297,6 +297,7 @@ func TestPleasePart3Offenders(t *testing.T) {
 			pleasePart3SecondNotePattern: {
 				"Then write a second note on the same lesson.",
 				"Create another note about the same lesson.",
+				"Write a second note for this lesson.",
 			},
 			pleasePart3AutoFilePattern: {
 				"File it automatically as an issue.",
@@ -305,6 +306,7 @@ func TestPleasePart3Offenders(t *testing.T) {
 			pleasePart3WriteQAPairPattern: {
 				"At close, write the QA pair for each substantive answered question yourself.",
 				"Capture the Q&A pair at step 7.",
+				"Write the pair yourself.",
 			},
 		}
 
@@ -373,14 +375,15 @@ var (
 	}
 	// pleasePart3SecondNotePattern finds an instruction to write a second note on a lesson a note already covers.
 	pleasePart3SecondNotePattern = pleasePart3Pattern(`(?:write|create|add)\s+(?:a\s+(?:second|duplicate|` +
-		`parallel|new)|another)\s+note\s+(?:on|for|about)\s+the\s+same`)
+		`parallel)|another)\s+note\b`)
 	// pleasePart3ShipUnverifiedPattern finds an instruction that lets an unverified claim ship as a finding.
 	pleasePart3ShipUnverifiedPattern = pleasePart3Pattern(`unverified\s+(?:claims?|figures?|numbers?)\s+` +
 		`(?:may|can)\s+(?:still\s+)?ship\b|(?:ship|report|present)\s+(?:an?\s+)?(?:unverified|unmeasured)\s+` +
 		`(?:claims?|figures?|numbers?)\s+as\s+(?:a\s+)?findings?`)
 	// pleasePart3WriteQAPairPattern finds an instruction to write or capture a question-and-answer pair.
 	pleasePart3WriteQAPairPattern = pleasePart3Pattern(`(?:write|capture|record|save|store)\s+(?:the|each|every|a|an)` +
-		`\s+(?:(?:substantive|answered|ad-hoc)\s+)*(?:question[- ]and[- ]answer|q&a|qa)\b`)
+		`\s+(?:(?:substantive|answered|ad-hoc)\s+)*(?:(?:question[- ]and[- ]answer|q&a|qa)\b(?:\s+pairs?\b)?|` +
+		`pairs?\b)`)
 )
 
 // pleasePart3Before reports whether both fragments occur in the text and the first occurs before the second.
