@@ -3,6 +3,8 @@
 package dev
 
 import (
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -32,7 +34,7 @@ func Test792a15a1a_ASessionWithNoLessonWritesNothing(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("**No moments of any kind → write nothing.**"))
 	g.Expect(text).To(ContainSubstring("a session with no corrections, no save-requests, no reversals, and no " +
 		"confirmed approaches is a two-command learn (sweep + report)."))
-	g.Expect(learnPart1Instructions(t, learnPart1WriteWithoutMomentPattern)).To(BeEmpty())
+	g.Expect(learnPart1Instructions(t, learnPart1WriteWithoutMomentPattern, nil)).To(BeEmpty())
 }
 
 // Test792a15a1b_NoEpisodeOrSummaryIsWritten reads the learn skill the repository ships: the old episode workflow is
@@ -51,25 +53,8 @@ func Test792a15a1b_NoEpisodeOrSummaryIsWritten(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("| You ran `engram transcript` anything |"))
 	g.Expect(text).To(ContainSubstring("| You're writing an episode or summarizing the session into a note | " +
 		"Don't — raw chunks already hold it |"))
-	g.Expect(learnPart1Instructions(t, learnPart1EpisodePattern)).To(BeEmpty())
-	g.Expect(learnPart1Instructions(t, learnPart1TranscriptPattern)).To(BeEmpty())
-}
-
-// Test792a15b1a_TheSweepRunsAndIsReported reads the learn skill the repository ships: Step 1 runs engram ingest --auto
-// and reports what it prints, or "memory index up to date" when the corpus is unchanged.
-func Test792a15b1a_TheSweepRunsAndIsReported(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	text := learnPart1Text(t)
-
-	g.Expect(text).To(ContainSubstring("## Step 1 — Sweep (first; the closing learn always sweeps) ```bash " +
-		"engram ingest --auto ``` That's it."))
-	g.Expect(text).To(ContainSubstring("Unchanged corpus → returns in seconds. Report the one-line tally it prints " +
-		"(or \"memory index up to date\")."))
-	g.Expect(learnPart1Before(text, "## Step 1 — Sweep", "## Step 1.5 — Vocab liveness check")).To(BeTrue())
-	g.Expect(learnPart1Before(text, "## Step 1.5 — Vocab liveness check", "## Step 2 — Crystallize")).To(BeTrue())
+	g.Expect(learnPart1Instructions(t, learnPart1EpisodePattern, nil)).To(BeEmpty())
+	g.Expect(learnPart1Instructions(t, learnPart1TranscriptPattern, nil)).To(BeEmpty())
 }
 
 // Test792a15b1b_AFailedSweepDoesNotBlockTheLessons reads the learn skill the repository ships: a failed sweep is
@@ -100,7 +85,7 @@ func Test792a15b1c_AnEarlierSweepIsNotRepeated(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("This holds even under a \"something might have changed outside this session " +
 		"(another terminal, another agent)\" worry — that gets picked up by the next sweep (yours or theirs), not by " +
 		"re-sweeping now on suspicion."))
-	g.Expect(learnPart1Instructions(t, learnPart1SweepAgainPattern)).To(BeEmpty())
+	g.Expect(learnPart1Instructions(t, learnPart1SweepAgainPattern, learnPart1ClosingLearnPattern)).To(BeEmpty())
 }
 
 // Test792a15b1d_TheClosingLearnAlwaysSweeps reads the learn skill the repository ships: the closing learn of a work
@@ -134,7 +119,7 @@ func Test792a15c1a_ARejectedApproachIsCapturedAtOnce(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("**SKIP Step 1 (sweep)"))
 	g.Expect(text).To(ContainSubstring("and Step 1.5 (vocab); go straight to Step 2**"))
 	g.Expect(text).To(ContainSubstring("crystallize the ONE confirmed correction (hand off to write-memory as always)."))
-	g.Expect(learnPart1Instructions(t, learnPart1CorrectionCheckPattern)).To(BeEmpty())
+	g.Expect(learnPart1Instructions(t, learnPart1CorrectionCheckPattern, nil)).To(BeEmpty())
 }
 
 // Test792a15c1b_NoMidTaskSweep reads the learn skill the repository ships: engram ingest --auto is not run in the
@@ -150,7 +135,7 @@ func Test792a15c1b_NoMidTaskSweep(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("Do NOT run `engram ingest --auto` mid-task — the sweep is a cycle-boundary " +
 		"job, it is wasteful here and can block on a large corpus, and losing the capture to a hung sweep is the " +
 		"failure mode."))
-	g.Expect(learnPart1Instructions(t, learnPart1MidTaskSweepPattern)).To(BeEmpty())
+	g.Expect(learnPart1Instructions(t, learnPart1MidTaskSweepPattern, nil)).To(BeEmpty())
 }
 
 // Test792a15d1a_AHealthyVocabularyNeedsNothing reads the learn skill the repository ships: Step 1.5 runs engram vocab
@@ -165,7 +150,7 @@ func Test792a15d1a_AHealthyVocabularyNeedsNothing(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("## Step 1.5 — Vocab liveness check Run `engram vocab stats`."))
 	g.Expect(text).To(ContainSubstring("If the verdict is `verdict: OK`, continue to Step 2 with no further vocab " +
 		"action."))
-	g.Expect(learnPart1Instructions(t, learnPart1HealthyVocabularyPattern)).To(BeEmpty())
+	g.Expect(learnPart1Instructions(t, learnPart1HealthyVocabularyPattern, nil)).To(BeEmpty())
 }
 
 // Test792a15d1b_APendingRefitIsRunAutonomously reads the learn skill the repository ships: on verdict: REFIT_PENDING
@@ -181,7 +166,7 @@ func Test792a15d1b_APendingRefitIsRunAutonomously(t *testing.T) {
 		"run the refit autonomously — do not defer to the user:"))
 	g.Expect(text).To(ContainSubstring("1. Run `engram vocab refit`. The binary derives the clusters itself — there " +
 		"is no plan to author."))
-	g.Expect(learnPart1Instructions(t, learnPart1AskBeforeRefitPattern)).To(BeEmpty())
+	g.Expect(learnPart1Instructions(t, learnPart1AskBeforeRefitPattern, nil)).To(BeEmpty())
 }
 
 // Test792a15d1c_NoStructureFoundIsReportedAsSuch reads the learn skill the repository ships: when the refit prints that
@@ -198,7 +183,7 @@ func Test792a15d1c_NoStructureFoundIsReportedAsSuch(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("report exactly that (\"Vocab refit ran: no structure found, vocabulary " +
 		"unchanged.\") and continue to Step 2."))
 	g.Expect(text).To(ContainSubstring("Do NOT claim an applied refit."))
-	g.Expect(learnPart1Instructions(t, learnPart1NoStructureAppliedPattern)).To(BeEmpty())
+	g.Expect(learnPart1Instructions(t, learnPart1NoStructureAppliedPattern, nil)).To(BeEmpty())
 }
 
 // Test792a15d1d_NewClustersAreNamedAndTheRefitRerun reads the learn skill the repository ships: a refit that prints
@@ -265,7 +250,7 @@ func Test792a15d1g_TheQARound2GateIsReportedAndNotRun(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("P2′ attribution fidelity, P3′ distribution, Arm V larger-n.\""))
 	g.Expect(text).To(ContainSubstring("Do NOT run round-2 validation autonomously — it requires"))
 	g.Expect(text).To(ContainSubstring(" oversight."))
-	g.Expect(learnPart1Instructions(t, learnPart1Round2RunPattern)).To(BeEmpty())
+	g.Expect(learnPart1Instructions(t, learnPart1Round2RunPattern, nil)).To(BeEmpty())
 }
 
 // Test792a15e1a_ACorrectionBecomesAFeedbackNote reads the learn skill the repository ships: a correction is handed to
@@ -406,6 +391,67 @@ func Test792a15f1b_ARepoDocCorrectionDoesNotCount(t *testing.T) {
 		"Write the vault note for the reversal's root cause — record-correction is not capture |"))
 }
 
+// TestLearnPart1Hits supports the absence scans of this file: a match is an instruction unless the clause it stands in
+// negates it, and the clause ends at a sentence end, a colon, a table cell border and a line break.
+func TestLearnPart1Hits(t *testing.T) {
+	t.Parallel()
+
+	episode := regexp.MustCompile(`(?i)\b(?:write|create)\b[^.\n]{0,40}\bepisode\b`)
+	sweep := regexp.MustCompile(`(?i)\b(?:re-?sweep\w*|sweeps? again)\b`)
+
+	for name, scenario := range map[string]struct {
+		content string
+		pattern *regexp.Regexp
+		exempt  *regexp.Regexp
+		want    int
+	}{
+		"a negated sentence is a prohibition": {
+			"Do not write an episode note.", episode, nil, 0,
+		},
+		"an instruction is a hit": {
+			"Write an episode note.", episode, nil, 1,
+		},
+		"a table row after a negated row is a hit": {
+			"| Tiers | Tiers are not part of learn anymore |\n| Session end | Write an episode note |\n", episode, nil, 1,
+		},
+		"a cell after a negated cell is a hit": {
+			"| No tiers | Write an episode note |", episode, nil, 1,
+		},
+		"a list item after a negated item is a hit": {
+			"- Never summarize\n- Write an episode note\n", episode, nil, 1,
+		},
+		"a clause after a colon is a hit": {
+			"Never skip the check: write an episode note.", episode, nil, 1,
+		},
+		"a negation in a wrapped line of the same sentence is a prohibition": {
+			"Do NOT write\nan episode note.", episode, nil, 0,
+		},
+		"a heading before the sentence is another block": {
+			"## Not now\nWrite an episode note.", episode, nil, 1,
+		},
+		"a sweep instruction is a hit": {
+			"Sweep again after every ten tool calls.", sweep, learnPart1ClosingLearnPattern, 1,
+		},
+		"the closing learn sweeping again is exempt": {
+			"The closing learn sweeps again.", sweep, learnPart1ClosingLearnPattern, 0,
+		},
+		"a sweep again that names the closing learn after the match is exempt": {
+			"Sweep again only at the closing learn.", sweep, learnPart1ClosingLearnPattern, 0,
+		},
+		"a sweep again in the row after the closing learn row is a hit": {
+			"| Closing learn | Sweeps |\n| Mid-task | Sweep again |\n", sweep, learnPart1ClosingLearnPattern, 1,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			g.Expect(learnPart1Hits(scenario.content, scenario.pattern, scenario.exempt)).To(HaveLen(scenario.want))
+		})
+	}
+}
+
 // unexported constants.
 const (
 	learnPart1NegationWindow = 60
@@ -416,36 +462,40 @@ const (
 var (
 	// learnPart1AskBeforeRefitPattern finds an instruction to ask or defer to the user about the refit.
 	learnPart1AskBeforeRefitPattern = regexp.MustCompile(
-		`(?i)\b(?:ask|confirm|check with|wait for|defer to)\b[^.]{0,40}\b(?:user|owner|human)\b[^.]{0,60}\brefit\b`)
+		`(?i)\b(?:ask|confirm|check with|wait for|defer to)\b[^.\n]{0,40}\b(?:user|owner|human)\b[^.\n]{0,60}\brefit\b`)
+	// learnPart1BlockStartPattern finds a line that starts a new block: a table row, a list item, a heading or a fence.
+	learnPart1BlockStartPattern = regexp.MustCompile("^(?:\\||[-*+] |#|\\d+\\. |```)")
+	// learnPart1ClosingLearnPattern finds a sentence that is about the closing learn, which always sweeps.
+	learnPart1ClosingLearnPattern = regexp.MustCompile(`(?i)\bclosing learn\b`)
 	// learnPart1CorrectionCheckPattern finds an instruction to sweep or check the vocabulary at a correction moment.
 	learnPart1CorrectionCheckPattern = regexp.MustCompile(
-		`(?i)\b(?:run|perform|start|execute)\b[^.]{0,40}\b(?:sweep|vocab check|vocab stats|engram ingest --auto)\b` +
-			`[^.]{0,60}\b(?:mid-task|mid-cycle|correction)\b`)
+		`(?i)\b(?:run|perform|start|execute)\b[^.\n]{0,40}\b(?:sweep|vocab check|vocab stats|engram ingest --auto)\b` +
+			`[^.\n]{0,60}\b(?:mid-task|mid-cycle|correction)\b`)
 	// learnPart1EpisodePattern finds an instruction to write an episode or a session summary.
 	learnPart1EpisodePattern = regexp.MustCompile(
-		`(?i)\b(?:write|create|add|record)\b[^.]{0,40}\b(?:episode|session[- ]summary|summary note)\b`)
+		`(?i)\b(?:write|create|add|record)\b[^.\n]{0,40}\b(?:episode|session[- ]summary|summary note)\b`)
 	// learnPart1HealthyVocabularyPattern finds an instruction to act on the vocabulary after a verdict of OK.
 	learnPart1HealthyVocabularyPattern = regexp.MustCompile(
-		`(?i)verdict: OK\W{0,3}[^.]{0,60}\b(?:run|refit|apply|propose|bootstrap)\b`)
+		`(?i)verdict: OK\W{0,3}[^.\n]{0,60}\b(?:run|refit|apply|propose|bootstrap)\b`)
 	// learnPart1MidTaskSweepPattern finds an instruction to run the sweep in the middle of a task.
 	learnPart1MidTaskSweepPattern = regexp.MustCompile(
-		`(?i)\b(?:run|execute|start|launch)\b[^.]{0,20}engram ingest --auto[^.]{0,40}` +
+		`(?i)\b(?:run|execute|start|launch)\b[^.\n]{0,20}engram ingest --auto[^.\n]{0,40}` +
 			`\b(?:mid-task|mid-cycle|correction|at once)\b`)
 	// learnPart1NegationPattern finds a negation in the text that leads up to a match.
 	learnPart1NegationPattern = regexp.MustCompile(`(?i)\b(?:not|never|no|neither|nor|without|skip)\b|n't\b`)
 	// learnPart1NoStructureAppliedPattern finds an instruction to report an applied refit when no structure was found.
 	learnPart1NoStructureAppliedPattern = regexp.MustCompile(
-		`(?i)no structure found[^.]{0,80}\b(?:report|say|state|claim)\b[^.]{0,40}\bapplied\b`)
+		`(?i)no structure found[^.\n]{0,80}\b(?:report|say|state|claim)\b[^.\n]{0,40}\bapplied\b`)
 	// learnPart1Round2RunPattern finds an instruction to run the round-2 validation.
-	learnPart1Round2RunPattern = regexp.MustCompile(`(?i)\b(?:run|start|launch|execute|perform)\b[^.]{0,40}round-2`)
+	learnPart1Round2RunPattern = regexp.MustCompile(`(?i)\b(?:run|start|launch|execute|perform)\b[^.\n]{0,40}round-2`)
 	// learnPart1SweepAgainPattern finds an instruction to sweep again.
 	learnPart1SweepAgainPattern = regexp.MustCompile(`(?i)\b(?:re-?sweep\w*|sweeps? again)\b`)
 	// learnPart1TranscriptPattern finds an instruction to run engram transcript or engram learn episode.
 	learnPart1TranscriptPattern = regexp.MustCompile(
-		`(?i)\b(?:run|use|invoke|call|execute)\b[^.]{0,20}\bengram (?:transcript|learn episode)\b`)
+		`(?i)\b(?:run|use|invoke|call|execute)\b[^.\n]{0,20}\bengram (?:transcript|learn episode)\b`)
 	// learnPart1WriteWithoutMomentPattern finds an instruction to write a note whether or not a moment occurred.
 	learnPart1WriteWithoutMomentPattern = regexp.MustCompile(
-		`(?i)\b(?:write|crystalli[sz]e|record)\b[^.]{0,40}\b(?:note|summary)\b[^.]{0,60}` +
+		`(?i)\b(?:write|crystalli[sz]e|record)\b[^.\n]{0,40}\b(?:note|summary)\b[^.\n]{0,60}` +
 			`\b(?:even (?:when|if)|regardless|anyway)\b`)
 )
 
@@ -479,28 +529,101 @@ func learnPart1Between(t *testing.T, text, start, end string) string {
 	return text[startAt : startAt+endAt]
 }
 
+// learnPart1Blocks returns the text of a shipped file with the lines of one block (a paragraph, a list item, a table
+// row or a heading) joined by single spaces and the blocks separated by a line break, so that the sentence, the cell
+// and the line a match stands in can be told apart.
+func learnPart1Blocks(content string) string {
+	var builder strings.Builder
+
+	separator := "\n"
+
+	for raw := range strings.SplitSeq(content, "\n") {
+		line := strings.Join(strings.Fields(strings.TrimLeft(strings.TrimSpace(raw), "> ")), " ")
+		if line == "" {
+			separator = "\n"
+
+			continue
+		}
+
+		if learnPart1BlockStartPattern.MatchString(line) {
+			separator = "\n"
+		}
+
+		if builder.Len() > 0 {
+			builder.WriteString(separator)
+		}
+
+		builder.WriteString(line)
+
+		separator = " "
+		if strings.HasPrefix(line, "#") {
+			separator = "\n"
+		}
+	}
+
+	return builder.String()
+}
+
+// learnPart1Boundary returns the offset in the lead where the clause that precedes a match begins: after the last
+// sentence end, colon, table cell border or line break.
+func learnPart1Boundary(lead string) int {
+	start := 0
+
+	for _, border := range []string{". ", "? ", "! ", ": ", "| ", "\n"} {
+		if at := strings.LastIndex(lead, border); at >= 0 {
+			start = max(start, at+len(border))
+		}
+	}
+
+	return start
+}
+
+// learnPart1Hits returns every match of the pattern in the content of a shipped file, except a match whose clause
+// negates it before the match (a prohibition is not an instruction) and a match whose clause the exempt pattern
+// matches (a sentence about another rule); a nil exempt pattern exempts nothing.
+func learnPart1Hits(content string, pattern, exempt *regexp.Regexp) []string {
+	text := learnPart1Blocks(content)
+	hits := make([]string, 0)
+
+	for _, location := range pattern.FindAllStringIndex(text, -1) {
+		lead := text[max(0, location[0]-learnPart1NegationWindow):location[0]]
+		lead = lead[learnPart1Boundary(lead):]
+
+		if learnPart1NegationPattern.MatchString(lead) {
+			continue
+		}
+
+		matched := text[location[0]:location[1]]
+		trail := text[location[1]:min(len(text), location[1]+learnPart1NegationWindow)]
+		trail = trail[:learnPart1TrailEnd(trail)]
+
+		if exempt != nil && exempt.MatchString(lead+matched+trail) {
+			continue
+		}
+
+		hits = append(hits, matched)
+	}
+
+	return hits
+}
+
 // learnPart1Instructions returns every match of the pattern in a shipped SKILL.md, references file or guidance
-// document, except a match whose sentence negates it before the match (a prohibition is not an instruction).
-func learnPart1Instructions(t *testing.T, pattern *regexp.Regexp) []string {
+// document that learnPart1Hits keeps.
+func learnPart1Instructions(t *testing.T, pattern, exempt *regexp.Regexp) []string {
 	t.Helper()
 
 	hits := make([]string, 0)
 
 	for _, path := range aibInstructionPaths(t) {
-		text := shippedText(t, path)
+		content, err := os.ReadFile(filepath.Join(repositoryRoot, path))
+		if err != nil {
+			t.Fatalf("reading %s: %v", path, err)
 
-		for _, location := range pattern.FindAllStringIndex(text, -1) {
-			lead := text[max(0, location[0]-learnPart1NegationWindow):location[0]]
+			return nil
+		}
 
-			if boundary := strings.LastIndex(lead, ". "); boundary >= 0 {
-				lead = lead[boundary+len(". "):]
-			}
-
-			if learnPart1NegationPattern.MatchString(lead) {
-				continue
-			}
-
-			hits = append(hits, path+": "+text[location[0]:location[1]])
+		for _, hit := range learnPart1Hits(string(content), pattern, exempt) {
+			hits = append(hits, path+": "+hit)
 		}
 	}
 
@@ -513,4 +636,17 @@ func learnPart1Text(t *testing.T) string {
 	t.Helper()
 
 	return strings.ReplaceAll(shippedText(t, learnPart1SkillPath), " > ", " ")
+}
+
+// learnPart1TrailEnd returns the offset in the trail where the clause that follows a match ends.
+func learnPart1TrailEnd(trail string) int {
+	end := len(trail)
+
+	for _, border := range []string{". ", "? ", "! ", " |", "\n"} {
+		if at := strings.Index(trail, border); at >= 0 {
+			end = min(end, at)
+		}
+	}
+
+	return end
 }
