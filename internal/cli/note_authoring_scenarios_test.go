@@ -74,7 +74,6 @@ func Test792b12c8a1_Targets_LearnFact_ALocalLearnWritesNoPendingMarker(t *testin
 
 	// When the note is written
 	result := vault.learnFact("local-note", "a plain local situation")
-	g.Expect(result.stderr).To(BeEmpty())
 
 	// Then it carries no pending line
 	name := vault.requireNote(g, `\.local-note\.md$`)
@@ -93,6 +92,10 @@ func Test792b12c8a1_Targets_LearnFact_ALocalLearnWritesNoPendingMarker(t *testin
 	g.Expect(front).To(HaveKeyWithValue("type", "fact"), "the frontmatter parsed is the fact note's")
 	g.Expect(front).NotTo(HaveKey("pending"))
 	g.Expect(content).NotTo(MatchRegexp(`(?m)^\s*pending\s*:`))
+
+	// the write itself was clean; checked after the Then so that a pending side effect (for example the
+	// pending-offers warning) cannot stop the test before the Then runs
+	g.Expect(result.stderr).To(BeEmpty())
 }
 
 // unexported constants.
