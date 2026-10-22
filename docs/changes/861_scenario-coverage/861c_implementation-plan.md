@@ -840,7 +840,7 @@ Status: In progress: 0/2 entries complete (2 rows Green-single)
 
 #### 861c2zd Note Authoring (default)
 
-Status: Ready
+Status: In progress: 0/2 entries complete (2 rows Green-single)
 
 - Owner file: [Note Authoring](../../specs/technical/note-authoring.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/note_authoring_scenarios_test.go`.
@@ -850,8 +850,8 @@ Status: Ready
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zd1 | [792b12c6a3 The question of a pair is not tagged](../../specs/technical/note-authoring.md#792b12c6a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2zd2 | [792b12c8a1 A local learn writes no marker](../../specs/technical/note-authoring.md#792b12c8a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2zd1 | [792b12c6a3 The question of a pair is not tagged](../../specs/technical/note-authoring.md#792b12c6a-scenarios) | Example | Fixed inputs, one exact outcome. `Test792b12c6a3_RunLearnQA_TheQuestionOfAPairIsNotTagged` (`note_authoring_scenarios_test.go`), `RunLearnQA` over in-memory `LearnQADeps` with both sidecars readable; baseline pass (`1.log`); node mutation (`qa.go`, vocab assignment also applied to the question) failed it at the rewritten-notes Then (`mut1.log`) | Green-single |
+| 861c2zd2 | [792b12c8a1 A local learn writes no marker](../../specs/technical/note-authoring.md#792b12c8a-scenarios) | Example | Fixed inputs, one exact outcome. `Test792b12c8a1_Targets_LearnFact_ALocalLearnWritesNoPendingMarker` (`note_authoring_scenarios_test.go`), `engram learn fact` through `cli.Targets` over the in-memory `cv1Vault` (no temp dir); baseline pass only (`1.log`) | Green-single |
 
 #### 861c2ze Skill Source Discovery (default)
 
