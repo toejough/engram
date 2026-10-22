@@ -2486,7 +2486,7 @@ Status: Ready
 
 #### 861c2zzzh Durable File Store (integration)
 
-Status: Ready
+Status: In progress: 0/1 entries complete (1 rows Green-single)
 
 - Owner file: [Durable File Store](../../specs/technical/durable-file-store.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/durable_file_store_integration_test.go` (tag `integration`).
@@ -2496,7 +2496,7 @@ Status: Ready
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2zzzh1 | [792b3c1a5 A permission failure removes the temp](../../specs/technical/durable-file-store.md#792b3c1a-scenarios) | Example | Real OS effect; test tagged `integration` | Not started |
+| 861c2zzzh1 | [792b3c1a5 A permission failure removes the temp](../../specs/technical/durable-file-store.md#792b3c1a-scenarios) | Example | Real OS effect; test tagged `integration`. `Test792b3c1a5_RealEdgeFS_WriteFileAtomicChmodFailureRemovesTemp` (`internal/cli/durable_file_store_integration_test.go`): real primitives except Chmod, which checks the real temp exists and fails with EPERM (the OS cannot be made to refuse a chmod of the user's own file); asserts the error names the target and the step, the real temp is gone, the directory holds only the original, content unchanged. Log `logs/b18/861c2zzzh/2.log`. Mutation `internal/cli/edgefs.go:188` (chmod-branch cleanup removes a wrong path) fails the test at the temp-removed Then (`3-mutant.log`) | Green-single |
 
 #### 861c2zzzi Vault Write Lock (integration)
 
