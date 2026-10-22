@@ -54,3 +54,18 @@ Scenario: 792a21q1g The first offer creates the exchange state in the right orde
   When the first offer is queued
   Then the vault ID is stamped before .engram exists, and its location record is then written into .engram
 ```
+
+## 861a4zzk Modified: Vault Migration scenarios, part 2
+
+Operations a test finds necessary in existing specs are applied in place ([861d6 A new test that fails at baseline](./861d_questions-and-decisions.md#questions-and-decisions)); the one below is applied in [Vault Migration](../../specs/product/vault-migration.md) in the commit of its decision.
+
+### 861a4zzk1 Modified: 792a10f1b A failed re-index leaves the rename
+
+Target: [792a10f1 UAT Scenarios](../../specs/product/vault-migration.md#792a10f1-uat-scenarios), Scenario 792a10f1b. Differs from the current text in the Then line: the Given covers any failing chunk-index step, and the failed prune names `engram prune` alone, so the Then names the commands that finish the reconciliation, as the technical 792b27c9 does.
+
+```gherkin
+Scenario: 792a10f1b A failed re-index leaves the rename
+  Given a rename that succeeded and a chunk-index step that fails
+  When the apply finishes
+  Then the renamed files stay renamed, and the output names the failed stage and the manual commands that finish the reconciliation
+```

@@ -270,7 +270,7 @@ Scenario: 792a10f1a The new path is indexed and the old entry detached
 Scenario: 792a10f1b A failed re-index leaves the rename
   Given a rename that succeeded and a chunk-index step that fails
   When the apply finishes
-  Then the renamed files stay renamed, and the output names the failed stage and the manual fallback of engram ingest --auto and engram prune
+  Then the renamed files stay renamed, and the output names the failed stage and the manual commands that finish the reconciliation
 
 Scenario: 792a10f1c Nothing renamed, nothing re-indexed
   Given answers that rename no note
