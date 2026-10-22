@@ -62,7 +62,7 @@ func Test792a20o1b_ServeLearn_ARewriteIsReTagged(t *testing.T) {
 	g.Expect(resp.Status).To(Equal(vs1StatusOK), string(resp.Body))
 	g.Expect(second.Basename).To(Equal(first.Basename), "the rewrite is in place")
 	g.Expect(vs2PendingNotes(t, vault)).To(HaveLen(1))
-	g.Expect(readFileString(t, notePath)).To(ContainSubstring(vs4Bravo), "the new content is written")
+	g.Expect(vs3Frontmatter(t, notePath)).To(HaveKeyWithValue("object", vs4Cue(vs4Bravo)), "the new content is written")
 	g.Expect(vs4Tags(t, notePath)).To(Equal([]string{"vocab/" + vs4Bravo}), "the old term is gone, the new one assigned")
 }
 
