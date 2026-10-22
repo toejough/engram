@@ -780,7 +780,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2z Recency Ranking (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: In progress: 0/3 entries complete (3 rows Green-single)
 
 - Owner file: [Recency Ranking](../../specs/technical/recency-ranking.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/recency_ranking_scenarios_test.go`.
@@ -791,9 +791,9 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2z1 | [792b21c1a2 Production ranking uses a 60-day half-life](../../specs/technical/recency-ranking.md#792b21c1a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2z2 | [792b21c2a2 An unreadable or future date is no age](../../specs/technical/recency-ranking.md#792b21c2a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2z3 | [792b21c5a4 A chunk without a time comes last](../../specs/technical/recency-ranking.md#792b21c5a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2z1 | [792b21c1a2 Production ranking uses a 60-day half-life](../../specs/technical/recency-ranking.md#792b21c1a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b21c1a2_RecencyRanking_ProductionHalfLifeAndTailWeight (internal/cli/recency_ranking_scenarios_test.go); reads the weights through recencyMultiplier. Mutation: defaultHalfLifeDays 60 to 30 fails it (logs/b06/861c2z/m2.log) | Green-single |
+| 861c2z2 | [792b21c2a2 An unreadable or future date is no age](../../specs/technical/recency-ranking.md#792b21c2a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b21c2a2_RecencyRanking_UnreadableOrFutureDateIsNoAge (same file); quoted, unreadable and future dates. Mutation: remove the age < 0 clamp fails the future cases (logs/b06/861c2z/m3.log); the quoted and unreadable cases are baseline pass only | Green-single |
+| 861c2z3 | [792b21c5a4 A chunk without a time comes last](../../specs/technical/recency-ranking.md#792b21c5a-scenarios) | Example | Fixed inputs, one exact outcome; Test792b21c5a4_RecencyRanking_ChunkWithoutATimeComesLast (same file); untimed chunk has the higher score and later turn. Mutation: lessByIngestedAtDesc zero-time branch returns true fails the timed-first case (logs/b06/861c2z/m1.log) | Green-single |
 
 #### 861c2za Agent Instruction Bundle (default)
 
