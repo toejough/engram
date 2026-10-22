@@ -3,6 +3,8 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/toejough/engram/internal/embed"
@@ -20,12 +22,15 @@ type SupersedesInverse map[string][]supersedesEntry
 //
 // supersedersByNote maps each superseding note's basename to its parsed
 // supersedes list. (This input is produced by the query scanner reading
-// frontmatter from the vault at scan time.)
+// frontmatter from the vault at scan time.) The superseders of one note are
+// listed in ascending basename order, the order the vault lists its files in,
+// so the ride-along inserts them in the same order on every query (792a7n1c
+// Several superseders are all inserted): a map's iteration order is random.
 func BuildSupersedesInverse(supersedersByNote map[string][]supersedesEntry) SupersedesInverse {
 	inverse := make(SupersedesInverse)
 
-	for supersederBasename, entries := range supersedersByNote {
-		for _, entry := range entries {
+	for _, supersederBasename := range slices.Sorted(maps.Keys(supersedersByNote)) {
+		for _, entry := range supersedersByNote[supersederBasename] {
 			inverse[entry.Note] = append(inverse[entry.Note], supersedesEntry{
 				Note:  supersederBasename,
 				Type:  entry.Type,

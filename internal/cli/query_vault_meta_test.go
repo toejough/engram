@@ -143,9 +143,9 @@ func Test792b24c17a4_ApplySupersedesRideAlong_SupersederNotInVault_Skipped(t *te
 
 // Test792b24c17a5_ApplySupersedesRideAlong_TwoSuperseders_BothInsertedAfterOld verifies that
 // a delivered note with TWO superseders gets both inserted directly after it,
-// each carrying ride_along provenance. Insertion order between the two is
-// unspecified (the inverse map is built from map iteration), so the test
-// asserts set membership at positions 1-2, not a fixed order.
+// each carrying ride_along provenance. This test asserts set membership at
+// positions 1-2; their order (ascending basename, from BuildSupersedesInverse)
+// is checked by Test792a7n1c_RunQuery_SeveralSupersedersAreAllInserted.
 func Test792b24c17a5_ApplySupersedesRideAlong_TwoSuperseders_BothInsertedAfterOld(t *testing.T) {
 	t.Parallel()
 
