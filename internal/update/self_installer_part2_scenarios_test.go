@@ -2,7 +2,6 @@ package update_test
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"slices"
 	"testing"
@@ -72,9 +71,8 @@ func Test792b28c4a3_Updater_Run_Local_UnresolvableRevisionIsUnknown(t *testing.T
 				Spawn: noopSpawner{},
 			}
 
-			report, err := updater.Run(context.Background(), update.Options{})
+			report, err := updater.Run(t.Context(), update.Options{})
 			g.Expect(err).NotTo(HaveOccurred())
-
 			if err != nil {
 				return
 			}
@@ -120,8 +118,11 @@ func Test792b28c5a2_Updater_Run_Remote_EarlierCloneIsRemovedFirst(t *testing.T) 
 		Spawn: noopSpawner{},
 	}
 
-	_, err := updater.Run(context.Background(), update.Options{})
+	_, err := updater.Run(t.Context(), update.Options{})
 	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
 
 	g.Expect(removedAtClone).To(ContainElement(sip2CloneDir), "the earlier clone is removed before git clone runs")
 	g.Expect(staleAtClone).To(BeFalse(), "nothing of the earlier clone is left when the new clone starts")
@@ -148,7 +149,7 @@ func Test792b28c5a4_Updater_Run_Remote_AnotherCloneFailureSurfaces(t *testing.T)
 		Spawn: noopSpawner{},
 	}
 
-	_, err := updater.Run(context.Background(), update.Options{})
+	_, err := updater.Run(t.Context(), update.Options{})
 	g.Expect(err).To(MatchError(networkErr))
 	g.Expect(err).To(MatchError(ContainSubstring("git clone")))
 	g.Expect(err).NotTo(MatchError(update.ErrGitNotFound))
@@ -174,7 +175,7 @@ func Test792b28c6a2_Updater_Run_Remote_FileUnderOneMebibyteIsRefused(t *testing.
 		Spawn: noopSpawner{},
 	}
 
-	_, err := updater.Run(context.Background(), update.Options{})
+	_, err := updater.Run(t.Context(), update.Options{})
 	g.Expect(err).To(MatchError(update.ErrModelLFSStub))
 	g.Expect(sip2GoInstallRan(cmd)).To(BeFalse(), "a too-small model is never built into the binary")
 }
@@ -198,7 +199,7 @@ func Test792b28c6a3_Updater_Run_Remote_UnreadableModelIsAnError(t *testing.T) {
 		Spawn: noopSpawner{},
 	}
 
-	_, err := updater.Run(context.Background(), update.Options{})
+	_, err := updater.Run(t.Context(), update.Options{})
 	g.Expect(err).To(MatchError(ContainSubstring("reading cloned model")))
 	g.Expect(err).NotTo(MatchError(update.ErrModelLFSStub))
 	g.Expect(sip2GoInstallRan(cmd)).To(BeFalse())
@@ -223,8 +224,11 @@ func Test792b28c6a4_Updater_Run_Remote_RealModelPasses(t *testing.T) {
 		Spawn: noopSpawner{},
 	}
 
-	_, err := updater.Run(context.Background(), update.Options{})
+	_, err := updater.Run(t.Context(), update.Options{})
 	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
 
 	installIndex := slices.IndexFunc(cmd.calls, func(call []string) bool {
 		return slices.Equal(call, []string{"go", "install", "./cmd/engram/"})
@@ -260,8 +264,11 @@ func Test792b28c7a6_Updater_Run_Local_DescendantInstalls(t *testing.T) {
 		Spawn: noopSpawner{},
 	}
 
-	_, err := updater.Run(context.Background(), update.Options{})
+	_, err := updater.Run(t.Context(), update.Options{})
 	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
 
 	ancestryIndex := slices.IndexFunc(cmd.calls, func(call []string) bool {
 		return slices.Equal(call, []string{
@@ -298,9 +305,8 @@ func Test792b28c8a4_Updater_Run_Remote_DryRunStillClones(t *testing.T) {
 			Spawn: noopSpawner{},
 		}
 
-		report, err := updater.Run(context.Background(), update.Options{DryRun: true})
+		report, err := updater.Run(t.Context(), update.Options{DryRun: true})
 		g.Expect(err).NotTo(HaveOccurred())
-
 		if err != nil {
 			return
 		}
@@ -329,7 +335,7 @@ func Test792b28c8a4_Updater_Run_Remote_DryRunStillClones(t *testing.T) {
 			Spawn: noopSpawner{},
 		}
 
-		_, err := updater.Run(context.Background(), update.Options{DryRun: true})
+		_, err := updater.Run(t.Context(), update.Options{DryRun: true})
 		g.Expect(err).To(MatchError(update.ErrModelLFSStub))
 		g.Expect(sip2GoInstallRan(cmd)).To(BeFalse())
 	})
