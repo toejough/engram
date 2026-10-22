@@ -274,7 +274,7 @@ func Test792b28c5a1_Updater_Run_RemoteClonesForLFSAndBuildsFromClone(t *testing.
 	}
 	cmd.hook = func(call []string) {
 		if call[0] == "git" && call[1] == "clone" {
-			seedCloneFixture(fileSystem, cloneDir, realModel)
+			seedCloneFixture(fileSystem, realModel)
 		}
 	}
 
@@ -376,7 +376,7 @@ func Test792b28c5a5_Updater_Run_Remote_HappyPath(t *testing.T) {
 	}
 	cmd.hook = func(call []string) {
 		if call[0] == "git" && call[1] == "clone" {
-			seedCloneFixture(fileSystem, cloneDir, bytes.Repeat([]byte{1}, 1<<20))
+			seedCloneFixture(fileSystem, bytes.Repeat([]byte{1}, 1<<20))
 			fileSystem.files[cloneDir+"/agent-instructions/skills/learn/SKILL.md"] = []byte("learn from clone")
 		}
 	}
@@ -422,7 +422,7 @@ func Test792b28c6a1_Updater_Run_RemoteModelStubFailsWithGuidance(t *testing.T) {
 	cmd := &fakeCmd{responses: map[string][]byte{}}
 	cmd.hook = func(call []string) {
 		if call[0] == "git" && call[1] == "clone" {
-			seedCloneFixture(fileSystem, cloneDir, stub)
+			seedCloneFixture(fileSystem, stub)
 		}
 	}
 
@@ -842,8 +842,10 @@ func rapidCtx() context.Context {
 }
 
 // seedCloneFixture populates the memFS with what a successful LFS-enabled
-// clone of the repo would materialize at dir.
-func seedCloneFixture(fileSystem *memFS, dir string, model []byte) {
+// clone of the repo would materialize at the update clone directory.
+func seedCloneFixture(fileSystem *memFS, model []byte) {
+	const dir = sip2CloneDir
+
 	fileSystem.dirs[dir] = true
 	fileSystem.files[dir+"/go.mod"] = []byte("module github.com/toejough/engram\n")
 	fileSystem.dirs[dir+"/agent-instructions/skills"] = true

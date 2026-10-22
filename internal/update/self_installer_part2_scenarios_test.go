@@ -107,7 +107,7 @@ func Test792b28c5a2_Updater_Run_Remote_EarlierCloneIsRemovedFirst(t *testing.T) 
 			removedAtClone = slices.Clone(fileSystem.removed)
 			_, staleAtClone = fileSystem.files[sip2CloneDir+"/left-by-an-earlier-run"]
 
-			seedCloneFixture(fileSystem, sip2CloneDir, sip2RealModel())
+			seedCloneFixture(fileSystem, sip2RealModel())
 		}
 	}
 
@@ -354,7 +354,7 @@ func sip2CloningCmd(fileSystem *memFS, model []byte) *fakeCmd {
 	cmd := &fakeCmd{}
 	cmd.hook = func(call []string) {
 		if call[0] == "git" && call[1] == "clone" {
-			seedCloneFixture(fileSystem, sip2CloneDir, model)
+			seedCloneFixture(fileSystem, model)
 		}
 	}
 
