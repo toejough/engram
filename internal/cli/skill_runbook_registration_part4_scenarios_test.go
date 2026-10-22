@@ -108,7 +108,10 @@ func Test792a12o1d_RegisterSkills_TwoSameNamedProjectsStayDistinct(t *testing.T)
 	t.Parallel()
 	g := NewWithT(t)
 
-	const skillPath = projectTop + "/.claude/skills/deploy/SKILL.md"
+	const (
+		skillPath          = projectTop + "/.claude/skills/deploy/SKILL.md"
+		offerKeyFieldCount = 2 // "register", then the key
+	)
 
 	cases := []struct{ origin, wantKey string }{
 		{"ssh://git@GitHub.com:22/toejough/engram.git", "project:github.com/toejough/engram:deploy"},
@@ -121,10 +124,26 @@ func Test792a12o1d_RegisterSkills_TwoSameNamedProjectsStayDistinct(t *testing.T)
 		fsys := skillsHomeFixture(nil).file(skillPath, "deploy")
 
 		stdout := srr3Preview(g, fsys, srr4InRepo(projectTop, srr4Git(projectTop, testCase.origin)))
+		offers := srr3Offers(stdout)
 
-		g.Expect(srr3Offers(stdout)).To(Equal([]string{srr3Register(testCase.wantKey, skillPath)}), testCase.origin)
+		g.Expect(offers).To(Equal([]string{srr3Register(testCase.wantKey, skillPath)}), testCase.origin)
 
-		keys = append(keys, testCase.wantKey)
+		if len(offers) != 1 {
+			return
+		}
+
+		offerFields := strings.Fields(offers[0])
+		if len(offerFields) < offerKeyFieldCount {
+			return
+		}
+
+		keys = append(keys, offerFields[1])
+	}
+
+	g.Expect(keys).To(HaveLen(len(cases)))
+
+	if len(keys) != len(cases) {
+		return
 	}
 
 	g.Expect(keys[0]).NotTo(Equal(keys[1]), "the two projects' keys are distinct")
@@ -324,7 +343,13 @@ func Test792a12p1b_RegisterSkills_TwoPiSkillsWithOneNameAndDifferentContent(t *t
 		"engram: skill key conflict: pi:foo at " + firstPath + " and " + secondPath + "\n"))
 	g.Expect(stdout).To(ContainSubstring("no pending offer for skill \"pi:foo\""), "no offer is made for pi:foo")
 
-	names, _ := vault.ListMD(srr1Vault)
+	names, listErr := vault.ListMD(srr1Vault)
+	g.Expect(listErr).NotTo(HaveOccurred())
+
+	if listErr != nil {
+		return
+	}
+
 	g.Expect(names).To(HaveLen(1), "the other offer was handled and pi:foo registered nothing")
 
 	if len(names) != 1 {
@@ -467,7 +492,12 @@ func srr4Accepted(g Gomega, fsys *fakeSkillFS, token string, customize ...func(*
 	_, err := srr1Run(vault, fsys, cli.SkillRegistrationArgs{Accept: []string{token}}, customize...)
 	g.Expect(err).NotTo(HaveOccurred())
 
-	names, _ := vault.ListMD(srr1Vault)
+	names, listErr := vault.ListMD(srr1Vault)
+	g.Expect(listErr).NotTo(HaveOccurred())
+
+	if listErr != nil {
+		return nil
+	}
 
 	return names
 }
