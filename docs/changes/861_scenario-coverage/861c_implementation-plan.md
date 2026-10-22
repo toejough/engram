@@ -560,7 +560,7 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 #### 861c2o Embedding Sidecar (default)
 
-Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
+Status: In progress: 0/11 entries complete (11 rows Green-single)
 
 - Owner file: [Embedding Sidecar](../../specs/technical/embedding-sidecar.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/embedding_sidecar_scenarios_test.go`.
@@ -570,17 +570,17 @@ Status: Blocked by: [861c1a The test-pkg target](#861c1a-the-test-pkg-target)
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2o1 | [792b10c10a2 Every state is counted](../../specs/technical/embedding-sidecar.md#792b10c10a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2o2 | [792b10c10a3 A scan failure is returned](../../specs/technical/embedding-sidecar.md#792b10c10a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2o3 | [792b10c11a2 The all flag selects every state](../../specs/technical/embedding-sidecar.md#792b10c11a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2o4 | [792b10c11a3 The stale flag selects stale and broken](../../specs/technical/embedding-sidecar.md#792b10c11a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2o5 | [792b10c11a4 The force flag selects incompatible and broken](../../specs/technical/embedding-sidecar.md#792b10c11a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2o6 | [792b10c11a5 The missing flag is the explicit default](../../specs/technical/embedding-sidecar.md#792b10c11a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2o7 | [792b10c11a6 Mode flags combine](../../specs/technical/embedding-sidecar.md#792b10c11a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2o8 | [792b10c12a7 A note that cannot be read is skipped](../../specs/technical/embedding-sidecar.md#792b10c12a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2o9 | [792b10c12a8 A scan failure is returned](../../specs/technical/embedding-sidecar.md#792b10c12a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2o10 | [792b10c12a9 Notes are embedded in ascending order](../../specs/technical/embedding-sidecar.md#792b10c12a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2o11 | [792b10c12a10 Only sidecars are written](../../specs/technical/embedding-sidecar.md#792b10c12a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2o1 | [792b10c10a2 Every state is counted](../../specs/technical/embedding-sidecar.md#792b10c10a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b10c10a2_EmbedStatus_EveryStateIsCounted, internal/cli/embedding_sidecar_scenarios_test.go; passes, log 2.log; baseline pass only) | Green-single |
+| 861c2o2 | [792b10c10a3 A scan failure is returned](../../specs/technical/embedding-sidecar.md#792b10c10a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b10c10a3_EmbedStatus_AScanFailureIsReturned, internal/cli/embedding_sidecar_scenarios_test.go; passes, log 2.log; baseline pass only) | Green-single |
+| 861c2o3 | [792b10c11a2 The all flag selects every state](../../specs/technical/embedding-sidecar.md#792b10c11a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b10c11a2_SelectStates_TheAllFlagSelectsEveryState, internal/cli/embedding_sidecar_scenarios_test.go; passes, log 2.log; baseline pass only) | Green-single |
+| 861c2o4 | [792b10c11a3 The stale flag selects stale and broken](../../specs/technical/embedding-sidecar.md#792b10c11a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b10c11a3_SelectStates_TheStaleFlagSelectsStaleAndBroken, internal/cli/embedding_sidecar_scenarios_test.go; passes, log 2.log; baseline pass only) | Green-single |
+| 861c2o5 | [792b10c11a4 The force flag selects incompatible and broken](../../specs/technical/embedding-sidecar.md#792b10c11a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b10c11a4_SelectStates_TheForceFlagSelectsIncompatibleAndBroken, internal/cli/embedding_sidecar_scenarios_test.go; passes, log 2.log; baseline pass only) | Green-single |
+| 861c2o6 | [792b10c11a5 The missing flag is the explicit default](../../specs/technical/embedding-sidecar.md#792b10c11a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b10c11a5_SelectStates_TheMissingFlagIsTheExplicitDefault, internal/cli/embedding_sidecar_scenarios_test.go; passes, log 2.log; baseline pass only) | Green-single |
+| 861c2o7 | [792b10c11a6 Mode flags combine](../../specs/technical/embedding-sidecar.md#792b10c11a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b10c11a6_SelectStates_ModeFlagsCombine, internal/cli/embedding_sidecar_scenarios_test.go; passes, log 2.log; baseline pass only) | Green-single |
+| 861c2o8 | [792b10c12a7 A note that cannot be read is skipped](../../specs/technical/embedding-sidecar.md#792b10c12a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b10c12a7_EmbedApply_ANoteThatCannotBeReadIsSkipped, internal/cli/embedding_sidecar_scenarios_test.go; passes, log 2.log; mutation of the sort comparison in embed.go RunEmbedApply fails it, log mut1.log) | Green-single |
+| 861c2o9 | [792b10c12a8 A scan failure is returned](../../specs/technical/embedding-sidecar.md#792b10c12a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b10c12a8_EmbedApply_AScanFailureIsReturned, internal/cli/embedding_sidecar_scenarios_test.go; passes, log 2.log; baseline pass only) | Green-single |
+| 861c2o10 | [792b10c12a9 Notes are embedded in ascending order](../../specs/technical/embedding-sidecar.md#792b10c12a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b10c12a9_EmbedApply_NotesAreEmbeddedInAscendingOrder, internal/cli/embedding_sidecar_scenarios_test.go; passes, log 2.log; mutation of the sort comparison in embed.go RunEmbedApply fails it, log mut1.log) | Green-single |
+| 861c2o11 | [792b10c12a10 Only sidecars are written](../../specs/technical/embedding-sidecar.md#792b10c12a-scenarios) | Example | Fixed inputs, one exact outcome (Test792b10c12a10_EmbedApply_OnlySidecarsAreWritten, internal/cli/embedding_sidecar_scenarios_test.go; passes, log 2.log; baseline pass only) | Green-single |
 
 #### 861c2p Vault Identity Registry (default)
 
