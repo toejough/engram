@@ -175,7 +175,8 @@ func (s *pullSession) prepare() bool {
 
 // pull pulls one ref down (792a21zd A pulled-down note is an exact-content local pending offer): fetch the
 // raw envelope with no lock held, write under the lock (re-checking the skip rule), then signal use to the
-// parent after the lock is released.
+// parent after the lock is released, unless the local write failed (792b37c15 Telling the parent the note was
+// used).
 func (s *pullSession) pull(ctx context.Context, ref string) error {
 	if !s.prepare() {
 		return errPullPaused
@@ -198,10 +199,13 @@ func (s *pullSession) pull(ctx context.Context, ref string) error {
 	}
 
 	writeErr := s.writeUnderLock(ctx, envelope, source)
+	if writeErr != nil {
+		return writeErr // a failed local write sends no signal (792b37c15)
+	}
 
 	s.signalUse(ctx, envelope.Basename)
 
-	return writeErr
+	return nil
 }
 
 // queuedOffers is the outbox's queued count for the unreachable warning
