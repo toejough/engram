@@ -420,16 +420,19 @@ func Test792a21zk1c_Amend_AFoldKeepsEsPrimaryLink(t *testing.T) {
 func Test792a21zl1a_Amend_PreservesTheExchangeFields(t *testing.T) {
 	t.Parallel()
 
-	pending := false
-
 	for _, noteType := range exchangeSurvivalTypes {
 		for name, args := range map[string]cli.AmendArgs{
-			"clear-pending": {Pending: &pending},
+			"clear-pending": {},
 			"content":       exchangeSurvivalContentAmend(noteType),
 		} {
 			t.Run(noteType+"/"+name, func(t *testing.T) {
 				t.Parallel()
 				g := NewWithT(t)
+
+				if name == "clear-pending" {
+					clearPending := false
+					args.Pending = &clearPending
+				}
 
 				// Given a note carrying xid, parent, aliases and offer
 				before := exchangeSurvivalNote(noteType, exchangeSurvivalFixture())
