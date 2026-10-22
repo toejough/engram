@@ -18,7 +18,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	. "github.com/onsi/gomega"
 	"github.com/toejough/targ"
@@ -168,17 +167,18 @@ func aib1Command(words []string, flags ...string) []string {
 	return append(append([]string{}, words...), aib1Attached(flags...)...)
 }
 
-// aib1DashCases returns the commands of 792b32c2a2, one per command and flag group the rule names. The values
-// are the same attached values the commands carry.
+// aib1DashCases returns the commands of 792b32c2a2, one per command and flag group the rule names. The Given
+// notes carry plain values (no leading dash) that differ from the dash-led values of the command, so a value
+// found afterwards was written by the command under test.
 func aib1DashCases() map[string]aib1DashCase {
 	learnFact := []string{"learn", "fact", "--slug", "a", "--position", "top"}
 	learnFeedback := []string{"learn", "feedback", "--slug", "a", "--position", "top"}
 	learnRunbook := []string{"learn", "runbook", "--slug", "a", "--position", "top"}
 	amend := []string{"amend", "--target", aib1Note, "--chunks-dir", nr1Chunks}
 
-	giveFact := aib1Command(learnFact, "source", "situation")
-	giveFeedback := aib1Command(learnFeedback, "source", "situation")
-	giveRunbook := aib1Command(learnRunbook, "source", "situation", "done-when")
+	giveFact := aib1PlainCommand(learnFact, "source", "situation")
+	giveFeedback := aib1PlainCommand(learnFeedback, "source", "situation")
+	giveRunbook := aib1PlainCommand(learnRunbook, "source", "situation", "done-when")
 
 	return map[string]aib1DashCase{
 		"learn fact": {
@@ -290,29 +290,26 @@ func aib1FreeTextFlags() []string {
 	}
 }
 
-// aib1Run runs `engram <args> --vault <vault>` over the rig's vault and environment as rig.run does, returning
-// stdout and everything the command says on failure: what the parser printed, then the error.
+// aib1PlainCommand returns a command line: the words, then each flag attached to a plain value (no leading dash).
+func aib1PlainCommand(words []string, flags ...string) []string {
+	args := append([]string{}, words...)
+
+	for _, flag := range flags {
+		args = append(args, "--"+flag+"=the given "+flag)
+	}
+
+	return args
+}
+
+// aib1Run runs `engram <args> --vault <vault>` over the rig's configuration as rig.run does, returning stdout and
+// everything the command says on failure, including what targ's parser printed, which rig.run does not keep.
 func aib1Run(rig *nr1Rig, args ...string) (string, string) {
 	rig.t.Helper()
 
 	var stdout, stderr bytes.Buffer
 
 	deps := newTestDeps(&stdout, &stderr)
-	deps.FS = rig.fs
-	deps.Lock = fakeLocker{lock: func(string) (func() error, error) { return func() error { return nil }, nil }}
-	deps.Embed = stubEmbedder{modelID: "m@4", dims: 4}
-	deps.Now = func() time.Time { return nr1Now }
-	deps.Getenv = func(key string) string {
-		if key == "ENGRAM_VAULT_NAME" {
-			return rig.env.vaultName
-		}
-
-		return ""
-	}
-	deps.UserHomeDir = func() (string, error) { return "/nr1-home", nil }
-	deps.Getwd = func() (string, error) { return "/work/repo", nil }
-	deps.Commander = rig.commander()
-	deps.Username = func() (string, error) { return rig.env.osUser, nil }
+	rig.configure(&deps)
 
 	argv := append(append([]string{"engram"}, args...), "--vault", nr1Vault)
 

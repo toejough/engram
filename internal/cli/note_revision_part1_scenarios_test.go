@@ -817,6 +817,34 @@ func (r *nr1Rig) commander() fakeGitCommander {
 	return git
 }
 
+// configure wires the rig's vault, locker, embedder, clock and environment into deps: the setup of run.
+func (r *nr1Rig) configure(deps *cli.Deps) {
+	deps.FS = r.fs
+	deps.Lock = fakeLocker{lock: func(string) (func() error, error) { return func() error { return nil }, nil }}
+	deps.Embed = nr1Embedder{
+		stubEmbedder: stubEmbedder{modelID: "m@4", dims: 4},
+		fails:        func() bool { return r.embedFails },
+	}
+	deps.Now = func() time.Time { return nr1Now }
+	deps.Getenv = func(key string) string {
+		if key == "ENGRAM_VAULT_NAME" {
+			return r.env.vaultName
+		}
+
+		return ""
+	}
+	deps.UserHomeDir = func() (string, error) { return "/nr1-home", nil }
+	deps.Getwd = func() (string, error) { return "/work/repo", nil }
+	deps.Commander = r.commander()
+	deps.Username = func() (string, error) {
+		if r.env.osUser == "" {
+			return "", errNr1NoGit
+		}
+
+		return r.env.osUser, nil
+	}
+}
+
 // dropLines removes from the note every frontmatter line that starts with one of the prefixes.
 func (r *nr1Rig) dropLines(basename string, prefixes ...string) {
 	r.t.Helper()
@@ -915,32 +943,7 @@ func (r *nr1Rig) run(args ...string) (string, string) {
 
 	argv := append(append([]string{"engram"}, args...), "--vault", nr1Vault)
 
-	return executeCapturingBoth(r.t, argv, func(deps *cli.Deps) {
-		deps.FS = r.fs
-		deps.Lock = fakeLocker{lock: func(string) (func() error, error) { return func() error { return nil }, nil }}
-		deps.Embed = nr1Embedder{
-			stubEmbedder: stubEmbedder{modelID: "m@4", dims: 4},
-			fails:        func() bool { return r.embedFails },
-		}
-		deps.Now = func() time.Time { return nr1Now }
-		deps.Getenv = func(key string) string {
-			if key == "ENGRAM_VAULT_NAME" {
-				return r.env.vaultName
-			}
-
-			return ""
-		}
-		deps.UserHomeDir = func() (string, error) { return "/nr1-home", nil }
-		deps.Getwd = func() (string, error) { return "/work/repo", nil }
-		deps.Commander = r.commander()
-		deps.Username = func() (string, error) {
-			if r.env.osUser == "" {
-				return "", errNr1NoGit
-			}
-
-			return r.env.osUser, nil
-		}
-	})
+	return executeCapturingBoth(r.t, argv, r.configure)
 }
 
 // sidecar returns the sidecar file of note 1.2026-10-09.a ("" when there is none).
