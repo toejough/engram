@@ -457,10 +457,10 @@ func Test792a3j1c_LearnRunbook_AContinuationOfALetterTakesTheNextNumber(t *testi
 
 	g := NewWithT(t)
 
-	// Given a vault whose note has ID 1a
+	// Given a vault whose note has ID 1a (a continuation of the absent target 1 in an empty vault writes 1a)
 	vault := newCV1Vault()
-	nw1Seed(g, vault, nw1Step{"top", ""}, nw1Step{"continuation", "1"})
-	g.Expect(nw1IDs(vault)).To(ContainElement("1a"))
+	nw1Seed(g, vault, nw1Step{"continuation", "1"})
+	g.Expect(nw1IDs(vault)).To(Equal([]string{"1a"}))
 
 	// When the user runs engram learn runbook --position continuation --target 1a
 	result := nw1Learn(vault, "runbook", nw1RunbookFlags().set("--position", "continuation").add("--target", "1a"))
