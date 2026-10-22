@@ -8,11 +8,11 @@ The Profile node waits for the nodes it cites. The first, second, fourth and fif
 
 ```mermaid
 flowchart LR
-    N1a["862c1a The command that runs every integration-tagged test<br/>Ready"]
-    N1b["862c1b Live-session tests skip without a login<br/>Ready"]
-    N1e["862c1e The parity tests have a command<br/>Ready"]
-    N1d["862c1d The follow-up issue for the untagged files<br/>Ready"]
-    N1c["862c1c The Project Profile cites the remaining deviations<br/>Blocked by: 862c1a, 862c1b, 862c1d, 862c1e"]
+    N1a["862c1a The command that runs every integration-tagged test<br/>Complete"]
+    N1b["862c1b Live-session tests skip without a login<br/>Complete"]
+    N1e["862c1e The parity tests have a command<br/>Complete"]
+    N1d["862c1d The follow-up issue for the untagged files<br/>Complete"]
+    N1c["862c1c The Project Profile cites the remaining deviations<br/>Complete"]
     N1a --> N1c
     N1b --> N1c
     N1d --> N1c
@@ -27,7 +27,7 @@ One section per node of the graph. Each row has one scenario ID and one independ
 
 #### 862c1a The command that runs every integration-tagged test
 
-Status: Ready
+Status: Complete (95514d06)
 
 - Owner: [794b4 Development Check Orchestration](../../specs/technical/development-check-orchestration.md#794b4-development-check-orchestration); Added operations [862b2a One command runs every integration-tagged test](./862b_technical-spec.md#862b2a-added-one-command-runs-every-integration-tagged-test) and [862a3a Every integration-tagged test runs in the full check](./862a_product-spec.md#862a3a-added-every-integration-tagged-test-runs-in-the-full-check), Modified operations [862b3a Preserve entry points](./862b_technical-spec.md#862b3a-modified-preserve-entry-points) and [862b3b Engram's aggregates match Targ's apart from the nil targets](./862b_technical-spec.md#862b3b-modified-engrams-aggregates-match-targs-apart-from-the-nil-targets).
 - Package: `dev`; suggested test files: `dev/integration_all_internal_test.go` (tag `targ`) and `dev/integration_all_integration_internal_test.go` (tag `targ && integration`, a fixture module run for real).
@@ -45,11 +45,11 @@ Status: Ready
 | ID | Work | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
 | 862c1a6 | Register `test-integration-all` in `init()` and in the final dependency group of `check-for-fail` and `check-full`, and update the comment on the aggregates in `dev/targs.go` | Action | [862d3 The command that runs every integration-tagged test](./862d_questions-and-decisions.md#questions-and-decisions) | Done |
-| 862c1a7 | Run `targ check-full` once on the branch and record the leg's time and result in the shared evidence | Action | [862d3 The command that runs every integration-tagged test](./862d_questions-and-decisions.md#questions-and-decisions) | Not started |
+| 862c1a7 | Run `targ check-full` once on the branch and record the leg's time and result in the shared evidence | Action | [862d3 The command that runs every integration-tagged test](./862d_questions-and-decisions.md#questions-and-decisions). Evidence: the leg `test-integration-all` passed in 1m15.9s in the one `targ check-full` of this branch (13 of 13 legs, exit=0; the other legs ran 3.9 s to 1m15.2 s): b00/tooling-check-full.log. | Done |
 
 #### 862c1b Live-session tests skip without a login
 
-Status: Ready
+Status: Complete (59c47f57)
 
 - Owner: [794b4 Development Check Orchestration](../../specs/technical/development-check-orchestration.md#794b4-development-check-orchestration); Added operations [862b2b A live-session test without a login is skipped](./862b_technical-spec.md#862b2b-added-a-live-session-test-without-a-login-is-skipped) and [862a3b A check without a login skips](./862a_product-spec.md#862a3b-added-a-check-without-a-login-skips).
 - Package: `dev/acceptance` (tag `network`); suggested: extract the token lookup of `claudeToken` to an untagged file `dev/acceptance/token_logic_test.go`, as `measure_logic_test.go` holds the pure logic of the measurements, so that the default suite runs its test ([862d6 Scope of the acceptance skip](./862d_questions-and-decisions.md#questions-and-decisions)). The extracted lookup takes the environment lookup and the credential-file reader as parameters (`claudeToken` keeps the `os` calls and passes them in), so that the tests run in parallel without `t.Setenv`.
@@ -64,7 +64,7 @@ Status: Ready
 
 #### 862c1e The parity tests have a command
 
-Status: Ready
+Status: Complete (a260e203)
 
 - Owner: [794b4 Development Check Orchestration](../../specs/technical/development-check-orchestration.md#794b4-development-check-orchestration); Added operations [862b2c A parity run has its own command](./862b_technical-spec.md#862b2c-added-a-parity-run-has-its-own-command) and [862a3c The real-model parity check has a command](./862a_product-spec.md#862a3c-added-the-real-model-parity-check-has-a-command).
 - Package: `dev`; suggested test file: `dev/test_parity_internal_test.go` (tag `targ`).
@@ -84,7 +84,7 @@ Status: Ready
 
 #### 862c1d The follow-up issue for the untagged files
 
-Status: Ready
+Status: Complete (28c8081c)
 
 - Rule: WORKFLOW 578-582 (a filed issue records a deviation; it does not satisfy verification). The change directory is deleted at promotion, so the Project Profile cites the issue, not the decision row.
 
@@ -94,7 +94,7 @@ Status: Ready
 
 #### 862c1c The Project Profile cites the remaining deviations
 
-Status: Blocked by: [862c1a The command that runs every integration-tagged test](#862c1a-the-command-that-runs-every-integration-tagged-test), [862c1b Live-session tests skip without a login](#862c1b-live-session-tests-skip-without-a-login), [862c1d The follow-up issue for the untagged files](#862c1d-the-follow-up-issue-for-the-untagged-files), [862c1e The parity tests have a command](#862c1e-the-parity-tests-have-a-command)
+Status: Complete (cd1c21d6)
 
 - Rule: the issue's last condition, the Profile no longer lists the deviations it names; the Profile table row of the integration suite names `test-integration-all`.
 
@@ -110,9 +110,9 @@ Latest verified evidence per milestone; a result not yet recorded is `Not run`, 
 
 | ID | Evidence | Command | Result | Recorded at |
 | --- | --- | --- | --- | --- |
-| 862c2a | Dev tests of the new commands, of the skip and of the updated aggregate scenario | `targ test-dev` | Not run | - |
-| 862c2b | Dev integration tests, fixture module included | `targ test-dev-integration` | Not run | - |
-| 862c2c | Lint, coverage, nil analysis and the new leg | `targ check-full` | Not run | - |
+| 862c2a | Dev tests of the new commands, of the skip and of the updated aggregate scenario | `targ test-dev` | Passed on the tree of cd1c21d6: the `test-dev` leg 3.9 s (b00/tooling-check-full.log); per node b00/862c1a-green-test-dev.log, b00/862c1e-green-test-dev-2.log and, for the skip, `targ test-pkg ./dev/acceptance` b00/862c1b-green-test-pkg-acceptance.log | cd1c21d6 |
+| 862c2b | Dev integration tests, fixture module included | `targ test-dev-integration` | Passed on the tree of cd1c21d6: the `test-dev-integration` leg 1m15.2s, fixture modules included (b00/tooling-check-full.log); b00/862c1a-green-test-dev-integration.log | cd1c21d6 |
+| 862c2c | Lint, coverage, nil analysis and the new leg | `targ check-full` | Passed on the tree of cd1c21d6: `targ check-full` 13 of 13 legs, exit=0, the new leg `test-integration-all` 1m15.9s (b00/tooling-check-full.log) | cd1c21d6 |
 | 862c2d | Links, IDs and labels of this change | link check over `docs/`; ID and label scan over `docs/specs` and `docs/changes` | Passed on the tree of 8c4d6da6: link check 12,022 links, 0 broken; ID scan 0 duplicates of 8,314 defined IDs, 9,823 ID-labelled links with 0 mismatches, 0 unresolved tokens | 8c4d6da6 |
 
 ## 862c3 Completion gates

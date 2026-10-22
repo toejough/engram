@@ -8,7 +8,7 @@ Every default node of [861c2 Scenario tests by owner file and package](#861c2-sc
 
 ```mermaid
 flowchart LR
-    N1a["861c1a The test-pkg target<br/>Ready"]
+    N1a["861c1a The test-pkg target<br/>Complete"]
     N862a["862c1a The command that runs every integration-tagged test<br/>change 862"]
     subgraph UT["Default tests: technical components and renames"]
         N2a["861c2a Parent Vault Client, part 1 (default)<br/>Blocked by: 861c1a"]
@@ -170,7 +170,7 @@ flowchart LR
 
 #### 861c1a The test-pkg target
 
-Status: Ready
+Status: Complete (95514d06)
 
 - Owner: [794b4 Development Check Orchestration](../../specs/technical/development-check-orchestration.md#794b4-development-check-orchestration); Added operation [861b2a A scoped test run](./861b_technical-spec.md#861b2a-added-a-scoped-test-run), Added operation [861a3a A package's tests run alone](./861a_product-spec.md#861a3a-added-a-packages-tests-run-alone) and Modified operation [861b3a Development Check Orchestration](./861b_technical-spec.md#861b3a-modified-development-check-orchestration).
 - Package: `dev`; suggested test files: `dev/testpkg_internal_test.go` (tag `targ`) and `dev/testpkg_integration_internal_test.go` (tag `targ && integration`, a fixture package whose test fails, run for real).
