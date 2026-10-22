@@ -8,7 +8,8 @@ package cli_test
 // the working directory, the clock, the lock and the embedder injected through cli.Deps, so no test reads the real
 // home, environment, vault or chunk index and none writes to disk (no t.TempDir). The vault is pinned with --vault
 // to a directory the file system already holds, so the first-use vault creation never runs. The helpers carry the
-// ci1 prefix. The scenarios of 792a5h and later are in chunk_indexing_part2_scenarios_test.go.
+// ci1 prefix. The scenarios 792a5h to 792a5q are in chunk_indexing_part2_scenarios_test.go and 792a5r in
+// chunk_indexing_part3_scenarios_test.go.
 
 import (
 	"bytes"
