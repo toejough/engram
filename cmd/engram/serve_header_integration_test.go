@@ -18,13 +18,13 @@ import (
 )
 
 // Test792b35c3a4_ReadHeaderTimeout_IsTenSeconds pins the 10 seconds the requirement names, so the long-running
-// scenario test above cannot pass on a bound that drifted together with its own tolerance.
+// scenario test below cannot pass on a bound that drifted together with its own tolerance.
 func Test792b35c3a4_ReadHeaderTimeout_IsTenSeconds(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	g.Expect(readHeaderTimeout).To(Equal(vhs1HeaderBound))
+	g.Expect(readHeaderTimeout).To(Equal(vhsiHeaderBound))
 }
 
 // Test792b35c3a4_RealListenAndServe_ASlowHeaderReadIsCutOff verifies the scenario "A slow header read is cut off":
@@ -38,14 +38,14 @@ func Test792b35c3a4_RealListenAndServe_ASlowHeaderReadIsCutOff(t *testing.T) {
 
 	g := NewWithT(t)
 
-	addr := vhs1FreeLoopbackAddr(t)
-	stopServer := vhs1StartServer(t, addr)
+	addr := vhsiFreeLoopbackAddr(t)
+	stopServer := vhsiStartServer(t, addr)
 
 	defer stopServer()
 
-	g.Expect(vhs1PromptStatus(t, addr)).To(Equal(http.StatusOK))
+	g.Expect(vhsiPromptStatus(t, addr)).To(Equal(http.StatusOK))
 
-	conn := vhs1DialWithRetry(t, addr)
+	conn := vhsiDialWithRetry(t, addr)
 	if conn == nil {
 		return
 	}
@@ -54,65 +54,65 @@ func Test792b35c3a4_RealListenAndServe_ASlowHeaderReadIsCutOff(t *testing.T) {
 
 	started := time.Now()
 
-	_, writeErr := conn.Write([]byte(vhs1PartialRequest))
+	_, writeErr := conn.Write([]byte(vhsiPartialRequest))
 	g.Expect(writeErr).NotTo(HaveOccurred())
 
 	if writeErr != nil {
 		return
 	}
 
-	stopDrip := vhs1DripHeaderBytes(conn)
+	stopDrip := vhsiDripHeaderBytes(conn)
 
 	defer stopDrip()
 
-	readErr := conn.SetReadDeadline(started.Add(vhs1HeaderBound + vhs1SlackAfterBound))
+	readErr := conn.SetReadDeadline(started.Add(vhsiHeaderBound + vhsiSlackAfterBound))
 	g.Expect(readErr).NotTo(HaveOccurred())
 
 	if readErr != nil {
 		return
 	}
 
-	closeErr := vhs1ReadUntilClosed(conn)
+	closeErr := vhsiReadUntilClosed(conn)
 	elapsed := time.Since(started)
 
 	g.Expect(closeErr).To(Or(MatchError(io.EOF), MatchError(syscall.ECONNRESET), MatchError(syscall.EPIPE)))
-	g.Expect(elapsed).To(BeNumerically(">=", vhs1HeaderBound-vhs1ClockTolerance))
-	g.Expect(elapsed).To(BeNumerically("<", vhs1HeaderBound+vhs1SlackAfterBound))
+	g.Expect(elapsed).To(BeNumerically(">=", vhsiHeaderBound-vhsiClockTolerance))
+	g.Expect(elapsed).To(BeNumerically("<", vhsiHeaderBound+vhsiSlackAfterBound))
 }
 
 // unexported constants.
 const (
-	// vhs1ClockTolerance absorbs the gap between the client taking its start time and the server accepting.
-	vhs1ClockTolerance = time.Second
-	// vhs1DialAttempts bounds how often the client retries until the server listens.
-	vhs1DialAttempts = 100
-	// vhs1DialRetryWait is the wait between dial attempts.
-	vhs1DialRetryWait = 50 * time.Millisecond
-	// vhs1DripInterval is how often the slow client sends one more byte of a header value.
-	vhs1DripInterval = 500 * time.Millisecond
-	// vhs1HeaderBound is the 10 seconds of 792b35c3 Request bodies.
-	vhs1HeaderBound = 10 * time.Second
-	// vhs1PartialRequest is a request whose headers never end.
-	vhs1PartialRequest = "GET /vhs1-ping HTTP/1.1\r\nHost: localhost\r\nX-Slow: a"
-	// vhs1PingPattern is the control route.
-	vhs1PingPattern = "/vhs1-ping"
-	// vhs1PromptTimeout bounds the control request.
-	vhs1PromptTimeout = 5 * time.Second
-	// vhs1SlackAfterBound is how long after the bound the server may take to close the connection.
-	vhs1SlackAfterBound = 5 * time.Second
-	// vhs1StopTimeout bounds how long the server may take to stop after cancellation.
-	vhs1StopTimeout = 5 * time.Second
+	// vhsiClockTolerance absorbs the gap between the client taking its start time and the server accepting.
+	vhsiClockTolerance = time.Second
+	// vhsiDialAttempts bounds how often the client retries until the server listens.
+	vhsiDialAttempts = 100
+	// vhsiDialRetryWait is the wait between dial attempts.
+	vhsiDialRetryWait = 50 * time.Millisecond
+	// vhsiDripInterval is how often the slow client sends one more byte of a header value.
+	vhsiDripInterval = 500 * time.Millisecond
+	// vhsiHeaderBound is the 10 seconds of 792b35c3 Request bodies.
+	vhsiHeaderBound = 10 * time.Second
+	// vhsiPartialRequest is a request whose headers never end.
+	vhsiPartialRequest = "GET /vhsi-ping HTTP/1.1\r\nHost: localhost\r\nX-Slow: a"
+	// vhsiPingPattern is the control route.
+	vhsiPingPattern = "/vhsi-ping"
+	// vhsiPromptTimeout bounds the control request.
+	vhsiPromptTimeout = 5 * time.Second
+	// vhsiSlackAfterBound is how long after the bound the server may take to close the connection.
+	vhsiSlackAfterBound = 5 * time.Second
+	// vhsiStopTimeout bounds how long the server may take to stop after cancellation.
+	vhsiStopTimeout = 5 * time.Second
 )
 
-// vhs1OKHandler answers every request 200.
-type vhs1OKHandler struct{}
+// vhsiOKHandler answers every request 200.
+type vhsiOKHandler struct{}
 
-func (vhs1OKHandler) Serve(_ context.Context, _ cli.ServeRequest) cli.ServeResponse {
+func (vhsiOKHandler) Serve(_ context.Context, _ cli.ServeRequest) cli.ServeResponse {
 	return cli.ServeResponse{Status: http.StatusOK}
 }
 
-// vhs1DialWithRetry connects to addr, retrying until the server listens.
-func vhs1DialWithRetry(t *testing.T, addr string) net.Conn {
+// vhsiDialWithRetry connects to addr, retrying until the server listens.
+func vhsiDialWithRetry(t *testing.T, addr string) net.Conn {
 	t.Helper()
 
 	g := NewWithT(t)
@@ -121,7 +121,7 @@ func vhs1DialWithRetry(t *testing.T, addr string) net.Conn {
 
 	var dialErr error
 
-	for range vhs1DialAttempts {
+	for range vhsiDialAttempts {
 		conn, err := dialer.DialContext(t.Context(), "tcp", addr)
 		if err == nil {
 			return conn
@@ -129,7 +129,7 @@ func vhs1DialWithRetry(t *testing.T, addr string) net.Conn {
 
 		dialErr = err
 
-		time.Sleep(vhs1DialRetryWait)
+		time.Sleep(vhsiDialRetryWait)
 	}
 
 	g.Expect(dialErr).NotTo(HaveOccurred())
@@ -137,15 +137,15 @@ func vhs1DialWithRetry(t *testing.T, addr string) net.Conn {
 	return nil
 }
 
-// vhs1DripHeaderBytes keeps adding one byte to the open header value until stopped, so the client is slow, not idle.
-func vhs1DripHeaderBytes(conn net.Conn) func() {
+// vhsiDripHeaderBytes keeps adding one byte to the open header value until stopped, so the client is slow, not idle.
+func vhsiDripHeaderBytes(conn net.Conn) func() {
 	done := make(chan struct{})
 	finished := make(chan struct{})
 
 	go func() {
 		defer close(finished)
 
-		ticker := time.NewTicker(vhs1DripInterval)
+		ticker := time.NewTicker(vhsiDripInterval)
 
 		defer ticker.Stop()
 
@@ -168,8 +168,8 @@ func vhs1DripHeaderBytes(conn net.Conn) func() {
 	}
 }
 
-// vhs1FreeLoopbackAddr returns a loopback address that was free a moment ago.
-func vhs1FreeLoopbackAddr(t *testing.T) string {
+// vhsiFreeLoopbackAddr returns a loopback address that was free a moment ago.
+func vhsiFreeLoopbackAddr(t *testing.T) string {
 	t.Helper()
 
 	g := NewWithT(t)
@@ -190,13 +190,13 @@ func vhs1FreeLoopbackAddr(t *testing.T) string {
 	return addr
 }
 
-// vhs1PromptStatus sends one complete request at once, retrying until the server listens, and returns its status.
-func vhs1PromptStatus(t *testing.T, addr string) int {
+// vhsiPromptStatus sends one complete request at once, retrying until the server listens, and returns its status.
+func vhsiPromptStatus(t *testing.T, addr string) int {
 	t.Helper()
 
 	g := NewWithT(t)
 
-	ctx, cancel := context.WithTimeout(t.Context(), vhs1PromptTimeout)
+	ctx, cancel := context.WithTimeout(t.Context(), vhsiPromptTimeout)
 
 	defer cancel()
 
@@ -204,13 +204,13 @@ func vhs1PromptStatus(t *testing.T, addr string) int {
 
 	var getErr error
 
-	for range vhs1DialAttempts {
-		status, getErr = vhs1TryGet(ctx, "http://"+addr+vhs1PingPattern)
+	for range vhsiDialAttempts {
+		status, getErr = vhsiTryGet(ctx, "http://"+addr+vhsiPingPattern)
 		if getErr == nil {
 			break
 		}
 
-		time.Sleep(vhs1DialRetryWait)
+		time.Sleep(vhsiDialRetryWait)
 	}
 
 	g.Expect(getErr).NotTo(HaveOccurred())
@@ -218,8 +218,8 @@ func vhs1PromptStatus(t *testing.T, addr string) int {
 	return status
 }
 
-// vhs1ReadUntilClosed reads and discards until the connection fails, and returns that error.
-func vhs1ReadUntilClosed(conn net.Conn) error {
+// vhsiReadUntilClosed reads and discards until the connection fails, and returns that error.
+func vhsiReadUntilClosed(conn net.Conn) error {
 	buf := make([]byte, 1024)
 
 	for {
@@ -230,14 +230,14 @@ func vhs1ReadUntilClosed(conn net.Conn) error {
 	}
 }
 
-// vhs1StartServer serves one ping route through the production primitives on addr; the returned func stops it
+// vhsiStartServer serves one ping route through the production primitives on addr; the returned func stops it
 // and checks it stopped as the expected shutdown.
-func vhs1StartServer(t *testing.T, addr string) func() {
+func vhsiStartServer(t *testing.T, addr string) func() {
 	t.Helper()
 
 	ctx, cancel := context.WithCancel(t.Context())
 	mux := realNewServeMux()
-	realRegisterRoute(mux, http.MethodGet, vhs1PingPattern, vhs1OKHandler{})
+	realRegisterRoute(mux, http.MethodGet, vhsiPingPattern, vhsiOKHandler{})
 
 	served := make(chan error, 1)
 
@@ -251,14 +251,14 @@ func vhs1StartServer(t *testing.T, addr string) func() {
 		select {
 		case err := <-served:
 			g.Expect(errors.Is(err, http.ErrServerClosed)).To(BeTrue())
-		case <-time.After(vhs1StopTimeout):
+		case <-time.After(vhsiStopTimeout):
 			g.Expect(false).To(BeTrue(), "the server did not stop after cancellation")
 		}
 	}
 }
 
-// vhs1TryGet issues one GET and returns its status, closing the response body.
-func vhs1TryGet(ctx context.Context, url string) (int, error) {
+// vhsiTryGet issues one GET and returns its status, closing the response body.
+func vhsiTryGet(ctx context.Context, url string) (int, error) {
 	req, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if reqErr != nil {
 		return 0, reqErr
