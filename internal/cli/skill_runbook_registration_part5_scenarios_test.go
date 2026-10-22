@@ -637,9 +637,9 @@ func Test792a12r1c_RegisterSkills_AnExactKeyBeatsAPattern(t *testing.T) {
 	const exact = "brainstorming"
 
 	cases := []struct {
-		name               string
-		args               cli.SkillRegistrationArgs
-		wantExactRegistred bool
+		name                string
+		args                cli.SkillRegistrationArgs
+		wantExactRegistered bool
 	}{
 		{"decline the plugin, accept the key", cli.SkillRegistrationArgs{
 			Decline: []string{"superpowers:*"}, Accept: []string{"superpowers:" + exact},
@@ -662,7 +662,7 @@ func Test792a12r1c_RegisterSkills_AnExactKeyBeatsAPattern(t *testing.T) {
 
 			only, rest := srr5Split(skills, exact)
 
-			if testCase.wantExactRegistred {
+			if testCase.wantExactRegistered {
 				g.Expect(srr5Notes(vault)).To(ConsistOf(HaveSuffix(".skill-superpowers-brainstorming.md")))
 				g.Expect(srr5Declined(g, vault)).To(Equal(srr5Hashes(rest)))
 
@@ -872,7 +872,10 @@ func srr5Hashes(skills map[string]string) map[string]string {
 
 // srr5Notes lists the basenames of the skill notes in vault.
 func srr5Notes(vault *skillAcceptFixtureVault) []string {
-	names, _ := vault.ListMD(srr1Vault)
+	names, err := vault.ListMD(srr1Vault)
+	if err != nil || names == nil {
+		return []string{}
+	}
 
 	return names
 }
