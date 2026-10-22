@@ -855,7 +855,7 @@ Status: Ready
 
 #### 861c2ze Skill Source Discovery (default)
 
-Status: Ready
+Status: In progress: 0/2 entries complete (2 rows Green-single)
 
 - Owner file: [Skill Source Discovery](../../specs/technical/skill-source-discovery.md) (technical component).
 - Package: `internal/cli`; suggested test file: `internal/cli/skill_source_discovery_scenarios_test.go`.
@@ -866,8 +866,8 @@ Status: Ready
 
 | ID | Gherkin | Classification | Why | Status |
 | --- | --- | --- | --- | --- |
-| 861c2ze1 | [792b30c3a5 A dangling link is skipped](../../specs/technical/skill-source-discovery.md#792b30c3a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
-| 861c2ze2 | [792b30c11a9 Agents and Pi project sources need a trusted project only](../../specs/technical/skill-source-discovery.md#792b30c11a-scenarios) | Example | Fixed inputs, one exact outcome | Not started |
+| 861c2ze1 | [792b30c3a5 A dangling link is skipped](../../specs/technical/skill-source-discovery.md#792b30c3a-scenarios) | Example | Fixed inputs, one exact outcome. `Test792b30c3a5_ScanClaudeUserSkills_DanglingLinkIsSkipped` (3 subtests, in-memory skill file system, which models a dangling link; no real file system). Mutation `readSkillChild` returning the resolve error instead of ignoring not-exist failed all 3 subtests at the no-warning assertion (log `mut.log`); baseline `3.log` | Green-single |
+| 861c2ze2 | [792b30c11a9 Agents and Pi project sources need a trusted project only](../../specs/technical/skill-source-discovery.md#792b30c11a-scenarios) | Example | Fixed inputs, one exact outcome. `Test792b30c11a9_ResolveSkillSources_TrustedProjectScansPiAndAgentsLevels` (resolver over the in-memory file system from a subdirectory; `.pi` levels cwd-only, `.agents` chain to the top-level). Baseline pass only (`3.log`), the single mutation of the unit did not target it | Green-single |
 
 #### 861c2zf Source Chunking (default)
 
