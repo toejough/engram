@@ -202,8 +202,7 @@ Scenario: 792b2c4a2 A success neither exits nor writes stderr
 #### 792b2c5 Argument refusal
 
 Requirement: [792b2c5 Argument refusal](#792b2c5-argument-refusal) The command-line-surface MUST refuse an invocation that passes a flag the
-command does not define, or omits a flag the command marks required, by writing an error naming the
-flag to stderr and exiting non-zero without running the command.
+command does not define, or omits a flag the command marks required, exiting non-zero without running the command.
 
 Supports: [792a3e1a A task type is refused](../product/note-writing.md#792a3e1-uat-scenarios), [792a3f1a A missing situation is refused](../product/note-writing.md#792a3f1-uat-scenarios), [792a3f1c A runbook without done-when is refused](../product/note-writing.md#792a3f1-uat-scenarios), [792a3g1a An invalid argument is refused before any write](../product/note-writing.md#792a3g1-uat-scenarios), [792a3r1a An invalid pair is refused before any write](../product/note-writing.md#792a3r1-uat-scenarios), [792a6h1a A bad seed is refused](../product/controlled-vocabulary.md#792a6h1-uat-scenarios), [792a6i1c Both flags are required](../product/controlled-vocabulary.md#792a6i1-uat-scenarios), [792a6r1a The plan flow is gone](../product/controlled-vocabulary.md#792a6r1-uat-scenarios).
 
@@ -218,7 +217,7 @@ Scenario: 792b2c5a1 An undefined flag is refused
 Scenario: 792b2c5a2 A missing required flag is refused
   Given a command that marks --done-when required
   When it is dispatched without --done-when
-  Then stderr names --done-when, the exit status is non-zero, and the command does not run
+  Then the exit status is non-zero and the command does not run
 ```
 
 #### 792b2c6 Chunk index directory resolution

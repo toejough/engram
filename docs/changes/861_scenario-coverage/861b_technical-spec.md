@@ -202,3 +202,27 @@ Scenario: 861b4zzzf1b Nothing outside the carry is written
   When the writing is given the reply
   Then the one note written has as chunk sources only the passage of the carry, when the lesson lists it, and supersedes at most the note of the carry, and the note of the carry is amended exactly when the reply gives it the verdict covered or near and lists the passage, with that passage as the only chunk source
 ```
+
+## 861b4g Modified: Command Line Surface scenarios
+
+Operations a test finds necessary in existing specs are applied in place ([861d6 A new test that fails at baseline](./861d_questions-and-decisions.md#questions-and-decisions)); the two below are applied in [Command Line Surface](../../specs/technical/command-line-surface.md) in the commit that records them. Both follow the owner's decision [861d29 stderr of an argument refusal](./861d_questions-and-decisions.md#questions-and-decisions): "This is a problem properly solved by targ, right? If so, file an issue with targ. And don't encode this level of behavior... we don't need to be so specific about cli behavior. Flag parsing is not the point of the app." The stream of the refusal is a targ matter, filed as [targ issue 79](https://github.com/toejough/targ/issues/79).
+
+### 861b4g1 Modified: 792b2c5 Argument refusal
+
+Target: [792b2c5 Argument refusal](../../specs/technical/command-line-surface.md#792b2c5-argument-refusal). Differs from the current text in the stream and the flag naming: the requirement keeps only that the invocation is refused. The Supports line stays.
+
+```markdown
+Requirement: 792b2c5 Argument refusal The command-line-surface MUST refuse an invocation that passes a flag the
+command does not define, or omits a flag the command marks required, exiting non-zero without running the command.
+```
+
+### 861b4g2 Modified: 792b2c5a2 A missing required flag is refused
+
+Target: [792b2c5a Scenarios](../../specs/technical/command-line-surface.md#792b2c5a-scenarios), Scenario 792b2c5a2. Differs from the current text in the Then line: the stream and the flag naming are dropped, the same reduced form as 792b2c5a1.
+
+```gherkin
+Scenario: 792b2c5a2 A missing required flag is refused
+  Given a command that marks --done-when required
+  When it is dispatched without --done-when
+  Then the exit status is non-zero and the command does not run
+```
