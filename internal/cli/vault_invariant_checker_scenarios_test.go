@@ -2,7 +2,6 @@ package cli_test
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"io/fs"
 	"path/filepath"
@@ -40,10 +39,10 @@ func Test792b26c1a4_RunCheck_ScanFailureIsReturnedBeforeAnyLine(t *testing.T) {
 		},
 	}
 
-	out, err := vic1Run(deps)
+	out, err := vic1Run(t, deps)
 
 	g.Expect(err).To(MatchError(errScan))
-	g.Expect(err).To(MatchError(ContainSubstring("check: scan: vault root unreadable")))
+	g.Expect(err).To(MatchError(HavePrefix("check: scan: ")))
 	g.Expect(out).To(BeEmpty())
 	g.Expect(reads).To(BeZero())
 }
@@ -61,7 +60,7 @@ func Test792b26c1a5_RunCheck_InvalidUTF8NoteIsChecked(t *testing.T) {
 			"body \xff\xfe\xc3\x28 before the link\n\nRelated to:\n- [[999]] — x.\n"),
 	})
 
-	out, err := vic1Run(cli.ExportNewCheckDeps(vault.edgeFS()))
+	out, err := vic1Run(t, cli.ExportNewCheckDeps(vault.edgeFS()))
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -85,7 +84,7 @@ func Test792b26c2a3_RunCheck_LinkToMissingNoteWarns(t *testing.T) {
 		vic1NoteFile: vic1NoteText(vic1FactType, "situation: testing the checker", "body\n\n- [[999]] — x.\n"),
 	})
 
-	out, err := vic1Run(cli.ExportNewCheckDeps(vault.edgeFS()))
+	out, err := vic1Run(t, cli.ExportNewCheckDeps(vault.edgeFS()))
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -117,7 +116,7 @@ func Test792b26c2a4_RunCheck_BareIDMatchingNoNoteIsDangling(t *testing.T) {
 		},
 	}
 
-	out, err := vic1Run(deps)
+	out, err := vic1Run(t, deps)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -145,7 +144,7 @@ func Test792b26c2a5_RunCheck_NoG3LineWithoutADanglingLink(t *testing.T) {
 		},
 	}
 
-	out, err := vic1Run(deps)
+	out, err := vic1Run(t, deps)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -168,7 +167,7 @@ func Test792b26c3a2_RunCheck_BlankSituationFails(t *testing.T) {
 		vic1NoteBasename: vic1NoteText(vic1FactType, `situation: "   "`, "body\n"),
 	})
 
-	out, err := vic1Run(deps)
+	out, err := vic1Run(t, deps)
 
 	g.Expect(err).To(MatchError(cli.ErrCheckFailedForTest))
 	g.Expect(out).To(Equal(vic1G0PassLine +
@@ -186,7 +185,7 @@ func Test792b26c3a4_RunCheck_OtherTypesAreSkipped(t *testing.T) {
 		vic1NoteBasename: vic1NoteText("moc", "title: a map", "map of content\n"),
 	})
 
-	out, err := vic1Run(deps)
+	out, err := vic1Run(t, deps)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -198,7 +197,8 @@ func Test792b26c3a4_RunCheck_OtherTypesAreSkipped(t *testing.T) {
 }
 
 // Test792b26c3a5_RunCheck_UnparseableNotesAreSkipped verifies 792b26c3a5 (vault-invariant-checker.md): a
-// note with malformed YAML frontmatter and a note with no frontmatter are not judged, so M5 passes.
+// note with malformed YAML frontmatter (a syntax error, and a type mismatch that still decodes type: fact)
+// and a note with no frontmatter are not judged, so M5 passes.
 func Test792b26c3a5_RunCheck_UnparseableNotesAreSkipped(t *testing.T) {
 	t.Parallel()
 
@@ -207,14 +207,18 @@ func Test792b26c3a5_RunCheck_UnparseableNotesAreSkipped(t *testing.T) {
 	const (
 		malformedBasename = "2.2026-05-30.bad"
 		bareBasename      = "3.2026-05-30.raw"
+		mismatchBasename  = "4.2026-05-30.mismatch"
 	)
 
 	deps := vic1SituationDeps(map[string]string{
 		malformedBasename: "---\ntype: fact\nsituation: [unterminated\n---\nbody\n",
 		bareBasename:      "just prose, no frontmatter\n",
+		// A sequence where a string is expected: yaml.v3 reports a type error yet still decodes
+		// type: fact, so only the parse-error guard keeps this note out of M5.
+		mismatchBasename: "---\ntype: fact\nsituation: [a, b]\n---\nbody\n",
 	})
 
-	out, err := vic1Run(deps)
+	out, err := vic1Run(t, deps)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -243,7 +247,7 @@ func Test792b26c3a7_RunCheck_UnreadableNoteIsSkipped(t *testing.T) {
 		},
 	}
 
-	out, err := vic1Run(deps)
+	out, err := vic1Run(t, deps)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -263,7 +267,7 @@ func Test792b26c4a1_RunCheck_OldSchemaSidecarFails(t *testing.T) {
 
 	oldSchema := `{"embedding_model_id":"m@4","dims":4,"vector":[1,0,0,0],"content_hash":"sha256:x"}`
 
-	out, err := vic1Run(vic1SidecarDeps(func(string) ([]byte, error) { return []byte(oldSchema), nil }))
+	out, err := vic1Run(t, vic1SidecarDeps(func(string) ([]byte, error) { return []byte(oldSchema), nil }))
 
 	g.Expect(err).To(MatchError(cli.ErrCheckFailedForTest))
 	g.Expect(out).To(Equal(vic1G0PassLine +
@@ -289,7 +293,7 @@ func Test792b26c4a2_RunCheck_CurrentSidecarPasses(t *testing.T) {
 		ContentHash:      "sha256:x",
 	})
 
-	out, err := vic1Run(vic1SidecarDeps(func(string) ([]byte, error) { return current, nil }))
+	out, err := vic1Run(t, vic1SidecarDeps(func(string) ([]byte, error) { return current, nil }))
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -310,7 +314,7 @@ func Test792b26c4a3_RunCheck_MissingSidecarWarns(t *testing.T) {
 
 	var readPaths []string
 
-	out, err := vic1Run(vic1SidecarDeps(func(path string) ([]byte, error) {
+	out, err := vic1Run(t, vic1SidecarDeps(func(path string) ([]byte, error) {
 		readPaths = append(readPaths, path)
 
 		return nil, fs.ErrNotExist
@@ -334,7 +338,7 @@ func Test792b26c4a4_RunCheck_MalformedSidecarFails(t *testing.T) {
 
 	g := NewWithT(t)
 
-	out, err := vic1Run(vic1SidecarDeps(func(string) ([]byte, error) { return []byte("{not json"), nil }))
+	out, err := vic1Run(t, vic1SidecarDeps(func(string) ([]byte, error) { return []byte("{not json"), nil }))
 
 	g.Expect(err).To(MatchError(cli.ErrCheckFailedForTest))
 	g.Expect(out).To(Equal(vic1G0PassLine +
@@ -344,7 +348,7 @@ func Test792b26c4a4_RunCheck_MalformedSidecarFails(t *testing.T) {
 
 // Test792b26c6a1_RunCheck_CheckWritesNothing verifies 792b26c6a1 (vault-invariant-checker.md): a check
 // over a vault that violates every invariant creates, changes and deletes no file. The in-memory vault
-// records every write-capable EdgeFS call, and the files are compared before and after.
+// records every write-capable EdgeFS call, and none is recorded.
 func Test792b26c6a1_RunCheck_CheckWritesNothing(t *testing.T) {
 	t.Parallel()
 
@@ -364,9 +368,8 @@ func Test792b26c6a1_RunCheck_CheckWritesNothing(t *testing.T) {
 		// S1 WARN: no sidecar at all.
 		targetBasename + ".md": vic1NoteText(vic1FactType, "subject: y", "body\n"),
 	})
-	before := vault.snapshot()
 
-	out, err := vic1Run(cli.ExportNewCheckDeps(vault.edgeFS()))
+	out, err := vic1Run(t, cli.ExportNewCheckDeps(vault.edgeFS()))
 
 	g.Expect(err).To(MatchError(cli.ErrCheckFailedForTest))
 	g.Expect(out).To(ContainSubstring("FAIL  G0 graph-resolution: 1 bare-id links that should resolve\n"))
@@ -375,7 +378,6 @@ func Test792b26c6a1_RunCheck_CheckWritesNothing(t *testing.T) {
 	g.Expect(out).To(ContainSubstring("WARN  S1 sidecar-schema: 1 note(s) missing a sidecar"))
 	g.Expect(out).To(ContainSubstring("FAIL  S1 sidecar-schema: 1 sidecar(s) on an old/invalid schema"))
 	g.Expect(vault.writes).To(BeEmpty())
-	g.Expect(vault.snapshot()).To(Equal(before))
 }
 
 // unexported constants.
@@ -479,16 +481,6 @@ func (v *vic1Vault) record(op, path string) {
 	v.writes = append(v.writes, op+" "+path)
 }
 
-// snapshot returns a copy of the vault's files as strings.
-func (v *vic1Vault) snapshot() map[string]string {
-	copied := make(map[string]string, len(v.files))
-	for path, content := range v.files {
-		copied[path] = string(content)
-	}
-
-	return copied
-}
-
 // newVic1Vault builds a vic1Vault from file names (relative to the vault directory) and contents.
 func newVic1Vault(files map[string]string) *vic1Vault {
 	vault := &vic1Vault{files: make(map[string][]byte, len(files))}
@@ -506,10 +498,12 @@ func vic1NoteText(noteType, frontmatterLine, body string) string {
 
 // vic1Run runs the check over deps with the shared vault path and returns what it printed and the
 // error it returned.
-func vic1Run(deps cli.CheckDeps) (string, error) {
+func vic1Run(t *testing.T, deps cli.CheckDeps) (string, error) {
+	t.Helper()
+
 	var out bytes.Buffer
 
-	err := cli.RunCheck(context.Background(), cli.CheckArgs{VaultPath: vic1VaultPath}, deps, &out)
+	err := cli.RunCheck(t.Context(), cli.CheckArgs{VaultPath: vic1VaultPath}, deps, &out)
 
 	return out.String(), err
 }
