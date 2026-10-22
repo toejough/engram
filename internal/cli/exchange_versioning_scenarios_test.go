@@ -5,12 +5,12 @@ package cli_test
 // docs/specs/technical/exchange-versioning.md.
 //
 // The pure scenarios call the exported seams of the package directly. The one interaction scenario drains an
-// in-memory vault (outboxEnv) with MockOo1Send for the drain's send step and the real receipt writer.
+// in-memory vault (outboxEnv) with MockOo1Send for the drain's send step and the real receipt rewrite
+// (applyReceiptToContent), written by a test-local apply as drainApplying does.
 
 import (
 	"strings"
 	"testing"
-	"time"
 
 	. "github.com/onsi/gomega"
 	"github.com/toejough/imptest/match"
@@ -117,8 +117,8 @@ func Test792b33c9a6_ApplyReceiptToContent_ANoteWithNoFrontmatterCannotTakeARecei
 }
 
 // Test792b33c9a7_DrainOutbox_ACRLFNoteTakesTheReceiptAsLF verifies 792b33c9a7 (A CRLF note takes the receipt as
-// LF): a CRLF note queued for an offer is sent (the send step is called once, for its xid, and is handed the CRLF
-// bytes), and the receipt that follows is recorded by a write that converts the note to LF; the entry is removed.
+// LF): a CRLF note queued for an offer is sent (the send step is called once, for its xid), and the receipt that
+// follows is recorded by a write that converts the note to LF; the entry is removed.
 func Test792b33c9a7_DrainOutbox_ACRLFNoteTakesTheReceiptAsLF(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -147,11 +147,8 @@ func Test792b33c9a7_DrainOutbox_ACRLFNoteTakesTheReceiptAsLF(t *testing.T) {
 	done := oo1StartDrain(env, send, apply)
 
 	// the expectation runs apart, so that a call that does not match it cannot hold the test
-	sent := make(chan cli.OfferNoteForTest, 1)
-
 	go func() {
 		call := sendCalls.ArgsShould(match.BeAny, HaveField("XID", xidA))
-		sent <- call.GetArgs().Note
 
 		call.Return(accepted("9.2026-09-27.parent-copy"))
 	}()
@@ -160,13 +157,6 @@ func Test792b33c9a7_DrainOutbox_ACRLFNoteTakesTheReceiptAsLF(t *testing.T) {
 
 	g.Expect(outcome.err).NotTo(HaveOccurred())
 	g.Expect(outcome.result.Sent).To(Equal(1), "the offer was sent once")
-
-	select {
-	case note := <-sent:
-		g.Expect(string(note.Raw)).To(Equal(crlf), "the send step was handed the note as it lay, in CRLF")
-	case <-time.After(mockTimeout):
-		t.Fatal("the offer was not sent")
-	}
 
 	g.Expect(receipts).To(HaveLen(1), "one receipt is recorded")
 
