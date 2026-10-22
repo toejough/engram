@@ -4,6 +4,8 @@ package dev
 
 import (
 	"regexp"
+	"slices"
+	"sort"
 	"strings"
 	"testing"
 
@@ -57,7 +59,7 @@ func Test792a18a1c_ACasualPleaseDoesNot(t *testing.T) {
 		"action (\"please read this file\", \"please rename this var\")"))
 	g.Expect(text).To(ContainSubstring("If the ask plausibly resolves to a single file edit or a single tool call " +
 		"with no follow-up, the skill should not fire — handle it directly."))
-	g.Expect(pleasePart1Unnegated(t, "please read this file")).To(BeEmpty())
+	g.Expect(pleasePart1Contradictions(t, pleasePart1ScanCasualPlease)).To(BeEmpty())
 }
 
 // Test792a18a1d_AnUnclearBoundaryFires reads the please skill the repository ships: when the boundary of a
@@ -105,8 +107,9 @@ func Test792a18b1b_NothingHappensMeanwhile(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("do not run `/recall` or `/learn`"))
 	g.Expect(text).To(ContainSubstring("do not read files \"to be ready\""))
 	g.Expect(text).To(ContainSubstring("do not open the transcript."))
-	g.Expect(pleasePart1Unnegated(t, "in the meantime")).To(BeEmpty())
-	g.Expect(pleasePart1Unnegated(t, "to be ready")).To(BeEmpty())
+	g.Expect(pleasePart1Contradictions(t, pleasePart1ScanTaskCreation)).To(BeEmpty())
+	g.Expect(pleasePart1Contradictions(t, pleasePart1ScanRecallOrLearn)).To(BeEmpty())
+	g.Expect(pleasePart1Contradictions(t, pleasePart1ScanFileRead)).To(BeEmpty())
 }
 
 // Test792a18c1a_SevenTasksInOneCall reads the please skill the repository ships: the seven steps are pushed to the
@@ -146,7 +149,7 @@ func Test792a18c1b_NoStepStartsEarly(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("Each step starts only after the previous step is `completed`."))
 	g.Expect(text).To(ContainSubstring("Do not begin reading repo docs (step 2) while step 1's `/learn` is still " +
 		"`in_progress`."))
-	g.Expect(pleasePart1Unnegated(t, "reading repo docs")).To(BeEmpty())
+	g.Expect(pleasePart1Contradictions(t, pleasePart1ScanStepOverlap)).To(BeEmpty())
 }
 
 // Test792a18c1c_AMissingMechanismIsTheOnlyNA reads the please skill the repository ships: a step is not applicable
@@ -179,7 +182,7 @@ func Test792a18c1d_SmallIsNotNA(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("\"nothing to document\""))
 	g.Expect(text).To(ContainSubstring("are **not** N/A — run the step"))
 	g.Expect(text).To(ContainSubstring("if it produces nothing, that's fine, and the closing `/learn` will record it."))
-	g.Expect(pleasePart1Unnegated(t, "nothing to document")).To(BeEmpty())
+	g.Expect(pleasePart1Contradictions(t, pleasePart1ScanNothingToDocument)).To(BeEmpty())
 }
 
 // Test792a18c1e_HurryDoesNotWaive reads the please skill the repository ships: the user cannot waive steps by saying
@@ -195,7 +198,7 @@ func Test792a18c1e_HurryDoesNotWaive(t *testing.T) {
 		"workflow"))
 	g.Expect(text).To(ContainSubstring("The user cannot waive steps. Run the workflow;"))
 	g.Expect(text).To(ContainSubstring("3. **Plan.** Write a plan to accomplish the ask."))
-	g.Expect(pleasePart1Unnegated(t, "skip the plan")).To(BeEmpty())
+	g.Expect(pleasePart1Contradictions(t, pleasePart1ScanWaiver)).To(BeEmpty())
 }
 
 // Test792a18c1f_ARedirectUpdatesTheList reads the please skill the repository ships: when the user redirects
@@ -210,7 +213,7 @@ func Test792a18c1f_ARedirectUpdatesTheList(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("If the user interrupts and redirects mid-workflow, update the task list to " +
 		"reflect the new shape"))
 	g.Expect(text).To(ContainSubstring("do not abandon open steps without an explicit close."))
-	g.Expect(pleasePart1Unnegated(t, "abandon")).To(BeEmpty())
+	g.Expect(pleasePart1Contradictions(t, pleasePart1ScanAbandon)).To(BeEmpty())
 }
 
 // Test792a18d1a_LearnFirst reads the please skill the repository ships: step 1, the learn skill, runs before any new
@@ -246,7 +249,8 @@ func Test792a18d1b_RecallIsLiteral(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("not \"I'll just grep\"."))
 	g.Expect(text).To(ContainSubstring("They are not substitutes — run `/recall` AND the file-tree tools, " +
 		"never instead."))
-	g.Expect(pleasePart1Unnegated(t, "the diff is right there")).To(BeEmpty())
+	g.Expect(pleasePart1Contradictions(t, pleasePart1ScanReadingForRecall)).To(BeEmpty())
+	g.Expect(pleasePart1Contradictions(t, pleasePart1ScanSubstituteForRecall)).To(BeEmpty())
 }
 
 // Test792a18d1c_OrientationLoopsOnDoubt reads the please skill the repository ships: orientation asks the user
@@ -300,7 +304,7 @@ func Test792a18e1b_TheChallengeIsNotSoftened(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("not softened into a leading question"))
 	g.Expect(text).To(ContainSubstring("You softened a challenge into a hinting question because directness felt " +
 		"rude | State it declaratively with concrete stakes"))
-	g.Expect(pleasePart1Unnegated(t, "leading question")).To(BeEmpty())
+	g.Expect(pleasePart1Contradictions(t, pleasePart1ScanSoftenedChallenge)).To(BeEmpty())
 }
 
 // Test792a18e1c_TheUsersReaffirmationIsRecordedAndHonored reads the please skill the repository ships: when the user
@@ -318,7 +322,7 @@ func Test792a18e1c_TheUsersReaffirmationIsRecordedAndHonored(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("record the dissent in the plan (\"considered X; user chose Y because Z\")."))
 	g.Expect(text).To(ContainSubstring("No relitigating in later steps, no passive-aggressive hedging in the work " +
 		"itself."))
-	g.Expect(pleasePart1Unnegated(t, "relitigating in later steps")).To(BeEmpty())
+	g.Expect(pleasePart1Contradictions(t, pleasePart1ScanRelitigation)).To(BeEmpty())
 }
 
 // Test792a18f1a_TheAskedTaskBegins reads the please skill the repository ships: once the ask is given, or a gate
@@ -338,7 +342,7 @@ func Test792a18f1a_TheAskedTaskBegins(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("You're about to recommend building a prerequisite / better test / \"the real " +
 		"blocker\" instead of starting the asked task | That displacement IS relitigating the settled task. Begin " +
 		"the asked task"))
-	g.Expect(pleasePart1Unnegated(t, "build the prerequisite")).To(BeEmpty())
+	g.Expect(pleasePart1Contradictions(t, pleasePart1ScanDisplacement)).To(BeEmpty())
 }
 
 // Test792a18f1b_AReversalNeedsANewFact reads the please skill the repository ships: a deviation names a genuinely new
@@ -356,46 +360,119 @@ func Test792a18f1b_AReversalNeedsANewFact(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("A dependency-order or \"we can't fully verify yet\" argument is re-weighted " +
 		"old reasoning, not new evidence."))
 	g.Expect(text).To(ContainSubstring("deviate only on a NEW fact, stated as a reversal."))
-	g.Expect(pleasePart1Unnegated(t, "fully verify yet")).To(BeEmpty())
+	g.Expect(pleasePart1Contradictions(t, pleasePart1ScanDeviation)).To(BeEmpty())
 }
 
-// TestPleasePart1UnnegatedSentences shows the scanner of the absence checks finds a sentence that names a fragment
-// without a negation, whatever its case, and passes the sentences that name it only to forbid it.
-func TestPleasePart1UnnegatedSentences(t *testing.T) {
+// TestPleasePart1FlaggedSentences shows the scanner of the absence checks finds a sentence that names what a rule
+// prohibits whatever its wording around it, including one that carries a negation word, and passes only the shipped
+// sentences the scan allows by their exact text.
+func TestPleasePart1FlaggedSentences(t *testing.T) {
 	t.Parallel()
 
-	t.Run("a sentence that names the fragment without a negation is found", func(t *testing.T) {
+	contradictions := map[string]struct {
+		scan     pleasePart1Scan
+		sentence string
+	}{
+		"a redirect abandons the open steps": {
+			pleasePart1ScanAbandon, "On a redirect, abandon the open steps without an explicit close.",
+		},
+		"the diff replaces recall": {
+			pleasePart1ScanReadingForRecall,
+			"When the diff is right there, there is no need to invoke recall; read the files instead.",
+		},
+		"the challenge is phrased as a question": {
+			pleasePart1ScanSoftenedChallenge, "Never state a flaw declaratively; phrase it as a leading question.",
+		},
+		"the files are read in the meantime": {
+			pleasePart1ScanFileRead, "Do not wait for the answer; read the files in the meantime.",
+		},
+		"a hurry skips the plan": {
+			pleasePart1ScanWaiver, "Skip the plan when the user is in a hurry; no ceremony is needed.",
+		},
+		"recall runs while the question is pending": {
+			pleasePart1ScanRecallOrLearn, "While the question is pending, run /recall so you are prepared.",
+		},
+		"the task list is created while the question is pending": {
+			pleasePart1ScanTaskCreation, "While the question is pending, create the task list for the work.",
+		},
+		"the transcript is opened while waiting": {
+			pleasePart1ScanFileRead, "While waiting for the answer, open the transcript and look around.",
+		},
+	}
+
+	for name, contradiction := range contradictions {
+		t.Run("a contradiction is found: "+name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			text := "Nothing here applies. " + contradiction.sentence + " Nor does this."
+
+			g.Expect(pleasePart1Flagged(text, contradiction.scan)).
+				To(ConsistOf(strings.TrimSuffix(contradiction.sentence, ".")))
+			g.Expect(pleasePart1Flagged(strings.ToUpper(text), contradiction.scan)).To(HaveLen(1))
+		})
+	}
+
+	t.Run("a shipped sentence the scan allows is clean", func(t *testing.T) {
 		t.Parallel()
 
 		g := NewWithT(t)
 
-		text := "Do not fire on this. A casual Please Read This File always fires the workflow. Another sentence."
+		text := "Nothing here applies. " + pleasePart1ShippedRedirectRule + ". Nor does this."
 
-		g.Expect(pleasePart1UnnegatedSentences(text, "please read this file")).
-			To(ConsistOf("A casual Please Read This File always fires the workflow"))
+		g.Expect(pleasePart1Flagged(text, pleasePart1ScanAbandon)).To(BeEmpty())
 	})
 
-	t.Run("a sentence that names the fragment only to forbid it is clean", func(t *testing.T) {
+	t.Run("an allowed sentence with a contradiction appended is found", func(t *testing.T) {
 		t.Parallel()
 
 		g := NewWithT(t)
 
-		text := "Do not fire on \"please read this file\". The user cannot skip the plan. Never nothing to document."
+		text := pleasePart1ShippedRedirectRule + ", and abandon the open steps when the work looks done."
 
-		g.Expect(pleasePart1UnnegatedSentences(text, "please read this file")).To(BeEmpty())
-		g.Expect(pleasePart1UnnegatedSentences(text, "skip the plan")).To(BeEmpty())
-		g.Expect(pleasePart1UnnegatedSentences(text, "nothing to document")).To(BeEmpty())
+		g.Expect(pleasePart1Flagged(text, pleasePart1ScanAbandon)).To(HaveLen(1))
 	})
 
-	t.Run("a word that merely contains a negation does not count as one", func(t *testing.T) {
+	t.Run("a sentence that does not name the prohibited act is clean", func(t *testing.T) {
 		t.Parallel()
 
 		g := NewWithT(t)
 
-		text := "If there is nothing to document, mark the step N/A."
+		text := "Read the files when the task starts. Run the recall skill first."
 
-		g.Expect(pleasePart1UnnegatedSentences(text, "nothing to document")).To(HaveLen(1))
+		g.Expect(pleasePart1Flagged(text, pleasePart1ScanFileRead)).To(BeEmpty())
+		g.Expect(pleasePart1Flagged(text, pleasePart1ScanRecallOrLearn)).To(BeEmpty())
 	})
+}
+
+// TestPleasePart1ScansFlagTheirAllowList shows each absence scan, run without its allow-list over every shipped
+// instruction file, flags exactly the sentences it allows: the scan is not vacuous and no allowed sentence is stale.
+func TestPleasePart1ScansFlagTheirAllowList(t *testing.T) {
+	t.Parallel()
+
+	for name, scan := range pleasePart1AllScans() {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			unallowed := scan
+			unallowed.allowed = nil
+
+			found := make([]string, 0, len(scan.allowed))
+
+			for _, sentences := range pleasePart1Contradictions(t, unallowed) {
+				for _, sentence := range sentences {
+					if !slices.Contains(found, sentence) {
+						found = append(found, sentence)
+					}
+				}
+			}
+
+			g.Expect(found).To(ConsistOf(scan.allowed))
+		})
+	}
 }
 
 // unexported constants.
@@ -405,9 +482,221 @@ const (
 
 // unexported variables.
 var (
-	pleasePart1NegationPattern = regexp.MustCompile(`(?i)\b(?:not|no|never|cannot|without)\b|n't\b`)
-	pleasePart1SentenceEnd     = regexp.MustCompile(`[.?!]\s+`)
+	pleasePart1MeantimeMarkers = pleasePart1Patterns(
+		`in the meantime`, `meanwhile`, `to be ready`, `question is (?:still )?(?:pending|open|unanswered)`,
+		`while (?:the|that|this|your) (?:single |one )?question`, `while (?:you )?(?:wait|await)`,
+		`awaiting (?:the|their|an) (?:answer|reply|response)`,
+		`until (?:the user|they|it) (?:answers|replies|responds)`, `before (?:the user|they) answer`,
+	)
+	pleasePart1ScanAbandon = pleasePart1Scan{
+		markers: pleasePart1Patterns(
+			`redirect`, `interrupt`, `abandon`, `(?:user|they) (?:changes?|switch\w*) (?:the )?(?:ask|direction|mind)`,
+			`new direction`,
+		),
+		allowed: []string{pleasePart1ShippedRedirectRule},
+	}
+	pleasePart1ScanCasualPlease = pleasePart1Scan{
+		markers: pleasePart1Patterns(
+			`please read this file`, `please rename this var`, `single trivial action`, `single file edit`,
+			`casual (?:uses? of )?"?please`, `\bplease\b.{0,80}\b(?:fires?|triggers?|invokes?|activates?)\b`,
+			`\b(?:fires?|triggers?|invokes?|activates?)\b.{0,80}\b(?:trivial|casual|single)\b`,
+		),
+		allowed: []string{
+			pleasePart1ShippedCasualPleaseRule, pleasePart1ShippedMultiStepTestRule, pleasePart1ShippedSlashFormRule,
+		},
+	}
+	pleasePart1ScanDeviation = pleasePart1Scan{
+		markers: pleasePart1Patterns(
+			`dependency[- ]order`, `fully verify`, `(?:can't|cannot) (?:yet )?(?:fully )?verify`,
+			`\bdeviat(?:e|es|ed|ing)\b`, `(?:reversing|reverse|change|switch)\w* (?:of )?direction`, `\bpivot`,
+		),
+		allowed: []string{
+			pleasePart1ShippedBeginAskedTaskRule, pleasePart1ShippedDependencyOrderRule,
+			pleasePart1ShippedDeviateOnlyRule, pleasePart1ShippedRecallDefaultRule,
+		},
+	}
+	pleasePart1ScanDisplacement = pleasePart1Scan{
+		markers: pleasePart1Patterns(
+			`prerequisite`, `real blocker`, `better test`, `before (?:starting|beginning) the (?:asked )?task`,
+			`instead of (?:starting|beginning|the asked)`,
+		),
+		allowed: []string{
+			pleasePart1ShippedAboutToRecommendRedFlag, pleasePart1ShippedAntiDisplacementRule,
+			pleasePart1ShippedRecallRecommendingRow, pleasePart1ShippedRecallSubstitutingRule,
+			pleasePart1ShippedRecommendingPrerequisiteRule,
+		},
+	}
+	pleasePart1ScanFileRead = pleasePart1Scan{
+		markers: pleasePart1MeantimeMarkers,
+		acts: pleasePart1Patterns(
+			`\b(?:read|reads|reading|open|opens|opening|inspect|inspecting|scan|scanning)\b.{0,60}` +
+				`\b(?:files?|docs?|repo|repository|code|transcript|notes?)\b`,
+		),
+		allowed: []string{pleasePart1ShippedNoActionMeanwhileRule},
+	}
+	pleasePart1ScanNothingToDocument = pleasePart1Scan{
+		markers: pleasePart1Patterns(
+			`nothing to \w+`, `too (?:small|tiny|trivial|simple) to (?:bother|document|record|capture|run|do)`,
+			`no memories`, `nothing relevant`,
+		),
+		acts:    pleasePart1Patterns(`N/A|not applicable|\bskip\w*|\bomit\w*|\bbypass`),
+		allowed: []string{pleasePart1ShippedSmallIsNotNARule},
+	}
+	pleasePart1ScanReadingForRecall = pleasePart1Scan{
+		markers: pleasePart1Patterns(
+			`read the file`, `reading (?:the )?(?:working-tree )?files?`, `already know`, `diff is right`, `\bgrep\b`,
+			`git log`, `file reads?`, `working-tree`,
+		),
+		acts: pleasePart1Patterns(`recall`),
+		allowed: []string{
+			pleasePart1ShippedFileReadsDifferRule, pleasePart1ShippedOrientRecallRule,
+			pleasePart1ShippedSkippedRecallRedFlag, pleasePart1ShippedSubstitutionRule,
+		},
+	}
+	pleasePart1ScanRecallOrLearn = pleasePart1Scan{
+		markers: pleasePart1MeantimeMarkers,
+		acts:    pleasePart1Patterns(`\b(?:recall|learn)\b`),
+		allowed: []string{pleasePart1ShippedNoActionMeanwhileRule},
+	}
+	pleasePart1ScanRelitigation = pleasePart1Scan{
+		markers: pleasePart1Patterns(
+			`relitigat`, `re-litigat`, `reopen`, `hedg`,
+			`raise (?:it|the challenge|the concern|the objection) again`, `challenge (?:it )?again`,
+			`second challenge`,
+		),
+		acts: pleasePart1Patterns(
+			`dissent|later steps|reaffirm|user chose|passive-aggressive|the challenge|challenged`,
+		),
+		allowed: []string{pleasePart1ShippedNoRelitigatingRule},
+	}
+	pleasePart1ScanSoftenedChallenge = pleasePart1Scan{
+		markers: pleasePart1Patterns(
+			`leading question`, `hinting question`, `\bhints? at`, `soften`, `as a question`, `rhetorical`, `tactful`,
+			`gently`, `diplomatic`,
+		),
+		allowed: []string{pleasePart1ShippedChallengePlainlyRule, pleasePart1ShippedSoftenedRedFlag},
+	}
+	pleasePart1ScanStepOverlap = pleasePart1Scan{
+		markers: pleasePart1Patterns(
+			`in parallel`, `concurrently`, `simultaneously`, `at the same time`, `without waiting`, `overlap`,
+			`\bbefore (?:step|the previous|the prior)\b`, `\bwhile (?:step|the (?:previous|prior|first) step)`,
+			`\bstart(?:s|ed)? early\b`, `\bwhile\b.{0,60}\bin_progress\b`,
+		),
+		acts:    pleasePart1Patterns(`\bstep|repo docs|orient|/learn|/recall`),
+		allowed: []string{pleasePart1ShippedNoEarlyOrientRule},
+	}
+	pleasePart1ScanSubstituteForRecall = pleasePart1Scan{
+		markers: pleasePart1Patterns(
+			`substitut\w*`, `equivalen\w*`, `instead of`, `rather than`, `never instead`, `in place of`,
+		),
+		acts: pleasePart1Patterns(`recall`, `\b(?:read|reading|grep|git log|files?|working-tree)\b`),
+		allowed: []string{
+			pleasePart1ShippedNotSubstitutesRule, pleasePart1ShippedSubstitutionRule,
+		},
+	}
+	pleasePart1ScanTaskCreation = pleasePart1Scan{
+		markers: pleasePart1MeantimeMarkers,
+		acts:    pleasePart1Patterns(`\btasks?\b|TaskCreate`),
+		allowed: []string{pleasePart1ShippedNoActionMeanwhileRule},
+	}
+	pleasePart1ScanWaiver = pleasePart1Scan{
+		markers: pleasePart1Patterns(
+			`no ceremony`, `skip (?:the )?plan`, `\bhurr(?:y|ied)\b`,
+			`(?:user|they) (?:can|may|could) (?:skip|waive|opt out)\w*`,
+			`waive\w* (?:the )?(?:steps?|workflow|plan|gate)`, `skip(?:ping)? (?:the )?(?:workflow|ceremony|plan)\b`,
+		),
+		allowed: []string{pleasePart1ShippedCannotWaiveRule, pleasePart1ShippedHurryRedFlag},
+	}
+	pleasePart1SentenceEnd                    = regexp.MustCompile(`[.?!]\s+|\s\|\s`)
+	pleasePart1ShippedAboutToRecommendRedFlag = "You're about to recommend building a prerequisite / better " +
+		"test / \"the real blocker\" instead of starting the asked task"
+	pleasePart1ShippedAntiDisplacementRule = "- **Anti-displacement (the settled-task corollary).** " +
+		"\"Challenge the ask\" means stress-test the ask *in place* — it does NOT license substituting adjacent, " +
+		"deferred, or \"more rigorous\" prerequisite work for what was asked"
+	pleasePart1ShippedBeginAskedTaskRule = "Begin the asked task; deviate only on a NEW fact, stated as a " +
+		"reversal"
+	pleasePart1ShippedCannotWaiveRule  = "The user cannot waive steps"
+	pleasePart1ShippedCasualPleaseRule = "Do not fire on casual uses of \"please\" attached to a single " +
+		"trivial action (\"please read this file\", \"please rename this var\") — fire only when the user is " +
+		"handing over a multi-step piece of work to be carried end-to-end"
+	pleasePart1ShippedChallengePlainlyRule = "- **Challenge plainly and directly, before planning around the " +
+		"problem.** State the issue and its concrete stakes in declarative sentences (\"this stores credentials " +
+		"in plaintext; anyone with file access owns every account\") — not softened into a leading question, not " +
+		"buried mid-plan, and never prefaced with reflexive praise"
+	pleasePart1ShippedDependencyOrderRule = "A dependency-order or \"we can't fully verify yet\" argument is " +
+		"re-weighted old reasoning, not new evidence"
+	pleasePart1ShippedDeviateOnlyRule = "Deviate only by naming a genuinely NEW fact and explicitly stating " +
+		"you are reversing direction"
+	pleasePart1ShippedFileReadsDifferRule = "File reads, grep, and `git log` surface working-tree content; " +
+		"`/recall` surfaces agent-memory vault content"
+	pleasePart1ShippedHurryRedFlag = "The user said \"no ceremony / skip the plan / hurry\" and you collapsed " +
+		"the workflow"
+	pleasePart1ShippedMultiStepTestRule = "- **\"Multi-step\" test for ambiguous natural-language triggers.** " +
+		"If the ask plausibly resolves to a single file edit or a single tool call with no follow-up, the skill " +
+		"should not fire — handle it directly"
+	pleasePart1ShippedNoActionMeanwhileRule = "Take **no other action** in the meantime: do not create tasks, " +
+		"do not run `/recall` or `/learn`, do not read files \"to be ready\", do not open the transcript"
+	pleasePart1ShippedNoEarlyOrientRule = "Do not begin reading repo docs (step 2) while step 1's `/learn` is " +
+		"still `in_progress`"
+	pleasePart1ShippedNoRelitigatingRule = "No relitigating in later steps, no passive-aggressive hedging in " +
+		"the work itself"
+	pleasePart1ShippedNotSubstitutesRule = "They are not substitutes — run `/recall` AND the file-tree tools, " +
+		"never instead"
+	pleasePart1ShippedOrientRecallRule = "**Orient — understand the context and the ask.** The first action " +
+		"is **literal**: invoke `/recall` — not \"I'll just read the file directly\", not \"I already know this " +
+		"repo\", not \"small ask, the diff is right there\", not \"I'll just grep\""
+	pleasePart1ShippedRecallDefaultRule = "Default to the asked task; deviate only by (a) naming a genuinely " +
+		"NEW fact and (b) stating you are reversing direction"
+	pleasePart1ShippedRecallRecommendingRow = "| You're recommending a prerequisite or better test as the " +
+		"first step, not the asked task"
+	pleasePart1ShippedRecallSubstitutingRule = "Substituting a prerequisite, a better test, or a \"more " +
+		"rigorous foundation\" as the thing to do *first* FEELS like diligence but IS relitigating the settled " +
+		"task"
+	pleasePart1ShippedRecommendingPrerequisiteRule = "Recommending you build the prerequisite / better test / " +
+		"\"the real blocker\" first FEELS like diligence but IS relitigating the settled task — the failure mode, " +
+		"not rigor"
+	pleasePart1ShippedRedirectRule = "- If the user interrupts and redirects mid-workflow, update the task " +
+		"list to reflect the new shape — but do not abandon open steps without an explicit close"
+	pleasePart1ShippedSkippedRecallRedFlag = "You skipped `/recall` because \"I already know this\", \"the " +
+		"diff is right here\", \"small ask\", \"I'll just read the file\", or \"I'll just grep\""
+	pleasePart1ShippedSlashFormRule = "The explicit slash form `/please <ask>` is an opt-in and always fires " +
+		"regardless of how trivial the ask looks — the user chose the workflow deliberately"
+	pleasePart1ShippedSmallIsNotNARule = "\"Too small to bother\", \"nothing to document\", \"no memories " +
+		"will be relevant\" are **not** N/A — run the step; if it produces nothing, that's fine, and the closing " +
+		"`/learn` will record it"
+	pleasePart1ShippedSoftenedRedFlag = "You softened a challenge into a hinting question because directness " +
+		"felt rude"
+	pleasePart1ShippedSubstitutionRule = "Reading working-tree files is **substitution**, not equivalence — " +
+		"`/recall` surfaces vault memory those reads can't produce"
 )
+
+// pleasePart1Scan is one absence check: a sentence is flagged when it matches at least one marker and every act,
+// unless it is one of the shipped sentences allowed by their exact text.
+type pleasePart1Scan struct {
+	markers []*regexp.Regexp
+	acts    []*regexp.Regexp
+	allowed []string
+}
+
+// pleasePart1AllScans returns every absence scan of this node by name.
+func pleasePart1AllScans() map[string]pleasePart1Scan {
+	return map[string]pleasePart1Scan{
+		"abandon":             pleasePart1ScanAbandon,
+		"casual please":       pleasePart1ScanCasualPlease,
+		"deviation":           pleasePart1ScanDeviation,
+		"displacement":        pleasePart1ScanDisplacement,
+		"file read":           pleasePart1ScanFileRead,
+		"nothing to document": pleasePart1ScanNothingToDocument,
+		"reading for recall":  pleasePart1ScanReadingForRecall,
+		"recall or learn":     pleasePart1ScanRecallOrLearn,
+		"relitigation":        pleasePart1ScanRelitigation,
+		"softened challenge":  pleasePart1ScanSoftenedChallenge,
+		"step overlap":        pleasePart1ScanStepOverlap,
+		"substitute":          pleasePart1ScanSubstituteForRecall,
+		"task creation":       pleasePart1ScanTaskCreation,
+		"waiver":              pleasePart1ScanWaiver,
+	}
+}
 
 // pleasePart1Before reports whether both fragments occur in the text and the first occurs before the second.
 func pleasePart1Before(text, first, second string) bool {
@@ -417,17 +706,19 @@ func pleasePart1Before(text, first, second string) bool {
 	return firstAt >= 0 && secondAt >= 0 && firstAt < secondAt
 }
 
-// pleasePart1Unnegated returns, per shipped instruction file (every SKILL.md, references markdown and guidance
-// document), the sentences that name the fragment without a negation: an instruction that would contradict a
-// prohibition of the please skill.
-func pleasePart1Unnegated(t *testing.T, fragment string) map[string][]string {
+// pleasePart1Contradictions returns, per shipped instruction file (every SKILL.md, references markdown and guidance
+// document), the sentences the scan flags: sentences that name what a prohibition of the please skill forbids and are
+// not one of the shipped sentences the scan allows.
+func pleasePart1Contradictions(t *testing.T, scan pleasePart1Scan) map[string][]string {
 	t.Helper()
 
 	found := make(map[string][]string)
 
 	for _, path := range aibInstructionPaths(t) {
-		sentences := pleasePart1UnnegatedSentences(shippedText(t, path), fragment)
+		sentences := pleasePart1Flagged(shippedText(t, path), scan)
 		if len(sentences) > 0 {
+			sort.Strings(sentences)
+
 			found[path] = sentences
 		}
 	}
@@ -435,18 +726,46 @@ func pleasePart1Unnegated(t *testing.T, fragment string) map[string][]string {
 	return found
 }
 
-// pleasePart1UnnegatedSentences returns the sentences of the text that name the fragment, in any case, and carry no
-// negation word.
-func pleasePart1UnnegatedSentences(text, fragment string) []string {
-	var unnegated []string
-
-	lowered := strings.ToLower(fragment)
+// pleasePart1Flagged returns the sentences of the text that the scan flags, whatever negation words they carry.
+func pleasePart1Flagged(text string, scan pleasePart1Scan) []string {
+	var flagged []string
 
 	for _, sentence := range pleasePart1SentenceEnd.Split(text, -1) {
-		if strings.Contains(strings.ToLower(sentence), lowered) && !pleasePart1NegationPattern.MatchString(sentence) {
-			unnegated = append(unnegated, sentence)
+		sentence = strings.TrimSpace(sentence)
+
+		if pleasePart1Names(sentence, scan) && !slices.Contains(scan.allowed, sentence) {
+			flagged = append(flagged, sentence)
 		}
 	}
 
-	return unnegated
+	return flagged
+}
+
+// pleasePart1Names reports whether the sentence matches at least one marker of the scan and every act of it.
+func pleasePart1Names(sentence string, scan pleasePart1Scan) bool {
+	marked := slices.ContainsFunc(scan.markers, func(marker *regexp.Regexp) bool {
+		return marker.MatchString(sentence)
+	})
+	if !marked {
+		return false
+	}
+
+	for _, act := range scan.acts {
+		if !act.MatchString(sentence) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// pleasePart1Patterns compiles the patterns, each matched in any case.
+func pleasePart1Patterns(patterns ...string) []*regexp.Regexp {
+	compiled := make([]*regexp.Regexp, 0, len(patterns))
+
+	for _, pattern := range patterns {
+		compiled = append(compiled, regexp.MustCompile(`(?i)`+pattern))
+	}
+
+	return compiled
 }
