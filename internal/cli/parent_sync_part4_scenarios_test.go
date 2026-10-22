@@ -75,7 +75,7 @@ func Test792a21w1a_Targets_Query_ARefusedReceiptNeedsAttention(t *testing.T) {
 
 	if len(lines) == 1 {
 		g.Expect(lines[0]).To(ContainSubstring(noteBasename(note.path)))
-		g.Expect(lines[0]).To(ContainSubstring("parent"))
+		g.Expect(lines[0]).To(ContainSubstring("YAML anchor: parent"))
 	}
 }
 
@@ -119,11 +119,11 @@ func Test792a21w1b_UpdateExchange_AnAttentionEntryIsNotSentAgain(t *testing.T) {
 	g.Expect(readFileString(t, note.path)).To(Equal(note.anchored))
 }
 
-// Test792a21w1c_Targets_Query_AKeptReceiptIsRecordedWhileTheParentIsBackedOff verifies 792a21w1c (A kept receipt
+// Test792a21w1c_Targets_Learn_AKeptReceiptIsRecordedWhileTheParentIsBackedOff verifies 792a21w1c (A kept receipt
 // is recorded while the parent is backed off): once the anchor is removed from L's parent: while the parent is
 // inside its backoff window, another command that drains records the kept receipt on L and finishes the entry,
 // and the parent receives no request.
-func Test792a21w1c_Targets_Query_AKeptReceiptIsRecordedWhileTheParentIsBackedOff(t *testing.T) {
+func Test792a21w1c_Targets_Learn_AKeptReceiptIsRecordedWhileTheParentIsBackedOff(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -154,11 +154,11 @@ func Test792a21w1c_Targets_Query_AKeptReceiptIsRecordedWhileTheParentIsBackedOff
 	g.Expect(env.lastStderr).To(ContainSubstring("parent unreachable (retry after "), "the window is active")
 }
 
-// Test792a21w1d_Targets_Query_AKeptReceiptFromAnotherParentIsDiscarded verifies 792a21w1d (A kept receipt from
+// Test792a21w1d_Targets_Learn_AKeptReceiptFromAnotherParentIsDiscarded verifies 792a21w1d (A kept receipt from
 // another parent is discarded): an attention entry that keeps a receipt whose vault ID is not the configured
 // parent's is discarded by the next draining command with one warning; L is not written, and the entry is queued
 // for the current parent with no kept receipt.
-func Test792a21w1d_Targets_Query_AKeptReceiptFromAnotherParentIsDiscarded(t *testing.T) {
+func Test792a21w1d_Targets_Learn_AKeptReceiptFromAnotherParentIsDiscarded(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
