@@ -417,8 +417,8 @@ func Test792a12u1f_Vocabulary_RewritesPreserveTheIdentityFields(t *testing.T) {
 
 // Test792a12u1g_Learn_OrdinaryCaptureCarriesNoSkillFields verifies 792a12u1g: a runbook, a fact and a feedback
 // note written by engram learn (as its commands build their arguments) carry no skill_hash, skill_key or
-// skill_source, and engram learn runbook refuses --skill-hash, --skill-key and --skill-source as unknown flags,
-// leaving its vault untouched.
+// skill_source, and engram learn runbook, fact and feedback each refuse --skill-hash, --skill-key and
+// --skill-source as unknown flags, leaving their vault untouched.
 func Test792a12u1g_Learn_OrdinaryCaptureCarriesNoSkillFields(t *testing.T) {
 	t.Parallel()
 
@@ -468,24 +468,37 @@ func Test792a12u1g_Learn_OrdinaryCaptureCarriesNoSkillFields(t *testing.T) {
 		}
 	})
 
-	for _, flag := range []string{"--skill-hash", "--skill-key", "--skill-source"} {
-		t.Run("the "+flag+" flag is refused", func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
+	// Each learn subcommand declares its own flags beside the embedded common ones, so each is exercised.
+	learnSubcommands := map[string][]string{
+		"runbook":  {"--done-when", "d"},
+		"fact":     {"--subject", "a"},
+		"feedback": {"--behavior", "b"},
+	}
 
-			vault := filepath.Join(t.TempDir(), "vault")
+	for subcommand, extra := range learnSubcommands {
+		for _, flag := range []string{"--skill-hash", "--skill-key", "--skill-source"} {
+			t.Run("learn "+subcommand+" refuses "+flag, func(t *testing.T) {
+				t.Parallel()
+				g := NewWithT(t)
 
-			var stdout, stderr bytes.Buffer
+				vault := filepath.Join(t.TempDir(), "vault")
 
-			result, err := targ.Execute([]string{
-				"engram", "learn", "runbook", "--vault", vault, "--source", "test", "--slug", "x",
-				"--situation", "s", "--done-when", "d", flag, "x",
-			}, cli.Targets(newTestDeps(&stdout, &stderr))...)
+				var stdout, stderr bytes.Buffer
 
-			g.Expect(err).To(HaveOccurred())
-			g.Expect(result.Output).To(ContainSubstring("flag provided but not defined: " + flag))
-			g.Expect(vault).NotTo(BeADirectory(), "nothing was written")
-		})
+				argv := []string{
+					"engram", "learn", subcommand, "--vault", vault, "--source", "test", "--slug", "x",
+					"--situation", "s",
+				}
+				argv = append(argv, extra...)
+				argv = append(argv, flag, "x")
+
+				result, err := targ.Execute(argv, cli.Targets(newTestDeps(&stdout, &stderr))...)
+
+				g.Expect(err).To(HaveOccurred())
+				g.Expect(result.Output).To(ContainSubstring("flag provided but not defined: " + flag))
+				g.Expect(vault).NotTo(BeADirectory(), "nothing was written")
+			})
+		}
 	}
 }
 
