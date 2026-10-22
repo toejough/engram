@@ -180,3 +180,51 @@ the family note printing `<note file>: family note (skipped)`, and MUST skip a b
 slug names no term, printing `<note file>: malformed definition slug (skipped)`; `<note file>` is the
 note's file name, `.md` included.
 ```
+
+## 861a4zzy Modified: Vault Counting scenarios, part 2
+
+Operations a test finds necessary in existing specs are applied in place ([861d6 A new test that fails at baseline](./861d_questions-and-decisions.md#questions-and-decisions)); the four below are applied in [Vault Counting](../../specs/product/vault-counting.md) in the commit of their test.
+
+### 861a4zzy1 Modified: 792a8e1a A note with incoming links
+
+Target: [792a8e1 UAT Scenarios](../../specs/product/vault-counting.md#792a8e1-uat-scenarios), Scenario 792a8e1a. Differs from the current text in the Given line: a link to a name with no note counts for no note ([792a8e1h](../../specs/product/vault-counting.md#792a8e1-uat-scenarios)), so the Given must hold the linked note.
+
+```gherkin
+Scenario: 792a8e1a A note with incoming links
+  Given the note foo.alpha and three other notes that contain [[foo.alpha]]
+  When the user runs engram count --backlinks-of foo.alpha
+  Then stdout starts with "in-degree: 3", followed by the three linkers' basenames, one per line, in ascending order
+```
+
+### 861a4zzy2 Modified: 792a8e1d A repeated link counts once
+
+Target: [792a8e1 UAT Scenarios](../../specs/product/vault-counting.md#792a8e1-uat-scenarios), Scenario 792a8e1d. Differs from the current text in the Given line: the linked note y must exist, or the link counts for no note.
+
+```gherkin
+Scenario: 792a8e1d A repeated link counts once
+  Given a note x that contains [[y]] twice, and the note y
+  When the user runs engram count --backlinks-of y
+  Then stdout is "in-degree: 1" then "x"
+```
+
+### 861a4zzy3 Modified: 792a8e1g A link ending in .md counts as the bare link
+
+Target: [792a8e1 UAT Scenarios](../../specs/product/vault-counting.md#792a8e1-uat-scenarios), Scenario 792a8e1g. Differs from the current text in the Given line: the linked note y must exist, or the link counts for no note.
+
+```gherkin
+Scenario: 792a8e1g A link ending in .md counts as the bare link
+  Given a note x that contains [[y.md]], and the note y
+  When the user runs engram count --backlinks-of y
+  Then stdout is "in-degree: 1" then "x"
+```
+
+### 861a4zzy4 Modified: 792a8g1b The in-degree exceeds the count by the non-member linkers
+
+Target: [792a8g1 UAT Scenarios](../../specs/product/vault-counting.md#792a8g1-uat-scenarios), Scenario 792a8g1b. Differs from the current text in the Then line: the requirement 792a8e lists the linkers in ascending order, and idx sorts before n1.
+
+```gherkin
+Scenario: 792a8g1b The in-degree exceeds the count by the non-member linkers
+  Given n1 with foo: [alpha] that contains [[foo.alpha]], idx with no foo attribute that contains [[foo.alpha]], and the note foo.alpha
+  When the user runs engram count --group-by foo and engram count --backlinks-of foo.alpha
+  Then --group-by prints alpha with the count 1 and --backlinks-of prints "in-degree: 2" then idx and n1
+```

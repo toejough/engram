@@ -208,7 +208,7 @@ link to a name with no note is not a backlink of any note.
 
 ```gherkin
 Scenario: 792a8e1a A note with incoming links
-  Given three notes that contain [[foo.alpha]]
+  Given the note foo.alpha and three other notes that contain [[foo.alpha]]
   When the user runs engram count --backlinks-of foo.alpha
   Then stdout starts with "in-degree: 3", followed by the three linkers' basenames, one per line, in ascending order
 
@@ -223,7 +223,7 @@ Scenario: 792a8e1c A basename that is not a note
   Then stdout is "in-degree: 0" and no linker lines
 
 Scenario: 792a8e1d A repeated link counts once
-  Given a note x that contains [[y]] twice
+  Given a note x that contains [[y]] twice, and the note y
   When the user runs engram count --backlinks-of y
   Then stdout is "in-degree: 1" then "x"
 
@@ -238,7 +238,7 @@ Scenario: 792a8e1f A link inside a fenced code block does not count
   Then stdout is "in-degree: 0"
 
 Scenario: 792a8e1g A link ending in .md counts as the bare link
-  Given a note x that contains [[y.md]]
+  Given a note x that contains [[y.md]], and the note y
   When the user runs engram count --backlinks-of y
   Then stdout is "in-degree: 1" then "x"
 
@@ -313,7 +313,7 @@ Scenario: 792a8g1a The modes agree when every linker is a member
 Scenario: 792a8g1b The in-degree exceeds the count by the non-member linkers
   Given n1 with foo: [alpha] that contains [[foo.alpha]], idx with no foo attribute that contains [[foo.alpha]], and the note foo.alpha
   When the user runs engram count --group-by foo and engram count --backlinks-of foo.alpha
-  Then --group-by prints alpha with the count 1 and --backlinks-of prints "in-degree: 2" then n1 and idx
+  Then --group-by prints alpha with the count 1 and --backlinks-of prints "in-degree: 2" then idx and n1
 ```
 
 ### 792a8h A count changes nothing and is exact
