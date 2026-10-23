@@ -30,7 +30,7 @@ summaries, episode notes or arc detection, so the agent's only writing job is cr
 Scenario: 792a15a1a A session with no lesson writes nothing
   Given a session with no correction, save-request, reversal or confirmed approach
   When the agent runs learn
-  Then it runs the sweep, reports its tally and writes no note
+  Then it runs the sweep, reports what the sweep prints and writes no note
 
 Scenario: 792a15a1b No episode or summary is written
   Given a long session
