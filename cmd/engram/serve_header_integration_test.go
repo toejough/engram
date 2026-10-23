@@ -239,6 +239,12 @@ func vhsiPromptStatus(t *testing.T, addr string, failed <-chan struct{}) (int, b
 	for range vhsiDialAttempts {
 		status, getErr = vhsiTryGet(ctx, "http://"+addr+vhsiPingPattern)
 		if getErr == nil {
+			// Only 200 on the ping route proves the server is ours: a foreign server that holds the port answers
+			// 404 or 405 there, while ours, if it lost the bind, exits at once.
+			if status != http.StatusOK && vhsiServerFailedSoon(failed) {
+				return 0, false
+			}
+
 			return status, true
 		}
 
@@ -295,6 +301,16 @@ func vhsiServeAndPing(t *testing.T) (string, vhsiServer, int) {
 	t.Fatalf("no server listened in %d attempts", vhsiServeAttempts)
 
 	return "", vhsiServer{}, 0
+}
+
+// vhsiServerFailedSoon reports whether the server exits without being stopped within a short wait.
+func vhsiServerFailedSoon(failed <-chan struct{}) bool {
+	select {
+	case <-failed:
+		return true
+	case <-time.After(vhsiDialRetryWait):
+		return false
+	}
 }
 
 // vhsiStartServer serves one ping route through the production primitives on addr.
