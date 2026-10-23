@@ -593,7 +593,7 @@ Audit (rows continue the numbering above):
 
 | ID | Scope | Evidence | Verdict | Issue or change |
 | --- | --- | --- | --- | --- |
-| 858c1t4 | The 23 scenarios with a `Test<ID>_` function in the default or the integration suite | tests in `internal/auto/judge_test.go`, `internal/auto/moment_test.go`, `internal/auto/redact_test.go`, `internal/cli/auto_headless_test.go` and 4 more (tags: none); shared evidence 858c3a1-858c3a5 | match | - |
+| 858c1t4 | The 22 scenarios with a `Test<ID>_` function in the default or the integration suite | tests in `internal/auto/judge_test.go`, `internal/auto/moment_test.go`, `internal/auto/redact_test.go`, `internal/cli/auto_headless_test.go` and 4 more (tags: none); shared evidence 858c3a1-858c3a5 | match | - |
 | 858c1t5 | The 1 scenario whose only tests carry the `network` tag | tests in `dev/acceptance/mod_test.go` (a real Claude Code session; part of no check); shared evidence 858c3a6 only | match | - |
 | 858c1t6 | Required behavior and provider compatibility | assumptions recorded where the sources support them (Orientation); no Gherkin for them and no real-provider compatibility verification through an adapter | unclear | [858d96 Required behavior is absent in all 56 technical files](858d_questions-and-decisions.md#questions-and-decisions), [#869](https://github.com/toejough/engram/issues/869) |
 | 858c1t7 | Scenarios [793d4m1e A headless turn that is not judged is recorded as skipped with the reason](../../specs/technical/moment-judgement.md#793d4m1-scenarios) | their tests use a real temporary directory in the default suite | unclear | #860 |
@@ -1541,7 +1541,7 @@ Audit (rows continue the numbering above):
 
 | ID | Scope | Evidence | Verdict | Issue or change |
 | --- | --- | --- | --- | --- |
-| 858c1zzf4 | The 21 scenarios with a `Test<ID>_` function in the default or the integration suite | tests in `dev/mods_integration_internal_test.go` (tags: targ && integration); shared evidence 858c3a1-858c3a5 | match | - |
+| 858c1zzf4 | The 16 scenarios with a `Test<ID>_` function in the default or the integration suite | tests in `dev/mods_integration_internal_test.go` (tags: targ && integration); shared evidence 858c3a1-858c3a5 | match | - |
 | 858c1zzf5 | The 5 scenarios whose only tests carry the `network` tag | tests in `dev/acceptance/mod_test.go` (a real Claude Code session; part of no check); shared evidence 858c3a6 only | match | - |
 
 ### 858c1zzg Migrate and audit turn-capture-workflow.md
@@ -1609,7 +1609,7 @@ Audit (rows continue the numbering above):
 
 | ID | Scope | Evidence | Verdict | Issue or change |
 | --- | --- | --- | --- | --- |
-| 858c1zzi5 | The 61 scenarios with a `Test<ID>_` function in the default or the integration suite | tests in `internal/auto/activity_test.go` (tags: none); shared evidence 858c3a1-858c3a5 | match | - |
+| 858c1zzi5 | The 1 scenario with a `Test<ID>_` function in the default or the integration suite | tests in `internal/auto/activity_test.go` (tags: none); shared evidence 858c3a1-858c3a5 | match | - |
 | 858c1zzi6 | The 60 scenarios whose only tests carry the `network` tag | tests in `dev/acceptance/activity_test.go`, `dev/acceptance/depth_test.go`, `dev/acceptance/durable_test.go`, `dev/acceptance/judged_test.go` and 6 more (a real Claude Code session; part of no check); shared evidence 858c3a6 only; [793a2b1b A note delivered earlier in the session is not delivered again](../../specs/product/automatic-memory.md#793a2b1-uat-scenarios) and [855a3c1a A judgement that never answers is stepped aside after 2 minutes](../../specs/product/automatic-memory.md#855a3c1-uat-scenarios) both passed in the final run and rerun (858c3a6) | match | - |
 | 858c1zzi7 | Delivery of the parent vault: the scenarios of [793a2b Memory arrives with the prompt](../../specs/product/automatic-memory.md#793a2b-memory-arrives-with-the-prompt) | the delivery looks up the local vault only | unclear | #859 |
 | 858c1zzi8 | Statement of the file that differs from the shipped behavior | corrected in place; operation [858a5a A request to remember is written when the agent says it did not save it](858a_product-spec.md#858a5a-modified-a-request-to-remember-is-written-when-the-agent-says-it-did-not-save-it) | doc fixed | 858d71-858d75 |
