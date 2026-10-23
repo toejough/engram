@@ -12,11 +12,11 @@ This change adds no outcome and no requirement and changes no behavior, so it ha
 
 ### 872a3a Modified: 792a15a1a A session with no lesson writes nothing
 
-Target: [792a15a1a A session with no lesson writes nothing](../../specs/product/learn.md#792a15a1-uat-scenarios). Differs from the current text in the Then line: it reports what the [sweep](../../GLOSSARY.md#sweep) prints, not "its tally". The wording of that report stays with [792a15b1a The sweep runs and is reported](../../specs/product/learn.md#792a15b1-uat-scenarios), which has its own test.
+Target: [792a15a1a A session with no lesson writes nothing](../../specs/product/learn.md#792a15a1-uat-scenarios). Differs from the current text in the Then line: it reports the [sweep](../../GLOSSARY.md#sweep), not "its tally". The wording of that report stays with [792a15b1a The sweep runs and is reported](../../specs/product/learn.md#792a15b1-uat-scenarios), which has its own test.
 
 ```gherkin
 Scenario: 792a15a1a A session with no lesson writes nothing
   Given a session with no correction, save-request, reversal or confirmed approach
   When the agent runs learn
-  Then it runs the sweep, reports what the sweep prints and writes no note
+  Then it runs the sweep, reports it and writes no note
 ```

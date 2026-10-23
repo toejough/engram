@@ -20,7 +20,7 @@ import (
 // skillrules_integration_internal_test.go, and are not repeated here.
 
 // Test792a15a1a_ASessionWithNoLessonWritesNothing reads the learn skill the repository ships: Step 1 runs the sweep
-// and reports what the sweep prints, and a session with none of the four moments writes no note.
+// and reports it, and a session with none of the four moments writes no note.
 func Test792a15a1a_ASessionWithNoLessonWritesNothing(t *testing.T) {
 	t.Parallel()
 
