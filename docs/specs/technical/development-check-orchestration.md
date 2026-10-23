@@ -1,6 +1,7 @@
 # Development Check Orchestration - Technical Spec
 
-Preserves the existing nil-check entry points under their shared target identity. Routing a check
+Preserves the existing nil-check entry points under their shared target identity, adds the scoped test, integration
+test and parity targets, and gates the scenarios of every root. Routing a check
 run through the invocation policy and the analyzer subprocess is the
 [Nil Check Run Technical Workflow](./nil-check-run-workflow.md), whose interaction requirement is
 [794b4b Nil check run](./nil-check-run-workflow.md#794b4b-nil-check-run).
@@ -37,7 +38,12 @@ Starting the analyzer process is [NilAway Subprocess](./nilaway-subprocess.md).
   and `runConfiguredNilaway` in `dev/nilaway.go`.
 - Qualification: Purpose: the existing check entry points keep their names and reach Engram's nil targets, so that the
   nil check and fix commands report only on Engram's module packages
-  ([794a2a Project analysis](../product/development-checks.md#794a2a-project-analysis)). Contract: the names,
+  ([794a2a Project analysis](../product/development-checks.md#794a2a-project-analysis)); the added targets run one
+  package's tests, every integration-tagged test and the parity tests, and skip a login-needing test without its login
+  ([861a3a A package's tests run alone](../product/development-checks.md#861a3a-a-packages-tests-run-alone),
+  [862a3a Every integration-tagged test runs in the full check](../product/development-checks.md#862a3a-every-integration-tagged-test-runs-in-the-full-check),
+  [862a3b A check without a login skips](../product/development-checks.md#862a3b-a-check-without-a-login-skips),
+  [862a3c The real-model parity check has a command](../product/development-checks.md#862a3c-the-real-model-parity-check-has-a-command)). Contract: the names,
   dependencies, order and dependency mode of the registered targets, tested directly against Targ's own targets
   (`dev/nilaway_internal_test.go`, `dev/nilaway_integration_internal_test.go`). Value: Targ's aggregates hold direct
   references to its own nil targets and its `watch` calls its own `check`, so replacing the nil targets alone would
@@ -173,6 +179,8 @@ Scenario: 861b2a1f --tags runs the package under the build tags
 Requirement: 861b2b Development-check orchestration MUST fail `targ check-full` when a scenario of `docs/specs/product` or `docs/specs/technical`, of any root (an ID of three digits, a letter, then letters and digits), has no top-level test function named `Test<ID>_...` and is not on the allowlist. The allowlist MUST be a list of scenario IDs sorted by ID, each with a reason that names a decision row or an issue. The gate MUST fail on an allowlist entry whose scenario no spec holds or whose scenario has a test, and on an entry whose reason names neither a decision row nor an issue or that is out of order or listed twice. It MUST pin no scenario count, and it MUST fail when a retired scenario ID is in a spec again.
 
 Rationale: A scenario held out stays on the allowlist with its reason until it has a test, and a stale entry fails so the list cannot outlive its reason. The gate checks the form of a reason (a decision-row ID or an issue number), not that the row or issue exists.
+
+Supports: none; no product promise of [794a2 Development Checks](../product/development-checks.md#794a2-development-checks) names the gate, an open gap tracked in [#871](https://github.com/toejough/engram/issues/871).
 
 #### 861b2b1 Contract Scenarios
 

@@ -33,9 +33,11 @@
   Responsibility (naming): it owns parsing, precedence and routing for every command without depending on how any
   command works.
 - Required behavior: [targ](../../GLOSSARY.md#targ) (external) is assumed to refuse an invocation that passes a flag the command does not define
-  or omits a flag the command marks required, with an error naming the flag and without running the command
+  or omits a flag the command marks required, without running the command
   ([792b2c5 Argument refusal](#792b2c5-argument-refusal)); authoritative contract: not recorded in this repository; compatibility verification:
-  `internal/cli/targets_test.go` for the refusal of an undefined flag, none for an omitted required flag or the error naming the flag.
+  `internal/cli/targets_test.go` for the refusal of an undefined flag and `internal/cli/command_line_surface_scenarios_test.go`
+  (`Test792b2c5a2`) for the refusal of an omitted required flag; the stream of the refusal message is the open
+  [targ issue 79](https://github.com/toejough/targ/issues/79).
 - Required behavior: [Vault Identity Registry](./vault-identity-registry.md) ensures the vault at the resolved path, creating a missing one,
   and fails when it cannot ([792b5c1 First-use ensure](./vault-identity-registry.md#792b5c1-first-use-ensure)); for a contact with the parent it stamps a
   missing vault ID, checks the vault's location, gates the contact by its backoff and records the outcome

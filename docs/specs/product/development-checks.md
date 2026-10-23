@@ -4,29 +4,51 @@
 
 **Ability and purpose.** The nil check and fix commands report on, and fix, only Engram's own module packages and
 analyze no third-party or standard-library package, because dependency package bodies are most of the analysis cost
-and nothing in them is Engram's to fix ([794a2a Project analysis](#794a2a-project-analysis)).
+and nothing in them is Engram's to fix ([794a2a Project analysis](#794a2a-project-analysis)). The developer can also
+run the tests of one package alone ([861a3a A package's tests run alone](#861a3a-a-packages-tests-run-alone)), the full check runs every integration-tagged test ([862a3a Every integration-tagged test runs in the full check](#862a3a-every-integration-tagged-test-runs-in-the-full-check)), a check that
+needs a login is skipped, not failed, and names the login ([862a3b A check without a login skips](#862a3b-a-check-without-a-login-skips)), and the real-model parity tests run through their own
+command, not the full check ([862a3c The real-model parity check has a command](#862a3c-the-real-model-parity-check-has-a-command)).
 
 **Participants and responsibilities.**
 - The developer: runs a nil check or fix command, directly or through an aggregate check, and sets `GOMEMLIMIT`,
   `GOGC` and `GOMAXPROCS` in their own environment when their machine needs limits
-  ([794a2c Resource settings pass-through](#794a2c-resource-settings-pass-through)).
+  ([794a2c Resource settings pass-through](#794a2c-resource-settings-pass-through)); runs the scoped test command,
+  the full check and the parity command ([861a3a1 UAT Scenarios](#861a3a1-uat-scenarios),
+  [862a3a1 UAT Scenarios](#862a3a1-uat-scenarios), [862a3c1 UAT Scenarios](#862a3c1-uat-scenarios)); and supplies, in
+  their own environment, the login that a login-needing check uses ([862a3b1 UAT Scenarios](#862a3b1-uat-scenarios)).
 - The software: keeps the existing command names and aggregate-check entry points
   ([794a2a Project analysis](#794a2a-project-analysis)) and passes the developer's resource settings to NilAway
-  unchanged ([794a2c Resource settings pass-through](#794a2c-resource-settings-pass-through)).
+  unchanged ([794a2c Resource settings pass-through](#794a2c-resource-settings-pass-through)); runs only the tests of
+  the package it is given, every integration-tagged test in the full check and the parity tests only through their own
+  command, and skips a login-needing check whose login is missing, saying which login it needs
+  ([861a3a1 UAT Scenarios](#861a3a1-uat-scenarios), [862a3a1 UAT Scenarios](#862a3a1-uat-scenarios),
+  [862a3b1 UAT Scenarios](#862a3b1-uat-scenarios), [862a3c1 UAT Scenarios](#862a3c1-uat-scenarios)).
 - Retained by other systems: NilAway (third party) runs as the analysis process of each command once it is installed
   in the checkout; the software assumes it ([794a2a1 UAT Scenarios](#794a2a1-uat-scenarios),
-  [794a2c1 UAT Scenarios](#794a2c1-uat-scenarios)).
+  [794a2c1 UAT Scenarios](#794a2c1-uat-scenarios)). The developer's environment holds the login a login-needing check
+  uses, and the bundled model that the parity tests load is present; the software assumes both
+  ([862a3b1 UAT Scenarios](#862a3b1-uat-scenarios), [862a3c1 UAT Scenarios](#862a3c1-uat-scenarios)).
 
 **Interactions.** The developer hands an entry point to the software by invoking it; the software responds with the
 nil dereferences found in Engram's module packages and no finding in a third-party dependency, a module that shares
 only the path prefix, or a nested module ([794a2a1 UAT Scenarios](#794a2a1-uat-scenarios)). The developer hands
 resource settings to the software through the environment; the software hands them to NilAway as supplied and leaves
-an absent setting absent ([794a2c Resource settings pass-through](#794a2c-resource-settings-pass-through)).
+an absent setting absent ([794a2c Resource settings pass-through](#794a2c-resource-settings-pass-through)). The
+developer hands a package, with an optional filter on test names, to the scoped test command and the software runs
+only that package's tests and reports their result ([861a3a1 UAT Scenarios](#861a3a1-uat-scenarios)); the developer
+runs the full check and the software runs every integration-tagged test wherever it is in the module
+([862a3a1 UAT Scenarios](#862a3a1-uat-scenarios)); when a login-needing check has no login, the software skips it and
+says which login it needs ([862a3b1 UAT Scenarios](#862a3b1-uat-scenarios)); the developer runs the parity command
+and the software runs the parity tests, which the full check does not
+([862a3c1 UAT Scenarios](#862a3c1-uat-scenarios)).
 
 **Boundary assumptions.** The software assumes from the developer that NilAway is installed; no response is specified
 when it is not ([794a2a1 UAT Scenarios](#794a2a1-uat-scenarios)). It assumes the developer sets limits that suit their
 machine; whether a setting is absent, empty or set, it adds, changes and removes nothing
-([794a2c Resource settings pass-through](#794a2c-resource-settings-pass-through)).
+([794a2c Resource settings pass-through](#794a2c-resource-settings-pass-through)). It assumes from the developer that
+the login a login-needing check uses is in the developer's environment and skips the check when it is not
+([862a3b1 UAT Scenarios](#862a3b1-uat-scenarios)), and it assumes the bundled model is present for the parity command
+([862a3c1 UAT Scenarios](#862a3c1-uat-scenarios)).
 
 ### 794a2a Project analysis
 
