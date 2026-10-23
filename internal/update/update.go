@@ -523,8 +523,11 @@ type Updater struct {
 	Env   Env
 	Spawn Spawner
 	// GoEnv reports the go toolchain's own settings, which include what `go env -w` stored, for the install location
-	// (792b28c1). It is a separate seam from Cmd so that the commands of the install (792b28c4, 792b28c8) stay the
-	// only commands Cmd runs. Nil leaves the install location to the process environment.
+	// (792b28c1). It is a separate seam from Cmd, so a test of the install commands (792b28c4, 792b28c8, 792b28c9)
+	// that leaves it nil sees only those in Cmd's calls. The CLI composes it on the same Commander as Cmd, so a real
+	// run, a dry run and a handed-off run included, also runs `go env GOBIN GOPATH`; whether 792b28c8a1 and
+	// 792b28c8a2 are to read that way is the owner's decision. Nil leaves the install location to the process
+	// environment.
 	GoEnv GoEnv
 	// Handoff, when non-nil, is called immediately after a successful
 	// install — BEFORE Spawn.Run — with the report as it stands at that
