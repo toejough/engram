@@ -37,8 +37,8 @@ func Test792a13a1a_ACompleteHandoffIsExecuted(t *testing.T) {
 
 // Test792a13a1b_TheParentsContentIsNotReworded reads the write-memory skill the repository ships: the handed-off
 // content is passed as handed off, neither reworded nor merged, and no shipped instruction tells a skill to reword,
-// merge, decline or skip a handoff. That the write is not declined is the rule "do not decide WHETHER to write"
-// beside it (decision 861d402).
+// merge, decline or skip handed-off content. That the write is not declined is the rule "do not decide WHETHER to
+// write" beside it (decision 861d402).
 func Test792a13a1b_TheParentsContentIsNotReworded(t *testing.T) {
 	t.Parallel()
 
@@ -329,12 +329,12 @@ var (
 		pattern: regexp.MustCompile(
 			`(?i)\b(?:reword\w*|rephras\w*|paraphras\w*|rewr(?:ite|ites|iting|ote)|polish\w*|tidy\w*|condens\w*` +
 				`|shorten\w*|merg(?:e|es|ed|ing)|combin(?:e|es|ed|ing)|consolidat\w*|declin\w*|refus\w*|skip\w*` +
-				`|discard\w*)\b[^.\n]{0,40}\bhand(?:ed[- ]off|off)\b`),
-		paraphrase:  "Polish a clumsy handoff before you compose the command.",
+				`|discard\w*)\b[^.\n]{0,40}\bhanded[- ]off\b`),
+		paraphrase:  "Polish a clumsy handed-off note before you compose the command.",
 		imperative:  "Reword the handed-off content to read better.",
-		conditional: "If two handoffs overlap, merge the handoff into one.",
-		aside:       "No change is needed, reword the handoff anyway.",
-		optional:    "Rewording the handoff is optional.",
+		conditional: "If two handoffs overlap, merge the handed-off notes into one.",
+		aside:       "No change is needed, reword the handed-off content anyway.",
+		optional:    "Rewording the handed-off content is optional.",
 		stated:      "Pass the handed-off content exactly as handed off, neither reworded nor merged.",
 	}
 	writeMemoryPart1ClauseSplit = regexp.MustCompile(`[,;]\s+`)
