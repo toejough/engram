@@ -38,12 +38,11 @@ func Test792b35c3a4_RealListenAndServe_ASlowHeaderReadIsCutOff(t *testing.T) {
 
 	g := NewWithT(t)
 
-	addr := vhsiFreeLoopbackAddr(t)
-	stopServer := vhsiStartServer(t, addr)
+	addr, server, status := vhsiServeAndPing(t)
 
-	defer stopServer()
+	defer server.stop(t)
 
-	g.Expect(vhsiPromptStatus(t, addr)).To(Equal(http.StatusOK))
+	g.Expect(status).To(Equal(http.StatusOK))
 
 	conn := vhsiDialWithRetry(t, addr)
 	if conn == nil {
@@ -98,6 +97,8 @@ const (
 	vhsiPingPattern = "/vhsi-ping"
 	// vhsiPromptTimeout bounds the control request.
 	vhsiPromptTimeout = 5 * time.Second
+	// vhsiServeAttempts bounds how often the server is started again on a new port that another process took.
+	vhsiServeAttempts = 5
 	// vhsiSlackAfterBound is how long after the bound the server may take to close the connection.
 	vhsiSlackAfterBound = 5 * time.Second
 	// vhsiStopTimeout bounds how long the server may take to stop after cancellation.
@@ -109,6 +110,36 @@ type vhsiOKHandler struct{}
 
 func (vhsiOKHandler) Serve(_ context.Context, _ cli.ServeRequest) cli.ServeResponse {
 	return cli.ServeResponse{Status: http.StatusOK}
+}
+
+// vhsiServer is a test server started on a loopback address. failed is closed when it exited without being stopped,
+// which is how a bind error shows when another process took the port between the probe and the bind.
+type vhsiServer struct {
+	cancel context.CancelFunc
+	failed chan struct{}
+	served chan error
+}
+
+// discard stops a server that never served, without checking how it ended.
+func (server vhsiServer) discard() {
+	server.cancel()
+	<-server.served
+}
+
+// stop stops the server and checks it stopped as the expected shutdown.
+func (server vhsiServer) stop(t *testing.T) {
+	t.Helper()
+
+	server.cancel()
+
+	g := NewWithT(t)
+
+	select {
+	case err := <-server.served:
+		g.Expect(errors.Is(err, http.ErrServerClosed)).To(BeTrue())
+	case <-time.After(vhsiStopTimeout):
+		g.Expect(false).To(BeTrue(), "the server did not stop after cancellation")
+	}
 }
 
 // vhsiDialWithRetry connects to addr, retrying until the server listens.
@@ -191,7 +222,8 @@ func vhsiFreeLoopbackAddr(t *testing.T) string {
 }
 
 // vhsiPromptStatus sends one complete request at once, retrying until the server listens, and returns its status.
-func vhsiPromptStatus(t *testing.T, addr string) int {
+// It returns false when the server exited without being stopped, so the address is not its.
+func vhsiPromptStatus(t *testing.T, addr string, failed <-chan struct{}) (int, bool) {
 	t.Helper()
 
 	g := NewWithT(t)
@@ -207,15 +239,27 @@ func vhsiPromptStatus(t *testing.T, addr string) int {
 	for range vhsiDialAttempts {
 		status, getErr = vhsiTryGet(ctx, "http://"+addr+vhsiPingPattern)
 		if getErr == nil {
-			break
+			return status, true
+		}
+
+		select {
+		case <-failed:
+			return 0, false
+		default:
 		}
 
 		time.Sleep(vhsiDialRetryWait)
 	}
 
+	select {
+	case <-failed:
+		return 0, false
+	default:
+	}
+
 	g.Expect(getErr).NotTo(HaveOccurred())
 
-	return status
+	return status, true
 }
 
 // vhsiReadUntilClosed reads and discards until the connection fails, and returns that error.
@@ -230,31 +274,49 @@ func vhsiReadUntilClosed(conn net.Conn) error {
 	}
 }
 
-// vhsiStartServer serves one ping route through the production primitives on addr; the returned func stops it
-// and checks it stopped as the expected shutdown.
-func vhsiStartServer(t *testing.T, addr string) func() {
+// vhsiServeAndPing starts the server on a free loopback port and sends a prompt request. On a loaded machine another
+// process can take the port between the probe and the bind, and the server then exits at once, so it is started
+// again on a new port. It returns the address, the running server and the status of the prompt request.
+func vhsiServeAndPing(t *testing.T) (string, vhsiServer, int) {
+	t.Helper()
+
+	for range vhsiServeAttempts {
+		addr := vhsiFreeLoopbackAddr(t)
+		server := vhsiStartServer(t, addr)
+
+		status, served := vhsiPromptStatus(t, addr, server.failed)
+		if served {
+			return addr, server, status
+		}
+
+		server.discard()
+	}
+
+	t.Fatalf("no server listened in %d attempts", vhsiServeAttempts)
+
+	return "", vhsiServer{}, 0
+}
+
+// vhsiStartServer serves one ping route through the production primitives on addr.
+func vhsiStartServer(t *testing.T, addr string) vhsiServer {
 	t.Helper()
 
 	ctx, cancel := context.WithCancel(t.Context())
 	mux := realNewServeMux()
 	realRegisterRoute(mux, http.MethodGet, vhsiPingPattern, vhsiOKHandler{})
 
-	served := make(chan error, 1)
+	server := vhsiServer{cancel: cancel, failed: make(chan struct{}), served: make(chan error, 1)}
 
-	go func() { served <- realListenAndServe(ctx, mux, addr) }()
-
-	return func() {
-		cancel()
-
-		g := NewWithT(t)
-
-		select {
-		case err := <-served:
-			g.Expect(errors.Is(err, http.ErrServerClosed)).To(BeTrue())
-		case <-time.After(vhsiStopTimeout):
-			g.Expect(false).To(BeTrue(), "the server did not stop after cancellation")
+	go func() {
+		err := realListenAndServe(ctx, mux, addr)
+		if ctx.Err() == nil {
+			close(server.failed)
 		}
-	}
+
+		server.served <- err
+	}()
+
+	return server
 }
 
 // vhsiTryGet issues one GET and returns its status, closing the response body.
