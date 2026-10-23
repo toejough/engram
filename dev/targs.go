@@ -72,7 +72,7 @@ const (
 	parityPackage = "./internal/embed"
 	// parityTags is the build tag that selects them.
 	parityTags = "-tags=parity"
-	// shortTestTimeout bounds the tests of one package and of the dev tree.
+	// shortTestTimeout bounds the tests of one package (test-pkg) and the untagged tests of the dev tree (test-dev).
 	shortTestTimeout  = "-timeout=2m"
 	targSourcePackage = "github.com/toejough/targ/dev"
 )
