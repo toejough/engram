@@ -73,7 +73,8 @@ before the model. Every dispatch MUST hand the subagent:
   when the report returns (fast-path `/learn` for those that clear the bar), with the closing `/learn`
   as backstop — not vault notes the subagent decides on itself). If a returned report is missing the
   line, send ONE targeted follow-up asking for it — never a second re-ask; if it's still missing
-  after that one follow-up, record `LESSONS: none` and move on rather than blocking the pipeline.
+  after that one follow-up, record `LESSONS: none` and move on rather than blocking the pipeline. A line supplied in answer to that
+  follow-up counts like an on-time line: it is recorded and judged the same.
 
 Vague handoffs are why cheap tiers "fail." Fix the handoff first.
 
@@ -244,7 +245,8 @@ then, recall does the improving.
 Absent recalled evidence, these are the *starting* tiers — hypotheses the dispatch record confirms
 or overturns, not prescriptions. The posture is **cheapest for everything**; no entry starts above
 cheap without recorded evidence (see "How to pick a tier" step 2 — including its no-exception for
-work that merely *feels* hard), and none has earned it yet.
+work that merely *feels* hard). An entry starts above cheap only when its recorded cheap-tier pass rate is below
+70% and its mid-tier pass rate is above 85%, both past the five-dispatch evidence floor.
 
 | Work character | Cold-start tier | Status |
 | --- | --- | --- |
