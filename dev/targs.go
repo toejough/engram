@@ -65,7 +65,8 @@ const (
 	goTestCommand = "test"
 	// goTestUncached makes go test run its tests again instead of reporting a cached result.
 	goTestUncached = "-count=1"
-	// integrationAllTimeout is the time limit of the whole module's tagged tests: the one of Targ's whole-module legs.
+	// integrationAllTimeout is the time limit of tagged tests that share the machine with the other legs of check-full:
+	// the whole module's, which is the one of Targ's whole-module legs, and the dev tree's, whose sweeps embed.
 	integrationAllTimeout = "-timeout=10m"
 	// parityPackage holds the real-model parity tests, which carry the parity build tag.
 	parityPackage = "./internal/embed"
@@ -385,7 +386,7 @@ func testDev(ctx context.Context) error {
 // the pure tests compile in this run too and run a second time; that duplication is deliberate and cheap.
 func testDevIntegration(ctx context.Context) error {
 	err := targ.RunContext(ctx,
-		"go", goTestCommand, goTestUncached, shortTestTimeout, "-race", "-tags=targ,integration",
+		"go", goTestCommand, goTestUncached, integrationAllTimeout, "-race", "-tags=targ,integration",
 		"./dev/...",
 	)
 	if err != nil {
