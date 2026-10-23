@@ -27,7 +27,7 @@ Requires Go 1.25+, `git` and `git-lfs` on `PATH`: `engram update` builds the bin
    go install github.com/toejough/engram/cmd/engram@latest
    ```
 
-   Make sure `$GOBIN` (or `$GOPATH/bin`, default `~/go/bin`) is on your `PATH`. This proxy-built binary is only a bootstrap: its embedded model is a git-lfs pointer (#645), and step 2 replaces it with a build from a clone.
+   Make sure `$GOBIN` (or the first `$GOPATH` entry's `bin`, default `~/go/bin`; `go env GOBIN GOPATH` shows them, `go env -w` settings included, and `engram update` installs there too) is on your `PATH`. This proxy-built binary is only a bootstrap: its embedded model is a git-lfs pointer (#645), and step 2 replaces it with a build from a clone.
 
 2. Deploy the skills to every detected harness (Claude Code, Pi):
 

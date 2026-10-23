@@ -7,7 +7,6 @@ package dev
 // gate.
 func unverifiedScenarios() []allowlistEntry {
 	return []allowlistEntry{
-		{id: "792a11a1f", reason: "#831, 861d69 (change 861, promoted): Updater.Run runs no go env"},
 		{
 			id: "792a13a1b",
 			reason: "#871, 861d402 (change 861, promoted): " +
@@ -47,7 +46,6 @@ func unverifiedScenarios() []allowlistEntry {
 		{id: "792a2e1c", reason: "#795, 861d27 (change 861, promoted): removed by change 795 (795a15)"},
 		{id: "792a2e1d", reason: "#795, 861d27 (change 861, promoted): removed by change 795 (795a16)"},
 		{id: "792a2g1a", reason: "#795, 861d27 (change 861, promoted): removed by change 795 (795a17)"},
-		{id: "792b28c1a4", reason: "#831, 861d53 (change 861, promoted): Updater.Run runs no go env"},
 		{
 			id:     "792b2c3a2",
 			reason: "#795, 861d27 (change 861, promoted): change 795 (795b12) defers the technical spec follow-up",
