@@ -297,6 +297,23 @@ func Test792a17f1a_AWorkKindClearsTheThresholds(t *testing.T) {
 	g.Expect(row).To(ContainSubstring("8/12 cheap vs 10/10 mid"))
 }
 
+// Test792a17f1b_AHighCheapPassRateStaysAtTheDefault reads the route skill the repository ships: the cold-start rule
+// names the thresholds that start a work-kind above cheap (a cheap pass rate below 70% and a mid pass rate above 85%,
+// both past the five-dispatch evidence floor), so a work-kind that passes at the cheap tier keeps the default, and no
+// clause says that none of the entries has earned a start above cheap, which the evidence-backed mid row contradicts.
+func Test792a17f1b_AHighCheapPassRateStaysAtTheDefault(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	text := shippedText(t, routePart1SkillPath)
+	rule := learnPart1Between(t, text, routePart1ColdStartHeading, "| Work character |")
+
+	g.Expect(rule).To(ContainSubstring("An entry starts above cheap only when its recorded cheap-tier pass rate is " +
+		"below 70% and its mid-tier pass rate is above 85%, both past the five-dispatch evidence floor"))
+	g.Expect(text).NotTo(ContainSubstring("none has earned it yet"))
+}
+
 // Test792a17f1c_ARecalledOutcomeOverridesAPrior reads the route skill the repository ships: the cold-start priors are
 // hypotheses that recalled evidence overwrites, and the red flag for treating the table as a prescription says
 // recalled evidence wins.
@@ -445,6 +462,7 @@ func TestRoutePart1Hits(t *testing.T) {
 
 // unexported constants.
 const (
+	routePart1ColdStartHeading     = "## Cold-start priors"
 	routePart1NegationReach        = 4
 	routePart1OrchestrationHeading = "## Orchestration work vs object-level work"
 	routePart1RedFlagsHeading      = "## Red flags — STOP and re-read"

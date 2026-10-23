@@ -109,6 +109,19 @@ func Test792a16c1a_LessonsContract_AMissingLineIsReAsked(t *testing.T) {
 		"asking for it"))
 }
 
+// Test792a16c1b_LessonsContract_TheAnswerCountsLikeAnOnTimeLine reads the route skill the repository ships: a line
+// supplied in answer to the one follow-up counts like an on-time line, recorded and judged the same.
+func Test792a16c1b_LessonsContract_TheAnswerCountsLikeAnOnTimeLine(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	contract := lessonsContractRouteContract(t)
+
+	g.Expect(contract).To(ContainSubstring("A line supplied in answer to that follow-up counts like an on-time line"))
+	g.Expect(contract).To(ContainSubstring("it is recorded and judged the same"))
+}
+
 // Test792a16c1c_LessonsContract_ThereIsNoSecondReAsk reads the route skill the repository ships: a line still
 // missing after the one follow-up is recorded as `LESSONS: none`, the pipeline moves on, and no second re-ask is
 // asked for. No shipped instruction asks again.
