@@ -15,8 +15,7 @@ import (
 // Text-level: each test below reads the write-memory skill the repository ships and asserts the sentences that state
 // the rule of its scenario. It verifies that the shipped rule is stated, not that an agent follows it. The scenarios
 // whose Then has a prohibition half also scan every shipped SKILL.md, references file and guidance document for an
-// instruction that contradicts it. The scenario 792a13b1b is not tested here: the skill does not state the clause that
-// is left over (decision 861d403).
+// instruction that contradicts it.
 
 // Test792a13a1a_ACompleteHandoffIsExecuted reads the write-memory skill the repository ships: the worker's job is to
 // compose, execute, verify and report, and the feedback command is composed from the handed-off fields. That the
@@ -90,6 +89,23 @@ func Test792a13b1a_AWriteSiteNamesTheWorker(t *testing.T) {
 		"with this handoff — kind=runbook,"))
 	g.Expect(learn).To(ContainSubstring("**invoke the **write-memory** skill** with this handoff — kind=qa,"))
 	g.Expect(strings.Count(recall, "the **write-memory** skill")).To(Equal(writeMemoryPart1RecallWriteSites))
+}
+
+// Test792a13b1b_ASessionWithoutTheSkillFollowsTheRunbookNote reads the shim and the write-memory skill the repository
+// ships: a runbook reached over a wikilink is followed through the shim's follow-frame, and the contract the note
+// carries is the skill's handoff contract, whose heading the registered note mirrors in its body. The frame's own
+// sentences are asserted by Test792a19q1a_ALinkedRunbookIsFetchedAndFollowed; only the rule's opening clause is
+// asserted here (decision 871d2).
+func Test792a13b1b_ASessionWithoutTheSkillFollowsTheRunbookNote(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	shim := shippedText(t, ag3ShimPath)
+	skill := writeMemoryPart1Text(t)
+
+	g.Expect(shim).To(ContainSubstring("6. **A wikilinked runbook (`[[basename]]`)"))
+	g.Expect(skill).To(ContainSubstring("## The handoff contract The parent provides:"))
 }
 
 // Test792a13c1a_AMissingFieldIsRequested reads the write-memory skill the repository ships: a missing required field
