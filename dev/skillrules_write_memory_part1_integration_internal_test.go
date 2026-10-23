@@ -38,7 +38,7 @@ func Test792a13a1a_ACompleteHandoffIsExecuted(t *testing.T) {
 // Test792a13a1b_TheParentsContentIsNotReworded reads the write-memory skill the repository ships: the handed-off
 // content is passed as handed off, neither reworded nor merged, and no shipped instruction tells a skill to reword,
 // merge, decline or skip handed-off content. That the write is not declined is the rule "do not decide WHETHER to
-// write" beside it (decision 861d402).
+// write" beside it, asserted here too (decision 861d402).
 func Test792a13a1b_TheParentsContentIsNotReworded(t *testing.T) {
 	t.Parallel()
 
@@ -46,7 +46,8 @@ func Test792a13a1b_TheParentsContentIsNotReworded(t *testing.T) {
 
 	text := writeMemoryPart1Text(t)
 
-	g.Expect(text).To(ContainSubstring("Pass the handed-off content exactly as handed off, neither reworded nor merged."))
+	g.Expect(text).To(ContainSubstring("do not decide WHETHER to write."))
+	g.Expect(text).To(ContainSubstring("Pass the handed-off content as handed off, neither reworded nor merged."))
 	g.Expect(writeMemoryPart1Instructions(t, writeMemoryPart1AlterScan)).To(BeEmpty())
 }
 
@@ -298,6 +299,10 @@ func TestWriteMemoryPart1Hits(t *testing.T) {
 				g.Expect(writeMemoryPart1Hits(abuse, scan)).NotTo(BeEmpty())
 			}
 
+			for _, variant := range scan.variants {
+				g.Expect(writeMemoryPart1Hits(variant, scan)).NotTo(BeEmpty())
+			}
+
 			g.Expect(writeMemoryPart1Hits("| Rule | Never improvise |\n| Next | "+scan.imperative+" |\n", scan)).NotTo(BeEmpty())
 			g.Expect(writeMemoryPart1Hits(scan.stated, scan)).To(BeEmpty())
 		})
@@ -329,13 +334,23 @@ var (
 		pattern: regexp.MustCompile(
 			`(?i)\b(?:reword\w*|rephras\w*|paraphras\w*|rewr(?:ite|ites|iting|ote)|polish\w*|tidy\w*|condens\w*` +
 				`|shorten\w*|merg(?:e|es|ed|ing)|combin(?:e|es|ed|ing)|consolidat\w*|declin\w*|refus\w*|skip\w*` +
-				`|discard\w*)\b[^.\n]{0,40}\bhanded[- ]off\b`),
+				`|discard\w*)\b[^.\n]{0,40}\bhand(?:offs?|ed[- ]off)\b`),
+		// The route skill tells its caller to rewrite the handoff of a failed dispatch, a brief and not handed-off content.
+		exempt:      regexp.MustCompile(`(?i)\brewrite\s+the\s+handoff\s*\(sharper\b`),
 		paraphrase:  "Polish a clumsy handed-off note before you compose the command.",
 		imperative:  "Reword the handed-off content to read better.",
 		conditional: "If two handoffs overlap, merge the handed-off notes into one.",
 		aside:       "No change is needed, reword the handed-off content anyway.",
 		optional:    "Rewording the handed-off content is optional.",
-		stated:      "Pass the handed-off content exactly as handed off, neither reworded nor merged.",
+		exemptAbuse: []string{
+			"Rewrite the handoff content to read better.",
+			"Rewrite the handoff (sharper files), then rewrite the handoff to read better.",
+		},
+		variants: []string{
+			"Reword the handoff to read better before you compose.",
+			"Merge two overlapping handoffs into one note.",
+		},
+		stated: "Pass the handed-off content as handed off, neither reworded nor merged.",
 	}
 	writeMemoryPart1ClauseSplit = regexp.MustCompile(`[,;]\s+`)
 	// writeMemoryPart1ConditionPattern finds a clause that opens with a condition, whose negation does not reach the
@@ -409,12 +424,19 @@ var (
 				`[^.\n]{0,50}(?:\bwithout\s+(?:the|a|any)\s+(?:required\s+)?(?:field|action|value|object)\b` +
 				`|\b(?:with|while)\s+(?:the|a|any)\s+(?:required\s+)?(?:field|action|value|object)\s+` +
 				`(?:still\s+)?(?:missing|absent|empty|unset)\b` +
-				`|\b(?:while|before)\s+(?:you\s+)?(?:wait\w*|hear\w*|the\s+parent\s+(?:answers|replies)))`),
+				`|\b(?:while|before)\s+(?:you\s+)?(?:wait\w*|hear\w*|the\s+parent\s+(?:answers|replies))` +
+				`|\b(?:and|then)\s+(?:ask|request)\w*\b[^.\n]{0,40}\b(?:afterwards?|later)\b` +
+				`|\b(?:with|using)\s+(?:an?\s+)?(?:placeholder|dummy|stand-in|made-up|guessed)\b[^.\n]{0,30}` +
+				`\b(?:field|action|value|object)\b)`),
 		paraphrase:  "Compose the command while you wait for the parent to answer.",
 		imperative:  "Run the command without the action field.",
 		conditional: "If the action is absent, run the command with the field missing.",
 		aside:       "No reply is needed, run the command without the required field anyway.",
 		optional:    "Running the command without the action is optional.",
+		variants: []string{
+			"Run the command now and ask for the missing field afterwards.",
+			"Compose and run the command with a placeholder for the missing action.",
+		},
 		stated: "If a required field is missing, ask for it from the in-session parent context " +
 			"and run no command until it is supplied.",
 	}
@@ -442,8 +464,8 @@ var (
 
 // writeMemoryPart1Scan is one absence scan: a pattern for an instruction that contradicts a rule, an optional pattern
 // for the one shipped phrase that stays allowed, a contradicting instruction as a paraphrase, as an imperative, under
-// a negated condition, after a negated aside, as an "is optional" statement and, when there is an exempt pattern, as
-// abuses of it, and the shipped wording that must pass.
+// a negated condition, after a negated aside, as an "is optional" statement, when there is an exempt pattern, as
+// abuses of it, as further natural variants and the shipped wording that must pass.
 type writeMemoryPart1Scan struct {
 	name        string
 	pattern     *regexp.Regexp
@@ -454,6 +476,7 @@ type writeMemoryPart1Scan struct {
 	aside       string
 	optional    string
 	exemptAbuse []string
+	variants    []string
 	stated      string
 }
 
