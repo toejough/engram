@@ -2,7 +2,7 @@
 
 package dev
 
-// unverifiedScenarios returns the scenarios ruled out of the conformance gate, sorted by ID. Each reason names its
+// unverifiedScenarios returns the scenarios held out of the conformance gate, sorted by ID. Each reason names its
 // decision row or issue. An entry is removed when its scenario gets a test or leaves the specs: a stale entry fails the
 // gate.
 func unverifiedScenarios() []allowlistEntry {
