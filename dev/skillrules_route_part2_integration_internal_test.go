@@ -196,6 +196,21 @@ func Test792a17k1b_AFailingDispatchIsTaggedFailWithItsEscalation(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("escalation: <none|passed at TIER>;"))
 }
 
+// Test792a17k1c_TheTagFormatIsValidated reads the route skill the repository ships: the work-kind tag value is
+// kebab-case from an open set, and tier and outcome are closed sets. The tags line itself is asserted by
+// Test792a17k1a and Test792a17k1b, and the refusal of a malformed tag before the write is the binary's
+// (Test792a3g1a_Learn_AnInvalidArgumentIsRefusedBeforeAnyWrite), so neither is asserted here (decision 871d1).
+func Test792a17k1c_TheTagFormatIsValidated(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	text := shippedText(t, routePart2SkillPath)
+
+	g.Expect(text).To(ContainSubstring("Work-kind values are kebab-case, an open set"))
+	g.Expect(text).To(ContainSubstring("tier and outcome are closed sets"))
+}
+
 // Test792a17k1d_FieldsNotFlags reads the route skill the repository ships: the evidence note is handed off as fields
 // stated as written, with no invented flag such as --kind, and no shipped instruction passes one.
 func Test792a17k1d_FieldsNotFlags(t *testing.T) {

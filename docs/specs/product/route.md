@@ -306,7 +306,7 @@ Scenario: 792a17k1b A failing dispatch is tagged fail with its escalation
 Scenario: 792a17k1c The tag format is validated
   Given a dispatch record
   When its tags are written
-  Then each is work-kind/<k>, tier/<t> or outcome/<o>, and engram learn refuses before the write a tag that is not a family or a family/value of lowercase letters, digits and hyphens
+  Then each is work-kind/<k> with a kebab-case value from an open set, tier/<t> or outcome/<o> from closed sets
 
 Scenario: 792a17k1d Fields, not flags
   Given the orchestrator hands off the evidence note
