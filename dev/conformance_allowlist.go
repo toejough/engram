@@ -7,40 +7,6 @@ package dev
 // gate.
 func unverifiedScenarios() []allowlistEntry {
 	return []allowlistEntry{
-		{
-			id: "792a13a1b",
-			reason: "#871, 861d402 (change 861, promoted): " +
-				"the skill does not say the worker keeps the parent's content unreworded",
-		},
-		{
-			id: "792a13b1b",
-			reason: "#871, 861d403 (change 861, promoted): " +
-				"no shipped instruction says a session with only the runbook note follows it",
-		},
-		{
-			id: "792a13c1a",
-			reason: "#871, 861d404 (change 861, promoted): " +
-				"the skill does not say no command runs while a field is missing",
-		},
-		{
-			id: "792a15b1a",
-			reason: "#871, 861d382 (change 861, promoted): " +
-				"the sweep report of the learn skill describes output the binary never prints",
-		},
-		{
-			id: "792a16c1b",
-			reason: "#871, 861d413 (change 861, promoted): " +
-				"the answer to the follow-up is not said to count like an on-time line",
-		},
-		{
-			id:     "792a17f1b",
-			reason: "#871, 861d393 (change 861, promoted): the thresholds of the route cold start are not stated",
-		},
-		{
-			id: "792a17k1c",
-			reason: "#871, 861d397 (change 861, promoted): " +
-				"the binary validates the evidence tag format, the skill does not state it",
-		},
 		{id: "792a19k1c", reason: "#870, 861d23 (change 861, promoted): needs a live session"},
 		{id: "792a2d1b", reason: "#796, 861d27 (change 861, promoted): removed by change 796 (796a3)"},
 		{id: "792a2e1c", reason: "#795, 861d27 (change 861, promoted): removed by change 795 (795a15)"},
