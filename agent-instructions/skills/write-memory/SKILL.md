@@ -11,7 +11,7 @@ description: >
 
 You were invoked by a parent skill that already made the judgment (what to write and why).
 Your job is the write itself: compose, execute, verify, report. Do not re-litigate the
-parent's judgment; do not decide WHETHER to write. Pass the handed-off content exactly as
+parent's judgment; do not decide WHETHER to write. Pass the handed-off content as
 handed off, neither reworded nor merged.
 
 ## The handoff contract
