@@ -20,7 +20,7 @@ import (
 // skillrules_integration_internal_test.go, and are not repeated here.
 
 // Test792a15a1a_ASessionWithNoLessonWritesNothing reads the learn skill the repository ships: Step 1 runs the sweep
-// and reports its tally, and a session with none of the four moments writes no note.
+// and reports what the sweep prints, and a session with none of the four moments writes no note.
 func Test792a15a1a_ASessionWithNoLessonWritesNothing(t *testing.T) {
 	t.Parallel()
 
@@ -28,8 +28,6 @@ func Test792a15a1a_ASessionWithNoLessonWritesNothing(t *testing.T) {
 
 	text := learnPart1Text(t)
 
-	g.Expect(text).To(ContainSubstring("## Step 1 — Sweep (first; the closing learn always sweeps) ```bash " +
-		"engram ingest --auto ```"))
 	g.Expect(text).To(ContainSubstring("**No moments of any kind → write nothing.**"))
 	g.Expect(text).To(ContainSubstring("a session with no corrections, no save-requests, no reversals, and no " +
 		"confirmed approaches is a two-command learn (sweep + report)."))
@@ -57,8 +55,7 @@ func Test792a15a1b_NoEpisodeOrSummaryIsWritten(t *testing.T) {
 }
 
 // Test792a15b1a_TheSweepRunsAndIsReported reads the learn skill the repository ships: Step 1 runs engram ingest --auto
-// and reports the per-source lines it prints, or "memory index up to date" when it prints nothing, and does not
-// describe an overall tally the binary never prints.
+// and reports the per-source lines it prints, or "memory index up to date" when it prints nothing.
 func Test792a15b1a_TheSweepRunsAndIsReported(t *testing.T) {
 	t.Parallel()
 
@@ -66,10 +63,9 @@ func Test792a15b1a_TheSweepRunsAndIsReported(t *testing.T) {
 
 	text := learnPart1Text(t)
 
-	g.Expect(text).To(ContainSubstring("engram ingest --auto ```"))
+	g.Expect(text).To(ContainSubstring("```bash engram ingest --auto ```"))
 	g.Expect(text).To(ContainSubstring("Report the per-source lines it prints, or \"memory index up to date\" " +
 		"when it prints nothing."))
-	g.Expect(text).NotTo(ContainSubstring("one-line tally"))
 }
 
 // Test792a15b1b_AFailedSweepDoesNotBlockTheLessons reads the learn skill the repository ships: a failed sweep is

@@ -6,7 +6,7 @@ After a long debugging session, the user says: "let's remember: when an LSP erro
 
 ## Expected current-skill behavior (PASS)
 
-- **Step 1 — sweep first:** `engram ingest --auto` runs before anything else. Report the one-line tally.
+- **Step 1 — sweep first:** `engram ingest --auto` runs before anything else. Report the per-source lines it prints, or "memory index up to date" when it prints nothing.
 - **Step 2 — explicit save-request detected:** the user said "let's remember" — this is an explicit save-request. Write exactly one note:
 
 ```bash
