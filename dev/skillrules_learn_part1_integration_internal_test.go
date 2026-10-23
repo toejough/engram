@@ -30,7 +30,6 @@ func Test792a15a1a_ASessionWithNoLessonWritesNothing(t *testing.T) {
 
 	g.Expect(text).To(ContainSubstring("## Step 1 — Sweep (first; the closing learn always sweeps) ```bash " +
 		"engram ingest --auto ```"))
-	g.Expect(text).To(ContainSubstring("Report the one-line tally it prints (or \"memory index up to date\")."))
 	g.Expect(text).To(ContainSubstring("**No moments of any kind → write nothing.**"))
 	g.Expect(text).To(ContainSubstring("a session with no corrections, no save-requests, no reversals, and no " +
 		"confirmed approaches is a two-command learn (sweep + report)."))
@@ -55,6 +54,22 @@ func Test792a15a1b_NoEpisodeOrSummaryIsWritten(t *testing.T) {
 		"Don't — raw chunks already hold it |"))
 	g.Expect(learnPart1Instructions(t, learnPart1EpisodePattern, nil)).To(BeEmpty())
 	g.Expect(learnPart1Instructions(t, learnPart1TranscriptPattern, nil)).To(BeEmpty())
+}
+
+// Test792a15b1a_TheSweepRunsAndIsReported reads the learn skill the repository ships: Step 1 runs engram ingest --auto
+// and reports the per-source lines it prints, or "memory index up to date" when it prints nothing, and does not
+// describe an overall tally the binary never prints.
+func Test792a15b1a_TheSweepRunsAndIsReported(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	text := learnPart1Text(t)
+
+	g.Expect(text).To(ContainSubstring("engram ingest --auto ```"))
+	g.Expect(text).To(ContainSubstring("Report the per-source lines it prints, or \"memory index up to date\" " +
+		"when it prints nothing."))
+	g.Expect(text).NotTo(ContainSubstring("one-line tally"))
 }
 
 // Test792a15b1b_AFailedSweepDoesNotBlockTheLessons reads the learn skill the repository ships: a failed sweep is
