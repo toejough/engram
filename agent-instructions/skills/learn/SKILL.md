@@ -38,8 +38,8 @@ transcripts), re-chunks and re-embeds only what changed — within one source, e
 never deleted (append-only history). Across sources, byte-identical content is deduplicated: only
 one canonical copy is indexed, and a duplicate's index is removed only once its retained twin is
 verified to cover its records (not on hash-match alone) — see `engram prune --duplicates` for the
-retroactive cleanup mode. Unchanged corpus → returns in seconds. Report the one-line tally it
-prints (or "memory index up to date").
+retroactive cleanup mode. Unchanged corpus → returns in seconds. Report the per-source lines it
+prints, or "memory index up to date" when it prints nothing.
 
 If the command fails, surface the error and continue to Step 2 — explicit lessons must not be
 lost to an ingest hiccup.
