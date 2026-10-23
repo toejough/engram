@@ -115,3 +115,63 @@ Scenario Outline: 794a2c1b Absent settings stay absent
     | check-nils-for-fail |
     | check-nils-fix      |
 ```
+
+### 861a3a A package's tests run alone
+
+Requirement: 861a3a A developer MUST be able to run the tests of one package, with an optional filter on test names, through a development command, without running the tests of the rest of the module.
+
+Rationale: A developer needs the result for the package they touched without waiting for the whole module.
+
+#### 861a3a1 UAT Scenarios
+
+```gherkin
+Scenario: 861a3a1a A developer runs the tests of one package
+  Given a module with several packages
+  When the developer runs the scoped test command on one of them
+  Then only the tests of that package run and the command reports their result
+```
+
+### 862a3a Every integration-tagged test runs in the full check
+
+Requirement: 862a3a The full development check MUST run every test tagged `integration`, wherever the test is in the module.
+
+Rationale: A test that no check runs cannot fail when the behavior breaks.
+
+#### 862a3a1 UAT Scenarios
+
+```gherkin
+Scenario: 862a3a1a Every integration-tagged test runs in the full check
+  Given a test tagged integration outside the dev tree
+  When the developer runs the full check
+  Then that test runs
+```
+
+### 862a3b A check without a login skips
+
+Requirement: 862a3b A development check that needs a login MUST be skipped, not failed, when the login does not exist, and it MUST say which login it needs.
+
+Rationale: A failure reads as a product failure; a skip says what is missing.
+
+#### 862a3b1 UAT Scenarios
+
+```gherkin
+Scenario: 862a3b1a A check without a login skips
+  Given no login exists
+  When the developer runs a check that needs a login
+  Then the check is skipped and says which login it needs
+```
+
+### 862a3c The real-model parity check has a command
+
+Requirement: 862a3c The developer MUST have a development command that runs the real-model parity tests, and the full check MUST NOT run them.
+
+Rationale: The parity tests load the bundled model and would slow every full check; without a command they run in no check.
+
+#### 862a3c1 UAT Scenarios
+
+```gherkin
+Scenario: 862a3c1a A developer runs the parity check
+  Given the bundled model
+  When the developer runs the parity command
+  Then the parity tests run and the full check does not run them
+```
