@@ -62,7 +62,7 @@ Scenario: 792a13b1a A write site names the worker
 Scenario: 792a13b1b A session without the skill follows the runbook note
   Given a session that received only the write-memory runbook note over a vault-graph edge
   When a parent reaches a write site
-  Then the note is followed through the runbook shim's follow-frame, and the same handoff contract applies
+  Then the note is followed through the wikilinked-runbook rule of the ambient guidance, and the contract is the note's body, the skill's handoff contract
 ```
 
 ### 792a13c The handoff and its missing fields
