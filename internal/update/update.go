@@ -514,7 +514,7 @@ func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
 	}
 
 	report.Home = home
-	report.BinaryPath = resolveBinaryPath(home, u.Env)
+	report.BinaryPath = resolveBinaryPath(ctx, home, u.Env, u.Cmd)
 
 	harnesses, detectErr := detectHarnesses(home, u.FS)
 	if detectErr != nil {
@@ -2624,7 +2624,7 @@ func repointSymlinkIfWrong(fileSystem Filesystem, link, target string, dryRun bo
 
 // resolveBinaryPath returns where `go install` will drop the engram binary.
 // Order matches the go toolchain: GOBIN, then the first GOPATH entry's bin, then ~/go/bin.
-func resolveBinaryPath(home string, env Env) string {
+func resolveBinaryPath(_ context.Context, home string, env Env, _ Commander) string {
 	if gobin := env.Getenv("GOBIN"); gobin != "" {
 		return filepath.Join(gobin, "engram")
 	}

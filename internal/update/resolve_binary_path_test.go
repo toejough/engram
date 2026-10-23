@@ -41,7 +41,7 @@ func Test792b28c1a1_ResolveBinaryPath(t *testing.T) {
 			t.Parallel()
 			g := NewWithT(t)
 
-			got := update.ExportResolveBinaryPath("/home/joe", tc.env)
+			got := update.ExportResolveBinaryPath(t.Context(), "/home/joe", tc.env, &fakeCmd{})
 			g.Expect(got).To(Equal(tc.want))
 		})
 	}

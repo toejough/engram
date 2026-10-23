@@ -18,7 +18,7 @@ func Test792b28c1a2_ResolveBinaryPath_GOPATHIsNext(t *testing.T) {
 
 	g := NewWithT(t)
 
-	got := update.ExportResolveBinaryPath("/home/joe", envVars{"GOPATH": "/custom/gopath"})
+	got := update.ExportResolveBinaryPath(t.Context(), "/home/joe", envVars{"GOPATH": "/custom/gopath"}, &fakeCmd{})
 	g.Expect(got).To(Equal("/custom/gopath/bin/engram"))
 }
 
@@ -29,7 +29,7 @@ func Test792b28c1a3_ResolveBinaryPath_HomeDirectoryIsTheFallback(t *testing.T) {
 
 	g := NewWithT(t)
 
-	got := update.ExportResolveBinaryPath("/home/joe", envVars{})
+	got := update.ExportResolveBinaryPath(t.Context(), "/home/joe", envVars{}, &fakeCmd{})
 	g.Expect(got).To(Equal("/home/joe/go/bin/engram"))
 }
 
@@ -40,7 +40,7 @@ func Test792b28c1a5_ResolveBinaryPath_FirstGOPATHEntryIsUsed(t *testing.T) {
 
 	g := NewWithT(t)
 
-	got := update.ExportResolveBinaryPath("/home/joe", envVars{"GOPATH": "/gp1:/gp2"})
+	got := update.ExportResolveBinaryPath(t.Context(), "/home/joe", envVars{"GOPATH": "/gp1:/gp2"}, &fakeCmd{})
 	g.Expect(got).To(Equal("/gp1/bin/engram"))
 }
 
