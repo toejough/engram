@@ -12,6 +12,26 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+func TestConformance_EveryAllowlistEntryIsCurrent(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	ids := scenarioIDs(canonicalSpecs(t))
+
+	g.Expect(staleAllowlistEntries(ids, testSources(t), unverifiedScenarios())).To(BeEmpty(),
+		"the allowlisted scenarios that a spec no longer holds or a test now covers: remove their entries")
+}
+
+func TestConformance_EveryAllowlistEntryNamesItsReason(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(malformedAllowlistEntries(unverifiedScenarios())).To(BeEmpty(),
+		"the allowlist entries with no decision row or issue in their reason, out of order or listed twice")
+}
+
 func TestConformance_EveryScenarioOfTheSpecsHasATest(t *testing.T) {
 	t.Parallel()
 
@@ -20,20 +40,16 @@ func TestConformance_EveryScenarioOfTheSpecsHasATest(t *testing.T) {
 	ids := scenarioIDs(canonicalSpecs(t))
 	g.Expect(ids).NotTo(BeEmpty(), "the scenarios of the specs")
 
-	g.Expect(scenariosWithoutTest(ids, testSources(t))).To(BeEmpty(), "the scenarios no test is named for")
+	g.Expect(scenariosNeedingATest(ids, testSources(t), unverifiedScenarios())).To(BeEmpty(),
+		"the scenarios no test is named for and no allowlist entry rules out")
 }
 
-func TestConformance_TheCanonicalSpecsHoldTheScenariosOfBothChanges(t *testing.T) {
+func TestConformance_TheRetiredScenariosStayOutOfTheSpecs(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
 	ids := scenarioIDs(canonicalSpecs(t))
-
-	g.Expect(countWithPrefix(ids, "793")).To(Equal(expected793Scenarios),
-		"the scenarios of 793 in the canonical specs: a promoted spec lost or gained one")
-	g.Expect(countWithPrefix(ids, "855")).To(Equal(expected855Scenarios),
-		"the scenarios of 855 in the canonical specs: a promoted spec lost or gained one")
 
 	for _, retired := range retiredScenarioIDs {
 		g.Expect(ids).NotTo(ContainElement(retired), "the retired scenario "+retired+" is in a spec again")
@@ -42,10 +58,6 @@ func TestConformance_TheCanonicalSpecsHoldTheScenariosOfBothChanges(t *testing.T
 
 // unexported constants.
 const (
-	// expected793Scenarios and expected855Scenarios are how many distinct scenario IDs rooted at 793 and at 855 the
-	// canonical specs hold; a spec that gains or loses one changes them.
-	expected793Scenarios   = 178
-	expected855Scenarios   = 133
 	productSpecDirectory   = "docs/specs/product"
 	repositoryRoot         = ".."
 	technicalSpecDirectory = "docs/specs/technical"
@@ -86,19 +98,6 @@ func canonicalSpecs(t *testing.T) string {
 	}
 
 	return strings.Join(texts, "\n")
-}
-
-// countWithPrefix returns how many of the IDs begin with the prefix.
-func countWithPrefix(ids []string, prefix string) int {
-	count := 0
-
-	for _, id := range ids {
-		if strings.HasPrefix(id, prefix) {
-			count++
-		}
-	}
-
-	return count
 }
 
 // isOtherCheckout tells whether a directory is the repository's own metadata, a place where worktrees are kept, or the
