@@ -131,6 +131,28 @@ func Test792a11a1e_Update_GoIsMissing(t *testing.T) {
 	g.Expect(outcome.stdout).To(BeEmpty())
 }
 
+// Test792a11a1f_Update_AGoEnvSettingDecidesTheInstallLocation verifies Scenario 792a11a1f: with GOBIN unset in the
+// environment but go env -w GOBIN=/gb run, the report names /gb/engram as the install location, the directory go
+// install uses.
+func Test792a11a1f_Update_AGoEnvSettingDecidesTheInstallLocation(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	machine := iu1LocalMachine(iu1Repo, iu1Repo)
+	machine.cmd.answers = append(machine.cmd.answers, iu1Answer{prefix: "go env", stdout: "/gb\n" + iu1Home + "/go\n"})
+
+	outcome := machine.run(t, cli.UpdateArgs{})
+	g.Expect(outcome.err).NotTo(HaveOccurred())
+
+	if outcome.err != nil {
+		return
+	}
+
+	g.Expect(iu1BinaryLine(outcome.stdout)).To(HaveSuffix("→ /gb/engram)"))
+	g.Expect(machine.spawn.names()).To(Equal([]string{"/gb/engram"}), "the binary that runs is the one installed")
+}
+
 // Test792a11a1g_Update_TheFirstGOPATHEntryIsUsed verifies Scenario 792a11a1g: with GOBIN unset and GOPATH
 // /gp1:/gp2 the report names /gp1/bin/engram as the install location.
 func Test792a11a1g_Update_TheFirstGOPATHEntryIsUsed(t *testing.T) {

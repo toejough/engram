@@ -33,6 +33,20 @@ func Test792b28c1a3_ResolveBinaryPath_HomeDirectoryIsTheFallback(t *testing.T) {
 	g.Expect(got).To(Equal("/home/joe/go/bin/engram"))
 }
 
+// Test792b28c1a4_ResolveBinaryPath_AGoEnvSettingIsHonored verifies Scenario 792b28c1a4: with GOBIN unset in the
+// environment and go env -w GOBIN=/custom/gobin run, the install location is /custom/gobin/engram.
+func Test792b28c1a4_ResolveBinaryPath_AGoEnvSettingIsHonored(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	cmd := &fakeCmd{responses: map[string][]byte{"go env GOBIN GOPATH": []byte("/custom/gobin\n/home/joe/go\n")}}
+
+	got := update.ExportResolveBinaryPath(t.Context(), "/home/joe", envVars{}, cmd)
+	g.Expect(got).To(Equal("/custom/gobin/engram"))
+	g.Expect(cmd.calls).To(ContainElement([]string{"go", "env", "GOBIN", "GOPATH"}))
+}
+
 // Test792b28c1a5_ResolveBinaryPath_FirstGOPATHEntryIsUsed verifies Scenario 792b28c1a5: with GOBIN unset and a
 // two-entry GOPATH, the install location is under the first entry only.
 func Test792b28c1a5_ResolveBinaryPath_FirstGOPATHEntryIsUsed(t *testing.T) {
