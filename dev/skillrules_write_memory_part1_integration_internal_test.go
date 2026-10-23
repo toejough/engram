@@ -15,8 +15,8 @@ import (
 // Text-level: each test below reads the write-memory skill the repository ships and asserts the sentences that state
 // the rule of its scenario. It verifies that the shipped rule is stated, not that an agent follows it. The scenarios
 // whose Then has a prohibition half also scan every shipped SKILL.md, references file and guidance document for an
-// instruction that contradicts it. The scenarios 792a13a1b, 792a13b1b and 792a13c1a are not tested here: the skill does
-// not state the clause that is left over (decisions 861d402 to 861d404).
+// instruction that contradicts it. The scenario 792a13b1b is not tested here: the skill does not state the clause that
+// is left over (decision 861d403).
 
 // Test792a13a1a_ACompleteHandoffIsExecuted reads the write-memory skill the repository ships: the worker's job is to
 // compose, execute, verify and report, and the feedback command is composed from the handed-off fields. That the
@@ -33,6 +33,21 @@ func Test792a13a1a_ACompleteHandoffIsExecuted(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("**kind** — `fact`, `feedback`, `qa`, or `runbook`"))
 	g.Expect(text).To(ContainSubstring("**content fields** — by kind, per the blocks below"))
 	g.Expect(feedback).To(ContainSubstring("engram learn feedback"))
+}
+
+// Test792a13a1b_TheParentsContentIsNotReworded reads the write-memory skill the repository ships: the handed-off
+// content is passed as handed off, neither reworded nor merged, and no shipped instruction tells a skill to reword,
+// merge, decline or skip a handoff. That the write is not declined is the rule "do not decide WHETHER to write"
+// beside it (decision 861d402).
+func Test792a13a1b_TheParentsContentIsNotReworded(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	text := writeMemoryPart1Text(t)
+
+	g.Expect(text).To(ContainSubstring("Pass the handed-off content exactly as handed off, neither reworded nor merged."))
+	g.Expect(writeMemoryPart1Instructions(t, writeMemoryPart1AlterScan)).To(BeEmpty())
 }
 
 // Test792a13a1c_NoHandoffNoFire reads the write-memory skill the repository ships: the skill requires a handoff and
@@ -76,9 +91,25 @@ func Test792a13b1a_AWriteSiteNamesTheWorker(t *testing.T) {
 	g.Expect(strings.Count(recall, "the **write-memory** skill")).To(Equal(writeMemoryPart1RecallWriteSites))
 }
 
+// Test792a13c1a_AMissingFieldIsRequested reads the write-memory skill the repository ships: a missing required field
+// is asked for from the in-session parent context and no command is run until it is supplied, and no shipped
+// instruction tells a skill to run the command with the field missing (decision 861d404).
+func Test792a13c1a_AMissingFieldIsRequested(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	text := writeMemoryPart1Text(t)
+
+	g.Expect(text).To(ContainSubstring("If a required field is missing, ask for it from the in-session parent context " +
+		"and run no command until it is supplied"))
+	g.Expect(writeMemoryPart1Instructions(t, writeMemoryPart1RunEarlyScan)).To(BeEmpty())
+}
+
 // Test792a13c1b_ContentIsNeverInvented reads the write-memory skill the repository ships: the worker does not invent
 // content on the parent's behalf, and no shipped instruction tells a skill to make up a missing field. The sentence
-// also says a missing field is asked for, which is scenario 792a13c1a (decision 861d404, held off main).
+// also says a missing field is asked for, which is scenario 792a13c1a, asserted by
+// Test792a13c1a_AMissingFieldIsRequested.
 func Test792a13c1b_ContentIsNeverInvented(t *testing.T) {
 	t.Parallel()
 
@@ -293,6 +324,19 @@ const (
 
 // unexported variables.
 var (
+	writeMemoryPart1AlterScan = writeMemoryPart1Scan{
+		name: "rewording, merging or declining the handoff",
+		pattern: regexp.MustCompile(
+			`(?i)\b(?:reword\w*|rephras\w*|paraphras\w*|rewr(?:ite|ites|iting|ote)|polish\w*|tidy\w*|condens\w*` +
+				`|shorten\w*|merg(?:e|es|ed|ing)|combin(?:e|es|ed|ing)|consolidat\w*|declin\w*|refus\w*|skip\w*` +
+				`|discard\w*)\b[^.\n]{0,40}\bhand(?:ed[- ]off|off)\b`),
+		paraphrase:  "Polish a clumsy handoff before you compose the command.",
+		imperative:  "Reword the handed-off content to read better.",
+		conditional: "If two handoffs overlap, merge the handoff into one.",
+		aside:       "No change is needed, reword the handoff anyway.",
+		optional:    "Rewording the handoff is optional.",
+		stated:      "Pass the handed-off content exactly as handed off, neither reworded nor merged.",
+	}
 	writeMemoryPart1ClauseSplit = regexp.MustCompile(`[,;]\s+`)
 	// writeMemoryPart1ConditionPattern finds a clause that opens with a condition, whose negation does not reach the
 	// instruction that follows it.
@@ -357,6 +401,22 @@ var (
 		aside:       "Never mind the length, rewrite the answer.",
 		optional:    "Rewriting the answer is fine.",
 		stated:      "--answer=\"<the answer body, copied — no re-derive>\"",
+	}
+	writeMemoryPart1RunEarlyScan = writeMemoryPart1Scan{
+		name: "running the command with a field missing",
+		pattern: regexp.MustCompile(
+			`(?i)\b(?:run\w*|execut\w*|compos\w*|send\w*|issu\w*|fir(?:e|es|ing))\b[^.\n]{0,40}\b(?:command|write)\b` +
+				`[^.\n]{0,50}(?:\bwithout\s+(?:the|a|any)\s+(?:required\s+)?(?:field|action|value|object)\b` +
+				`|\b(?:with|while)\s+(?:the|a|any)\s+(?:required\s+)?(?:field|action|value|object)\s+` +
+				`(?:still\s+)?(?:missing|absent|empty|unset)\b` +
+				`|\b(?:while|before)\s+(?:you\s+)?(?:wait\w*|hear\w*|the\s+parent\s+(?:answers|replies)))`),
+		paraphrase:  "Compose the command while you wait for the parent to answer.",
+		imperative:  "Run the command without the action field.",
+		conditional: "If the action is absent, run the command with the field missing.",
+		aside:       "No reply is needed, run the command without the required field anyway.",
+		optional:    "Running the command without the action is optional.",
+		stated: "If a required field is missing, ask for it from the in-session parent context " +
+			"and run no command until it is supplied.",
 	}
 	writeMemoryPart1TargetScan = writeMemoryPart1Scan{
 		name: "passing a target without a continuation or a sibling",
@@ -542,8 +602,9 @@ func writeMemoryPart1Negated(lead string) bool {
 // writeMemoryPart1Scans returns every absence scan of this file.
 func writeMemoryPart1Scans() []writeMemoryPart1Scan {
 	return []writeMemoryPart1Scan{
-		writeMemoryPart1EmptyFlagScan, writeMemoryPart1FireScan, writeMemoryPart1InventScan,
-		writeMemoryPart1RewriteAnswerScan, writeMemoryPart1TargetScan,
+		writeMemoryPart1AlterScan, writeMemoryPart1EmptyFlagScan, writeMemoryPart1FireScan,
+		writeMemoryPart1InventScan, writeMemoryPart1RewriteAnswerScan, writeMemoryPart1RunEarlyScan,
+		writeMemoryPart1TargetScan,
 	}
 }
 
