@@ -11,7 +11,8 @@ description: >
 
 You were invoked by a parent skill that already made the judgment (what to write and why).
 Your job is the write itself: compose, execute, verify, report. Do not re-litigate the
-parent's judgment; do not decide WHETHER to write.
+parent's judgment; do not decide WHETHER to write. Pass the handed-off content exactly as
+handed off, neither reworded nor merged.
 
 ## The handoff contract
 
@@ -34,8 +35,8 @@ The parent provides:
 - optional **triggers** — literal cues in a user's message that should surface this runbook first
   (runbook only), e.g. `/please`, "take this end-to-end"
 
-If a required field is missing, ask for it from the in-session parent context — do not invent
-content on the parent's behalf.
+If a required field is missing, ask for it from the in-session parent context and run no command
+until it is supplied — do not invent content on the parent's behalf.
 
 ## Compose
 
