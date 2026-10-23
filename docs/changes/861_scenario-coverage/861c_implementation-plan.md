@@ -134,12 +134,12 @@ flowchart LR
         N3g["861c3g Memory Loop Auditor, part 3 (pytest)<br/>Withdrawn (861d21 e)"]
         N3h["861c3h Memory Effectiveness Evaluation, part 1 (pytest)<br/>Withdrawn (861d21 e)"]
         N3i["861c3i Memory Effectiveness Evaluation, part 2 (pytest)<br/>Withdrawn (861d21 e)"]
-        N3j["861c3j Ambient Guidance (live session)<br/>Blocked by: 861d23"]
+        N3j["861c3j Ambient Guidance (live session)<br/>Deferred to #870 (861d23 b)"]
         N3k["861c3k The nine Test855d7a1 acceptance measurements are kept<br/>Complete"]
         N3l["861c3l Scenarios retired or reversed by changes 795 and 796<br/>Blocked by: 861d27"]
     end
     D21["861d21 Scenarios covered only by pytest<br/>Decided"]
-    DLIVE["861d23 Live-session verification of instruction scenarios<br/>Open"]
+    DLIVE["861d23 Live-session verification of instruction scenarios<br/>Decided"]
     DRET["861d27 Scenarios retired or reversed by in-flight changes 795 and 796<br/>Open"]
     N4a["861c4a The 858c rows and the 861 task list follow the closed gaps<br/>In progress: 4/5 entries complete"]
     N1a --> UT
@@ -3167,7 +3167,9 @@ The Memory Effectiveness Evaluation left the behavior record ([868d1 Owner decis
 
 #### 861c3j Ambient Guidance (live session)
 
-Status: Blocked by: [861d23 Live-session verification of instruction scenarios](./861d_questions-and-decisions.md#questions-and-decisions)
+Status: Deferred to [#870](https://github.com/toejough/engram/issues/870) (861d23 b)
+
+The owner chose text presence as the verification for the run; the follow-up change of #870 writes the live-session row of 792a19k1c and of the other transcript-visible scenarios under `dev/acceptance`, so this node has no step in this run.
 
 - Owner file: [Ambient Guidance](../../specs/product/ambient-guidance.md) (product capability).
 - Subject: `agent-instructions/guidance`; suggested test file: `dev/acceptance/ambient_guidance_scenarios_test.go`.
@@ -3227,7 +3229,7 @@ Status: In progress: 4/5 entries complete
 | 861c4a2 | Update the counts of [858c2a Scenarios without a test, by owner file](../858_documentation-framework-adoption/858c_implementation-plan.md#858c2a-scenarios-without-a-test-by-owner-file) and [858c2b Test functions whose ID is in no spec](../858_documentation-framework-adoption/858c_implementation-plan.md#858c2b-test-functions-whose-id-is-in-no-spec), and add a row for the count after the last node to [858c3a Shared evidence](../858_documentation-framework-adoption/858c_implementation-plan.md#858c3a-shared-evidence), leaving the dated rows as they are | Action | WORKFLOW 551-553, 606-607. Evidence: 858c2a: the counts of 10 rows, the per-file lists (306 entries dropped, 8 lists removed, 2 cut) and the totals sentence (3562 scenarios, 2988 with a test, 574 without, at 81f95201); 858c2b (34 functions) and 858c2c are unchanged; 858c3a8 (added at the closing pass) and the dated rows are untouched; 858c1zzj and 858c1zzzc have no row for their 50 and 52 scenarios with a test because they had none to count at the closing pass; the counts of the 8 audit rows that count scenarios with a test follow the catalog, their file lists keep what 5e6752b2 recorded; after change 868 the rows, lists and totals were regenerated with `gen_catalog.py` on the branch of change 868: the three withdrawn files are dropped, ambient-guidance 77 to 66, route 48 to 47, curate 21 to 11, agent-instruction-bundle 9 to 7, durable-file-store 3 to 1, ten files at 0, and the totals read 3402 scenarios, 3042 with a test, 360 without; 858c2b reads 26 functions and 858c2c gains the `integration` row | Done |
 | 861c4a3 | Update the task list of [#861](https://github.com/toejough/engram/issues/861) (`gh issue edit`) to the scenarios still without a test | Action | WORKFLOW 606-607. Evidence: body of #861 edited in refresh r2: 8 more owner-file items marked `[x]` (30 in all: vault-serving, vault-migration, chunk-indexing, controlled-vocabulary, vault-health, note-writing, note-revision, vault-counting), every other line verbatim (diff in `logs/refresh-r2/issue-861-body.md` against `issue-861-old.md`); the six partly covered files keep their items open because an item is one owner file; one comment on #861 (Progress, refresh r2) with the counts, the nodes and the rows; after change 868 the three items of the withdrawn files are marked `[x]` (withdrawn from the record, 861d21 e, change 868) and one comment on #861 says what left the record (posted while change 868 was on its branch, not yet merged) | Done |
 | 861c4a4 | Set the statuses of the nodes and rows in this plan to the verified checkpoint | Action | WORKFLOW 237-238. Evidence: 70 nodes Merged (861c1a, 861c2a to 861c2z and the 43 nodes merged since: 861c2zl to 861c2zzzb), 861c3k Complete, 861c4a In progress: 4/5 entries complete; the node statuses and the rows of the merged nodes were set by their milestones and the diagram labels already agree with them (70 Merged, 37 Ready); the 15 default nodes (11 technical, 2 product, 2 renames), the 4 integration nodes and the 18 instruction nodes are Ready and unrun, and the nine pytest nodes of 861c3 are Withdrawn (861d21 e) while 861c3j and 861c3l stay Blocked | Done |
-| 861c4a5 | File one issue for the required-behavior and provider-compatibility gaps of 49 technical files (51 before change 868 withdrew two) and point the issue cell of the 49 audit rows that cite [858d96 Required behavior is absent in all 56 technical files](../858_documentation-framework-adoption/858d_questions-and-decisions.md#questions-and-decisions) and #861 to it | Action | [861d2 Scope of the run](./861d_questions-and-decisions.md#questions-and-decisions) | Not started |
+| 861c4a5 | File one issue for the required-behavior and provider-compatibility gaps of 49 technical files (51 before change 868 withdrew two) and point the issue cell of the 49 audit rows that cite [858d96 Required behavior is absent in all 56 technical files](../858_documentation-framework-adoption/858d_questions-and-decisions.md#questions-and-decisions) and #861 to it | Action | [861d2 Scope of the run](./861d_questions-and-decisions.md#questions-and-decisions). Evidence: issue [#869](https://github.com/toejough/engram/issues/869) filed (858d96 option a, the owner / 2026-10-22), listing the 49 files; the issue cell of 49 audit rows of [858c1 Migration and verification nodes](../858_documentation-framework-adoption/858c_implementation-plan.md#858c1-migration-and-verification-nodes), one per file, changed from #861 to #869; the 30 audit rows that cite 858d96 without #861 are unchanged | Done |
 
 ## 861c5 Evidence and status
 
