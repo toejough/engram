@@ -543,6 +543,7 @@ func runUpdate(ctx context.Context, args UpdateArgs, deps updateDeps, stdout io.
 		Cmd:     deps.Cmd,
 		Env:     deps.Env,
 		Spawn:   deps.Spawn,
+		GoEnv:   update.CommanderGoEnv{Cmd: deps.Cmd},
 		Handoff: handoffReportWriter{stdout: stdout},
 	}
 

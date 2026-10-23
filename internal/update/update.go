@@ -110,6 +110,34 @@ type Commander interface {
 	Run(ctx context.Context, dir, name string, args ...string) (stdout, stderr []byte, err error)
 }
 
+// CommanderGoEnv answers GoEnv by running `go env` through its Commander.
+type CommanderGoEnv struct {
+	Cmd Commander
+}
+
+// Values runs `go env <names...>`, which prints one value per line in the order asked, and returns one value per name:
+// an empty value for a setting the toolchain leaves unset or a line it did not print.
+func (goEnv CommanderGoEnv) Values(ctx context.Context, names ...string) ([]string, error) {
+	args := append([]string{"env"}, names...)
+
+	stdout, _, runErr := goEnv.Cmd.Run(ctx, "", "go", args...)
+	if runErr != nil {
+		return nil, fmt.Errorf("go env %s: %w", strings.Join(names, " "), runErr)
+	}
+
+	values := make([]string, len(names))
+
+	for index, line := range strings.Split(string(stdout), "\n") {
+		if index >= len(values) {
+			break
+		}
+
+		values[index] = strings.TrimSpace(line)
+	}
+
+	return values, nil
+}
+
 // CopyOp describes a single source→target file copy planned for a harness.
 // SkillDir is the top-level skill subdir name (e.g. "learn") when the file
 // belongs to a skill, empty otherwise. GuidanceFile is the basename when
@@ -186,6 +214,12 @@ type Filesystem interface {
 	// symlink, so callers can distinguish symlink / real file / dir (792b29c10 Dangling-link cleanup).
 	// Same semantics as os.Lstat: errors only on real I/O failure.
 	Lstat(path string) (FileInfo, error)
+}
+
+// GoEnv reports the go toolchain's settings, as `go env` does.
+type GoEnv interface {
+	// Values returns one value per name, in the order asked; an unset setting is empty.
+	Values(ctx context.Context, names ...string) ([]string, error)
 }
 
 // HandoffReporter writes the parent's install-result report BEFORE the
@@ -488,6 +522,10 @@ type Updater struct {
 	Cmd   Commander
 	Env   Env
 	Spawn Spawner
+	// GoEnv reports the go toolchain's own settings, which include what `go env -w` stored, for the install location
+	// (792b28c1). It is a separate seam from Cmd so that the commands of the install (792b28c4, 792b28c8) stay the
+	// only commands Cmd runs. Nil leaves the install location to the process environment.
+	GoEnv GoEnv
 	// Handoff, when non-nil, is called immediately after a successful
 	// install — BEFORE Spawn.Run — with the report as it stands at that
 	// point (see HandoffReporter). Unlike Spawn (required control flow: a
@@ -514,7 +552,7 @@ func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
 	}
 
 	report.Home = home
-	report.BinaryPath = resolveBinaryPath(ctx, home, u.Env, u.Cmd)
+	report.BinaryPath = resolveBinaryPath(ctx, home, u.Env, u.GoEnv)
 
 	harnesses, detectErr := detectHarnesses(home, u.FS)
 	if detectErr != nil {
@@ -1514,6 +1552,8 @@ const (
 	engramRootSkillsSubdir = "skills"
 	// filePerm is the mode used when writing any copied file.
 	filePerm fs.FileMode = 0o644
+	// goEnvInstallVarCount is the count of settings the install location reads from `go env`: GOBIN and GOPATH.
+	goEnvInstallVarCount = 2
 	// lfsPointerPrefix is the first line of every Git-LFS pointer file.
 	lfsPointerPrefix = "version https://git-lfs"
 	// manifestFilename is the name of the manifest file inside the engram-owned
@@ -2101,6 +2141,29 @@ func firstModuleLineMatches(goModData []byte, want string) bool {
 	return false
 }
 
+// firstNonEmpty returns primary when it is not empty, else fallback.
+func firstNonEmpty(primary, fallback string) string {
+	if primary != "" {
+		return primary
+	}
+
+	return fallback
+}
+
+// goEnvInstallVars asks the go toolchain for GOBIN and GOPATH. No go env, or a failed ask, gives empty values.
+func goEnvInstallVars(ctx context.Context, goEnv GoEnv) (gobin, gopath string) {
+	if goEnv == nil {
+		return "", ""
+	}
+
+	values, askErr := goEnv.Values(ctx, "GOBIN", "GOPATH")
+	if askErr != nil || len(values) != goEnvInstallVarCount {
+		return "", ""
+	}
+
+	return values[0], values[1]
+}
+
 // guidanceImportBase returns the guidance basename imported by an exact
 // @import line (either prefix form) and whether the line is such an import.
 // The remainder after the prefix must be a single .md basename — no nested
@@ -2623,13 +2686,17 @@ func repointSymlinkIfWrong(fileSystem Filesystem, link, target string, dryRun bo
 }
 
 // resolveBinaryPath returns where `go install` will drop the engram binary.
-// Order matches the go toolchain: GOBIN, then the first GOPATH entry's bin, then ~/go/bin.
-func resolveBinaryPath(_ context.Context, home string, env Env, _ Commander) string {
-	if gobin := env.Getenv("GOBIN"); gobin != "" {
+// Order matches the go toolchain: GOBIN, then the first GOPATH entry's bin, then ~/go/bin. The values come from
+// `go env GOBIN GOPATH`, which includes what `go env -w` stored; the process environment answers for a value the
+// toolchain does not report (792b28c1).
+func resolveBinaryPath(ctx context.Context, home string, env Env, goEnv GoEnv) string {
+	goEnvGobin, goEnvGopath := goEnvInstallVars(ctx, goEnv)
+
+	if gobin := firstNonEmpty(goEnvGobin, env.Getenv("GOBIN")); gobin != "" {
 		return filepath.Join(gobin, "engram")
 	}
 
-	if gopath := env.Getenv("GOPATH"); gopath != "" {
+	if gopath := firstNonEmpty(goEnvGopath, env.Getenv("GOPATH")); gopath != "" {
 		return filepath.Join(filepath.SplitList(gopath)[0], "bin", "engram")
 	}
 

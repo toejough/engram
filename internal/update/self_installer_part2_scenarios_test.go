@@ -18,7 +18,7 @@ func Test792b28c1a2_ResolveBinaryPath_GOPATHIsNext(t *testing.T) {
 
 	g := NewWithT(t)
 
-	got := update.ExportResolveBinaryPath(t.Context(), "/home/joe", envVars{"GOPATH": "/custom/gopath"}, &fakeCmd{})
+	got := update.ExportResolveBinaryPath(t.Context(), "/home/joe", envVars{"GOPATH": "/custom/gopath"}, nil)
 	g.Expect(got).To(Equal("/custom/gopath/bin/engram"))
 }
 
@@ -29,7 +29,7 @@ func Test792b28c1a3_ResolveBinaryPath_HomeDirectoryIsTheFallback(t *testing.T) {
 
 	g := NewWithT(t)
 
-	got := update.ExportResolveBinaryPath(t.Context(), "/home/joe", envVars{}, &fakeCmd{})
+	got := update.ExportResolveBinaryPath(t.Context(), "/home/joe", envVars{}, nil)
 	g.Expect(got).To(Equal("/home/joe/go/bin/engram"))
 }
 
@@ -40,11 +40,11 @@ func Test792b28c1a4_ResolveBinaryPath_AGoEnvSettingIsHonored(t *testing.T) {
 
 	g := NewWithT(t)
 
-	cmd := &fakeCmd{responses: map[string][]byte{"go env GOBIN GOPATH": []byte("/custom/gobin\n/home/joe/go\n")}}
+	goEnv := &fakeGoEnv{settings: map[string]string{"GOBIN": "/custom/gobin", "GOPATH": "/home/joe/go"}}
 
-	got := update.ExportResolveBinaryPath(t.Context(), "/home/joe", envVars{}, cmd)
+	got := update.ExportResolveBinaryPath(t.Context(), "/home/joe", envVars{}, goEnv)
 	g.Expect(got).To(Equal("/custom/gobin/engram"))
-	g.Expect(cmd.calls).To(ContainElement([]string{"go", "env", "GOBIN", "GOPATH"}))
+	g.Expect(goEnv.asked).To(Equal([][]string{{"GOBIN", "GOPATH"}}))
 }
 
 // Test792b28c1a5_ResolveBinaryPath_FirstGOPATHEntryIsUsed verifies Scenario 792b28c1a5: with GOBIN unset and a
@@ -54,7 +54,7 @@ func Test792b28c1a5_ResolveBinaryPath_FirstGOPATHEntryIsUsed(t *testing.T) {
 
 	g := NewWithT(t)
 
-	got := update.ExportResolveBinaryPath(t.Context(), "/home/joe", envVars{"GOPATH": "/gp1:/gp2"}, &fakeCmd{})
+	got := update.ExportResolveBinaryPath(t.Context(), "/home/joe", envVars{"GOPATH": "/gp1:/gp2"}, nil)
 	g.Expect(got).To(Equal("/gp1/bin/engram"))
 }
 
