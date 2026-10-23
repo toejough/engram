@@ -54,6 +54,45 @@ Scenario: 861b2a1f --tags runs the package under the build tags
   Then go test receives -tags=<value> before the filter and the package path
 ```
 
+### 861b2b Added: The conformance gate covers every root
+
+Target: [794b4 Development Check Orchestration](../../specs/technical/development-check-orchestration.md#794b4-development-check-orchestration), after [861b2a A scoped test run](#861b2a-added-a-scoped-test-run).
+
+Requirement: 861b2b Development-check orchestration MUST fail `targ check-full` when a scenario of `docs/specs/product` or `docs/specs/technical`, of any root (an ID of three digits, a letter, then letters and digits), has no top-level test function named `Test<ID>_...` and is not on the allowlist. The allowlist MUST be a list of scenario IDs sorted by ID, each with a reason that names a decision row or an issue. The gate MUST fail on an allowlist entry whose scenario no spec holds or whose scenario has a test, and on an entry whose reason names neither a decision row nor an issue or that is out of order or listed twice. It MUST pin no scenario count, and it MUST fail when a retired scenario ID is in a spec again.
+
+Rationale: The gate pinned the scenario counts of two roots, so a new scenario of any other root, or a deleted test of one, passed. The owner chose to widen it to every root once the 792 gaps are closed or ruled ([861d401 The conformance gate covers every root, with an allowlist and no pinned count](./861d_questions-and-decisions.md#questions-and-decisions)). A scenario ruled out stays on the allowlist with its reason until it has a test; a stale entry fails so the list cannot outlive its reason.
+
+Supports [861a1 Problem statement](./861a_product-spec.md#861a1-problem-statement).
+
+#### 861b2b1 Contract Scenarios
+
+```gherkin
+Scenario: 861b2b1a A scenario of any root needs a test
+  Given scenarios of the roots 792, 793, 855 and 861, some with a test function named for the ID and some without
+  When the gate reads them with an empty allowlist
+  Then it names each scenario that has no test, whatever its root, in the order of the specs
+
+Scenario: 861b2b1b An allowlisted scenario is not named
+  Given scenarios with no test, some of them on the allowlist
+  When the gate reads them
+  Then it names only the scenarios with no test that are not on the allowlist
+
+Scenario: 861b2b1c An allowlist entry names its reason
+  Given an allowlist
+  When the gate checks its entries
+  Then it names each entry whose reason names neither a decision row nor an issue and each entry that is out of order or listed twice
+
+Scenario: 861b2b1d A stale entry is named
+  Given an allowlist and the scenarios of the specs
+  When an entry's scenario has a test or is in no spec
+  Then the gate names that entry's ID
+
+Scenario: 861b2b1e No count is pinned
+  Given specs that gain or lose scenarios, each with a test
+  When the gate reads them
+  Then it names none, whatever the number of scenarios
+```
+
 ## 861b3 Modified: Development-check orchestration component
 
 The operation replaces the component block of the canonical file completely. It is written on the block as it stands at the base of this change; [862b3c Development Check Orchestration](../862_test-suite-classification/862b_technical-spec.md#862b3c-modified-development-check-orchestration) is written on the block as this operation leaves it.
@@ -66,17 +105,20 @@ Target: [794b4 Development Check Orchestration](../../specs/technical/developmen
 ## 794b4 Development Check Orchestration
 
 - Ownership: repository-owned component (the `dev` package); it owns
-  [794b4a Preserve entry points](#794b4a-preserve-entry-points) and
-  [861b2a A scoped test run](#861b2a-a-scoped-test-run).
+  [794b4a Preserve entry points](#794b4a-preserve-entry-points),
+  [861b2a A scoped test run](#861b2a-a-scoped-test-run) and
+  [861b2b The conformance gate covers every root](#861b2b-the-conformance-gate-covers-every-root).
 - Responsibility: registers Engram's own nil check and fix targets, its aggregate targets and `watch` in place of
   [Targ](../../GLOSSARY.md#targ)'s shared development targets, under the existing names and with Targ's dependencies,
   order and dependency mode, and registers Targ's other shared targets unchanged. It also registers `test-pkg`, which
-  runs the tests of one package ([861b2a A scoped test run](#861b2a-a-scoped-test-run)). As the caller of
+  runs the tests of one package ([861b2a A scoped test run](#861b2a-a-scoped-test-run)). Its dev integration tests
+  gate the scenarios of every root ([861b2b The conformance gate covers every root](#861b2b-the-conformance-gate-covers-every-root)). As the caller of
   [794b4b Nil check run](./nil-check-run-workflow.md#794b4b-nil-check-run) it obtains the selected mode's arguments from
   the invocation policy, sends one request to the analyzer subprocess and returns its success or its failure without
   retrying.
 - Current realization (informational): `registerTargets`, the target variables and `watch` in `dev/targs.go`;
-  `testPkg` and its target variable in `dev/targs.go`; `checkNilsFix`, `checkNilsForFail`, `runNilaway` and
+  `testPkg` and its target variable in `dev/targs.go`; `scenarioIDs`, `scenariosNeedingATest` and the allowlist in
+  `dev/conformance.go` and `dev/conformance_allowlist.go`; `checkNilsFix`, `checkNilsForFail`, `runNilaway` and
   `runConfiguredNilaway` in `dev/nilaway.go`.
 - Qualification: Purpose: the existing check entry points keep their names and reach Engram's nil targets, so that the
   nil check and fix commands report only on Engram's module packages
